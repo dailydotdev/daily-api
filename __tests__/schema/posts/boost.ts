@@ -43,7 +43,14 @@ import { skadiApiClient } from '../../../src/integrations/skadi/api/clients';
 import { pickImageUrl } from '../../../src/common/post';
 import { updateFlagsStatement } from '../../../src/common';
 import { UserTransaction } from '../../../src/entity/user/UserTransaction';
-import { getBalance, transferCores } from '../../../src/common/njord';
+import { getBalance } from '../../../src/common/njord';
+import {
+  createMockNjordTransport,
+  createMockNjordErrorTransport,
+} from '../../helpers';
+import { createClient } from '@connectrpc/connect';
+import { Credits, EntityType } from '@dailydotdev/schema';
+import * as njordCommon from '../../../src/common/njord';
 
 jest.mock('../../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../../src/common/pubsub') as Record<
@@ -64,16 +71,6 @@ jest.mock('../../../src/integrations/skadi/api/clients', () => ({
     getCampaigns: jest.fn(),
     getAd: jest.fn(),
   },
-}));
-
-// Mock the getBalance function
-jest.mock('../../../src/common/njord', () => ({
-  ...(jest.requireActual('../../../src/common/njord') as Record<
-    string,
-    unknown
-  >),
-  getBalance: jest.fn(),
-  transferCores: jest.fn(),
 }));
 
 let con: DataSource;
@@ -105,12 +102,6 @@ beforeEach(async () => {
   isPlus = false;
   jest.clearAllMocks();
   await ioRedisPool.execute((client) => client.flushall());
-
-  // Mock transferCores to succeed by default - will be overridden in specific tests
-  (transferCores as jest.Mock).mockResolvedValue({
-    senderBalance: { newBalance: '10000' },
-    receiverBalance: { newBalance: '5000' },
-  });
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -2126,6 +2117,10 @@ describe('mutation cancelPostBoost', () => {
   const params = { postId: 'p1' };
 
   beforeEach(async () => {
+    const mockTransport = createMockNjordTransport();
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, mockTransport));
     isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update(
       { id: 'p1' },
@@ -2188,11 +2183,22 @@ describe('mutation cancelPostBoost', () => {
       currentBudget: '5.5', // 5.5 USD = 550 cores
     });
 
-    // Mock transferCores to return the correct balance after refund
-    (transferCores as jest.Mock).mockResolvedValue({
-      senderBalance: { newBalance: '5000' },
-      receiverBalance: { newBalance: '10550' }, // 10000 + 550 refund
+    // Set up initial balance for user '1' in the mock transport
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000, // Initial balance
+        },
+      ],
     });
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
 
     const res = await client.mutate(MUTATION, {
       variables: params,
@@ -2201,7 +2207,7 @@ describe('mutation cancelPostBoost', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
     expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
-    expect(res.data.cancelPostBoost.balance.amount).toBe(10550);
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10550); // 10000 + 550 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -2212,9 +2218,6 @@ describe('mutation cancelPostBoost', () => {
       campaignId: 'mock-id',
       userId: '1',
     });
-
-    // Verify transferCores was called
-    expect(transferCores).toHaveBeenCalled();
   });
 
   it('should handle skadi integration failure gracefully', async () => {
@@ -2260,10 +2263,15 @@ describe('mutation cancelPostBoost', () => {
       currentBudget: '5.5',
     });
 
-    // Mock transferCores to fail
-    (transferCores as jest.Mock).mockRejectedValue(
-      new Error('Transfer failed'),
-    );
+    // Use error transport to simulate transfer failure
+    const errorTransport = createMockNjordErrorTransport({
+      errorStatus: 2, // INSUFFICIENT_FUNDS
+      errorMessage: 'Transfer failed',
+    });
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, errorTransport));
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -2410,11 +2418,22 @@ describe('mutation cancelPostBoost', () => {
       currentBudget: '3.25', // 3.25 USD = 325 cores
     });
 
-    // Mock transferCores to return the correct balance after refund
-    (transferCores as jest.Mock).mockResolvedValue({
-      senderBalance: { newBalance: '5000' },
-      receiverBalance: { newBalance: '10325' }, // 10000 + 325 refund
+    // Set up initial balance for user '1' in the mock transport
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-scout',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000, // Initial balance
+        },
+      ],
     });
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
 
     const res = await client.mutate(MUTATION, {
       variables: params,
@@ -2423,7 +2442,7 @@ describe('mutation cancelPostBoost', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
     expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
-    expect(res.data.cancelPostBoost.balance.amount).toBe(10325);
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10325); // 10000 + 325 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -2434,9 +2453,6 @@ describe('mutation cancelPostBoost', () => {
       campaignId: 'mock-id',
       userId: '1',
     });
-
-    // Verify transferCores was called
-    expect(transferCores).toHaveBeenCalled();
   });
 
   it('should handle decimal USD amounts correctly', async () => {
@@ -2447,11 +2463,22 @@ describe('mutation cancelPostBoost', () => {
       currentBudget: '7.875', // 7.875 USD = 787 cores
     });
 
-    // Mock transferCores to return the correct balance after refund
-    (transferCores as jest.Mock).mockResolvedValue({
-      senderBalance: { newBalance: '5000' },
-      receiverBalance: { newBalance: '10787' }, // 10000 + 787 refund
+    // Set up initial balance for user '1' in the mock transport
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-decimal',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000, // Initial balance
+        },
+      ],
     });
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
 
     const res = await client.mutate(MUTATION, {
       variables: params,
@@ -2460,7 +2487,7 @@ describe('mutation cancelPostBoost', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
     expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
-    expect(res.data.cancelPostBoost.balance.amount).toBe(10787);
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10787); // 10000 + 787 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -2471,9 +2498,6 @@ describe('mutation cancelPostBoost', () => {
       campaignId: 'mock-id',
       userId: '1',
     });
-
-    // Verify transferCores was called
-    expect(transferCores).toHaveBeenCalled();
   });
 
   it('should handle zero USD refund amount', async () => {
@@ -2484,11 +2508,22 @@ describe('mutation cancelPostBoost', () => {
       currentBudget: '0.0', // 0 USD = 0 cores
     });
 
-    // Mock transferCores to return the correct balance after refund (no change)
-    (transferCores as jest.Mock).mockResolvedValue({
-      senderBalance: { newBalance: '5000' },
-      receiverBalance: { newBalance: '10000' }, // 10000 + 0 refund = 10000
+    // Set up initial balance for user '1' in the mock transport
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-zero',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000, // Initial balance
+        },
+      ],
     });
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
 
     const res = await client.mutate(MUTATION, {
       variables: params,
@@ -2497,7 +2532,7 @@ describe('mutation cancelPostBoost', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
     expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
-    expect(res.data.cancelPostBoost.balance.amount).toBe(10000);
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10000); // 10000 + 0 refund = 10000
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -2508,9 +2543,6 @@ describe('mutation cancelPostBoost', () => {
       campaignId: 'mock-id',
       userId: '1',
     });
-
-    // Verify transferCores was called
-    expect(transferCores).toHaveBeenCalled();
   });
 });
 
