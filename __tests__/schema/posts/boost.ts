@@ -1824,6 +1824,7 @@ describe('mutation startPostBoost', () => {
 
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
+    isTeamMember = false; // Set to false so transferCores is called
 
     // Ensure the post is not boosted initially
     await con.getRepository(Post).update(
@@ -1835,8 +1836,31 @@ describe('mutation startPostBoost', () => {
 
     // Mock skadi client to succeed but transfer to fail
     (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
-      campaign_id: 'mock-campaign-id',
+      campaignId: 'mock-campaign-id',
     });
+
+    // Use error transport to simulate transfer failure
+    const errorTransport = createMockNjordErrorTransport({
+      errorStatus: 2, // INSUFFICIENT_FUNDS
+      errorMessage: 'Transfer failed',
+    });
+
+    // Set up initial balance for user '1' in the error transport
+    const testNjordClient = createClient(Credits, errorTransport);
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-transfer-failure',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000, // Initial balance
+        },
+      ],
+    });
+
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -1851,8 +1875,7 @@ describe('mutation startPostBoost', () => {
       variables: { ...params, duration: 1, budget: 1000 },
     });
 
-    // The mutation should fail due to external service issues
-    // but the validation logic should pass
+    // The mutation should fail due to transfer issues
     expect(res.errors).toBeTruthy();
 
     // Verify no new transactions were created
@@ -2045,6 +2068,17 @@ describe('mutation startPostBoost', () => {
       ],
     });
 
+    await testNjordClient.transfer({
+      idempotencyKey: 'sent-amount',
+      transfers: [
+        {
+          sender: { id: '1', type: EntityType.USER },
+          receiver: { id: 'system', type: EntityType.SYSTEM },
+          amount: 1000, // Initial balance
+        },
+      ],
+    });
+
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => testNjordClient);
@@ -2056,7 +2090,7 @@ describe('mutation startPostBoost', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.startPostBoost.transactionId).toBeDefined();
     expect(res.data.startPostBoost.referenceId).toBe('mock-campaign-id');
-    expect(res.data.startPostBoost.balance.amount).toBe(10000);
+    expect(res.data.startPostBoost.balance.amount).toBe(9000);
 
     // Verify the boosted flag is now set
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });

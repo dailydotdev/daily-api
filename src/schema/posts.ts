@@ -2744,7 +2744,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               referenceId: campaignId,
               transactionId: userTransaction.id,
               balance: {
-                amount: parseBigInt(transfer.senderBalance!.newBalance),
+                amount: parseBigInt(transfer.senderBalance?.newBalance),
               },
             },
           };
