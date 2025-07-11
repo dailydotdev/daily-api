@@ -3181,14 +3181,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ctx.con,
         async ({ queryRunner }) => {
           return queryRunner.manager.getRepository(BriefPost).findOne({
-            select: ['id'],
-            where: { visible: false },
+            select: ['id', 'createdAt'],
+            where: { visible: false, authorId: ctx.userId },
           });
         },
       );
 
       if (pendingBrief) {
-        throw new ConflictError('There is already a briefing being generated');
+        throw new ConflictError('There is already a briefing being generated', {
+          postId: pendingBrief.id,
+          createdAt: pendingBrief.createdAt,
+        });
       }
 
       const postId = await generateShortId();
