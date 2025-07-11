@@ -2778,6 +2778,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const result = await ctx.con.transaction(async (entityManager) => {
+        const { currentBudget } = await skadiApiClient.cancelPostCampaign({
+          campaignId,
+          userId: ctx.userId,
+        });
+
         await entityManager
           .getRepository(Post)
           .update(
@@ -2785,10 +2790,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             { flags: updateFlagsStatement<Post>({ campaignId: null }) },
           );
 
-        const { currentBudget } = await skadiApiClient.cancelPostCampaign({
-          campaignId,
-          userId: ctx.userId,
-        });
         const toRefund = parseFloat(currentBudget);
 
         const userTransaction = await entityManager
