@@ -1004,7 +1004,7 @@ describe('query postCampaigns', () => {
             post {
               id
               title
-              image 
+              image
               shortId
               permalink
               engagements
