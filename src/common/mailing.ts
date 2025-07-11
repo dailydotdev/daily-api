@@ -164,6 +164,10 @@ export const syncSubscription = async function (
 export const sendEmail = async (
   data: SendEmailRequestWithTemplate,
 ): Promise<void> => {
+  if (data.transactional_message_id === '81') {
+    logger.info({ data }, 'debug brief email send, sending email');
+  }
+
   if (process.env.CIO_APP_KEY) {
     if (!('id' in data.identifiers)) {
       throw new Error('identifiers.id is required');
