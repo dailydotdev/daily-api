@@ -1124,7 +1124,6 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to boost
       """
       postId: ID!
-      """
     ): PostBoostEstimate! @auth
 
     postCampaignById(
