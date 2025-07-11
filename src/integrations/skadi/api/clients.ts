@@ -112,13 +112,9 @@ export class SkadiApiClient implements ISkadiApiClient {
   estimatePostBoostReach({
     postId,
     userId,
-    durationInDays,
-    budget,
   }: {
     postId: string;
     userId: string;
-    durationInDays: number;
-    budget: number;
   }): Promise<ObjectSnakeToCamelCase<PostEstimatedReach>> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<PostEstimatedReach>(
@@ -132,16 +128,14 @@ export class SkadiApiClient implements ISkadiApiClient {
           body: JSON.stringify({
             post_id: postId,
             user_id: userId,
-            duration: durationInDays * ONE_DAY_IN_SECONDS,
-            budget,
           }),
         },
       );
 
       return {
-        impressions: response.impressions,
-        clicks: response.clicks,
-        users: response.users,
+        impressions: response.impressions ?? 0,
+        clicks: response.clicks ?? 0,
+        users: response.users ?? 0,
       };
     });
   }

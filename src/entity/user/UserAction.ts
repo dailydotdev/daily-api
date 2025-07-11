@@ -12,6 +12,7 @@ export enum UserActionType {
   EditWelcomePost = 'edit_welcome_post',
   FetchedSmartTitle = 'fetched_smart_title',
   CheckedCoresRole = 'checked_cores_role',
+  GeneratedBrief = 'generated_brief',
 }
 
 @Entity()

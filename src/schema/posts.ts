@@ -84,6 +84,7 @@ import {
   determineSharedPostId,
   SharePost,
   BRIEFING_SOURCE,
+  UserAction,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -1123,14 +1124,6 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to boost
       """
       postId: ID!
-      """
-      Duration of the boost in days (1-30)
-      """
-      duration: Int!
-      """
-      Budget for the boost in cores (1000-100000, must be divisible by 1000)
-      """
-      budget: Int!
     ): PostBoostEstimate! @auth
 
     postCampaignById(
@@ -2137,23 +2130,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     boostEstimatedReach: async (
       _,
-      args: Omit<StartPostBoostArgs, 'userId'>,
+      args: { postId: string },
       ctx: AuthContext,
     ): Promise<PostBoostReach> => {
-      const { postId, duration, budget } = args;
-      validatePostBoostArgs(args);
+      const { postId } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
 
       const { impressions } = await skadiApiClient.estimatePostBoostReach({
         postId,
         userId: ctx.userId,
-        durationInDays: duration,
-        budget,
       });
 
       // We do plus-minus 8% of the generated value
-      const difference = impressions * 0.08;
+      const difference = Math.floor(impressions * 0.08);
       const estimatedReach = {
         min: Math.max(impressions - difference, 0),
         max: impressions + difference,
@@ -3171,24 +3161,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { type }: { type: BriefingType },
       ctx: AuthContext,
     ): Promise<{ postId: string }> => {
-      // TODO feat-brief replace with check, if user generated single brief on demand generation
-      // is no longer available
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('Not allowed for you yet');
+      // for now allow multiple on demand generations for team members
+      if (!ctx.isTeamMember) {
+        const action = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(UserAction).findOne({
+            select: ['completedAt'],
+            where: {
+              userId: ctx.userId,
+              type: UserActionType.GeneratedBrief,
+            },
+          }),
+        );
+
+        if (action?.completedAt) {
+          throw new ForbiddenError(
+            'Not allowed for you anymore, go to /briefing page to learn more',
+          );
+        }
       }
 
       const pendingBrief = await queryReadReplica(
         ctx.con,
         async ({ queryRunner }) => {
           return queryRunner.manager.getRepository(BriefPost).findOne({
-            select: ['id'],
-            where: { visible: false },
+            select: ['id', 'createdAt'],
+            where: { visible: false, authorId: ctx.userId },
           });
         },
       );
 
       if (pendingBrief) {
-        throw new ConflictError('There is already a briefing being generated');
+        throw new ConflictError('There is already a briefing being generated', {
+          postId: pendingBrief.id,
+          createdAt: pendingBrief.createdAt,
+        });
       }
 
       const postId = await generateShortId();

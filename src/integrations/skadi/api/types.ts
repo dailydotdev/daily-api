@@ -72,8 +72,6 @@ export interface ISkadiApiClient {
   estimatePostBoostReach(params: {
     postId: string;
     userId: string;
-    durationInDays: number;
-    budget: number;
   }): Promise<ObjectSnakeToCamelCase<PostEstimatedReach>>;
   getCampaignById: (
     params: GetCampaignByIdProps,
