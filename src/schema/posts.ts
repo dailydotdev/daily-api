@@ -2836,6 +2836,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               error,
               transaction: userTransaction,
             });
+          } else {
+            logger.error(
+              { campaignId, userId, postId: post.id },
+              'Error cancelling post boost',
+            );
           }
 
           throw error;
