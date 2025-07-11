@@ -54,6 +54,7 @@ import {
   parseBigInt,
   triggerTypedEvent,
   isProd,
+  isTest,
 } from '../common';
 import {
   ArticlePost,
@@ -1406,7 +1407,7 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to cancel boost for
       """
       postId: ID!
-    ): EmptyResponse @auth
+    ): TransactionCreated @auth
 
     """
     Fetch external link's title and image preview
@@ -2733,7 +2734,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               referenceId: campaignId,
               transactionId: userTransaction.id,
               balance: {
-                amount: parseBigInt(transfer.senderBalance!.newBalance),
+                amount: parseBigInt(transfer.senderBalance?.newBalance),
               },
             },
           };
@@ -2757,7 +2758,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { postId }: { postId: string },
       ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
+    ): Promise<TransactionCreated> => {
+      const { userId } = ctx;
       const post = await validatePostBoostPermissions(ctx, postId);
       const campaignId = post?.flags?.campaignId;
 
@@ -2765,7 +2767,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Post is not currently boosted');
       }
 
-      await ctx.con.transaction(async (entityManager) => {
+      const result = await ctx.con.transaction(async (entityManager) => {
+        const { currentBudget } = await skadiApiClient.cancelPostCampaign({
+          campaignId,
+          userId: ctx.userId,
+        });
+
         await entityManager
           .getRepository(Post)
           .update(
@@ -2773,13 +2780,75 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             { flags: updateFlagsStatement<Post>({ campaignId: null }) },
           );
 
-        await skadiApiClient.cancelPostCampaign({
-          campaignId,
-          userId: ctx.userId,
-        });
+        const toRefund = parseFloat(currentBudget);
+
+        const userTransaction = await entityManager
+          .getRepository(UserTransaction)
+          .save(
+            entityManager.getRepository(UserTransaction).create({
+              id: randomUUID(),
+              processor: UserTransactionProcessor.Njord,
+              receiverId: userId,
+              status: UserTransactionStatus.Success,
+              productId: null,
+              senderId: systemUser.id,
+              value: usdToCores(toRefund),
+              valueIncFees: 0,
+              fee: 0,
+              flags: { note: 'Post boost canceled' },
+              referenceId: campaignId,
+              referenceType: UserTransactionType.PostBoost,
+            }),
+          );
+
+        try {
+          // TODO: remove this once we move past testing phase
+          if ((isProd || ctx.isTeamMember) && !isTest) {
+            return {
+              transaction: {
+                referenceId: campaignId,
+                transactionId: userTransaction.id,
+                balance: { amount: (await getBalance({ userId })).amount },
+              },
+            };
+          }
+
+          const transfer = await transferCores({
+            ctx: { userId },
+            transaction: userTransaction,
+            entityManager,
+          });
+
+          return {
+            transfer,
+            transaction: {
+              referenceId: campaignId,
+              transactionId: userTransaction.id,
+              balance: {
+                amount: parseBigInt(transfer.receiverBalance?.newBalance),
+              },
+            },
+          };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              ctx,
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          } else {
+            logger.error(
+              { campaignId, userId, postId: post.id },
+              'Error cancelling post boost',
+            );
+          }
+
+          throw error;
+        }
       });
 
-      return { _: true };
+      return result.transaction;
     },
     checkLinkPreview: async (
       _,
