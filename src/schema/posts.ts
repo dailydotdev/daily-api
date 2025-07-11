@@ -2153,14 +2153,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         budget,
       });
 
-      // // We do plus-minus 8% of the generated value
-      // const difference = impressions * 0.08;
-      // const estimatedReach = {
-      //   min: Math.max(impressions - difference, 0),
-      //   max: impressions + difference,
-      // };
+      try {
+        // We do plus-minus 8% of the generated value
+        const difference = impressions * 0.08;
+        const estimatedReach = {
+          min: Math.max(impressions - difference, 0),
+          max: impressions + difference,
+        };
 
-      return { min: impressions, max: impressions };
+        return estimatedReach;
+      } catch (err) {
+        throw new ValidationError('Unable to generate reach: ' + err);
+      }
     },
     postCampaignById: async (
       _,
