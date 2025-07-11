@@ -43,7 +43,7 @@ import { skadiApiClient } from '../../../src/integrations/skadi/api/clients';
 import { pickImageUrl } from '../../../src/common/post';
 import { updateFlagsStatement } from '../../../src/common';
 import { UserTransaction } from '../../../src/entity/user/UserTransaction';
-import { getBalance } from '../../../src/common/njord';
+import { getBalance, transferCores } from '../../../src/common/njord';
 
 jest.mock('../../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../../src/common/pubsub') as Record<
@@ -73,6 +73,7 @@ jest.mock('../../../src/common/njord', () => ({
     unknown
   >),
   getBalance: jest.fn(),
+  transferCores: jest.fn(),
 }));
 
 let con: DataSource;
@@ -104,6 +105,12 @@ beforeEach(async () => {
   isPlus = false;
   jest.clearAllMocks();
   await ioRedisPool.execute((client) => client.flushall());
+
+  // Mock transferCores to succeed by default - will be overridden in specific tests
+  (transferCores as jest.Mock).mockResolvedValue({
+    senderBalance: { newBalance: '10000' },
+    receiverBalance: { newBalance: '5000' },
+  });
 
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, ArticlePost, postsFixture);
@@ -2107,7 +2114,11 @@ describe('mutation cancelPostBoost', () => {
   const MUTATION = `
     mutation CancelPostBoost($postId: ID!) {
       cancelPostBoost(postId: $postId) {
-        _
+        transactionId
+        referenceId
+        balance {
+          amount
+        }
       }
     }
   `;
@@ -2172,9 +2183,15 @@ describe('mutation cancelPostBoost', () => {
   it('should successfully cancel post boost when post is boosted', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to succeed
+    // Mock skadi client to succeed and return current budget
     (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
-      success: true,
+      currentBudget: '5.5', // 5.5 USD = 550 cores
+    });
+
+    // Mock transferCores to return the correct balance after refund
+    (transferCores as jest.Mock).mockResolvedValue({
+      senderBalance: { newBalance: '5000' },
+      receiverBalance: { newBalance: '10550' }, // 10000 + 550 refund
     });
 
     const res = await client.mutate(MUTATION, {
@@ -2182,14 +2199,100 @@ describe('mutation cancelPostBoost', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.cancelPostBoost._).toBe(true);
+    expect(res.data.cancelPostBoost.transactionId).toBeDefined();
+    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10550);
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
+      campaignId: 'mock-id',
+      userId: '1',
+    });
+
+    // Verify transferCores was called
+    expect(transferCores).toHaveBeenCalled();
   });
 
-  it('should verify boosted flag remains unchanged when validation fails', async () => {
+  it('should handle skadi integration failure gracefully', async () => {
+    loggedUser = '1';
+
+    // Mock skadi client to throw an error
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockRejectedValue(
+      new Error('Skadi service unavailable'),
+    );
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // The mutation should fail due to external service issues
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag remains true (unchanged)
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBe('mock-id');
+  });
+
+  it('should handle transfer failure gracefully', async () => {
+    loggedUser = '1';
+
+    // Mock skadi client to succeed but transfer to fail
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+      currentBudget: '5.5',
+    });
+
+    // Mock transferCores to fail
+    (transferCores as jest.Mock).mockRejectedValue(
+      new Error('Transfer failed'),
+    );
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    // The mutation should fail due to transfer issues
+    expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    // Verify the boosted flag remains true (unchanged)
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBe('mock-id');
+  });
+
+  it('should verify no transactions are created when validation fails', async () => {
     loggedUser = '1';
 
     // Ensure the post is not boosted initially
@@ -2200,6 +2303,13 @@ describe('mutation cancelPostBoost', () => {
       },
     );
 
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
+
     // Try to cancel boost on a non-boosted post
     const res = await client.mutate(MUTATION, {
       variables: params,
@@ -2208,13 +2318,28 @@ describe('mutation cancelPostBoost', () => {
     // Should fail validation
     expect(res.errors).toBeTruthy();
 
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
     // Verify the boosted flag remains false (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
   });
 
-  it('should verify boosted flag remains unchanged when post does not exist', async () => {
+  it('should verify no transactions are created when post does not exist', async () => {
     loggedUser = '1';
+
+    // Get initial transaction count
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
 
     // Try to cancel boost on a non-existent post
     const res = await client.mutate(MUTATION, {
@@ -2224,14 +2349,28 @@ describe('mutation cancelPostBoost', () => {
     // Should fail with not found error
     expect(res.errors).toBeTruthy();
 
+    // Verify no new transactions were created
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '1', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
     // Verify the original post's boosted flag is unchanged
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    // The boosted flag should be whatever it was before (false by default)
     expect(post?.flags?.campaignId).toBe('mock-id');
   });
 
-  it('should verify boosted flag remains unchanged when user is not authorized', async () => {
+  it('should verify no transactions are created when user is not authorized', async () => {
     loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    // Get initial transaction count for user 2
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '2', referenceType: 'PostBoost' },
+      });
 
     // Try to cancel boost without authorization
     const res = await client.mutate(MUTATION, {
@@ -2240,6 +2379,14 @@ describe('mutation cancelPostBoost', () => {
 
     // Should fail with not found error
     expect(res.errors).toBeTruthy();
+
+    // Verify no new transactions were created for user 2
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({
+        where: { receiverId: '2', referenceType: 'PostBoost' },
+      });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
@@ -2258,9 +2405,15 @@ describe('mutation cancelPostBoost', () => {
       },
     );
 
-    // Mock skadi client to succeed
+    // Mock skadi client to succeed and return current budget
     (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
-      success: true,
+      currentBudget: '3.25', // 3.25 USD = 325 cores
+    });
+
+    // Mock transferCores to return the correct balance after refund
+    (transferCores as jest.Mock).mockResolvedValue({
+      senderBalance: { newBalance: '5000' },
+      receiverBalance: { newBalance: '10325' }, // 10000 + 325 refund
     });
 
     const res = await client.mutate(MUTATION, {
@@ -2268,11 +2421,96 @@ describe('mutation cancelPostBoost', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.cancelPostBoost._).toBe(true);
+    expect(res.data.cancelPostBoost.transactionId).toBeDefined();
+    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10325);
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
+      campaignId: 'mock-id',
+      userId: '1',
+    });
+
+    // Verify transferCores was called
+    expect(transferCores).toHaveBeenCalled();
+  });
+
+  it('should handle decimal USD amounts correctly', async () => {
+    loggedUser = '1';
+
+    // Mock skadi client to return decimal USD amount
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+      currentBudget: '7.875', // 7.875 USD = 787 cores
+    });
+
+    // Mock transferCores to return the correct balance after refund
+    (transferCores as jest.Mock).mockResolvedValue({
+      senderBalance: { newBalance: '5000' },
+      receiverBalance: { newBalance: '10787' }, // 10000 + 787 refund
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.cancelPostBoost.transactionId).toBeDefined();
+    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10787);
+
+    // Verify the boosted flag is now false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
+      campaignId: 'mock-id',
+      userId: '1',
+    });
+
+    // Verify transferCores was called
+    expect(transferCores).toHaveBeenCalled();
+  });
+
+  it('should handle zero USD refund amount', async () => {
+    loggedUser = '1';
+
+    // Mock skadi client to return zero USD amount
+    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
+      currentBudget: '0.0', // 0 USD = 0 cores
+    });
+
+    // Mock transferCores to return the correct balance after refund (no change)
+    (transferCores as jest.Mock).mockResolvedValue({
+      senderBalance: { newBalance: '5000' },
+      receiverBalance: { newBalance: '10000' }, // 10000 + 0 refund = 10000
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.cancelPostBoost.transactionId).toBeDefined();
+    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.balance.amount).toBe(10000);
+
+    // Verify the boosted flag is now false
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
+      campaignId: 'mock-id',
+      userId: '1',
+    });
+
+    // Verify transferCores was called
+    expect(transferCores).toHaveBeenCalled();
   });
 });
 
