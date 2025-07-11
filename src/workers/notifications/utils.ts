@@ -37,6 +37,38 @@ export const uniquePostOwners = (
     (userId) => userId && !ignoreIds.includes(userId),
   ) as string[];
 
+type GetMembersParams = {
+  con: DataSource;
+  type: NotificationType;
+  referenceId: string;
+  where: ObjectLiteral;
+};
+
+export const getOptInSubscribedMembers = async ({
+  con,
+  type,
+  referenceId,
+  where,
+}: GetMembersParams) => {
+  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
+  const memberQuery = builder.select('"userId"').where(where);
+  const subscribedquery = builder
+    .subQuery()
+    .select('np."userId"')
+    .from(NotificationPreference, 'np')
+    .where(`"np"."userId" = "${memberQuery.alias}"."userId"`)
+    .andWhere({
+      notificationType: type,
+      referenceId,
+      type: notificationPreferenceMap[type],
+      status: NotificationPreferenceStatus.Subscribed,
+    });
+
+  return memberQuery
+    .andWhere(`EXISTS(${subscribedquery.getQuery()}) IS TRUE`)
+    .getRawMany<SourceMember>();
+};
+
 export const getSubscribedMembers = (
   con: DataSource,
   type: NotificationType,
