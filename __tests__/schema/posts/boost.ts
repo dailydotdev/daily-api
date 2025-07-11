@@ -2595,15 +2595,15 @@ describe('mutation cancelPostBoost', () => {
 
 describe('query boostEstimatedReach', () => {
   const QUERY = `
-    query BoostEstimatedReach($postId: ID!, $duration: Int!, $budget: Int!) {
-      boostEstimatedReach(postId: $postId, duration: $duration, budget: $budget) {
+    query BoostEstimatedReach($postId: ID!) {
+      boostEstimatedReach(postId: $postId) {
         min
         max
       }
     }
   `;
 
-  const params = { postId: 'p1', duration: 7, budget: 5000 };
+  const params = { postId: 'p1' };
 
   beforeEach(async () => {
     isTeamMember = true; // TODO: remove when we are about to run production
@@ -2616,56 +2616,6 @@ describe('query boostEstimatedReach', () => {
       { query: QUERY, variables: params },
       'UNAUTHENTICATED',
     ));
-
-  it('should return an error if duration is less than 1', async () => {
-    loggedUser = '1';
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { ...params, duration: 0 } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should return an error if duration is greater than 30', async () => {
-    loggedUser = '1';
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { ...params, duration: 31 } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should return an error if budget is less than 1000', async () => {
-    loggedUser = '1';
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { ...params, budget: 999 } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should return an error if budget is greater than 100000', async () => {
-    loggedUser = '1';
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { ...params, budget: 100001 } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should return an error if budget is not divisible by 1000', async () => {
-    loggedUser = '1';
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { ...params, budget: 1500 } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
 
   it('should return an error if post does not exist', async () => {
     loggedUser = '1';
@@ -2704,7 +2654,7 @@ describe('query boostEstimatedReach', () => {
     );
   });
 
-  it('should the response returned by skadi client', async () => {
+  it('should return the response returned by skadi client', async () => {
     loggedUser = '1';
 
     // Mock the skadi client to return impressions
@@ -2715,21 +2665,19 @@ describe('query boostEstimatedReach', () => {
     });
 
     const res = await client.query(QUERY, {
-      variables: { ...params, duration: 1, budget: 1000 },
+      variables: params,
     });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReach).toEqual({
-      max: 100,
-      min: 100,
+      max: 108, // 100 + Math.floor(100 * 0.08) = 100 + 8 = 108
+      min: 92, // 100 - Math.floor(100 * 0.08) = 100 - 8 = 92
     });
 
     // Verify the skadi client was called with correct parameters
     expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
       postId: 'p1',
       userId: '1',
-      durationInDays: 1,
-      budget: 1000,
     });
   });
 });

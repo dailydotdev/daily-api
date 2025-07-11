@@ -1125,14 +1125,6 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to boost
       """
       postId: ID!
-      """
-      Duration of the boost in days (1-30)
-      """
-      duration: Int!
-      """
-      Budget for the boost in cores (1000-100000, must be divisible by 1000)
-      """
-      budget: Int!
     ): PostBoostEstimate! @auth
 
     postCampaignById(
@@ -2139,29 +2131,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     boostEstimatedReach: async (
       _,
-      args: Omit<StartPostBoostArgs, 'userId'>,
+      args: { postId: string },
       ctx: AuthContext,
     ): Promise<PostBoostReach> => {
-      const { postId, duration, budget } = args;
-      validatePostBoostArgs(args);
+      const { postId } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
 
       const { impressions } = await skadiApiClient.estimatePostBoostReach({
         postId,
         userId: ctx.userId,
-        durationInDays: duration,
-        budget,
       });
 
-      // // We do plus-minus 8% of the generated value
-      // const difference = impressions * 0.08;
-      // const estimatedReach = {
-      //   min: Math.max(impressions - difference, 0),
-      //   max: impressions + difference,
-      // };
+      // We do plus-minus 8% of the generated value
+      const difference = Math.floor(impressions * 0.08);
+      const estimatedReach = {
+        min: Math.max(impressions - difference, 0),
+        max: impressions + difference,
+      };
 
-      return { min: impressions, max: impressions };
+      return estimatedReach;
     },
     postCampaignById: async (
       _,
