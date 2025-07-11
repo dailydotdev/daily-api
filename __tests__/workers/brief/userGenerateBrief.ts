@@ -2,7 +2,7 @@ import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
 import { userGenerateBriefWorker as worker } from '../../../src/workers/brief/userGenerateBrief';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { Source, User } from '../../../src/entity';
+import { Source, User, UserAction, UserActionType } from '../../../src/entity';
 
 import { usersFixture } from '../../fixture/user';
 import { typedWorkers } from '../../../src/workers';
@@ -134,5 +134,50 @@ describe('userGenerateBrief worker', () => {
       },
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('should set generated brief action', async () => {
+    const postId = await generateShortId();
+
+    const post = con.getRepository(BriefPost).create({
+      id: postId,
+      shortId: postId,
+      authorId: '1',
+      private: true,
+      visible: false,
+    });
+
+    await con.getRepository(BriefPost).save(post);
+
+    const actionBefore = await con.getRepository(UserAction).findOne({
+      where: {
+        userId: '1',
+        type: UserActionType.GeneratedBrief,
+      },
+    });
+
+    expect(actionBefore).toBeNull();
+
+    nock('http://api').post('/api/user/briefing').reply(200, {
+      sections: [],
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
+      postId,
+    });
+
+    const action = await con.getRepository(UserAction).findOne({
+      where: {
+        userId: '1',
+        type: UserActionType.GeneratedBrief,
+      },
+    });
+
+    expect(action).toBeTruthy();
   });
 });
