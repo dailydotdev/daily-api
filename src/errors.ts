@@ -132,8 +132,8 @@ export enum SourcePermissionErrorKeys {
 
 // Return 409 HTTP status code
 export class ConflictError extends ApolloError {
-  constructor(message: string) {
-    super(message, 'CONFLICT');
+  constructor(message: string, extensions: Record<string, unknown> = {}) {
+    super(message, 'CONFLICT', extensions);
 
     Object.defineProperty(this, 'name', { value: 'ConflictError' });
   }
