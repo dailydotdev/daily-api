@@ -2138,16 +2138,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
 
-      const { impressions } = await skadiApiClient.estimatePostBoostReach({
+      const { users } = await skadiApiClient.estimatePostBoostReach({
         postId,
         userId: ctx.userId,
       });
 
       // We do plus-minus 8% of the generated value
-      const difference = Math.floor(impressions * 0.08);
+      const difference = Math.floor(users * 0.08);
       const estimatedReach = {
-        min: Math.max(impressions - difference, 0),
-        max: impressions + difference,
+        min: Math.max(users - difference, 0),
+        max: users + difference,
       };
 
       return estimatedReach;
