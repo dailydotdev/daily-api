@@ -2657,11 +2657,11 @@ describe('query boostEstimatedReach', () => {
   it('should return the response returned by skadi client', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return impressions
+    // Mock the skadi client to return users count
     (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
-      impressions: 100,
-      clicks: 10,
-      users: 50,
+      impressions: 123,
+      clicks: 7,
+      users: 47,
     });
 
     const res = await client.query(QUERY, {
@@ -2670,9 +2670,102 @@ describe('query boostEstimatedReach', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReach).toEqual({
-      max: 108, // 100 + Math.floor(100 * 0.08) = 100 + 8 = 108
-      min: 92, // 100 - Math.floor(100 * 0.08) = 100 - 8 = 92
+      max: 50, // 47 + Math.floor(47 * 0.08) = 47 + 3 = 50
+      min: 44, // 47 - Math.floor(47 * 0.08) = 47 - 3 = 44
     });
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
+      postId: 'p1',
+      userId: '1',
+    });
+  });
+
+  it('should handle large numbers and ensure integer values', async () => {
+    loggedUser = '1';
+
+    // Mock the skadi client to return a large users count
+    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+      impressions: 1234567,
+      clicks: 54321,
+      users: 234567,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReach).toEqual({
+      max: 253332, // 234567 + Math.floor(234567 * 0.08) = 234567 + 18765 = 253332
+      min: 215802, // 234567 - Math.floor(234567 * 0.08) = 234567 - 18765 = 215802
+    });
+
+    // Verify that both min and max are integers (not floats)
+    expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
+    expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
+      postId: 'p1',
+      userId: '1',
+    });
+  });
+
+  it('should handle edge case with very small users count', async () => {
+    loggedUser = '1';
+
+    // Mock the skadi client to return a very small users count
+    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+      impressions: 89,
+      clicks: 3,
+      users: 7,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReach).toEqual({
+      max: 7, // 7 + Math.floor(7 * 0.08) = 7 + 0 = 7
+      min: 7, // 7 - Math.floor(7 * 0.08) = 7 - 0 = 7
+    });
+
+    // Verify that both min and max are integers (not floats)
+    expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
+    expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
+
+    // Verify the skadi client was called with correct parameters
+    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
+      postId: 'p1',
+      userId: '1',
+    });
+  });
+
+  it('should handle zero users count', async () => {
+    loggedUser = '1';
+
+    // Mock the skadi client to return zero users count
+    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+      impressions: 0,
+      clicks: 0,
+      users: 0,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReach).toEqual({
+      max: 0, // 0 + Math.floor(0 * 0.08) = 0 + 0 = 0
+      min: 0, // Math.max(0 - Math.floor(0 * 0.08), 0) = Math.max(0 - 0, 0) = 0
+    });
+
+    // Verify that both min and max are integers (not floats)
+    expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
+    expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
 
     // Verify the skadi client was called with correct parameters
     expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
