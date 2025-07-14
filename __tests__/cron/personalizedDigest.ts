@@ -513,6 +513,36 @@ describe('personalizedDigest cron', () => {
     expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
   });
 
+  it('should schedule generation for brief if lastSendDate is null', async () => {
+    const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
+      new Date('2024-09-11T10:32:42.680Z'),
+      9,
+    );
+
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay: fakePreferredDay,
+        preferredHour: fakePreferredHour,
+        type: UserPersonalizedDigestType.Brief,
+        flags: {
+          sendType,
+        },
+        lastSendDate: null as unknown as Date,
+      })),
+    );
+
+    jest.spyOn(briefFeedClient, 'getBriefLastUpdate').mockResolvedValue({
+      updatedAt: new Date('2024-09-11T06:00:42.680Z'),
+    });
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
   it('should schedule generation for other digest if brief feed is not updated', async () => {
     const { fakePreferredDay, fakePreferredHour } = fakeSendDate(
       new Date('2024-09-11T10:32:42.680Z'),
