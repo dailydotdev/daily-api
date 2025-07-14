@@ -95,4 +95,26 @@ export class FeedClient implements IFeedClient, IGarmrClient {
 
     return Briefing.fromJson(result);
   }
+
+  async getBriefLastUpdate(): Promise<{ updatedAt: Date }> {
+    const result = await this.garmr.execute(() => {
+      return fetchParse<{ last_update_time: string }>(
+        `${this.url}/api/briefing/last-update-time`,
+        {
+          ...this.fetchOptions,
+          method: 'GET',
+        },
+      );
+    });
+
+    const updatedAt = new Date(result.last_update_time);
+
+    if (Number.isNaN(updatedAt.getTime())) {
+      throw new Error('Invalid last update time');
+    }
+
+    return {
+      updatedAt,
+    };
+  }
 }

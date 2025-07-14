@@ -6,6 +6,7 @@ import {
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestSendType,
+  UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import {
@@ -17,6 +18,7 @@ import { logger } from '../../src/logger';
 import { getTimezoneOffset } from 'date-fns-tz';
 import { crons } from '../../src/cron/index';
 import { setDay, setHours, startOfHour } from 'date-fns';
+import { briefFeedClient } from '../../src/common/brief';
 
 let con: DataSource;
 
@@ -488,5 +490,100 @@ describe('dailyDigest cron', () => {
         expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
       });
     });
+  });
+
+  it('should not schedule generation for brief if brief feed is not updated', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        type: UserPersonalizedDigestType.Brief,
+        flags: {
+          sendType,
+        },
+        lastSendDate: new Date('2024-09-10T10:32:42.680Z'),
+      })),
+    );
+
+    jest.spyOn(briefFeedClient, 'getBriefLastUpdate').mockResolvedValue({
+      updatedAt: new Date('2024-09-10T06:00:42.680Z'),
+    });
+
+    const errorSpy = jest.spyOn(logger, 'error');
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+
+    expect(errorSpy).toHaveBeenCalledWith(
+      {
+        briefingUptime: { updatedAt: new Date('2024-09-10T06:00:42.680Z') },
+        personalizedDigest: expect.objectContaining({
+          userId: expect.any(String),
+          preferredDay,
+          preferredHour: fakePreferredHour,
+          type: UserPersonalizedDigestType.Brief,
+          flags: { sendType },
+          lastSendDate: new Date('2024-09-10T10:32:42.680Z'),
+        }),
+        emailSendTimestamp: expect.any(Number),
+        previousSendTimestamp: expect.any(Number),
+        emailBatchId: expect.any(String),
+      },
+      'Brief generation skipped, outdated',
+    );
+  });
+
+  it('should schedule generation for brief if brief feed is updated', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        type: UserPersonalizedDigestType.Brief,
+        flags: {
+          sendType,
+        },
+        lastSendDate: new Date('2024-09-10T10:32:42.680Z'),
+      })),
+    );
+
+    jest.spyOn(briefFeedClient, 'getBriefLastUpdate').mockResolvedValue({
+      updatedAt: new Date('2024-09-11T06:00:42.680Z'),
+    });
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
+  it('should schedule generation for other digest if brief feed is not updated', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        type: UserPersonalizedDigestType.Digest,
+        flags: {
+          sendType,
+        },
+        lastSendDate: new Date('2024-09-10T10:32:42.680Z'),
+      })),
+    );
+
+    jest.spyOn(briefFeedClient, 'getBriefLastUpdate').mockResolvedValue({
+      updatedAt: new Date('2024-09-10T06:00:42.680Z'),
+    });
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
   });
 });

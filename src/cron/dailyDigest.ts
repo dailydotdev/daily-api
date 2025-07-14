@@ -16,6 +16,7 @@ import {
 } from '../entity';
 import { Cron } from './cron';
 import { addHours, startOfHour, subDays } from 'date-fns';
+import { briefFeedClient } from '../common/brief';
 
 const sendTypes = [
   UserPersonalizedDigestSendType.workdays,
@@ -53,6 +54,8 @@ const cron: Cron = {
     // Make sure digest is sent at the beginning of the hour
     const timestamp = startOfHour(new Date());
 
+    const briefingUptime = await briefFeedClient.getBriefLastUpdate();
+
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
       logger,
@@ -73,6 +76,24 @@ const cron: Cron = {
         const previousSendTimestamp = subDays(timestamp, 1).getTime();
 
         const sendDateInTimezone = utcToZonedTime(emailSendTimestamp, timezone);
+
+        if (
+          personalizedDigest.type === UserPersonalizedDigestType.Brief &&
+          briefingUptime.updatedAt < personalizedDigest.lastSendDate
+        ) {
+          logger.error(
+            {
+              briefingUptime,
+              personalizedDigest,
+              emailSendTimestamp,
+              previousSendTimestamp,
+              emailBatchId,
+            },
+            'Brief generation skipped, outdated',
+          );
+
+          return;
+        }
 
         if (
           personalizedDigest.flags.sendType ===
