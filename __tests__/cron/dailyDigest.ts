@@ -537,6 +537,35 @@ describe('dailyDigest cron', () => {
     );
   });
 
+  it('should not schedule generation for brief if brief feed date is not known', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        type: UserPersonalizedDigestType.Brief,
+        flags: {
+          sendType,
+        },
+        lastSendDate: new Date('2024-09-10T10:32:42.680Z'),
+      })),
+    );
+
+    jest
+      .spyOn(briefFeedClient, 'getBriefLastUpdate')
+      .mockRejectedValue(new Error('Test'));
+
+    const errorSpy = jest.spyOn(logger, 'error');
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(0);
+
+    expect(errorSpy).toHaveBeenCalledTimes(4);
+  });
+
   it('should schedule generation for brief if brief feed is updated', async () => {
     const usersToSchedule = usersFixture;
 
@@ -581,6 +610,31 @@ describe('dailyDigest cron', () => {
     jest.spyOn(briefFeedClient, 'getBriefLastUpdate').mockResolvedValue({
       updatedAt: new Date('2024-09-10T06:00:42.680Z'),
     });
+
+    await expectSuccessfulCron(cron);
+
+    expect(notifyGeneratePersonalizedDigest).toHaveBeenCalledTimes(4);
+  });
+
+  it('should schedule generation for other digest if brief feed date is not known', async () => {
+    const usersToSchedule = usersFixture;
+
+    await con.getRepository(UserPersonalizedDigest).save(
+      usersToSchedule.map((item) => ({
+        userId: item.id,
+        preferredDay,
+        preferredHour: fakePreferredHour,
+        type: UserPersonalizedDigestType.Digest,
+        flags: {
+          sendType,
+        },
+        lastSendDate: new Date('2024-09-10T10:32:42.680Z'),
+      })),
+    );
+
+    jest
+      .spyOn(briefFeedClient, 'getBriefLastUpdate')
+      .mockRejectedValue(new Error('Test'));
 
     await expectSuccessfulCron(cron);
 

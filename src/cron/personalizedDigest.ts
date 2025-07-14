@@ -62,7 +62,13 @@ const cron: Cron = {
     // Make sure digest is sent at the beginning of the hour
     const timestamp = startOfHour(new Date());
 
-    const briefingUptime = await briefFeedClient.getBriefLastUpdate();
+    const briefingUptime = await briefFeedClient
+      .getBriefLastUpdate()
+      .catch(() => {
+        return {
+          updatedAt: new Date(0),
+        };
+      });
 
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
