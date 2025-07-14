@@ -2063,17 +2063,6 @@ describe('mutation startPostBoost', () => {
       ],
     });
 
-    await testNjordClient.transfer({
-      idempotencyKey: 'sent-amount',
-      transfers: [
-        {
-          sender: { id: '1', type: EntityType.USER },
-          receiver: { id: 'system', type: EntityType.SYSTEM },
-          amount: 1000, // Initial balance
-        },
-      ],
-    });
-
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => testNjordClient);
