@@ -46,6 +46,8 @@ export type GQLUserTransaction = Pick<
   | 'value'
   | 'createdAt'
   | 'valueIncFees'
+  | 'referenceType'
+  | 'referenceId'
 > & {
   flags: UserTransactionFlagsPublic;
   balance: GetBalanceResult;
