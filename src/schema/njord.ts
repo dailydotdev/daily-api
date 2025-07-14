@@ -137,6 +137,8 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
     valueIncFees: Int!
     sourceName: String
+    referenceType: String
+    referenceId: String
   }
 
   type UserTransactionSummary {
