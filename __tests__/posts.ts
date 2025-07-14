@@ -15,6 +15,7 @@ import {
   ArticlePost,
   Bookmark,
   BookmarkList,
+  BRIEFING_SOURCE,
   clearPostTranslations,
   Comment,
   Feed,
@@ -103,6 +104,7 @@ import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { addDays } from 'date-fns';
+import { BriefPost } from '../src/entity/posts/BriefPost';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -1239,6 +1241,30 @@ describe('query post', () => {
       {
         query: QUERY('p1'),
       },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw not found when brief post is from other user', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, BriefPost, [
+      {
+        id: 'pbriefanotherauthor',
+        shortId: 'pbfaa',
+        title: 'pbriefanotherauthor',
+        score: 0,
+        sourceId: BRIEFING_SOURCE,
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        private: true,
+        visible: true,
+        authorId: '2',
+      },
+    ]);
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('pbriefanotherauthor') },
       'FORBIDDEN',
     );
   });
