@@ -5,6 +5,7 @@ import {
   PostFlags,
   PostMention,
   PostType,
+  SourceMember,
   SourceType,
   User,
   UserAction,
@@ -21,10 +22,10 @@ import {
 } from '../../notifications/common';
 import { NotificationHandlerReturn, NotificationWorker } from './worker';
 import { ChangeObject } from '../../types';
-import { buildPostContext, getSubscribedMembers } from './utils';
-import { In, Not } from 'typeorm';
+import { buildPostContext, getOptInSubscribedMembers } from './utils';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
+import { In, Not } from 'typeorm';
 
 interface Data {
   post: ChangeObject<Post>;
@@ -70,30 +71,37 @@ const worker: NotificationWorker = {
         }
       }
       if (source.type === SourceType.Squad && post.authorId) {
-        // squad_post_added notification
-        const doneBy = await con
-          .getRepository(User)
-          .findOneBy({ id: post.authorId });
-        // Get mentioned users and exclude them
-        const mentions = await con.getRepository(PostMention).find({
-          select: { mentionedUserId: true },
-          where: { postId: post.id },
-        });
-        const members = await getSubscribedMembers(
+        const [doneBy, mentions, blockedMembers] = await Promise.all([
+          con.getRepository(User).findOneBy({ id: post.authorId }),
+          con.getRepository(PostMention).find({
+            select: { mentionedUserId: true },
+            where: { postId: post.id },
+          }),
+          con.getRepository(SourceMember).find({
+            select: { userId: true },
+            where: {
+              sourceId: source.id,
+              role: SourceMemberRoles.Blocked,
+            },
+          }),
+        ]);
+
+        const members = await getOptInSubscribedMembers({
           con,
-          NotificationType.SquadPostAdded,
-          source.id,
-          {
+          type: NotificationType.SquadPostAdded,
+          referenceId: source.id,
+          where: {
             sourceId: source.id,
             userId: Not(
               In([
                 post.authorId,
                 ...mentions.flatMap(({ mentionedUserId }) => mentionedUserId),
+                ...blockedMembers.flatMap(({ userId }) => userId),
               ]),
             ),
-            role: Not(SourceMemberRoles.Blocked),
           },
-        );
+        });
+
         if (members.length) {
           notifs.push({
             type: NotificationType.SquadPostAdded,
