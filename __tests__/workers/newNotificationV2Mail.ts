@@ -1970,13 +1970,26 @@ describe('source_post_submitted notification', () => {
 
 describe('briefing_ready notification', () => {
   beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((user) => {
+        return {
+          ...user,
+          id: `u-bnp-${user.id}`,
+          username: `u-bnp-${user.username}`,
+          github: undefined,
+        };
+      }),
+    );
+
     await con.getRepository(BriefPost).save({
       id: 'bnp-1',
       shortId: 'bnp-1',
       sourceId: BRIEFING_SOURCE,
       visible: true,
       private: true,
-      authorId: '1',
+      authorId: 'u-bnp-1',
       title: 'Presidential briefing',
       content: `## Must know
 
@@ -2020,7 +2033,7 @@ describe('briefing_ready notification', () => {
     });
 
     await con.getRepository(UserPersonalizedDigest).save({
-      userId: '1',
+      userId: 'u-bnp-1',
       type: UserPersonalizedDigestType.Brief,
       flags: {
         sendType: UserPersonalizedDigestSendType.daily,
@@ -2034,7 +2047,7 @@ describe('briefing_ready notification', () => {
 
     const ctx: NotificationPostContext = {
       ...postContext!,
-      userIds: ['1'],
+      userIds: ['u-bnp-1'],
     };
 
     const notificationId = await saveNotificationV2Fixture(
@@ -2045,7 +2058,7 @@ describe('briefing_ready notification', () => {
     await expectSuccessfulBackground(worker, {
       notification: {
         id: notificationId,
-        userId: '1',
+        userId: 'u-bnp-1',
       },
     });
 
@@ -2092,7 +2105,7 @@ describe('briefing_ready notification', () => {
   it('should not send email if digest flag is not true', async () => {
     await con.getRepository(UserPersonalizedDigest).update(
       {
-        userId: '1',
+        userId: 'u-bnp-1',
         type: UserPersonalizedDigestType.Brief,
       },
       {
@@ -2106,7 +2119,7 @@ describe('briefing_ready notification', () => {
 
     const ctx: NotificationPostContext = {
       ...postContext!,
-      userIds: ['1'],
+      userIds: ['u-bnp-1'],
     };
 
     const notificationId = await saveNotificationV2Fixture(
@@ -2117,7 +2130,7 @@ describe('briefing_ready notification', () => {
     await expectSuccessfulBackground(worker, {
       notification: {
         id: notificationId,
-        userId: '1',
+        userId: 'u-bnp-1',
       },
     });
 
@@ -2138,7 +2151,7 @@ describe('briefing_ready notification', () => {
 
     const ctx: NotificationPostContext = {
       ...postContext!,
-      userIds: ['1'],
+      userIds: ['u-bnp-1'],
     };
 
     const notificationId = await saveNotificationV2Fixture(
@@ -2149,10 +2162,42 @@ describe('briefing_ready notification', () => {
     await expectSuccessfulBackground(worker, {
       notification: {
         id: notificationId,
-        userId: '1',
+        userId: 'u-bnp-1',
       },
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should send email if notificationEmail is false', async () => {
+    await con.getRepository(User).update(
+      {
+        id: 'u-bnp-1',
+      },
+      {
+        notificationEmail: false,
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['u-bnp-1'],
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: 'u-bnp-1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 });
