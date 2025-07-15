@@ -217,8 +217,7 @@ describe('query postCampaignById', () => {
           campaignId
           postId
           status
-          budget
-          currentBudget
+          spend
           impressions
           clicks
         }
@@ -268,8 +267,7 @@ describe('query postCampaignById', () => {
       campaignId: 'mock-campaign-id',
       postId: 'p1',
       status: 'active',
-      budget: '1000',
-      currentBudget: '500',
+      spend: '1000',
       startedAt: new Date().getTime(),
       endedAt: new Date('2024-12-31').getTime(), // Future date
       impressions: 50,
@@ -281,10 +279,9 @@ describe('query postCampaignById', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaignById).toEqual({
       campaign: {
-        budget: 100000,
+        spend: 100000,
         campaignId: 'mock-campaign-id',
         clicks: 10,
-        currentBudget: 50000,
         impressions: 50,
         postId: 'p1',
         status: 'active',
@@ -343,8 +340,7 @@ describe('query postCampaignById', () => {
           campaignId: 'share-campaign-id',
           postId: 'share-post-1',
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
@@ -402,8 +398,7 @@ describe('query postCampaignById', () => {
           campaignId: 'share-campaign-id-2',
           postId: 'share-post-2',
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
@@ -461,8 +456,7 @@ describe('query postCampaignById', () => {
           campaignId: 'share-campaign-id-3',
           postId: 'share-post-3',
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
@@ -508,8 +502,7 @@ describe('query postCampaignById', () => {
           campaignId: 'freeform-campaign-id',
           postId: freeformPost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
@@ -554,8 +547,7 @@ describe('query postCampaignById', () => {
           campaignId: 'freeform-campaign-id-2',
           postId: freeformPost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
@@ -610,8 +602,7 @@ describe('query postCampaignById', () => {
           campaignId: 'article-campaign-id',
           postId: articlePost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: new Date('2024-12-31').getTime(), // Future date
           impressions: 50,
@@ -656,8 +647,7 @@ describe('query postCampaignById', () => {
           campaignId: 'article-campaign-id-2',
           postId: articlePost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: null,
           impressions: 50,
@@ -712,8 +702,7 @@ describe('query postCampaignById', () => {
           campaignId: 'welcome-campaign-id',
           postId: welcomePost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: null,
           impressions: 50,
@@ -759,8 +748,7 @@ describe('query postCampaignById', () => {
           campaignId: 'collection-campaign-id',
           postId: collectionPost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: null,
           impressions: 50,
@@ -807,8 +795,7 @@ describe('query postCampaignById', () => {
           campaignId: 'youtube-campaign-id',
           postId: youtubePost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: null,
           impressions: 50,
@@ -869,8 +856,7 @@ describe('query postCampaignById', () => {
           campaignId: 'share-campaign-no-image',
           postId: sharePost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: null,
           impressions: 50,
@@ -923,8 +909,7 @@ describe('query postCampaignById', () => {
           campaignId: 'null-title-campaign',
           postId: nullTitlePost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: null,
           impressions: 50,
@@ -968,8 +953,7 @@ describe('query postCampaignById', () => {
           campaignId: 'undefined-title-campaign',
           postId: undefinedTitlePost.id,
           status: 'active',
-          budget: '1000',
-          currentBudget: '500',
+          spend: '1000',
           startedAt: new Date().getTime(),
           endedAt: null,
           impressions: 50,
@@ -1019,8 +1003,7 @@ describe('query postCampaigns', () => {
               campaignId
               postId
               status
-              budget
-              currentBudget
+              spend
               impressions
               clicks
             }
@@ -1122,8 +1105,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-1',
           postId: 'post-1',
           status: 'active',
-          budget: '10.5', // 10.5 USD = 1050 cores
-          currentBudget: '5.25', // 5.25 USD = 525 cores
+          spend: '10.5', // 10.5 USD = 1050 cores
           startedAt: new Date('2024-01-01').getTime(),
           endedAt: null,
           impressions: 1000,
@@ -1133,8 +1115,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-2',
           postId: 'post-2',
           status: 'active',
-          budget: '20.0', // 20 USD = 2000 cores
-          currentBudget: '10.0', // 10 USD = 1000 cores
+          spend: '20.0', // 20 USD = 2000 cores
           startedAt: new Date('2024-01-02').getTime(),
           endedAt: null,
           impressions: 2000,
@@ -1169,10 +1150,9 @@ describe('query postCampaigns', () => {
           engagements: 1225, // 100 views + 50 upvotes + 25 comments + 1000 impressions + 50 clicks
         },
         campaign: {
-          budget: 1050, // Converted from USD to cores
+          spend: 1050, // Converted from USD to cores
           campaignId: 'campaign-1',
           clicks: 50,
-          currentBudget: 525, // Converted from USD to cores
           impressions: 1000,
           postId: 'post-1',
           status: 'active',
@@ -1191,10 +1171,9 @@ describe('query postCampaigns', () => {
           engagements: 2405, // 200 views + 75 upvotes + 30 comments + 2000 impressions + 100 clicks
         },
         campaign: {
-          budget: 2000, // Converted from USD to cores
+          spend: 2000, // Converted from USD to cores
           campaignId: 'campaign-2',
           clicks: 100,
-          currentBudget: 1000, // Converted from USD to cores
           impressions: 2000,
           postId: 'post-2',
           status: 'active',
@@ -1235,8 +1214,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-3',
           postId: 'post-3',
           status: 'active',
-          budget: '15.0',
-          currentBudget: '7.5',
+          spend: '15.0',
           startedAt: new Date('2024-01-03').getTime(),
           endedAt: null,
           impressions: 1500,
@@ -1303,8 +1281,7 @@ describe('query postCampaigns', () => {
         campaignId: `campaign-${index + 1}`,
         postId: post.id,
         status: 'active',
-        budget: '10.0',
-        currentBudget: '5.0',
+        spend: '10.0',
         startedAt: new Date(`2024-01-0${index + 1}`).getTime(),
         endedAt: null,
         impressions: 1000 + index * 100,
@@ -1322,8 +1299,7 @@ describe('query postCampaigns', () => {
         campaignId: `campaign-${index + 3}`,
         postId: post.id,
         status: 'active',
-        budget: '10.0',
-        currentBudget: '5.0',
+        spend: '10.0',
         startedAt: new Date(`2024-01-0${index + 3}`).getTime(),
         endedAt: null,
         impressions: 1000 + (index + 2) * 100,
@@ -1445,8 +1421,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-1',
           postId: 'article-post',
           status: 'active',
-          budget: '10.0',
-          currentBudget: '5.0',
+          spend: '10.0',
           startedAt: new Date('2024-01-01').getTime(),
           endedAt: null,
           impressions: 1000,
@@ -1456,8 +1431,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-2',
           postId: 'freeform-post',
           status: 'active',
-          budget: '10.0',
-          currentBudget: '5.0',
+          spend: '10.0',
           startedAt: new Date('2024-01-02').getTime(),
           endedAt: null,
           impressions: 1000,
@@ -1467,8 +1441,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-3',
           postId: 'share-post',
           status: 'active',
-          budget: '10.0',
-          currentBudget: '5.0',
+          spend: '10.0',
           startedAt: new Date('2024-01-03').getTime(),
           endedAt: null,
           impressions: 1000,
@@ -1559,8 +1532,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-zero',
           postId: 'zero-post',
           status: 'active',
-          budget: '0.0',
-          currentBudget: '0.0',
+          spend: '0.0',
           startedAt: new Date('2024-01-01').getTime(),
           endedAt: null,
           impressions: 0,
@@ -1581,8 +1553,7 @@ describe('query postCampaigns', () => {
       campaignId: 'campaign-zero',
       postId: 'zero-post',
       status: 'active',
-      budget: 0, // Converted from USD to cores
-      currentBudget: 0, // Converted from USD to cores
+      spend: 0, // Converted from USD to cores
       impressions: 0,
       clicks: 0,
     });
@@ -1622,8 +1593,7 @@ describe('query postCampaigns', () => {
           campaignId: 'campaign-decimal',
           postId: 'decimal-post',
           status: 'active',
-          budget: '15.75', // 15.75 USD = 1575 cores
-          currentBudget: '7.875', // 7.875 USD = 787 cores
+          spend: '15.75', // 15.75 USD = 1575 cores
           startedAt: new Date('2024-01-01').getTime(),
           endedAt: null,
           impressions: 1000,
@@ -1644,8 +1614,7 @@ describe('query postCampaigns', () => {
       campaignId: 'campaign-decimal',
       postId: 'decimal-post',
       status: 'active',
-      budget: 1575, // 15.75 * 100 = 1575
-      currentBudget: 787, // 7.875 * 100 = 787
+      spend: 1575, // 15.75 * 100 = 1575
       impressions: 1000,
       clicks: 50,
     });
