@@ -366,6 +366,10 @@ export const workers: Worker[] = [
     subscription: 'api.user-brief-ready-notification',
   },
   {
+    topic: 'user-updated',
+    subscription: 'api.user-updated-plus-subscribed-brief',
+  },
+  {
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-slack-channel-send-brief',
   },
