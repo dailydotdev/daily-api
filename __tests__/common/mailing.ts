@@ -76,11 +76,19 @@ describe('mailing', () => {
         where: {
           id: In(usersFixture.map((user) => `mss-${user.id}`)),
         },
+        order: {
+          id: 'ASC',
+        },
       });
 
-      const digests = await con.getRepository(UserPersonalizedDigest).findBy({
-        userId: In(users.map((user) => user.id)),
-        type: UserPersonalizedDigestType.Digest,
+      const digests = await con.getRepository(UserPersonalizedDigest).find({
+        where: {
+          userId: In(users.map((user) => user.id)),
+          type: UserPersonalizedDigestType.Digest,
+        },
+        order: {
+          userId: 'ASC',
+        },
       });
 
       expect(digests).toHaveLength(4);
@@ -147,11 +155,19 @@ describe('mailing', () => {
         where: {
           id: In(usersFixture.map((user) => `mss-${user.id}`)),
         },
+        order: {
+          id: 'ASC',
+        },
       });
 
-      const digests = await con.getRepository(UserPersonalizedDigest).findBy({
-        userId: In(users.map((user) => user.id)),
-        type: UserPersonalizedDigestType.Brief,
+      const digests = await con.getRepository(UserPersonalizedDigest).find({
+        where: {
+          userId: In(users.map((user) => user.id)),
+          type: UserPersonalizedDigestType.Brief,
+        },
+        order: {
+          userId: 'ASC',
+        },
       });
 
       expect(digests).toHaveLength(4);
