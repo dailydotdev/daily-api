@@ -2209,12 +2209,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             stats.impressions = campaigns.impressions;
             stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
 
-            const sum = await getTotalEngagements(con, campaigns.postIds);
+            const sum = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+              getTotalEngagements(queryRunner.manager, campaigns.postIds),
+            );
 
             stats.engagements = sum + campaigns.clicks + campaigns.impressions;
           }
 
-          return consolidateCampaignsWithPosts(campaigns.promotedPosts, con);
+          return queryReadReplica(ctx.con, ({ queryRunner }) =>
+            consolidateCampaignsWithPosts(
+              campaigns.promotedPosts,
+              queryRunner.manager,
+            ),
+          );
         },
       );
 
