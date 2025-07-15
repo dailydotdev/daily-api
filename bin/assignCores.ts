@@ -179,7 +179,7 @@ const main = async () => {
                 currency: Currency.CORES,
                 sender: {
                   id: njordSender,
-                  type: EntityType.USER,
+                  type: EntityType.SYSTEM,
                 },
                 receiver: {
                   id: transaction.receiverId,
