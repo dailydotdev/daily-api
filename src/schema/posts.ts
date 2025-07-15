@@ -2177,7 +2177,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments,
       ctx: AuthContext,
     ): Promise<BoostedPostConnection> => {
-      const { con, userId } = ctx;
+      const { userId } = ctx;
       const { first, after } = args;
       const isFirstRequest = !after;
       const stats: BoostedPostStats | undefined = isFirstRequest
