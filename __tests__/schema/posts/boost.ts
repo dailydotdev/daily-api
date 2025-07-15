@@ -188,8 +188,6 @@ beforeEach(async () => {
     },
   ]);
   await deleteKeysByPattern(`${rateLimiterName}:*`);
-
-  isTeamMember = true; // TODO: remove when we are about to run production
   await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
 
   // Create a fresh transport and client for each test
@@ -228,7 +226,6 @@ describe('query postCampaignById', () => {
   const params = { id: 'mock-campaign-id' };
 
   beforeEach(async () => {
-    isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -1020,7 +1017,6 @@ describe('query postCampaigns', () => {
   `;
 
   beforeEach(async () => {
-    isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
   });
 
@@ -1647,7 +1643,6 @@ describe('mutation startPostBoost', () => {
   const params = { postId: 'p1', duration: 7, budget: 5000 };
 
   beforeEach(async () => {
-    isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
   });
 
@@ -2037,17 +2032,6 @@ describe('mutation startPostBoost', () => {
       ],
     });
 
-    await testNjordClient.transfer({
-      idempotencyKey: 'sent-amount',
-      transfers: [
-        {
-          sender: { id: '1', type: EntityType.USER },
-          receiver: { id: 'system', type: EntityType.SYSTEM },
-          amount: 1000, // Initial balance
-        },
-      ],
-    });
-
     jest
       .spyOn(njordCommon, 'getNjordClient')
       .mockImplementation(() => testNjordClient);
@@ -2137,7 +2121,6 @@ describe('mutation cancelPostBoost', () => {
   const params = { postId: 'p1' };
 
   beforeEach(async () => {
-    isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -2575,7 +2558,6 @@ describe('query boostEstimatedReach', () => {
   const params = { postId: 'p1' };
 
   beforeEach(async () => {
-    isTeamMember = true; // TODO: remove when we are about to run production
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
   });
 

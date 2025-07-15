@@ -210,7 +210,11 @@ export const transferCores = createAuthProtectedFn(
     }
 
     const senderId = transaction.senderId;
+    const senderType =
+      senderId === systemUser.id ? EntityType.SYSTEM : EntityType.USER;
     const receiverId = transaction.receiverId;
+    const receiverType =
+      receiverId === systemUser.id ? EntityType.SYSTEM : EntityType.USER;
 
     const response = await garmNjordService.execute(async () => {
       const payload = new TransferRequest({
@@ -221,11 +225,11 @@ export const transferCores = createAuthProtectedFn(
             currency: Currency.CORES,
             sender: {
               id: senderId,
-              type: EntityType.USER,
+              type: senderType,
             },
             receiver: {
               id: receiverId,
-              type: EntityType.USER,
+              type: receiverType,
             },
             amount: transaction.value,
             fee: {
