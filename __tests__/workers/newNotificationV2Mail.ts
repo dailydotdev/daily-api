@@ -2037,13 +2037,13 @@ describe('post_boost_completed notification', () => {
       end_date: 'Jan 16, 2024',
       impressions: '5.0K',
       clicks: '250',
-      engagement: '5.0K',
+      engagement: '5.3K',
       post_link: `http://localhost:5002/posts/boosted-post-title-boost-post-1`,
       analytics_link: `http://localhost:5002/notifications?post_boost=true&c_id=campaign-123&utm_source=notification&utm_medium=email&utm_campaign=post_boost_completed`,
       post_image: 'https://daily.dev/boosted-image.jpg',
       post_title: 'Boosted Post Title',
     });
-    expect(args.transactional_message_id).toEqual('');
+    expect(args.transactional_message_id).toEqual('79');
   });
 
   it('should send email with correct parameters for share post', async () => {
@@ -2108,13 +2108,13 @@ describe('post_boost_completed notification', () => {
       end_date: 'Jan 21, 2024',
       impressions: '10.0K',
       clicks: '500',
-      engagement: '10.0K',
+      engagement: '10.5K',
       post_link: `http://localhost:5002/posts/my-commentary-on-the-shared-post-share-post-1`,
       analytics_link: `http://localhost:5002/notifications?post_boost=true&c_id=campaign-456&utm_source=notification&utm_medium=email&utm_campaign=post_boost_completed`,
       post_image: 'https://daily.dev/shared-image.jpg',
       post_title: 'My commentary on the shared post',
     });
-    expect(args.transactional_message_id).toEqual('');
+    expect(args.transactional_message_id).toEqual('79');
   });
 
   it('should not send email when campaign is not found', async () => {
@@ -2251,13 +2251,13 @@ describe('post_boost_completed notification', () => {
       end_date: 'Feb 06, 2024',
       impressions: '8.0K',
       clicks: '400',
-      engagement: '8.0K',
+      engagement: '8.4K',
       post_link: `http://localhost:5002/posts/my-commentary-on-the-shared-post-share-post-2`,
       analytics_link: `http://localhost:5002/notifications?post_boost=true&c_id=campaign-777&utm_source=notification&utm_medium=email&utm_campaign=post_boost_completed`,
       post_image: 'https://daily.dev/shared-image.jpg',
       post_title: 'My commentary on the shared post',
     });
-    expect(args.transactional_message_id).toEqual('');
+    expect(args.transactional_message_id).toEqual('79');
   });
 });
 

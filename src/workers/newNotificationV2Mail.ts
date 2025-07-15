@@ -151,13 +151,19 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       : Promise.resolve(null));
 
     const title = truncatePostToTweet(post || sharedPost);
+    const engagement =
+      campaign.impressions +
+      campaign.clicks +
+      post.views +
+      post.upvotes +
+      post.comments;
 
     return {
       start_date: formatMailDate(debeziumTimeToDate(campaign.startedAt)),
       end_date: formatMailDate(debeziumTimeToDate(campaign.endedAt)),
       impressions: largeNumberFormat(campaign.impressions),
       clicks: largeNumberFormat(campaign.clicks),
-      engagement: largeNumberFormat(campaign.impressions), // fetch engagements
+      engagement: largeNumberFormat(engagement),
       post_link: getDiscussionLink(post.slug),
       analytics_link: addNotificationEmailUtm(
         notification.targetUrl,
