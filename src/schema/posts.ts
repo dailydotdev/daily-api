@@ -53,8 +53,6 @@ import {
   systemUser,
   parseBigInt,
   triggerTypedEvent,
-  isProd,
-  isTest,
 } from '../common';
 import {
   ArticlePost,
@@ -138,7 +136,6 @@ import type {
 } from '../common/post/boost';
 import {
   coresToUsd,
-  getBalance,
   throwUserTransactionError,
   transferCores,
   usdToCores,
@@ -922,8 +919,7 @@ export const typeDefs = /* GraphQL */ `
     campaignId: String!
     postId: String!
     status: String!
-    budget: Int!
-    currentBudget: Int!
+    spend: Int!
     startedAt: DateTime!
     endedAt: DateTime
     impressions: Int!
@@ -2178,7 +2174,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments,
       ctx: AuthContext,
     ): Promise<BoostedPostConnection> => {
-      const { con, userId } = ctx;
+      const { userId } = ctx;
       const { first, after } = args;
       const isFirstRequest = !after;
       const stats: BoostedPostStats | undefined = isFirstRequest
@@ -2210,12 +2206,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             stats.impressions = campaigns.impressions;
             stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
 
-            const sum = await getTotalEngagements(con, campaigns.postIds);
+            const sum = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+              getTotalEngagements(queryRunner.manager, campaigns.postIds),
+            );
 
             stats.engagements = sum + campaigns.clicks + campaigns.impressions;
           }
 
-          return consolidateCampaignsWithPosts(campaigns.promotedPosts, con);
+          return queryReadReplica(ctx.con, ({ queryRunner }) =>
+            consolidateCampaignsWithPosts(
+              campaigns.promotedPosts,
+              queryRunner.manager,
+            ),
+          );
         },
       );
 
@@ -2697,7 +2700,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               valueIncFees: 0,
               fee: 0,
               request: ctx.requestMeta,
-              flags: { note: 'Post boost' },
+              flags: { note: 'Post Boost started' },
               referenceId: campaignId,
               referenceType: UserTransactionType.PostBoost,
             }),
@@ -2711,17 +2714,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
 
         try {
-          // TODO: remove this once we move past testing phase
-          if (isProd || ctx.isTeamMember) {
-            return {
-              transaction: {
-                referenceId: campaignId,
-                transactionId: userTransaction.id,
-                balance: { amount: (await getBalance({ userId })).amount },
-              },
-            };
-          }
-
           const transfer = await transferCores({
             ctx,
             transaction: userTransaction,
@@ -2795,24 +2787,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               value: usdToCores(toRefund),
               valueIncFees: 0,
               fee: 0,
-              flags: { note: 'Post boost canceled' },
+              flags: { note: 'Post Boost refund' },
               referenceId: campaignId,
               referenceType: UserTransactionType.PostBoost,
             }),
           );
 
         try {
-          // TODO: remove this once we move past testing phase
-          if ((isProd || ctx.isTeamMember) && !isTest) {
-            return {
-              transaction: {
-                referenceId: campaignId,
-                transactionId: userTransaction.id,
-                balance: { amount: (await getBalance({ userId })).amount },
-              },
-            };
-          }
-
           const transfer = await transferCores({
             ctx: { userId },
             transaction: userTransaction,
