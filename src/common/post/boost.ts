@@ -19,10 +19,9 @@ import { getDiscussionLink } from '../links';
 
 export interface GQLPromotedPost
   extends ObjectSnakeToCamelCase<
-    Omit<PromotedPost, 'budget' | 'current_budget' | 'started_at' | 'ended_at'>
+    Omit<PromotedPost, 'spend' | 'started_at' | 'ended_at'>
   > {
-  budget: number;
-  currentBudget: number;
+  spend: number;
   startedAt: Date;
   endedAt: Date;
 }
@@ -190,15 +189,13 @@ export const getFormattedBoostedPost = (
 };
 
 export const getFormattedCampaign = ({
-  budget,
-  currentBudget,
+  spend,
   startedAt,
   endedAt,
   ...campaign
 }: GetCampaignResponse): GQLPromotedPost => ({
   ...campaign,
-  budget: usdToCores(parseFloat(budget)),
-  currentBudget: usdToCores(parseFloat(currentBudget)),
+  spend: usdToCores(parseFloat(spend)),
   startedAt: debeziumTimeToDate(startedAt),
   endedAt: debeziumTimeToDate(endedAt),
 });

@@ -15,6 +15,7 @@ import {
 } from '../entity';
 import { Cron } from './cron';
 import { Brackets } from 'typeorm';
+import { briefFeedClient } from '../common/brief';
 
 const sendType = UserPersonalizedDigestSendType.weekly;
 const digestTypes = [
@@ -61,6 +62,14 @@ const cron: Cron = {
     // Make sure digest is sent at the beginning of the hour
     const timestamp = startOfHour(new Date());
 
+    const briefingUptime = await briefFeedClient
+      .getBriefLastUpdate()
+      .catch(() => {
+        return {
+          updatedAt: new Date(0),
+        };
+      });
+
     await schedulePersonalizedDigestSubscriptions({
       queryBuilder: personalizedDigestQuery,
       logger,
@@ -80,6 +89,24 @@ const cron: Cron = {
           generationTimestamp: timestamp.getTime(),
           timezone: timezone,
         }).getTime();
+
+        if (
+          personalizedDigest.type === UserPersonalizedDigestType.Brief &&
+          briefingUptime.updatedAt < personalizedDigest.lastSendDate
+        ) {
+          logger.error(
+            {
+              briefingUptime,
+              personalizedDigest,
+              emailSendTimestamp,
+              previousSendTimestamp,
+              emailBatchId,
+            },
+            'Brief generation skipped, outdated',
+          );
+
+          return;
+        }
 
         await notifyGeneratePersonalizedDigest({
           log: logger,

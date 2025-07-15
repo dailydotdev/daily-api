@@ -1,33 +1,13 @@
 import { format } from 'date-fns';
 import { markdown } from '../../common/markdown';
 import { BriefPost } from '../../entity/posts/BriefPost';
-import { FeedClient } from '../../integrations/feed';
-import { GarmrService } from '../../integrations/garmr';
 import type { TypedWorker } from '../worker';
 import { getPostVisible, parseReadTime, UserActionType } from '../../entity';
 import { triggerTypedEvent } from '../../common/typedPubsub';
 import type { Briefing } from '@dailydotdev/schema';
 import { updateFlagsStatement } from '../../common';
 import { insertOrIgnoreAction } from '../../schema/actions';
-
-const feedClient = new FeedClient(process.env.BRIEFING_FEED, {
-  garmr: new GarmrService({
-    service: 'feed-client-generate-brief',
-    breakerOpts: {
-      halfOpenAfter: 5 * 1000,
-      threshold: 0.1,
-      duration: 10 * 1000,
-      minimumRps: 1,
-    },
-    limits: {
-      maxRequests: 150,
-      queuedRequests: 100,
-    },
-    retryOpts: {
-      maxAttempts: 0,
-    },
-  }),
-});
+import { briefFeedClient } from '../../common/brief';
 
 const generateMarkdown = (data: Briefing): string => {
   let markdown = '';
@@ -70,7 +50,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
         return;
       }
 
-      const brief = await feedClient.getUserBrief(briefRequest);
+      const brief = await briefFeedClient.getUserBrief(briefRequest);
 
       const content = generateMarkdown(brief);
       const title = format(new Date(), 'MMM d, yyyy');
