@@ -146,7 +146,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const sharedPost = await (post.type === PostType.Share
       ? con.getRepository(ArticlePost).findOne({
           where: { id: (post as SharePost).sharedPostId },
-          select: ['title', 'image'],
+          select: ['title', 'image', 'slug'],
         })
       : Promise.resolve(null));
 
