@@ -61,6 +61,7 @@ import { userBoughtCores } from './transactions/userBoughtCores';
 import { organizationUserLeft } from './organization/organizationUserLeft';
 import { organizationUserRemoved } from './organization/organizationUserRemoved';
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
+import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
 
 export { Worker } from './worker';
@@ -126,6 +127,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   organizationUserLeft,
   organizationUserRemoved,
   userGenerateBriefWorker,
+  userUpdatedPlusSubscriptionBriefWorker,
   postAddedSlackChannelSendBriefWorker,
 ];
 
