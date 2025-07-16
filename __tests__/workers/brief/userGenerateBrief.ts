@@ -2,7 +2,14 @@ import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
 import { userGenerateBriefWorker as worker } from '../../../src/workers/brief/userGenerateBrief';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { Source, User, UserAction, UserActionType } from '../../../src/entity';
+import {
+  Feed,
+  Keyword,
+  Source,
+  User,
+  UserAction,
+  UserActionType,
+} from '../../../src/entity';
 
 import { usersFixture } from '../../fixture/user';
 import { typedWorkers } from '../../../src/workers';
@@ -13,6 +20,9 @@ import { generateShortId } from '../../../src/ids';
 import nock from 'nock';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { triggerTypedEvent } from '../../../src/common';
+import { keywordsFixture } from '../../fixture/keywords';
+import { ContentPreferenceKeyword } from '../../../src/entity/contentPreference/ContentPreferenceKeyword';
+import { ContentPreferenceStatus } from '../../../src/entity/contentPreference/types';
 
 jest.mock('../../../src/common/typedPubsub', () => ({
   ...(jest.requireActual('../../../src/common/typedPubsub') as Record<
@@ -33,6 +43,44 @@ describe('userGenerateBrief worker', () => {
     jest.resetAllMocks();
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Source, sourcesFixture);
+
+    await saveFixtures(con, Keyword, keywordsFixture);
+
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      github: undefined,
+      id: `ugbw-${usersFixture[0].id}`,
+      username: `ugbw-${usersFixture[0].username}`,
+      experienceLevel: 'NOT_ENGINEER',
+    });
+    await con.getRepository(Feed).save({
+      id: `ugbw-${usersFixture[0].id}`,
+      userId: `ugbw-${usersFixture[0].id}`,
+    });
+
+    await con.getRepository(ContentPreferenceKeyword).save([
+      {
+        referenceId: 'webdev',
+        userId: `ugbw-${usersFixture[0].id}`,
+        feedId: `ugbw-${usersFixture[0].id}`,
+        keywordId: 'webdev',
+        status: ContentPreferenceStatus.Follow,
+      },
+      {
+        referenceId: 'development',
+        userId: `ugbw-${usersFixture[0].id}`,
+        feedId: `ugbw-${usersFixture[0].id}`,
+        keywordId: 'development',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        referenceId: 'fullstack',
+        userId: `ugbw-${usersFixture[0].id}`,
+        feedId: `ugbw-${usersFixture[0].id}`,
+        keywordId: 'fullstack',
+        status: ContentPreferenceStatus.Blocked,
+      },
+    ]);
   });
 
   it('should be registered', () => {
@@ -45,9 +93,9 @@ describe('userGenerateBrief worker', () => {
   it('should skip if post not found', async () => {
     await expectSuccessfulTypedBackground(worker, {
       payload: new UserBriefingRequest({
-        userId: '1',
+        userId: 'ugbw-1',
         frequency: BriefingType.Daily,
-        modelName: 'default',
+        modelName: BriefingModel.Default,
       }),
       postId: 'not-exist-brief-id',
     });
@@ -59,7 +107,7 @@ describe('userGenerateBrief worker', () => {
     const post = con.getRepository(BriefPost).create({
       id: postId,
       shortId: postId,
-      authorId: '1',
+      authorId: 'ugbw-1',
       private: true,
       visible: false,
     });
@@ -67,7 +115,16 @@ describe('userGenerateBrief worker', () => {
     await con.getRepository(BriefPost).save(post);
 
     nock('http://api')
-      .post('/api/user/briefing')
+      .post('/api/user/briefing', (body) => {
+        expect(body).toEqual({
+          user_id: 'ugbw-1',
+          frequency: BriefingType.Daily,
+          model_name: BriefingModel.Default,
+          allowed_tags: ['webdev', 'development'],
+          seniority_level: 'NOT_ENGINEER',
+        });
+        return true;
+      })
       .reply(200, {
         sections: [
           {
@@ -97,7 +154,7 @@ describe('userGenerateBrief worker', () => {
 
     await expectSuccessfulTypedBackground(worker, {
       payload: new UserBriefingRequest({
-        userId: '1',
+        userId: 'ugbw-1',
         frequency: BriefingType.Daily,
         modelName: BriefingModel.Default,
       }),
@@ -126,9 +183,11 @@ describe('userGenerateBrief worker', () => {
       'api.v1.brief-ready',
       {
         payload: new UserBriefingRequest({
-          userId: '1',
+          userId: 'ugbw-1',
           frequency: BriefingType.Daily,
           modelName: BriefingModel.Default,
+          allowedTags: ['webdev', 'development'],
+          seniorityLevel: 'NOT_ENGINEER',
         }),
         postId,
       },
@@ -142,7 +201,7 @@ describe('userGenerateBrief worker', () => {
     const post = con.getRepository(BriefPost).create({
       id: postId,
       shortId: postId,
-      authorId: '1',
+      authorId: 'ugbw-1',
       private: true,
       visible: false,
     });
@@ -151,7 +210,7 @@ describe('userGenerateBrief worker', () => {
 
     const actionBefore = await con.getRepository(UserAction).findOne({
       where: {
-        userId: '1',
+        userId: 'ugbw-1',
         type: UserActionType.GeneratedBrief,
       },
     });
@@ -164,16 +223,18 @@ describe('userGenerateBrief worker', () => {
 
     await expectSuccessfulTypedBackground(worker, {
       payload: new UserBriefingRequest({
-        userId: '1',
+        userId: 'ugbw-1',
         frequency: BriefingType.Daily,
         modelName: BriefingModel.Default,
+        allowedTags: ['webdev', 'development'],
+        seniorityLevel: 'NOT_ENGINEER',
       }),
       postId,
     });
 
     const action = await con.getRepository(UserAction).findOne({
       where: {
-        userId: '1',
+        userId: 'ugbw-1',
         type: UserActionType.GeneratedBrief,
       },
     });
