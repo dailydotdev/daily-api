@@ -615,6 +615,7 @@ describe('slack integration', () => {
           source {
             id
           }
+          channelIds
         }
       }
     `;
@@ -749,6 +750,72 @@ describe('slack integration', () => {
         source: {
           id: 'squadslack',
         },
+      });
+    });
+
+    it('should return source integration belonging to the user if multiple connections is supported', async () => {
+      loggedUser = '1';
+
+      const otherUserIntegration = await con
+        .getRepository(UserIntegration)
+        .save({
+          userId: '2',
+          type: UserIntegrationType.Slack,
+          name: 'daily.dev',
+          meta: {
+            appId: 'sapp1',
+            scope: 'channels:read,chat:write,channels:join',
+            teamId: 'st1',
+            teamName: 'daily.dev',
+            tokenType: 'bot',
+            accessToken: await encrypt(
+              'xoxb-token2',
+              process.env.SLACK_DB_KEY as string,
+            ),
+            slackUserId: 'su2',
+          },
+        });
+
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: userIntegration.id,
+          sourceId: BRIEFING_SOURCE,
+          channelIds: ['1'],
+        },
+      ]);
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: otherUserIntegration.id,
+          sourceId: BRIEFING_SOURCE,
+          channelIds: ['2'],
+        },
+      ]);
+
+      const res = await client.query(
+        QUERY({
+          sourceId: BRIEFING_SOURCE,
+          type: UserIntegrationType.Slack,
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.sourceIntegration).toMatchObject({
+        userIntegration: {
+          id: userIntegration.id,
+          userId: userIntegration.userId,
+        },
+        type: UserIntegrationType.Slack,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
+        source: {
+          id: 'briefing',
+        },
+        channelIds: ['1'],
       });
     });
   });
