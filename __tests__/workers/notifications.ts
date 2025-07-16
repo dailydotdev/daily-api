@@ -483,15 +483,6 @@ describe('post added notifications', () => {
     await con
       .getRepository(Post)
       .update({ id: 'p1' }, { authorId: '1', flags: { showOnFeed: false } });
-    await con
-      .getRepository(Source)
-      .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(SourceMember).save({
-      userId: '2',
-      sourceId: 'a',
-      role: SourceMemberRoles.Member,
-      referralToken: 'random',
-    });
     const actual = await invokeNotificationWorker(worker.default, {
       post: postsFixture[0],
     });
