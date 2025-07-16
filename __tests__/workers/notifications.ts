@@ -478,6 +478,17 @@ describe('post added notifications', () => {
     expect(actual).toBeFalsy();
   });
 
+  it('should not add any notification if post has showOnFeed false flag', async () => {
+    const worker = await import('../../src/workers/notifications/postAdded');
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { authorId: '1', flags: { showOnFeed: false } });
+    const actual = await invokeNotificationWorker(worker.default, {
+      post: postsFixture[0],
+    });
+    expect(actual).toBeFalsy();
+  });
+
   it('should add article picked notification', async () => {
     const worker = await import('../../src/workers/notifications/postAdded');
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
