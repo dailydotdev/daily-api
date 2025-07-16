@@ -7,7 +7,11 @@ import { triggerTypedEvent } from '../../common/typedPubsub';
 import type { Briefing } from '@dailydotdev/schema';
 import { updateFlagsStatement } from '../../common';
 import { insertOrIgnoreAction } from '../../schema/actions';
-import { briefFeedClient } from '../../common/brief';
+import {
+  briefFeedClient,
+  getUserConfigForBriefingRequest,
+} from '../../common/brief';
+import { queryReadReplica } from '../../common/queryReadReplica';
 
 const generateMarkdown = (data: Briefing): string => {
   let markdown = '';
@@ -49,6 +53,19 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
 
         return;
       }
+
+      const userConfig = await queryReadReplica(
+        con,
+        async ({ queryRunner }) => {
+          return getUserConfigForBriefingRequest({
+            con: queryRunner.manager,
+            userId: data.payload.userId,
+          });
+        },
+      );
+
+      briefRequest.allowedTags = userConfig.allowedTags;
+      briefRequest.seniorityLevel = userConfig.seniorityLevel;
 
       const brief = await briefFeedClient.getUserBrief(briefRequest);
 
