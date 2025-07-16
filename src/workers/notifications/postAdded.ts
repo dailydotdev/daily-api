@@ -50,8 +50,8 @@ const worker: NotificationWorker = {
     }
 
     if (
-      source.type === SourceType.Machine &&
-      (post.flags as PostFlags)?.showOnFeed === false
+      source?.type === SourceType.Machine &&
+      (post.flags as PostFlags)?.showOnFeed?.toString() === 'false'
     ) {
       return;
     }
