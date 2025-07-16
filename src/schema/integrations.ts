@@ -31,7 +31,7 @@ import {
   GQLSource,
   SourcePermissions,
 } from './sources';
-import { SourceMember, SourceType } from '../entity';
+import { BRIEFING_SOURCE, SourceMember, SourceType } from '../entity';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
   GQLDatePageGeneratorConfig,
@@ -367,13 +367,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ? await existingSourceIntegration.userIntegration
         : undefined;
 
-      if (
-        existingSourceIntegration &&
-        existingSourceIntegration.userIntegrationId !== slackIntegration.id &&
-        existingUserIntegration &&
-        existingUserIntegration.userId !== slackIntegration.userId
-      ) {
-        throw new ConflictError('source already connected to a channel');
+      // we allow connecting multiple times only for briefing source for now
+      if (args.sourceId !== BRIEFING_SOURCE) {
+        if (
+          existingSourceIntegration &&
+          existingSourceIntegration.userIntegrationId !== slackIntegration.id &&
+          existingUserIntegration &&
+          existingUserIntegration.userId !== slackIntegration.userId
+        ) {
+          throw new ConflictError('source already connected to a channel');
+        }
       }
 
       const client = await getSlackClient({

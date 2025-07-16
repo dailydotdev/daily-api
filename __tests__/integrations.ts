@@ -16,6 +16,7 @@ import {
 } from '../src/entity/UserIntegration';
 import { usersFixture } from './fixture/user';
 import {
+  BRIEFING_SOURCE,
   Source,
   SourceMember,
   SourceType,
@@ -547,6 +548,56 @@ describe('slack integration', () => {
         },
         'NOT_FOUND',
       );
+    });
+
+    it('should allow connecting briefing source if existing connection is already present', async () => {
+      loggedUser = '2';
+
+      await con.getRepository(UserIntegration).save([
+        {
+          userId: '2',
+          type: UserIntegrationType.Slack,
+          name: 'daily.dev',
+          meta: {
+            appId: 'sapp1',
+            scope: 'channels:read,chat:write,channels:join',
+            teamId: 'st1',
+            teamName: 'daily.dev',
+            tokenType: 'bot',
+            accessToken: await encrypt(
+              'xoxb-token',
+              process.env.SLACK_DB_KEY as string,
+            ),
+            slackUserId: 'su2',
+          },
+        },
+      ]);
+      const existingUserIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: '1',
+      });
+      const userIntegration = await getIntegration({
+        type: UserIntegrationType.Slack,
+        userId: loggedUser,
+      });
+
+      await con.getRepository(UserSourceIntegrationSlack).save([
+        {
+          userIntegrationId: existingUserIntegration.id,
+          sourceId: BRIEFING_SOURCE,
+          channelIds: ['1'],
+        },
+      ]);
+
+      const res = await client.mutate(
+        MUTATION({
+          integrationId: userIntegration.id,
+          channelId: '1',
+          sourceId: BRIEFING_SOURCE,
+        }),
+      );
+
+      expect(res.errors).toBeFalsy();
     });
   });
 
