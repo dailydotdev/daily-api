@@ -114,15 +114,12 @@ describe('userGenerateBrief worker', () => {
 
     await con.getRepository(BriefPost).save(post);
 
+    let requestBody = null;
+
     nock('http://api')
       .post('/api/user/briefing', (body) => {
-        expect(body).toEqual({
-          user_id: 'ugbw-1',
-          frequency: BriefingType.Daily,
-          model_name: BriefingModel.Default,
-          allowed_tags: ['webdev', 'development'],
-          seniority_level: 'NOT_ENGINEER',
-        });
+        requestBody = body;
+
         return true;
       })
       .reply(200, {
@@ -159,6 +156,14 @@ describe('userGenerateBrief worker', () => {
         modelName: BriefingModel.Default,
       }),
       postId,
+    });
+
+    expect(requestBody).toEqual({
+      user_id: 'ugbw-1',
+      frequency: BriefingType.Daily,
+      model_name: BriefingModel.Default,
+      allowed_tags: ['webdev', 'development'],
+      seniority_level: 'NOT_ENGINEER',
     });
 
     const briefPost = await con.getRepository(BriefPost).findOne({
