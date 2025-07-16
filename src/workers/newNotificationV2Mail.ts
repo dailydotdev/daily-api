@@ -30,7 +30,9 @@ import {
   baseNotificationEmailData,
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
+  debeziumTimeToDate,
   formatMailDate,
+  getDiscussionLink,
   getOrganizationPermalink,
   getSourceLink,
   liveTimerDateFormat,
@@ -60,6 +62,8 @@ import { BriefPost } from '../entity/posts/BriefPost';
 import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
+import { skadiApiClient } from '../integrations/skadi/api/clients';
+import { largeNumberFormat } from '../common/devcard';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -107,7 +111,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
-  post_boost_completed: '', // TODO: check with product
+  post_boost_completed: '79',
   briefing_ready: '81',
 };
 
@@ -121,7 +125,54 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  post_boost_completed: async () => ({}),
+  post_boost_completed: async (con, user, notification) => {
+    const campaign = await skadiApiClient.getCampaignById({
+      campaignId: notification.referenceId!,
+      userId: user.id,
+    });
+
+    if (!campaign) {
+      return null;
+    }
+
+    const post = await con.getRepository(Post).findOne({
+      where: { id: campaign.postId },
+    });
+
+    if (!post) {
+      return null;
+    }
+
+    const sharedPost = await (post.type === PostType.Share
+      ? con.getRepository(ArticlePost).findOne({
+          where: { id: (post as SharePost).sharedPostId },
+          select: ['title', 'image', 'slug'],
+        })
+      : Promise.resolve(null));
+
+    const title = truncatePostToTweet(post || sharedPost);
+    const engagement =
+      campaign.impressions +
+      campaign.clicks +
+      post.views +
+      post.upvotes +
+      post.comments;
+
+    return {
+      start_date: formatMailDate(debeziumTimeToDate(campaign.startedAt)),
+      end_date: formatMailDate(debeziumTimeToDate(campaign.endedAt)),
+      impressions: largeNumberFormat(campaign.impressions),
+      clicks: largeNumberFormat(campaign.clicks),
+      engagement: largeNumberFormat(engagement),
+      post_link: getDiscussionLink(post.slug),
+      analytics_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_image: sharedPost?.image || (post as FreeformPost).image,
+      post_title: title,
+    };
+  },
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },

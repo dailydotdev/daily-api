@@ -58,6 +58,7 @@ import {
   NotificationUserContext,
   Reference,
   type NotificationAwardContext,
+  NotificationBoostContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
@@ -81,6 +82,7 @@ import {
 import { env } from 'node:process';
 import { Product, ProductType } from '../../src/entity/Product';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
+import { skadiApiClient } from '../../src/integrations/skadi/api/clients';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -88,6 +90,13 @@ jest.mock('../../src/common/mailing', () => ({
     unknown
   >),
   sendEmail: jest.fn(),
+}));
+
+// Mock the skadiApiClient
+jest.mock('../../src/integrations/skadi/api/clients', () => ({
+  skadiApiClient: {
+    getCampaignById: jest.fn(),
+  },
 }));
 
 let con: DataSource;
@@ -1965,6 +1974,290 @@ describe('source_post_submitted notification', () => {
       commentary: 'Content',
     });
     expect(args.transactional_message_id).toEqual('61');
+  });
+});
+
+describe('post_boost_completed notification', () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it('should send email with correct parameters for freeform post', async () => {
+    const campaignId = 'campaign-123';
+    const post = await con.getRepository(FreeformPost).save({
+      id: 'boost-post-1',
+      shortId: 'bp1',
+      sourceId: 'a',
+      title: 'Boosted Post Title',
+      content: 'This is the content of the boosted post',
+      image: 'https://daily.dev/boosted-image.jpg',
+      authorId: '1',
+    });
+
+    const campaign = {
+      campaignId,
+      postId: post.id,
+      startedAt: new Date('2024-01-15T10:00:00Z').getTime() * 1000,
+      endedAt: new Date('2024-01-16T10:00:00Z').getTime() * 1000,
+      impressions: 5000,
+      clicks: 250,
+    };
+
+    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+
+    const ctx: NotificationBoostContext = {
+      userIds: ['1'],
+      user: {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+      } as Reference<User>,
+      campaignId,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.PostBoostCompleted,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      start_date: 'Jan 15, 2024',
+      end_date: 'Jan 16, 2024',
+      impressions: '5.0K',
+      clicks: '250',
+      engagement: '5.3K',
+      post_link: `http://localhost:5002/posts/boosted-post-title-boost-post-1`,
+      analytics_link: `http://localhost:5002/notifications?post_boost=true&c_id=campaign-123&utm_source=notification&utm_medium=email&utm_campaign=post_boost_completed`,
+      post_image: 'https://daily.dev/boosted-image.jpg',
+      post_title: 'Boosted Post Title',
+    });
+    expect(args.transactional_message_id).toEqual('79');
+  });
+
+  it('should send email with correct parameters for share post', async () => {
+    const campaignId = 'campaign-456';
+    const sharedPost = await con.getRepository(ArticlePost).save({
+      id: 'shared-post-1',
+      shortId: 'sp1',
+      title: 'Shared Article Title',
+      image: 'https://daily.dev/shared-image.jpg',
+      url: 'https://example.com/article',
+    });
+
+    const post = await con.getRepository(SharePost).save({
+      id: 'share-post-1',
+      shortId: 'shp1',
+      sourceId: 'a',
+      title: 'My commentary on the shared post',
+      sharedPostId: sharedPost.id,
+      authorId: '1',
+    });
+
+    const campaign = {
+      campaignId,
+      postId: post.id,
+      startedAt: new Date('2024-01-20T10:00:00Z').getTime() * 1000,
+      endedAt: new Date('2024-01-21T10:00:00Z').getTime() * 1000,
+      impressions: 10000,
+      clicks: 500,
+    };
+
+    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+
+    const ctx: NotificationBoostContext = {
+      userIds: ['1'],
+      user: {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+      } as Reference<User>,
+      campaignId,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.PostBoostCompleted,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      start_date: 'Jan 20, 2024',
+      end_date: 'Jan 21, 2024',
+      impressions: '10.0K',
+      clicks: '500',
+      engagement: '10.5K',
+      post_link: `http://localhost:5002/posts/my-commentary-on-the-shared-post-share-post-1`,
+      analytics_link: `http://localhost:5002/notifications?post_boost=true&c_id=campaign-456&utm_source=notification&utm_medium=email&utm_campaign=post_boost_completed`,
+      post_image: 'https://daily.dev/shared-image.jpg',
+      post_title: 'My commentary on the shared post',
+    });
+    expect(args.transactional_message_id).toEqual('79');
+  });
+
+  it('should not send email when campaign is not found', async () => {
+    const campaignId = 'non-existent-campaign';
+
+    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(null);
+
+    const ctx: NotificationBoostContext = {
+      userIds: ['1'],
+      user: {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+      } as Reference<User>,
+      campaignId,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.PostBoostCompleted,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not send email when post is not found', async () => {
+    const campaignId = 'campaign-789';
+
+    const campaign = {
+      campaignId,
+      postId: 'non-existent-post',
+      startedAt: new Date('2024-01-25T10:00:00Z').getTime() * 1000,
+      endedAt: new Date('2024-01-26T10:00:00Z').getTime() * 1000,
+      impressions: 3000,
+      clicks: 150,
+    };
+
+    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+
+    const ctx: NotificationBoostContext = {
+      userIds: ['1'],
+      user: {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+      } as Reference<User>,
+      campaignId,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.PostBoostCompleted,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should handle share post with missing shared post gracefully', async () => {
+    const campaignId = 'campaign-777';
+    // First create the shared post that will be referenced
+    const sharedPost = await con.getRepository(ArticlePost).save({
+      id: 'shared-post-2',
+      shortId: 'sp2',
+      title: 'Shared Article Title',
+      image: 'https://daily.dev/shared-image.jpg',
+      url: 'https://example.com/article',
+    });
+
+    const post = await con.getRepository(SharePost).save({
+      id: 'share-post-2',
+      shortId: 'shp2',
+      sourceId: 'a',
+      title: 'My commentary on the shared post',
+      sharedPostId: sharedPost.id,
+      authorId: '1',
+    });
+
+    const campaign = {
+      campaignId,
+      postId: post.id,
+      startedAt: new Date('2024-02-05T10:00:00Z').getTime() * 1000,
+      endedAt: new Date('2024-02-06T10:00:00Z').getTime() * 1000,
+      impressions: 8000,
+      clicks: 400,
+    };
+
+    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+
+    const ctx: NotificationBoostContext = {
+      userIds: ['1'],
+      user: {
+        id: '1',
+        name: 'Ido',
+        image: 'https://daily.dev/ido.jpg',
+      } as Reference<User>,
+      campaignId,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.PostBoostCompleted,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      start_date: 'Feb 05, 2024',
+      end_date: 'Feb 06, 2024',
+      impressions: '8.0K',
+      clicks: '400',
+      engagement: '8.4K',
+      post_link: `http://localhost:5002/posts/my-commentary-on-the-shared-post-share-post-2`,
+      analytics_link: `http://localhost:5002/notifications?post_boost=true&c_id=campaign-777&utm_source=notification&utm_medium=email&utm_campaign=post_boost_completed`,
+      post_image: 'https://daily.dev/shared-image.jpg',
+      post_title: 'My commentary on the shared post',
+    });
+    expect(args.transactional_message_id).toEqual('79');
   });
 });
 
