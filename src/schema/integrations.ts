@@ -197,6 +197,8 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const sourcesWithMultipleConnections = [BRIEFING_SOURCE];
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -269,15 +271,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         SourcePermissions.ConnectSlack,
       );
 
+      const multipleConnectionsAllowed =
+        sourcesWithMultipleConnections.includes(args.sourceId);
+
       return graphorm.queryOneOrFail<GQLUserSourceIntegration>(
         ctx,
         info,
-        (builder) => ({
-          ...builder,
-          queryBuilder: builder.queryBuilder
-            .where(`"${builder.alias}"."sourceId" = :id`, { id: args.sourceId })
-            .andWhere(`"${builder.alias}"."type" = :type`, { type: args.type }),
-        }),
+        (builder) => {
+          builder.queryBuilder
+            .where(`"${builder.alias}"."sourceId" = :id`, {
+              id: args.sourceId,
+            })
+            .andWhere(`"${builder.alias}"."type" = :type`, {
+              type: args.type,
+            });
+
+          if (multipleConnectionsAllowed) {
+            builder.queryBuilder
+              .innerJoin(
+                UserIntegration,
+                'ui',
+                `"${builder.alias}"."userIntegrationId" = ui.id`,
+              )
+              .andWhere(`ui."userId" = :integrationUserId`, {
+                integrationUserId: ctx.userId,
+              });
+          }
+
+          return builder;
+        },
       );
     },
     sourceIntegrations: async (
@@ -329,6 +351,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         args.sourceId,
         SourcePermissions.ConnectSlack,
       );
+      const multipleConnectionsAllowed =
+        sourcesWithMultipleConnections.includes(source.id);
 
       const [slackIntegration, existingSourceIntegration, sourceAdmin] =
         await Promise.all([
@@ -344,6 +368,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ctx.con.getRepository(UserSourceIntegrationSlack).findOne({
             where: {
               sourceId: args.sourceId,
+              userIntegration: multipleConnectionsAllowed
+                ? {
+                    userId: ctx.userId,
+                  }
+                : undefined,
             },
             relations: {
               userIntegration: true,
@@ -367,8 +396,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ? await existingSourceIntegration.userIntegration
         : undefined;
 
-      // we allow connecting multiple times only for briefing source for now
-      if (args.sourceId !== BRIEFING_SOURCE) {
+      if (!multipleConnectionsAllowed) {
         if (
           existingSourceIntegration &&
           existingSourceIntegration.userIntegrationId !== slackIntegration.id &&
