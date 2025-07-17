@@ -1,9 +1,10 @@
-import { Storage, DownloadOptions } from '@google-cloud/storage';
+import { Storage, DownloadOptions, UploadOptions } from '@google-cloud/storage';
 import { PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
+import { Readable } from 'stream';
 
 export const downloadFile = async ({
   url,
@@ -33,6 +34,64 @@ export const downloadJsonFile = async <T>({
   return JSON.parse(result);
 };
 
+interface UploadFileFromStreamParams {
+  bucketName: string;
+  fileName: string;
+  fileStream: Readable;
+  contentType?: string;
+  options?: UploadOptions;
+  isPublic?: boolean;
+}
+
+export const uploadFileFromStream = async ({
+  bucketName,
+  fileName,
+  fileStream,
+  contentType = 'application/pdf',
+  options = {},
+  isPublic = false,
+}: UploadFileFromStreamParams): Promise<string> => {
+  const storage = new Storage();
+  const bucket = storage.bucket(bucketName);
+  const file = bucket.file(fileName);
+
+  // Create a Write stream to upload the file
+  const writeStream = file.createWriteStream({
+    contentType,
+    resumable: false,
+    ...options,
+  });
+
+  // Return a promise that resolves when the upload is complete
+  return new Promise((resolve, reject) => {
+    fileStream
+      .pipe(writeStream)
+      .on('error', (error) => reject(error))
+      .on('finish', async () => {
+        if (isPublic) {
+          await file.makePublic();
+        }
+
+        // Return the public URL
+        const publicUrl = `https://storage.cloud.google.com/${bucketName}/${fileName}`;
+        resolve(publicUrl);
+      });
+  });
+};
+
+export const uploadResumeFromStream = async (
+  fileName: string,
+  fileStream: Readable,
+  bucketName = process.env.GCS_PDF_BUCKET || 'daily-dev-resumes',
+): Promise<string> => {
+  return uploadFileFromStream({
+    bucketName,
+    fileName,
+    fileStream,
+    contentType: 'application/pdf',
+  });
+};
+
 export enum UserActiveState {
   Active = '1',
   InactiveSince6wAgo = '2',
@@ -41,38 +100,40 @@ export enum UserActiveState {
 }
 
 export const userActiveStateQuery = `
-  with d as (
-    select u.primary_user_id,
-    min(last_app_timestamp) as last_app_timestamp,
-    min(registration_timestamp) as registration_timestamp,
-    min(
-        case
-          when period_end is null then '4'
-          when period_end between date(@previous_date - interval 6*7 day) and @previous_date then '1'
-          when period_end between date(@previous_date - interval 12*7 day) and date(@previous_date - interval 6*7 + 1 day) then '2'
-          when date(u.last_app_timestamp) <  date(@previous_date - interval 12*7 day) then '3'
-          when date(u.registration_timestamp) <  date(@previous_date - interval 12*7 day) then '3'
-          else '4' end
-      ) as previous_state,
-      min(
-        case
-            when period_end is null then '4'
-            when period_end between date(@run_date - interval 6*7 day) and @run_date then '1'
-            when period_end between date(@run_date - interval 12*7 day) and date(@run_date - interval 6*7 + 1 day) then '2'
-            when date(u.last_app_timestamp) <  date(@run_date - interval 12*7 day) then '3'
-            when date(u.registration_timestamp) <  date(@run_date - interval 12*7 day) then '3'
-            else '4' end
-      ) as current_state,
-    from analytics.user as u
-    left join analytics.user_state_sparse as uss on uss.primary_user_id = u.primary_user_id
-      and uss.period_end between date(@previous_date - interval 12* 7 day) and @run_date
-      and uss.period = 'daily'
-      and uss.app_active_state = 'active'
-      and uss.registration_state = 'registered'
-    where u.registration_timestamp is not null
-    and date(u.registration_timestamp) < @run_date
-    group by 1
-  )
+  with d as (select u.primary_user_id,
+                    min(last_app_timestamp)     as last_app_timestamp,
+                    min(registration_timestamp) as registration_timestamp,
+                    min(
+                      case
+                        when period_end is null then '4'
+                        when period_end between date (@previous_date - interval 6*7 day) and @previous_date then '1'
+                      when period_end between date (@previous_date - interval 12*7 day) and date
+                      (@previous_date - interval 6*7 + 1 day) then '2'
+                      when date (u.last_app_timestamp) < date (@previous_date - interval 12*7 day) then '3'
+                      when date (u.registration_timestamp) < date (@previous_date - interval 12*7 day) then '3'
+                      else '4' end
+                    )                           as previous_state,
+                    min(
+                      case
+                        when period_end is null then '4'
+                        when period_end between date (@run_date - interval 6*7 day) and @run_date then '1'
+                      when period_end between date (@run_date - interval 12*7 day) and date
+                      (@run_date - interval 6*7 + 1 day) then '2'
+                      when date (u.last_app_timestamp) < date (@run_date - interval 12*7 day) then '3'
+                      when date (u.registration_timestamp) < date (@run_date - interval 12*7 day) then '3'
+                      else '4' end
+                    )                           as current_state,
+             from analytics.user as u
+                    left join analytics.user_state_sparse as uss on uss.primary_user_id = u.primary_user_id
+               and uss.period_end between date (@previous_date - interval 12* 7 day) and @run_date
+    and uss.period = 'daily'
+    and uss.app_active_state = 'active'
+    and uss.registration_state = 'registered'
+  where u.registration_timestamp is not null
+    and date (u.registration_timestamp)
+      < @run_date
+  group by 1
+    )
   select *
   from d
   where current_state != previous_state

@@ -142,6 +142,8 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
+import { uploadResumeFromStream } from '../common/googleCloud';
+import { fileTypeFromStream } from 'file-type';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1109,6 +1111,16 @@ export const typeDefs = /* GraphQL */ `
       Asset to upload
       """
       image: Upload!
+    ): User! @auth @rateLimit(limit: 5, duration: 60)
+
+    """
+    Upload user resume
+    """
+    uploadResume(
+      """
+      Asset to upload
+      """
+      resume: Upload!
     ): User! @auth @rateLimit(limit: 5, duration: 60)
 
     """
@@ -2362,6 +2374,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con
         .getRepository(User)
         .update({ id: ctx.userId }, { cover: imageUrl });
+      return getCurrentUser(ctx, info);
+    },
+    uploadResume: async (
+      _,
+      { resume }: { resume: Promise<FileUpload> },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUser> => {
+      if (!resume) {
+        throw new ValidationError('File is missing!');
+      }
+
+      const upload = await resume;
+      const extension = upload.filename?.split('.').pop().toLowerCase();
+
+      // Validate file type
+      if (extension !== 'pdf') {
+        throw new ValidationError('Extension must be .pdf');
+      }
+
+      const stream = upload.createReadStream();
+      const detectedFileType = await fileTypeFromStream(stream);
+
+      if (detectedFileType?.mime !== 'application/pdf') {
+        throw new ValidationError('File is not a PDF');
+      }
+
+      // Upload to Google Cloud Storage
+      const filename = `${ctx.userId}.pdf`;
+      await uploadResumeFromStream(filename, stream);
+
+      await ctx.con
+        .getRepository(User)
+        .update(
+          { id: ctx.userId },
+          { flags: updateFlagsStatement({ cvUploadedAt: new Date() }) },
+        );
+
       return getCurrentUser(ctx, info);
     },
     updateReadme: async (
