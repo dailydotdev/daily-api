@@ -1,5 +1,10 @@
+import { In, type EntityManager } from 'typeorm';
+import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { User } from '../entity/user/User';
 import { FeedClient } from '../integrations/feed/clients';
 import { GarmrService } from '../integrations/garmr';
+import type { UserBriefingRequest } from '@dailydotdev/schema';
+import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 
 export const briefFeedClient = new FeedClient(process.env.BRIEFING_FEED, {
   garmr: new GarmrService({
@@ -19,3 +24,40 @@ export const briefFeedClient = new FeedClient(process.env.BRIEFING_FEED, {
     },
   }),
 });
+
+export const getUserConfigForBriefingRequest = async ({
+  con,
+  userId,
+}: {
+  con: EntityManager;
+  userId: string;
+}): Promise<Pick<UserBriefingRequest, 'allowedTags' | 'seniorityLevel'>> => {
+  if (!userId) {
+    throw new Error('User id is required');
+  }
+
+  const [user, keywords] = await Promise.all([
+    con.getRepository(User).findOneOrFail({
+      select: ['id', 'experienceLevel'],
+      where: {
+        id: userId,
+      },
+    }),
+    con.getRepository(ContentPreferenceKeyword).find({
+      select: ['keywordId'],
+      where: {
+        userId: userId,
+        feedId: userId,
+        status: In([
+          ContentPreferenceStatus.Follow,
+          ContentPreferenceStatus.Subscribed,
+        ]),
+      },
+    }),
+  ]);
+
+  return {
+    allowedTags: keywords.map((item) => item.keywordId),
+    seniorityLevel: user.experienceLevel ?? undefined,
+  };
+};
