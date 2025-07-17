@@ -28,9 +28,10 @@ export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
   showPlusGift: boolean;
+  cvUploadedAt: Date;
 }>;
 
-export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
+export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift' | 'cvUploadedAt'>;
 
 export type PaddleUserSubscriptionFlags = Partial<{
   gifterId?: string; // Currently only supported in Paddle
