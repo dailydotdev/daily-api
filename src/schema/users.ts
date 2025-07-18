@@ -1121,7 +1121,7 @@ export const typeDefs = /* GraphQL */ `
       Asset to upload
       """
       resume: Upload!
-    ): User! @auth @rateLimit(limit: 5, duration: 60)
+    ): EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
 
     """
     Update the user's readme
@@ -2380,8 +2380,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { resume }: { resume: Promise<FileUpload> },
       ctx: AuthContext,
-      info,
-    ): Promise<GQLUser> => {
+    ): Promise<GQLEmptyResponse> => {
       if (!resume) {
         throw new ValidationError('File is missing!');
       }
@@ -2405,14 +2404,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const filename = `${ctx.userId}.pdf`;
       await uploadResumeFromStream(filename, stream);
 
-      await ctx.con
-        .getRepository(User)
-        .update(
-          { id: ctx.userId },
-          { flags: updateFlagsStatement({ cvUploadedAt: new Date() }) },
-        );
-
-      return getCurrentUser(ctx, info);
+      return { _: true };
     },
     updateReadme: async (
       _,

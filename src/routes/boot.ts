@@ -599,7 +599,6 @@ const loggedInBoot = async ({
         defaultFeedId: isPlus ? user.defaultFeedId : null,
         flags: {
           showPlusGift: Boolean(user?.flags?.showPlusGift),
-          cvUploadedAt: user?.flags?.cvUploadedAt,
         },
         balance,
         subscriptionFlags: {
