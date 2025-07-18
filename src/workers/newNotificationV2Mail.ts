@@ -113,6 +113,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   post_boost_completed: '79',
   briefing_ready: '81',
+  user_follow: '',
 };
 
 type TemplateData = Record<string, unknown>;
@@ -1066,6 +1067,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         BriefingSection.fromJson(item),
       ),
     };
+  },
+  user_follow: async () => {
+    return null;
   },
 };
 

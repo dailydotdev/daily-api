@@ -204,6 +204,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceUser(user: Reference<User>): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: user.id,
+      referenceType: 'user',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -246,6 +253,12 @@ export class NotificationBuilder {
       targetUrl: source
         ? `${process.env.COMMENTS_PREFIX}/squads/moderate?handle=${source.handle}`
         : `${process.env.COMMENTS_PREFIX}/squads/moderate`,
+    });
+  }
+
+  targetUser(user: Reference<User>): NotificationBuilder {
+    return this.enrichNotification({
+      targetUrl: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
     });
   }
 

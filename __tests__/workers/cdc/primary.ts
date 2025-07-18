@@ -151,6 +151,11 @@ import { NotificationType } from '../../../src/notifications/common';
 import type { UserReport } from '../../../src/entity/UserReport';
 import { SubscriptionCycles } from '../../../src/paddle';
 import { addYears } from 'date-fns';
+import type { ContentPreferenceUser } from '../../../src/entity/contentPreference/ContentPreferenceUser';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../../src/entity/contentPreference/types';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -5323,6 +5328,92 @@ describe('source_post_moderation', () => {
         'api.v1.source-post-moderation-approved',
         { post: { ...afterProps, postId: after.id } },
       ]);
+    });
+  });
+});
+
+describe('content_preference', () => {
+  describe('content_preference user', () => {
+    it('should trigger user follow event', async () => {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ContentPreferenceUser>({
+          after: {
+            referenceId: 'rWrhZmPsXHnsgEAL8nwAk',
+            userId: 'LJSkpBexOSCWc8INyu3Eu',
+            type: ContentPreferenceType.User,
+            createdAt: 1752842329637000,
+            status: ContentPreferenceStatus.Follow,
+            referenceUserId: 'rWrhZmPsXHnsgEAL8nwAk',
+            feedId: 'LJSkpBexOSCWc8INyu3Eu',
+          },
+          op: 'c',
+          table: 'content_preference',
+        }),
+      );
+
+      expectTypedEvent('api.v1.user-follow', {
+        payload: {
+          referenceId: 'rWrhZmPsXHnsgEAL8nwAk',
+          userId: 'LJSkpBexOSCWc8INyu3Eu',
+          type: ContentPreferenceType.User,
+          createdAt: 1752842329637000,
+          status: ContentPreferenceStatus.Follow,
+          referenceUserId: 'rWrhZmPsXHnsgEAL8nwAk',
+          feedId: 'LJSkpBexOSCWc8INyu3Eu',
+        },
+      });
+    });
+
+    it('should not trigger user follow if status is blocked', async () => {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ContentPreferenceUser>({
+          after: {
+            referenceId: 'rWrhZmPsXHnsgEAL8nwAk',
+            userId: 'LJSkpBexOSCWc8INyu3Eu',
+            type: ContentPreferenceType.User,
+            createdAt: 1752842329637000,
+            status: ContentPreferenceStatus.Blocked,
+            referenceUserId: 'rWrhZmPsXHnsgEAL8nwAk',
+            feedId: 'LJSkpBexOSCWc8INyu3Eu',
+          },
+          op: 'c',
+          table: 'content_preference',
+        }),
+      );
+
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+    });
+
+    it('should not trigger user follow on update', async () => {
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ContentPreferenceUser>({
+          after: {
+            referenceId: 'rWrhZmPsXHnsgEAL8nwAk',
+            userId: 'LJSkpBexOSCWc8INyu3Eu',
+            type: ContentPreferenceType.User,
+            createdAt: 1752842329637000,
+            status: ContentPreferenceStatus.Follow,
+            referenceUserId: 'rWrhZmPsXHnsgEAL8nwAk',
+            feedId: 'LJSkpBexOSCWc8INyu3Eu',
+          },
+          before: {
+            referenceId: 'rWrhZmPsXHnsgEAL8nwAk',
+            userId: 'LJSkpBexOSCWc8INyu3Eu',
+            type: ContentPreferenceType.User,
+            createdAt: 1752842329637000,
+            status: ContentPreferenceStatus.Blocked,
+            referenceUserId: 'rWrhZmPsXHnsgEAL8nwAk',
+            feedId: 'LJSkpBexOSCWc8INyu3Eu',
+          },
+          op: 'u',
+          table: 'content_preference',
+        }),
+      );
+
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
     });
   });
 });

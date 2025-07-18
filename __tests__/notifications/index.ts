@@ -1664,3 +1664,39 @@ describe('brief notifications', () => {
     ]);
   });
 });
+
+describe('user follow notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should notify when user is followed', async () => {
+    const user = usersFixture[0];
+
+    const type = NotificationType.UserFollow;
+    const ctx: NotificationUserContext = {
+      userIds: ['2'],
+      user: user as Reference<User>,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(user.id);
+    expect(actual.notification.targetUrl).toEqual(
+      `http://localhost:5002/${user.username}`,
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+  });
+});
