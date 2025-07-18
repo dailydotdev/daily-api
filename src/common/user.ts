@@ -68,26 +68,8 @@ export const deleteUser = async (
       }
     }
 
-    // Check and delete the user's resume if it exists
-    try {
-      const deleted = await deleteUserResume(userId);
-      if (deleted) {
-        logger.info(
-          {
-            userId,
-          },
-          'deleted user resume',
-        );
-      }
-    } catch (resumeError) {
-      logger.error(
-        {
-          userId,
-          error: resumeError,
-        },
-        'failed to delete user resume',
-      );
-    }
+    // Delete user's resume if exists
+    await deleteUserResume(userId);
 
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.getRepository(View).delete({ userId });

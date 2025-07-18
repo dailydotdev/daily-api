@@ -6810,7 +6810,6 @@ describe('add claimable items to user', () => {
 
       const body = res.body;
       expect(body.errors).toBeTruthy();
-      console.log(body.errors);
       expect(body.errors[0].message).toEqual('Extension must be .pdf');
     });
 

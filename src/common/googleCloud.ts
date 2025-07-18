@@ -5,6 +5,7 @@ import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
 import { Readable } from 'stream';
+import { logger } from '../logger';
 
 export const RESUMES_BUCKET_NAME =
   process.env.GCS_PDF_BUCKET || 'daily-dev-resumes';
@@ -97,9 +98,16 @@ export const uploadResumeFromStream = async (
 
 export const deleteUserResume = async (userId: string): Promise<boolean> => {
   const fileName = `${userId}.pdf`;
+  const bucketName = RESUMES_BUCKET_NAME;
+
+  if (!userId) {
+    logger.warn('User ID is required to delete resume');
+    return false;
+  }
+
   try {
     const storage = new Storage();
-    const bucket = storage.bucket(RESUMES_BUCKET_NAME);
+    const bucket = storage.bucket(bucketName);
     const file = bucket.file(fileName);
 
     // Check if the file exists before deleting
@@ -109,9 +117,27 @@ export const deleteUserResume = async (userId: string): Promise<boolean> => {
     }
 
     await file.delete();
+
+    logger.info(
+      {
+        userId,
+        fileName,
+        bucketName,
+      },
+      'deleted user resume',
+    );
+
     return true;
   } catch (error) {
-    console.error('Error deleting resume file:', error);
+    logger.error(
+      {
+        userId,
+        fileName,
+        bucketName,
+        error,
+      },
+      'failed to delete user resume',
+    );
     return false;
   }
 };
