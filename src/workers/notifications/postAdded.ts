@@ -49,6 +49,13 @@ const worker: NotificationWorker = {
       return;
     }
 
+    if (
+      source?.type === SourceType.Machine &&
+      (post.flags as PostFlags)?.showOnFeed === false
+    ) {
+      return;
+    }
+
     const notifs: NotificationHandlerReturn = [];
     // community_picks_succeeded notification
     if (post.scoutId) {
