@@ -75,9 +75,10 @@ export const entityToNotificationTypeMap: Record<
 };
 
 // TODO fix api.new-notification-mail condition to handle all types when follow phase 3 is implemented
-export const contentPreferenceNotificationTypes = Object.values(
-  entityToNotificationTypeMap.user,
-).flat();
+export const contentPreferenceNotificationTypes = [
+  ...Object.values(entityToNotificationTypeMap.user).flat(),
+  NotificationType.UserFollow,
+];
 
 export const cleanContentNotificationPreference = async ({
   ctx,
@@ -529,7 +530,7 @@ export const whereNotUserBlocked = (
   }: {
     userId: string;
     feedId?: string;
-    columnName?: 'userId' | 'referenceId';
+    columnName?: 'userId' | 'referenceId' | 'id';
   },
 ) => {
   const feedIds = feedId ? [feedId, userId] : [userId];

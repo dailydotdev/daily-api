@@ -179,6 +179,9 @@ export const notificationTitleMap: Record<
     `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
   briefing_ready: () =>
     `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
+  user_follow: (ctx: NotificationUserContext) => {
+    return `<strong>${ctx.user.name || ctx.user.username}</strong> started following you.`;
+  },
 };
 
 export const generateNotificationMap: Record<
@@ -509,5 +512,12 @@ export const generateNotificationMap: Record<
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.id);
+  },
+  user_follow: (builder, ctx: NotificationUserContext) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceUser(ctx.user)
+      .avatarUser(ctx.user)
+      .targetUser(ctx.user);
   },
 };

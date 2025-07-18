@@ -24,6 +24,7 @@ import {
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
+import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -150,6 +151,9 @@ export type PubSubSchema = {
   'api.v1.brief-ready': {
     payload: UserBriefingRequest;
     postId: string;
+  };
+  'api.v1.user-follow': {
+    payload: ChangeObject<ContentPreferenceUser>;
   };
 };
 
