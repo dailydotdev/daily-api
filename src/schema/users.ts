@@ -2386,23 +2386,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const upload = await resume;
-      const stream = upload.createReadStream();
 
       // Validate file extension
-      const extension = upload.filename?.split('.').pop().toLowerCase();
+      const extension = upload.filename?.split('.')?.pop()?.toLowerCase();
       if (extension !== 'pdf') {
         throw new ValidationError('Extension must be .pdf');
       }
 
       // Validate MIME type
-      const detectedFileType = await fileTypeFromStream(stream);
+      const detectedFileType = await fileTypeFromStream(
+        upload.createReadStream(),
+      );
       if (detectedFileType?.mime !== 'application/pdf') {
         throw new ValidationError('File is not a PDF');
       }
 
       // Actual upload
       const filename = `${ctx.userId}.pdf`;
-      await uploadResumeFromStream(filename, stream);
+      await uploadResumeFromStream(filename, upload.createReadStream());
 
       return { _: true };
     },
