@@ -134,10 +134,28 @@ import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import * as njordCommon from '../src/common/njord';
 import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
+import * as googleCloud from '../src/common/googleCloud';
+import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
+import { fileTypeFromStream } from 'file-type';
+
+jest.mock('file-type', () => {
+  return {
+    ...(jest.requireActual('file-type') as Record<string, unknown>),
+    fileTypeFromStream: jest.fn(),
+  };
+});
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
   getGeo: jest.fn(),
+}));
+
+jest.mock('../src/common/googleCloud', () => ({
+  ...(jest.requireActual('../src/common/googleCloud') as Record<
+    string,
+    unknown
+  >),
+  uploadResumeFromStream: jest.fn(),
 }));
 
 let con: DataSource;
@@ -6649,6 +6667,230 @@ describe('add claimable items to user', () => {
       const user = await con.getRepository(User).findOneBy({ id: userId });
       expect(user).not.toBeNull();
       expect(user?.subscriptionFlags).toMatchObject({});
+    });
+  });
+
+  describe('mutation uploadResume', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should upload resume successfully', async () => {
+      loggedUser = '1';
+
+      const initialUser = await con
+        .getRepository(User)
+        .findOneBy({ id: loggedUser });
+      expect(initialUser?.flags?.cvUploadedAt).not.toBeDefined();
+
+      // Mock the file type detection to return PDF
+      jest.mocked(fileTypeFromStream).mockResolvedValue({
+        mime: 'application/pdf',
+        ext: 'pdf',
+      });
+
+      // Mock the upload function to return a URL
+      jest
+        .mocked(googleCloud.uploadResumeFromStream)
+        .mockResolvedValue(
+          `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.pdf`,
+        );
+
+      // Create the mutation
+      const MUTATION = `
+        mutation UploadResume($resume: Upload!) {
+          uploadResume(resume: $resume) {
+            id
+          }
+        }
+      `;
+
+      // Execute the mutation with a file upload
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/happy_card.png'), // Using an existing image file as a mock PDF
+        loggedUser,
+      ).expect(200);
+
+      // Verify the response
+      const body = res.body;
+      expect(body.errors).toBeFalsy();
+      expect(body.data.uploadResume.id).toEqual(loggedUser);
+
+      // Verify the mocks were called correctly
+      expect(googleCloud.uploadResumeFromStream).toHaveBeenCalledWith(
+        `${loggedUser}.pdf`,
+        expect.any(Object),
+      );
+
+      const updatedUser = await con
+        .getRepository(User)
+        .findOneBy({ id: loggedUser });
+      expect(updatedUser?.flags?.cvUploadedAt).toBeDefined();
+    });
+
+    it('should throw error when file is missing', async () => {
+      loggedUser = '1';
+
+      const MUTATION = `
+        mutation UploadResume {
+          uploadResume(resume: null) {
+            id
+          }
+        }
+      `;
+
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+        },
+        'VALIDATION_ERROR',
+        'File is missing!',
+      );
+    });
+
+    it('should throw error when file extension is not PDF', async () => {
+      loggedUser = '1';
+
+      const MUTATION = `
+        mutation UploadResume($resume: Upload!) {
+          uploadResume(resume: $resume) {
+            id
+          }
+        }
+      `;
+
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/happy_card.png'),
+        loggedUser,
+      ).expect(200);
+
+      const body = res.body;
+      expect(body.errors).toBeTruthy();
+      expect(body.errors[0].extensions.code).toEqual('VALIDATION_ERROR');
+      expect(body.errors[0].message).toEqual('Extension must be .pdf');
+    });
+
+    it('should throw error when file is not actually a PDF', async () => {
+      // Mock the file type detection to return a non-PDF type
+      jest.mocked(fileTypeFromStream).mockResolvedValue({
+        mime: 'image/png',
+        ext: 'png',
+      });
+
+      loggedUser = '1';
+
+      const MUTATION = `
+        mutation UploadResume($resume: Upload!) {
+          uploadResume(resume: $resume) {
+            id
+          }
+        }
+      `;
+
+      // Rename the file to have a .pdf extension
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/happy_card.png', 'fake.pdf'),
+        loggedUser,
+      ).expect(200);
+
+      const body = res.body;
+      expect(body.errors).toBeTruthy();
+      expect(body.errors[0].extensions.code).toEqual('VALIDATION_ERROR');
+      expect(body.errors[0].message).toEqual('File is not a PDF');
+    });
+
+    it('should handle upload errors', async () => {
+      // Mock the file type detection to return PDF
+      jest.mocked(fileTypeFromStream).mockResolvedValue({
+        mime: 'application/pdf',
+        ext: 'pdf',
+      });
+
+      // Mock the upload function to throw an error
+      jest
+        .mocked(googleCloud.uploadResumeFromStream)
+        .mockRejectedValue(new Error('Upload failed'));
+
+      loggedUser = '1';
+
+      const MUTATION = `
+        mutation UploadResume($resume: Upload!) {
+          uploadResume(resume: $resume) {
+            id
+          }
+        }
+      `;
+
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/happy_card.png', 'sample.pdf'),
+        loggedUser,
+      ).expect(200);
+
+      const body = res.body;
+      expect(body.errors).toBeTruthy();
+      expect(body.errors[0].extensions.code).toEqual('UNEXPECTED');
+    });
+
+    it('should require authentication', async () => {
+      loggedUser = null;
+
+      const MUTATION = `
+        mutation UploadResume($resume: Upload!) {
+          uploadResume(resume: $resume) {
+            id
+          }
+        }
+      `;
+
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { resume: null },
+        },
+        'UNAUTHENTICATED',
+      );
     });
   });
 

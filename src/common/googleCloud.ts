@@ -6,6 +6,9 @@ import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
 import { Readable } from 'stream';
 
+export const RESUMES_BUCKET_NAME =
+  process.env.GCS_PDF_BUCKET || 'daily-dev-resumes';
+
 export const downloadFile = async ({
   url,
   options,
@@ -82,7 +85,7 @@ export const uploadFileFromStream = async ({
 export const uploadResumeFromStream = async (
   fileName: string,
   fileStream: Readable,
-  bucketName = process.env.GCS_PDF_BUCKET || 'daily-dev-resumes',
+  bucketName = RESUMES_BUCKET_NAME,
 ): Promise<string> => {
   return uploadFileFromStream({
     bucketName,
