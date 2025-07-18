@@ -134,10 +134,28 @@ import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import * as njordCommon from '../src/common/njord';
 import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
+import * as googleCloud from '../src/common/googleCloud';
+import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
+import { fileTypeFromStream } from 'file-type';
+
+jest.mock('file-type', () => {
+  return {
+    fileTypeFromStream: jest.fn(),
+  };
+});
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
   getGeo: jest.fn(),
+}));
+
+jest.mock('../src/common/googleCloud', () => ({
+  ...(jest.requireActual('../src/common/googleCloud') as Record<
+    string,
+    unknown
+  >),
+  uploadResumeFromStream: jest.fn(),
+  deleteUserResume: jest.fn(),
 }));
 
 let con: DataSource;
@@ -4365,6 +4383,34 @@ describe('mutation deleteUser', () => {
       .findOneBy({ id: '1' });
     expect(deletedUser).not.toBeNull();
   });
+
+  it('should delete user resume if it exists', async () => {
+    loggedUser = '1';
+
+    // Mock that the resume file exists
+    jest.spyOn(googleCloud, 'deleteUserResume').mockResolvedValue(true);
+
+    await client.mutate(MUTATION);
+
+    // Verify the resume was deleted
+    expect(googleCloud.deleteUserResume).toHaveBeenCalledWith('1');
+  });
+
+  it('should handle case when user has no resume', async () => {
+    loggedUser = '1';
+
+    // Mock that the resume file doesn't exist
+    jest.spyOn(googleCloud, 'deleteUserResume').mockResolvedValue(false);
+
+    await client.mutate(MUTATION);
+
+    // Verify the function was called but no error was thrown
+    expect(googleCloud.deleteUserResume).toHaveBeenCalledWith('1');
+
+    // User should still be deleted
+    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+    expect(userOne).toEqual(null);
+  });
 });
 
 describe('POST /v1/users/logout', () => {
@@ -6649,6 +6695,152 @@ describe('add claimable items to user', () => {
       const user = await con.getRepository(User).findOneBy({ id: userId });
       expect(user).not.toBeNull();
       expect(user?.subscriptionFlags).toMatchObject({});
+    });
+  });
+
+  describe('mutation uploadResume', () => {
+    const MUTATION = `
+        mutation UploadResume($resume: Upload!) {
+          uploadResume(resume: $resume) {
+            _
+          }
+        }
+      `;
+
+    beforeEach(async () => {
+      jest.clearAllMocks();
+      await deleteRedisKey(`${rateLimiterName}:1:Mutation.uploadResume`);
+    });
+
+    it('should require authentication', async () => {
+      loggedUser = null;
+
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/happy_card.png', 'sample.pdf'),
+        loggedUser,
+      ).expect(200);
+
+      const body = res.body;
+      expect(body.errors).toBeTruthy();
+      expect(body.errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+    });
+
+    it('should upload resume successfully', async () => {
+      loggedUser = '1';
+
+      // Mock the file type detection to return PDF
+      jest.mocked(fileTypeFromStream).mockResolvedValue({
+        mime: 'application/pdf',
+        ext: 'pdf',
+      });
+
+      // Mock the upload function to return a URL
+      jest
+        .mocked(googleCloud.uploadResumeFromStream)
+        .mockResolvedValue(
+          `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.pdf`,
+        );
+
+      // Execute the mutation with a file upload
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/screen.pdf'),
+        loggedUser,
+      ).expect(200);
+
+      // Verify the response
+      const body = res.body;
+      expect(body.errors).toBeFalsy();
+
+      // Verify the mocks were called correctly
+      expect(googleCloud.uploadResumeFromStream).toHaveBeenCalledWith(
+        `${loggedUser}.pdf`,
+        expect.any(Object),
+      );
+    });
+
+    it('should throw error when file is missing', async () => {
+      loggedUser = '1';
+
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should throw error when file extension is not PDF', async () => {
+      loggedUser = '1';
+
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/happy_card.png'),
+        loggedUser,
+      ).expect(200);
+
+      const body = res.body;
+      expect(body.errors).toBeTruthy();
+      expect(body.errors[0].message).toEqual('Extension must be .pdf');
+    });
+
+    it('should throw error when file is not actually a PDF', async () => {
+      // Mock the file type detection to return a non-PDF type
+      jest.mocked(fileTypeFromStream).mockResolvedValue({
+        mime: 'image/png',
+        ext: 'png',
+      });
+
+      loggedUser = '1';
+
+      // Rename the file to have a .pdf extension
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .field(
+            'operations',
+            JSON.stringify({
+              query: MUTATION,
+              variables: { resume: null },
+            }),
+          )
+          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+          .attach('0', './__tests__/fixture/happy_card.png', 'fake.pdf'),
+        loggedUser,
+      ).expect(200);
+
+      const body = res.body;
+      expect(body.errors).toBeTruthy();
+      expect(body.errors[0].message).toEqual('File is not a PDF');
     });
   });
 

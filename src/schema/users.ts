@@ -142,6 +142,8 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
+import { uploadResumeFromStream } from '../common/googleCloud';
+import { fileTypeFromStream } from 'file-type';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1110,6 +1112,16 @@ export const typeDefs = /* GraphQL */ `
       """
       image: Upload!
     ): User! @auth @rateLimit(limit: 5, duration: 60)
+
+    """
+    Upload user resume
+    """
+    uploadResume(
+      """
+      Asset to upload
+      """
+      resume: Upload!
+    ): EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
 
     """
     Update the user's readme
@@ -2363,6 +2375,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(User)
         .update({ id: ctx.userId }, { cover: imageUrl });
       return getCurrentUser(ctx, info);
+    },
+    uploadResume: async (
+      _,
+      { resume }: { resume: Promise<FileUpload> },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (!resume) {
+        throw new ValidationError('File is missing!');
+      }
+
+      const upload = await resume;
+
+      // Validate file extension
+      const extension = upload.filename?.split('.')?.pop()?.toLowerCase();
+      if (extension !== 'pdf') {
+        throw new ValidationError('Extension must be .pdf');
+      }
+
+      // Validate MIME type
+      const detectedFileType = await fileTypeFromStream(
+        upload.createReadStream(),
+      );
+      if (detectedFileType?.mime !== 'application/pdf') {
+        throw new ValidationError('File is not a PDF');
+      }
+
+      // Actual upload
+      const filename = `${ctx.userId}.pdf`;
+      await uploadResumeFromStream(filename, upload.createReadStream());
+
+      return { _: true };
     },
     updateReadme: async (
       _,

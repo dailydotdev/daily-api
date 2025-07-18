@@ -1,9 +1,14 @@
-import { Storage, DownloadOptions } from '@google-cloud/storage';
+import { DownloadOptions, Storage, UploadOptions } from '@google-cloud/storage';
 import { PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
+import { Readable } from 'stream';
+import { logger } from '../logger';
+
+export const RESUMES_BUCKET_NAME =
+  process.env.GCS_PDF_BUCKET || 'daily-dev-resumes';
 
 export const downloadFile = async ({
   url,
@@ -31,6 +36,110 @@ export const downloadJsonFile = async <T>({
   const result = await downloadFile({ url, options });
 
   return JSON.parse(result);
+};
+
+interface UploadFileFromStreamParams {
+  bucketName: string;
+  fileName: string;
+  fileStream: Readable;
+  contentType?: string;
+  options?: UploadOptions;
+  isPublic?: boolean;
+}
+
+export const uploadFileFromStream = async ({
+  bucketName,
+  fileName,
+  fileStream,
+  contentType = 'application/pdf',
+  options = {},
+  isPublic = false,
+}: UploadFileFromStreamParams): Promise<string> => {
+  const storage = new Storage();
+  const bucket = storage.bucket(bucketName);
+  const file = bucket.file(fileName);
+
+  // Create a Write stream to upload the file
+  const writeStream = file.createWriteStream({
+    contentType,
+    resumable: false,
+    ...options,
+  });
+
+  // Return a promise that resolves when the upload is complete
+  return new Promise((resolve, reject) => {
+    fileStream
+      .pipe(writeStream)
+      .on('error', (error) => reject(error))
+      .on('finish', async () => {
+        if (isPublic) {
+          await file.makePublic();
+        }
+
+        // Return the public URL
+        const publicUrl = `https://storage.cloud.google.com/${bucketName}/${fileName}`;
+        resolve(publicUrl);
+      });
+  });
+};
+
+export const uploadResumeFromStream = async (
+  fileName: string,
+  fileStream: Readable,
+  bucketName = RESUMES_BUCKET_NAME,
+): Promise<string> => {
+  return uploadFileFromStream({
+    bucketName,
+    fileName,
+    fileStream,
+    contentType: 'application/pdf',
+  });
+};
+
+export const deleteUserResume = async (userId: string): Promise<boolean> => {
+  const fileName = `${userId}.pdf`;
+  const bucketName = RESUMES_BUCKET_NAME;
+
+  if (!userId) {
+    logger.warn('User ID is required to delete resume');
+    return false;
+  }
+
+  try {
+    const storage = new Storage();
+    const bucket = storage.bucket(bucketName);
+    const file = bucket.file(fileName);
+
+    // Check if the file exists before deleting
+    const [exists] = await file.exists();
+    if (!exists) {
+      return false;
+    }
+
+    await file.delete();
+
+    logger.info(
+      {
+        userId,
+        fileName,
+        bucketName,
+      },
+      'deleted user resume',
+    );
+
+    return true;
+  } catch (error) {
+    logger.error(
+      {
+        userId,
+        fileName,
+        bucketName,
+        error,
+      },
+      'failed to delete user resume',
+    );
+    return false;
+  }
 };
 
 export enum UserActiveState {
