@@ -2386,21 +2386,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const upload = await resume;
-      const extension = upload.filename?.split('.').pop().toLowerCase();
+      const stream = upload.createReadStream();
 
-      // Validate file type
+      // Validate file extension
+      const extension = upload.filename?.split('.').pop().toLowerCase();
       if (extension !== 'pdf') {
         throw new ValidationError('Extension must be .pdf');
       }
 
-      const stream = upload.createReadStream();
+      // Validate MIME type
       const detectedFileType = await fileTypeFromStream(stream);
-
       if (detectedFileType?.mime !== 'application/pdf') {
         throw new ValidationError('File is not a PDF');
       }
 
-      // Upload to Google Cloud Storage
+      // Actual upload
       const filename = `${ctx.userId}.pdf`;
       await uploadResumeFromStream(filename, stream);
 
