@@ -40,58 +40,28 @@ export const downloadJsonFile = async <T>({
 interface UploadFileFromStreamParams {
   bucketName: string;
   fileName: string;
-  fileStream: Readable;
-  contentType?: string;
-  options?: UploadOptions;
-  isPublic?: boolean;
+  file: Buffer;
 }
 
-export const uploadFileFromStream = async ({
+export const uploadFileFromBuffer = async ({
   bucketName,
   fileName,
-  fileStream,
-  contentType = 'application/pdf',
-  options = {},
-  isPublic = false,
+  file,
 }: UploadFileFromStreamParams): Promise<string> => {
   const storage = new Storage();
-  const bucket = storage.bucket(bucketName);
-  const file = bucket.file(fileName);
-
-  // Create a Write stream to upload the file
-  const writeStream = file.createWriteStream({
-    contentType,
-    resumable: false,
-    ...options,
-  });
-
-  // Return a promise that resolves when the upload is complete
-  return new Promise((resolve, reject) => {
-    fileStream
-      .pipe(writeStream)
-      .on('error', reject)
-      .on('finish', async () => {
-        if (isPublic) {
-          await file.makePublic();
-        }
-
-        // Return the public URL
-        const publicUrl = `https://storage.cloud.google.com/${bucketName}/${fileName}`;
-        resolve(publicUrl);
-      });
-  });
+  await storage.bucket(bucketName).file(fileName).save(file);
+  return `https://storage.cloud.google.com/${bucketName}/${fileName}`;
 };
 
-export const uploadResumeFromStream = async (
+export const uploadResumeFromBuffer = async (
   fileName: string,
-  fileStream: Readable,
+  file: Buffer,
   bucketName = RESUMES_BUCKET_NAME,
 ): Promise<string> => {
-  return uploadFileFromStream({
+  return uploadFileFromBuffer({
     bucketName,
     fileName,
-    fileStream,
-    contentType: 'application/pdf',
+    file,
   });
 };
 

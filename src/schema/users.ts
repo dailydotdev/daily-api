@@ -143,8 +143,7 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
-import { uploadResumeFromStream } from '../common/googleCloud';
-import { Readable } from 'stream';
+import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
 
 export interface GQLUpdateUserInput {
@@ -2406,7 +2405,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Actual upload using buffer as a stream
       const filename = `${ctx.userId}.pdf`;
-      await uploadResumeFromStream(filename, Readable.from(buffer));
+      await uploadResumeFromBuffer(filename, buffer);
 
       return { _: true };
     },
