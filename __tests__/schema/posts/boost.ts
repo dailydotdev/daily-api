@@ -1475,7 +1475,7 @@ describe('query postCampaigns', () => {
       image: 'https://freeform-post.jpg',
       shortId: 'fp',
       permalink: 'http://localhost:4000/r/fp',
-      engagements: 1213, // 95 views + 48 upvotes + 20 comments + 1000 impressions + 50 clicks
+      engagements: 163, // 95 views + 48 upvotes + 20 comments
     });
     expect(res.data.postCampaigns.edges[1].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjI=',
@@ -1488,7 +1488,7 @@ describe('query postCampaigns', () => {
       image: 'https://shared-post.jpg', // From shared post
       shortId: 'share',
       permalink: 'http://localhost:4000/r/share',
-      engagements: 1178, // 75 views + 38 upvotes + 15 comments + 1000 impressions + 50 clicks
+      engagements: 128, // 75 views + 38 upvotes + 15 comments
     });
     expect(res.data.postCampaigns.edges[2].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjM=',
@@ -1499,7 +1499,7 @@ describe('query postCampaigns', () => {
       impressions: 3000,
       clicks: 150,
       totalSpend: 3000, // Converted from USD to cores
-      engagements: 3646, // 205+163+128+3000+150 = 3646 (post engagements + campaign metrics)
+      engagements: 496, // 205+163+128
     });
   });
 
@@ -1622,7 +1622,7 @@ describe('query postCampaigns', () => {
       impressions: 1000,
       clicks: 50,
       totalSpend: 1575, // Converted from USD to cores
-      engagements: 1159, // 65+32+12+50+1000 = 1159
+      engagements: 109,
     });
   });
 });
