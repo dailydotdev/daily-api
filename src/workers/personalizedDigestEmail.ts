@@ -223,7 +223,7 @@ const digestTypeToFunctionMap: Record<
   [UserPersonalizedDigestType.Brief]: async (data, con, logger) => {
     const currentDate = new Date();
 
-    const { personalizedDigest, deduplicate = true } = data;
+    const { personalizedDigest, deduplicate = true, emailSendTimestamp } = data;
 
     await con.transaction(async (entityManager) => {
       await dedupedSend(
@@ -251,6 +251,7 @@ const digestTypeToFunctionMap: Record<
               modelName: BriefingModel.Default,
             }),
             postId,
+            sendAtMs: emailSendTimestamp,
           });
         },
         {

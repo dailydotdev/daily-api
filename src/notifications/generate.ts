@@ -506,12 +506,18 @@ export const generateNotificationMap: Record<
     builder: NotificationBuilder,
     ctx: NotificationPostContext,
   ) => {
-    return builder
+    builder
       .icon(NotificationIcon.Bell)
       .avatarBriefing()
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.id);
+
+    if (typeof ctx.sendAtMs !== 'undefined') {
+      builder.setCreatedAt(new Date(ctx.sendAtMs));
+    }
+
+    return builder;
   },
   user_follow: (builder, ctx: NotificationUserContext) => {
     return builder

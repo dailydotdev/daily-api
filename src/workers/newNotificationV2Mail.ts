@@ -1167,6 +1167,10 @@ const worker: Worker = {
                   id: user.id,
                 },
                 to: user.email,
+                send_at:
+                  notification.createdAt.getTime() > Date.now()
+                    ? Math.floor(notification.createdAt.getTime() / 1000) // cio accepts seconds
+                    : undefined,
               });
             }),
           );

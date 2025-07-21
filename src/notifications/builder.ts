@@ -433,6 +433,12 @@ export class NotificationBuilder {
     return newBuilder;
   }
 
+  setCreatedAt(createdAt: Date): NotificationBuilder {
+    return this.enrichNotification({
+      createdAt,
+    });
+  }
+
   private enrichNotification(
     addition: DeepPartial<NotificationV2>,
   ): NotificationBuilder {
