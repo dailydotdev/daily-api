@@ -4389,24 +4389,24 @@ describe('mutation deleteUser', () => {
     loggedUser = '1';
 
     // Mock that the resume file exists
-    jest.spyOn(googleCloud, 'deleteUserResume').mockResolvedValue(true);
+    jest.spyOn(googleCloud, 'deleteResumeByUserId').mockResolvedValue(true);
 
     await client.mutate(MUTATION);
 
     // Verify the resume was deleted
-    expect(googleCloud.deleteUserResume).toHaveBeenCalledWith('1');
+    expect(googleCloud.deleteResumeByUserId).toHaveBeenCalledWith('1');
   });
 
   it('should handle case when user has no resume', async () => {
     loggedUser = '1';
 
     // Mock that the resume file doesn't exist
-    jest.spyOn(googleCloud, 'deleteUserResume').mockResolvedValue(false);
+    jest.spyOn(googleCloud, 'deleteResumeByUserId').mockResolvedValue(false);
 
     await client.mutate(MUTATION);
 
     // Verify the function was called but no error was thrown
-    expect(googleCloud.deleteUserResume).toHaveBeenCalledWith('1');
+    expect(googleCloud.deleteResumeByUserId).toHaveBeenCalledWith('1');
 
     // User should still be deleted
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });

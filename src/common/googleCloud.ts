@@ -64,7 +64,9 @@ export const uploadResumeFromBuffer = async (
   });
 };
 
-export const deleteUserResume = async (userId: string): Promise<boolean> => {
+export const deleteResumeByUserId = async (
+  userId: string,
+): Promise<boolean> => {
   const fileName = `${userId}.pdf`;
   const bucketName = RESUMES_BUCKET_NAME;
 
