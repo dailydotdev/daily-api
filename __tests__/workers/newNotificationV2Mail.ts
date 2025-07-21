@@ -2495,9 +2495,19 @@ describe('briefing_ready notification', () => {
   });
 
   it('should schedule email', async () => {
-    const postContext = await buildPostContext(con, 'bnp-1');
-
     const sendAtMs = Date.now() + 100_000;
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: 'u-bnp-1',
+        type: UserPersonalizedDigestType.Brief,
+      },
+      {
+        lastSendDate: new Date(sendAtMs),
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
 
     const ctx: NotificationPostContext = {
       ...postContext!,
@@ -2525,9 +2535,19 @@ describe('briefing_ready notification', () => {
   });
 
   it('should send email instead of schedule sentAtMs is in the past', async () => {
-    const postContext = await buildPostContext(con, 'bnp-1');
-
     const sendAtMs = Date.now() - 100_000;
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: 'u-bnp-1',
+        type: UserPersonalizedDigestType.Brief,
+      },
+      {
+        lastSendDate: new Date(sendAtMs),
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
 
     const ctx: NotificationPostContext = {
       ...postContext!,

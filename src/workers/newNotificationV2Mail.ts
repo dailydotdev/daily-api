@@ -64,6 +64,7 @@ import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { skadiApiClient } from '../integrations/skadi/api/clients';
 import { largeNumberFormat } from '../common/devcard';
+import { isNullOrUndefined } from '../common/object';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -116,7 +117,9 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_follow: '',
 };
 
-type TemplateData = Record<string, unknown>;
+type TemplateData = Record<string, unknown> & {
+  sendAtMs?: number;
+};
 
 type TemplateDataFunc = (
   con: DataSource,
@@ -1016,9 +1019,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   briefing_ready: async (con, user, notification) => {
     const personalizedDigest: Pick<
       UserPersonalizedDigest,
-      'userId' | 'flags'
+      'userId' | 'flags' | 'lastSendDate'
     > | null = await con.getRepository(UserPersonalizedDigest).findOne({
-      select: ['userId', 'flags'],
+      select: ['userId', 'flags', 'lastSendDate'],
       where: {
         userId: user.id,
         type: UserPersonalizedDigestType.Brief,
@@ -1066,6 +1069,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       sections: post.contentJSON.map((item: JsonValue) =>
         BriefingSection.fromJson(item),
       ),
+      sendAtMs: personalizedDigest.lastSendDate?.getTime(),
     };
   },
   user_follow: async () => {
@@ -1168,8 +1172,9 @@ const worker: Worker = {
                 },
                 to: user.email,
                 send_at:
-                  notification.createdAt.getTime() > Date.now()
-                    ? Math.floor(notification.createdAt.getTime() / 1000) // cio accepts seconds
+                  !isNullOrUndefined(templateData.sendAtMs) &&
+                  templateData.sendAtMs > Date.now()
+                    ? Math.floor(templateData.sendAtMs / 1000) // cio accepts seconds
                     : undefined,
               });
             }),

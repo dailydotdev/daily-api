@@ -38,7 +38,6 @@ import { NotificationType } from './common';
 import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency } from '../common/number';
-import { isNullOrUndefined } from '../common/object';
 
 const systemTitle = () => undefined;
 
@@ -507,18 +506,12 @@ export const generateNotificationMap: Record<
     builder: NotificationBuilder,
     ctx: NotificationPostContext,
   ) => {
-    builder
+    return builder
       .icon(NotificationIcon.Bell)
       .avatarBriefing()
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.id);
-
-    if (!isNullOrUndefined(ctx.sendAtMs)) {
-      builder.setCreatedAt(new Date(ctx.sendAtMs));
-    }
-
-    return builder;
   },
   user_follow: (builder, ctx: NotificationUserContext) => {
     return builder

@@ -221,8 +221,6 @@ const digestTypeToFunctionMap: Record<
     );
   },
   [UserPersonalizedDigestType.Brief]: async (data, con, logger) => {
-    const currentDate = new Date();
-
     const { personalizedDigest, deduplicate = true, emailSendTimestamp } = data;
 
     await con.transaction(async (entityManager) => {
@@ -257,7 +255,7 @@ const digestTypeToFunctionMap: Record<
         {
           con: entityManager,
           personalizedDigest,
-          date: currentDate,
+          date: new Date(emailSendTimestamp),
           deduplicate,
         },
       );
