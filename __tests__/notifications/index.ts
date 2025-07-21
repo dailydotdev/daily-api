@@ -317,6 +317,41 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([]);
   });
 
+  it('should generate post_boost_first_milestone notification', () => {
+    const type = NotificationType.PostBoostFirstMilestone;
+    const ctx: NotificationBoostContext = {
+      user: usersFixture[0],
+      userIds: ['1'],
+      campaignId: 'tmp-campaign',
+    };
+    const title = `Your boosted post is performing well! You're getting traction, check it out!`;
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('tmp-campaign');
+    expect(actual.notification.referenceType).toEqual('boost');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?post_boost=true&c_id=tmp-campaign',
+    );
+    expect(actual.notification.title).toEqual(title);
+    expect(actual.notification.description).toBeUndefined();
+    expect(
+      actual.notification.uniqueKey?.startsWith('tmp-campaign'),
+    ).toBeTruthy();
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments).toEqual([]);
+  });
+
   it('should generate post_bookmark_reminder notification', () => {
     const type = NotificationType.PostBookmarkReminder;
     const post = postsFixture[0] as Reference<Post>;

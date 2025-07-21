@@ -910,10 +910,10 @@ describe('post added notifications', () => {
   });
 });
 
-describe('post boost completed', () => {
+describe('post boost action', () => {
   it('should be registered', async () => {
     const worker = await import(
-      '../../src/workers/notifications/postBoostCompleted'
+      '../../src/workers/notifications/postBoostAction'
     );
 
     const registeredWorker = workers.find(
@@ -923,21 +923,55 @@ describe('post boost completed', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should add notification for the user sent to the worker', async () => {
+  it('should add first milestone notification for the user sent to the worker', async () => {
     const worker = await import(
-      '../../src/workers/notifications/postBoostCompleted'
+      '../../src/workers/notifications/postBoostAction'
     );
     const actual = await invokeNotificationWorker(worker.default, {
       userId: '1',
       postId: 'p1',
       campaignId: 'tmp-campaign',
+      action: 'first_milestone',
     });
-    expect(actual.length).toEqual(1);
-    const bundle = actual[0];
+    expect(actual).toBeDefined();
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
+    const ctx = bundle.ctx as NotificationBoostContext;
+    expect(bundle.type).toEqual('post_boost_first_milestone');
+    expect(ctx.campaignId).toEqual('tmp-campaign');
+    expect(ctx.user.id).toEqual('1');
+  });
+
+  it('should add completed notification for the user sent to the worker', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBoostAction'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      campaignId: 'tmp-campaign',
+      action: 'completed',
+    });
+    expect(actual).toBeDefined();
+    expect(actual!.length).toEqual(1);
+    const bundle = actual![0];
     const ctx = bundle.ctx as NotificationBoostContext;
     expect(bundle.type).toEqual('post_boost_completed');
     expect(ctx.campaignId).toEqual('tmp-campaign');
     expect(ctx.user.id).toEqual('1');
+  });
+
+  it('should not add notification for cancelled action', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBoostAction'
+    );
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: '1',
+      postId: 'p1',
+      campaignId: 'tmp-campaign',
+      action: 'cancelled',
+    });
+    expect(actual).toBeFalsy();
   });
 });
 

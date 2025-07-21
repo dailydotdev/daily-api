@@ -271,12 +271,7 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
     : Promise.resolve(null));
 
   const title = truncatePostToTweet(post || sharedPost);
-  const engagement =
-    campaign.impressions +
-    campaign.clicks +
-    post.views +
-    post.upvotes +
-    post.comments;
+  const engagement = post.views + post.upvotes + post.comments;
 
   return {
     start_date: formatMailDate(debeziumTimeToDate(campaign.startedAt)),
