@@ -6,10 +6,10 @@ import { queryReadReplica } from '../../common/queryReadReplica';
 import { updateFlagsStatement } from '../../common';
 import { logger } from '../../logger';
 
-const worker = generateTypedNotificationWorker<'api.v1.post-boost-update'>({
-  subscription: 'api.post-boost-update-notification',
+const worker = generateTypedNotificationWorker<'api.v1.post-boost-action'>({
+  subscription: 'api.post-boost-action-notification',
   handler: async (params, con) => {
-    const { userId, postId, campaignId, update } = params;
+    const { userId, postId, campaignId, action } = params;
 
     await con
       .getRepository(Post)
@@ -30,14 +30,13 @@ const worker = generateTypedNotificationWorker<'api.v1.post-boost-update'>({
       userIds: [userId],
     };
 
-    switch (update) {
+    switch (action) {
       case 'first_milestone':
         return [{ type: NotificationType.PostBoostFirstMilestone, ctx }];
       case 'completed':
-      case 'cancelled':
         return [{ type: NotificationType.PostBoostCompleted, ctx }];
       default:
-        logger.info({ params }, `Sent 0 notification for action: ${update}`);
+        logger.info({ params }, `Sent 0 notification for action: ${action}`);
         return;
     }
   },

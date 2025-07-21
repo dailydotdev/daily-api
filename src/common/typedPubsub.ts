@@ -25,7 +25,7 @@ import {
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import type { CampaignUpdate } from '../integrations/skadi';
+import type { CampaignUpdateAction } from '../integrations/skadi';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -151,11 +151,11 @@ export type PubSubSchema = {
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
   };
-  'api.v1.post-boost-update': {
+  'api.v1.post-boost-action': {
     postId: Post['id'];
     userId: User['id'];
     campaignId: string;
-    update: CampaignUpdate;
+    action: CampaignUpdateAction;
   };
 };
 

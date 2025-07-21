@@ -31,7 +31,7 @@ import { postAddedUserNotification } from './postAddedUserNotification';
 import { userTopReaderAdded } from './userTopReaderAdded';
 import { userReceivedAward } from '../transactions/userReceivedAward';
 import { organizationUserJoined } from '../organization/organizationUserJoined';
-import postBoostUpdate from './postBoostUpdate';
+import postBoostAction from './postBoostAction';
 import { userBriefReadyNotification } from './userBriefReadyNotification';
 import { userFollowNotification } from './userFollowNotification';
 
@@ -103,7 +103,7 @@ const notificationWorkers: NotificationWorker[] = [
   userGiftedPlusNotification,
   userReceivedAward,
   organizationUserJoined,
-  postBoostUpdate,
+  postBoostAction,
   userBriefReadyNotification,
   userFollowNotification,
 ];
