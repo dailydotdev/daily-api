@@ -1,12 +1,9 @@
-import { DownloadOptions, Storage } from '@google-cloud/storage';
+import { Storage, DownloadOptions } from '@google-cloud/storage';
 import { PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
-import { logger } from '../logger';
-
-export const RESUMES_BUCKET_NAME = 'daily-dev-resumes';
 
 export const downloadFile = async ({
   url,
@@ -34,76 +31,6 @@ export const downloadJsonFile = async <T>({
   const result = await downloadFile({ url, options });
 
   return JSON.parse(result);
-};
-
-interface UploadFileFromStreamParams {
-  bucketName: string;
-  fileName: string;
-  file: Buffer;
-}
-
-export const uploadFileFromBuffer = async ({
-  bucketName,
-  fileName,
-  file,
-}: UploadFileFromStreamParams): Promise<string> => {
-  const storage = new Storage();
-  await storage.bucket(bucketName).file(fileName).save(file);
-  return `https://storage.cloud.google.com/${bucketName}/${fileName}`;
-};
-
-export const uploadResumeFromBuffer = async (
-  fileName: string,
-  file: Buffer,
-  bucketName = RESUMES_BUCKET_NAME,
-): Promise<string> => {
-  return uploadFileFromBuffer({
-    bucketName,
-    fileName,
-    file,
-  });
-};
-
-export const deleteResumeByUserId = async (
-  userId: string,
-): Promise<boolean> => {
-  const fileName = `${userId}.pdf`;
-  const bucketName = RESUMES_BUCKET_NAME;
-
-  if (!userId?.trim()) {
-    logger.warn('User ID is required to delete resume');
-    return false;
-  }
-
-  try {
-    const storage = new Storage();
-    const bucket = storage.bucket(bucketName);
-    const file = bucket.file(fileName);
-
-    await file.delete();
-
-    logger.info(
-      {
-        userId,
-        fileName,
-        bucketName,
-      },
-      'deleted user resume',
-    );
-
-    return true;
-  } catch (error) {
-    logger.error(
-      {
-        userId,
-        fileName,
-        bucketName,
-        error,
-      },
-      'failed to delete user resume',
-    );
-    return false;
-  }
 };
 
 export enum UserActiveState {

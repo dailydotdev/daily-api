@@ -74,11 +74,6 @@ const cleanDatabase = async (): Promise<void> => {
   }
 };
 
-export const fileTypeFromBuffer = jest.fn();
-jest.mock('file-type', () => ({
-  fileTypeFromBuffer: () => fileTypeFromBuffer(),
-}));
-
 beforeEach(async () => {
   loadAuthKeys();
 
