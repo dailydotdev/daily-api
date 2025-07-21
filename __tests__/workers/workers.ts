@@ -28,9 +28,15 @@ describe('pubsub workers', () => {
   });
 
   it('should have all subscriptions from legacy workers to be defined', () => {
-    const allIsFound = legacyWorkers.every(
-      ({ subscription }) => subscription in infraWorkersMap,
-    );
+    const allIsFound = legacyWorkers.every(({ subscription }) => {
+      const isFound = subscription in infraWorkersMap;
+
+      if (!isFound) {
+        console.log('not found: ', subscription);
+      }
+
+      return isFound;
+    });
 
     expect(allIsFound).toBe(true);
   });

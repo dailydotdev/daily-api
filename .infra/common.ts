@@ -354,8 +354,8 @@ export const workers: Worker[] = [
     subscription: 'api.organization-user-removed',
   },
   {
-    topic: 'api.v1.post-boost-completed',
-    subscription: 'api.post-boost-completed-notification',
+    topic: 'api.v1.post-boost-action',
+    subscription: 'api.post-boost-action-notification',
   },
   {
     topic: 'api.v1.brief-generate',
