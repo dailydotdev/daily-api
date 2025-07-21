@@ -136,6 +136,7 @@ import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import * as googleCloud from '../src/common/googleCloud';
 import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
+import { fileTypeFromBuffer } from './setup';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -152,11 +153,6 @@ jest.mock('../src/common/googleCloud', () => ({
   uploadFileFromBuffer: (...args: unknown[]) => uploadFileFromBuffer(...args),
   uploadResumeFromBuffer: (...args: unknown[]) =>
     uploadResumeFromBuffer(...args),
-}));
-
-const fileTypeFromBuffer = jest.fn();
-jest.mock('file-type', () => ({
-  fileTypeFromBuffer: () => fileTypeFromBuffer(),
 }));
 
 let con: DataSource;
@@ -6771,9 +6767,10 @@ describe('add claimable items to user', () => {
       );
     });
   });
+});
 
-  describe('mutation uploadResume', () => {
-    const MUTATION = `
+describe('mutation uploadResume', () => {
+  const MUTATION = `
         mutation UploadResume($resume: Upload!) {
           uploadResume(resume: $resume) {
             _
@@ -6781,138 +6778,137 @@ describe('add claimable items to user', () => {
         }
       `;
 
-    beforeEach(async () => {
-      jest.clearAllMocks();
-      await deleteRedisKey(`${rateLimiterName}:1:Mutation.uploadResume`);
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await deleteRedisKey(`${rateLimiterName}:1:Mutation.uploadResume`);
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { resume: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+        .attach('0', './__tests__/fixture/happy_card.png', 'sample.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+  });
+
+  it('should upload resume successfully', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
     });
 
-    it('should require authentication', async () => {
-      loggedUser = null;
+    // Mock the upload function to return a URL
+    uploadResumeFromBuffer.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.pdf`,
+    );
 
-      const res = await authorizeRequest(
-        request(app.server)
-          .post('/graphql')
-          .field(
-            'operations',
-            JSON.stringify({
-              query: MUTATION,
-              variables: { resume: null },
-            }),
-          )
-          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
-          .attach('0', './__tests__/fixture/happy_card.png', 'sample.pdf'),
-        loggedUser,
-      ).expect(200);
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { resume: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+      loggedUser,
+    ).expect(200);
 
-      const body = res.body;
-      expect(body.errors).toBeTruthy();
-      expect(body.errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+    // Verify the response
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    // Verify the mocks were called correctly
+    expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
+      `${loggedUser}.pdf`,
+      expect.any(Object),
+    );
+  });
+
+  it('should throw error when file is missing', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should throw error when file extension is not PDF', async () => {
+    loggedUser = '1';
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { resume: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+        .attach('0', './__tests__/fixture/happy_card.png'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('Extension must be .pdf');
+  });
+
+  it('should throw error when file is not actually a PDF', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'png',
+      mime: 'image/png',
     });
 
-    it('should upload resume successfully', async () => {
-      loggedUser = '1';
+    // Rename the file to have a .pdf extension
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { resume: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+        .attach('0', './__tests__/fixture/happy_card.png', 'fake.pdf'),
+      loggedUser,
+    ).expect(200);
 
-      // mock the file-type check to allow PDF files
-      fileTypeFromBuffer.mockResolvedValue({
-        ext: 'pdf',
-        mime: 'application/pdf',
-      });
-
-      // Mock the upload function to return a URL
-      uploadResumeFromBuffer.mockResolvedValue(
-        `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.pdf`,
-      );
-
-      // Execute the mutation with a file upload
-      const res = await authorizeRequest(
-        request(app.server)
-          .post('/graphql')
-          .field(
-            'operations',
-            JSON.stringify({
-              query: MUTATION,
-              variables: { resume: null },
-            }),
-          )
-          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
-          .attach('0', './__tests__/fixture/screen.pdf'),
-        loggedUser,
-      ).expect(200);
-
-      // Verify the response
-      const body = res.body;
-      expect(body.errors).toBeFalsy();
-
-      // Verify the mocks were called correctly
-      expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
-        `${loggedUser}.pdf`,
-        expect.any(Object),
-      );
-    });
-
-    it('should throw error when file is missing', async () => {
-      loggedUser = '1';
-
-      return testMutationErrorCode(
-        client,
-        {
-          mutation: MUTATION,
-        },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should throw error when file extension is not PDF', async () => {
-      loggedUser = '1';
-
-      const res = await authorizeRequest(
-        request(app.server)
-          .post('/graphql')
-          .field(
-            'operations',
-            JSON.stringify({
-              query: MUTATION,
-              variables: { resume: null },
-            }),
-          )
-          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
-          .attach('0', './__tests__/fixture/happy_card.png'),
-        loggedUser,
-      ).expect(200);
-
-      const body = res.body;
-      expect(body.errors).toBeTruthy();
-      expect(body.errors[0].message).toEqual('Extension must be .pdf');
-    });
-
-    it('should throw error when file is not actually a PDF', async () => {
-      loggedUser = '1';
-
-      // mock the file-type check to allow PDF files
-      fileTypeFromBuffer.mockResolvedValue({
-        ext: 'png',
-        mime: 'image/png',
-      });
-
-      // Rename the file to have a .pdf extension
-      const res = await authorizeRequest(
-        request(app.server)
-          .post('/graphql')
-          .field(
-            'operations',
-            JSON.stringify({
-              query: MUTATION,
-              variables: { resume: null },
-            }),
-          )
-          .field('map', JSON.stringify({ '0': ['variables.resume'] }))
-          .attach('0', './__tests__/fixture/happy_card.png', 'fake.pdf'),
-        loggedUser,
-      ).expect(200);
-
-      const body = res.body;
-      expect(body.errors).toBeTruthy();
-      expect(body.errors[0].message).toEqual('File is not a PDF');
-    });
+    const body = res.body;
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('File is not a PDF');
   });
 });
