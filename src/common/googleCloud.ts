@@ -1,10 +1,9 @@
-import { DownloadOptions, Storage, UploadOptions } from '@google-cloud/storage';
+import { DownloadOptions, Storage } from '@google-cloud/storage';
 import { PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
-import { Readable } from 'stream';
 import { logger } from '../logger';
 
 export const RESUMES_BUCKET_NAME = 'daily-dev-resumes';
