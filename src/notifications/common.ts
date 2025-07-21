@@ -64,6 +64,7 @@ export enum NotificationType {
   UserReceivedAward = 'user_received_award',
   OrganizationMemberJoined = 'organization_member_joined',
   PostBoostCompleted = 'post_boost_completed',
+  PostBoostFirstMilestone = 'post_boost_first_milestone',
   BriefingReady = 'briefing_ready',
   UserFollow = 'user_follow',
 }

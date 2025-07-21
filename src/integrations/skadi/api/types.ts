@@ -79,3 +79,5 @@ export interface ISkadiApiClient {
     params: GetCampaignsProps,
   ) => Promise<GetCampaignListResponseMapped>;
 }
+
+export type CampaignUpdate = 'completed' | 'cancelled' | 'first_milestone';
