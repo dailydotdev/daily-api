@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { ValidationError } from 'apollo-server-errors';
 import { AuthContext } from '../../Context';
-import { Post, PostType, type ConnectionManager } from '../../entity';
+import {
+  ArticlePost,
+  Post,
+  PostType,
+  type ConnectionManager,
+  type FreeformPost,
+  type SharePost,
+} from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
 import {
   type GetCampaignResponse,
@@ -16,6 +23,11 @@ import { NotFoundError } from '../../errors';
 import { usdToCores } from '../njord';
 import { debeziumTimeToDate, type ObjectSnakeToCamelCase } from '../utils';
 import { getDiscussionLink } from '../links';
+import { skadiApiClient } from '../../integrations/skadi/api/clients';
+import { largeNumberFormat } from '../devcard';
+import { formatMailDate, addNotificationEmailUtm } from '../mailing';
+import { truncatePostToTweet } from '../twitter';
+import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 
 export interface GQLPromotedPost
   extends ObjectSnakeToCamelCase<
@@ -227,4 +239,57 @@ export const getTotalEngagements = async (
     (engagements?.comments || 0) +
     (engagements?.views || 0)
   );
+};
+
+export const generateBoostEmailUpdate: TemplateDataFunc = async (
+  con,
+  user,
+  notification,
+) => {
+  const campaign = await skadiApiClient.getCampaignById({
+    campaignId: notification.referenceId!,
+    userId: user.id,
+  });
+
+  if (!campaign) {
+    return null;
+  }
+
+  const post = await con.getRepository(Post).findOne({
+    where: { id: campaign.postId },
+  });
+
+  if (!post) {
+    return null;
+  }
+
+  const sharedPost = await (post.type === PostType.Share
+    ? con.getRepository(ArticlePost).findOne({
+        where: { id: (post as SharePost).sharedPostId },
+        select: ['title', 'image', 'slug'],
+      })
+    : Promise.resolve(null));
+
+  const title = truncatePostToTweet(post || sharedPost);
+  const engagement =
+    campaign.impressions +
+    campaign.clicks +
+    post.views +
+    post.upvotes +
+    post.comments;
+
+  return {
+    start_date: formatMailDate(debeziumTimeToDate(campaign.startedAt)),
+    end_date: formatMailDate(debeziumTimeToDate(campaign.endedAt)),
+    impressions: largeNumberFormat(campaign.impressions),
+    clicks: largeNumberFormat(campaign.clicks),
+    engagement: largeNumberFormat(engagement),
+    post_link: getDiscussionLink(post.slug),
+    analytics_link: addNotificationEmailUtm(
+      notification.targetUrl,
+      notification.type,
+    ),
+    post_image: sharedPost?.image || (post as FreeformPost).image,
+    post_title: title,
+  };
 };
