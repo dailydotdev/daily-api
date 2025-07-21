@@ -100,7 +100,7 @@ export const deleteUserResume = async (userId: string): Promise<boolean> => {
   const fileName = `${userId}.pdf`;
   const bucketName = RESUMES_BUCKET_NAME;
 
-  if (!userId) {
+  if (!userId?.trim()) {
     logger.warn('User ID is required to delete resume');
     return false;
   }
