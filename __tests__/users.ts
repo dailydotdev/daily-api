@@ -134,7 +134,6 @@ import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import * as njordCommon from '../src/common/njord';
 import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
-import * as googleCloud from '../src/common/googleCloud';
 import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
 
@@ -145,6 +144,7 @@ jest.mock('../src/common/geo', () => ({
 
 const uploadFileFromBuffer = jest.fn();
 const uploadResumeFromBuffer = jest.fn();
+const deleteResumeByUserId = jest.fn();
 jest.mock('../src/common/googleCloud', () => ({
   ...(jest.requireActual('../src/common/googleCloud') as Record<
     string,
@@ -153,6 +153,7 @@ jest.mock('../src/common/googleCloud', () => ({
   uploadFileFromBuffer: (...args: unknown[]) => uploadFileFromBuffer(...args),
   uploadResumeFromBuffer: (...args: unknown[]) =>
     uploadResumeFromBuffer(...args),
+  deleteResumeByUserId: (...args: unknown[]) => deleteResumeByUserId(...args),
 }));
 
 let con: DataSource;
@@ -4385,24 +4386,24 @@ describe('mutation deleteUser', () => {
     loggedUser = '1';
 
     // Mock that the resume file exists
-    jest.spyOn(googleCloud, 'deleteResumeByUserId').mockResolvedValue(true);
+    deleteResumeByUserId.mockResolvedValue(true);
 
     await client.mutate(MUTATION);
 
     // Verify the resume was deleted
-    expect(googleCloud.deleteResumeByUserId).toHaveBeenCalledWith('1');
+    expect(deleteResumeByUserId).toHaveBeenCalledWith('1');
   });
 
   it('should handle case when user has no resume', async () => {
     loggedUser = '1';
 
     // Mock that the resume file doesn't exist
-    jest.spyOn(googleCloud, 'deleteResumeByUserId').mockResolvedValue(false);
+    deleteResumeByUserId.mockResolvedValue(false);
 
     await client.mutate(MUTATION);
 
     // Verify the function was called but no error was thrown
-    expect(googleCloud.deleteResumeByUserId).toHaveBeenCalledWith('1');
+    expect(deleteResumeByUserId).toHaveBeenCalledWith('1');
 
     // User should still be deleted
     const userOne = await con.getRepository(User).findOneBy({ id: '1' });
