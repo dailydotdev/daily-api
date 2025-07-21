@@ -288,14 +288,12 @@ export type ObjectSnakeToCamelCase<T extends object> = {
   [K in keyof T as K extends string ? CamelCasedKey<K> : never]: T[K];
 };
 
-export function getMimeTypeFromArrayBuffer(arrayBuffer: ArrayBuffer) {
+export function getMimeTypeFromArrayBuffer(arrayBuffer: ArrayBuffer, len = 4) {
   const uint8arr = new Uint8Array(arrayBuffer);
-
-  const len = 4;
   if (uint8arr.length >= len) {
     const signatureArr = new Array(len);
     for (let i = 0; i < len; i++)
-      signatureArr[i] = new Uint8Array(arrayBuffer)[i].toString(16);
+      signatureArr[i] = uint8arr[i].toString(16).padStart(2, '0');
     const signature = signatureArr.join('').toUpperCase();
 
     switch (signature) {
