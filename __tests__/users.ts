@@ -136,13 +136,6 @@ import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import * as googleCloud from '../src/common/googleCloud';
 import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
-import { fileTypeFromStream } from 'file-type';
-
-jest.mock('file-type', () => {
-  return {
-    fileTypeFromStream: jest.fn(),
-  };
-});
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -6738,12 +6731,6 @@ describe('add claimable items to user', () => {
     it('should upload resume successfully', async () => {
       loggedUser = '1';
 
-      // Mock the file type detection to return PDF
-      jest.mocked(fileTypeFromStream).mockResolvedValue({
-        mime: 'application/pdf',
-        ext: 'pdf',
-      });
-
       // Mock the upload function to return a URL
       jest
         .mocked(googleCloud.uploadResumeFromStream)
@@ -6814,12 +6801,6 @@ describe('add claimable items to user', () => {
     });
 
     it('should throw error when file is not actually a PDF', async () => {
-      // Mock the file type detection to return a non-PDF type
-      jest.mocked(fileTypeFromStream).mockResolvedValue({
-        mime: 'image/png',
-        ext: 'png',
-      });
-
       loggedUser = '1';
 
       // Rename the file to have a .pdf extension

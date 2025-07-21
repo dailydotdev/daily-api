@@ -73,6 +73,7 @@ import {
   updateSubscriptionFlags,
   systemUser,
   parseBigInt,
+  getMimeTypeFromArrayBuffer,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -143,7 +144,7 @@ import {
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
 import { uploadResumeFromStream } from '../common/googleCloud';
-import { fileTypeFromStream } from 'file-type';
+import { Readable } from 'stream';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2393,17 +2394,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Extension must be .pdf');
       }
 
-      // Validate MIME type
-      const detectedFileType = await fileTypeFromStream(
-        upload.createReadStream(),
-      );
-      if (detectedFileType?.mime !== 'application/pdf') {
+      // Buffer the stream
+      const chunks: Buffer[] = [];
+      const stream = upload.createReadStream();
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      const buffer = Buffer.concat(chunks);
+
+      // Validate MIME type using buffer
+      const detectedFileType = getMimeTypeFromArrayBuffer(buffer);
+      if (detectedFileType !== 'application/pdf') {
         throw new ValidationError('File is not a PDF');
       }
 
-      // Actual upload
+      // Actual upload using buffer as a stream
       const filename = `${ctx.userId}.pdf`;
-      await uploadResumeFromStream(filename, upload.createReadStream());
+      await uploadResumeFromStream(filename, Readable.from(buffer));
 
       return { _: true };
     },

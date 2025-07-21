@@ -100,7 +100,6 @@
     "fastify-plugin": "^5.0.1",
     "fastify-raw-body": "^5.0.0",
     "fastq": "^1.19.1",
-    "file-type": "^21.0.0",
     "form-data": "^4.0.2",
     "google-auth-library": "9.15.1",
     "graphql": "^16.11.0",
