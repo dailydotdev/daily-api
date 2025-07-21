@@ -70,7 +70,7 @@ export const uploadFileFromStream = async ({
   return new Promise((resolve, reject) => {
     fileStream
       .pipe(writeStream)
-      .on('error', (error) => reject(error))
+      .on('error', reject)
       .on('finish', async () => {
         if (isPublic) {
           await file.makePublic();
