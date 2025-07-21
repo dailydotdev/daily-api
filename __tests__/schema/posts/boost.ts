@@ -289,7 +289,7 @@ describe('query postCampaignById', () => {
         title: 'P1',
         shortId: 'sp1',
         permalink: 'http://localhost:4000/r/sp1',
-        engagements: 310, // 150 views + 75 upvotes + 25 comments + 50 impressions + 10 clicks
+        engagements: 250, // 150 views + 75 upvotes + 25 comments
       },
     });
   });
@@ -355,7 +355,7 @@ describe('query postCampaignById', () => {
           title: 'Shared Post Title', // From shared post
           shortId: 'share1',
           permalink: 'http://localhost:4000/r/share1',
-          engagements: 195, // 80 views + 40 upvotes + 15 comments + 50 impressions + 10 clicks
+          engagements: 135, // 80 views + 40 upvotes + 15 comments
         });
       });
 
@@ -413,7 +413,7 @@ describe('query postCampaignById', () => {
           title: 'Share Post Custom Title', // From share post (not shared post)
           shortId: 'share2',
           permalink: 'http://localhost:4000/r/share2',
-          engagements: 213, // 90 views + 45 upvotes + 18 comments + 50 impressions + 10 clicks
+          engagements: 153, // 90 views + 45 upvotes + 18 comments
         });
       });
 
@@ -471,7 +471,7 @@ describe('query postCampaignById', () => {
           title: 'Shared Post Title for Empty', // From shared post (empty string is falsy)
           shortId: 'share3',
           permalink: 'http://localhost:4000/r/share3',
-          engagements: 177, // 70 views + 35 upvotes + 12 comments + 50 impressions + 10 clicks
+          engagements: 117, // 70 views + 35 upvotes + 12 comments
         });
       });
     });
@@ -517,7 +517,7 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post Title',
           shortId: 'freeform1',
           permalink: 'http://localhost:4000/r/freeform1',
-          engagements: 480, // 250 views + 125 upvotes + 45 comments + 50 impressions + 10 clicks
+          engagements: 420, // 250 views + 125 upvotes + 45 comments
         });
       });
 
@@ -565,7 +565,7 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post No Image',
           shortId: 'freeform2',
           permalink: 'http://localhost:4000/r/freeform2',
-          engagements: 225, // 95 views + 48 upvotes + 22 comments + 50 impressions + 10 clicks
+          engagements: 165, // 95 views + 48 upvotes + 22 comments
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -617,7 +617,7 @@ describe('query postCampaignById', () => {
           title: 'Article Post Title',
           shortId: 'article1',
           permalink: 'http://localhost:4000/r/article1',
-          engagements: 570, // 300 views + 150 upvotes + 60 comments + 50 impressions + 10 clicks
+          engagements: 510, // 300 views + 150 upvotes + 60 comments
         });
       });
 
@@ -665,7 +665,7 @@ describe('query postCampaignById', () => {
           title: 'Article Post No Image',
           shortId: 'article2',
           permalink: 'http://localhost:4000/r/article2',
-          engagements: 253, // 110 views + 55 upvotes + 28 comments + 50 impressions + 10 clicks
+          engagements: 193, // 110 views + 55 upvotes + 28 comments
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -717,7 +717,7 @@ describe('query postCampaignById', () => {
           title: 'Welcome Post Title',
           shortId: 'welcome1',
           permalink: 'http://localhost:4000/r/welcome1',
-          engagements: 205, // 85 views + 42 upvotes + 18 comments + 50 impressions + 10 clicks
+          engagements: 145, // 85 views + 42 upvotes + 18 comments
         });
       });
     });
@@ -763,7 +763,7 @@ describe('query postCampaignById', () => {
           title: 'Collection Post Title',
           shortId: 'collect1',
           permalink: 'http://localhost:4000/r/collect1',
-          engagements: 332, // 160 views + 80 upvotes + 32 comments + 50 impressions + 10 clicks
+          engagements: 272, // 160 views + 80 upvotes + 32 comments
         });
       });
     });
@@ -810,7 +810,7 @@ describe('query postCampaignById', () => {
           title: 'YouTube Post Title',
           shortId: 'youtube1',
           permalink: 'http://localhost:4000/r/youtube1',
-          engagements: 428, // 220 views + 110 upvotes + 38 comments + 50 impressions + 10 clicks
+          engagements: 368, // 220 views + 110 upvotes + 38 comments
         });
       });
     });
@@ -874,7 +874,7 @@ describe('query postCampaignById', () => {
           title: 'Share Post with Shared Post No Image', // Uses share post title
           shortId: 'sharenoimg',
           permalink: 'http://localhost:4000/r/sharenoimg',
-          engagements: 171, // 65 views + 32 upvotes + 14 comments + 50 impressions + 10 clicks
+          engagements: 111, // 65 views + 32 upvotes + 14 comments
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -924,7 +924,7 @@ describe('query postCampaignById', () => {
           title: null, // Preserves null title
           shortId: 'nulltitle',
           permalink: 'http://localhost:4000/r/nulltitle',
-          engagements: 135, // 45 views + 22 upvotes + 8 comments + 50 impressions + 10 clicks
+          engagements: 75, // 45 views + 22 upvotes + 8 comments
         });
       });
 
@@ -968,7 +968,7 @@ describe('query postCampaignById', () => {
           title: null, // Preserves undefined title
           shortId: 'undeftitle',
           permalink: 'http://localhost:4000/r/undeftitle',
-          engagements: 155, // 55 views + 28 upvotes + 12 comments + 50 impressions + 10 clicks
+          engagements: 95, // 55 views + 28 upvotes + 12 comments
         });
       });
     });
@@ -1143,7 +1143,7 @@ describe('query postCampaigns', () => {
           image: 'https://test-post-1.jpg',
           shortId: 'p1',
           permalink: 'http://localhost:4000/r/p1',
-          engagements: 1225, // 100 views + 50 upvotes + 25 comments + 1000 impressions + 50 clicks
+          engagements: 175, // 100 views + 50 upvotes + 25 comments
         },
         campaign: {
           spend: 1050, // Converted from USD to cores
@@ -1164,7 +1164,7 @@ describe('query postCampaigns', () => {
           image: 'https://test-post-2.jpg',
           shortId: 'p2',
           permalink: 'http://localhost:4000/r/p2',
-          engagements: 2405, // 200 views + 75 upvotes + 30 comments + 2000 impressions + 100 clicks
+          engagements: 305, // 200 views + 75 upvotes + 30 comments
         },
         campaign: {
           spend: 2000, // Converted from USD to cores
@@ -1180,7 +1180,7 @@ describe('query postCampaigns', () => {
       impressions: 3000,
       clicks: 150,
       totalSpend: 3050, // Converted from USD to cores
-      engagements: 3630, // 100+50+25+200+75+30+150+3000 = 3630
+      engagements: 480, // 100+50+25+200+75+30 = 480
     });
   });
 
@@ -1320,7 +1320,7 @@ describe('query postCampaigns', () => {
       impressions: 2100,
       clicks: 60,
       totalSpend: 2000, // Converted from USD to cores
-      engagements: 2381, // 60+30+12+70+35+14+60+2100 = 2381
+      engagements: 221, // 60+30+12+70+35+14 = 221
     });
 
     // Second request - get next 2 (offset 2)
@@ -1462,7 +1462,7 @@ describe('query postCampaigns', () => {
       image: 'https://article-post.jpg',
       shortId: 'ap',
       permalink: 'http://localhost:4000/r/ap',
-      engagements: 1255, // 120 views + 60 upvotes + 25 comments + 1000 impressions + 50 clicks
+      engagements: 205, // 120 views + 60 upvotes + 25 comments
     });
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
