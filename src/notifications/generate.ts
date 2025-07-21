@@ -38,6 +38,7 @@ import { NotificationType } from './common';
 import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency } from '../common/number';
+import { isNullOrUndefined } from '../common/object';
 
 const systemTitle = () => undefined;
 
@@ -513,7 +514,7 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.id);
 
-    if (typeof ctx.sendAtMs !== 'undefined') {
+    if (!isNullOrUndefined(ctx.sendAtMs)) {
       builder.setCreatedAt(new Date(ctx.sendAtMs));
     }
 

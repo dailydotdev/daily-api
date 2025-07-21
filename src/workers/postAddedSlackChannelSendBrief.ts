@@ -14,6 +14,7 @@ import { addNotificationUtm } from '../common';
 import { SlackApiError, SlackApiErrorCode } from '../errors';
 import { counters } from '../telemetry/metrics';
 import { BriefPost } from '../entity/posts/BriefPost';
+import { isNullOrUndefined } from '../common/object';
 
 const sendQueueConcurrency = 10;
 
@@ -133,7 +134,7 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.brief-rea
               }
 
               if (
-                typeof data.sendAtMs !== 'undefined' &&
+                !isNullOrUndefined(data.sendAtMs) &&
                 data.sendAtMs > Date.now()
               ) {
                 await slackClient.chat.scheduleMessage({
