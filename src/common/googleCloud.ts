@@ -7,8 +7,7 @@ import { subDays } from 'date-fns';
 import { Readable } from 'stream';
 import { logger } from '../logger';
 
-export const RESUMES_BUCKET_NAME =
-  process.env.GCS_PDF_BUCKET || 'daily-dev-resumes';
+export const RESUMES_BUCKET_NAME = 'daily-dev-resumes';
 
 export const downloadFile = async ({
   url,
