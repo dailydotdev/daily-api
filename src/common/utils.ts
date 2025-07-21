@@ -288,29 +288,13 @@ export type ObjectSnakeToCamelCase<T extends object> = {
   [K in keyof T as K extends string ? CamelCasedKey<K> : never]: T[K];
 };
 
-export function getMimeTypeFromArrayBuffer(arrayBuffer: ArrayBuffer, len = 4) {
-  const uint8arr = new Uint8Array(arrayBuffer);
-  if (uint8arr.length >= len) {
-    const signatureArr = new Array(len);
-    for (let i = 0; i < len; i++)
-      signatureArr[i] = uint8arr[i].toString(16).padStart(2, '0');
-    const signature = signatureArr.join('').toUpperCase();
-
-    switch (signature) {
-      case '89504E47':
-        return 'image/png';
-      case '47494638':
-        return 'image/gif';
-      case '25504446':
-        return 'application/pdf';
-      case 'FFD8FFDB':
-      case 'FFD8FFE0':
-        return 'image/jpeg';
-      case '504B0304':
-        return 'application/zip';
-      default:
-        return null;
-    }
-  }
-  return null;
-}
+export const getBufferFromStream = async (
+  stream: NodeJS.ReadableStream,
+): Promise<Buffer> => {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', (err) => reject(err));
+  });
+};

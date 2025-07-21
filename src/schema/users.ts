@@ -73,7 +73,7 @@ import {
   updateSubscriptionFlags,
   systemUser,
   parseBigInt,
-  getMimeTypeFromArrayBuffer,
+  getBufferFromStream,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -145,6 +145,7 @@ import {
 } from '../entity/user/UserTransaction';
 import { uploadResumeFromStream } from '../common/googleCloud';
 import { Readable } from 'stream';
+import { fileTypeFromBuffer } from 'file-type';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2395,16 +2396,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       // Buffer the stream
-      const chunks: Buffer[] = [];
-      const stream = upload.createReadStream();
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-      const buffer = Buffer.concat(chunks);
+      const buffer = await getBufferFromStream(upload.createReadStream());
 
       // Validate MIME type using buffer
-      const detectedFileType = getMimeTypeFromArrayBuffer(buffer);
-      if (detectedFileType !== 'application/pdf') {
+      const fileType = await fileTypeFromBuffer(buffer);
+      if (fileType?.mime !== 'application/pdf') {
         throw new ValidationError('File is not a PDF');
       }
 
