@@ -2166,7 +2166,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return {
         campaign: getFormattedCampaign(campaign),
-        post: getFormattedBoostedPost(post, campaign),
+        post: getFormattedBoostedPost(post),
       };
     },
     postCampaigns: async (
@@ -2205,12 +2205,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             stats.clicks = campaigns.clicks;
             stats.impressions = campaigns.impressions;
             stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
-
-            const sum = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-              getTotalEngagements(queryRunner.manager, campaigns.postIds),
+            stats.engagements = await queryReadReplica(
+              ctx.con,
+              ({ queryRunner }) =>
+                getTotalEngagements(queryRunner.manager, campaigns.postIds),
             );
-
-            stats.engagements = sum + campaigns.clicks + campaigns.impressions;
           }
 
           return queryReadReplica(ctx.con, ({ queryRunner }) =>

@@ -142,7 +142,6 @@ export const getBoostedPost = async (
 
 export const getFormattedBoostedPost = (
   post: GetBoostedPost,
-  campaign: GetCampaignResponse,
 ): GQLBoostedPost['post'] => {
   const { id, shortId, sharedImage, sharedTitle, slug } = post;
   let image: string | undefined = post.image;
@@ -161,12 +160,7 @@ export const getFormattedBoostedPost = (
     image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
     commentsPermalink: post.slug ? getDiscussionLink(post.slug) : undefined,
-    engagements:
-      post.comments +
-      post.upvotes +
-      post.views +
-      campaign.impressions +
-      campaign.clicks,
+    engagements: post.comments + post.upvotes + post.views,
   };
 };
 
@@ -208,7 +202,7 @@ export const consolidateCampaignsWithPosts = async (
 
   return campaigns.map((campaign) => ({
     campaign: getFormattedCampaign(campaign),
-    post: getFormattedBoostedPost(mapped[campaign.postId], campaign),
+    post: getFormattedBoostedPost(mapped[campaign.postId]),
   }));
 };
 
