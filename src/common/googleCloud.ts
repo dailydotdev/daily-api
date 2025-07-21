@@ -110,12 +110,6 @@ export const deleteUserResume = async (userId: string): Promise<boolean> => {
     const bucket = storage.bucket(bucketName);
     const file = bucket.file(fileName);
 
-    // Check if the file exists before deleting
-    const [exists] = await file.exists();
-    if (!exists) {
-      return false;
-    }
-
     await file.delete();
 
     logger.info(
