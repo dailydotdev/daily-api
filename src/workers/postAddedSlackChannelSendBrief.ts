@@ -3,7 +3,6 @@ import { TypedWorker } from './worker';
 import fastq from 'fastq';
 import {
   BRIEFING_SOURCE,
-  PostType,
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
 } from '../entity';
@@ -15,43 +14,46 @@ import { addNotificationUtm } from '../common';
 import { SlackApiError, SlackApiErrorCode } from '../errors';
 import { counters } from '../telemetry/metrics';
 import { BriefPost } from '../entity/posts/BriefPost';
+import { isNullOrUndefined } from '../common/object';
+import type { ChatPostMessageArguments } from '@slack/web-api';
 
 const sendQueueConcurrency = 10;
 
-export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.post-visible'> =
+export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.brief-ready'> =
   {
-    subscription: 'api.post-added-slack-channel-send-brief',
+    subscription: 'api.post-added-slack-channel-send-briefing',
     handler: async (message, con, logger): Promise<void> => {
       const { data } = message;
 
       try {
-        if (data.post.sourceId !== BRIEFING_SOURCE) {
+        if (!data.postId) {
+          throw new Error('postId is required');
+        }
+
+        const post = await con.getRepository(BriefPost).findOneOrFail({
+          where: {
+            id: data.postId,
+          },
+          relations: {
+            source: true,
+            author: true,
+          },
+        });
+
+        if (post.sourceId !== BRIEFING_SOURCE) {
           return;
         }
 
-        if (data.post.type !== PostType.Brief) {
+        if (!post.authorId) {
           return;
         }
 
-        if (!data.post.authorId) {
-          return;
-        }
-
-        const [post, integrations, personalizedDigest] = await Promise.all([
-          con.getRepository(BriefPost).findOneOrFail({
-            where: {
-              id: data.post.id,
-            },
-            relations: {
-              source: true,
-              author: true,
-            },
-          }),
+        const [integrations, personalizedDigest] = await Promise.all([
           con.getRepository(UserSourceIntegrationSlack).find({
             where: {
-              sourceId: data.post.sourceId,
+              sourceId: post.sourceId,
               userIntegration: {
-                userId: data.post.authorId,
+                userId: post.authorId,
               },
             },
             relations: {
@@ -61,7 +63,7 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.post-visi
           con.getRepository(UserPersonalizedDigest).findOne({
             where: {
               type: UserPersonalizedDigestType.Brief,
-              userId: data.post.authorId,
+              userId: post.authorId,
             },
           }),
         ]);
@@ -92,7 +94,7 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.post-visi
         const attachment = await getAttachmentForPostType({
           con,
           post,
-          postType: data.post.type,
+          postType: post.type,
           postLink,
         });
 
@@ -132,12 +134,24 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.post-visi
                 }
               }
 
-              await slackClient.chat.postMessage({
+              const payload: ChatPostMessageArguments = {
                 channel: channelId,
                 text: messageText,
                 attachments: [attachment],
                 unfurl_links: false,
-              });
+              };
+
+              if (
+                !isNullOrUndefined(data.sendAtMs) &&
+                data.sendAtMs > Date.now()
+              ) {
+                await slackClient.chat.scheduleMessage({
+                  ...payload,
+                  post_at: Math.floor(data.sendAtMs / 1000), // slack accepts seconds
+                });
+              } else {
+                await slackClient.chat.postMessage(payload);
+              }
 
               counters?.background?.postSentSlack?.add(1, {
                 source: source.id,
@@ -149,7 +163,7 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.post-visi
                 {
                   data: {
                     integrationId: userIntegration.id,
-                    sourceId: data.post.sourceId,
+                    sourceId: post.sourceId,
                     channelId,
                   },
                   messageId: message.messageId,

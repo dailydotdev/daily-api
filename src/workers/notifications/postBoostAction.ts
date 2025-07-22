@@ -4,7 +4,6 @@ import { generateTypedNotificationWorker } from './worker';
 import { type NotificationBoostContext } from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { updateFlagsStatement } from '../../common';
-import { logger } from '../../logger';
 
 const worker = generateTypedNotificationWorker<'api.v1.post-boost-action'>({
   subscription: 'api.post-boost-action-notification',
@@ -36,7 +35,6 @@ const worker = generateTypedNotificationWorker<'api.v1.post-boost-action'>({
       case 'completed':
         return [{ type: NotificationType.PostBoostCompleted, ctx }];
       default:
-        logger.info({ params }, `Sent 0 notification for action: ${action}`);
         return;
     }
   },

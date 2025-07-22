@@ -34,6 +34,7 @@ export type NotificationBundleV2 = {
 export type NotificationBaseContext = {
   userIds: string[];
   initiatorId?: string | null;
+  sendAtMs?: number;
 };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;

@@ -2795,4 +2795,84 @@ describe('briefing_ready notification', () => {
 
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
+
+  it('should schedule email', async () => {
+    const sendAtMs = Date.now() + 100_000;
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: 'u-bnp-1',
+        type: UserPersonalizedDigestType.Brief,
+      },
+      {
+        lastSendDate: new Date(sendAtMs),
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['u-bnp-1'],
+      sendAtMs,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: 'u-bnp-1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.send_at).toEqual(Math.floor(sendAtMs / 1000));
+  });
+
+  it('should send email instead of schedule sentAtMs is in the past', async () => {
+    const sendAtMs = Date.now() - 100_000;
+
+    await con.getRepository(UserPersonalizedDigest).update(
+      {
+        userId: 'u-bnp-1',
+        type: UserPersonalizedDigestType.Brief,
+      },
+      {
+        lastSendDate: new Date(sendAtMs),
+      },
+    );
+
+    const postContext = await buildPostContext(con, 'bnp-1');
+
+    const ctx: NotificationPostContext = {
+      ...postContext!,
+      userIds: ['u-bnp-1'],
+      sendAtMs,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.BriefingReady,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: 'u-bnp-1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.send_at).toBeUndefined();
+  });
 });

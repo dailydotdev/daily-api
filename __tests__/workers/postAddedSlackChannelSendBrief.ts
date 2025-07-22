@@ -3,6 +3,7 @@ import { postAddedSlackChannelSendBriefWorker as worker } from '../../src/worker
 import {
   ArticlePost,
   BRIEFING_SOURCE,
+  Post,
   PostType,
   Source,
   UNKNOWN_SOURCE,
@@ -23,16 +24,21 @@ import {
 } from '../../src/entity/UserIntegration';
 import { encrypt } from '../../src/common/crypto';
 import { UserSourceIntegrationSlack } from '../../src/entity/UserSourceIntegration';
-import { ChangeObject } from '../../src/types';
 import { SlackApiErrorCode } from '../../src/errors';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { updateFlagsStatement } from '../../src/common';
+import { BriefingModel } from '../../src/integrations/feed/types';
+import { UserBriefingRequest } from '@dailydotdev/schema';
 
 const conversationsJoin = jest.fn().mockResolvedValue({
   ok: true,
 });
 
 const chatPostMessage = jest.fn().mockResolvedValue({
+  ok: true,
+});
+
+const schedulePostMessage = jest.fn().mockResolvedValue({
   ok: true,
 });
 
@@ -45,6 +51,7 @@ jest.mock('@slack/web-api', () => ({
       },
       chat: {
         postMessage: chatPostMessage,
+        scheduleMessage: schedulePostMessage,
       },
     };
   },
@@ -145,9 +152,12 @@ describe('postAddedSlackChannelSendBrief worker', () => {
     });
 
     await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
-      } as unknown as ChangeObject<BriefPost>,
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(1);
@@ -180,9 +190,12 @@ describe('postAddedSlackChannelSendBrief worker', () => {
     });
 
     await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
-      } as unknown as ChangeObject<BriefPost>,
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);
@@ -194,11 +207,22 @@ describe('postAddedSlackChannelSendBrief worker', () => {
       id: 'bsp-p1',
     });
 
-    await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
+    await con.getRepository(Post).update(
+      {
+        id: post.id,
+      },
+      {
         type: PostType.Article,
-      } as unknown as ChangeObject<BriefPost>,
+      },
+    );
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);
@@ -210,11 +234,20 @@ describe('postAddedSlackChannelSendBrief worker', () => {
       id: 'bsp-p1',
     });
 
-    await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
+    await con.getRepository(BriefPost).update(
+      { id: post.id },
+      {
         sourceId: UNKNOWN_SOURCE,
-      } as unknown as ChangeObject<BriefPost>,
+      },
+    );
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);
@@ -236,9 +269,12 @@ describe('postAddedSlackChannelSendBrief worker', () => {
     });
 
     await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
-      } as unknown as ChangeObject<BriefPost>,
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(1);
@@ -268,11 +304,20 @@ describe('postAddedSlackChannelSendBrief worker', () => {
       id: 'bsp-p1',
     });
 
-    await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
+    await con.getRepository(BriefPost).update(
+      { id: post.id },
+      {
         authorId: null,
-      } as unknown as ChangeObject<BriefPost>,
+      },
+    );
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);
@@ -290,9 +335,12 @@ describe('postAddedSlackChannelSendBrief worker', () => {
     });
 
     await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
-      } as unknown as ChangeObject<BriefPost>,
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);
@@ -317,13 +365,97 @@ describe('postAddedSlackChannelSendBrief worker', () => {
     });
 
     await expectSuccessfulTypedBackground(worker, {
-      post: {
-        ...post,
-      } as unknown as ChangeObject<BriefPost>,
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);
     expect(chatPostMessage).toHaveBeenCalledTimes(0);
+  });
+
+  it('should schedule a message to the slack channel', async () => {
+    const post = await con.getRepository(BriefPost).findOneByOrFail({
+      id: 'bsp-p1',
+    });
+
+    const sendAtMs = Date.now() + 100_000;
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
+      sendAtMs,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(1);
+    expect(chatPostMessage).toHaveBeenCalledTimes(0);
+    expect(schedulePostMessage).toHaveBeenCalledTimes(1);
+
+    expect(conversationsJoin).toHaveBeenCalledWith({
+      channel: '1',
+    });
+    expect(schedulePostMessage).toHaveBeenCalledWith({
+      channel: '1',
+      attachments: [
+        {
+          author_icon: 'http//image.com/briefing',
+          author_name: 'Presidential briefing | daily.dev',
+          title: 'P1',
+          title_link:
+            'http://localhost:5002/posts/p1-bsp-p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post',
+        },
+      ],
+      text: '<http://localhost:5002/posts/p1-bsp-p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/p1-bsp-p1>',
+      unfurl_links: false,
+      post_at: Math.floor(sendAtMs / 1000),
+    });
+  });
+
+  it('should send message instead of schedule if sentAtMs is in the past', async () => {
+    const post = await con.getRepository(BriefPost).findOneByOrFail({
+      id: 'bsp-p1',
+    });
+
+    const sendAtMs = Date.now() - 100_000;
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: '1',
+        frequency: 'daily',
+        modelName: BriefingModel.Default,
+      }),
+      postId: post.id,
+      sendAtMs,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(1);
+    expect(chatPostMessage).toHaveBeenCalledTimes(1);
+    expect(schedulePostMessage).toHaveBeenCalledTimes(0);
+
+    expect(conversationsJoin).toHaveBeenCalledWith({
+      channel: '1',
+    });
+    expect(chatPostMessage).toHaveBeenCalledWith({
+      channel: '1',
+      attachments: [
+        {
+          author_icon: 'http//image.com/briefing',
+          author_name: 'Presidential briefing | daily.dev',
+          title: 'P1',
+          title_link:
+            'http://localhost:5002/posts/p1-bsp-p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post',
+        },
+      ],
+      text: '<http://localhost:5002/posts/p1-bsp-p1?utm_source=notification&utm_medium=slack&utm_campaign=new_post|http://localhost:5002/posts/p1-bsp-p1>',
+      unfurl_links: false,
+    });
   });
 
   describe('vordr', () => {
@@ -342,9 +474,12 @@ describe('postAddedSlackChannelSendBrief worker', () => {
       );
 
       await expectSuccessfulTypedBackground(worker, {
-        post: {
-          ...post,
-        } as unknown as ChangeObject<BriefPost>,
+        payload: new UserBriefingRequest({
+          userId: '1',
+          frequency: 'daily',
+          modelName: BriefingModel.Default,
+        }),
+        postId: post.id,
       });
 
       expect(conversationsJoin).toHaveBeenCalledTimes(0);
