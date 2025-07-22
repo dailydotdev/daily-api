@@ -287,3 +287,14 @@ type CamelCasedKey<S extends string> = S extends `${infer Head}_${infer Tail}`
 export type ObjectSnakeToCamelCase<T extends object> = {
   [K in keyof T as K extends string ? CamelCasedKey<K> : never]: T[K];
 };
+
+export const getBufferFromStream = async (
+  stream: NodeJS.ReadableStream,
+): Promise<Buffer> => {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    stream.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', (err) => reject(err));
+  });
+};

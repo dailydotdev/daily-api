@@ -24,6 +24,7 @@ import { CoresRole } from '../types';
 import { remoteConfig } from '../remoteConfig';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { SubscriptionProvider, SubscriptionStatus } from './plus';
+import { deleteResumeByUserId } from './googleCloud';
 
 export const deleteUser = async (
   con: DataSource,
@@ -35,6 +36,8 @@ export const deleteUser = async (
       select: ['subscriptionFlags'],
       where: { id: userId },
     });
+
+    // If the user has a subscription, we need to handle it before deletion
     if (subscriptionFlags?.subscriptionId) {
       if (
         subscriptionFlags?.provider === SubscriptionProvider.AppleStoreKit &&
@@ -64,6 +67,10 @@ export const deleteUser = async (
         );
       }
     }
+
+    // Delete user's resume if exists
+    await deleteResumeByUserId(userId);
+
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.getRepository(View).delete({ userId });
       await entityManager.getRepository(Alerts).delete({ userId });
