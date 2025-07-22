@@ -25,7 +25,7 @@ export const webhooks = Object.freeze({
   transactions: process.env.SLACK_TRANSACTIONS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_TRANSACTIONS_WEBHOOK)
     : nullWebhook,
-  money_ads: process.env.SLACK_ADS_WEBHOOK
+  ads: process.env.SLACK_ADS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_ADS_WEBHOOK)
     : nullWebhook,
 });
@@ -35,7 +35,7 @@ export const notifyNewPostBoostedSlack = async (
   campaign: GetCampaignResponse,
   userId: string,
 ): Promise<void> => {
-  await webhooks.comments.send({
+  await webhooks.ads.send({
     text: ':boost: New post boosted',
     attachments: [
       {
