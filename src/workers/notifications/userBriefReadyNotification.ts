@@ -7,7 +7,7 @@ export const userBriefReadyNotification =
   generateTypedNotificationWorker<'api.v1.brief-ready'>({
     subscription: 'api.user-brief-ready-notification',
     handler: async (data, con) => {
-      const { postId } = data;
+      const { postId, sendAtMs } = data;
 
       const postCtx = await buildPostContext(con, postId);
 
@@ -32,6 +32,7 @@ export const userBriefReadyNotification =
           ctx: {
             ...postCtx,
             userIds: [user.id],
+            sendAtMs,
           },
         },
       ];
