@@ -21,7 +21,7 @@ const sendQueueConcurrency = 10;
 
 export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.brief-ready'> =
   {
-    subscription: 'api.post-added-slack-channel-send-brief',
+    subscription: 'api.post-added-slack-channel-send-briefing',
     handler: async (message, con, logger): Promise<void> => {
       const { data } = message;
 
