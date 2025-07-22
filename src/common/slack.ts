@@ -36,7 +36,7 @@ export const notifyNewPostBoostedSlack = async (
   userId: string,
 ): Promise<void> => {
   await webhooks.comments.send({
-    text: 'New post boosted',
+    text: '💰 New post boosted',
     attachments: [
       {
         title: post.title ?? '',
