@@ -147,8 +147,8 @@ config:
       secure: AAABABn4A3L8LlBI77M+EM73dUMete6GUvoWIcaEj4DYxn+wNRB3lKKnSVNOZxb3/D9jniDoQIWOvPPeZkzOoQ==
     slackTransactionsWebhook:
       secure: AAABAEmQkyYVT2wlatUVjH/bXxB9COGaLA6MLYX2XjlDWfrq8TjMHUKzk7NFtmcVyYmDq3zU/vOAck9XVGfYggL8LkSfQApX3/G+MisO1F8MLI6tPdmBUsMZ2ougQ1ki2e2kivOAfQEuY/G1ILywYvg=
-    slackAdsWebhook: # needs to be updated for the right value
-      secure: AAABAEmQkyYVT2wlatUVjH/bXxB9COGaLA6MLYX2XjlDWfrq8TjMHUKzk7NFtmcVyYmDq3zU/vOAck9XVGfYggL8LkSfQApX3/G+MisO1F8MLI6tPdmBUsMZ2ougQ1ki2e2kivOAfQEuY/G1ILywYvg=
+    slackAdsWebhook:
+      secure: AAABAMPjllB5NL8Pq0F7fRBA74JgPaY7suyZs7Yiq9P9h/JRP7gaZ2oMudkyvBqi86iTJIKz1wFG+e6Y31UFddHTyVpB0It8gk2HuRLxNIiueAwc2AnZmYTI97POrvoPtuV6HGtNzheHd+A5MXTRlMQ=
     njordOrigin:
       secure: AAABALhGzHrnYkBOO1/PfTvOKlrPlMaHlDpNjoPK+0IZ9/MQy0oqdWeSJAAGdzFXbbhWHcqzL9IDtVmjIrNrF7/lPqQ8VCFSaGMlmDcc6l4fSm8uids7ug==
     openExchangeRatesAppId:

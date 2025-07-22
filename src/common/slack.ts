@@ -25,8 +25,8 @@ export const webhooks = Object.freeze({
   transactions: process.env.SLACK_TRANSACTIONS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_TRANSACTIONS_WEBHOOK)
     : nullWebhook,
-  money_ads: process.env.SLACK_MONEY_ADS_WEBHOOK
-    ? new IncomingWebhook(process.env.SLACK_MONEY_ADS_WEBHOOK)
+  money_ads: process.env.SLACK_ADS_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_ADS_WEBHOOK)
     : nullWebhook,
 });
 
