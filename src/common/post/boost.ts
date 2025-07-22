@@ -31,9 +31,10 @@ import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 
 export interface GQLPromotedPost
   extends ObjectSnakeToCamelCase<
-    Omit<PromotedPost, 'spend' | 'started_at' | 'ended_at'>
+    Omit<PromotedPost, 'spend' | 'budget' | 'started_at' | 'ended_at'>
   > {
   spend: number;
+  budget: number;
   startedAt: Date;
   endedAt: Date;
 }
@@ -178,12 +179,14 @@ export const getFormattedBoostedPost = (
 
 export const getFormattedCampaign = ({
   spend,
+  budget,
   startedAt,
   endedAt,
   ...campaign
 }: GetCampaignResponse): GQLPromotedPost => ({
   ...campaign,
   spend: usdToCores(parseFloat(spend)),
+  budget: usdToCores(parseFloat(budget)),
   startedAt: debeziumTimeToDate(startedAt),
   endedAt: debeziumTimeToDate(endedAt),
 });

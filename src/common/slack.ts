@@ -7,6 +7,9 @@ import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
+import type { GetCampaignResponse } from '../integrations/skadi';
+import { getAbsoluteDifferenceInDays } from './users';
+import { usdToCores } from './njord';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -22,7 +25,48 @@ export const webhooks = Object.freeze({
   transactions: process.env.SLACK_TRANSACTIONS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_TRANSACTIONS_WEBHOOK)
     : nullWebhook,
+  ads: process.env.SLACK_ADS_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_ADS_WEBHOOK)
+    : nullWebhook,
 });
+
+export const notifyNewPostBoostedSlack = async (
+  post: Post,
+  campaign: GetCampaignResponse,
+  userId: string,
+): Promise<void> => {
+  await webhooks.ads.send({
+    text: ':boost: New post boosted',
+    attachments: [
+      {
+        title: post.title ?? '',
+        title_link: getDiscussionLink(post.id),
+        fields: [
+          {
+            title: 'Budget',
+            value: `${Math.floor(usdToCores(parseFloat(campaign.budget)))} Cores`,
+          },
+          {
+            title: 'Duration',
+            value: getAbsoluteDifferenceInDays(
+              new Date(campaign.endedAt),
+              new Date(campaign.startedAt),
+            ).toString(),
+          },
+          {
+            title: 'User',
+            value: userId,
+          },
+          {
+            title: 'Campaign',
+            value: campaign.campaignId,
+          },
+        ],
+        color: '#1DDC6F',
+      },
+    ],
+  });
+};
 
 export const notifyNewComment = async (
   post: Post,
