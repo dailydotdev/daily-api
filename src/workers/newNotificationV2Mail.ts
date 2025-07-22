@@ -61,6 +61,7 @@ import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { generateBoostEmailUpdate } from '../common/post/boost';
+import { isNullOrUndefined } from '../common/object';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
