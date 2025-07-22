@@ -4,8 +4,8 @@ import type { DataSource } from 'typeorm';
 import { notifyNewPostBoostedSlack, type PubSubSchema } from '../common';
 import { skadiApiClient } from '../integrations/skadi/api/clients';
 
-const worker: TypedWorker<'api.v1.post-boost-action'> = {
-  subscription: 'api.post-boost-action-slack',
+const worker: TypedWorker<'skadi.v1.campaign-updated'> = {
+  subscription: 'api.campaign-updated-slack',
   handler: async (message, con): Promise<void> => {
     switch (message.data.action) {
       case 'started':
@@ -20,7 +20,7 @@ export default worker;
 
 const handlePostBoostStarted = async (
   con: DataSource,
-  { postId, campaignId, userId }: PubSubSchema['api.v1.post-boost-action'],
+  { postId, campaignId, userId }: PubSubSchema['skadi.v1.campaign-updated'],
 ) => {
   const post = await con
     .getRepository(Post)

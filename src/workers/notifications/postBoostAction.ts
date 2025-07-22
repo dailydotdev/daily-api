@@ -5,8 +5,8 @@ import { type NotificationBoostContext } from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { updateFlagsStatement } from '../../common';
 
-const worker = generateTypedNotificationWorker<'api.v1.post-boost-action'>({
-  subscription: 'api.post-boost-action-notification',
+const worker = generateTypedNotificationWorker<'skadi.v1.campaign-updated'>({
+  subscription: 'api.campaign-updated-notification',
   handler: async (params, con) => {
     const { userId, postId, campaignId, action } = params;
 

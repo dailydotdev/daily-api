@@ -153,7 +153,7 @@ export type PubSubSchema = {
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
   };
-  'api.v1.post-boost-action': {
+  'skadi.v1.campaign-updated': {
     postId: Post['id'];
     userId: User['id'];
     campaignId: string;

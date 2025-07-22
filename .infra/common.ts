@@ -354,12 +354,12 @@ export const workers: Worker[] = [
     subscription: 'api.organization-user-removed',
   },
   {
-    topic: 'api.v1.post-boost-action',
-    subscription: 'api.post-boost-action-notification',
+    topic: 'skadi.v1.campaign-updated',
+    subscription: 'api.campaign-updated-notification',
   },
   {
-    topic: 'api.v1.post-boost-action',
-    subscription: 'api.post-boost-action-slack',
+    topic: 'skadi.v1.campaign-updated',
+    subscription: 'api.campaign-updated-slack',
   },
   {
     topic: 'api.v1.brief-generate',

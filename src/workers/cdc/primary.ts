@@ -610,7 +610,7 @@ const onPostChange = async (
 
       if (!before.campaignId && !!after.campaignId) {
         const post = data.payload.after!;
-        await triggerTypedEvent(logger, 'api.v1.post-boost-action', {
+        await triggerTypedEvent(logger, 'skadi.v1.campaign-updated', {
           postId: post.id,
           campaignId: after.campaignId,
           userId: post.authorId!,

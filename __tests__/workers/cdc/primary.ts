@@ -1300,7 +1300,7 @@ describe('post', () => {
     );
     expect(triggerTypedEvent).toHaveBeenCalled();
     expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
-      'api.v1.post-boost-action',
+      'skadi.v1.campaign-updated',
       {
         postId: 'p1',
         userId: '1',
