@@ -358,6 +358,10 @@ export const workers: Worker[] = [
     subscription: 'api.post-boost-action-notification',
   },
   {
+    topic: 'api.v1.post-boost-action',
+    subscription: 'api.post-boost-action-slack',
+  },
+  {
     topic: 'api.v1.brief-generate',
     subscription: 'api.user-generate-brief',
   },
