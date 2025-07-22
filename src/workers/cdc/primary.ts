@@ -88,7 +88,6 @@ import {
   DayOfWeek,
   processApprovedModeratedPost,
   notifyReportUser,
-  notifyPostBoosted,
 } from '../../common';
 import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -609,7 +608,13 @@ const onPostChange = async (
       const after = JSON.parse(afterFlags || '{}') as Post['flags'];
 
       if (!before.campaignId && !!after.campaignId) {
-        await notifyPostBoosted(logger, data.payload.after!, after.campaignId);
+        const post = data.payload.after!;
+        await triggerTypedEvent(logger, 'api.v1.post-boost-action', {
+          postId: post.id,
+          campaignId: after.campaignId,
+          userId: post.authorId!,
+          action: 'started',
+        });
       }
     }
 

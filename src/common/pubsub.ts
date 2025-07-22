@@ -86,7 +86,6 @@ const organizationUserLeftTopic = pubsub.topic('api.v1.organization-user-left');
 const organizationUserRemovedTopic = pubsub.topic(
   'api.v1.organization-user-removed',
 );
-const postBoostActionTopic = pubsub.topic('api.v1.post-boost-action');
 
 export enum NotificationReason {
   New = 'new',
@@ -236,18 +235,6 @@ export const notifyView = (
     referer,
     timestamp,
     tags,
-  });
-
-export const notifyPostBoosted = async (
-  log: EventLogger,
-  post: ChangeObject<Post>,
-  campaignId: string,
-): Promise<void> =>
-  publishEvent(log, postBoostActionTopic, {
-    postId: post.id,
-    campaignId,
-    userId: post.authorId,
-    action: 'started',
   });
 
 export const notifyPostBannedOrRemoved = async (

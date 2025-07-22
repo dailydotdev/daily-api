@@ -72,7 +72,6 @@ import {
   debeziumTimeToDate,
   notifySquadFeaturedUpdated,
   DayOfWeek,
-  notifyPostBoosted,
 } from '../../../src/common';
 import worker, {
   getRestoreStreakCache,
@@ -199,7 +198,6 @@ jest.mock('../../../src/common', () => ({
   runReminderWorkflow: jest.fn(),
   cancelReminderWorkflow: jest.fn(),
   notifySquadFeaturedUpdated: jest.fn(),
-  notifyPostBoosted: jest.fn(),
 }));
 
 jest.mock('../../../src/temporal/notifications/utils', () => ({
@@ -1282,6 +1280,7 @@ describe('post', () => {
       visibleAt: 0,
       pinnedAt: null,
       statsUpdatedAt: 0,
+      authorId: '1',
       flags: '{}',
     };
     const after: ChangeObject<ObjectType> = {
@@ -1299,7 +1298,16 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostBoosted).toHaveBeenCalled();
+    expect(triggerTypedEvent).toHaveBeenCalled();
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'api.v1.post-boost-action',
+      {
+        postId: 'p1',
+        userId: '1',
+        campaignId: 'test-campaign-id',
+        action: 'started',
+      },
+    ]);
   });
 
   it('should NOT send a message when campaign id did not change', async () => {
@@ -1335,7 +1343,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostBoosted).not.toHaveBeenCalled();
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should NOT send a message when campaign id was removed', async () => {
@@ -1369,7 +1377,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(notifyPostBoosted).not.toHaveBeenCalled();
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should notify for new freeform post greater than the required amount characters', async () => {
