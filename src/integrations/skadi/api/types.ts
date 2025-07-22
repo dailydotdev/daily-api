@@ -80,4 +80,7 @@ export interface ISkadiApiClient {
   ) => Promise<GetCampaignListResponseMapped>;
 }
 
-export type CampaignUpdateAction = 'completed' | 'first_milestone';
+export enum CampaignUpdateAction {
+  Completed = 'completed',
+  FirstMilestone = 'first_milestone',
+}
