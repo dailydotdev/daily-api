@@ -143,10 +143,12 @@ export type PubSubSchema = {
   'api.v1.brief-generate': {
     payload: UserBriefingRequest;
     postId: string;
+    sendAtMs?: number;
   };
   'api.v1.brief-ready': {
     payload: UserBriefingRequest;
     postId: string;
+    sendAtMs?: number;
   };
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
