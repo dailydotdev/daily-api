@@ -88,6 +88,7 @@ import {
   DayOfWeek,
   processApprovedModeratedPost,
   notifyReportUser,
+  notifyPostBoosted,
 } from '../../common';
 import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
@@ -599,6 +600,17 @@ const onPostChange = async (
           { id: data.payload.before!.id },
           { metadataChangedAt: new Date() },
         );
+    }
+
+    if (isChanged(data.payload.before!, data.payload.after!, 'flags')) {
+      const beforeFlags = data.payload.before!.flags as unknown as string;
+      const afterFlags = data.payload.after!.flags as unknown as string;
+      const before = JSON.parse(beforeFlags || '{}') as Post['flags'];
+      const after = JSON.parse(afterFlags || '{}') as Post['flags'];
+
+      if (!before.campaignId && !!after.campaignId) {
+        await notifyPostBoosted(logger, data.payload.after!, after.campaignId);
+      }
     }
 
     if (isChanged(data.payload.before!, data.payload.after!, 'title')) {

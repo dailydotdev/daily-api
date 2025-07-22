@@ -25,6 +25,7 @@ const mapCampaign = (
   postId: campaign.post_id,
   status: campaign.status,
   spend: campaign.spend,
+  budget: campaign.budget,
   startedAt: campaign.started_at,
   endedAt: campaign.ended_at,
   impressions: campaign.impressions,
