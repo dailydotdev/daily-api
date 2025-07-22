@@ -15,6 +15,7 @@ import { SlackApiError, SlackApiErrorCode } from '../errors';
 import { counters } from '../telemetry/metrics';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { isNullOrUndefined } from '../common/object';
+import type { ChatPostMessageArguments } from '@slack/web-api';
 
 const sendQueueConcurrency = 10;
 
@@ -133,24 +134,23 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.brief-rea
                 }
               }
 
+              const payload: ChatPostMessageArguments = {
+                channel: channelId,
+                text: messageText,
+                attachments: [attachment],
+                unfurl_links: false,
+              };
+
               if (
                 !isNullOrUndefined(data.sendAtMs) &&
                 data.sendAtMs > Date.now()
               ) {
                 await slackClient.chat.scheduleMessage({
-                  channel: channelId,
-                  text: messageText,
-                  attachments: [attachment],
-                  unfurl_links: false,
+                  ...payload,
                   post_at: Math.floor(data.sendAtMs / 1000), // slack accepts seconds
                 });
               } else {
-                await slackClient.chat.postMessage({
-                  channel: channelId,
-                  text: messageText,
-                  attachments: [attachment],
-                  unfurl_links: false,
-                });
+                await slackClient.chat.postMessage(payload);
               }
 
               counters?.background?.postSentSlack?.add(1, {
