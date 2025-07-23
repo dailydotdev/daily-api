@@ -42,6 +42,11 @@ export const notifyNewPostBoostedSlack = async ({
   campaign,
   userId,
 }: NotifyBoostedPostProps): Promise<void> => {
+  const difference = getAbsoluteDifferenceInDays(
+    debeziumTimeToDate(campaign.endedAt),
+    debeziumTimeToDate(campaign.startedAt),
+  );
+
   await webhooks.ads.send({
     blocks: [
       {
@@ -54,46 +59,41 @@ export const notifyNewPostBoostedSlack = async ({
       },
       {
         type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*Post:*',
-            `<${getDiscussionLink(post.id)}|${post.id}>`,
-          ),
-        },
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Post:*',
+              `<${getDiscussionLink(post.id)}|${post.id}>`,
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Boosted by:*',
+              `<https://app.daily.dev/${userId}|${userId}>`,
+            ),
+          },
+        ],
       },
       {
         type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*Boosted by:*',
-            `<https://app.daily.dev/${userId}|${userId}>`,
-          ),
-        },
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*Budget:*',
-            `${Math.floor(usdToCores(parseFloat(campaign.budget)))} :cores:`,
-          ),
-        },
-      },
-      {
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: concatTextToNewline(
-            '*Duration:*',
-            getAbsoluteDifferenceInDays(
-              debeziumTimeToDate(campaign.endedAt),
-              debeziumTimeToDate(campaign.startedAt),
-            ).toString(),
-          ),
-        },
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Budget:*',
+              `${usdToCores(parseFloat(campaign.budget))} :cores:`,
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Duration:*',
+              `${difference} day${difference === 1 ? '' : 's'}`,
+            ),
+          },
+        ],
       },
       {
         type: 'section',

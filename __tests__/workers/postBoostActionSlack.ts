@@ -81,31 +81,29 @@ describe('postBoostActionSlack worker', () => {
         },
         {
           type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: '*Post:*\n<http://localhost:5002/posts/p1|p1>',
-          },
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: '*Post:*\n<http://localhost:5002/posts/p1|p1>',
+            },
+            {
+              type: 'mrkdwn',
+              text: '*Boosted by:*\n<https://app.daily.dev/1|1>',
+            },
+          ],
         },
         {
           type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: '*Boosted by:*\n<https://app.daily.dev/1|1>',
-          },
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: '*Budget:*\n1000 :cores:',
-          },
-        },
-        {
-          type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: '*Duration:*\n1',
-          },
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: '*Budget:*\n1000 :cores:',
+            },
+            {
+              type: 'mrkdwn',
+              text: '*Duration:*\n1 day',
+            },
+          ],
         },
         {
           type: 'section',
