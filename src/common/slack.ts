@@ -83,7 +83,7 @@ export const notifyNewPostBoostedSlack = async ({
             type: 'mrkdwn',
             text: concatTextToNewline(
               '*Budget:*',
-              `${Math.floor(usdToCores(parseFloat(campaign.budget)))} :cores:`,
+              `${usdToCores(parseFloat(campaign.budget))} :cores:`,
             ),
           },
           {
