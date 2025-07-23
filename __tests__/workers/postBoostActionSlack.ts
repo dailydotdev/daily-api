@@ -1,6 +1,6 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBoostActionSlack';
-import { ArticlePost, Source, User } from '../../src/entity';
+import { Post, Source, User } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
@@ -28,16 +28,16 @@ let con: DataSource;
 beforeAll(async () => {
   jest.clearAllMocks();
   con = await createOrGetConnection();
+});
+
+beforeEach(async () => {
+  jest.resetAllMocks();
   await saveFixtures(con, Source, sourcesFixture);
   await saveFixtures(con, User, usersFixture);
-  await saveFixtures(con, ArticlePost, postsFixture);
+  await saveFixtures(con, Post, postsFixture);
 });
 
 describe('postBoostActionSlack worker', () => {
-  beforeEach(async () => {
-    jest.resetAllMocks();
-  });
-
   it('should send a slack notification when a post boost starts', async () => {
     const mockCampaign = {
       campaignId: 'campaign123',
