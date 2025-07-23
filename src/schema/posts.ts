@@ -919,6 +919,7 @@ export const typeDefs = /* GraphQL */ `
     postId: String!
     status: String!
     spend: Int!
+    budget: Int!
     startedAt: DateTime!
     endedAt: DateTime
     impressions: Int!

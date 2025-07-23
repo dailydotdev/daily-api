@@ -185,8 +185,8 @@ export const getFormattedCampaign = ({
   ...campaign
 }: GetCampaignResponse): GQLPromotedPost => ({
   ...campaign,
-  spend: usdToCores(parseFloat(spend)),
-  budget: usdToCores(parseFloat(budget)),
+  spend: Math.floor(usdToCores(parseFloat(spend))),
+  budget: Math.floor(usdToCores(parseFloat(budget))),
   startedAt: debeziumTimeToDate(startedAt),
   endedAt: debeziumTimeToDate(endedAt),
 });
