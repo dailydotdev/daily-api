@@ -17,6 +17,7 @@ export interface PromotedPost {
   post_id: string;
   status: string;
   spend: string;
+  budget: string;
   started_at: number;
   ended_at: number;
   impressions: number;
@@ -78,4 +79,10 @@ export interface ISkadiApiClient {
   getCampaigns: (
     params: GetCampaignsProps,
   ) => Promise<GetCampaignListResponseMapped>;
+}
+
+export enum CampaignUpdateAction {
+  Completed = 'completed',
+  FirstMilestone = 'first_milestone',
+  Started = 'started',
 }

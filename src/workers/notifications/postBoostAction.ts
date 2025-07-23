@@ -5,9 +5,11 @@ import { type NotificationBoostContext } from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { updateFlagsStatement } from '../../common';
 
-const worker = generateTypedNotificationWorker<'api.v1.post-boost-completed'>({
-  subscription: 'api.post-boost-completed-notification',
-  handler: async ({ userId, postId, campaignId }, con) => {
+const worker = generateTypedNotificationWorker<'skadi.v1.campaign-updated'>({
+  subscription: 'api.campaign-updated-notification',
+  handler: async (params, con) => {
+    const { userId, postId, campaignId, action } = params;
+
     await con
       .getRepository(Post)
       .update(
@@ -27,7 +29,14 @@ const worker = generateTypedNotificationWorker<'api.v1.post-boost-completed'>({
       userIds: [userId],
     };
 
-    return [{ type: NotificationType.PostBoostCompleted, ctx }];
+    switch (action) {
+      case 'first_milestone':
+        return [{ type: NotificationType.PostBoostFirstMilestone, ctx }];
+      case 'completed':
+        return [{ type: NotificationType.PostBoostCompleted, ctx }];
+      default:
+        return;
+    }
   },
 });
 

@@ -1210,6 +1210,7 @@ describe('post', () => {
       visibleAt: 0,
       pinnedAt: null,
       statsUpdatedAt: 0,
+      flags: JSON.stringify(oldPost?.flags),
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
@@ -1244,12 +1245,13 @@ describe('post', () => {
       visibleAt: 0,
       pinnedAt: null,
       statsUpdatedAt: 0,
+      flags: JSON.stringify(oldPost?.flags),
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
-      flags: {
+      flags: JSON.stringify({
         promoteToPublic: 123,
-      },
+      }),
     };
     await expectSuccessfulBackground(
       worker,
@@ -1264,6 +1266,120 @@ describe('post', () => {
     expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
       oldPost.metadataChangedAt.getTime(),
     );
+  });
+
+  it('should send a message when campaign id becomes present', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const localBase: ChangeObject<ArticlePost> = {
+      ...(oldPost as ArticlePost),
+      createdAt: 0,
+      metadataChangedAt: 0,
+      publishedAt: 0,
+      lastTrending: 0,
+      visible: true,
+      visibleAt: 0,
+      pinnedAt: null,
+      statsUpdatedAt: 0,
+      authorId: '1',
+      flags: '{}',
+    };
+    const after: ChangeObject<ObjectType> = {
+      ...localBase,
+      flags: JSON.stringify({
+        campaignId: 'test-campaign-id',
+      }),
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: localBase,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalled();
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'skadi.v1.campaign-updated',
+      {
+        postId: 'p1',
+        userId: '1',
+        campaignId: 'test-campaign-id',
+        action: 'started',
+      },
+    ]);
+  });
+
+  it('should NOT send a message when campaign id did not change', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const localBase: ChangeObject<ArticlePost> = {
+      ...(oldPost as ArticlePost),
+      createdAt: 0,
+      metadataChangedAt: 0,
+      publishedAt: 0,
+      lastTrending: 0,
+      visible: true,
+      visibleAt: 0,
+      pinnedAt: null,
+      statsUpdatedAt: 0,
+      flags: JSON.stringify({
+        campaignId: 'test-campaign-id',
+      }),
+    };
+    const after: ChangeObject<ObjectType> = {
+      ...localBase,
+      flags: JSON.stringify({
+        campaignId: 'test-campaign-id',
+      }),
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: localBase,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1]).toBeFalsy();
+  });
+
+  it('should NOT send a message when campaign id was removed', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    const localBase: ChangeObject<ArticlePost> = {
+      ...(oldPost as ArticlePost),
+      createdAt: 0,
+      metadataChangedAt: 0,
+      publishedAt: 0,
+      lastTrending: 0,
+      visible: true,
+      visibleAt: 0,
+      pinnedAt: null,
+      statsUpdatedAt: 0,
+      flags: JSON.stringify({
+        campaignId: 'test-campaign-id',
+      }),
+    };
+    const after: ChangeObject<ObjectType> = {
+      ...localBase,
+      flags: '{}',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: localBase,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1]).toBeFalsy();
   });
 
   it('should notify for new freeform post greater than the required amount characters', async () => {

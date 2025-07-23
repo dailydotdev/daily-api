@@ -177,6 +177,8 @@ export const notificationTitleMap: Record<
   },
   post_boost_completed: () =>
     `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
+  post_boost_first_milestone: () =>
+    `Your boosted post is performing well! You're getting traction, check it out!`,
   briefing_ready: () =>
     `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
   user_follow: (ctx: NotificationUserContext) => {
@@ -490,6 +492,19 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .avatarOrganization(ctx.organization),
   post_boost_completed: (builder, ctx: NotificationBoostContext) =>
+    builder
+      .icon(NotificationIcon.DailyDev)
+      .referenceBoost(ctx)
+      .avatarUser(ctx.user)
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['post_boost', 'true'],
+        ['c_id', ctx.campaignId],
+      ])
+      .uniqueKey(
+        `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
+      ),
+  post_boost_first_milestone: (builder, ctx: NotificationBoostContext) =>
     builder
       .icon(NotificationIcon.DailyDev)
       .referenceBoost(ctx)

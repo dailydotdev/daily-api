@@ -25,6 +25,7 @@ import {
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
+import type { CampaignUpdateAction } from '../integrations/skadi';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -139,11 +140,6 @@ export type PubSubSchema = {
     organizationId: Organization['id'];
     memberId: User['id'];
   };
-  'api.v1.post-boost-completed': {
-    postId: Post['id'];
-    userId: User['id'];
-    campaignId: string;
-  };
   'api.v1.brief-generate': {
     payload: UserBriefingRequest;
     postId: string;
@@ -156,6 +152,12 @@ export type PubSubSchema = {
   };
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
+  };
+  'skadi.v1.campaign-updated': {
+    postId: Post['id'];
+    userId: User['id'];
+    campaignId: string;
+    action: CampaignUpdateAction;
   };
 };
 
