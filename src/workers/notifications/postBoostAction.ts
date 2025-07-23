@@ -10,13 +10,6 @@ const worker = generateTypedNotificationWorker<'skadi.v1.campaign-updated'>({
   handler: async (params, con) => {
     const { userId, postId, campaignId, action } = params;
 
-    await con
-      .getRepository(Post)
-      .update(
-        { id: postId },
-        { flags: updateFlagsStatement<Post>({ campaignId: null }) },
-      );
-
     const user = await queryReadReplica(con, ({ queryRunner }) => {
       return queryRunner.manager
         .getRepository(User)
@@ -33,6 +26,12 @@ const worker = generateTypedNotificationWorker<'skadi.v1.campaign-updated'>({
       case 'first_milestone':
         return [{ type: NotificationType.PostBoostFirstMilestone, ctx }];
       case 'completed':
+        await con
+          .getRepository(Post)
+          .update(
+            { id: postId },
+            { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+          );
         return [{ type: NotificationType.PostBoostCompleted, ctx }];
       default:
         return;
