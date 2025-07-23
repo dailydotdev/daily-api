@@ -1,5 +1,5 @@
 import { TypedWorker } from './worker';
-import { Post, type SharePost } from '../entity';
+import { Post } from '../entity';
 import type { DataSource } from 'typeorm';
 import { notifyNewPostBoostedSlack, type PubSubSchema } from '../common';
 import { skadiApiClient } from '../integrations/skadi/api/clients';
@@ -36,13 +36,8 @@ const handlePostBoostStarted = async (
     return;
   }
 
-  const sharedPostId = (post as SharePost).sharedPostId;
-  const sharedPost = !!sharedPostId
-    ? await con.getRepository(Post).findOne({
-        where: { id: sharedPostId },
-        select: ['title'],
-      })
-    : await Promise.resolve(null);
-
-  await notifyNewPostBoostedSlack(post, campaign, userId, sharedPost?.title);
+  await notifyNewPostBoostedSlack({
+    post,
+    campaign,
+  });
 };
