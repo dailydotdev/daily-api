@@ -10,6 +10,7 @@ import { PropsParameters } from '../types';
 import type { GetCampaignResponse } from '../integrations/skadi';
 import { getAbsoluteDifferenceInDays } from './users';
 import { usdToCores } from './number';
+import { debeziumTimeToDate } from './utils';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -34,23 +35,24 @@ export const notifyNewPostBoostedSlack = async (
   post: Post,
   campaign: GetCampaignResponse,
   userId: string,
+  sharedTitle?: string | null,
 ): Promise<void> => {
   await webhooks.ads.send({
     text: ':boost: New post boosted',
     attachments: [
       {
-        title: post.title ?? '',
+        title: post.title ?? sharedTitle ?? '',
         title_link: getDiscussionLink(post.id),
         fields: [
           {
             title: 'Budget',
-            value: `${Math.floor(usdToCores(parseFloat(campaign.budget)))} Cores`,
+            value: `${Math.floor(usdToCores(parseFloat(campaign.budget)))} :cores:`,
           },
           {
             title: 'Duration',
             value: getAbsoluteDifferenceInDays(
-              new Date(campaign.endedAt),
-              new Date(campaign.startedAt),
+              debeziumTimeToDate(campaign.endedAt),
+              debeziumTimeToDate(campaign.startedAt),
             ).toString(),
           },
           {
