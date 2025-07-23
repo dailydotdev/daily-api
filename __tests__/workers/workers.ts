@@ -43,3 +43,37 @@ describe('pubsub workers', () => {
     expect(allIsFound).toBe(true);
   });
 });
+
+describe('infra subscriptions', () => {
+  const typedWorkersMap = typedWorkers.reduce(
+    (acc, { subscription }) => ({ ...acc, [subscription]: true }),
+    {},
+  );
+
+  const legacyWorkersMap = legacyWorkers.reduce(
+    (acc, { subscription }) => ({ ...acc, [subscription]: true }),
+    {},
+  );
+
+  const personalizedDigestWorkersMap = personalizedDigestWorkers.reduce(
+    (acc, { subscription }) => ({ ...acc, [subscription]: true }),
+    {},
+  );
+
+  it('should have every subscriptions to have a subscriber worker', () => {
+    const allIsFound = infraWorkers.every(
+      ({ subscription }) =>
+        subscription in typedWorkersMap || subscription in legacyWorkersMap,
+    );
+
+    expect(allIsFound).toBe(true);
+  });
+
+  it('should have every digest subscriptions to have a digest subscriber worker', () => {
+    const allIsFound = infraDigestWorkers.every(
+      ({ subscription }) => subscription in personalizedDigestWorkersMap,
+    );
+
+    expect(allIsFound).toBe(true);
+  });
+});
