@@ -1,4 +1,3 @@
-import { usdToCores } from './njord';
 import { IncomingWebhook } from '@slack/webhook';
 import { Post, Comment, User, Source } from '../entity';
 import { getDiscussionLink, getSourceLink } from './links';
@@ -10,6 +9,7 @@ import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
 import type { GetCampaignResponse } from '../integrations/skadi';
 import { getAbsoluteDifferenceInDays } from './users';
+import { usdToCores } from './number';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
