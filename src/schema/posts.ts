@@ -135,10 +135,8 @@ import type {
   StartPostBoostArgs,
 } from '../common/post/boost';
 import {
-  coresToUsd,
   throwUserTransactionError,
   transferCores,
-  usdToCores,
   type TransactionCreated,
 } from '../common/njord';
 import { randomUUID } from 'crypto';
@@ -164,6 +162,7 @@ import graphorm from '../graphorm';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
+import { usdToCores, coresToUsd } from '../common/number';
 
 export interface GQLPost {
   id: string;

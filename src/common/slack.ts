@@ -1,3 +1,4 @@
+import { usdToCores } from './njord';
 import { IncomingWebhook } from '@slack/webhook';
 import { Post, Comment, User, Source } from '../entity';
 import { getDiscussionLink, getSourceLink } from './links';
@@ -43,7 +44,7 @@ export const notifyNewPostBoostedSlack = async (
         fields: [
           {
             title: 'Budget',
-            value: `${Math.floor(parseFloat(campaign.budget) * 100)} Cores`,
+            value: `${Math.floor(usdToCores(parseFloat(campaign.budget)))} Cores`,
           },
           {
             title: 'Duration',

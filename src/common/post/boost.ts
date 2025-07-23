@@ -20,7 +20,6 @@ import { In } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
-import { usdToCores } from '../njord';
 import { debeziumTimeToDate, type ObjectSnakeToCamelCase } from '../utils';
 import { getDiscussionLink } from '../links';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
@@ -28,6 +27,7 @@ import { largeNumberFormat } from '../devcard';
 import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
+import { usdToCores } from '../number';
 
 export interface GQLPromotedPost
   extends ObjectSnakeToCamelCase<
