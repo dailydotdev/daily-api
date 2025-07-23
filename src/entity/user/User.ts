@@ -24,6 +24,7 @@ import type {
   SubscriptionStatus,
 } from '../../common/plus';
 import { UserJobPreferences } from './UserJobPreferences';
+import { UserExperience } from './experiences/UserExperience';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -289,4 +290,7 @@ export class User {
     onDelete: 'CASCADE',
   })
   jobPreferences: Promise<UserJobPreferences>;
+
+  @OneToMany(() => UserExperience, (experience) => experience.user)
+  experiences: Promise<UserExperience[]>;
 }

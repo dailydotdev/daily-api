@@ -39,5 +39,5 @@ export class UserJobPreferences {
   // Currency must be "ISO-4217" compliant
   // Amount is yearly based
   @Column({ type: 'jsonb', nullable: true })
-  currentTotalComp: { currency: string; amount: number };
+  currentTotalComp: UserCompensation;
 }

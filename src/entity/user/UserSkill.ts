@@ -7,9 +7,10 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { slugify } from '../../common';
+import { UserExperience } from './experiences/UserExperience';
 
 @Entity()
-export class Skill {
+export class UserSkill {
   @PrimaryColumn()
   slug: string;
 
@@ -19,8 +20,8 @@ export class Skill {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  // @ManyToMany(() => UserExperience, (experience) => experience.skills)
-  // experiences: Promise<UserExperience[]>;
+  @ManyToMany(() => UserExperience, (experience) => experience.skills)
+  experiences: Promise<UserExperience[]>;
 
   @BeforeInsert()
   @BeforeUpdate()
