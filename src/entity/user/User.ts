@@ -23,11 +23,14 @@ import type {
   SubscriptionProvider,
   SubscriptionStatus,
 } from '../../common/plus';
+import { UserJobPreferences } from './UserJobPreferences';
 
 export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
   showPlusGift: boolean;
+  country: string | null;
+  city: string | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
@@ -281,4 +284,9 @@ export class User {
 
   @Column({ type: 'boolean', default: true })
   awardNotifications: boolean;
+
+  @OneToOne(() => UserJobPreferences, (preferences) => preferences.user, {
+    onDelete: 'CASCADE',
+  })
+  jobPreferences: Promise<UserJobPreferences>;
 }
