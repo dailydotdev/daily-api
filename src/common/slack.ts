@@ -10,6 +10,7 @@ import { PropsParameters } from '../types';
 import type { GetCampaignResponse } from '../integrations/skadi';
 import { getAbsoluteDifferenceInDays } from './users';
 import { usdToCores } from './number';
+import { concatTextToNewline, debeziumTimeToDate } from './utils';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -30,39 +31,76 @@ export const webhooks = Object.freeze({
     : nullWebhook,
 });
 
-export const notifyNewPostBoostedSlack = async (
-  post: Post,
-  campaign: GetCampaignResponse,
-  userId: string,
-): Promise<void> => {
+interface NotifyBoostedPostProps {
+  post: Post;
+  campaign: GetCampaignResponse;
+  userId: string;
+}
+
+export const notifyNewPostBoostedSlack = async ({
+  post,
+  campaign,
+  userId,
+}: NotifyBoostedPostProps): Promise<void> => {
   await webhooks.ads.send({
-    text: ':boost: New post boosted',
-    attachments: [
+    blocks: [
       {
-        title: post.title ?? '',
-        title_link: getDiscussionLink(post.id),
-        fields: [
-          {
-            title: 'Budget',
-            value: `${Math.floor(usdToCores(parseFloat(campaign.budget)))} Cores`,
-          },
-          {
-            title: 'Duration',
-            value: getAbsoluteDifferenceInDays(
-              new Date(campaign.endedAt),
-              new Date(campaign.startedAt),
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: ':boost: New post boosted',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Post:*',
+            `<${getDiscussionLink(post.id)}|${post.id}>`,
+          ),
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Boosted by:*',
+            `<https://app.daily.dev/${userId}|${userId}>`,
+          ),
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Budget:*',
+            `${Math.floor(usdToCores(parseFloat(campaign.budget)))} :cores:`,
+          ),
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Duration:*',
+            getAbsoluteDifferenceInDays(
+              debeziumTimeToDate(campaign.endedAt),
+              debeziumTimeToDate(campaign.startedAt),
             ).toString(),
-          },
-          {
-            title: 'User',
-            value: userId,
-          },
-          {
-            title: 'Campaign',
-            value: campaign.campaignId,
-          },
-        ],
-        color: '#1DDC6F',
+          ),
+        },
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Campaign:*', campaign.campaignId),
+        },
       },
     ],
   });
