@@ -70,7 +70,6 @@ describe('postBoostActionSlack worker', () => {
 
     expect(mockAdsSend).toHaveBeenCalled();
     expect(mockAdsSend).toHaveBeenCalledWith({
-      text: ':boost: New post boosted',
       blocks: [
         {
           type: 'header',

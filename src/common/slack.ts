@@ -43,7 +43,6 @@ export const notifyNewPostBoostedSlack = async ({
   userId,
 }: NotifyBoostedPostProps): Promise<void> => {
   await webhooks.ads.send({
-    text: ':boost: New post boosted',
     blocks: [
       {
         type: 'header',
