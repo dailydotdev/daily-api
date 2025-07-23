@@ -9,7 +9,6 @@ import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
 import type { GetCampaignResponse } from '../integrations/skadi';
 import { getAbsoluteDifferenceInDays } from './users';
-import { usdToCores } from './njord';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -44,7 +43,7 @@ export const notifyNewPostBoostedSlack = async (
         fields: [
           {
             title: 'Budget',
-            value: `${Math.floor(usdToCores(parseFloat(campaign.budget)))} Cores`,
+            value: `${Math.floor(parseFloat(campaign.budget) * 100)} Cores`,
           },
           {
             title: 'Duration',
