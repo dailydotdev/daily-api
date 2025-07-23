@@ -407,7 +407,7 @@ export const contentUpdatedPost = {
   downvotes: 1,
   comments: 3,
   score: 10,
-  flags: {},
+  flags: '{}',
   views: 100,
   authorId: '1',
   scoutId: null,

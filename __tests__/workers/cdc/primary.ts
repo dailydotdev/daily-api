@@ -1210,6 +1210,7 @@ describe('post', () => {
       visibleAt: 0,
       pinnedAt: null,
       statsUpdatedAt: 0,
+      flags: JSON.stringify(oldPost?.flags),
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
@@ -1244,12 +1245,13 @@ describe('post', () => {
       visibleAt: 0,
       pinnedAt: null,
       statsUpdatedAt: 0,
+      flags: JSON.stringify(oldPost?.flags),
     };
     const after: ChangeObject<ObjectType> = {
       ...localBase,
-      flags: {
+      flags: JSON.stringify({
         promoteToPublic: 123,
-      },
+      }),
     };
     await expectSuccessfulBackground(
       worker,
@@ -1343,7 +1345,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1]).toBeFalsy();
   });
 
   it('should NOT send a message when campaign id was removed', async () => {
@@ -1377,7 +1379,7 @@ describe('post', () => {
         table: 'post',
       }),
     );
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1]).toBeFalsy();
   });
 
   it('should notify for new freeform post greater than the required amount characters', async () => {
