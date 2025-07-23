@@ -34,11 +34,13 @@ export const webhooks = Object.freeze({
 interface NotifyBoostedPostProps {
   post: Post;
   campaign: GetCampaignResponse;
+  userId: string;
 }
 
 export const notifyNewPostBoostedSlack = async ({
   post,
   campaign,
+  userId,
 }: NotifyBoostedPostProps): Promise<void> => {
   await webhooks.ads.send({
     text: ':boost: New post boosted',
@@ -67,7 +69,7 @@ export const notifyNewPostBoostedSlack = async ({
           type: 'mrkdwn',
           text: concatTextToNewline(
             '*Boosted by:*',
-            `<https://app.daily.dev/${post.authorId}|${post.authorId}>`,
+            `<https://app.daily.dev/${userId}|${userId}>`,
           ),
         },
       },

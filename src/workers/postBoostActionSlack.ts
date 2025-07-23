@@ -22,9 +22,7 @@ const handlePostBoostStarted = async (
   con: DataSource,
   { postId, campaignId, userId }: PubSubSchema['skadi.v1.campaign-updated'],
 ) => {
-  const post = await con
-    .getRepository(Post)
-    .findOneOrFail({ where: { id: postId } });
+  const post = await con.getRepository(Post).findOne({ where: { id: postId } });
 
   if (!post) {
     return;
@@ -39,5 +37,6 @@ const handlePostBoostStarted = async (
   await notifyNewPostBoostedSlack({
     post,
     campaign,
+    userId,
   });
 };
