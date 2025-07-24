@@ -1,5 +1,5 @@
-import { DownloadOptions, Storage } from '@google-cloud/storage';
-import { PropsParameters } from '../types';
+import { Bucket, DownloadOptions, Storage } from '@google-cloud/storage';
+import { acceptedResumeExtensions, PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
@@ -64,10 +64,30 @@ export const uploadResumeFromBuffer = async (
   });
 };
 
+export const deleteFileFromBucket = async (
+  bucket: Bucket,
+  fileName: string,
+) => {
+  const file = bucket.file(fileName);
+
+  try {
+    const [exists] = await file.exists();
+    if (exists) {
+      await file.delete();
+      return true;
+    }
+  } catch (e) {
+    logger.error(
+      { bucketName: bucket.name, fileName, error: e },
+      'Failed to delete file from bucket',
+    );
+  }
+  return false;
+};
+
 export const deleteResumeByUserId = async (
   userId: string,
 ): Promise<boolean> => {
-  const fileName = `${userId}.pdf`;
   const bucketName = RESUMES_BUCKET_NAME;
 
   if (!userId?.trim()) {
@@ -78,14 +98,18 @@ export const deleteResumeByUserId = async (
   try {
     const storage = new Storage();
     const bucket = storage.bucket(bucketName);
-    const file = bucket.file(fileName);
 
-    await file.delete();
+    await Promise.all(
+      // delete all possible accepted {id}.{ext} files uploaded by the user
+      acceptedResumeExtensions.map((ext) =>
+        deleteFileFromBucket(bucket, `${userId}.${ext}`),
+      ),
+    );
 
     logger.info(
       {
         userId,
-        fileName,
+        acceptedResumeExtensions,
         bucketName,
       },
       'deleted user resume',
@@ -96,7 +120,7 @@ export const deleteResumeByUserId = async (
     logger.error(
       {
         userId,
-        fileName,
+        acceptedResumeExtensions,
         bucketName,
         error,
       },
