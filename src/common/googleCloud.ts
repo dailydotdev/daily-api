@@ -1,9 +1,5 @@
 import { DownloadOptions, Storage } from '@google-cloud/storage';
-import {
-  acceptedResumeExtensions,
-  acceptedResumeMimeTypes,
-  PropsParameters,
-} from '../types';
+import { acceptedResumeExtensions, PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
@@ -92,7 +88,7 @@ export const deleteResumeByUserId = async (
     logger.info(
       {
         userId,
-        acceptedResumeMimeTypes,
+        acceptedResumeExtensions,
         bucketName,
       },
       'deleted user resume',
@@ -103,7 +99,7 @@ export const deleteResumeByUserId = async (
     logger.error(
       {
         userId,
-        acceptedResumeMimeTypes,
+        acceptedResumeExtensions,
         bucketName,
         error,
       },
