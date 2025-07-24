@@ -80,17 +80,12 @@ export const deleteResumeByUserId = async (
 
     await Promise.all(
       // delete all possible accepted {id}.{ext} files uploaded by the user
-      acceptedResumeExtensions.map((ext) =>
-        bucket
-          .file(`${userId}.${ext}`)
-          .exists()
-          .then(([exists]) => {
-            if (exists) {
-              return bucket.file(`${userId}.${ext}`).delete();
-            }
-            return Promise.resolve(null);
-          }),
-      ),
+      acceptedResumeExtensions.map(async (ext) => {
+        const [exists] = await bucket.file(`${userId}.${ext}`).exists();
+        if (exists) {
+          await bucket.file(`${userId}.${ext}`).delete();
+        }
+      }),
     );
 
     logger.info(
