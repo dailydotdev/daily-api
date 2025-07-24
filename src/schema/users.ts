@@ -2406,13 +2406,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Validate MIME type using buffer
       const fileType = await fileTypeFromBuffer(buffer);
-      const { mime = '', ext } = fileType ?? {};
-      if (!fileType || supportedFileType.mime !== mime) {
+      if (supportedFileType.mime !== fileType?.mime) {
         throw new ValidationError('File type not supported');
       }
 
       // Actual upload using buffer as a stream
-      const filename = `${ctx.userId}.${ext}`;
+      const filename = `${ctx.userId}.${extension}`;
       await uploadResumeFromBuffer(filename, buffer);
 
       return { _: true };
