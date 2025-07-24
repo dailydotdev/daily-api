@@ -96,8 +96,7 @@ import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import {
-  acceptedResumeExtensions,
-  acceptedResumeMimeTypes,
+  acceptedResumeFileTypes,
   ContentLanguage,
   CoresRole,
   StreakRestoreCoresPrice,
@@ -2391,8 +2390,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const upload = await resume;
 
       // Validate file extension
-      const extension = upload.filename?.split('.')?.pop()?.toLowerCase();
-      if (!acceptedResumeExtensions.includes(extension)) {
+      const extension: string | undefined = upload.filename
+        ?.split('.')
+        ?.pop()
+        ?.toLowerCase();
+      const supportedFileType = acceptedResumeFileTypes.find(
+        (type) => type.ext === extension,
+      );
+      if (!supportedFileType) {
         throw new ValidationError('File extension not supported');
       }
 
@@ -2402,7 +2407,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       // Validate MIME type using buffer
       const fileType = await fileTypeFromBuffer(buffer);
       const { mime = '', ext } = fileType ?? {};
-      if (!fileType || !acceptedResumeMimeTypes.includes(mime)) {
+      if (!fileType || supportedFileType.mime !== mime) {
         throw new ValidationError('File type not supported');
       }
 

@@ -6785,7 +6785,7 @@ describe('mutation uploadResume', () => {
   });
 
   it('should require authentication', async () => {
-    loggedUser = null;
+    loggedUser = '';
 
     const res = await authorizeRequest(
       request(app.server)
@@ -6901,7 +6901,7 @@ describe('mutation uploadResume', () => {
     );
   });
 
-  it('should throw error when file extension is not PDF', async () => {
+  it('should throw error when file extension is not supported', async () => {
     loggedUser = '1';
 
     const res = await authorizeRequest(
@@ -6924,7 +6924,7 @@ describe('mutation uploadResume', () => {
     expect(body.errors[0].message).toEqual('File extension not supported');
   });
 
-  it('should throw error when file is not actually a PDF', async () => {
+  it('should throw error when file mime is not supported', async () => {
     loggedUser = '1';
 
     // mock the file-type check to allow PDF files
@@ -6934,6 +6934,35 @@ describe('mutation uploadResume', () => {
     });
 
     // Rename the file to have a .pdf extension
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { resume: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+        .attach('0', './__tests__/fixture/happy_card.png', 'fake.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('File type not supported');
+  });
+
+  it("should throw error when file extension doesn't match the mime type", async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Incorrect mime type for a PDF
+    });
+
     const res = await authorizeRequest(
       request(app.server)
         .post('/graphql')
