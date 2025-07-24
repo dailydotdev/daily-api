@@ -143,7 +143,11 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
-import { uploadResumeFromBuffer } from '../common/googleCloud';
+import {
+  acceptedExtensions,
+  acceptedMimeTypes,
+  uploadResumeFromBuffer,
+} from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
 
 export interface GQLUpdateUserInput {
@@ -2390,8 +2394,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Validate file extension
       const extension = upload.filename?.split('.')?.pop()?.toLowerCase();
-      if (extension !== 'pdf') {
-        throw new ValidationError('Extension must be .pdf');
+      if (!acceptedExtensions.includes(extension)) {
+        throw new ValidationError('File extension not supported');
       }
 
       // Buffer the stream
@@ -2399,12 +2403,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Validate MIME type using buffer
       const fileType = await fileTypeFromBuffer(buffer);
-      if (fileType?.mime !== 'application/pdf') {
-        throw new ValidationError('File is not a PDF');
+      const { mime = '', ext } = fileType ?? {};
+      if (!fileType || !acceptedMimeTypes.includes(mime)) {
+        throw new ValidationError('File type not supported');
       }
 
       // Actual upload using buffer as a stream
-      const filename = `${ctx.userId}.pdf`;
+      const filename = `${ctx.userId}.${ext}`;
       await uploadResumeFromBuffer(filename, buffer);
 
       return { _: true };

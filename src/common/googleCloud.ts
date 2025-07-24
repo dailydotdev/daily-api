@@ -8,6 +8,14 @@ import { logger } from '../logger';
 
 export const RESUMES_BUCKET_NAME = 'daily-dev-resumes';
 
+export const acceptedMimeTypes = [
+  'application/pdf',
+  'application/msword', // doc file
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx file
+  'application/docx', // docx file
+];
+export const acceptedExtensions = ['pdf', 'doc', 'docx'];
+
 export const downloadFile = async ({
   url,
   options,
@@ -78,9 +86,11 @@ export const deleteResumeByUserId = async (
   try {
     const storage = new Storage();
     const bucket = storage.bucket(bucketName);
-    const file = bucket.file(fileName);
 
-    await file.delete();
+    await Promise.all(
+      // delete all possible accepted {id}.{ext} files uploaded by the user
+      acceptedExtensions.map((ext) => bucket.file(`${userId}.${ext}`).delete()),
+    );
 
     logger.info(
       {

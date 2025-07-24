@@ -6880,7 +6880,7 @@ describe('mutation uploadResume', () => {
 
     const body = res.body;
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('Extension must be .pdf');
+    expect(body.errors[0].message).toEqual('File extension not supported');
   });
 
   it('should throw error when file is not actually a PDF', async () => {
@@ -6910,6 +6910,6 @@ describe('mutation uploadResume', () => {
 
     const body = res.body;
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('File is not a PDF');
+    expect(body.errors[0].message).toEqual('File type not supported');
   });
 });
