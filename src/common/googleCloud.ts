@@ -1,5 +1,9 @@
 import { DownloadOptions, Storage } from '@google-cloud/storage';
-import { PropsParameters } from '../types';
+import {
+  acceptedResumeExtensions,
+  acceptedResumeMimeTypes,
+  PropsParameters,
+} from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
@@ -7,13 +11,6 @@ import { subDays } from 'date-fns';
 import { logger } from '../logger';
 
 export const RESUMES_BUCKET_NAME = 'daily-dev-resumes';
-
-export const acceptedMimeTypes = [
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx file
-  'application/docx', // docx file
-];
-export const acceptedExtensions = ['pdf', 'docx'];
 
 export const downloadFile = async ({
   url,
@@ -74,7 +71,6 @@ export const uploadResumeFromBuffer = async (
 export const deleteResumeByUserId = async (
   userId: string,
 ): Promise<boolean> => {
-  const fileName = `${userId}.pdf`;
   const bucketName = RESUMES_BUCKET_NAME;
 
   if (!userId?.trim()) {
@@ -88,13 +84,15 @@ export const deleteResumeByUserId = async (
 
     await Promise.all(
       // delete all possible accepted {id}.{ext} files uploaded by the user
-      acceptedExtensions.map((ext) => bucket.file(`${userId}.${ext}`).delete()),
+      acceptedResumeExtensions.map((ext) =>
+        bucket.file(`${userId}.${ext}`).delete(),
+      ),
     );
 
     logger.info(
       {
         userId,
-        fileName,
+        acceptedResumeMimeTypes,
         bucketName,
       },
       'deleted user resume',
@@ -105,7 +103,7 @@ export const deleteResumeByUserId = async (
     logger.error(
       {
         userId,
-        fileName,
+        acceptedResumeMimeTypes,
         bucketName,
         error,
       },

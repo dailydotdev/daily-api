@@ -6807,7 +6807,7 @@ describe('mutation uploadResume', () => {
     expect(body.errors[0].extensions.code).toEqual('UNAUTHENTICATED');
   });
 
-  it('should upload resume successfully', async () => {
+  it('should upload pdf resume successfully', async () => {
     loggedUser = '1';
 
     // mock the file-type check to allow PDF files
@@ -6844,6 +6844,47 @@ describe('mutation uploadResume', () => {
     // Verify the mocks were called correctly
     expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
       `${loggedUser}.pdf`,
+      expect.any(Object),
+    );
+  });
+
+  it('should upload docx resume successfully', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'docx',
+      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+
+    // Mock the upload function to return a URL
+    uploadResumeFromBuffer.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.docx`,
+    );
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { resume: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.resume'] }))
+        .attach('0', './__tests__/fixture/screen.pdf', 'sample.docx'),
+      loggedUser,
+    ).expect(200);
+
+    // Verify the response
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    // Verify the mocks were called correctly
+    expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
+      `${loggedUser}.docx`,
       expect.any(Object),
     );
   });

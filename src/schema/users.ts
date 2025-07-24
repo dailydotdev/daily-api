@@ -96,6 +96,8 @@ import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import {
+  acceptedResumeExtensions,
+  acceptedResumeMimeTypes,
   ContentLanguage,
   CoresRole,
   StreakRestoreCoresPrice,
@@ -143,11 +145,7 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
-import {
-  acceptedExtensions,
-  acceptedMimeTypes,
-  uploadResumeFromBuffer,
-} from '../common/googleCloud';
+import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
 
 export interface GQLUpdateUserInput {
@@ -2394,7 +2392,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Validate file extension
       const extension = upload.filename?.split('.')?.pop()?.toLowerCase();
-      if (!acceptedExtensions.includes(extension)) {
+      if (!acceptedResumeExtensions.includes(extension)) {
         throw new ValidationError('File extension not supported');
       }
 
@@ -2404,7 +2402,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       // Validate MIME type using buffer
       const fileType = await fileTypeFromBuffer(buffer);
       const { mime = '', ext } = fileType ?? {};
-      if (!fileType || !acceptedMimeTypes.includes(mime)) {
+      if (!fileType || !acceptedResumeMimeTypes.includes(mime)) {
         throw new ValidationError('File type not supported');
       }
 

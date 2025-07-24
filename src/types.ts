@@ -245,3 +245,9 @@ export enum StreakRestoreCoresPrice {
   First = 0,
   Regular = 100,
 }
+
+export const acceptedResumeMimeTypes = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx file
+];
+export const acceptedResumeExtensions = ['pdf', 'docx'];
