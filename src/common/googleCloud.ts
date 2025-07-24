@@ -14,7 +14,7 @@ export const acceptedMimeTypes = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx file
   'application/docx', // docx file
 ];
-export const acceptedExtensions = ['pdf', 'doc', 'docx'];
+export const acceptedExtensions = ['pdf', 'docx'];
 
 export const downloadFile = async ({
   url,
