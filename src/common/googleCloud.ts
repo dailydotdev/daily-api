@@ -10,7 +10,6 @@ export const RESUMES_BUCKET_NAME = 'daily-dev-resumes';
 
 export const acceptedMimeTypes = [
   'application/pdf',
-  'application/msword', // doc file
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // docx file
   'application/docx', // docx file
 ];
