@@ -115,7 +115,11 @@ import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember, SubscriptionCycles } from '../src/paddle';
-import { CoresRole, StreakRestoreCoresPrice } from '../src/types';
+import {
+  acceptedResumeExtensions,
+  CoresRole,
+  StreakRestoreCoresPrice,
+} from '../src/types';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -134,27 +138,21 @@ import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import * as njordCommon from '../src/common/njord';
 import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
+import * as googleCloud from '../src/common/googleCloud';
 import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
+import { Bucket } from '@google-cloud/storage';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
   getGeo: jest.fn(),
 }));
 
-const uploadFileFromBuffer = jest.fn();
-const uploadResumeFromBuffer = jest.fn();
-const deleteResumeByUserId = jest.fn();
-jest.mock('../src/common/googleCloud', () => ({
-  ...(jest.requireActual('../src/common/googleCloud') as Record<
-    string,
-    unknown
-  >),
-  uploadFileFromBuffer: (...args: unknown[]) => uploadFileFromBuffer(...args),
-  uploadResumeFromBuffer: (...args: unknown[]) =>
-    uploadResumeFromBuffer(...args),
-  deleteResumeByUserId: (...args: unknown[]) => deleteResumeByUserId(...args),
-}));
+const uploadResumeFromBuffer = jest.spyOn(
+  googleCloud,
+  'uploadResumeFromBuffer',
+);
+const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 
 let con: DataSource;
 let app: FastifyInstance;
@@ -4382,32 +4380,44 @@ describe('mutation deleteUser', () => {
     expect(deletedUser).not.toBeNull();
   });
 
-  it('should delete user resume if it exists', async () => {
-    loggedUser = '1';
+  describe('deleting user resume', () => {
+    it('should delete user resume if it exists', async () => {
+      loggedUser = '1';
 
-    // Mock that the resume file exists
-    deleteResumeByUserId.mockResolvedValue(true);
+      await client.mutate(MUTATION);
 
-    await client.mutate(MUTATION);
+      // Verify we requested delete action for every extension supported
+      acceptedResumeExtensions.forEach((ext, index) => {
+        console.log(`#${index} call, try to delete ${loggedUser}.${ext}`);
+        expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
+          index + 1,
+          expect.any(Bucket),
+          `${loggedUser}.${ext}`,
+        );
+      });
+    });
 
-    // Verify the resume was deleted
-    expect(deleteResumeByUserId).toHaveBeenCalledWith('1');
-  });
+    it('should handle case when user has no resume', async () => {
+      loggedUser = '1';
 
-  it('should handle case when user has no resume', async () => {
-    loggedUser = '1';
+      // Mock that the resume file doesn't exist
 
-    // Mock that the resume file doesn't exist
-    deleteResumeByUserId.mockResolvedValue(false);
+      await client.mutate(MUTATION);
 
-    await client.mutate(MUTATION);
+      // Verify the function was called but no error was thrown
+      acceptedResumeExtensions.forEach((ext, index) => {
+        console.log(`#${index} call, try to delete ${loggedUser}.${ext}`);
+        expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
+          index + 1,
+          expect.any(Bucket),
+          `${loggedUser}.${ext}`,
+        );
+      });
 
-    // Verify the function was called but no error was thrown
-    expect(deleteResumeByUserId).toHaveBeenCalledWith('1');
-
-    // User should still be deleted
-    const userOne = await con.getRepository(User).findOneBy({ id: '1' });
-    expect(userOne).toEqual(null);
+      // User should still be deleted
+      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+      expect(userOne).toEqual(null);
+    });
   });
 });
 
