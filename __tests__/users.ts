@@ -4388,7 +4388,6 @@ describe('mutation deleteUser', () => {
 
       // Verify we requested delete action for every extension supported
       acceptedResumeExtensions.forEach((ext, index) => {
-        console.log(`#${index} call, try to delete ${loggedUser}.${ext}`);
         expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
           index + 1,
           expect.any(Bucket),
@@ -4406,7 +4405,6 @@ describe('mutation deleteUser', () => {
 
       // Verify the function was called but no error was thrown
       acceptedResumeExtensions.forEach((ext, index) => {
-        console.log(`#${index} call, try to delete ${loggedUser}.${ext}`);
         expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
           index + 1,
           expect.any(Bucket),
