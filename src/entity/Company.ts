@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-enum CompanyType {
+export enum CompanyType {
   Business = 'business',
   School = 'school',
 }
