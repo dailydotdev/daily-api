@@ -10,22 +10,7 @@ import {
 } from 'typeorm';
 import { User } from '../User';
 import { UserSkill } from '../UserSkill';
-
-enum UserExperienceType {
-  Work = 'work',
-  Education = 'education',
-  Project = 'project',
-  Certification = 'certification',
-  Award = 'award',
-  Publication = 'publication',
-  Course = 'course',
-  OpenSource = 'open_source',
-}
-
-enum ExperienceStatus {
-  Draft = 'draft',
-  Published = 'published',
-}
+import { ExperienceStatus, UserExperienceType } from './types';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
