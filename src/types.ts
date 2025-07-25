@@ -245,3 +245,15 @@ export enum StreakRestoreCoresPrice {
   First = 0,
   Regular = 100,
 }
+
+export const acceptedResumeFileTypes: Array<Record<'mime' | 'ext', string>> = [
+  { mime: 'application/pdf', ext: 'pdf' },
+  {
+    mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ext: 'docx',
+  },
+] as const;
+export const acceptedResumeExtensions = [
+  'pdf',
+  'docx',
+] as const satisfies Array<(typeof acceptedResumeFileTypes)[number]['ext']>;

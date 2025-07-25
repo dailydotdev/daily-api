@@ -96,6 +96,7 @@ import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import {
+  acceptedResumeFileTypes,
   ContentLanguage,
   CoresRole,
   StreakRestoreCoresPrice,
@@ -2389,9 +2390,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const upload = await resume;
 
       // Validate file extension
-      const extension = upload.filename?.split('.')?.pop()?.toLowerCase();
-      if (extension !== 'pdf') {
-        throw new ValidationError('Extension must be .pdf');
+      const extension: string | undefined = upload.filename
+        ?.split('.')
+        ?.pop()
+        ?.toLowerCase();
+      const supportedFileType = acceptedResumeFileTypes.find(
+        (type) => type.ext === extension,
+      );
+      if (!supportedFileType) {
+        throw new ValidationError('File extension not supported');
       }
 
       // Buffer the stream
@@ -2399,12 +2406,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Validate MIME type using buffer
       const fileType = await fileTypeFromBuffer(buffer);
-      if (fileType?.mime !== 'application/pdf') {
-        throw new ValidationError('File is not a PDF');
+      if (supportedFileType.mime !== fileType?.mime) {
+        throw new ValidationError('File type not supported');
       }
 
       // Actual upload using buffer as a stream
-      const filename = `${ctx.userId}.pdf`;
+      const filename = `${ctx.userId}.${extension}`;
       await uploadResumeFromBuffer(filename, buffer);
 
       return { _: true };
