@@ -37,10 +37,18 @@ export class UserExperience {
   @Column({ type: 'date', nullable: true })
   endDate: Date;
 
-  @Column()
+  @Column({
+    type: 'enum',
+    enum: UserExperienceType,
+    nullable: false,
+  })
   type: UserExperienceType;
 
-  @Column()
+  @Column({
+    type: 'enum',
+    enum: ExperienceStatus,
+    default: ExperienceStatus.Draft,
+  })
   status: ExperienceStatus;
 
   @Column({ type: 'jsonb', default: {} })
@@ -50,7 +58,7 @@ export class UserExperience {
   @JoinTable({
     name: 'user_experience_skills',
     joinColumn: { name: 'experienceId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'skillId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'skillSlug', referencedColumnName: 'slug' },
   })
   skills: Promise<UserSkill[]>;
 }

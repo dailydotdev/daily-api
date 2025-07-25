@@ -27,7 +27,11 @@ export class UserWorkExperience extends UserExperience {
   @Column({ type: 'text', nullable: true })
   location: string;
 
-  @Column()
+  @Column({
+    type: 'enum',
+    enum: WorkLocationType,
+    nullable: true,
+  })
   locationType: WorkLocationType;
 
   @Column('simple-array')
