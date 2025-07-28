@@ -58,6 +58,13 @@ export interface GetCampaignListResponseMapped
   promotedPosts: GetCampaignResponse[];
 }
 
+export type EstimatedBoostReachParams = {
+  postId: string;
+  userId: string;
+  durationInDays?: number;
+  budget?: number;
+};
+
 export interface ISkadiApiClient {
   startPostCampaign(params: {
     postId: string;
@@ -69,10 +76,9 @@ export interface ISkadiApiClient {
     campaignId: string;
     userId: string;
   }): Promise<ObjectSnakeToCamelCase<CancelPostCampaignResponse>>;
-  estimatePostBoostReach(params: {
-    postId: string;
-    userId: string;
-  }): Promise<ObjectSnakeToCamelCase<PostEstimatedReach>>;
+  estimatePostBoostReach(
+    params: EstimatedBoostReachParams,
+  ): Promise<ObjectSnakeToCamelCase<PostEstimatedReach>>;
   getCampaignById: (
     params: GetCampaignByIdProps,
   ) => Promise<GetCampaignResponse>;
