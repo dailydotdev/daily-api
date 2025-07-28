@@ -12,6 +12,7 @@ import { traceResolvers } from './trace';
 import { ExperienceStatus } from '../entity/user/experiences/types';
 import { ValidationError } from 'apollo-server-errors';
 import { ObjectLiteral } from 'typeorm';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 export enum AutocompleteType {
   JobTitle = 'job_title',
@@ -108,6 +109,45 @@ const autocompleteQueryMap: AutoCompleteQueryMap = {
   },
 } as const;
 
+export const typeDefs = /* GraphQL */ `
+  enum AutocompleteType {
+    JobTitle = "job_title"
+    Company = "company"
+    Skill = "skill"
+    CertificationName = "certification_name"
+    CertificationIssuer = "certification_issuer"
+    AwardName = "award_name"
+    AwardIssuer = "award_issuer"
+    PublicationPublisher = "publication_publisher"
+    CourseInstitution = "course_institution"
+    School = "school"
+    FieldOfStudy = "field_of_study"
+  }
+
+  type AutocompleteHit {
+    id: ID!
+    name: String!
+  }
+
+  type AutocompleteResult {
+    query: String!
+    limit: Int
+    hits: [AutocompleteHit!]!
+  }
+
+  extend type Query {
+    """
+    Get autocomplete suggestions for various fields like job titles, companies, skills, etc.
+    """
+
+    autocomplete(
+      type: AutocompleteType!
+      query: String!
+      limit: Int
+    ): AutocompleteResult!
+  }
+`;
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -135,17 +175,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const { entity, propertyName, where = {} } = autocompleteQueryMap[type];
 
-      const hits = await ctx.con
-        .getRepository(entity)
-        .createQueryBuilder()
-        .select(`id, ${propertyName}`)
-        .where(`${propertyName} ILIKE :query`, { query: `%${query}%` })
-        // extending where condition using the autocompleteQueryMap
-        .andWhere(where)
-        // sort by selected property name
-        .orderBy(propertyName, 'ASC')
-        .limit(limit)
-        .getRawMany();
+      const hits = queryReadReplica(ctx.con, async ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(entity)
+          .createQueryBuilder('entity')
+          .select(`entity.id, entity.${propertyName} AS name`)
+          .where(`entity.${propertyName} ILIKE :query`, { query: `%${query}%` })
+          // extending where condition using the autocompleteQueryMap
+          .andWhere(where)
+          // sort by selected property name
+          .orderBy(`entity.${propertyName}`, 'ASC')
+          .limit(limit)
+          .getRawMany(),
+      );
 
       return {
         query,
