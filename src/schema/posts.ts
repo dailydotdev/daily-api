@@ -163,7 +163,6 @@ import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { usdToCores, coresToUsd } from '../common/number';
-import { isNullOrUndefined } from '../common/object';
 
 export interface GQLPost {
   id: string;
@@ -1122,16 +1121,26 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to boost
       """
       postId: ID!
+    ): PostBoostEstimate! @auth
+
+    """
+    Estimate the daily reach for a post boost campaign with specific budget and duration
+    """
+    boostEstimatedReachDaily(
+      """
+      ID of the post to boost
+      """
+      postId: ID!
 
       """
       Cores budget per day
       """
-      budget: Int
+      budget: Int!
 
       """
       Amount of days to run the campaign
       """
-      duration: Int
+      duration: Int!
     ): PostBoostEstimate! @auth
 
     postCampaignById(
@@ -2138,26 +2147,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     boostEstimatedReach: async (
       _,
-      args: { postId: string; budget?: number; duration: number },
+      args: { postId: string },
+      ctx: AuthContext,
+    ): Promise<PostBoostReach> => {
+      const { postId } = args;
+      const post = await validatePostBoostPermissions(ctx, postId);
+      checkPostAlreadyBoosted(post);
+
+      const { users } = await skadiApiClient.estimatePostBoostReach({
+        postId,
+        userId: ctx.userId,
+      });
+
+      // We do plus-minus 8% of the generated value
+      const difference = Math.floor(users * 0.08);
+      const estimatedReach = {
+        min: Math.max(users - difference, 0),
+        max: users + difference,
+      };
+
+      return estimatedReach;
+    },
+    boostEstimatedReachDaily: async (
+      _,
+      args: { postId: string; budget: number; duration: number },
       ctx: AuthContext,
     ): Promise<PostBoostReach> => {
       const { postId, budget, duration } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
 
-      if (!isNullOrUndefined(budget)) {
-        if (budget < 1000 || budget > 100000) {
-          throw new ValidationError(
-            'Budget must be greater than 1,000 and less than 100,000',
-          );
-        }
-
-        if (budget % 1000 !== 0) {
-          throw new ValidationError('Budget must be divisible by 1,000');
-        }
+      if (budget < 1000 || budget > 100000) {
+        throw new ValidationError(
+          'Budget must be greater than 1,000 and less than 100,000',
+        );
       }
 
-      if (!isNullOrUndefined(duration) && (duration < 1 || duration > 30)) {
+      if (budget % 1000 !== 0) {
+        throw new ValidationError('Budget must be divisible by 1,000');
+      }
+
+      if (duration < 1 || duration > 30) {
         throw new ValidationError(
           'Duration must be at least 1 day and less than 30 days',
         );
@@ -2166,7 +2196,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { users } = await skadiApiClient.estimatePostBoostReach({
         postId,
         userId: ctx.userId,
-        budget: budget ? coresToUsd(budget) : undefined,
+        budget: coresToUsd(budget),
         durationInDays: duration,
       });
 

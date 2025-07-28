@@ -2542,8 +2542,8 @@ describe('mutation cancelPostBoost', () => {
 
 describe('query boostEstimatedReach', () => {
   const QUERY = `
-    query BoostEstimatedReach($postId: ID!, $budget: Int, $duration: Int) {
-      boostEstimatedReach(postId: $postId, budget: $budget, duration: $duration) {
+    query BoostEstimatedReach($postId: ID!) {
+      boostEstimatedReach(postId: $postId) {
         min
         max
       }
@@ -2600,129 +2600,7 @@ describe('query boostEstimatedReach', () => {
     );
   });
 
-  describe('budget validation', () => {
-    beforeEach(() => {
-      loggedUser = '1';
-    });
-
-    it('should return an error if budget is less than 1000', async () => {
-      return testQueryErrorCode(
-        client,
-        { query: QUERY, variables: { ...params, budget: 999, duration: 7 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should return an error if budget is greater than 100000', async () => {
-      return testQueryErrorCode(
-        client,
-        { query: QUERY, variables: { ...params, budget: 100001, duration: 7 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should return an error if budget is not divisible by 1000', async () => {
-      return testQueryErrorCode(
-        client,
-        { query: QUERY, variables: { ...params, budget: 1500, duration: 7 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should accept valid budget values and make correct HTTP call', async () => {
-      // Mock the HTTP response
-      const mockFetchParse = fetchParse as jest.Mock;
-      mockFetchParse.mockResolvedValue({
-        impressions: 100,
-        clicks: 5,
-        users: 50,
-      });
-
-      const res = await client.query(QUERY, {
-        variables: { ...params, budget: 2000, duration: 5 }, // Valid budget
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.boostEstimatedReach).toBeDefined();
-
-      // Verify the HTTP call was made with correct budget conversion
-      expect(mockFetchParse).toHaveBeenCalledWith(
-        `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            post_id: 'p1',
-            user_id: '1',
-            duration: 5 * ONE_DAY_IN_SECONDS,
-            budget: 20, // 2000 cores = 20 USD
-          }),
-          agent: expect.any(Function),
-        },
-      );
-    });
-  });
-
-  describe('duration validation', () => {
-    beforeEach(() => {
-      loggedUser = '1';
-    });
-
-    it('should return an error if duration is less than 1', async () => {
-      return testQueryErrorCode(
-        client,
-        { query: QUERY, variables: { ...params, budget: 5000, duration: 0 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should return an error if duration is greater than 30', async () => {
-      return testQueryErrorCode(
-        client,
-        { query: QUERY, variables: { ...params, budget: 5000, duration: 31 } },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should accept valid duration values and make correct HTTP call', async () => {
-      // Mock the HTTP response
-      const mockFetchParse = fetchParse as jest.Mock;
-      mockFetchParse.mockResolvedValue({
-        impressions: 200,
-        clicks: 10,
-        users: 75,
-      });
-
-      const res = await client.query(QUERY, {
-        variables: { ...params, budget: 3000, duration: 15 }, // Valid duration
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.boostEstimatedReach).toBeDefined();
-
-      // Verify the HTTP call includes both parameters correctly
-      expect(mockFetchParse).toHaveBeenCalledWith(
-        `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            post_id: 'p1',
-            user_id: '1',
-            duration: 15 * ONE_DAY_IN_SECONDS, // Duration converted to seconds
-            budget: 30, // 3000 cores = 30 USD
-          }),
-          agent: expect.any(Function),
-        },
-      );
-    });
-  });
-
-  it('should return the response without budget and duration and make correct HTTP call', async () => {
+  it('should return the estimated reach and make correct HTTP call', async () => {
     loggedUser = '1';
 
     // Mock the HTTP response
@@ -2743,6 +2621,49 @@ describe('query boostEstimatedReach', () => {
       min: 44, // 47 - Math.floor(47 * 0.08) = 47 - 3 = 44
     });
 
+    // Verify the HTTP call was made correctly without budget/duration
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          // No duration or budget parameters
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle large numbers and ensure integer values', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 1234567,
+      clicks: 54321,
+      users: 234567,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReach).toEqual({
+      max: 253332, // 234567 + Math.floor(234567 * 0.08) = 234567 + 18765 = 253332
+      min: 215802, // 234567 - Math.floor(234567 * 0.08) = 234567 - 18765 = 215802
+    });
+
+    // Verify that both min and max are integers (not floats)
+    expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
+    expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
+
     // Verify the HTTP call was made correctly
     expect(mockFetchParse).toHaveBeenCalledWith(
       `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
@@ -2754,285 +2675,6 @@ describe('query boostEstimatedReach', () => {
         body: JSON.stringify({
           post_id: 'p1',
           user_id: '1',
-          // No duration or budget should be included since neither was provided
-        }),
-        agent: expect.any(Function),
-      },
-    );
-  });
-
-  it('should NOT include budget in HTTP call when only budget is provided (missing duration)', async () => {
-    loggedUser = '1';
-
-    // Mock the HTTP response
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      impressions: 200,
-      clicks: 15,
-      users: 85,
-    });
-
-    const res = await client.query(QUERY, {
-      variables: { ...params, budget: 5000 }, // Only budget, no duration
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach).toEqual({
-      max: 91, // 85 + Math.floor(85 * 0.08) = 85 + 6 = 91
-      min: 79, // 85 - Math.floor(85 * 0.08) = 85 - 6 = 79
-    });
-
-    // Verify HTTP call excludes budget and duration since both are required
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          // No budget or duration included since both are required
-        }),
-        agent: expect.any(Function),
-      },
-    );
-  });
-
-  it('should NOT include duration in HTTP call when only duration is provided (missing budget)', async () => {
-    loggedUser = '1';
-
-    // Mock the HTTP response
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      impressions: 300,
-      clicks: 25,
-      users: 120,
-    });
-
-    const res = await client.query(QUERY, {
-      variables: { ...params, duration: 7 }, // Only duration, no budget
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach).toEqual({
-      max: 129, // 120 + Math.floor(120 * 0.08) = 120 + 9 = 129
-      min: 111, // 120 - Math.floor(120 * 0.08) = 120 - 9 = 111
-    });
-
-    // Verify HTTP call excludes budget and duration since both are required
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          // No budget or duration included since both are required
-        }),
-        agent: expect.any(Function),
-      },
-    );
-  });
-
-  it('should pass both budget and duration parameters and make correct HTTP call', async () => {
-    loggedUser = '1';
-
-    // Mock the HTTP response
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      impressions: 500,
-      clicks: 40,
-      users: 180,
-    });
-
-    const res = await client.query(QUERY, {
-      variables: { ...params, budget: 10000, duration: 14 }, // 10000 cores = 100 USD, 14 days
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach).toEqual({
-      max: 194, // 180 + Math.floor(180 * 0.08) = 180 + 14 = 194
-      min: 166, // 180 - Math.floor(180 * 0.08) = 180 - 14 = 166
-    });
-
-    // Verify the HTTP call was made correctly with both parameters
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 14 * ONE_DAY_IN_SECONDS, // Duration converted to seconds
-          budget: 100, // Converted from cores to USD (10000 cores = 100 USD)
-        }),
-        agent: expect.any(Function),
-      },
-    );
-  });
-
-  it('should handle minimum budget value (1000 cores)', async () => {
-    loggedUser = '1';
-
-    // Mock the HTTP response
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      impressions: 50,
-      clicks: 3,
-      users: 25,
-    });
-
-    const res = await client.query(QUERY, {
-      variables: { ...params, budget: 1000, duration: 5 }, // 1000 cores = 10 USD
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach).toEqual({
-      max: 27, // 25 + Math.floor(25 * 0.08) = 25 + 2 = 27
-      min: 23, // 25 - Math.floor(25 * 0.08) = 25 - 2 = 23
-    });
-
-    // Verify the HTTP call was made with minimum budget
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 5 * ONE_DAY_IN_SECONDS,
-          budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
-        }),
-        agent: expect.any(Function),
-      },
-    );
-  });
-
-  it('should handle maximum budget value (100000 cores)', async () => {
-    loggedUser = '1';
-
-    // Mock the HTTP response
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      impressions: 50000,
-      clicks: 2500,
-      users: 15000,
-    });
-
-    const res = await client.query(QUERY, {
-      variables: { ...params, budget: 100000, duration: 5 }, // 100000 cores = 1000 USD
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach).toEqual({
-      max: 16200, // 15000 + Math.floor(15000 * 0.08) = 15000 + 1200 = 16200
-      min: 13800, // 15000 - Math.floor(15000 * 0.08) = 15000 - 1200 = 13800
-    });
-
-    // Verify the HTTP call was made with maximum budget
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 5 * ONE_DAY_IN_SECONDS,
-          budget: 1000, // Converted from cores to USD (100000 cores = 1000 USD)
-        }),
-        agent: expect.any(Function),
-      },
-    );
-  });
-
-  it('should handle minimum duration value (1 day)', async () => {
-    loggedUser = '1';
-
-    // Mock the HTTP response
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      impressions: 80,
-      clicks: 5,
-      users: 35,
-    });
-
-    const res = await client.query(QUERY, {
-      variables: { ...params, budget: 2000, duration: 1 }, // 1 day
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach).toEqual({
-      max: 37, // 35 + Math.floor(35 * 0.08) = 35 + 2 = 37
-      min: 33, // 35 - Math.floor(35 * 0.08) = 35 - 2 = 33
-    });
-
-    // Verify the HTTP call was made with minimum duration
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 1 * ONE_DAY_IN_SECONDS, // 1 day in seconds
-          budget: 20, // 2000 cores = 20 USD
-        }),
-        agent: expect.any(Function),
-      },
-    );
-  });
-
-  it('should handle maximum duration value (30 days)', async () => {
-    loggedUser = '1';
-
-    // Mock the HTTP response
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      impressions: 1200,
-      clicks: 60,
-      users: 450,
-    });
-
-    const res = await client.query(QUERY, {
-      variables: { ...params, budget: 5000, duration: 30 }, // 30 days
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.boostEstimatedReach).toEqual({
-      max: 486, // 450 + Math.floor(450 * 0.08) = 450 + 36 = 486
-      min: 414, // 450 - Math.floor(450 * 0.08) = 450 - 36 = 414
-    });
-
-    // Verify the HTTP call was made with maximum duration
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 30 * ONE_DAY_IN_SECONDS, // 30 days in seconds
-          budget: 50, // 5000 cores = 50 USD
         }),
         agent: expect.any(Function),
       },
@@ -3159,6 +2801,441 @@ describe('query boostEstimatedReach', () => {
         body: JSON.stringify({
           post_id: 'p1',
           user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+});
+
+describe('query boostEstimatedReachDaily', () => {
+  const QUERY = `
+    query BoostEstimatedReachDaily($postId: ID!, $budget: Int!, $duration: Int!) {
+      boostEstimatedReachDaily(postId: $postId, budget: $budget, duration: $duration) {
+        min
+        max
+      }
+    }
+  `;
+
+  const params = { postId: 'p1' };
+
+  beforeEach(async () => {
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 5000, duration: 7 } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { postId: 'nonexistent', budget: 5000, duration: 7 },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 5000, duration: 7 } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if post is already boosted', async () => {
+    loggedUser = '1';
+    // Set the post as already boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 5000, duration: 7 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  describe('budget validation', () => {
+    beforeEach(() => {
+      loggedUser = '1';
+    });
+
+    it('should return an error if budget is less than 1000', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 999, duration: 7 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if budget is greater than 100000', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 100001, duration: 7 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if budget is not divisible by 1000', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 1500, duration: 7 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should accept valid budget values and make correct HTTP call', async () => {
+      // Mock the HTTP response
+      const mockFetchParse = fetchParse as jest.Mock;
+      mockFetchParse.mockResolvedValue({
+        impressions: 100,
+        clicks: 5,
+        users: 50,
+      });
+
+      const res = await client.query(QUERY, {
+        variables: { ...params, budget: 2000, duration: 5 }, // Valid budget
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.boostEstimatedReachDaily).toBeDefined();
+
+      // Verify the HTTP call was made with correct budget conversion
+      expect(mockFetchParse).toHaveBeenCalledWith(
+        `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_id: 'p1',
+            user_id: '1',
+            duration: 5 * ONE_DAY_IN_SECONDS,
+            budget: 20, // 2000 cores = 20 USD
+          }),
+          agent: expect.any(Function),
+        },
+      );
+    });
+  });
+
+  describe('duration validation', () => {
+    beforeEach(() => {
+      loggedUser = '1';
+    });
+
+    it('should return an error if duration is less than 1', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 5000, duration: 0 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if duration is greater than 30', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 5000, duration: 31 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should accept valid duration values and make correct HTTP call', async () => {
+      // Mock the HTTP response
+      const mockFetchParse = fetchParse as jest.Mock;
+      mockFetchParse.mockResolvedValue({
+        impressions: 200,
+        clicks: 10,
+        users: 75,
+      });
+
+      const res = await client.query(QUERY, {
+        variables: { ...params, budget: 3000, duration: 15 }, // Valid duration
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.boostEstimatedReachDaily).toBeDefined();
+
+      // Verify the HTTP call includes both parameters correctly
+      expect(mockFetchParse).toHaveBeenCalledWith(
+        `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_id: 'p1',
+            user_id: '1',
+            duration: 15 * ONE_DAY_IN_SECONDS, // Duration converted to seconds
+            budget: 30, // 3000 cores = 30 USD
+          }),
+          agent: expect.any(Function),
+        },
+      );
+    });
+  });
+
+  it('should return estimated reach with budget and duration parameters', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 500,
+      clicks: 40,
+      users: 180,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 10000, duration: 14 }, // 10000 cores = 100 USD, 14 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      max: 194, // 180 + Math.floor(180 * 0.08) = 180 + 14 = 194
+      min: 166, // 180 - Math.floor(180 * 0.08) = 180 - 14 = 166
+    });
+
+    // Verify the HTTP call was made correctly with both parameters
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 14 * ONE_DAY_IN_SECONDS, // Duration converted to seconds
+          budget: 100, // Converted from cores to USD (10000 cores = 100 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle minimum budget value (1000 cores)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 50,
+      clicks: 3,
+      users: 25,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 1000, duration: 5 }, // 1000 cores = 10 USD
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      max: 27, // 25 + Math.floor(25 * 0.08) = 25 + 2 = 27
+      min: 23, // 25 - Math.floor(25 * 0.08) = 25 - 2 = 23
+    });
+
+    // Verify the HTTP call was made with minimum budget
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 5 * ONE_DAY_IN_SECONDS,
+          budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle maximum budget value (100000 cores)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 50000,
+      clicks: 2500,
+      users: 15000,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 100000, duration: 5 }, // 100000 cores = 1000 USD
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      max: 16200, // 15000 + Math.floor(15000 * 0.08) = 15000 + 1200 = 16200
+      min: 13800, // 15000 - Math.floor(15000 * 0.08) = 15000 - 1200 = 13800
+    });
+
+    // Verify the HTTP call was made with maximum budget
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 5 * ONE_DAY_IN_SECONDS,
+          budget: 1000, // Converted from cores to USD (100000 cores = 1000 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle minimum duration value (1 day)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 80,
+      clicks: 5,
+      users: 35,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 2000, duration: 1 }, // 1 day
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      max: 37, // 35 + Math.floor(35 * 0.08) = 35 + 2 = 37
+      min: 33, // 35 - Math.floor(35 * 0.08) = 35 - 2 = 33
+    });
+
+    // Verify the HTTP call was made with minimum duration
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 1 * ONE_DAY_IN_SECONDS, // 1 day in seconds
+          budget: 20, // 2000 cores = 20 USD
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle maximum duration value (30 days)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 1200,
+      clicks: 60,
+      users: 450,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 5000, duration: 30 }, // 30 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      max: 486, // 450 + Math.floor(450 * 0.08) = 450 + 36 = 486
+      min: 414, // 450 - Math.floor(450 * 0.08) = 450 - 36 = 414
+    });
+
+    // Verify the HTTP call was made with maximum duration
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 30 * ONE_DAY_IN_SECONDS, // 30 days in seconds
+          budget: 50, // 5000 cores = 50 USD
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should work for post scout as well as author', async () => {
+    loggedUser = '1';
+
+    // Set user as scout instead of author
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '2', // Different author
+        scoutId: '1', // Current user is scout
+      },
+    );
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 150,
+      clicks: 10,
+      users: 65,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 3000, duration: 5 }, // 3000 cores = 30 USD, 5 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      max: 70, // 65 + Math.floor(65 * 0.08) = 65 + 5 = 70
+      min: 60, // 65 - Math.floor(65 * 0.08) = 65 - 5 = 60
+    });
+
+    // Verify the HTTP call was made with correct parameters
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 5 * ONE_DAY_IN_SECONDS,
+          budget: 30, // Converted from cores to USD (3000 cores = 30 USD)
         }),
         agent: expect.any(Function),
       },
