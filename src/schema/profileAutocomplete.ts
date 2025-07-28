@@ -10,6 +10,8 @@ import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { ExperienceStatus } from '../entity/user/experiences/types';
+import { ValidationError } from 'apollo-server-errors';
+import { ObjectLiteral } from 'typeorm';
 
 export enum AutocompleteType {
   JobTitle = 'job_title',
@@ -25,46 +27,80 @@ export enum AutocompleteType {
   FieldOfStudy = 'field_of_study',
 }
 
-const autocompleteQueryMap = {
-  [AutocompleteType.Skill]: { entity: UserSkill, propertyName: 'name' },
+type TypeToEntityMap = {
+  [AutocompleteType.JobTitle]: UserWorkExperience;
+  [AutocompleteType.Company]: Company;
+  [AutocompleteType.Skill]: UserSkill;
+  [AutocompleteType.CertificationName]: UserCertificationExperience;
+  [AutocompleteType.CertificationIssuer]: Company;
+  [AutocompleteType.AwardName]: UserAwardExperience;
+  [AutocompleteType.AwardIssuer]: UserAwardExperience;
+  [AutocompleteType.PublicationPublisher]: UserPublicationExperience;
+  [AutocompleteType.CourseInstitution]: UserCourseExperience;
+  [AutocompleteType.School]: Company;
+  [AutocompleteType.FieldOfStudy]: UserEducationExperience;
+};
+
+type AutocompleteQuery<T = ObjectLiteral> = {
+  entity: {
+    new (): T;
+  };
+  propertyName: keyof T;
+  where?: Partial<Record<keyof T, unknown>>;
+};
+
+type AutoCompleteQueryMap = {
+  [key in AutocompleteType]: AutocompleteQuery<TypeToEntityMap[key]>;
+};
+
+const autocompleteQueryMap: AutoCompleteQueryMap = {
+  [AutocompleteType.Skill]: {
+    entity: UserSkill,
+    propertyName: 'name',
+  },
   [AutocompleteType.JobTitle]: {
     entity: UserWorkExperience,
     propertyName: 'title',
-    where: { a: 0 },
+    where: { status: ExperienceStatus.Published },
   },
   [AutocompleteType.Company]: {
     entity: Company,
     propertyName: 'name',
-    where: { verified: true, type: CompanyType.Business },
+    where: { type: CompanyType.Business },
   },
   [AutocompleteType.CertificationName]: {
     entity: UserCertificationExperience,
-    propertyName: 'name',
+    propertyName: 'title',
+    where: { status: ExperienceStatus.Published },
   },
   [AutocompleteType.CertificationIssuer]: {
-    entity: UserCertificationExperience,
-    propertyName: 'issuer',
+    entity: Company,
+    propertyName: 'name',
   },
   [AutocompleteType.AwardName]: {
     entity: UserAwardExperience,
-    propertyName: 'name',
+    propertyName: 'title',
+    where: { status: ExperienceStatus.Published },
   },
   [AutocompleteType.AwardIssuer]: {
     entity: UserAwardExperience,
     propertyName: 'issuer',
+    where: { status: ExperienceStatus.Published },
   },
   [AutocompleteType.PublicationPublisher]: {
     entity: UserPublicationExperience,
     propertyName: 'publisher',
+    where: { status: ExperienceStatus.Published },
   },
   [AutocompleteType.CourseInstitution]: {
     entity: UserCourseExperience,
     propertyName: 'institution',
+    where: { status: ExperienceStatus.Published },
   },
   [AutocompleteType.School]: {
     entity: Company,
     propertyName: 'name',
-    where: { verified: true, type: CompanyType.School },
+    where: { type: CompanyType.School },
   },
   [AutocompleteType.FieldOfStudy]: {
     entity: UserEducationExperience,
@@ -86,34 +122,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }: { type: AutocompleteType; query: string; limit?: number },
       ctx: Context,
     ) => {
-      if (
-        !query ||
-        query.length < 2 ||
-        query.length > 100 ||
-        !(type in autocompleteQueryMap)
-      ) {
+      if (!query || query.length < 2 || query.length > 100) {
         return {
           query,
           hits: [],
         };
       }
 
-      const { entity, propertyName } = autocompleteQueryMap[type];
+      if (!(type in autocompleteQueryMap)) {
+        throw new ValidationError(`Invalid autocomplete type: ${type}`);
+      }
+
+      const { entity, propertyName, where = {} } = autocompleteQueryMap[type];
 
       const hits = await ctx.con
         .getRepository(entity)
         .createQueryBuilder()
         .select(`id, ${propertyName}`)
         .where(`${propertyName} ILIKE :query`, { query: `%${query}%` })
-        .andWhere(`status = :status`, { status: ExperienceStatus.Published })
-        .andWhere(
-          'where' in autocompleteQueryMap[type]
-            ? (autocompleteQueryMap[type].where as Record<string, unknown>)
-            : {},
-        )
-        .orderBy('propertyName', 'ASC')
+        // extending where condition using the autocompleteQueryMap
+        .andWhere(where)
+        // sort by selected property name
+        .orderBy(propertyName, 'ASC')
         .limit(limit)
         .getRawMany();
+
       return {
         query,
         limit,
