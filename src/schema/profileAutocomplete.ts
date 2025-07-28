@@ -11,7 +11,7 @@ import { BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { ExperienceStatus } from '../entity/user/experiences/types';
 import { ValidationError } from 'apollo-server-errors';
-import { ObjectLiteral } from 'typeorm';
+import { ObjectLiteral, Raw } from 'typeorm';
 import { queryReadReplica } from '../common/queryReadReplica';
 
 export enum AutocompleteType {
@@ -48,6 +48,7 @@ type AutocompleteQuery<T = ObjectLiteral> = {
   };
   propertyName: keyof T;
   where?: Partial<Record<keyof T, unknown>>;
+  select?: (keyof T)[];
 };
 
 type AutoCompleteQueryMap = {
@@ -58,6 +59,7 @@ const autocompleteQueryMap: AutoCompleteQueryMap = {
   [AutocompleteType.Skill]: {
     entity: UserSkill,
     propertyName: 'name',
+    select: ['slug', 'name'],
   },
   [AutocompleteType.JobTitle]: {
     entity: UserWorkExperience,
@@ -110,24 +112,22 @@ const autocompleteQueryMap: AutoCompleteQueryMap = {
 } as const;
 
 export const typeDefs = /* GraphQL */ `
-  enum AutocompleteType {
-    JobTitle = "job_title"
-    Company = "company"
-    Skill = "skill"
-    CertificationName = "certification_name"
-    CertificationIssuer = "certification_issuer"
-    AwardName = "award_name"
-    AwardIssuer = "award_issuer"
-    PublicationPublisher = "publication_publisher"
-    CourseInstitution = "course_institution"
-    School = "school"
-    FieldOfStudy = "field_of_study"
+  type ExperienceHit {
+    id: ID!
+    title: String
   }
 
-  type AutocompleteHit {
+  type CompanyHit {
     id: ID!
     name: String!
   }
+
+  type SkillHit {
+    slug: String!
+    name: String!
+  }
+
+  union AutocompleteHit = ExperienceHit | CompanyHit | SkillHit
 
   type AutocompleteResult {
     query: String!
@@ -139,9 +139,8 @@ export const typeDefs = /* GraphQL */ `
     """
     Get autocomplete suggestions for various fields like job titles, companies, skills, etc.
     """
-
-    autocomplete(
-      type: AutocompleteType!
+    profileAutocomplete(
+      type: String!
       query: String!
       limit: Int
     ): AutocompleteResult!
@@ -153,7 +152,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    autocomplete: async (
+    profileAutocomplete: async (
       _,
       {
         type,
@@ -162,6 +161,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }: { type: AutocompleteType; query: string; limit?: number },
       ctx: Context,
     ) => {
+      if (!type || !(type in autocompleteQueryMap)) {
+        throw new ValidationError(`Invalid autocomplete type: ${type}`);
+      }
+
       if (!query || query.length < 2 || query.length > 100) {
         return {
           query,
@@ -169,20 +172,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }
 
-      if (!(type in autocompleteQueryMap)) {
-        throw new ValidationError(`Invalid autocomplete type: ${type}`);
-      }
+      const {
+        entity,
+        propertyName,
+        where = {},
+        select,
+      } = autocompleteQueryMap[type];
 
-      const { entity, propertyName, where = {} } = autocompleteQueryMap[type];
+      const typeNameByEntity = {
+        [UserWorkExperience.name]: 'ExperienceHit',
+        [Company.name]: 'CompanyHit',
+        [UserSkill.name]: 'SkillHit',
+        [UserCertificationExperience.name]: 'ExperienceHit',
+        [UserAwardExperience.name]: 'ExperienceHit',
+        [UserPublicationExperience.name]: 'ExperienceHit',
+        [UserCourseExperience.name]: 'ExperienceHit',
+        [UserEducationExperience.name]: 'ExperienceHit',
+      } as const;
 
-      const hits = queryReadReplica(ctx.con, async ({ queryRunner }) =>
+      const hits = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager
           .getRepository(entity)
           .createQueryBuilder('entity')
-          .select(`entity.id, entity.${propertyName} AS name`)
-          .where(`entity.${propertyName} ILIKE :query`, { query: `%${query}%` })
-          // extending where condition using the autocompleteQueryMap
-          .andWhere(where)
+          .select(select ?? ['id', propertyName])
+          .where({
+            [propertyName]: Raw(
+              (alias) => `LOWER(${alias}) LIKE LOWER('%${query}%')`,
+            ),
+            // extending where condition using the autocompleteQueryMap
+            ...where,
+          })
           // sort by selected property name
           .orderBy(`entity.${propertyName}`, 'ASC')
           .limit(limit)
@@ -192,7 +211,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         query,
         limit,
-        hits,
+        hits: hits.map((hit) => ({
+          __typename: typeNameByEntity[entity.name],
+          ...hit,
+        })),
       };
     },
   },
