@@ -291,3 +291,14 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
     post_title: title,
   };
 };
+
+export const getAdjustedReach = (value: number) => {
+  // We do plus-minus 8% of the generated value
+  const difference = Math.floor(value * 0.08);
+  const estimatedReach = {
+    min: Math.max(value - difference, 0),
+    max: value + difference,
+  };
+
+  return estimatedReach;
+};

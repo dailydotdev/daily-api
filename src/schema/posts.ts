@@ -156,6 +156,7 @@ import {
   getBoostedPost,
   consolidateCampaignsWithPosts,
   getFormattedCampaign,
+  getAdjustedReach,
 } from '../common/post/boost';
 import type { PostBoostReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
@@ -2159,14 +2160,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
       });
 
-      // We do plus-minus 8% of the generated value
-      const difference = Math.floor(users * 0.08);
-      const estimatedReach = {
-        min: Math.max(users - difference, 0),
-        max: users + difference,
-      };
-
-      return estimatedReach;
+      return getAdjustedReach(users);
     },
     boostEstimatedReachDaily: async (
       _,
@@ -2200,14 +2194,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         durationInDays: duration,
       });
 
-      // We do plus-minus 8% of the generated value
-      const difference = Math.floor(users * 0.08);
-      const estimatedReach = {
-        min: Math.max(users - difference, 0),
-        max: users + difference,
-      };
-
-      return estimatedReach;
+      return getAdjustedReach(users);
     },
     postCampaignById: async (
       _,
