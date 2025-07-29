@@ -2170,22 +2170,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { postId, budget, duration } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
-
-      if (budget < 1000 || budget > 100000) {
-        throw new ValidationError(
-          'Budget must be at least 1,000 and at most 100,000',
-        );
-      }
-
-      if (budget % 1000 !== 0) {
-        throw new ValidationError('Budget must be divisible by 1,000');
-      }
-
-      if (duration < 1 || duration > 30) {
-        throw new ValidationError(
-          'Duration must be at least 1 day and at most 30 days',
-        );
-      }
+      validatePostBoostArgs({ budget, duration });
 
       const { users } = await skadiApiClient.estimatePostBoostReachDaily({
         postId,

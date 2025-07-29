@@ -66,7 +66,7 @@ export const POST_BOOST_VALIDATION_SCHEMA = z.object({
 });
 
 export const validatePostBoostArgs = (
-  args: Omit<StartPostBoostArgs, 'userId'>,
+  args: Omit<StartPostBoostArgs, 'userId' | 'postId'>,
 ) => {
   const result = POST_BOOST_VALIDATION_SCHEMA.safeParse(args);
 
