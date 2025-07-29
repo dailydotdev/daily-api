@@ -126,8 +126,8 @@ describe('autocomplete query', () => {
     beforeEach(async () => {
       // Create test data for skills
       await saveFixtures(con, UserSkill, [
-        { name: 'JavaScript', slug: 'javaScript' },
-        { name: 'TypeScript', slug: 'typeScript' },
+        { name: 'JavaScript', slug: 'javascript' },
+        { name: 'TypeScript', slug: 'typescript' },
         { name: 'React', slug: 'react' },
         { name: 'Node.js', slug: 'nodejs' },
         { name: 'GraphQL', slug: 'graphql' },

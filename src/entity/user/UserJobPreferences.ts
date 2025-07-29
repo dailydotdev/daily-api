@@ -24,7 +24,7 @@ export class UserJobPreferences {
   @Column({ default: false })
   openToOpportunities: boolean;
 
-  @Column({ type: 'jsonb', default: [] })
+  @Column({ type: 'jsonb', default: () => "'[]'" })
   preferredRoles: string[]; // Array of job titles
 
   @Column({
