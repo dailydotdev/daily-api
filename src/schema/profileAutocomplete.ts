@@ -70,6 +70,7 @@ const autocompleteQueryMap: AutoCompleteQueryMap = {
     entity: Company,
     propertyName: 'name',
     where: { type: CompanyType.Business },
+    select: ['id', 'name', 'image'],
   },
   [AutocompleteType.CertificationName]: {
     entity: UserCertificationExperience,
@@ -79,6 +80,7 @@ const autocompleteQueryMap: AutoCompleteQueryMap = {
   [AutocompleteType.CertificationIssuer]: {
     entity: Company,
     propertyName: 'name',
+    select: ['id', 'name', 'image'],
   },
   [AutocompleteType.AwardName]: {
     entity: UserAwardExperience,
@@ -104,6 +106,7 @@ const autocompleteQueryMap: AutoCompleteQueryMap = {
     entity: Company,
     propertyName: 'name',
     where: { type: CompanyType.School },
+    select: ['id', 'name', 'image'],
   },
   [AutocompleteType.FieldOfStudy]: {
     entity: UserEducationExperience,
@@ -120,6 +123,7 @@ export const typeDefs = /* GraphQL */ `
   type CompanyHit {
     id: ID!
     name: String!
+    image: String
   }
 
   type SkillHit {
