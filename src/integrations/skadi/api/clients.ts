@@ -157,8 +157,8 @@ export class SkadiApiClient implements ISkadiApiClient {
     const params = {
       post_id: postId,
       user_id: userId,
-      budget,
       duration: durationInDays * ONE_DAY_IN_SECONDS,
+      budget,
     };
 
     return this.fetchBoostReach(params);
