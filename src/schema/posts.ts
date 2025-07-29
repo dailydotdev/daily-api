@@ -2173,7 +2173,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (budget < 1000 || budget > 100000) {
         throw new ValidationError(
-          'Budget must be greater than 1,000 and less than 100,000',
+          'Budget must be at least 1,000 and at most 100,000',
         );
       }
 
@@ -2183,7 +2183,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (duration < 1 || duration > 30) {
         throw new ValidationError(
-          'Duration must be at least 1 day and less than 30 days',
+          'Duration must be at least 1 day and at most 30 days',
         );
       }
 
