@@ -106,55 +106,12 @@ export class SkadiApiClient implements ISkadiApiClient {
     });
   }
 
-  estimatePostBoostReach({
-    postId,
-    userId,
-  }: Pick<
-    EstimatedBoostReachParams,
-    'userId' | 'postId'
-  >): Promise<PostEstimatedReach> {
-    return this.garmr.execute(async () => {
-      const response = await fetchParse<PostEstimatedReach>(
-        `${this.url}/promote/post/reach`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ postId, userId }),
-        },
-      );
-
-      return {
-        impressions: response.impressions ?? 0,
-        clicks: response.clicks ?? 0,
-        users: response.users ?? 0,
-      };
-    });
-  }
-
-  estimatePostBoostReachDaily({
-    postId,
-    userId,
-    durationInDays,
-    budget,
-  }: EstimatedBoostReachParams): Promise<PostEstimatedReach> {
-    const params: {
-      post_id: string;
-      user_id: string;
-      duration?: number;
-      budget?: number;
-    } = {
-      post_id: postId,
-      user_id: userId,
-    };
-
-    if (budget && durationInDays) {
-      params.duration = durationInDays * ONE_DAY_IN_SECONDS;
-      params.budget = budget;
-    }
-
+  private fetchBoostReach(params: {
+    post_id: string;
+    user_id: string;
+    budget?: number;
+    duration?: number;
+  }) {
     return this.garmr.execute(async () => {
       const response = await fetchParse<PostEstimatedReach>(
         `${this.url}/promote/post/reach`,
@@ -174,6 +131,37 @@ export class SkadiApiClient implements ISkadiApiClient {
         users: response.users ?? 0,
       };
     });
+  }
+
+  estimatePostBoostReach({
+    postId,
+    userId,
+  }: Pick<
+    EstimatedBoostReachParams,
+    'userId' | 'postId'
+  >): Promise<PostEstimatedReach> {
+    const params = {
+      post_id: postId,
+      user_id: userId,
+    };
+
+    return this.fetchBoostReach(params);
+  }
+
+  estimatePostBoostReachDaily({
+    postId,
+    userId,
+    durationInDays,
+    budget,
+  }: EstimatedBoostReachParams): Promise<PostEstimatedReach> {
+    const params = {
+      post_id: postId,
+      user_id: userId,
+      budget,
+      duration: durationInDays * ONE_DAY_IN_SECONDS,
+    };
+
+    return this.fetchBoostReach(params);
   }
 
   getCampaignById({
