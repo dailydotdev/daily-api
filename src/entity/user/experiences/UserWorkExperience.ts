@@ -34,7 +34,7 @@ export class UserWorkExperience extends UserExperience {
   })
   locationType: WorkLocationType;
 
-  @Column('simple-array')
+  @Column({ type: 'jsonb', default: [] })
   achievements: string[];
 
   // do not send it to FE

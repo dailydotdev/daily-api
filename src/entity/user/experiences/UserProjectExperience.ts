@@ -12,7 +12,7 @@ export class UserProjectExperience extends UserExperience {
   links: Array<ProjectLink>;
 
   // user ids
-  @Column({ type: 'simple-array', default: [] })
+  @Column({ type: 'jsonb', default: [] })
   contributors: string[];
 
   // not adding a relationship, maybe is not important for now

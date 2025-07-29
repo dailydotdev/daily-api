@@ -151,6 +151,8 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const DEFAULT_LIMIT = 10;
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -161,7 +163,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         type,
         query,
-        limit,
+        limit = DEFAULT_LIMIT,
       }: { type: AutocompleteType; query: string; limit?: number },
       ctx: Context,
     ) => {
