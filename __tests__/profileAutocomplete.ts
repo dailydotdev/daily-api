@@ -69,8 +69,6 @@ describe('autocomplete query', () => {
           query: 'a',
         },
       });
-      console.log(res);
-
       expect(res.data.profileAutocomplete).toEqual({
         query: 'a',
         limit: null,
@@ -143,8 +141,6 @@ describe('autocomplete query', () => {
           query: 'script',
         },
       });
-
-      console.log(res);
 
       expect(res.data.profileAutocomplete.query).toEqual('script');
       expect(res.data.profileAutocomplete.hits).toHaveLength(2);

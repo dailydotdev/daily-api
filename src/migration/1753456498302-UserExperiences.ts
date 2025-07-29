@@ -19,10 +19,11 @@ export class UserExperiences1753456498302 implements MigrationInterface {
         await queryRunner.query(`CREATE TYPE "public"."company_type_enum" AS ENUM('business', 'school')`);
         await queryRunner.query(`ALTER TABLE "company" ADD "type" "public"."company_type_enum" NOT NULL DEFAULT 'business'`);
         await queryRunner.query(`ALTER TABLE "source" ALTER COLUMN "memberPostingRank" DROP NOT NULL`);
-        await queryRunner.query(`ALTER TABLE "source" ALTER COLUMN "memberInviteRank" DROP NOT NULL`);await queryRunner.query(`ALTER TABLE "user_experience" ADD CONSTRAINT "FK_7566e52259026584992211a40df" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "source" ALTER COLUMN "memberInviteRank" DROP NOT NULL`);
+        await queryRunner.query(`ALTER TABLE "user_experience" ADD CONSTRAINT "FK_7566e52259026584992211a40df" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user_experience" ADD CONSTRAINT "FK_3f90b59b2b521e38d87c8f627dd" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user_experience" ADD CONSTRAINT "FK_48330737fafe752bb82eb638b8e" FOREIGN KEY ("schoolId") REFERENCES "company"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-       await queryRunner.query(`ALTER TABLE "user_experience_skills" ADD CONSTRAINT "FK_81852914f77ecea988f419beb2d" FOREIGN KEY ("experienceId") REFERENCES "user_experience"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
+        await queryRunner.query(`ALTER TABLE "user_experience_skills" ADD CONSTRAINT "FK_81852914f77ecea988f419beb2d" FOREIGN KEY ("experienceId") REFERENCES "user_experience"("id") ON DELETE CASCADE ON UPDATE CASCADE`);
         await queryRunner.query(`ALTER TABLE "user_experience_skills" ADD CONSTRAINT "FK_148b0c2faa3d2d6571c0f8f0c3b" FOREIGN KEY ("skillSlug") REFERENCES "user_skill"("slug") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         }
 
@@ -45,6 +46,5 @@ export class UserExperiences1753456498302 implements MigrationInterface {
         await queryRunner.query(`DROP TYPE "public"."user_experience_type_enum"`);
         await queryRunner.query(`DROP TABLE "user_skill"`);
         await queryRunner.query(`DROP TABLE "user_job_preferences"`);
-        }
-
+    }
 }

@@ -201,7 +201,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .select(select ?? ['id', propertyName])
           .where({
             [propertyName]: Raw(
-              (alias) => `LOWER(${alias}) LIKE LOWER('%${query}%')`,
+              (alias) => `LOWER(${alias}) LIKE LOWER(:query)`,
+              { query: `%${query}%` },
             ),
             // extending where condition using the autocompleteQueryMap
             ...where,
