@@ -555,6 +555,11 @@ export const typeDefs = /* GraphQL */ `
     source: Source
 
     """
+    Source of the post
+    """
+    yggdrasilId: ID
+
+    """
     Tags of the post
     """
     tags: [String!]
