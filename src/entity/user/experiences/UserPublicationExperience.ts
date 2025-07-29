@@ -13,7 +13,7 @@ export class UserPublicationExperience extends UserExperience {
   url: string;
 
   // user ids
-  @Column({ type: 'jsonb', default: () => "'[]'" })
+  @Column({ type: 'jsonb', default: () => [] })
   contributors: string[];
 
   // not adding a relationship, maybe is not important for now
