@@ -109,6 +109,34 @@ export class SkadiApiClient implements ISkadiApiClient {
   estimatePostBoostReach({
     postId,
     userId,
+  }: Pick<
+    EstimatedBoostReachParams,
+    'userId' | 'postId'
+  >): Promise<PostEstimatedReach> {
+    return this.garmr.execute(async () => {
+      const response = await fetchParse<PostEstimatedReach>(
+        `${this.url}/promote/post/reach`,
+        {
+          ...this.fetchOptions,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ postId, userId }),
+        },
+      );
+
+      return {
+        impressions: response.impressions ?? 0,
+        clicks: response.clicks ?? 0,
+        users: response.users ?? 0,
+      };
+    });
+  }
+
+  estimatePostBoostReachDaily({
+    postId,
+    userId,
     durationInDays,
     budget,
   }: EstimatedBoostReachParams): Promise<PostEstimatedReach> {

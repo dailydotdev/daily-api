@@ -2187,7 +2187,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      const { users } = await skadiApiClient.estimatePostBoostReach({
+      const { users } = await skadiApiClient.estimatePostBoostReachDaily({
         postId,
         userId: ctx.userId,
         budget: coresToUsd(budget),

@@ -71,8 +71,8 @@ export interface GetCampaignListResponse
 export type EstimatedBoostReachParams = {
   postId: string;
   userId: string;
-  durationInDays?: number;
-  budget?: number;
+  durationInDays: number;
+  budget: number;
 };
 
 export interface ISkadiApiClient {
@@ -87,6 +87,9 @@ export interface ISkadiApiClient {
     userId: string;
   }): Promise<{ currentBudget: string }>;
   estimatePostBoostReach(
+    params: Pick<EstimatedBoostReachParams, 'userId' | 'postId'>,
+  ): Promise<PostEstimatedReach>;
+  estimatePostBoostReachDaily(
     params: EstimatedBoostReachParams,
   ): Promise<PostEstimatedReach>;
   getCampaignById: (
