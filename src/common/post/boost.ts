@@ -189,7 +189,7 @@ export const getFormattedCampaign = ({
 export interface BoostedPostStats
   extends Pick<GetCampaignListResponse, 'clicks' | 'impressions'> {
   engagements: number;
-  totalSpend: string;
+  totalSpend: number;
 }
 
 export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
