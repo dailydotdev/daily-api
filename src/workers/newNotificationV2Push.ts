@@ -38,7 +38,11 @@ const worker: Worker = {
           const isAwardNotification =
             notification.type === NotificationType.UserReceivedAward;
 
-          const stream = await streamNotificationUsers(con, notification.id);
+          const stream = await streamNotificationUsers(
+            con,
+            notification.id,
+            'inApp',
+          );
           await processStreamInBatches(
             stream,
             async (batch: { userId: string }[]) => {

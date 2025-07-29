@@ -16,6 +16,8 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
+import { User } from '../entity/user/User';
+import { shouldSendNotification } from '../workers/notifications/utils';
 
 export * from './types';
 
@@ -145,22 +147,47 @@ export async function storeNotificationBundleV2(
   const notification = generatedMaps[0] as NotificationV2;
   const uniqueKey = generateUserNotificationUniqueKey(notification);
 
+  const userPreferences = new Map<string, User>();
+  const userChunks: string[][] = [];
+  const chunkSize = 500;
+
+  for (let i = 0; i < bundle.userIds.length; i += chunkSize) {
+    userChunks.push(bundle.userIds.slice(i, i + chunkSize));
+  }
+
+  for (const chunk of userChunks) {
+    const users = await entityManager.getRepository(User).find({
+      select: ['id', 'notificationFlags'],
+      where: { id: In(chunk) },
+    });
+
+    users.forEach((user) => {
+      userPreferences.set(user.id, user);
+    });
+  }
+
   const chunks: Pick<
     UserNotification,
     'userId' | 'notificationId' | 'createdAt' | 'public' | 'uniqueKey'
   >[][] = [];
-  const chunkSize = 500;
 
   bundle.userIds.forEach((userId) => {
     if (chunks.length === 0 || chunks[chunks.length - 1].length === chunkSize) {
       chunks.push([]);
     }
 
+    const user = userPreferences.get(userId);
+    const shouldShowInApp = shouldSendNotification(
+      user?.notificationFlags,
+      notification.type as NotificationType,
+      'inApp',
+    );
+
     chunks[chunks.length - 1].push({
       userId,
       notificationId: notification.id,
       createdAt: notification.createdAt,
-      public: notification.public,
+      public: notification.public && shouldShowInApp,
       uniqueKey,
     });
   });

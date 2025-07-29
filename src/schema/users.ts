@@ -28,11 +28,13 @@ import {
   UserFlagsPublic,
   Alerts,
 } from '../entity';
+import { UserNotificationFlags } from '../entity/user/User';
 import {
   AuthenticationError,
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
+import { z } from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
@@ -143,6 +145,34 @@ import {
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
 
+const notificationPreferenceSchema = z.object({
+  email: z.enum(['muted', 'subscribed']),
+  inApp: z.enum(['muted', 'subscribed']),
+});
+
+const notificationFlagsSchema = z.object({
+  article_new_comment: notificationPreferenceSchema,
+  comment_reply: notificationPreferenceSchema,
+  article_upvote_milestone: notificationPreferenceSchema,
+  comment_upvote_milestone: notificationPreferenceSchema,
+  post_mention: notificationPreferenceSchema,
+  comment_mention: notificationPreferenceSchema,
+  cores_and_awards_received: notificationPreferenceSchema,
+  article_report_approved: notificationPreferenceSchema,
+  streak_reset_restore: notificationPreferenceSchema,
+  streak_reminder: notificationPreferenceSchema,
+  restore_broken_streak: notificationPreferenceSchema,
+  user_given_top_reader: notificationPreferenceSchema,
+  dev_card_unlocked: notificationPreferenceSchema,
+  source_post_added: notificationPreferenceSchema,
+  squad_post_added: notificationPreferenceSchema,
+  user_post_added: notificationPreferenceSchema,
+  collection_updated: notificationPreferenceSchema,
+  post_bookmark_reminder: notificationPreferenceSchema,
+  promoted_to_admin: notificationPreferenceSchema,
+  promoted_to_moderator: notificationPreferenceSchema,
+});
+
 export interface GQLUpdateUserInput {
   name: string;
   email?: string;
@@ -177,6 +207,7 @@ export interface GQLUpdateUserInput {
   awardNotifications?: boolean;
   defaultFeedId?: string;
   flags: UserFlagsPublic;
+  notificationFlags?: UserNotificationFlags;
 }
 
 interface GQLUserParameters {
@@ -1013,6 +1044,11 @@ export const typeDefs = /* GraphQL */ `
     Check and apply Cores role
     """
     checkCoresRole: CheckCoresRole! @auth
+
+    """
+    Get current user's notification preferences
+    """
+    notificationSettings: JSON @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1220,6 +1256,11 @@ export const typeDefs = /* GraphQL */ `
     Claim unclaimed user ClaimableItem
     """
     claimUnclaimedItem: UserClaim @auth
+
+    """
+    Update user's notification preferences
+    """
+    updateNotificationSettings(notificationFlags: JSON!): EmptyResponse @auth
   }
 `;
 
@@ -2074,6 +2115,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         coresRole: userCoresRole,
       };
     },
+    notificationSettings: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<UserNotificationFlags> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        where: { id: ctx.userId },
+        select: ['notificationFlags'],
+      });
+      return user?.notificationFlags || {};
+    },
   },
   Mutation: {
     clearImage: async (
@@ -2762,6 +2814,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: ctx.userId,
       });
       return addClaimableItemsToUser(ctx.con, user);
+    },
+    updateNotificationSettings: async (
+      _,
+      { notificationFlags }: { notificationFlags: UserNotificationFlags },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        notificationFlagsSchema.parse(notificationFlags);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          throw new ValidationError('Invalid notification flags');
+        }
+        throw error;
+      }
+
+      const repo = ctx.con.getRepository(User);
+      const user = await repo.findOneBy({ id: ctx.userId });
+
+      if (!user) {
+        throw new AuthenticationError('Unauthorized!');
+      }
+
+      await repo.update({ id: ctx.userId }, { notificationFlags });
+
+      return { _: true };
     },
   },
   User: {

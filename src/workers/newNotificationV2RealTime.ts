@@ -27,7 +27,11 @@ const worker: Worker = {
       const [notification, attachments, avatars] =
         await getNotificationV2AndChildren(con, id);
       if (notification) {
-        const stream = await streamNotificationUsers(con, notification.id);
+        const stream = await streamNotificationUsers(
+          con,
+          notification.id,
+          'inApp',
+        );
         await processStream<{ userId: string }>(
           stream,
           ({ userId }) =>

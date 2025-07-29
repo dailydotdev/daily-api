@@ -37,7 +37,6 @@ import {
   getSourceLink,
   liveTimerDateFormat,
   mapCloudinaryUrl,
-  personalizedDigestNotificationTypes,
   pickImageUrl,
   sendEmail,
   truncatePostToTweet,
@@ -53,7 +52,6 @@ import {
 } from '../notifications/common';
 import { processStreamInBatches } from '../common/streaming';
 import { counters } from '../telemetry';
-import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { formatCoresCurrency } from '../common/number';
@@ -1094,46 +1092,16 @@ const worker: Worker = {
     if (!notification) {
       return;
     }
-    const stream = await streamNotificationUsers(con, notification.id);
+    const stream = await streamNotificationUsers(con, notification.id, 'email');
     try {
       await processStreamInBatches(
         stream,
         async (batch: { userId: string }[]) => {
-          const isFollowNotification =
-            contentPreferenceNotificationTypes.includes(notification.type);
-
-          const isAwardNotification =
-            notification.type === NotificationType.UserReceivedAward;
-
-          const digestNotification =
-            personalizedDigestNotificationTypes.includes(notification.type);
-
           const users = await con.getRepository(User).find({
             select: ['id', 'username', 'email'],
             where: {
               id: In(batch.map((b) => b.userId)),
               email: Not(IsNull()),
-              notificationEmail:
-                !isFollowNotification &&
-                !isAwardNotification &&
-                !digestNotification &&
-                notification.public
-                  ? true
-                  : undefined,
-              followingEmail:
-                isFollowNotification &&
-                !isAwardNotification &&
-                !digestNotification &&
-                notification.public
-                  ? true
-                  : undefined,
-              awardEmail:
-                !isFollowNotification &&
-                isAwardNotification &&
-                !digestNotification &&
-                notification.public
-                  ? true
-                  : undefined,
             },
           });
           if (!users.length) {

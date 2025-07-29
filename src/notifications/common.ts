@@ -239,12 +239,30 @@ export const getNotificationV2AndChildren = (
 export const streamNotificationUsers = (
   con: DataSource,
   id: string,
+  channel?: 'inApp' | 'email',
 ): Promise<ReadStream> => {
-  const query = con
+  let query = con
     .createQueryBuilder()
     .select('un."userId"')
     .from(UserNotification, 'un')
     .where('un."notificationId" = :id', { id });
+
+  if (channel === 'inApp') {
+    query = query
+      .innerJoin('user', 'u', 'un."userId" = u.id')
+      .innerJoin(NotificationV2, 'n', 'un."notificationId" = n.id')
+      .andWhere('un.public = true');
+  }
+
+  if (channel === 'email') {
+    query = query.andWhere(`
+        COALESCE(
+          u."notificationFlags" -> n.type ->> 'email',
+          'subscribed'
+        ) != 'muted'
+      `);
+  }
+
   return query.stream();
 };
 
