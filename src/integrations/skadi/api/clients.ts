@@ -4,7 +4,8 @@ import {
   type CancelPostCampaignResponse,
   type EstimatedBoostReachParams,
   type GetCampaignByIdProps,
-  type GetCampaignListResponseMapped,
+  type GetCampaignListResponse,
+  type GetCampaignResponse,
   type GetCampaignsProps,
   type PostEstimatedReach,
   type PromotedPost,
@@ -14,14 +15,9 @@ import {
 import { GarmrNoopService, IGarmrService, GarmrService } from '../../garmr';
 import { fetchOptions as globalFetchOptions } from '../../../http';
 import { fetchParse } from '../../retry';
-import {
-  ONE_DAY_IN_SECONDS,
-  type ObjectSnakeToCamelCase,
-} from '../../../common';
+import { ONE_DAY_IN_SECONDS } from '../../../common';
 
-const mapCampaign = (
-  campaign: PromotedPost,
-): ObjectSnakeToCamelCase<PromotedPost> => ({
+const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
   campaignId: campaign.campaign_id,
   postId: campaign.post_id,
   status: campaign.status,
@@ -63,7 +59,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     userId: string;
     durationInDays: number;
     budget: number;
-  }): Promise<ObjectSnakeToCamelCase<StartPostCampaignResponse>> {
+  }): Promise<{ campaignId: string }> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<StartPostCampaignResponse>(
         `${this.url}/promote/post/create`,
@@ -92,7 +88,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   }: {
     campaignId: string;
     userId: string;
-  }): Promise<ObjectSnakeToCamelCase<CancelPostCampaignResponse>> {
+  }): Promise<{ currentBudget: string }> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<CancelPostCampaignResponse>(
         `${this.url}/promote/post/cancel`,
@@ -115,9 +111,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     userId,
     durationInDays,
     budget,
-  }: EstimatedBoostReachParams): Promise<
-    ObjectSnakeToCamelCase<PostEstimatedReach>
-  > {
+  }: EstimatedBoostReachParams): Promise<PostEstimatedReach> {
     const params: {
       post_id: string;
       user_id: string;
@@ -157,7 +151,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   getCampaignById({
     campaignId,
     userId,
-  }: GetCampaignByIdProps): Promise<ObjectSnakeToCamelCase<PromotedPost>> {
+  }: GetCampaignByIdProps): Promise<GetCampaignResponse> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<{ promoted_post: PromotedPost }>(
         `${this.url}/promote/post/get`,
@@ -179,7 +173,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     limit,
     offset,
     userId,
-  }: GetCampaignsProps): Promise<GetCampaignListResponseMapped> {
+  }: GetCampaignsProps): Promise<GetCampaignListResponse> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<PromotedPostList>(
         `${this.url}/promote/post/list`,

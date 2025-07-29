@@ -1,4 +1,3 @@
-import type { ObjectSnakeToCamelCase } from '../../../common';
 import type { User } from '../../../entity';
 
 export interface PostBoostReach {
@@ -51,11 +50,22 @@ export interface CancelPostCampaignResponse {
   current_budget: string;
 }
 
-export type GetCampaignResponse = ObjectSnakeToCamelCase<PromotedPost>;
+export interface GetCampaignResponse
+  extends Pick<
+    PromotedPost,
+    'budget' | 'clicks' | 'impressions' | 'spend' | 'status'
+  > {
+  startedAt: number;
+  endedAt: number;
+  campaignId: string;
+  postId: string;
+}
 
-export interface GetCampaignListResponseMapped
-  extends ObjectSnakeToCamelCase<Omit<PromotedPostList, 'promoted_posts'>> {
+export interface GetCampaignListResponse
+  extends Pick<PromotedPostList, 'clicks' | 'impressions'> {
   promotedPosts: GetCampaignResponse[];
+  postIds: string[];
+  totalSpend: string; // float
 }
 
 export type EstimatedBoostReachParams = {
@@ -71,20 +81,18 @@ export interface ISkadiApiClient {
     userId: string;
     durationInDays: number;
     budget: number;
-  }): Promise<ObjectSnakeToCamelCase<StartPostCampaignResponse>>;
+  }): Promise<{ campaignId: string }>;
   cancelPostCampaign(params: {
     campaignId: string;
     userId: string;
-  }): Promise<ObjectSnakeToCamelCase<CancelPostCampaignResponse>>;
+  }): Promise<{ currentBudget: string }>;
   estimatePostBoostReach(
     params: EstimatedBoostReachParams,
-  ): Promise<ObjectSnakeToCamelCase<PostEstimatedReach>>;
+  ): Promise<PostEstimatedReach>;
   getCampaignById: (
     params: GetCampaignByIdProps,
   ) => Promise<GetCampaignResponse>;
-  getCampaigns: (
-    params: GetCampaignsProps,
-  ) => Promise<GetCampaignListResponseMapped>;
+  getCampaigns: (params: GetCampaignsProps) => Promise<GetCampaignListResponse>;
 }
 
 export enum CampaignUpdateAction {
