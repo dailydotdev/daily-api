@@ -146,6 +146,7 @@ import {
 } from '../entity/user/UserTransaction';
 import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
+import { WorkLocationType } from '../entity/user/UserJobPreferences';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -284,6 +285,13 @@ export interface SendReportArgs {
   reason: ReportReason;
   comment?: string;
   tags?: string[];
+}
+
+export interface GQLUserJobPreferences {
+  openToOpportunities: boolean;
+  preferredRoles: string[];
+  preferredLocationType: WorkLocationType;
+  openToRelocation: boolean;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -495,6 +503,28 @@ export const typeDefs = /* GraphQL */ `
     Whether the user has received a plus subscription as gift
     """
     showPlusGift: Boolean
+  }
+
+  """
+  User job preferences
+  """
+  type UserJobPreferences {
+    """
+    Whether the user is open to opportunities
+    """
+    openToOpportunities: Boolean!
+    """
+    Preferred roles of the user
+    """
+    preferredRoles: [String!]!
+    """
+    Preferred location type of the user
+    """
+    preferredLocationType: String
+    """
+    Whether the user is open to relocation
+    """
+    openToRelocation: Boolean!
   }
 
   """
@@ -2087,6 +2117,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         coresRole: userCoresRole,
       };
+    },
+    userJobPreferences: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserJobPreferences> => {
+      const userJobPreferences = await graphorm.queryOne<GQLUserJobPreferences>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."userId" = :userId`,
+            { userId: ctx.userId },
+          );
+          return builder;
+        },
+      );
+
+      if (!userJobPreferences) {
+        throw new NotFoundError('User job preferences not found');
+      }
+
+      return userJobPreferences;
     },
   },
   Mutation: {
