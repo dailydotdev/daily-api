@@ -69,13 +69,29 @@ describe('autocomplete query', () => {
   });
 
   describe('input validation', () => {
+    it('should throw error if user is not logged in', () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: QUERY,
+          variables: {
+            type: AutocompleteType.Skill,
+            query: 'test',
+          },
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
     it('should return empty hits for query shorter than 2 characters', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.Skill,
           query: 'a',
         },
       });
+      console.log(res);
       expect(res.data.experienceAutocomplete).toEqual({
         query: 'a',
         limit: DEFAULT_AUTOCOMPLETE_LIMIT,
@@ -84,6 +100,7 @@ describe('autocomplete query', () => {
     });
 
     it('should return empty hits for empty query', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.Skill,
@@ -99,6 +116,7 @@ describe('autocomplete query', () => {
     });
 
     it('should return empty hits for query longer than 100 characters', async () => {
+      loggedUser = '1';
       const longQuery = 'a'.repeat(101);
       const res = await client.query(QUERY, {
         variables: {
@@ -115,6 +133,7 @@ describe('autocomplete query', () => {
     });
 
     it('should throw validation error for invalid autocomplete type', () => {
+      loggedUser = '1';
       return testQueryErrorCode(
         client,
         {
@@ -142,6 +161,7 @@ describe('autocomplete query', () => {
     });
 
     it('should return matching skills', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.Skill,
@@ -160,6 +180,7 @@ describe('autocomplete query', () => {
     });
 
     it('should respect the limit parameter', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.Skill,
@@ -174,6 +195,7 @@ describe('autocomplete query', () => {
   });
 
   describe('experiences autocomplete', () => {
+    loggedUser = '1';
     beforeEach(async () => {
       await saveFixtures(con, User, usersFixture);
       await saveFixtures(con, UserWorkExperience, [
@@ -239,6 +261,7 @@ describe('autocomplete query', () => {
     });
 
     it('should return matching job titles with published status', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.JobTitle,
@@ -265,6 +288,7 @@ describe('autocomplete query', () => {
     });
 
     it('should return matching issuers for published experiences', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.AwardIssuer,
@@ -324,6 +348,7 @@ describe('autocomplete query', () => {
     });
 
     it('should return matching business companies', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.Company,
@@ -337,6 +362,7 @@ describe('autocomplete query', () => {
     });
 
     it('should return matching schools', async () => {
+      loggedUser = '1';
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.School,

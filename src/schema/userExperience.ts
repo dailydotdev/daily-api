@@ -151,11 +151,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Get autocomplete suggestions for various fields like job titles, companies, skills, etc.
     """
-    profileAutocomplete(
+    experienceAutocomplete(
       type: String!
       query: String!
       limit: Int
-    ): AutocompleteResult!
+    ): AutocompleteResult! @auth
   }
 `;
 
@@ -204,7 +204,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError(validation.error.message);
       }
 
-      const { type, query, limit }: ExperienceAutocompleteInput = validation.data;
+      const { type, query, limit }: ExperienceAutocompleteInput =
+        validation.data;
       const {
         entity,
         propertyName,
