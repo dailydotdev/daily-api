@@ -40,6 +40,7 @@ export enum SubmissionFailErrorKeys {
   FeedNameLength = 'FEED_NAME_LENGTH',
   FeedIconInvalid = 'FEED_ICON_INVALID',
   FeedThresholdInvalid = 'FEED_THRESHOLD_INVALID',
+  CommunityPicksDeprecated = 'COMMUNITY_PICKS_DEPRECATED',
 }
 
 export const SubmissionFailErrorMessage: Record<
@@ -79,6 +80,8 @@ export const SubmissionFailErrorMessage: Record<
   FEED_NAME_LENGTH: 'Feed name is too long',
   FEED_ICON_INVALID: 'Feed icon is invalid',
   FEED_THRESHOLD_INVALID: 'Feed threshold should be between 0 and 1000',
+  COMMUNITY_PICKS_DEPRECATED:
+    'The community picks feature has been deprecated and is no longer available. Please update your extension to remove this feature.',
 };
 
 export enum SourceRequestErrorKeys {

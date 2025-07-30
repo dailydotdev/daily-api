@@ -1,10 +1,4 @@
-import {
-  ArticlePost,
-  Source,
-  User,
-  Submission,
-  SubmissionStatus,
-} from '../src/entity';
+import { User, Submission } from '../src/entity';
 import {
   disposeGraphQLTesting,
   GraphQLTestClient,
@@ -14,14 +8,10 @@ import {
   saveFixtures,
   testMutationErrorCode,
 } from './helpers';
-import { subDays } from 'date-fns';
-import { sourcesFixture } from './fixture/source';
 import { SubmissionFailErrorMessage } from '../src/errors';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { utcToZonedTime, zonedTimeToUtc } from 'date-fns-tz';
 import { badUsersFixture, usersFixture } from './fixture';
-import { DEFAULT_SUBMISSION_LIMIT } from '../src/config';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -63,98 +53,15 @@ describe('query submissionAvailability', () => {
     }
   `;
 
-  it('should return default values if not logged in', async () => {
+  it('should always return default values because of deprecation', async () => {
     loggedUser = '0';
 
     const res = await client.query(QUERY);
-    const limit = parseInt(
-      process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
-    );
+
     expect(res.errors).toBeFalsy();
-    expect(res.data.submissionAvailability.limit).toEqual(limit);
+    expect(res.data.submissionAvailability.limit).toEqual(0);
     expect(res.data.submissionAvailability.hasAccess).toEqual(false);
     expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(0);
-  });
-
-  it('should return submissions count today, limit, and if has access', async () => {
-    loggedUser = '1';
-    const repo = con.getRepository(Submission);
-    await repo.save([
-      { url: 'http://abc.com/1', userId: '1' },
-      {
-        url: 'http://abc.com/2',
-        userId: '1',
-        createdAt: subDays(new Date(), 1),
-      },
-    ]);
-    const res = await client.query(QUERY);
-    const limit = parseInt(
-      process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
-    );
-    expect(res.errors).toBeFalsy();
-    expect(res.data.submissionAvailability.limit).toEqual(limit);
-    expect(res.data.submissionAvailability.hasAccess).toEqual(true);
-    expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(1);
-  });
-
-  it('should return submissions count today, limit, and if has access in consideration of timezone', async () => {
-    loggedUser = '1';
-    await con.getRepository(User).save({
-      id: '2',
-      name: 'Hansel',
-      image: 'https://daily.dev/hansel.jpg',
-      reputation: 250,
-    });
-    await con.getRepository(User).save({
-      id: '3',
-      name: 'Solevilla',
-      image: 'https://daily.dev/solevilla.jpg',
-      reputation: 250,
-    });
-    await con
-      .getRepository(User)
-      .update({ id: '1' }, { timezone: 'Europe/Oslo' });
-    const repo = con.getRepository(Submission);
-    await repo.save([
-      { url: 'http://abc.com/1', userId: '2' },
-      { url: 'http://abc.com/2', userId: '3' },
-
-      // 20:00 at UTC is 21:00 at Europe/Oslo (22:00 during summer)
-      // So the submission should be counted as yesterday
-      {
-        url: 'http://abc.com/3',
-        userId: '1',
-        createdAt: subDays(new Date().setHours(20), 1),
-      },
-
-      // 23:00 at UTC is 01:00 at Europe/Oslo (02:00 during summer)
-      // So the submission should be counted as the next day
-      {
-        url: 'http://abc.com/4',
-        userId: '1',
-        createdAt: subDays(new Date().setHours(23), 1),
-      },
-      {
-        url: 'http://abc.com/4.midnight',
-        userId: '1',
-        createdAt: zonedTimeToUtc(
-          utcToZonedTime(new Date().setHours(23), 'Europe/Oslo'),
-          'Europe/Oslo',
-        ),
-      },
-      {
-        url: 'http://abc.com/5',
-        userId: '1',
-      },
-    ]);
-    const res = await client.query(QUERY);
-    const limit = parseInt(
-      process.env.SCOUT_SUBMISSION_LIMIT || DEFAULT_SUBMISSION_LIMIT,
-    );
-    expect(res.errors).toBeFalsy();
-    expect(res.data.submissionAvailability.limit).toEqual(limit);
-    expect(res.data.submissionAvailability.hasAccess).toEqual(true);
-    expect(res.data.submissionAvailability.todaySubmissionsCount).toEqual(2);
   });
 });
 
@@ -183,7 +90,7 @@ describe('mutation submitArticle', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should invalidate if the url was requested already', async () => {
+  it('should always return rejection because of deprecation', async () => {
     loggedUser = '1';
     const request = 'https://abc.com/article';
     const repo = con.getRepository(Submission);
@@ -194,234 +101,10 @@ describe('mutation submitArticle', () => {
     expect(res.data).toEqual({
       submitArticle: {
         result: 'rejected',
-        reason: SubmissionFailErrorMessage.EXISTS_STARTED,
+        reason: SubmissionFailErrorMessage.COMMUNITY_PICKS_DEPRECATED,
         post: null,
         submission: null,
       },
-    });
-  });
-
-  it('should invalidate if the user has reached limit', async () => {
-    loggedUser = '1';
-    const request = 'https://abc.com/article';
-    const repo = con.getRepository(Submission);
-    await repo.save(repo.create({ url: `${request}1`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}2`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}3`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}4`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}5`, userId: loggedUser }));
-
-    const res = await client.mutate(MUTATION, { variables: { url: request } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      submitArticle: {
-        result: 'rejected',
-        reason: SubmissionFailErrorMessage.LIMIT_REACHED,
-        post: null,
-        submission: null,
-      },
-    });
-  });
-
-  it('should not invalidate if the user has reached limit but is team member', async () => {
-    loggedUser = '1';
-    state = await initializeGraphQLTesting(
-      (req) => new MockContext(con, loggedUser, [], req, true),
-    );
-    const request = 'https://abc.com/article';
-    const repo = con.getRepository(Submission);
-    await repo.save(repo.create({ url: `${request}1`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}2`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}3`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}4`, userId: loggedUser }));
-    await repo.save(repo.create({ url: `${request}5`, userId: loggedUser }));
-
-    const res = await state.client.mutate(MUTATION, {
-      variables: { url: request },
-    });
-    expect(res.errors).toBeFalsy();
-    const submission = await con
-      .getRepository(Submission)
-      .findOneByOrFail({ url: request });
-
-    expect(submission.status).toEqual(SubmissionStatus.Started);
-    expect(res.data.submitArticle.submission).toEqual({
-      id: submission.id,
-      status: 'STARTED',
-      userId: '1',
-    });
-  });
-
-  it('should invalidate if the user is ineligible for submission', async () => {
-    loggedUser = '1';
-    await con.getRepository(User).update({ id: '1' }, { reputation: 10 });
-    const request = 'https://abc.com/article';
-    const res = await client.mutate(MUTATION, { variables: { url: request } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      submitArticle: {
-        result: 'rejected',
-        reason: SubmissionFailErrorMessage.ACCESS_DENIED,
-        post: null,
-        submission: null,
-      },
-    });
-  });
-
-  it('should reject if the post already exists', async () => {
-    loggedUser = '1';
-    const request = 'http://p1.com';
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, ArticlePost, [
-      {
-        id: 'p1',
-        shortId: 'sp1',
-        title: 'Post 1',
-        url: request,
-        canonicalUrl: request,
-        score: 0,
-        sourceId: 'a',
-        createdAt: new Date('2021-09-22T07:15:51.247Z'),
-        tagsStr: 'javascript,webdev',
-      },
-    ]);
-
-    const res = await client.mutate(MUTATION, { variables: { url: request } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      submitArticle: {
-        result: 'exists',
-        reason: null,
-        post: {
-          id: 'p1',
-        },
-        submission: null,
-      },
-    });
-  });
-
-  it('should reject if the post was deleted', async () => {
-    loggedUser = '1';
-    const request = 'http://p8.com';
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, ArticlePost, [
-      {
-        id: 'pdeleted',
-        shortId: 'spdeleted',
-        title: 'PDeleted',
-        url: request,
-        canonicalUrl: request,
-        score: 0,
-        sourceId: 'a',
-        createdAt: new Date('2021-09-22T07:15:51.247Z'),
-        tagsStr: 'javascript,webdev',
-        deleted: true,
-      },
-    ]);
-
-    const res = await client.mutate(MUTATION, { variables: { url: request } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      submitArticle: {
-        result: 'rejected',
-        reason: SubmissionFailErrorMessage.POST_DELETED,
-        post: null,
-        submission: null,
-      },
-    });
-  });
-
-  it('should reject if the post exist but not visible', async () => {
-    loggedUser = '1';
-    const request = 'http://p8.com';
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, ArticlePost, [
-      {
-        id: 'pdeleted',
-        shortId: 'spdeleted',
-        title: 'PDeleted',
-        url: request,
-        canonicalUrl: request,
-        score: 0,
-        sourceId: 'a',
-        createdAt: new Date('2021-09-22T07:15:51.247Z'),
-        tagsStr: 'javascript,webdev',
-        visible: false,
-      },
-    ]);
-
-    const res = await client.mutate(MUTATION, { variables: { url: request } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      submitArticle: {
-        result: 'rejected',
-        reason: SubmissionFailErrorMessage.POST_DELETED,
-        post: null,
-        submission: null,
-      },
-    });
-  });
-
-  it('should not allow invalid urls', async () => {
-    loggedUser = '1';
-    const request = 'test/sample/url';
-    const res = await client.mutate(MUTATION, { variables: { url: request } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data).toEqual({
-      submitArticle: {
-        result: 'rejected',
-        reason: SubmissionFailErrorMessage.INVALID_URL,
-        post: null,
-        submission: null,
-      },
-    });
-  });
-
-  it('should create a submission entity if the url is valid', async () => {
-    loggedUser = '1';
-    const request = 'https://daily.dev/amazing/article';
-    const res = await client.mutate(MUTATION, { variables: { url: request } });
-    expect(res.errors).toBeFalsy();
-    const submission = await con
-      .getRepository(Submission)
-      .findOneBy({ url: request });
-    expect(submission.status).toEqual(SubmissionStatus.Started);
-    expect(res.data).toMatchSnapshot({
-      submitArticle: {
-        submission: {
-          id: expect.any(String),
-        },
-      },
-    });
-  });
-
-  describe('vordr', () => {
-    it('should set the correct vordr flags if the submission is from a good user', async () => {
-      loggedUser = '1';
-      const request = 'https://daily.dev/amazing/article';
-      const res = await client.mutate(MUTATION, {
-        variables: { url: request },
-      });
-      expect(res.errors).toBeFalsy();
-      const submission = await con
-        .getRepository(Submission)
-        .findOneByOrFail({ url: request });
-      expect(submission.status).toEqual(SubmissionStatus.Started);
-      expect(submission.flags.vordr).toEqual(false);
-    });
-
-    it('should set the correct vordr flags if the submission is from a bad user', async () => {
-      loggedUser = 'vordr';
-      const request = 'https://daily.dev/amazing/article';
-      const res = await client.mutate(MUTATION, {
-        variables: { url: request },
-      });
-      expect(res.errors).toBeFalsy();
-      const submission = await con
-        .getRepository(Submission)
-        .findOneByOrFail({ url: request });
-      expect(submission.status).toEqual(SubmissionStatus.Started);
-      expect(submission.flags.vordr).toEqual(true);
     });
   });
 });
