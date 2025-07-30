@@ -39,7 +39,6 @@ import { randomUUID } from 'crypto';
 import { deleteKeysByPattern, ioRedisPool } from '../../../src/redis';
 import { rateLimiterName } from '../../../src/directive/rateLimit';
 import { badUsersFixture } from '../../fixture/user';
-import { skadiApiClient } from '../../../src/integrations/skadi/api/clients';
 import { pickImageUrl } from '../../../src/common/post';
 import { updateFlagsStatement } from '../../../src/common';
 import { UserTransaction } from '../../../src/entity/user/UserTransaction';
@@ -50,6 +49,8 @@ import {
 import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import * as njordCommon from '../../../src/common/njord';
+import { fetchParse } from '../../../src/integrations/retry';
+import { ONE_DAY_IN_SECONDS } from '../../../src/common';
 
 jest.mock('../../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../../src/common/pubsub') as Record<
@@ -60,16 +61,9 @@ jest.mock('../../../src/common/pubsub', () => ({
   notifyContentRequested: jest.fn(),
 }));
 
-// Mock the skadiApiClient
-jest.mock('../../../src/integrations/skadi/api/clients', () => ({
-  skadiApiClient: {
-    getCampaignById: jest.fn(),
-    estimatePostBoostReach: jest.fn(),
-    startPostCampaign: jest.fn(),
-    cancelPostCampaign: jest.fn(),
-    getCampaigns: jest.fn(),
-    getAd: jest.fn(),
-  },
+// Mock fetchParse to test actual HTTP calls
+jest.mock('../../../src/integrations/retry', () => ({
+  fetchParse: jest.fn(),
 }));
 
 let con: DataSource;
@@ -246,8 +240,21 @@ describe('query postCampaignById', () => {
 
   it('should return an error if post is not found', async () => {
     loggedUser = '1';
-    // Set the post as already boosted
     await con.getRepository(Post).delete({ id: 'p1' });
+
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      promoted_post: {
+        campaign_id: 'mock-campaign-id',
+        post_id: 'p1',
+        status: 'active',
+        spend: '1000',
+        started_at: new Date().getTime(),
+        ended_at: new Date('2024-12-31').getTime(), // Future date
+        impressions: 50,
+        clicks: 10,
+      },
+    });
 
     return testQueryErrorCode(
       client,
@@ -259,16 +266,19 @@ describe('query postCampaignById', () => {
   it('should the response returned by skadi client', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return the share post campaign
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-      campaignId: 'mock-campaign-id',
-      postId: 'p1',
-      status: 'active',
-      spend: '1000',
-      startedAt: new Date().getTime(),
-      endedAt: new Date('2024-12-31').getTime(), // Future date
-      impressions: 50,
-      clicks: 10,
+    // Mock the HTTP response from Skadi API
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      promoted_post: {
+        campaign_id: 'mock-campaign-id',
+        post_id: 'p1',
+        status: 'active',
+        spend: '1000',
+        started_at: new Date().getTime(),
+        ended_at: new Date('2024-12-31').getTime(), // Future date
+        impressions: 50,
+        clicks: 10,
+      },
     });
 
     const res = await client.query(QUERY, { variables: params });
@@ -292,6 +302,22 @@ describe('query postCampaignById', () => {
         engagements: 250, // 150 views + 75 upvotes + 25 comments
       },
     });
+
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaign_id: 'mock-campaign-id',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   describe('post type handling in getFormattedBoostedPost', () => {
@@ -332,16 +358,19 @@ describe('query postCampaignById', () => {
           comments: 15,
         });
 
-        // Mock the skadi client to return the share post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'share-campaign-id',
-          postId: 'share-post-1',
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: new Date('2024-12-31').getTime(), // Future date
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'share-campaign-id',
+            post_id: 'share-post-1',
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: new Date('2024-12-31').getTime(), // Future date
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -357,6 +386,22 @@ describe('query postCampaignById', () => {
           permalink: 'http://localhost:4000/r/share1',
           engagements: 135, // 80 views + 40 upvotes + 15 comments
         });
+
+        // Verify the HTTP call was made correctly
+        expect(mockFetchParse).toHaveBeenCalledWith(
+          `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              campaign_id: 'share-campaign-id',
+              user_id: '1',
+            }),
+            agent: expect.any(Function),
+          },
+        );
       });
 
       it('should use share post title when available, fallback to shared post title', async () => {
@@ -390,16 +435,19 @@ describe('query postCampaignById', () => {
           comments: 18,
         });
 
-        // Mock the skadi client to return the share post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'share-campaign-id-2',
-          postId: 'share-post-2',
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: new Date('2024-12-31').getTime(), // Future date
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'share-campaign-id-2',
+            post_id: 'share-post-2',
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: new Date('2024-12-31').getTime(), // Future date
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -415,6 +463,22 @@ describe('query postCampaignById', () => {
           permalink: 'http://localhost:4000/r/share2',
           engagements: 153, // 90 views + 45 upvotes + 18 comments
         });
+
+        // Verify the HTTP call was made correctly
+        expect(mockFetchParse).toHaveBeenCalledWith(
+          `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              campaign_id: 'share-campaign-id-2',
+              user_id: '1',
+            }),
+            agent: expect.any(Function),
+          },
+        );
       });
 
       it('should handle share post with empty title string', async () => {
@@ -448,16 +512,19 @@ describe('query postCampaignById', () => {
           comments: 12,
         });
 
-        // Mock the skadi client to return the share post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'share-campaign-id-3',
-          postId: 'share-post-3',
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: new Date('2024-12-31').getTime(), // Future date
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'share-campaign-id-3',
+            post_id: 'share-post-3',
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: new Date('2024-12-31').getTime(), // Future date
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -473,6 +540,22 @@ describe('query postCampaignById', () => {
           permalink: 'http://localhost:4000/r/share3',
           engagements: 117, // 70 views + 35 upvotes + 12 comments
         });
+
+        // Verify the HTTP call was made correctly
+        expect(mockFetchParse).toHaveBeenCalledWith(
+          `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              campaign_id: 'share-campaign-id-3',
+              user_id: '1',
+            }),
+            agent: expect.any(Function),
+          },
+        );
       });
     });
 
@@ -494,16 +577,19 @@ describe('query postCampaignById', () => {
           comments: 45,
         } as unknown as Partial<FreeformPost>);
 
-        // Mock the skadi client to return the freeform post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'freeform-campaign-id',
-          postId: freeformPost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: new Date('2024-12-31').getTime(), // Future date
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'freeform-campaign-id',
+            post_id: freeformPost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: new Date('2024-12-31').getTime(), // Future date
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -539,16 +625,19 @@ describe('query postCampaignById', () => {
           comments: 22,
         } as unknown as Partial<FreeformPost>);
 
-        // Mock the skadi client to return the freeform post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'freeform-campaign-id-2',
-          postId: freeformPost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: new Date('2024-12-31').getTime(), // Future date
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'freeform-campaign-id-2',
+            post_id: freeformPost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: new Date('2024-12-31').getTime(), // Future date
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -594,16 +683,19 @@ describe('query postCampaignById', () => {
           comments: 60,
         });
 
-        // Mock the skadi client to return the article post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'article-campaign-id',
-          postId: articlePost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: new Date('2024-12-31').getTime(), // Future date
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'article-campaign-id',
+            post_id: articlePost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: new Date('2024-12-31').getTime(), // Future date
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -639,16 +731,19 @@ describe('query postCampaignById', () => {
           comments: 28,
         });
 
-        // Mock the skadi client to return the article post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'article-campaign-id-2',
-          postId: articlePost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: null,
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'article-campaign-id-2',
+            post_id: articlePost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: null,
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -694,16 +789,19 @@ describe('query postCampaignById', () => {
           comments: 18,
         });
 
-        // Mock the skadi client to return the welcome post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'welcome-campaign-id',
-          postId: welcomePost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: null,
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'welcome-campaign-id',
+            post_id: welcomePost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: null,
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -740,16 +838,19 @@ describe('query postCampaignById', () => {
           comments: 32,
         });
 
-        // Mock the skadi client to return the collection post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'collection-campaign-id',
-          postId: collectionPost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: null,
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'collection-campaign-id',
+            post_id: collectionPost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: null,
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -787,16 +888,19 @@ describe('query postCampaignById', () => {
           comments: 38,
         });
 
-        // Mock the skadi client to return the YouTube post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'youtube-campaign-id',
-          postId: youtubePost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: null,
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'youtube-campaign-id',
+            post_id: youtubePost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: null,
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -848,16 +952,19 @@ describe('query postCampaignById', () => {
           comments: 14,
         });
 
-        // Mock the skadi client to return the share post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'share-campaign-no-image',
-          postId: sharePost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: null,
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'share-campaign-no-image',
+            post_id: sharePost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: null,
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -901,16 +1008,19 @@ describe('query postCampaignById', () => {
           comments: 8,
         });
 
-        // Mock the skadi client to return the post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'null-title-campaign',
-          postId: nullTitlePost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: null,
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'null-title-campaign',
+            post_id: nullTitlePost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: null,
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -945,16 +1055,19 @@ describe('query postCampaignById', () => {
           comments: 12,
         });
 
-        // Mock the skadi client to return the post campaign
-        (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue({
-          campaignId: 'undefined-title-campaign',
-          postId: undefinedTitlePost.id,
-          status: 'active',
-          spend: '1000',
-          startedAt: new Date().getTime(),
-          endedAt: null,
-          impressions: 50,
-          clicks: 10,
+        // Mock the HTTP response from Skadi API
+        const mockFetchParse = fetchParse as jest.Mock;
+        mockFetchParse.mockResolvedValue({
+          promoted_post: {
+            campaign_id: 'undefined-title-campaign',
+            post_id: undefinedTitlePost.id,
+            status: 'active',
+            spend: '1000',
+            started_at: new Date().getTime(),
+            ended_at: null,
+            impressions: 50,
+            clicks: 10,
+          },
         });
 
         const res = await client.query(QUERY, {
@@ -1030,12 +1143,13 @@ describe('query postCampaigns', () => {
   it('should return empty connection when no campaigns exist', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return empty campaigns
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
+    // Mock the HTTP response from Skadi API to return empty campaigns
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
       promoted_posts: [],
       impressions: 0,
       clicks: 0,
-      total_spend: 0,
+      total_spend: '0',
       post_ids: [],
     });
 
@@ -1057,6 +1171,23 @@ describe('query postCampaigns', () => {
         engagements: 0,
       },
     });
+
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/list`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          limit: 10,
+          offset: 0,
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should return campaigns with posts and stats on first request', async () => {
@@ -1094,34 +1225,35 @@ describe('query postCampaigns', () => {
       },
     ]);
 
-    // Mock the skadi client to return campaigns
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promotedPosts: [
+    // Mock the HTTP response from Skadi API
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      promoted_posts: [
         {
-          campaignId: 'campaign-1',
-          postId: 'post-1',
+          campaign_id: 'campaign-1',
+          post_id: 'post-1',
           status: 'active',
           spend: '10.5', // 10.5 USD = 1050 cores
-          startedAt: new Date('2024-01-01').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-01').getTime(),
+          ended_at: null,
           impressions: 1000,
           clicks: 50,
         },
         {
-          campaignId: 'campaign-2',
-          postId: 'post-2',
+          campaign_id: 'campaign-2',
+          post_id: 'post-2',
           status: 'active',
           spend: '20.0', // 20 USD = 2000 cores
-          startedAt: new Date('2024-01-02').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-02').getTime(),
+          ended_at: null,
           impressions: 2000,
           clicks: 100,
         },
       ],
       impressions: 3000,
       clicks: 150,
-      totalSpend: '30.5', // 30.5 USD = 3050 cores
-      postIds: ['post-1', 'post-2'],
+      total_spend: '30.5', // 30.5 USD = 3050 cores
+      post_ids: ['post-1', 'post-2'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1203,24 +1335,25 @@ describe('query postCampaigns', () => {
       comments: 18,
     });
 
-    // Mock the skadi client to return campaigns
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promotedPosts: [
+    // Mock the HTTP response from Skadi API
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      promoted_posts: [
         {
-          campaignId: 'campaign-3',
-          postId: 'post-3',
+          campaign_id: 'campaign-3',
+          post_id: 'post-3',
           status: 'active',
           spend: '15.0',
-          startedAt: new Date('2024-01-03').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-03').getTime(),
+          ended_at: null,
           impressions: 1500,
           clicks: 75,
         },
       ],
       impressions: 1500,
       clicks: 75,
-      totalSpend: '15.0',
-      postIds: ['post-3'],
+      total_spend: '15.0',
+      post_ids: ['post-3'],
     });
 
     const res = await client.query(QUERY, {
@@ -1271,40 +1404,39 @@ describe('query postCampaigns', () => {
     }
     await con.getRepository(ArticlePost).save(posts);
 
-    // Mock the skadi client to return campaigns for first page (limit 2)
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
-      promotedPosts: posts.slice(0, 2).map((post, index) => ({
-        campaignId: `campaign-${index + 1}`,
-        postId: post.id,
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValueOnce({
+      promoted_posts: posts.slice(0, 2).map((post, index) => ({
+        campaign_id: `campaign-${index + 1}`,
+        post_id: post.id,
         status: 'active',
         spend: '10.0',
-        startedAt: new Date(`2024-01-0${index + 1}`).getTime(),
-        endedAt: null,
+        started_at: new Date(`2024-01-0${index + 1}`).getTime(),
+        ended_at: null,
         impressions: 1000 + index * 100,
         clicks: 50 + index * 10,
       })),
       impressions: 2100,
       clicks: 60,
-      totalSpend: '20.0',
-      postIds: posts.slice(0, 2).map((p) => p.id),
+      total_spend: '20.0',
+      post_ids: posts.slice(0, 2).map((p) => p.id),
     });
 
-    // Mock the skadi client to return campaigns for second page (offset 2, limit 2)
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValueOnce({
-      promotedPosts: posts.slice(2, 4).map((post, index) => ({
-        campaignId: `campaign-${index + 3}`,
-        postId: post.id,
+    mockFetchParse.mockResolvedValueOnce({
+      promoted_posts: posts.slice(2, 4).map((post, index) => ({
+        campaign_id: `campaign-${index + 3}`,
+        post_id: post.id,
         status: 'active',
         spend: '10.0',
-        startedAt: new Date(`2024-01-0${index + 3}`).getTime(),
-        endedAt: null,
+        started_at: new Date(`2024-01-0${index + 3}`).getTime(),
+        ended_at: null,
         impressions: 1000 + (index + 2) * 100,
         clicks: 50 + (index + 2) * 10,
       })),
       impressions: 2300,
       clicks: 80,
-      totalSpend: '20.0',
-      postIds: posts.slice(2, 4).map((p) => p.id),
+      total_spend: '20.0',
+      post_ids: posts.slice(2, 4).map((p) => p.id),
     });
 
     // First request - limit to 2
@@ -1339,12 +1471,22 @@ describe('query postCampaigns', () => {
     );
     expect(res2.data.postCampaigns.stats).toBeNull(); // No stats on subsequent requests
 
-    // Verify that the correct offset was sent to Skadi for the second request
-    expect(skadiApiClient.getCampaigns).toHaveBeenCalledWith({
-      userId: '1',
-      offset: 2, // cursorToOffset('YXJyYXljb25uZWN0aW9uOjI=') = 2
-      limit: 2,
-    });
+    // Verify the HTTP call was made with correct parameters
+    expect(mockFetchParse.mock.calls[1]).toEqual([
+      'http://skadi-api-server.local.svc.cluster.local/promote/post/list',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          limit: 2,
+          offset: 2, // cursorToOffset('YXJyYXljb25uZWN0aW9uOjI=') = 2
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    ]);
   });
 
   it('should handle different post types correctly', async () => {
@@ -1411,43 +1553,44 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns for different post types
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promotedPosts: [
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValueOnce({
+      promoted_posts: [
         {
-          campaignId: 'campaign-1',
-          postId: 'article-post',
+          campaign_id: 'campaign-1',
+          post_id: 'article-post',
           status: 'active',
           spend: '10.0',
-          startedAt: new Date('2024-01-01').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-01').getTime(),
+          ended_at: null,
           impressions: 1000,
           clicks: 50,
         },
         {
-          campaignId: 'campaign-2',
-          postId: 'freeform-post',
+          campaign_id: 'campaign-2',
+          post_id: 'freeform-post',
           status: 'active',
           spend: '10.0',
-          startedAt: new Date('2024-01-02').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-02').getTime(),
+          ended_at: null,
           impressions: 1000,
           clicks: 50,
         },
         {
-          campaignId: 'campaign-3',
-          postId: 'share-post',
+          campaign_id: 'campaign-3',
+          post_id: 'share-post',
           status: 'active',
           spend: '10.0',
-          startedAt: new Date('2024-01-03').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-03').getTime(),
+          ended_at: null,
           impressions: 1000,
           clicks: 50,
         },
       ],
       impressions: 3000,
       clicks: 150,
-      totalSpend: '30.0',
-      postIds: ['article-post', 'freeform-post', 'share-post'],
+      total_spend: '30.0',
+      post_ids: ['article-post', 'freeform-post', 'share-post'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1522,23 +1665,24 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns with zero values
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promotedPosts: [
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValueOnce({
+      promoted_posts: [
         {
-          campaignId: 'campaign-zero',
-          postId: 'zero-post',
+          campaign_id: 'campaign-zero',
+          post_id: 'zero-post',
           status: 'active',
           spend: '0.0',
-          startedAt: new Date('2024-01-01').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-01').getTime(),
+          ended_at: null,
           impressions: 0,
           clicks: 0,
         },
       ],
       impressions: 0,
       clicks: 0,
-      totalSpend: '0.0',
-      postIds: ['zero-post'],
+      total_spend: '0.0',
+      post_ids: ['zero-post'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1583,23 +1727,24 @@ describe('query postCampaigns', () => {
     });
 
     // Mock the skadi client to return campaigns with decimal USD amounts
-    (skadiApiClient.getCampaigns as jest.Mock).mockResolvedValue({
-      promotedPosts: [
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValueOnce({
+      promoted_posts: [
         {
-          campaignId: 'campaign-decimal',
-          postId: 'decimal-post',
+          campaign_id: 'campaign-decimal',
+          post_id: 'decimal-post',
           status: 'active',
           spend: '15.75', // 15.75 USD = 1575 cores
-          startedAt: new Date('2024-01-01').getTime(),
-          endedAt: null,
+          started_at: new Date('2024-01-01').getTime(),
+          ended_at: null,
           impressions: 1000,
           clicks: 50,
         },
       ],
       impressions: 1000,
       clicks: 50,
-      totalSpend: '15.75', // 15.75 USD = 1575 cores
-      postIds: ['decimal-post'],
+      total_spend: '15.75', // 15.75 USD = 1575 cores
+      post_ids: ['decimal-post'],
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1752,9 +1897,8 @@ describe('mutation startPostBoost', () => {
     );
 
     // Mock skadi client to throw an error
-    (skadiApiClient.startPostCampaign as jest.Mock).mockRejectedValue(
-      new Error('Skadi service unavailable'),
-    );
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -1798,9 +1942,10 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock skadi client to succeed but transfer to fail
-    (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
-      campaignId: 'mock-campaign-id',
+    // Mock HTTP response from Skadi API to succeed but transfer to fail
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      campaign_id: 'mock-campaign-id',
     });
 
     // Use error transport to simulate transfer failure
@@ -1853,6 +1998,24 @@ describe('mutation startPostBoost', () => {
     // Verify the boosted flag is still false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
+
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/create`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 1 * ONE_DAY_IN_SECONDS,
+          budget: 10, // 1000 cores = 10 USD
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should verify no transactions are created when validation fails', async () => {
@@ -2014,9 +2177,10 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock skadi client to succeed
-    (skadiApiClient.startPostCampaign as jest.Mock).mockResolvedValue({
-      campaignId: 'mock-campaign-id',
+    // Mock HTTP response from Skadi API to succeed
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      campaign_id: 'mock-campaign-id',
     });
 
     // Set up initial balance for user '1' in the mock transport
@@ -2049,59 +2213,23 @@ describe('mutation startPostBoost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBe('mock-campaign-id');
 
-    // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.startPostCampaign).toHaveBeenCalledWith({
-      postId: 'p1',
-      userId: '1',
-      durationInDays: 1,
-      budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
-    });
-  });
-
-  it('should handle skadi integration failure gracefully', async () => {
-    loggedUser = '1';
-
-    // Ensure the post is not boosted initially
-    await con.getRepository(Post).update(
-      { id: 'p1' },
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/create`,
       {
-        flags: updateFlagsStatement<Post>({ campaignId: null }),
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 1 * ONE_DAY_IN_SECONDS,
+          budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
+        }),
+        agent: expect.any(Function),
       },
     );
-
-    // Mock skadi client to throw an error
-    (skadiApiClient.startPostCampaign as jest.Mock).mockRejectedValue(
-      new Error('Skadi service unavailable'),
-    );
-
-    // Get initial transaction count
-    const initialTransactionCount = await con
-      .getRepository(UserTransaction)
-      .count({
-        where: { senderId: '1', referenceType: 'PostBoost' },
-      });
-
-    // This test validates that the mutation handles external service failures
-    // In a real scenario, this would test the error handling when skadi service is down
-    const res = await client.mutate(MUTATION, {
-      variables: { ...params, duration: 1, budget: 1000 },
-    });
-
-    // The mutation should fail due to external service issues
-    // but the validation logic should pass
-    expect(res.errors).toBeTruthy();
-
-    // Verify no new transactions were created
-    const finalTransactionCount = await con
-      .getRepository(UserTransaction)
-      .count({
-        where: { senderId: '1', referenceType: 'PostBoost' },
-      });
-    expect(finalTransactionCount).toBe(initialTransactionCount);
-
-    // Verify the boosted flag is still false
-    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBeFalsy();
   });
 });
 
@@ -2177,9 +2305,10 @@ describe('mutation cancelPostBoost', () => {
   it('should successfully cancel post boost when post is boosted', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to succeed and return current budget
-    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
-      currentBudget: '5.5', // 5.5 USD = 550 cores
+    // Mock HTTP response from Skadi API to succeed and return current budget
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      current_budget: '5.5', // 5.5 USD = 550 cores
     });
 
     // Set up initial balance for user '1' in the mock transport
@@ -2212,20 +2341,29 @@ describe('mutation cancelPostBoost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
-      campaignId: 'mock-id',
-      userId: '1',
-    });
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/cancel`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaign_id: 'mock-id',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should handle skadi integration failure gracefully', async () => {
     loggedUser = '1';
 
     // Mock skadi client to throw an error
-    (skadiApiClient.cancelPostCampaign as jest.Mock).mockRejectedValue(
-      new Error('Skadi service unavailable'),
-    );
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -2257,9 +2395,10 @@ describe('mutation cancelPostBoost', () => {
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to succeed but transfer to fail
-    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
-      currentBudget: '5.5',
+    // Mock HTTP response from Skadi API to succeed but transfer to fail
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      current_budget: '5.5',
     });
 
     // Use error transport to simulate transfer failure
@@ -2297,6 +2436,22 @@ describe('mutation cancelPostBoost', () => {
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBe('mock-id');
+
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/cancel`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaign_id: 'mock-id',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should verify no transactions are created when validation fails', async () => {
@@ -2412,9 +2567,10 @@ describe('mutation cancelPostBoost', () => {
       },
     );
 
-    // Mock skadi client to succeed and return current budget
-    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
-      currentBudget: '3.25', // 3.25 USD = 325 cores
+    // Mock HTTP response from Skadi API to succeed and return current budget
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      current_budget: '3.25', // 3.25 USD = 325 cores
     });
 
     // Set up initial balance for user '1' in the mock transport
@@ -2448,18 +2604,29 @@ describe('mutation cancelPostBoost', () => {
     expect(post?.flags?.campaignId).toBeFalsy();
 
     // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
-      campaignId: 'mock-id',
-      userId: '1',
-    });
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      'http://skadi-api-server.local.svc.cluster.local/promote/post/cancel',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaign_id: 'mock-id',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should handle decimal USD amounts correctly', async () => {
     loggedUser = '1';
 
     // Mock skadi client to return decimal USD amount
-    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
-      currentBudget: '7.875', // 7.875 USD = 787 cores
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      current_budget: '7.875', // 3.25 USD = 325 cores
     });
 
     // Set up initial balance for user '1' in the mock transport
@@ -2493,18 +2660,29 @@ describe('mutation cancelPostBoost', () => {
     expect(post?.flags?.campaignId).toBeFalsy();
 
     // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
-      campaignId: 'mock-id',
-      userId: '1',
-    });
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      'http://skadi-api-server.local.svc.cluster.local/promote/post/cancel',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaign_id: 'mock-id',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should handle zero USD refund amount', async () => {
     loggedUser = '1';
 
     // Mock skadi client to return zero USD amount
-    (skadiApiClient.cancelPostCampaign as jest.Mock).mockResolvedValue({
-      currentBudget: '0.0', // 0 USD = 0 cores
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      current_budget: '0.0', // 3.25 USD = 325 cores
     });
 
     // Set up initial balance for user '1' in the mock transport
@@ -2538,10 +2716,20 @@ describe('mutation cancelPostBoost', () => {
     expect(post?.flags?.campaignId).toBeFalsy();
 
     // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.cancelPostCampaign).toHaveBeenCalledWith({
-      campaignId: 'mock-id',
-      userId: '1',
-    });
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      'http://skadi-api-server.local.svc.cluster.local/promote/post/cancel',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          campaign_id: 'mock-id',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 });
 
@@ -2605,11 +2793,12 @@ describe('query boostEstimatedReach', () => {
     );
   });
 
-  it('should return the response returned by skadi client', async () => {
+  it('should return the estimated reach and make correct HTTP call', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return users count
-    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
       impressions: 123,
       clicks: 7,
       users: 47,
@@ -2625,18 +2814,30 @@ describe('query boostEstimatedReach', () => {
       min: 44, // 47 - Math.floor(47 * 0.08) = 47 - 3 = 44
     });
 
-    // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
-      postId: 'p1',
-      userId: '1',
-    });
+    // Verify the HTTP call was made correctly without budget/duration
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          // No duration or budget parameters
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should handle large numbers and ensure integer values', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return a large users count
-    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
       impressions: 1234567,
       clicks: 54321,
       users: 234567,
@@ -2656,18 +2857,71 @@ describe('query boostEstimatedReach', () => {
     expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
     expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
 
-    // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
-      postId: 'p1',
-      userId: '1',
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle large numbers and ensure integer values', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 1234567,
+      clicks: 54321,
+      users: 234567,
     });
+
+    const res = await client.query(QUERY, {
+      variables: params,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReach).toEqual({
+      max: 253332, // 234567 + Math.floor(234567 * 0.08) = 234567 + 18765 = 253332
+      min: 215802, // 234567 - Math.floor(234567 * 0.08) = 234567 - 18765 = 215802
+    });
+
+    // Verify that both min and max are integers (not floats)
+    expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
+    expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
+
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should handle edge case with very small users count', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return a very small users count
-    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
       impressions: 89,
       clicks: 3,
       users: 7,
@@ -2687,18 +2941,29 @@ describe('query boostEstimatedReach', () => {
     expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
     expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
 
-    // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
-      postId: 'p1',
-      userId: '1',
-    });
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 
   it('should handle zero users count', async () => {
     loggedUser = '1';
 
-    // Mock the skadi client to return zero users count
-    (skadiApiClient.estimatePostBoostReach as jest.Mock).mockResolvedValue({
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
       impressions: 0,
       clicks: 0,
       users: 0,
@@ -2718,10 +2983,521 @@ describe('query boostEstimatedReach', () => {
     expect(Number.isInteger(res.data.boostEstimatedReach.min)).toBe(true);
     expect(Number.isInteger(res.data.boostEstimatedReach.max)).toBe(true);
 
-    // Verify the skadi client was called with correct parameters
-    expect(skadiApiClient.estimatePostBoostReach).toHaveBeenCalledWith({
-      postId: 'p1',
-      userId: '1',
+    // Verify the HTTP call was made correctly
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+});
+
+describe('query boostEstimatedReachDaily', () => {
+  const QUERY = `
+    query BoostEstimatedReachDaily($postId: ID!, $budget: Int!, $duration: Int!) {
+      boostEstimatedReachDaily(postId: $postId, budget: $budget, duration: $duration) {
+        min
+        max
+      }
+    }
+  `;
+
+  const params = { postId: 'p1' };
+
+  beforeEach(async () => {
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 5000, duration: 7 } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { postId: 'nonexistent', budget: 5000, duration: 7 },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 5000, duration: 7 } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if post is already boosted', async () => {
+    loggedUser = '1';
+    // Set the post as already boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...params, budget: 5000, duration: 7 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  describe('budget validation', () => {
+    beforeEach(() => {
+      loggedUser = '1';
     });
+
+    it('should return an error if budget is less than 1000', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 999, duration: 7 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if budget is greater than 100000', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 100001, duration: 7 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if budget is not divisible by 1000', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 1500, duration: 7 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should accept valid budget values and make correct HTTP call', async () => {
+      // Mock the HTTP response
+      const mockFetchParse = fetchParse as jest.Mock;
+      mockFetchParse.mockResolvedValue({
+        impressions: 100,
+        clicks: 5,
+        users: 50,
+        min_impressions: 45,
+        max_impressions: 55,
+      });
+
+      const res = await client.query(QUERY, {
+        variables: { ...params, budget: 2000, duration: 5 }, // Valid budget
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.boostEstimatedReachDaily).toEqual({
+        min: 45,
+        max: 55,
+      });
+
+      // Verify the HTTP call was made with correct budget conversion
+      expect(mockFetchParse).toHaveBeenCalledWith(
+        `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_id: 'p1',
+            user_id: '1',
+            duration: 5 * ONE_DAY_IN_SECONDS,
+            budget: 20, // 2000 cores = 20 USD
+          }),
+          agent: expect.any(Function),
+        },
+      );
+    });
+  });
+
+  describe('duration validation', () => {
+    beforeEach(() => {
+      loggedUser = '1';
+    });
+
+    it('should return an error if duration is less than 1', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 5000, duration: 0 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if duration is greater than 30', async () => {
+      return testQueryErrorCode(
+        client,
+        { query: QUERY, variables: { ...params, budget: 5000, duration: 31 } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should accept valid duration values and make correct HTTP call', async () => {
+      // Mock the HTTP response
+      const mockFetchParse = fetchParse as jest.Mock;
+      mockFetchParse.mockResolvedValue({
+        impressions: 200,
+        clicks: 10,
+        users: 75,
+        min_impressions: 68,
+        max_impressions: 82,
+      });
+
+      const res = await client.query(QUERY, {
+        variables: { ...params, budget: 3000, duration: 15 }, // Valid duration
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.boostEstimatedReachDaily).toEqual({
+        min: 68,
+        max: 82,
+      });
+
+      // Verify the HTTP call includes both parameters correctly
+      expect(mockFetchParse).toHaveBeenCalledWith(
+        `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            post_id: 'p1',
+            user_id: '1',
+            duration: 15 * ONE_DAY_IN_SECONDS, // Duration converted to seconds
+            budget: 30, // 3000 cores = 30 USD
+          }),
+          agent: expect.any(Function),
+        },
+      );
+    });
+  });
+
+  it('should return estimated reach with budget and duration parameters', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 500,
+      clicks: 40,
+      users: 180,
+      min_impressions: 166,
+      max_impressions: 194,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 10000, duration: 14 }, // 10000 cores = 100 USD, 14 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 166,
+      max: 194,
+    });
+
+    // Verify the HTTP call was made correctly with both parameters
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 14 * ONE_DAY_IN_SECONDS, // Duration converted to seconds
+          budget: 100, // Converted from cores to USD (10000 cores = 100 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle minimum budget value (1000 cores)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 50,
+      clicks: 3,
+      users: 25,
+      min_impressions: 23,
+      max_impressions: 27,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 1000, duration: 5 }, // 1000 cores = 10 USD
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 23,
+      max: 27,
+    });
+
+    // Verify the HTTP call was made with minimum budget
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 5 * ONE_DAY_IN_SECONDS,
+          budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle maximum budget value (100000 cores)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 50000,
+      clicks: 2500,
+      users: 15000,
+      min_impressions: 13800,
+      max_impressions: 16200,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 100000, duration: 5 }, // 100000 cores = 1000 USD
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 13800,
+      max: 16200,
+    });
+
+    // Verify the HTTP call was made with maximum budget
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 5 * ONE_DAY_IN_SECONDS,
+          budget: 1000, // Converted from cores to USD (100000 cores = 1000 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle minimum duration value (1 day)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 80,
+      clicks: 5,
+      users: 35,
+      min_impressions: 33,
+      max_impressions: 37,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 2000, duration: 1 }, // 1 day
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 33,
+      max: 37,
+    });
+
+    // Verify the HTTP call was made with minimum duration
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 1 * ONE_DAY_IN_SECONDS, // 1 day in seconds
+          budget: 20, // 2000 cores = 20 USD
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should handle maximum duration value (30 days)', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 1200,
+      clicks: 60,
+      users: 450,
+      min_impressions: 414,
+      max_impressions: 486,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 5000, duration: 30 }, // 30 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 414,
+      max: 486,
+    });
+
+    // Verify the HTTP call was made with maximum duration
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 30 * ONE_DAY_IN_SECONDS, // 30 days in seconds
+          budget: 50, // 5000 cores = 50 USD
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should work for post scout as well as author', async () => {
+    loggedUser = '1';
+
+    // Set user as scout instead of author
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '2', // Different author
+        scoutId: '1', // Current user is scout
+      },
+    );
+
+    // Mock the HTTP response
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 150,
+      clicks: 10,
+      users: 65,
+      min_impressions: 60,
+      max_impressions: 70,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 3000, duration: 5 }, // 3000 cores = 30 USD, 5 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 60,
+      max: 70,
+    });
+
+    // Verify the HTTP call was made with correct parameters
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 5 * ONE_DAY_IN_SECONDS,
+          budget: 30, // Converted from cores to USD (3000 cores = 30 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
+
+  it('should fall back to getAdjustedReach when min and max impressions are equal', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response where min and max impressions are the same
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 200,
+      clicks: 15,
+      users: 100,
+      min_impressions: 75, // Same value
+      max_impressions: 75, // Same value
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 4000, duration: 10 }, // 4000 cores = 40 USD, 10 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    // When min_impressions === max_impressions, it should use getAdjustedReach(maxImpressions)
+    // getAdjustedReach applies ±8% calculation: 75 ± Math.floor(75 * 0.08) = 75 ± 6
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 69, // 75 - Math.floor(75 * 0.08) = 75 - 6 = 69
+      max: 81, // 75 + Math.floor(75 * 0.08) = 75 + 6 = 81
+    });
+
+    // Verify the HTTP call was made with correct parameters
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 10 * ONE_DAY_IN_SECONDS,
+          budget: 40, // Converted from cores to USD (4000 cores = 40 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
   });
 });
