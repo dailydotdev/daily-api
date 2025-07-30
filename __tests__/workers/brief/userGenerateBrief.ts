@@ -3,6 +3,7 @@ import { userGenerateBriefWorker as worker } from '../../../src/workers/brief/us
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import {
+  BRIEFING_SOURCE,
   Feed,
   Keyword,
   Source,
@@ -46,13 +47,22 @@ describe('userGenerateBrief worker', () => {
 
     await saveFixtures(con, Keyword, keywordsFixture);
 
-    await con.getRepository(User).save({
-      ...usersFixture[0],
-      github: undefined,
-      id: `ugbw-${usersFixture[0].id}`,
-      username: `ugbw-${usersFixture[0].username}`,
-      experienceLevel: 'NOT_ENGINEER',
-    });
+    await con.getRepository(User).save([
+      {
+        ...usersFixture[0],
+        github: undefined,
+        id: `ugbw-${usersFixture[0].id}`,
+        username: `ugbw-${usersFixture[0].username}`,
+        experienceLevel: 'NOT_ENGINEER',
+      },
+      {
+        ...usersFixture[1],
+        github: undefined,
+        id: `ugbw-${usersFixture[1].id}`,
+        username: `ugbw-${usersFixture[1].username}`,
+        experienceLevel: 'NOT_ENGINEER',
+      },
+    ]);
     await con.getRepository(Feed).save({
       id: `ugbw-${usersFixture[0].id}`,
       userId: `ugbw-${usersFixture[0].id}`,
@@ -245,5 +255,280 @@ describe('userGenerateBrief worker', () => {
     });
 
     expect(action).toBeTruthy();
+  });
+
+  it('should send last generated brief with brief request', async () => {
+    const postId = await generateShortId();
+    const lastPostId = await generateShortId();
+    const otherPostId = await generateShortId();
+
+    await con.getRepository(BriefPost).save([
+      con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: false,
+        createdAt: new Date(Date.now()),
+        sourceId: BRIEFING_SOURCE,
+      }),
+      con.getRepository(BriefPost).create({
+        id: lastPostId,
+        shortId: lastPostId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: true,
+        contentJSON: [
+          {
+            title: 'Must know',
+            items: [
+              {
+                title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+              },
+            ],
+          },
+        ],
+        flags: {
+          posts: 3,
+          sources: 2,
+          savedTime: 40,
+        },
+        readTime: 5,
+        collectionSources: ['a', 'b'],
+        createdAt: new Date(Date.now() - 1000),
+        sourceId: BRIEFING_SOURCE,
+      }),
+      con.getRepository(BriefPost).create({
+        id: otherPostId,
+        shortId: otherPostId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: true,
+        contentJSON: [],
+        flags: {
+          posts: 3,
+          sources: 2,
+          savedTime: 40,
+        },
+        readTime: 5,
+        collectionSources: ['a', 'b'],
+        createdAt: new Date(Date.now() - 2000),
+        sourceId: BRIEFING_SOURCE,
+      }),
+    ]);
+
+    let requestBody = null;
+
+    nock('http://api')
+      .post('/api/user/briefing', (body) => {
+        requestBody = body;
+
+        return true;
+      })
+      .reply(200, {
+        sections: [
+          {
+            title: 'Must know',
+            items: [
+              {
+                title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+              },
+            ],
+          },
+        ],
+      });
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: 'ugbw-1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
+      postId,
+    });
+
+    const recentBriefing = {
+      sections: [
+        {
+          title: 'Must know',
+          items: [
+            {
+              title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+              body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+            },
+          ],
+        },
+      ],
+      briefStatistics: {
+        posts: 3,
+        sources: 2,
+        savedTime: 40 * 60,
+      },
+      readingTime: 5 * 60,
+      sourceIds: ['a', 'b'],
+    };
+
+    expect(requestBody).toEqual({
+      user_id: 'ugbw-1',
+      frequency: BriefingType.Daily,
+      model_name: BriefingModel.Default,
+      allowed_tags: ['webdev', 'development'],
+      seniority_level: 'NOT_ENGINEER',
+      recent_briefing: recentBriefing,
+    });
+
+    const briefPost = await con.getRepository(BriefPost).findOne({
+      where: {
+        id: postId,
+      },
+    });
+
+    expect(briefPost).toBeDefined();
+    expect(briefPost!.visible).toBe(true);
+    expect(briefPost!.content).toBe(`## Must know
+
+- **OpenAI gets a DoD contract, Microsoft gets salty**: OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.`);
+
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.brief-ready',
+      {
+        payload: new UserBriefingRequest({
+          userId: 'ugbw-1',
+          frequency: BriefingType.Daily,
+          modelName: BriefingModel.Default,
+          allowedTags: ['webdev', 'development'],
+          seniorityLevel: 'NOT_ENGINEER',
+          recentBriefing,
+        }),
+        postId,
+      },
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('should send last generated brief from the same user', async () => {
+    const postId = await generateShortId();
+    const lastPostId = await generateShortId();
+    const otherPostId = await generateShortId();
+
+    await con.getRepository(BriefPost).save([
+      con.getRepository(BriefPost).create({
+        id: postId,
+        shortId: postId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: false,
+        createdAt: new Date(Date.now()),
+        sourceId: BRIEFING_SOURCE,
+      }),
+      con.getRepository(BriefPost).create({
+        id: lastPostId,
+        shortId: lastPostId,
+        authorId: 'ugbw-2',
+        private: true,
+        visible: true,
+        contentJSON: [
+          {
+            title: 'Must know',
+            items: [
+              {
+                title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+              },
+            ],
+          },
+        ],
+        flags: {
+          posts: 3,
+          sources: 2,
+          savedTime: 40,
+        },
+        readTime: 5,
+        collectionSources: ['a', 'b'],
+        createdAt: new Date(Date.now() - 1000),
+        sourceId: BRIEFING_SOURCE,
+      }),
+      con.getRepository(BriefPost).create({
+        id: otherPostId,
+        shortId: otherPostId,
+        authorId: 'ugbw-1',
+        private: true,
+        visible: true,
+        contentJSON: [
+          {
+            title: 'Hard to know',
+            items: [
+              {
+                title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+              },
+            ],
+          },
+        ],
+        flags: {
+          posts: 3,
+          sources: 2,
+          savedTime: 40,
+        },
+        readTime: 5,
+        collectionSources: ['a', 'b'],
+        createdAt: new Date(Date.now() - 2000),
+        sourceId: BRIEFING_SOURCE,
+      }),
+    ]);
+
+    let requestBody = null;
+
+    nock('http://api')
+      .post('/api/user/briefing', (body) => {
+        requestBody = body;
+
+        return true;
+      })
+      .reply(200, {
+        sections: [],
+      });
+
+    await expectSuccessfulTypedBackground(worker, {
+      payload: new UserBriefingRequest({
+        userId: 'ugbw-1',
+        frequency: BriefingType.Daily,
+        modelName: BriefingModel.Default,
+      }),
+      postId,
+    });
+
+    expect(requestBody).toEqual({
+      user_id: 'ugbw-1',
+      frequency: BriefingType.Daily,
+      model_name: BriefingModel.Default,
+      allowed_tags: ['webdev', 'development'],
+      seniority_level: 'NOT_ENGINEER',
+      recent_briefing: {
+        sections: [
+          {
+            title: 'Hard to know',
+            items: [
+              {
+                title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+              },
+            ],
+          },
+        ],
+        briefStatistics: {
+          posts: 3,
+          sources: 2,
+          savedTime: 40 * 60,
+        },
+        readingTime: 5 * 60,
+        sourceIds: ['a', 'b'],
+      },
+    });
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
   });
 });

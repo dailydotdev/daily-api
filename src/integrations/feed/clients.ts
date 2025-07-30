@@ -82,6 +82,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     modelName = BriefingModel.Default,
     allowedTags,
     seniorityLevel,
+    recentBriefing,
   }: UserBriefingRequest): Promise<Briefing> {
     const result = await this.garmr.execute(() => {
       return fetchParse<JsonValue>(`${this.url}/api/user/briefing`, {
@@ -93,6 +94,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
           model_name: modelName,
           allowed_tags: allowedTags,
           seniority_level: seniorityLevel,
+          recent_briefing: recentBriefing,
         }),
       });
     });

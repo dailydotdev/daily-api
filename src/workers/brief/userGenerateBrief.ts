@@ -2,9 +2,8 @@ import { format } from 'date-fns';
 import { markdown } from '../../common/markdown';
 import { BriefPost } from '../../entity/posts/BriefPost';
 import type { TypedWorker } from '../worker';
-import { getPostVisible, parseReadTime, UserActionType } from '../../entity';
 import { triggerTypedEvent } from '../../common/typedPubsub';
-import type { Briefing } from '@dailydotdev/schema';
+import { Briefing, BriefingSection } from '@dailydotdev/schema';
 import { updateFlagsStatement } from '../../common';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import {
@@ -12,6 +11,10 @@ import {
   getUserConfigForBriefingRequest,
 } from '../../common/brief';
 import { queryReadReplica } from '../../common/queryReadReplica';
+import { BRIEFING_SOURCE } from '../../entity/Source';
+import { getPostVisible, parseReadTime } from '../../entity/posts/utils';
+import { UserActionType } from '../../entity/user/UserAction';
+import { Not } from 'typeorm';
 
 const generateMarkdown = (data: Briefing): string => {
   let markdown = '';
@@ -66,6 +69,43 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
 
       briefRequest.allowedTags = userConfig.allowedTags;
       briefRequest.seniorityLevel = userConfig.seniorityLevel;
+
+      const lastBriefPost = await queryReadReplica<Pick<
+        BriefPost,
+        'collectionSources' | 'flags' | 'contentJSON' | 'readTime'
+      > | null>(con, async ({ queryRunner }) => {
+        return queryRunner.manager.getRepository(BriefPost).findOne({
+          select: ['collectionSources', 'flags', 'contentJSON', 'readTime'],
+          where: {
+            id: Not(postId),
+            authorId: data.payload.userId,
+            sourceId: BRIEFING_SOURCE,
+            visible: true,
+          },
+          order: {
+            createdAt: 'DESC',
+          },
+        });
+      });
+
+      if (lastBriefPost) {
+        briefRequest.recentBriefing = new Briefing({
+          sections: Array.isArray(lastBriefPost.contentJSON)
+            ? lastBriefPost.contentJSON.map((item) =>
+                BriefingSection.fromJson(item),
+              )
+            : [],
+          briefStatistics: {
+            posts: lastBriefPost.flags.posts ?? 0,
+            sources: lastBriefPost.flags.sources ?? 0,
+            savedTime: lastBriefPost.flags.savedTime
+              ? lastBriefPost.flags.savedTime * 60
+              : 0,
+          },
+          sourceIds: lastBriefPost.collectionSources ?? [],
+          readingTime: lastBriefPost.readTime ? lastBriefPost.readTime * 60 : 0,
+        });
+      }
 
       const brief = await briefFeedClient.getUserBrief(briefRequest);
 
