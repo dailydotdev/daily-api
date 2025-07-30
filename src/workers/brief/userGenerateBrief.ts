@@ -89,22 +89,33 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       });
 
       if (lastBriefPost) {
-        briefRequest.recentBriefing = new Briefing({
-          sections: Array.isArray(lastBriefPost.contentJSON)
-            ? lastBriefPost.contentJSON.map((item) =>
-                BriefingSection.fromJson(item),
-              )
-            : [],
-          briefStatistics: {
-            posts: lastBriefPost.flags.posts ?? 0,
-            sources: lastBriefPost.flags.sources ?? 0,
-            savedTime: lastBriefPost.flags.savedTime
-              ? lastBriefPost.flags.savedTime * 60
+        try {
+          briefRequest.recentBriefing = new Briefing({
+            sections: Array.isArray(lastBriefPost.contentJSON)
+              ? lastBriefPost.contentJSON.map((item) =>
+                  BriefingSection.fromJson(item),
+                )
+              : [],
+            briefStatistics: {
+              posts: lastBriefPost.flags.posts ?? 0,
+              sources: lastBriefPost.flags.sources ?? 0,
+              savedTime: lastBriefPost.flags.savedTime
+                ? lastBriefPost.flags.savedTime * 60
+                : 0,
+            },
+            sourceIds: lastBriefPost.collectionSources ?? [],
+            readingTime: lastBriefPost.readTime
+              ? lastBriefPost.readTime * 60
               : 0,
-          },
-          sourceIds: lastBriefPost.collectionSources ?? [],
-          readingTime: lastBriefPost.readTime ? lastBriefPost.readTime * 60 : 0,
-        });
+          });
+        } catch (error) {
+          logger.error(
+            { error, data, lastBriefPost },
+            'failed to parse last brief post content',
+          );
+
+          briefRequest.recentBriefing = undefined;
+        }
       }
 
       const brief = await briefFeedClient.getUserBrief(briefRequest);
