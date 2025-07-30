@@ -38,13 +38,13 @@ export class UserExperience {
   endDate: Date;
 
   @Column({
-    type: 'string',
+    type: 'text',
     nullable: false,
   })
   type: UserExperienceType;
 
   @Column({
-    type: 'string',
+    type: 'text',
     default: ExperienceStatus.Draft,
   })
   status: ExperienceStatus;

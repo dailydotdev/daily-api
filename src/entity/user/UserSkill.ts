@@ -10,7 +10,7 @@ export class UserSkill {
     nullable: false,
     unique: true,
     generatedType: 'STORED',
-    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(user.name,100),''))), '[^a-z0-9-]+', '-', 'gi'))`,
+    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(name,100),''))), '[^a-z0-9-]+', '-', 'gi'))`,
   })
   slug: string;
 

@@ -18,7 +18,7 @@ export class UserWorkExperience extends UserExperience {
   company: Promise<Company>;
 
   @Column({
-    type: 'string',
+    type: 'text',
   })
   employmentType: WorkEmploymentType;
 
@@ -26,7 +26,7 @@ export class UserWorkExperience extends UserExperience {
   location: string;
 
   @Column({
-    type: 'string',
+    type: 'text',
     nullable: true,
   })
   locationType: WorkLocationType;
@@ -39,7 +39,7 @@ export class UserWorkExperience extends UserExperience {
   verificationEmail: string;
 
   @Column({
-    type: 'string',
+    type: 'text',
     nullable: true,
   })
   verificationStatus: WorkVerificationStatus;

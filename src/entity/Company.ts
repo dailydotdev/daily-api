@@ -32,7 +32,7 @@ export class Company {
   domains: string[];
 
   @Column({
-    type: 'string',
+    type: 'text',
     default: CompanyType.Business,
   })
   type = CompanyType.Business;

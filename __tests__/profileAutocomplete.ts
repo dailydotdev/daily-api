@@ -9,7 +9,10 @@ import {
 } from './helpers';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
-import { AutocompleteType } from '../src/schema/profileAutocomplete';
+import {
+  AutocompleteType,
+  DEFAULT_AUTOCOMPLETE_LIMIT,
+} from '../src/schema/profileAutocomplete';
 import { UserSkill } from '../src/entity/user/UserSkill';
 import { Company, CompanyType } from '../src/entity/Company';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
@@ -71,7 +74,7 @@ describe('autocomplete query', () => {
       });
       expect(res.data.profileAutocomplete).toEqual({
         query: 'a',
-        limit: null,
+        limit: DEFAULT_AUTOCOMPLETE_LIMIT,
         hits: [],
       });
     });
@@ -86,7 +89,7 @@ describe('autocomplete query', () => {
 
       expect(res.data.profileAutocomplete).toEqual({
         query: '',
-        limit: null,
+        limit: DEFAULT_AUTOCOMPLETE_LIMIT,
         hits: [],
       });
     });
@@ -102,7 +105,7 @@ describe('autocomplete query', () => {
 
       expect(res.data.profileAutocomplete).toEqual({
         query: longQuery,
-        limit: null,
+        limit: DEFAULT_AUTOCOMPLETE_LIMIT,
         hits: [],
       });
     });

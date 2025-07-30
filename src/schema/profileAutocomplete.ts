@@ -1,3 +1,6 @@
+import { ObjectLiteral, Raw } from 'typeorm';
+import { z } from 'zod';
+import { IResolvers } from '@graphql-tools/utils';
 import { UserSkill } from '../entity/user/UserSkill';
 import { Company, CompanyType } from '../entity/Company';
 import { UserCourseExperience } from '../entity/user/experiences/UserCourseExperience';
@@ -6,13 +9,11 @@ import { UserAwardExperience } from '../entity/user/experiences/UserAwardExperie
 import { UserCertificationExperience } from '../entity/user/experiences/UserCertificationExperience';
 import { UserWorkExperience } from '../entity/user/experiences/UserWorkExperience';
 import { UserEducationExperience } from '../entity/user/experiences/UserEducationExperience';
-import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { ExperienceStatus } from '../entity/user/experiences/types';
-import { ValidationError } from 'apollo-server-errors';
-import { ObjectLiteral, Raw } from 'typeorm';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { ValidationError } from 'apollo-server-errors';
 
 export enum AutocompleteType {
   JobTitle = 'job_title',
@@ -151,7 +152,26 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-const DEFAULT_LIMIT = 10;
+export const DEFAULT_AUTOCOMPLETE_LIMIT = 10;
+
+const profileAutocompleteSchema = z.object({
+  type: z.nativeEnum(AutocompleteType, {
+    errorMap: () => ({ message: 'Invalid autocomplete type' }),
+  }),
+  query: z
+    .string()
+    .min(2, 'Query must be at least 2 characters long')
+    .max(100, 'Query must not exceed 100 characters'),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(DEFAULT_AUTOCOMPLETE_LIMIT),
+});
+
+// Type inference from the schema
+type ProfileAutocompleteInput = z.infer<typeof profileAutocompleteSchema>;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -160,24 +180,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Query: {
     profileAutocomplete: async (
       _,
-      {
-        type,
-        query,
-        limit = DEFAULT_LIMIT,
-      }: { type: AutocompleteType; query: string; limit?: number },
+      params: ProfileAutocompleteInput,
       ctx: Context,
     ) => {
-      if (!type || !(type in autocompleteQueryMap)) {
-        throw new ValidationError(`Invalid autocomplete type: ${type}`);
+      const result = profileAutocompleteSchema.safeParse(params);
+
+      if (!result.success) {
+        if (result.error.formErrors.fieldErrors.query) {
+          return {
+            query: params.query ?? '',
+            limit: params.limit ?? DEFAULT_AUTOCOMPLETE_LIMIT,
+            hits: [],
+          };
+        }
+
+        throw new ValidationError(result.error.message);
       }
 
-      if (!query || query.length < 2 || query.length > 100) {
-        return {
-          query,
-          hits: [],
-        };
-      }
-
+      // Extract validated data
+      const { type, query, limit }: ProfileAutocompleteInput = result.data;
       const {
         entity,
         propertyName,

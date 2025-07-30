@@ -28,7 +28,7 @@ export class UserJobPreferences {
   preferredRoles: string[];
 
   @Column({
-    type: 'string',
+    type: 'text',
     nullable: true,
   })
   preferredLocationType: WorkLocationType;
