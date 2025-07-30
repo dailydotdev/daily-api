@@ -3456,4 +3456,48 @@ describe('query boostEstimatedReachDaily', () => {
       },
     );
   });
+
+  it('should fall back to getAdjustedReach when min and max impressions are equal', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response where min and max impressions are the same
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({
+      impressions: 200,
+      clicks: 15,
+      users: 100,
+      min_impressions: 75, // Same value
+      max_impressions: 75, // Same value
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 4000, duration: 10 }, // 4000 cores = 40 USD, 10 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    // When min_impressions === max_impressions, it should use getAdjustedReach(maxImpressions)
+    // getAdjustedReach applies ±8% calculation: 75 ± Math.floor(75 * 0.08) = 75 ± 6
+    expect(res.data.boostEstimatedReachDaily).toEqual({
+      min: 69, // 75 - Math.floor(75 * 0.08) = 75 - 6 = 69
+      max: 81, // 75 + Math.floor(75 * 0.08) = 75 + 6 = 81
+    });
+
+    // Verify the HTTP call was made with correct parameters
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/post/reach`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          post_id: 'p1',
+          user_id: '1',
+          duration: 10 * ONE_DAY_IN_SECONDS,
+          budget: 40, // Converted from cores to USD (4000 cores = 40 USD)
+        }),
+        agent: expect.any(Function),
+      },
+    );
+  });
 });

@@ -2185,6 +2185,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           durationInDays: duration,
         });
 
+      if (minImpressions === maxImpressions) {
+        return getAdjustedReach(maxImpressions);
+      }
+
       const min = Math.max(minImpressions, 0);
       const max = Math.max(maxImpressions, min);
 
