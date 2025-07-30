@@ -110,7 +110,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
           });
         } catch (error) {
           logger.error(
-            { error, data, lastBriefPost },
+            { err: error, data, lastBriefPost },
             'failed to parse last brief post content',
           );
 

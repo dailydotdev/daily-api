@@ -349,34 +349,32 @@ describe('userGenerateBrief worker', () => {
       postId,
     });
 
-    const recentBriefing = {
-      sections: [
-        {
-          title: 'Must know',
-          items: [
-            {
-              title: 'OpenAI gets a DoD contract, Microsoft gets salty',
-              body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
-            },
-          ],
-        },
-      ],
-      briefStatistics: {
-        posts: 3,
-        sources: 2,
-        savedTime: 40 * 60,
-      },
-      readingTime: 5 * 60,
-      sourceIds: ['a', 'b'],
-    };
-
     expect(requestBody).toEqual({
       user_id: 'ugbw-1',
       frequency: BriefingType.Daily,
       model_name: BriefingModel.Default,
       allowed_tags: ['webdev', 'development'],
       seniority_level: 'NOT_ENGINEER',
-      recent_briefing: recentBriefing,
+      recent_briefing: {
+        sections: [
+          {
+            title: 'Must know',
+            items: [
+              {
+                title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+              },
+            ],
+          },
+        ],
+        brief_statistics: {
+          posts: 3,
+          sources: 2,
+          saved_time: 40 * 60,
+        },
+        reading_time: 5 * 60,
+        source_ids: ['a', 'b'],
+      },
     });
 
     const briefPost = await con.getRepository(BriefPost).findOne({
@@ -401,7 +399,26 @@ describe('userGenerateBrief worker', () => {
           modelName: BriefingModel.Default,
           allowedTags: ['webdev', 'development'],
           seniorityLevel: 'NOT_ENGINEER',
-          recentBriefing,
+          recentBriefing: {
+            sections: [
+              {
+                title: 'Must know',
+                items: [
+                  {
+                    title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                    body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+                  },
+                ],
+              },
+            ],
+            briefStatistics: {
+              posts: 3,
+              sources: 2,
+              savedTime: 40 * 60,
+            },
+            readingTime: 5 * 60,
+            sourceIds: ['a', 'b'],
+          },
         }),
         postId,
       },
@@ -519,13 +536,13 @@ describe('userGenerateBrief worker', () => {
             ],
           },
         ],
-        briefStatistics: {
+        brief_statistics: {
           posts: 3,
           sources: 2,
-          savedTime: 40 * 60,
+          saved_time: 40 * 60,
         },
-        readingTime: 5 * 60,
-        sourceIds: ['a', 'b'],
+        reading_time: 5 * 60,
+        source_ids: ['a', 'b'],
       },
     });
 

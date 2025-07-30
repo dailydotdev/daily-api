@@ -94,7 +94,20 @@ export class FeedClient implements IFeedClient, IGarmrClient {
           model_name: modelName,
           allowed_tags: allowedTags,
           seniority_level: seniorityLevel,
-          recent_briefing: recentBriefing,
+          recent_briefing: recentBriefing
+            ? {
+                sections: recentBriefing.sections,
+                brief_statistics: recentBriefing.briefStatistics
+                  ? {
+                      posts: recentBriefing.briefStatistics.posts,
+                      sources: recentBriefing.briefStatistics.sources,
+                      saved_time: recentBriefing.briefStatistics.savedTime,
+                    }
+                  : undefined,
+                reading_time: recentBriefing.readingTime,
+                source_ids: recentBriefing.sourceIds,
+              }
+            : undefined,
         }),
       });
     });
