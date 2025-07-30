@@ -19,6 +19,7 @@ import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExper
 import { ExperienceStatus } from '../src/entity/user/experiences/types';
 import { User } from '../src/entity';
 import { usersFixture } from './fixture';
+import { UserAwardExperience } from '../src/entity/user/experiences/UserAwardExperience';
 
 describe('autocomplete query', () => {
   let con: DataSource;
@@ -36,6 +37,7 @@ describe('autocomplete query', () => {
           ... on ExperienceHit {
             id
             title
+            issuer
           }
           ... on CompanyHit {
             id
@@ -171,7 +173,7 @@ describe('autocomplete query', () => {
     });
   });
 
-  describe('job title autocomplete', () => {
+  describe('experiences autocomplete', () => {
     beforeEach(async () => {
       await saveFixtures(con, User, usersFixture);
       await saveFixtures(con, UserWorkExperience, [
@@ -211,6 +213,29 @@ describe('autocomplete query', () => {
           startDate: new Date(),
         },
       ]);
+      await saveFixtures(con, UserAwardExperience, [
+        {
+          userId: '1',
+          title: 'Best Developer Award',
+          issuer: 'Tech Company',
+          status: ExperienceStatus.Published,
+          startDate: new Date('2024-12-12'),
+        },
+        {
+          userId: '1',
+          title: 'Outstanding Contribution Award',
+          issuer: 'Open Source Project',
+          status: ExperienceStatus.Published,
+          startDate: new Date('2024-12-12'),
+        },
+        {
+          userId: '1',
+          title: 'Draft Award Title',
+          issuer: 'Draft Issuer Project',
+          status: ExperienceStatus.Draft,
+          startDate: new Date('2024-12-12'),
+        },
+      ]);
     });
 
     it('should return matching job titles with published status', async () => {
@@ -236,6 +261,21 @@ describe('autocomplete query', () => {
         expect.arrayContaining([
           expect.objectContaining({ title: 'Draft Software Job Title' }),
         ]),
+      );
+    });
+
+    it('should return matching issuers for published experiences', async () => {
+      const res = await client.query(QUERY, {
+        variables: {
+          type: AutocompleteType.AwardIssuer,
+          query: 'proj',
+        },
+      });
+
+      expect(res.data.profileAutocomplete.query).toEqual('proj');
+      expect(res.data.profileAutocomplete.hits).toHaveLength(1);
+      expect(res.data.profileAutocomplete.hits[0].issuer).toEqual(
+        'Open Source Project',
       );
     });
   });

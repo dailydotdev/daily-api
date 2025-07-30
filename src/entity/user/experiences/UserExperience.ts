@@ -30,7 +30,7 @@ export class UserExperience {
   @Column({ type: 'text' })
   title: string;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'text', default: '' })
   description: string;
 
   @Column({ type: 'date' })

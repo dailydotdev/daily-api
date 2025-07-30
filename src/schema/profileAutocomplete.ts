@@ -43,13 +43,16 @@ type TypeToEntityMap = {
   [AutocompleteType.FieldOfStudy]: UserEducationExperience;
 };
 
-type AutocompleteQuery<T = ObjectLiteral> = {
+type AutocompleteQuery<
+  Entity = ObjectLiteral,
+  Properties extends keyof Entity = keyof Entity,
+> = {
   entity: {
-    new (): T;
+    new (): Entity;
   };
-  propertyName: keyof T;
-  where?: Partial<Record<keyof T, unknown>>;
-  select?: (keyof T)[];
+  propertyName: Properties;
+  where?: Partial<Record<Properties, unknown>>;
+  select?: Array<Properties>;
 };
 
 type AutoCompleteQueryMap = {
@@ -119,6 +122,10 @@ export const typeDefs = /* GraphQL */ `
   type ExperienceHit {
     id: ID!
     title: String
+    issuer: String
+    publisher: String
+    institution: String
+    fieldOfStudy: String
   }
 
   type CompanyHit {
