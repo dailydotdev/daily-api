@@ -12,7 +12,7 @@ import { DataSource } from 'typeorm';
 import {
   AutocompleteType,
   DEFAULT_AUTOCOMPLETE_LIMIT,
-} from '../src/schema/profileAutocomplete';
+} from '../src/schema/userExperience';
 import { UserSkill } from '../src/entity/user/UserSkill';
 import { Company, CompanyType } from '../src/entity/Company';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
@@ -29,7 +29,7 @@ describe('autocomplete query', () => {
 
   const QUERY = `
     query Autocomplete($type: String!, $query: String!, $limit: Int) {
-      profileAutocomplete(type: $type, query: $query, limit: $limit) {
+      experienceAutocomplete(type: $type, query: $query, limit: $limit) {
         query
         limit
         hits {
@@ -76,7 +76,7 @@ describe('autocomplete query', () => {
           query: 'a',
         },
       });
-      expect(res.data.profileAutocomplete).toEqual({
+      expect(res.data.experienceAutocomplete).toEqual({
         query: 'a',
         limit: DEFAULT_AUTOCOMPLETE_LIMIT,
         hits: [],
@@ -91,7 +91,7 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete).toEqual({
+      expect(res.data.experienceAutocomplete).toEqual({
         query: '',
         limit: DEFAULT_AUTOCOMPLETE_LIMIT,
         hits: [],
@@ -107,7 +107,7 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete).toEqual({
+      expect(res.data.experienceAutocomplete).toEqual({
         query: longQuery,
         limit: DEFAULT_AUTOCOMPLETE_LIMIT,
         hits: [],
@@ -149,9 +149,9 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete.query).toEqual('script');
-      expect(res.data.profileAutocomplete.hits).toHaveLength(2);
-      expect(res.data.profileAutocomplete.hits).toEqual(
+      expect(res.data.experienceAutocomplete.query).toEqual('script');
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(2);
+      expect(res.data.experienceAutocomplete.hits).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ name: 'JavaScript' }),
           expect.objectContaining({ name: 'TypeScript' }),
@@ -168,8 +168,8 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete.limit).toEqual(1);
-      expect(res.data.profileAutocomplete.hits).toHaveLength(1);
+      expect(res.data.experienceAutocomplete.limit).toEqual(1);
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(1);
     });
   });
 
@@ -246,9 +246,9 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete.query).toEqual('software');
-      expect(res.data.profileAutocomplete.hits).toHaveLength(3);
-      expect(res.data.profileAutocomplete.hits).toEqual(
+      expect(res.data.experienceAutocomplete.query).toEqual('software');
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(3);
+      expect(res.data.experienceAutocomplete.hits).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ title: 'Software Engineer' }),
           expect.objectContaining({ title: 'Senior Software Engineer' }),
@@ -257,7 +257,7 @@ describe('autocomplete query', () => {
       );
 
       // Should not include draft job titles
-      expect(res.data.profileAutocomplete.hits).not.toEqual(
+      expect(res.data.experienceAutocomplete.hits).not.toEqual(
         expect.arrayContaining([
           expect.objectContaining({ title: 'Draft Software Job Title' }),
         ]),
@@ -272,9 +272,9 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete.query).toEqual('proj');
-      expect(res.data.profileAutocomplete.hits).toHaveLength(1);
-      expect(res.data.profileAutocomplete.hits[0].issuer).toEqual(
+      expect(res.data.experienceAutocomplete.query).toEqual('proj');
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(1);
+      expect(res.data.experienceAutocomplete.hits[0].issuer).toEqual(
         'Open Source Project',
       );
     });
@@ -331,9 +331,9 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete.query).toEqual('apple');
-      expect(res.data.profileAutocomplete.hits).toHaveLength(1);
-      expect(res.data.profileAutocomplete.hits[0].name).toEqual('Apple');
+      expect(res.data.experienceAutocomplete.query).toEqual('apple');
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(1);
+      expect(res.data.experienceAutocomplete.hits[0].name).toEqual('Apple');
     });
 
     it('should return matching schools', async () => {
@@ -344,12 +344,12 @@ describe('autocomplete query', () => {
         },
       });
 
-      expect(res.data.profileAutocomplete.query).toEqual('university');
-      expect(res.data.profileAutocomplete.hits).toHaveLength(2);
-      expect(res.data.profileAutocomplete.hits[0].name).toStrictEqual(
+      expect(res.data.experienceAutocomplete.query).toEqual('university');
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(2);
+      expect(res.data.experienceAutocomplete.hits[0].name).toStrictEqual(
         'Apple university',
       );
-      expect(res.data.profileAutocomplete.hits[1].name).toStrictEqual(
+      expect(res.data.experienceAutocomplete.hits[1].name).toStrictEqual(
         'Stanford University',
       );
     });

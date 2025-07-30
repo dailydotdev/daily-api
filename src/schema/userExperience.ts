@@ -161,7 +161,7 @@ export const typeDefs = /* GraphQL */ `
 
 export const DEFAULT_AUTOCOMPLETE_LIMIT = 10;
 
-const profileAutocompleteSchema = z.object({
+const experienceAutocompleteSchema = z.object({
   type: z.nativeEnum(AutocompleteType, {
     errorMap: () => ({ message: 'Invalid autocomplete type' }),
   }),
@@ -178,19 +178,19 @@ const profileAutocompleteSchema = z.object({
 });
 
 // Type inference from the schema
-type ProfileAutocompleteInput = z.infer<typeof profileAutocompleteSchema>;
+type ExperienceAutocompleteInput = z.infer<typeof experienceAutocompleteSchema>;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
 >({
   Query: {
-    profileAutocomplete: async (
+    experienceAutocomplete: async (
       _,
-      params: ProfileAutocompleteInput,
+      params: ExperienceAutocompleteInput,
       ctx: Context,
     ) => {
-      const validation = profileAutocompleteSchema.safeParse(params);
+      const validation = experienceAutocompleteSchema.safeParse(params);
 
       if (!validation.success) {
         if (validation.error.formErrors.fieldErrors.query) {
@@ -204,7 +204,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError(validation.error.message);
       }
 
-      const { type, query, limit }: ProfileAutocompleteInput = validation.data;
+      const { type, query, limit }: ExperienceAutocompleteInput = validation.data;
       const {
         entity,
         propertyName,
