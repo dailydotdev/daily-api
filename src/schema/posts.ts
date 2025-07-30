@@ -156,6 +156,7 @@ import {
   getBoostedPost,
   consolidateCampaignsWithPosts,
   getFormattedCampaign,
+  getAdjustedReach,
 } from '../common/post/boost';
 import type { PostBoostReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
@@ -552,6 +553,11 @@ export const typeDefs = /* GraphQL */ `
     Source of the post
     """
     source: Source
+
+    """
+    Source of the post
+    """
+    yggdrasilId: ID
 
     """
     Tags of the post
@@ -1121,6 +1127,26 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to boost
       """
       postId: ID!
+    ): PostBoostEstimate! @auth
+
+    """
+    Estimate the daily reach for a post boost campaign with specific budget and duration
+    """
+    boostEstimatedReachDaily(
+      """
+      ID of the post to boost
+      """
+      postId: ID!
+
+      """
+      Cores budget per day
+      """
+      budget: Int!
+
+      """
+      Amount of days to run the campaign
+      """
+      duration: Int!
     ): PostBoostEstimate! @auth
 
     postCampaignById(
@@ -2139,14 +2165,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
       });
 
-      // We do plus-minus 8% of the generated value
-      const difference = Math.floor(users * 0.08);
-      const estimatedReach = {
-        min: Math.max(users - difference, 0),
-        max: users + difference,
-      };
+      return getAdjustedReach(users);
+    },
+    boostEstimatedReachDaily: async (
+      _,
+      args: { postId: string; budget: number; duration: number },
+      ctx: AuthContext,
+    ): Promise<PostBoostReach> => {
+      const { postId, budget, duration } = args;
+      const post = await validatePostBoostPermissions(ctx, postId);
+      checkPostAlreadyBoosted(post);
+      validatePostBoostArgs({ budget, duration });
 
-      return estimatedReach;
+      const { users } = await skadiApiClient.estimatePostBoostReachDaily({
+        postId,
+        userId: ctx.userId,
+        budget: coresToUsd(budget),
+        durationInDays: duration,
+      });
+
+      return getAdjustedReach(users);
     },
     postCampaignById: async (
       _,

@@ -1,4 +1,3 @@
-import type { ObjectSnakeToCamelCase } from '../../../common';
 import type { User } from '../../../entity';
 
 export interface PostBoostReach {
@@ -51,12 +50,30 @@ export interface CancelPostCampaignResponse {
   current_budget: string;
 }
 
-export type GetCampaignResponse = ObjectSnakeToCamelCase<PromotedPost>;
-
-export interface GetCampaignListResponseMapped
-  extends ObjectSnakeToCamelCase<Omit<PromotedPostList, 'promoted_posts'>> {
-  promotedPosts: GetCampaignResponse[];
+export interface GetCampaignResponse
+  extends Pick<
+    PromotedPost,
+    'budget' | 'clicks' | 'impressions' | 'spend' | 'status'
+  > {
+  startedAt: number;
+  endedAt: number;
+  campaignId: string;
+  postId: string;
 }
+
+export interface GetCampaignListResponse
+  extends Pick<PromotedPostList, 'clicks' | 'impressions'> {
+  promotedPosts: GetCampaignResponse[];
+  postIds: string[];
+  totalSpend: string; // float
+}
+
+export type EstimatedBoostReachParams = {
+  postId: string;
+  userId: string;
+  durationInDays: number;
+  budget: number;
+};
 
 export interface ISkadiApiClient {
   startPostCampaign(params: {
@@ -64,21 +81,21 @@ export interface ISkadiApiClient {
     userId: string;
     durationInDays: number;
     budget: number;
-  }): Promise<ObjectSnakeToCamelCase<StartPostCampaignResponse>>;
+  }): Promise<{ campaignId: string }>;
   cancelPostCampaign(params: {
     campaignId: string;
     userId: string;
-  }): Promise<ObjectSnakeToCamelCase<CancelPostCampaignResponse>>;
-  estimatePostBoostReach(params: {
-    postId: string;
-    userId: string;
-  }): Promise<ObjectSnakeToCamelCase<PostEstimatedReach>>;
+  }): Promise<{ currentBudget: string }>;
+  estimatePostBoostReach(
+    params: Pick<EstimatedBoostReachParams, 'userId' | 'postId'>,
+  ): Promise<PostEstimatedReach>;
+  estimatePostBoostReachDaily(
+    params: EstimatedBoostReachParams,
+  ): Promise<PostEstimatedReach>;
   getCampaignById: (
     params: GetCampaignByIdProps,
   ) => Promise<GetCampaignResponse>;
-  getCampaigns: (
-    params: GetCampaignsProps,
-  ) => Promise<GetCampaignListResponseMapped>;
+  getCampaigns: (params: GetCampaignsProps) => Promise<GetCampaignListResponse>;
 }
 
 export enum CampaignUpdateAction {
