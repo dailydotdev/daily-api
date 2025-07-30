@@ -21,7 +21,9 @@ export class UserExperience {
   @Column()
   userId: string;
 
-  @ManyToOne('User', (user: User) => user.experiences)
+  @ManyToOne('User', (user: User) => user.experiences, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'userId' })
   user: Promise<User>;
 

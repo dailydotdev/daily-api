@@ -42,8 +42,3 @@ export type ProjectLink = {
   type: ProjectLinkType;
   url: string;
 };
-
-export enum ExperienceAssociationType {
-  Work = 'work',
-  Education = 'education',
-}
