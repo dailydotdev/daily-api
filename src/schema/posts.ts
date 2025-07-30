@@ -2177,14 +2177,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       checkPostAlreadyBoosted(post);
       validatePostBoostArgs({ budget, duration });
 
-      const { users } = await skadiApiClient.estimatePostBoostReachDaily({
-        postId,
-        userId: ctx.userId,
-        budget: coresToUsd(budget),
-        durationInDays: duration,
-      });
+      const { minImpressions, maxImpressions } =
+        await skadiApiClient.estimatePostBoostReachDaily({
+          postId,
+          userId: ctx.userId,
+          budget: coresToUsd(budget),
+          durationInDays: duration,
+        });
 
-      return getAdjustedReach(users);
+      const min = Math.max(minImpressions, 0);
+      const max = Math.max(maxImpressions, min);
+
+      return { min, max };
     },
     postCampaignById: async (
       _,
