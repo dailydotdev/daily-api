@@ -210,7 +210,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         entity,
         propertyName,
         where = {},
-        select,
+        select = ['id', propertyName],
       } = autocompleteQueryMap[type];
 
       const typeNameByEntity = {
@@ -228,14 +228,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         queryRunner.manager
           .getRepository(entity)
           .createQueryBuilder('entity')
-          .select(
-            (select ?? ['id', propertyName]).map((prop) => `entity.${prop}`),
-          )
+          .select(select ?? [`entity.id`, `entity.${propertyName}`])
           .where({
-            [propertyName]: Raw(
-              (alias) => `LOWER(${alias}) LIKE LOWER(:query)`,
-              { query: `%${query}%` },
-            ),
+            [propertyName]: Raw((alias) => `${alias} ILIKE :query`, {
+              query: `%${query}%`,
+            }),
             // extending where condition using the autocompleteQueryMap
             ...where,
           })

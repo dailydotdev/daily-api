@@ -91,7 +91,6 @@ describe('autocomplete query', () => {
           query: 'a',
         },
       });
-      console.log(res);
       expect(res.data.experienceAutocomplete).toEqual({
         query: 'a',
         limit: DEFAULT_AUTOCOMPLETE_LIMIT,
