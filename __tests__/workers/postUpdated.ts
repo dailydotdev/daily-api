@@ -746,6 +746,66 @@ it('should not update already approved post', async () => {
   expect(submission.status).toEqual(SubmissionStatus.Accepted);
 });
 
+it('should update post after it was rejected first', async () => {
+  const uuid = randomUUID();
+  await createDefaultUser();
+  await createDefaultSubmission(uuid);
+
+  const postId = await generateShortId();
+
+  await con.getRepository(FreeformPost).save({
+    id: postId,
+    shortId: postId,
+    title: 'Title',
+    url: 'https://post.com',
+    sourceId: 'a',
+  });
+
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    title: 'Title',
+    url: 'https://post.com',
+    source_id: 'a',
+    submission_id: uuid,
+    reject_reason: SubmissionFailErrorMessage.GENERIC_ERROR,
+    post_id: postId,
+  });
+  const submissions = await con.getRepository(Submission).find();
+  const [submission] = submissions;
+  expect(submissions.length).toEqual(1);
+  expect(submission.id).toEqual(uuid);
+  expect(submission.status).toEqual(SubmissionStatus.Rejected);
+
+  const postBefore = await con.getRepository(Post).findOneBy({ id: postId });
+  expect(postBefore).not.toBeNull();
+
+  expect(postBefore!.title).toEqual('Title');
+  expect(postBefore!.yggdrasilId).toBeNull();
+
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    title: 'Title 2',
+    url: 'https://post.com',
+    source_id: 'a',
+    submission_id: uuid,
+    post_id: postId,
+  });
+
+  const updatedSubmissions = await con.getRepository(Submission).find();
+  const [updatedSubmission] = updatedSubmissions;
+  expect(updatedSubmissions.length).toEqual(1);
+  expect(updatedSubmission.id).toEqual(uuid);
+  expect(updatedSubmission.status).toEqual(SubmissionStatus.Accepted);
+
+  const post = await con.getRepository(Post).findOneBy({
+    id: postId,
+  });
+  expect(post).not.toBeNull();
+
+  expect(post!.yggdrasilId).toEqual('f99a445f-e2fb-48e8-959c-e02a17f5e816');
+  expect(post!.title).toEqual('Title 2');
+});
+
 describe('on post create', () => {
   beforeEach(async () => {
     await createDefaultUser();
