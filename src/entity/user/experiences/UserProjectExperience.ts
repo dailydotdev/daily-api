@@ -8,11 +8,11 @@ import {
 
 @ChildEntity(UserExperienceType.Project)
 export class UserProjectExperience extends UserExperience {
-  @Column({ type: 'jsonb', default: () => [] })
+  @Column({ type: 'text', array: true, default: [] })
   links: Array<ProjectLink>;
 
   // user ids
-  @Column({ type: 'jsonb', default: () => [] })
+  @Column({ type: 'text', array: true, default: [] })
   contributors: string[];
 
   // not adding a relationship, maybe is not important for now

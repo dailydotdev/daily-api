@@ -1,12 +1,5 @@
-import {
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  Entity,
-  ManyToMany,
-  PrimaryColumn,
-} from 'typeorm';
-import { UserExperience } from './experiences/UserExperience';
+import { Column, Entity, ManyToMany, PrimaryColumn } from 'typeorm';
+import type { UserExperience } from './experiences/UserExperience';
 
 @Entity()
 export class UserSkill {
@@ -27,6 +20,9 @@ export class UserSkill {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @ManyToMany(() => UserExperience, (experience) => experience.skills)
+  @ManyToMany(
+    'UserExperience',
+    (experience: UserExperience) => experience.skills,
+  )
   experiences: Promise<UserExperience[]>;
 }

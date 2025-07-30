@@ -8,8 +8,8 @@ import {
   PrimaryGeneratedColumn,
   TableInheritance,
 } from 'typeorm';
-import { User } from '../User';
-import { UserSkill } from '../UserSkill';
+import type { User } from '../User';
+import type { UserSkill } from '../UserSkill';
 import { ExperienceStatus, UserExperienceType } from './types';
 
 @Entity()
@@ -21,7 +21,7 @@ export class UserExperience {
   @Column()
   userId: string;
 
-  @ManyToOne(() => User, (user) => user.experiences)
+  @ManyToOne('User', (user: User) => user.experiences)
   @JoinColumn({ name: 'userId' })
   user: Promise<User>;
 
@@ -38,15 +38,13 @@ export class UserExperience {
   endDate: Date;
 
   @Column({
-    type: 'enum',
-    enum: UserExperienceType,
+    type: 'string',
     nullable: false,
   })
   type: UserExperienceType;
 
   @Column({
-    type: 'enum',
-    enum: ExperienceStatus,
+    type: 'string',
     default: ExperienceStatus.Draft,
   })
   status: ExperienceStatus;
@@ -54,7 +52,7 @@ export class UserExperience {
   @Column({ type: 'jsonb', default: {} })
   flags: Record<string, unknown>;
 
-  @ManyToMany(() => UserSkill, (skill) => skill.experiences)
+  @ManyToMany('UserSkill', (skill: UserSkill) => skill.experiences)
   @JoinTable({
     name: 'user_experience_skills',
     joinColumn: { name: 'experienceId', referencedColumnName: 'id' },

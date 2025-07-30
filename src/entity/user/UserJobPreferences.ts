@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, OneToOne, PrimaryColumn } from 'typeorm';
-import { User } from './User';
+import type { User } from './User';
 
 export enum WorkLocationType {
   Remote = 'remote',
@@ -17,17 +17,18 @@ export class UserJobPreferences {
   @PrimaryColumn()
   userId: string;
 
-  @OneToOne(() => User, (user) => user.jobPreferences)
+  @OneToOne('User', (user: User) => user.jobPreferences)
   @JoinColumn({ name: 'userId' })
   user: Promise<User>;
 
   @Column({ default: false })
   openToOpportunities: boolean;
 
-  @Column({ type: 'jsonb', default: () => [] })
-  preferredRoles: string[]; // Array of job titles
+  @Column({ type: 'text', array: true, default: [] })
+  preferredRoles: string[];
 
   @Column({
+    type: 'string',
     nullable: true,
   })
   preferredLocationType: WorkLocationType;
@@ -35,9 +36,9 @@ export class UserJobPreferences {
   @Column({ default: false })
   openToRelocation: boolean;
 
-  // !! Never send this field to FE, is only stored for better recommendation !!
+  // todo: never send this field to FE while implementing MI-953
   // Currency must be "ISO-4217" compliant
   // Amount is yearly based
-  @Column({ type: 'jsonb', nullable: true })
-  currentTotalComp: UserCompensation;
+  @Column({ type: 'jsonb', default: {} })
+  currentTotalComp: Partial<UserCompensation>;
 }

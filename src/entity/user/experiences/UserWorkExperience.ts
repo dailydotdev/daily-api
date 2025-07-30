@@ -1,6 +1,6 @@
 import { ChildEntity, Column, JoinColumn, ManyToOne } from 'typeorm';
 import { UserExperience } from './UserExperience';
-import { Company } from '../../Company';
+import type { Company } from '../../Company';
 import { WorkLocationType } from '../UserJobPreferences';
 import {
   UserExperienceType,
@@ -13,37 +13,33 @@ export class UserWorkExperience extends UserExperience {
   @Column()
   companyId: string;
 
-  @ManyToOne(() => Company)
+  @ManyToOne('Company')
   @JoinColumn({ name: 'companyId' })
   company: Promise<Company>;
 
   @Column({
-    type: 'enum',
-    enum: WorkEmploymentType,
+    type: 'string',
   })
   employmentType: WorkEmploymentType;
 
-  // autocomplete, city level from specs, null for remote??
   @Column({ type: 'text', nullable: true })
   location: string;
 
   @Column({
-    type: 'enum',
-    enum: WorkLocationType,
+    type: 'string',
     nullable: true,
   })
   locationType: WorkLocationType;
 
-  @Column({ type: 'jsonb', default: () => [] })
+  @Column({ type: 'text', array: true, default: [] })
   achievements: string[];
 
-  // do not send it to FE
+  // todo: never send this field to FE while implementing MI-958
   @Column({ type: 'text', nullable: true })
   verificationEmail: string;
 
   @Column({
-    type: 'enum',
-    enum: WorkVerificationStatus,
+    type: 'string',
     nullable: true,
   })
   verificationStatus: WorkVerificationStatus;

@@ -1,6 +1,6 @@
 import { UserExperience } from './UserExperience';
 import { ChildEntity, Column, JoinColumn, ManyToOne } from 'typeorm';
-import { Company } from '../../Company';
+import type { Company } from '../../Company';
 import { UserExperienceType } from './types';
 
 @ChildEntity(UserExperienceType.Certification)
@@ -11,8 +11,7 @@ export class UserCertificationExperience extends UserExperience {
   @Column()
   companyId: string;
 
-  // autocomplete
-  @ManyToOne(() => Company)
+  @ManyToOne('Company')
   @JoinColumn({ name: 'companyId' })
   company: Promise<Company>;
 
