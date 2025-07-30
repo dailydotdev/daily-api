@@ -36,7 +36,12 @@ export const shouldSendNotification = (
   channel: 'email' | 'inApp',
 ): boolean => {
   const preference = userFlags?.[notificationType]?.[channel];
-  return preference?.toLowerCase() !== 'muted';
+
+  if (!preference) {
+    return true;
+  }
+
+  return preference.toLowerCase() === 'subscribed';
 };
 
 export const uniquePostOwners = (

@@ -154,28 +154,36 @@ const notificationPreferenceSchema = z.object({
   inApp: z.enum(['muted', 'subscribed']),
 });
 
-const notificationFlagsSchema = z.object({
-  article_new_comment: notificationPreferenceSchema,
-  comment_reply: notificationPreferenceSchema,
-  article_upvote_milestone: notificationPreferenceSchema,
-  comment_upvote_milestone: notificationPreferenceSchema,
-  post_mention: notificationPreferenceSchema,
-  comment_mention: notificationPreferenceSchema,
-  cores_and_awards_received: notificationPreferenceSchema,
-  article_report_approved: notificationPreferenceSchema,
-  streak_reset_restore: notificationPreferenceSchema,
-  streak_reminder: notificationPreferenceSchema,
-  restore_broken_streak: notificationPreferenceSchema,
-  user_given_top_reader: notificationPreferenceSchema,
-  dev_card_unlocked: notificationPreferenceSchema,
-  source_post_added: notificationPreferenceSchema,
-  squad_post_added: notificationPreferenceSchema,
-  user_post_added: notificationPreferenceSchema,
-  collection_updated: notificationPreferenceSchema,
-  post_bookmark_reminder: notificationPreferenceSchema,
-  promoted_to_admin: notificationPreferenceSchema,
-  promoted_to_moderator: notificationPreferenceSchema,
-});
+const notificationFlagsSchema = z
+  .object({
+    article_new_comment: notificationPreferenceSchema,
+    comment_reply: notificationPreferenceSchema,
+    article_upvote_milestone: notificationPreferenceSchema,
+    comment_upvote_milestone: notificationPreferenceSchema,
+    post_mention: notificationPreferenceSchema,
+    comment_mention: notificationPreferenceSchema,
+    cores_and_awards_received: notificationPreferenceSchema,
+    article_report_approved: notificationPreferenceSchema,
+    streak_reset_restore: notificationPreferenceSchema,
+    streak_reminder: notificationPreferenceSchema,
+    restore_broken_streak: notificationPreferenceSchema,
+    user_given_top_reader: notificationPreferenceSchema,
+    dev_card_unlocked: notificationPreferenceSchema,
+    source_post_added: notificationPreferenceSchema,
+    squad_post_added: notificationPreferenceSchema,
+    user_post_added: notificationPreferenceSchema,
+    collection_updated: notificationPreferenceSchema,
+    post_bookmark_reminder: notificationPreferenceSchema,
+    promoted_to_admin: notificationPreferenceSchema,
+    promoted_to_moderator: notificationPreferenceSchema,
+    source_approved: notificationPreferenceSchema,
+    source_rejected: notificationPreferenceSchema,
+    source_post_approved: notificationPreferenceSchema,
+    source_post_rejected: notificationPreferenceSchema,
+    source_post_submitted: notificationPreferenceSchema,
+    user_received_award: notificationPreferenceSchema,
+  })
+  .strict();
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2876,6 +2884,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         notificationFlagsSchema.parse(notificationFlags);
       } catch (error) {
         if (error instanceof z.ZodError) {
+          console.log('**** zod errors', error.errors);
           throw new ValidationError('Invalid notification flags');
         }
         throw error;
