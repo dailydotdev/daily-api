@@ -3100,6 +3100,8 @@ describe('query boostEstimatedReachDaily', () => {
         impressions: 100,
         clicks: 5,
         users: 50,
+        min_impressions: 45,
+        max_impressions: 55,
       });
 
       const res = await client.query(QUERY, {
@@ -3107,7 +3109,10 @@ describe('query boostEstimatedReachDaily', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.boostEstimatedReachDaily).toBeDefined();
+      expect(res.data.boostEstimatedReachDaily).toEqual({
+        min: 45,
+        max: 55,
+      });
 
       // Verify the HTTP call was made with correct budget conversion
       expect(mockFetchParse).toHaveBeenCalledWith(
@@ -3157,6 +3162,8 @@ describe('query boostEstimatedReachDaily', () => {
         impressions: 200,
         clicks: 10,
         users: 75,
+        min_impressions: 68,
+        max_impressions: 82,
       });
 
       const res = await client.query(QUERY, {
@@ -3164,7 +3171,10 @@ describe('query boostEstimatedReachDaily', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.boostEstimatedReachDaily).toBeDefined();
+      expect(res.data.boostEstimatedReachDaily).toEqual({
+        min: 68,
+        max: 82,
+      });
 
       // Verify the HTTP call includes both parameters correctly
       expect(mockFetchParse).toHaveBeenCalledWith(
@@ -3195,6 +3205,8 @@ describe('query boostEstimatedReachDaily', () => {
       impressions: 500,
       clicks: 40,
       users: 180,
+      min_impressions: 166,
+      max_impressions: 194,
     });
 
     const res = await client.query(QUERY, {
@@ -3203,8 +3215,8 @@ describe('query boostEstimatedReachDaily', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReachDaily).toEqual({
-      max: 194, // 180 + Math.floor(180 * 0.08) = 180 + 14 = 194
-      min: 166, // 180 - Math.floor(180 * 0.08) = 180 - 14 = 166
+      min: 166,
+      max: 194,
     });
 
     // Verify the HTTP call was made correctly with both parameters
@@ -3235,6 +3247,8 @@ describe('query boostEstimatedReachDaily', () => {
       impressions: 50,
       clicks: 3,
       users: 25,
+      min_impressions: 23,
+      max_impressions: 27,
     });
 
     const res = await client.query(QUERY, {
@@ -3243,8 +3257,8 @@ describe('query boostEstimatedReachDaily', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReachDaily).toEqual({
-      max: 27, // 25 + Math.floor(25 * 0.08) = 25 + 2 = 27
-      min: 23, // 25 - Math.floor(25 * 0.08) = 25 - 2 = 23
+      min: 23,
+      max: 27,
     });
 
     // Verify the HTTP call was made with minimum budget
@@ -3275,6 +3289,8 @@ describe('query boostEstimatedReachDaily', () => {
       impressions: 50000,
       clicks: 2500,
       users: 15000,
+      min_impressions: 13800,
+      max_impressions: 16200,
     });
 
     const res = await client.query(QUERY, {
@@ -3283,8 +3299,8 @@ describe('query boostEstimatedReachDaily', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReachDaily).toEqual({
-      max: 16200, // 15000 + Math.floor(15000 * 0.08) = 15000 + 1200 = 16200
-      min: 13800, // 15000 - Math.floor(15000 * 0.08) = 15000 - 1200 = 13800
+      min: 13800,
+      max: 16200,
     });
 
     // Verify the HTTP call was made with maximum budget
@@ -3315,6 +3331,8 @@ describe('query boostEstimatedReachDaily', () => {
       impressions: 80,
       clicks: 5,
       users: 35,
+      min_impressions: 33,
+      max_impressions: 37,
     });
 
     const res = await client.query(QUERY, {
@@ -3323,8 +3341,8 @@ describe('query boostEstimatedReachDaily', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReachDaily).toEqual({
-      max: 37, // 35 + Math.floor(35 * 0.08) = 35 + 2 = 37
-      min: 33, // 35 - Math.floor(35 * 0.08) = 35 - 2 = 33
+      min: 33,
+      max: 37,
     });
 
     // Verify the HTTP call was made with minimum duration
@@ -3355,6 +3373,8 @@ describe('query boostEstimatedReachDaily', () => {
       impressions: 1200,
       clicks: 60,
       users: 450,
+      min_impressions: 414,
+      max_impressions: 486,
     });
 
     const res = await client.query(QUERY, {
@@ -3363,8 +3383,8 @@ describe('query boostEstimatedReachDaily', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReachDaily).toEqual({
-      max: 486, // 450 + Math.floor(450 * 0.08) = 450 + 36 = 486
-      min: 414, // 450 - Math.floor(450 * 0.08) = 450 - 36 = 414
+      min: 414,
+      max: 486,
     });
 
     // Verify the HTTP call was made with maximum duration
@@ -3404,6 +3424,8 @@ describe('query boostEstimatedReachDaily', () => {
       impressions: 150,
       clicks: 10,
       users: 65,
+      min_impressions: 60,
+      max_impressions: 70,
     });
 
     const res = await client.query(QUERY, {
@@ -3412,8 +3434,8 @@ describe('query boostEstimatedReachDaily', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.boostEstimatedReachDaily).toEqual({
-      max: 70, // 65 + Math.floor(65 * 0.08) = 65 + 5 = 70
-      min: 60, // 65 - Math.floor(65 * 0.08) = 65 - 5 = 60
+      min: 60,
+      max: 70,
     });
 
     // Verify the HTTP call was made with correct parameters
