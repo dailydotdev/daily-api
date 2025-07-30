@@ -228,7 +228,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         queryRunner.manager
           .getRepository(entity)
           .createQueryBuilder('entity')
-          .select(select ?? ['id', propertyName])
+          .select(
+            (select ?? ['id', propertyName]).map((prop) => `entity.${prop}`),
+          )
           .where({
             [propertyName]: Raw(
               (alias) => `LOWER(${alias}) LIKE LOWER(:query)`,
