@@ -183,10 +183,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       params: ProfileAutocompleteInput,
       ctx: Context,
     ) => {
-      const result = profileAutocompleteSchema.safeParse(params);
+      const validation = profileAutocompleteSchema.safeParse(params);
 
-      if (!result.success) {
-        if (result.error.formErrors.fieldErrors.query) {
+      if (!validation.success) {
+        if (validation.error.formErrors.fieldErrors.query) {
           return {
             query: params.query ?? '',
             limit: params.limit ?? DEFAULT_AUTOCOMPLETE_LIMIT,
@@ -194,11 +194,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           };
         }
 
-        throw new ValidationError(result.error.message);
+        throw new ValidationError(validation.error.message);
       }
 
-      // Extract validated data
-      const { type, query, limit }: ProfileAutocompleteInput = result.data;
+      const { type, query, limit }: ProfileAutocompleteInput = validation.data;
       const {
         entity,
         propertyName,
