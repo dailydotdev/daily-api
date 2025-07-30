@@ -17,6 +17,8 @@ import { UserSkill } from '../src/entity/user/UserSkill';
 import { Company, CompanyType } from '../src/entity/Company';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
 import { ExperienceStatus } from '../src/entity/user/experiences/types';
+import { User } from '../src/entity';
+import { usersFixture } from './fixture';
 
 describe('autocomplete query', () => {
   let con: DataSource;
@@ -171,7 +173,7 @@ describe('autocomplete query', () => {
 
   describe('job title autocomplete', () => {
     beforeEach(async () => {
-      // Create test data for job titles
+      await saveFixtures(con, User, usersFixture);
       await saveFixtures(con, UserWorkExperience, [
         {
           userId: '1',
@@ -211,10 +213,7 @@ describe('autocomplete query', () => {
       ]);
     });
 
-    // Skipping this test due to foreign key constraint issues
-    // The UserWorkExperience entity requires a valid user ID in the database
-    // In a real environment, we would need to create a user first
-    it.skip('should return matching job titles with published status', async () => {
+    it('should return matching job titles with published status', async () => {
       const res = await client.query(QUERY, {
         variables: {
           type: AutocompleteType.JobTitle,
@@ -235,7 +234,7 @@ describe('autocomplete query', () => {
       // Should not include draft job titles
       expect(res.data.profileAutocomplete.hits).not.toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ title: 'Draft Job Title' }),
+          expect.objectContaining({ title: 'Draft Software Job Title' }),
         ]),
       );
     });
