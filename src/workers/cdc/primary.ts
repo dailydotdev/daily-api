@@ -134,6 +134,13 @@ import {
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
 import { checkUserCoresAccess } from '../../common/user';
+import { ContentPreference } from '../../entity/contentPreference/ContentPreference';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../entity/contentPreference/types';
+import type { ContentPreferenceUser } from '../../entity/contentPreference/ContentPreferenceUser';
+import { CampaignUpdateAction } from '../../integrations/skadi';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -593,6 +600,23 @@ const onPostChange = async (
           { id: data.payload.before!.id },
           { metadataChangedAt: new Date() },
         );
+    }
+
+    if (isChanged(data.payload.before!, data.payload.after!, 'flags')) {
+      const beforeFlags = data.payload.before!.flags as unknown as string;
+      const afterFlags = data.payload.after!.flags as unknown as string;
+      const before = JSON.parse(beforeFlags || '{}') as Post['flags'];
+      const after = JSON.parse(afterFlags || '{}') as Post['flags'];
+
+      if (!before.campaignId && !!after.campaignId) {
+        const post = data.payload.after!;
+        await triggerTypedEvent(logger, 'skadi.v1.campaign-updated', {
+          postId: post.id,
+          campaignId: after.campaignId,
+          userId: post.authorId!,
+          action: CampaignUpdateAction.Started,
+        });
+      }
     }
 
     if (isChanged(data.payload.before!, data.payload.after!, 'title')) {
@@ -1136,6 +1160,35 @@ const onBookmarkChange = async (
   }
 };
 
+const onContentPreferenceChange = async (
+  _: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<ContentPreference>,
+) => {
+  if (data.payload.op === 'c') {
+    switch (data.payload.after?.type) {
+      case ContentPreferenceType.User: {
+        const contentPreferenceUser = data.payload
+          .after as ChangeObject<ContentPreferenceUser>;
+
+        if (
+          [
+            ContentPreferenceStatus.Follow,
+            ContentPreferenceStatus.Subscribed,
+          ].includes(contentPreferenceUser.status)
+        ) {
+          await triggerTypedEvent(logger, 'api.v1.user-follow', {
+            payload: contentPreferenceUser,
+          });
+        }
+        break;
+      }
+      default:
+        return;
+    }
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1248,6 +1301,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserTransaction):
           await onUserTransactionChange(con, logger, data);
+          break;
+        case getTableName(con, ContentPreference):
+          await onContentPreferenceChange(con, logger, data);
           break;
       }
     } catch (err) {

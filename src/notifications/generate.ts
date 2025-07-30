@@ -177,8 +177,13 @@ export const notificationTitleMap: Record<
   },
   post_boost_completed: () =>
     `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
+  post_boost_first_milestone: () =>
+    `Your boosted post is performing well! You're getting traction, check it out!`,
   briefing_ready: () =>
     `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
+  user_follow: (ctx: NotificationUserContext) => {
+    return `<strong>${ctx.user.name || ctx.user.username}</strong> started following you.`;
+  },
 };
 
 export const generateNotificationMap: Record<
@@ -499,6 +504,19 @@ export const generateNotificationMap: Record<
       .uniqueKey(
         `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
       ),
+  post_boost_first_milestone: (builder, ctx: NotificationBoostContext) =>
+    builder
+      .icon(NotificationIcon.DailyDev)
+      .referenceBoost(ctx)
+      .avatarUser(ctx.user)
+      .targetUrl(notificationsLink)
+      .setTargetUrlParameter([
+        ['post_boost', 'true'],
+        ['c_id', ctx.campaignId],
+      ])
+      .uniqueKey(
+        `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
+      ),
   briefing_ready: (
     builder: NotificationBuilder,
     ctx: NotificationPostContext,
@@ -509,5 +527,12 @@ export const generateNotificationMap: Record<
       .referencePost(ctx.post)
       .targetPost(ctx.post)
       .uniqueKey(ctx.post.id);
+  },
+  user_follow: (builder, ctx: NotificationUserContext) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceUser(ctx.user)
+      .avatarUser(ctx.user)
+      .targetUser(ctx.user);
   },
 };

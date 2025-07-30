@@ -63,6 +63,7 @@ import { organizationUserRemoved } from './organization/organizationUserRemoved'
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
 import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
+import postBoostActionSlack from './postBoostActionSlack';
 
 export { Worker } from './worker';
 
@@ -129,6 +130,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userGenerateBriefWorker,
   userUpdatedPlusSubscriptionBriefWorker,
   postAddedSlackChannelSendBriefWorker,
+  postBoostActionSlack,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -1072,11 +1072,3 @@ export const throwUserTransactionError = async ({
   // throw error for client after saving the transaction in error state
   throw userTransactionError;
 };
-
-export const coresToUsd = (cores: number): number => {
-  return cores / 100; // 100 Cores = 1 USD
-};
-
-export const usdToCores = (usd: number): number => {
-  return Math.floor(usd * 100); // 1 USD = 100 Cores
-};

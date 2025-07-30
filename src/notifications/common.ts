@@ -1,15 +1,3 @@
-import {
-  NotificationPreferenceComment,
-  NotificationPreferencePost,
-  NotificationPreferenceSource,
-  NotificationPreferenceUser,
-  Comment,
-  NotificationAttachmentV2,
-  NotificationAvatarV2,
-  NotificationV2,
-  NotificationReferenceType,
-  ConnectionManager,
-} from '../entity';
 import { ValidationError } from 'apollo-server-errors';
 import { DataSource, EntityManager, IsNull, QueryRunner } from 'typeorm';
 import {
@@ -18,9 +6,21 @@ import {
   TypeORMQueryFailedError,
 } from '../errors';
 import { ReadStream } from 'fs';
-import { UserNotification } from '../entity';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import { ChangeObject } from '../types';
+import { type NotificationPreferencePost } from '../entity/notifications/NotificationPreferencePost';
+import { type NotificationPreferenceComment } from '../entity/notifications/NotificationPreferenceComment';
+import { type NotificationPreferenceSource } from '../entity/notifications/NotificationPreferenceSource';
+import { type NotificationPreferenceUser } from '../entity/notifications/NotificationPreferenceUser';
+import { NotificationAttachmentV2 } from '../entity/notifications/NotificationAttachmentV2';
+import { NotificationAvatarV2 } from '../entity/notifications/NotificationAvatarV2';
+import {
+  NotificationV2,
+  type NotificationReferenceType,
+} from '../entity/notifications/NotificationV2';
+import { UserNotification } from '../entity/notifications/UserNotification';
+import type { ConnectionManager } from '../entity/posts';
+import { Comment } from '../entity/Comment';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -64,7 +64,9 @@ export enum NotificationType {
   UserReceivedAward = 'user_received_award',
   OrganizationMemberJoined = 'organization_member_joined',
   PostBoostCompleted = 'post_boost_completed',
+  PostBoostFirstMilestone = 'post_boost_first_milestone',
   BriefingReady = 'briefing_ready',
+  UserFollow = 'user_follow',
 }
 
 export enum NotificationPreferenceType {
@@ -129,13 +131,13 @@ const getRepository = (
 ) => {
   switch (type) {
     case NotificationPreferenceType.Post:
-      return con.getRepository(NotificationPreferencePost);
+      return con.getRepository('NotificationPreferencePost');
     case NotificationPreferenceType.Comment:
-      return con.getRepository(NotificationPreferenceComment);
+      return con.getRepository('NotificationPreferenceComment');
     case NotificationPreferenceType.Source:
-      return con.getRepository(NotificationPreferenceSource);
+      return con.getRepository('NotificationPreferenceSource');
     case NotificationPreferenceType.User:
-      return con.getRepository(NotificationPreferenceUser);
+      return con.getRepository('NotificationPreferenceUser');
     default:
       throw new ValidationError('Notification type not supported');
   }

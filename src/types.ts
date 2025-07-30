@@ -63,6 +63,7 @@ declare global {
       SLACK_COMMENTS_WEBHOOK: string;
       SLACK_VORDR_WEBHOOK: string;
       SLACK_TRANSACTIONS_WEBHOOK: string;
+      SLACK_ADS_WEBHOOK: string;
       NJORD_ORIGIN: string;
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;
@@ -244,3 +245,15 @@ export enum StreakRestoreCoresPrice {
   First = 0,
   Regular = 100,
 }
+
+export const acceptedResumeFileTypes: Array<Record<'mime' | 'ext', string>> = [
+  { mime: 'application/pdf', ext: 'pdf' },
+  {
+    mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ext: 'docx',
+  },
+] as const;
+export const acceptedResumeExtensions = [
+  'pdf',
+  'docx',
+] as const satisfies Array<(typeof acceptedResumeFileTypes)[number]['ext']>;

@@ -8,6 +8,7 @@ process.env.NODE_OPTIONS = [
   .filter(Boolean)
   .join(' ');
 
+/** @type {import('jest').Config} */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
@@ -35,5 +36,8 @@ module.exports = {
         },
       },
     ],
+  },
+  moduleNameMapper: {
+    '^file-type$': '<rootDir>/node_modules/file-type/index.js',
   },
 };

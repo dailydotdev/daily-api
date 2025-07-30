@@ -30,9 +30,7 @@ import {
   baseNotificationEmailData,
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
-  debeziumTimeToDate,
   formatMailDate,
-  getDiscussionLink,
   getOrganizationPermalink,
   getSourceLink,
   liveTimerDateFormat,
@@ -60,8 +58,8 @@ import { BriefPost } from '../entity/posts/BriefPost';
 import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
-import { skadiApiClient } from '../integrations/skadi/api/clients';
-import { largeNumberFormat } from '../common/devcard';
+import { generateBoostEmailUpdate } from '../common/post/boost';
+import { isNullOrUndefined } from '../common/object';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -110,12 +108,16 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   post_boost_completed: '79',
+  post_boost_first_milestone: '80',
   briefing_ready: '81',
+  user_follow: '',
 };
 
-type TemplateData = Record<string, unknown>;
+type TemplateData = Record<string, unknown> & {
+  sendAtMs?: number;
+};
 
-type TemplateDataFunc = (
+export type TemplateDataFunc = (
   con: DataSource,
   user: Pick<User, 'id' | 'username' | 'permalink'>,
   notification: NotificationV2,
@@ -123,54 +125,8 @@ type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  post_boost_completed: async (con, user, notification) => {
-    const campaign = await skadiApiClient.getCampaignById({
-      campaignId: notification.referenceId!,
-      userId: user.id,
-    });
-
-    if (!campaign) {
-      return null;
-    }
-
-    const post = await con.getRepository(Post).findOne({
-      where: { id: campaign.postId },
-    });
-
-    if (!post) {
-      return null;
-    }
-
-    const sharedPost = await (post.type === PostType.Share
-      ? con.getRepository(ArticlePost).findOne({
-          where: { id: (post as SharePost).sharedPostId },
-          select: ['title', 'image', 'slug'],
-        })
-      : Promise.resolve(null));
-
-    const title = truncatePostToTweet(post || sharedPost);
-    const engagement =
-      campaign.impressions +
-      campaign.clicks +
-      post.views +
-      post.upvotes +
-      post.comments;
-
-    return {
-      start_date: formatMailDate(debeziumTimeToDate(campaign.startedAt)),
-      end_date: formatMailDate(debeziumTimeToDate(campaign.endedAt)),
-      impressions: largeNumberFormat(campaign.impressions),
-      clicks: largeNumberFormat(campaign.clicks),
-      engagement: largeNumberFormat(engagement),
-      post_link: getDiscussionLink(post.slug),
-      analytics_link: addNotificationEmailUtm(
-        notification.targetUrl,
-        notification.type,
-      ),
-      post_image: sharedPost?.image || (post as FreeformPost).image,
-      post_title: title,
-    };
-  },
+  post_boost_completed: generateBoostEmailUpdate,
+  post_boost_first_milestone: generateBoostEmailUpdate,
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },
@@ -1013,9 +969,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   briefing_ready: async (con, user, notification) => {
     const personalizedDigest: Pick<
       UserPersonalizedDigest,
-      'userId' | 'flags'
+      'userId' | 'flags' | 'lastSendDate'
     > | null = await con.getRepository(UserPersonalizedDigest).findOne({
-      select: ['userId', 'flags'],
+      select: ['userId', 'flags', 'lastSendDate'],
       where: {
         userId: user.id,
         type: UserPersonalizedDigestType.Brief,
@@ -1063,7 +1019,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       sections: post.contentJSON.map((item: JsonValue) =>
         BriefingSection.fromJson(item),
       ),
+      sendAtMs: personalizedDigest.lastSendDate?.getTime(),
     };
+  },
+  user_follow: async () => {
+    return null;
   },
 };
 
@@ -1131,6 +1091,11 @@ const worker: Worker = {
                   id: user.id,
                 },
                 to: user.email,
+                send_at:
+                  !isNullOrUndefined(templateData.sendAtMs) &&
+                  templateData.sendAtMs > Date.now()
+                    ? Math.floor(templateData.sendAtMs / 1000) // cio accepts seconds
+                    : undefined,
               });
             }),
           );

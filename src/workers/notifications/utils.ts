@@ -151,6 +151,10 @@ export const buildPostContext = async (
   con: DataSource | EntityManager,
   postId: string,
 ): Promise<Omit<NotificationPostContext, 'userIds'> | null> => {
+  if (!postId) {
+    return null;
+  }
+
   const post = await con
     .getRepository(Post)
     .findOne({ where: { id: postId }, relations: ['source'] });

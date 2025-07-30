@@ -14,8 +14,9 @@ export const mapArrayToOjbect = <T extends ObjectLiteral>(
     {},
   );
 
-export const isNullOrUndefined = (value: unknown) =>
-  typeof value === 'undefined' || value === null;
+export const isNullOrUndefined = <T>(
+  value: T | undefined | null,
+): value is undefined | null => typeof value === 'undefined' || value === null;
 
 type Key = string;
 type Value = string | undefined;

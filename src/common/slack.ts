@@ -7,6 +7,10 @@ import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
+import type { GetCampaignResponse } from '../integrations/skadi';
+import { getAbsoluteDifferenceInDays } from './users';
+import { usdToCores } from './number';
+import { concatTextToNewline, debeziumTimeToDate } from './utils';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -22,7 +26,85 @@ export const webhooks = Object.freeze({
   transactions: process.env.SLACK_TRANSACTIONS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_TRANSACTIONS_WEBHOOK)
     : nullWebhook,
+  ads: process.env.SLACK_ADS_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_ADS_WEBHOOK)
+    : nullWebhook,
 });
+
+interface NotifyBoostedPostProps {
+  post: Post;
+  campaign: GetCampaignResponse;
+  userId: string;
+}
+
+export const notifyNewPostBoostedSlack = async ({
+  post,
+  campaign,
+  userId,
+}: NotifyBoostedPostProps): Promise<void> => {
+  const difference = getAbsoluteDifferenceInDays(
+    debeziumTimeToDate(campaign.endedAt),
+    debeziumTimeToDate(campaign.startedAt),
+  );
+
+  await webhooks.ads.send({
+    blocks: [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: ':boost: New post boosted',
+          emoji: true,
+        },
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Post:*',
+              `<${getDiscussionLink(post.id)}|${post.id}>`,
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Boosted by:*',
+              `<https://app.daily.dev/${userId}|${userId}>`,
+            ),
+          },
+        ],
+      },
+      {
+        type: 'section',
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Budget:*',
+              `${usdToCores(parseFloat(campaign.budget))} :cores:`,
+            ),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Duration:*',
+              `${difference} day${difference === 1 ? '' : 's'}`,
+            ),
+          },
+        ],
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Campaign:*', campaign.campaignId),
+        },
+      },
+    ],
+  });
+};
 
 export const notifyNewComment = async (
   post: Post,

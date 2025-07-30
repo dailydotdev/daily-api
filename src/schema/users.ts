@@ -75,6 +75,7 @@ import {
   updateSubscriptionFlags,
   systemUser,
   parseBigInt,
+  getBufferFromStream,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -97,6 +98,7 @@ import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import {
+  acceptedResumeFileTypes,
   ContentLanguage,
   CoresRole,
   StreakRestoreCoresPrice,
@@ -144,6 +146,8 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
+import { uploadResumeFromBuffer } from '../common/googleCloud';
+import { fileTypeFromBuffer } from 'file-type';
 
 const notificationPreferenceSchema = z.object({
   email: z.enum(['muted', 'subscribed']),
@@ -1146,6 +1150,16 @@ export const typeDefs = /* GraphQL */ `
       """
       image: Upload!
     ): User! @auth @rateLimit(limit: 5, duration: 60)
+
+    """
+    Upload user resume
+    """
+    uploadResume(
+      """
+      Asset to upload
+      """
+      resume: Upload!
+    ): EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
 
     """
     Update the user's readme
@@ -2415,6 +2429,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(User)
         .update({ id: ctx.userId }, { cover: imageUrl });
       return getCurrentUser(ctx, info);
+    },
+    uploadResume: async (
+      _,
+      { resume }: { resume: Promise<FileUpload> },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      if (!resume) {
+        throw new ValidationError('File is missing!');
+      }
+
+      const upload = await resume;
+
+      // Validate file extension
+      const extension: string | undefined = upload.filename
+        ?.split('.')
+        ?.pop()
+        ?.toLowerCase();
+      const supportedFileType = acceptedResumeFileTypes.find(
+        (type) => type.ext === extension,
+      );
+      if (!supportedFileType) {
+        throw new ValidationError('File extension not supported');
+      }
+
+      // Buffer the stream
+      const buffer = await getBufferFromStream(upload.createReadStream());
+
+      // Validate MIME type using buffer
+      const fileType = await fileTypeFromBuffer(buffer);
+      if (supportedFileType.mime !== fileType?.mime) {
+        throw new ValidationError('File type not supported');
+      }
+
+      // Actual upload using buffer as a stream
+      const filename = `${ctx.userId}.${extension}`;
+      await uploadResumeFromBuffer(filename, buffer);
+
+      return { _: true };
     },
     updateReadme: async (
       _,

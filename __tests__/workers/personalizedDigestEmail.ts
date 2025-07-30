@@ -1040,6 +1040,7 @@ describe('personalizedDigestEmail worker', () => {
       expect(postBefore).toBeNull();
 
       await expectSuccessfulBackground(worker, {
+        ...getDates(personalizedDigest!, Date.now()),
         personalizedDigest,
         emailBatchId: 'test-email-batch-id',
       });
@@ -1061,6 +1062,7 @@ describe('personalizedDigestEmail worker', () => {
           modelName: BriefingModel.Default,
         }),
         postId: postAfter!.id,
+        sendAtMs: expect.any(Number),
       });
     });
 
@@ -1093,6 +1095,7 @@ describe('personalizedDigestEmail worker', () => {
       expect(postBefore).toBeNull();
 
       await expectSuccessfulBackground(worker, {
+        ...getDates(personalizedDigest!, Date.now()),
         personalizedDigest,
         emailBatchId: 'test-email-batch-id',
       });
@@ -1114,6 +1117,7 @@ describe('personalizedDigestEmail worker', () => {
           modelName: BriefingModel.Default,
         }),
         postId: postAfter!.id,
+        sendAtMs: expect.any(Number),
       });
     });
 
@@ -1144,6 +1148,7 @@ describe('personalizedDigestEmail worker', () => {
       expect(postBefore).toBeNull();
 
       await expectSuccessfulBackground(worker, {
+        ...getDates(personalizedDigest!, Date.now()),
         personalizedDigest,
         emailBatchId: 'test-email-batch-id',
       });
@@ -1165,6 +1170,7 @@ describe('personalizedDigestEmail worker', () => {
           modelName: BriefingModel.Default,
         }),
         postId: postAfter!.id,
+        sendAtMs: expect.any(Number),
       });
     });
   });

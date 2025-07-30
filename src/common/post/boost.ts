@@ -1,34 +1,42 @@
 import { z } from 'zod';
 import { ValidationError } from 'apollo-server-errors';
 import { AuthContext } from '../../Context';
-import { Post, PostType, type ConnectionManager } from '../../entity';
+import {
+  ArticlePost,
+  Post,
+  PostType,
+  type ConnectionManager,
+  type FreeformPost,
+  type SharePost,
+} from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
 import {
+  type GetCampaignListResponse,
   type GetCampaignResponse,
-  type PromotedPost,
-  type PromotedPostList,
 } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
 import { In } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
-import { usdToCores } from '../njord';
-import { debeziumTimeToDate, type ObjectSnakeToCamelCase } from '../utils';
+import { debeziumTimeToDate } from '../utils';
 import { getDiscussionLink } from '../links';
+import { skadiApiClient } from '../../integrations/skadi/api/clients';
+import { largeNumberFormat } from '../devcard';
+import { formatMailDate, addNotificationEmailUtm } from '../mailing';
+import { truncatePostToTweet } from '../twitter';
+import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
+import { usdToCores } from '../number';
 
 export interface GQLPromotedPost
-  extends ObjectSnakeToCamelCase<
-    Omit<PromotedPost, 'spend' | 'started_at' | 'ended_at'>
+  extends Omit<
+    GetCampaignResponse,
+    'spend' | 'budget' | 'startedAt' | 'endedAt'
   > {
   spend: number;
+  budget: number;
   startedAt: Date;
   endedAt: Date;
-}
-
-export interface GQLPromotedPostList
-  extends ObjectSnakeToCamelCase<Omit<PromotedPostList, 'total_spend'>> {
-  totalSpend: number;
 }
 
 export interface StartPostBoostArgs {
@@ -58,7 +66,7 @@ export const POST_BOOST_VALIDATION_SCHEMA = z.object({
 });
 
 export const validatePostBoostArgs = (
-  args: Omit<StartPostBoostArgs, 'userId'>,
+  args: Omit<StartPostBoostArgs, 'userId' | 'postId'>,
 ) => {
   const result = POST_BOOST_VALIDATION_SCHEMA.safeParse(args);
 
@@ -142,7 +150,6 @@ export const getBoostedPost = async (
 
 export const getFormattedBoostedPost = (
   post: GetBoostedPost,
-  campaign: GetCampaignResponse,
 ): GQLBoostedPost['post'] => {
   const { id, shortId, sharedImage, sharedTitle, slug } = post;
   let image: string | undefined = post.image;
@@ -161,30 +168,28 @@ export const getFormattedBoostedPost = (
     image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
     commentsPermalink: post.slug ? getDiscussionLink(post.slug) : undefined,
-    engagements:
-      post.comments +
-      post.upvotes +
-      post.views +
-      campaign.impressions +
-      campaign.clicks,
+    engagements: post.comments + post.upvotes + post.views,
   };
 };
 
 export const getFormattedCampaign = ({
   spend,
+  budget,
   startedAt,
   endedAt,
   ...campaign
 }: GetCampaignResponse): GQLPromotedPost => ({
   ...campaign,
   spend: usdToCores(parseFloat(spend)),
+  budget: usdToCores(parseFloat(budget)),
   startedAt: debeziumTimeToDate(startedAt),
   endedAt: debeziumTimeToDate(endedAt),
 });
 
 export interface BoostedPostStats
-  extends Pick<GQLPromotedPostList, 'clicks' | 'impressions' | 'totalSpend'> {
+  extends Pick<GetCampaignListResponse, 'clicks' | 'impressions'> {
   engagements: number;
+  totalSpend: number;
 }
 
 export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
@@ -208,7 +213,7 @@ export const consolidateCampaignsWithPosts = async (
 
   return campaigns.map((campaign) => ({
     campaign: getFormattedCampaign(campaign),
-    post: getFormattedBoostedPost(mapped[campaign.postId], campaign),
+    post: getFormattedBoostedPost(mapped[campaign.postId]),
   }));
 };
 
@@ -233,4 +238,64 @@ export const getTotalEngagements = async (
     (engagements?.comments || 0) +
     (engagements?.views || 0)
   );
+};
+
+export const generateBoostEmailUpdate: TemplateDataFunc = async (
+  con,
+  user,
+  notification,
+) => {
+  const campaign = await skadiApiClient.getCampaignById({
+    campaignId: notification.referenceId!,
+    userId: user.id,
+  });
+
+  if (!campaign) {
+    return null;
+  }
+
+  const post = await con.getRepository(Post).findOne({
+    where: { id: campaign.postId },
+  });
+
+  if (!post) {
+    return null;
+  }
+
+  const sharedPost = await (post.type === PostType.Share
+    ? con.getRepository(ArticlePost).findOne({
+        where: { id: (post as SharePost).sharedPostId },
+        select: ['title', 'image', 'slug'],
+      })
+    : Promise.resolve(null));
+
+  const title = truncatePostToTweet(post || sharedPost);
+  const engagement = post.views + post.upvotes + post.comments;
+
+  return {
+    start_date: formatMailDate(debeziumTimeToDate(campaign.startedAt)),
+    end_date: formatMailDate(debeziumTimeToDate(campaign.endedAt)),
+    impressions: largeNumberFormat(campaign.impressions),
+    clicks: largeNumberFormat(campaign.clicks),
+    engagement: largeNumberFormat(engagement),
+    post_link: getDiscussionLink(post.slug),
+    analytics_link: addNotificationEmailUtm(
+      notification.targetUrl,
+      notification.type,
+    ),
+    post_image: sharedPost?.image || (post as FreeformPost).image,
+    post_title: title,
+  };
+};
+
+export const getAdjustedReach = (value: number) => {
+  // We do plus-minus 8% of the generated value
+  const difference = Math.floor(value * 0.08);
+  const min = Math.max(value - difference, 0);
+  const estimatedReach = {
+    min,
+    max: Math.max(value + difference, min),
+  };
+
+  return estimatedReach;
 };
