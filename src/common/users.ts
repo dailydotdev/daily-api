@@ -1,16 +1,20 @@
 import { getPostCommenterIds } from './post';
 import {
+  Comment,
+  CommentMention,
+  type Organization,
   Post,
+  Source,
+  SourceMember,
   User as DbUser,
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  type Organization,
+  View,
 } from '../entity';
 import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
-import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
-import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
+import { getTimezonedEndOfISOWeek, getTimezonedStartOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
@@ -21,6 +25,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
+import { UserExperienceType } from '../entity/user/experiences/types';
 
 export interface User {
   id: string;
@@ -636,3 +641,31 @@ export const bskySocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/;
 
 export const portfolioLimit = 500;
+
+const MIN_WORK_EXPERIENCE = 1; // Minimum number of work experiences required for profile completion
+export const isProfileCompleteById = async (
+  con: DataSource,
+  userId: User['id'],
+) => {
+  try {
+    const [user, experiencesCount] = await Promise.all([
+      queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository('User')
+          .findOneByOrFail({ id: userId }),
+      ),
+      queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository('UserExperience')
+          .count({ where: { userId, type: UserExperienceType.Work } }),
+      ),
+    ]);
+
+    const hasCountry = user.flags.country?.length;
+    const hasEnoughExperiences = experiencesCount >= MIN_WORK_EXPERIENCE;
+
+    return hasCountry && hasEnoughExperiences;
+  } catch {
+    return false;
+  }
+};
