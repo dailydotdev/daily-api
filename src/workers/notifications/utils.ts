@@ -28,21 +28,6 @@ import { insertOrIgnoreAction } from '../../schema/actions';
 import { ObjectLiteral } from 'typeorm/common/ObjectLiteral';
 import { SourcePostModeration } from '../../entity/SourcePostModeration';
 import { ChangeObject } from '../../types';
-import { UserNotificationFlags } from '../../entity/user/User';
-
-export const shouldSendNotification = (
-  userFlags: UserNotificationFlags | undefined,
-  notificationType: NotificationType,
-  channel: 'email' | 'inApp',
-): boolean => {
-  const preference = userFlags?.[notificationType]?.[channel];
-
-  if (!preference) {
-    return true;
-  }
-
-  return preference.toLowerCase() === 'subscribed';
-};
 
 export const uniquePostOwners = (
   post: Pick<Post, 'scoutId' | 'authorId'>,
@@ -59,7 +44,6 @@ type GetMembersParams = {
   where: ObjectLiteral;
 };
 
-// Helper function to filter users based on global notification preferences
 const filterUsersWithGlobalPreferences = async (
   con: DataSource,
   userIds: string[],
@@ -76,9 +60,10 @@ const filterUsersWithGlobalPreferences = async (
   });
 
   return users
-    .filter((user) =>
-      shouldSendNotification(user.notificationFlags, notificationType, channel),
-    )
+    .filter((user) => {
+      const preference = user.notificationFlags?.[notificationType]?.[channel];
+      return !preference || preference.toLowerCase() === 'subscribed';
+    })
     .map((user) => user.id);
 };
 
@@ -106,12 +91,11 @@ export const getOptInSubscribedMembers = async ({
     .andWhere(`EXISTS(${subscribedquery.getQuery()}) IS TRUE`)
     .getRawMany<SourceMember>();
 
-  // Filter by global notification preferences - only include users who haven't muted this notification type
   const allowedUserIds = await filterUsersWithGlobalPreferences(
     con,
     members.map((m) => m.userId),
     type,
-    'inApp', // For notifications, we check in-app preferences as primary
+    'inApp',
   );
 
   return members.filter((member) => allowedUserIds.includes(member.userId));
@@ -141,12 +125,11 @@ export const getSubscribedMembers = async (
     .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
     .getRawMany<SourceMember>();
 
-  // Filter by global notification preferences - only include users who haven't muted this notification type
   const allowedUserIds = await filterUsersWithGlobalPreferences(
     con,
     members.map((m) => m.userId),
     type,
-    'inApp', // For notifications, we check in-app preferences as primary
+    'inApp',
   );
 
   return members.filter((member) => allowedUserIds.includes(member.userId));
@@ -275,7 +258,6 @@ export async function articleNewCommentHandler(
     muted.every(({ userId }) => userId !== id),
   );
 
-  // Apply global preference filtering - global preferences take precedence
   const finalUsers = await filterUsersWithGlobalPreferences(
     con,
     entityFilteredUsers,

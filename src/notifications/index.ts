@@ -17,7 +17,6 @@ import {
   ContentPreferenceType,
 } from '../entity/contentPreference/types';
 import { User } from '../entity/user/User';
-import { shouldSendNotification } from '../workers/notifications/utils';
 
 export * from './types';
 
@@ -176,18 +175,11 @@ export async function storeNotificationBundleV2(
       chunks.push([]);
     }
 
-    const user = userPreferences.get(userId);
-    const shouldShowInApp = shouldSendNotification(
-      user?.notificationFlags,
-      notification.type as NotificationType,
-      'inApp',
-    );
-
     chunks[chunks.length - 1].push({
       userId,
       notificationId: notification.id,
       createdAt: notification.createdAt,
-      public: notification.public && shouldShowInApp,
+      public: notification.public,
       uniqueKey,
     });
   });
