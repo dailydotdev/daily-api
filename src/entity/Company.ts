@@ -32,9 +32,8 @@ export class Company {
   domains: string[];
 
   @Column({
-    type: 'enum',
-    enum: CompanyType,
+    type: 'text',
     default: CompanyType.Business,
   })
-  type: CompanyType = CompanyType.Business;
+  type = CompanyType.Business;
 }

@@ -1,17 +1,17 @@
-import {
-  BeforeInsert,
-  BeforeUpdate,
-  Column,
-  Entity,
-  ManyToMany,
-  PrimaryColumn,
-} from 'typeorm';
-import { slugify } from '../../common';
-import { UserExperience } from './experiences/UserExperience';
+import { Column, Entity, ManyToMany, PrimaryColumn } from 'typeorm';
+import type { UserExperience } from './experiences/UserExperience';
 
 @Entity()
 export class UserSkill {
-  @PrimaryColumn()
+  @PrimaryColumn({
+    type: 'text',
+    update: false,
+    insert: false,
+    nullable: false,
+    unique: true,
+    generatedType: 'STORED',
+    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(name,100),''))), '[^a-z0-9-]+', '-', 'gi'))`,
+  })
   slug: string;
 
   @Column({ type: 'text', unique: true })
@@ -20,12 +20,9 @@ export class UserSkill {
   @Column({ type: 'text', nullable: true })
   description: string;
 
-  @ManyToMany(() => UserExperience, (experience) => experience.skills)
+  @ManyToMany(
+    'UserExperience',
+    (experience: UserExperience) => experience.skills,
+  )
   experiences: Promise<UserExperience[]>;
-
-  @BeforeInsert()
-  @BeforeUpdate()
-  generateSlug() {
-    this.slug = slugify(this.name);
-  }
 }

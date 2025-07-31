@@ -280,14 +280,6 @@ export const getCurrencySymbol = ({
 export const concatTextToNewline = (...args: Array<string | undefined>) =>
   args.filter(Boolean).join(`\n`);
 
-type CamelCasedKey<S extends string> = S extends `${infer Head}_${infer Tail}`
-  ? `${Head}${Capitalize<CamelCasedKey<Tail>>}`
-  : S;
-
-export type ObjectSnakeToCamelCase<T extends object> = {
-  [K in keyof T as K extends string ? CamelCasedKey<K> : never]: T[K];
-};
-
 export const getBufferFromStream = async (
   stream: NodeJS.ReadableStream,
 ): Promise<Buffer> => {
@@ -297,12 +289,4 @@ export const getBufferFromStream = async (
     stream.on('end', () => resolve(Buffer.concat(chunks)));
     stream.on('error', (err) => reject(err));
   });
-};
-
-export const slugify = (text: string): string => {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric characters with hyphens
-    .replace(/^-|-$/g, '') // Remove leading and trailing hyphens
-    .substring(0, 100); // Limit to 100 characters
 };

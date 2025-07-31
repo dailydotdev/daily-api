@@ -1,3 +1,6 @@
+import { ObjectLiteral, Raw } from 'typeorm';
+import { z } from 'zod';
+import { IResolvers } from '@graphql-tools/utils';
 import { UserSkill } from '../entity/user/UserSkill';
 import { Company, CompanyType } from '../entity/Company';
 import { UserCourseExperience } from '../entity/user/experiences/UserCourseExperience';
@@ -6,13 +9,11 @@ import { UserAwardExperience } from '../entity/user/experiences/UserAwardExperie
 import { UserCertificationExperience } from '../entity/user/experiences/UserCertificationExperience';
 import { UserWorkExperience } from '../entity/user/experiences/UserWorkExperience';
 import { UserEducationExperience } from '../entity/user/experiences/UserEducationExperience';
-import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { ExperienceStatus } from '../entity/user/experiences/types';
-import { ValidationError } from 'apollo-server-errors';
-import { ObjectLiteral, Raw } from 'typeorm';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { ValidationError } from 'apollo-server-errors';
 
 export enum AutocompleteType {
   JobTitle = 'job_title',
@@ -42,13 +43,16 @@ type TypeToEntityMap = {
   [AutocompleteType.FieldOfStudy]: UserEducationExperience;
 };
 
-type AutocompleteQuery<T = ObjectLiteral> = {
+type AutocompleteQuery<
+  Entity = ObjectLiteral,
+  Properties extends keyof Entity = keyof Entity,
+> = {
   entity: {
-    new (): T;
+    new (): Entity;
   };
-  propertyName: keyof T;
-  where?: Partial<Record<keyof T, unknown>>;
-  select?: (keyof T)[];
+  propertyName: Properties;
+  where?: Partial<Record<Properties, unknown>>;
+  select?: Array<Properties>;
 };
 
 type AutoCompleteQueryMap = {
@@ -118,6 +122,10 @@ export const typeDefs = /* GraphQL */ `
   type ExperienceHit {
     id: ID!
     title: String
+    issuer: String
+    publisher: String
+    institution: String
+    fieldOfStudy: String
   }
 
   type CompanyHit {
@@ -143,46 +151,66 @@ export const typeDefs = /* GraphQL */ `
     """
     Get autocomplete suggestions for various fields like job titles, companies, skills, etc.
     """
-    profileAutocomplete(
+    experienceAutocomplete(
       type: String!
       query: String!
       limit: Int
-    ): AutocompleteResult!
+    ): AutocompleteResult! @auth
   }
 `;
 
-const DEFAULT_LIMIT = 10;
+export const DEFAULT_AUTOCOMPLETE_LIMIT = 10;
+
+const experienceAutocompleteSchema = z.object({
+  type: z.nativeEnum(AutocompleteType, {
+    errorMap: () => ({ message: 'Invalid autocomplete type' }),
+  }),
+  query: z
+    .string()
+    .min(2, 'Query must be at least 2 characters long')
+    .max(100, 'Query must not exceed 100 characters'),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .default(DEFAULT_AUTOCOMPLETE_LIMIT),
+});
+
+// Type inference from the schema
+type ExperienceAutocompleteInput = z.infer<typeof experienceAutocompleteSchema>;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
 >({
   Query: {
-    profileAutocomplete: async (
+    experienceAutocomplete: async (
       _,
-      {
-        type,
-        query,
-        limit = DEFAULT_LIMIT,
-      }: { type: AutocompleteType; query: string; limit?: number },
+      params: ExperienceAutocompleteInput,
       ctx: Context,
     ) => {
-      if (!type || !(type in autocompleteQueryMap)) {
-        throw new ValidationError(`Invalid autocomplete type: ${type}`);
+      const validation = experienceAutocompleteSchema.safeParse(params);
+
+      if (!validation.success) {
+        if (validation.error.formErrors.fieldErrors.query) {
+          return {
+            query: params.query ?? '',
+            limit: params.limit ?? DEFAULT_AUTOCOMPLETE_LIMIT,
+            hits: [],
+          };
+        }
+
+        throw new ValidationError(validation.error.message);
       }
 
-      if (!query || query.length < 2 || query.length > 100) {
-        return {
-          query,
-          hits: [],
-        };
-      }
-
+      const { type, query, limit }: ExperienceAutocompleteInput =
+        validation.data;
       const {
         entity,
         propertyName,
         where = {},
-        select,
+        select = ['id', propertyName],
       } = autocompleteQueryMap[type];
 
       const typeNameByEntity = {
@@ -200,12 +228,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         queryRunner.manager
           .getRepository(entity)
           .createQueryBuilder('entity')
-          .select(select ?? ['id', propertyName])
+          .select(select ?? [`entity.id`, `entity.${propertyName}`])
           .where({
-            [propertyName]: Raw(
-              (alias) => `LOWER(${alias}) LIKE LOWER(:query)`,
-              { query: `%${query}%` },
-            ),
+            [propertyName]: Raw((alias) => `${alias} ILIKE :query`, {
+              query: `%${query}%`,
+            }),
             // extending where condition using the autocompleteQueryMap
             ...where,
           })
