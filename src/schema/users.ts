@@ -176,12 +176,20 @@ const notificationFlagsSchema = z
     post_bookmark_reminder: notificationPreferenceSchema,
     promoted_to_admin: notificationPreferenceSchema,
     promoted_to_moderator: notificationPreferenceSchema,
+    demoted_to_member: notificationPreferenceSchema,
     source_approved: notificationPreferenceSchema,
     source_rejected: notificationPreferenceSchema,
     source_post_approved: notificationPreferenceSchema,
     source_post_rejected: notificationPreferenceSchema,
     source_post_submitted: notificationPreferenceSchema,
+    article_picked: notificationPreferenceSchema,
     user_received_award: notificationPreferenceSchema,
+    briefing_ready: notificationPreferenceSchema,
+    squad_new_comment: notificationPreferenceSchema,
+    article_analytics: notificationPreferenceSchema,
+    squad_member_joined: notificationPreferenceSchema,
+    squad_reply: notificationPreferenceSchema,
+    squad_blocked: notificationPreferenceSchema,
   })
   .strict();
 
@@ -2329,14 +2337,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         flags,
       });
 
-      await Promise.all([
-        resubscribeUser(cio, ctx.userId),
-        identifyUserPersonalizedDigest({
-          userId: ctx.userId,
-          cio,
-          subscribed: true,
-        }),
-      ]);
+      const promises = [resubscribeUser(cio, ctx.userId)];
+
+      if (process.env.NODE_ENV !== 'development') {
+        promises.push(
+          identifyUserPersonalizedDigest({
+            userId: ctx.userId,
+            cio,
+            subscribed: true,
+          }),
+        );
+      }
+
+      await Promise.all(promises);
 
       return personalizedDigest;
     },
@@ -2356,12 +2369,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
       }
 
-      await identifyUserPersonalizedDigest({
-        userId: ctx.userId,
-        cio,
-        subscribed: false,
-      });
-
+      if (process.env.NODE_ENV !== 'development') {
+        await identifyUserPersonalizedDigest({
+          userId: ctx.userId,
+          cio,
+          subscribed: false,
+        });
+      }
       return { _: true };
     },
     acceptFeatureInvite: async (
