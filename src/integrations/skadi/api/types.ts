@@ -9,6 +9,14 @@ export interface PostEstimatedReach {
   impressions: number;
   clicks: number;
   users: number;
+  min_impressions: number;
+  max_impressions: number;
+}
+
+export interface PostEstimatedReachResponse
+  extends Pick<PostEstimatedReach, 'impressions' | 'clicks' | 'users'> {
+  minImpressions: number;
+  maxImpressions: number;
 }
 
 export interface PromotedPost {
@@ -88,10 +96,10 @@ export interface ISkadiApiClient {
   }): Promise<{ currentBudget: string }>;
   estimatePostBoostReach(
     params: Pick<EstimatedBoostReachParams, 'userId' | 'postId'>,
-  ): Promise<PostEstimatedReach>;
+  ): Promise<PostEstimatedReachResponse>;
   estimatePostBoostReachDaily(
     params: EstimatedBoostReachParams,
-  ): Promise<PostEstimatedReach>;
+  ): Promise<PostEstimatedReachResponse>;
   getCampaignById: (
     params: GetCampaignByIdProps,
   ) => Promise<GetCampaignResponse>;
