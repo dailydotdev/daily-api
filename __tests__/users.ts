@@ -142,6 +142,138 @@ import * as googleCloud from '../src/common/googleCloud';
 import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
 import { Bucket } from '@google-cloud/storage';
+import { NotificationType } from '../src/notifications/common';
+
+export const DEFAULT_NOTIFICATION_SETTINGS = {
+  [NotificationType.ArticleNewComment]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.CommentReply]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.ArticleUpvoteMilestone]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.CommentUpvoteMilestone]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.PostMention]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.CommentMention]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SquadNewComment]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.UserReceivedAward]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.ArticleReportApproved]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.StreakResetRestore]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  streak_reminder: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  user_given_top_reader: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.DevCardUnlocked]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SourcePostAdded]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SquadPostAdded]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.UserPostAdded]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.CollectionUpdated]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.PostBookmarkReminder]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.PromotedToAdmin]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.PromotedToModerator]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SourceApproved]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SourceRejected]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SourcePostSubmitted]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SourcePostApproved]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SourcePostRejected]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.BriefingReady]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.ArticlePicked]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.ArticleAnalytics]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SquadMemberJoined]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SquadReply]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.SquadBlocked]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+  [NotificationType.DemotedToMember]: {
+    email: 'muted',
+    inApp: 'muted',
+  },
+};
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -6989,5 +7121,55 @@ describe('mutation uploadResume', () => {
     const body = res.body;
     expect(body.errors).toBeTruthy();
     expect(body.errors[0].message).toEqual('File type not supported');
+  });
+});
+describe('mutation updateNotificationSettings', () => {
+  const MUTATION = `mutation UpdateNotificationSettings($notificationFlags: JSON!) {
+    updateNotificationSettings(notificationFlags: $notificationFlags) {
+      _
+    }
+  }`;
+
+  it('should update notification settings', async () => {
+    loggedUser = '1';
+
+    const updatedFlags = {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      [NotificationType.ArticleNewComment]: {
+        email: 'muted',
+        inApp: 'subscribed',
+      },
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: { notificationFlags: updatedFlags },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateNotificationSettings._).toBeTruthy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.notificationFlags).toEqual(updatedFlags);
+  });
+
+  it('should throw error because of invalid notification flags', async () => {
+    loggedUser = '1';
+
+    const updatedFlags = {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      new_pokemon: {
+        email: 'subscribed',
+        inApp: 'subscribed',
+      },
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { notificationFlags: updatedFlags },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 });
