@@ -36,7 +36,6 @@ export class UserJobPreferences {
   @Column({ default: false })
   openToRelocation: boolean;
 
-  // todo: never send this field to FE while implementing MI-953
   // Currency must be "ISO-4217" compliant
   // Amount is yearly based
   @Column({ type: 'jsonb', default: {} })
