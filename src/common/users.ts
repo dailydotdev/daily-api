@@ -21,6 +21,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
+import { UserExperienceType } from '../entity/user/experiences/types';
 
 export interface User {
   id: string;
@@ -636,3 +637,31 @@ export const bskySocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/;
 
 export const portfolioLimit = 500;
+
+const MIN_WORK_EXPERIENCE = 1; // Minimum number of work experiences required for profile completion
+export const isProfileCompleteById = async (
+  con: DataSource,
+  userId: User['id'],
+) => {
+  try {
+    const [user, experiencesCount] = await Promise.all([
+      queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository('User')
+          .findOneByOrFail({ id: userId }),
+      ),
+      queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository('UserExperience')
+          .count({ where: { userId, type: UserExperienceType.Work } }),
+      ),
+    ]);
+
+    const hasCountry = user.flags.country?.length;
+    const hasEnoughExperiences = experiencesCount >= MIN_WORK_EXPERIENCE;
+
+    return hasCountry && hasEnoughExperiences;
+  } catch {
+    return false;
+  }
+};

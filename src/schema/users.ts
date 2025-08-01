@@ -74,6 +74,7 @@ import {
   systemUser,
   parseBigInt,
   getBufferFromStream,
+  isProfileCompleteById,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -146,6 +147,11 @@ import {
 } from '../entity/user/UserTransaction';
 import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
+import {
+  UserCompensation,
+  UserJobPreferences,
+  WorkLocationType,
+} from '../entity/user/UserJobPreferences';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -284,6 +290,18 @@ export interface SendReportArgs {
   reason: ReportReason;
   comment?: string;
   tags?: string[];
+}
+
+export interface GQLUserJobPreferences {
+  userId: User['id'];
+  openToOpportunities: boolean;
+  preferredRoles: string[];
+  preferredLocationType: WorkLocationType;
+  openToRelocation: boolean;
+}
+
+export interface UserJobPreferencesInput extends GQLUserJobPreferences {
+  currentTotalComp: UserCompensation;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -495,6 +513,65 @@ export const typeDefs = /* GraphQL */ `
     Whether the user has received a plus subscription as gift
     """
     showPlusGift: Boolean
+  }
+
+  """
+  User job preferences
+  """
+  type UserJobPreferences {
+    """
+    Whether the user is open to opportunities
+    """
+    openToOpportunities: Boolean!
+    """
+    Preferred roles of the user
+    """
+    preferredRoles: [String!]!
+    """
+    Preferred location type of the user
+    """
+    preferredLocationType: String
+    """
+    Whether the user is open to relocation
+    """
+    openToRelocation: Boolean!
+  }
+
+  type UserSalaryPreference {
+    """
+    Currency of the salary preference
+    """
+    currency: String!
+    """
+    Amount of the salary preference
+    """
+    amount: Int!
+  }
+
+  """
+  Update user job preferences input
+  """
+  input UserJobPreferencesInput {
+    """
+    Whether the user is open to opportunities
+    """
+    openToOpportunities: Boolean!
+    """
+    Preferred roles of the user
+    """
+    preferredRoles: [String!]!
+    """
+    Preferred location type of the user
+    """
+    preferredLocationType: String
+    """
+    Whether the user is open to relocation
+    """
+    openToRelocation: Boolean!
+    """
+    Current total compensation of the user
+    """
+    currentTotalComp: UserSalaryPreference
   }
 
   """
@@ -1017,6 +1094,11 @@ export const typeDefs = /* GraphQL */ `
     Check and apply Cores role
     """
     checkCoresRole: CheckCoresRole! @auth
+
+    """
+    Get job preferences for the current user
+    """
+    userJobPreferences: UserJobPreferences @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1234,6 +1316,11 @@ export const typeDefs = /* GraphQL */ `
     Claim unclaimed user ClaimableItem
     """
     claimUnclaimedItem: UserClaim @auth
+
+    """
+    Update job preferences for the current user
+    """
+    userJobPreferences(data: UserJobPreferencesInput): UserJobPreferences @auth
   }
 `;
 
@@ -2088,6 +2175,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         coresRole: userCoresRole,
       };
     },
+    userJobPreferences: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserJobPreferences> => {
+      const userJobPreferences = await graphorm.queryOne<GQLUserJobPreferences>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."userId" = :userId`,
+            { userId: ctx.userId },
+          );
+          return builder;
+        },
+      );
+
+      if (!userJobPreferences) {
+        throw new NotFoundError('User job preferences not found');
+      }
+
+      const { openToOpportunities, ...preferences } = userJobPreferences;
+      const isProfileComplete = await isProfileCompleteById(
+        ctx.con,
+        ctx.userId,
+      );
+
+      return {
+        ...preferences,
+        openToOpportunities: openToOpportunities && isProfileComplete,
+      };
+    },
   },
   Mutation: {
     clearImage: async (
@@ -2814,6 +2934,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: ctx.userId,
       });
       return addClaimableItemsToUser(ctx.con, user);
+    },
+    userJobPreferences: async (
+      _,
+      preferences: UserJobPreferencesInput,
+      ctx: AuthContext,
+    ) => {
+      const isProfileComplete = await isProfileCompleteById(
+        ctx.con,
+        ctx.userId,
+      );
+
+      if (!isProfileComplete && preferences.openToOpportunities) {
+        throw new ValidationError(
+          'Open to opportunities can only be set if the profile is complete',
+        );
+      }
+
+      await ctx.con
+        .getRepository(UserJobPreferences)
+        .update({ userId: ctx.userId }, preferences);
+
+      return preferences;
     },
   },
   User: {
