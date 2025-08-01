@@ -208,8 +208,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const { query, limit, type }: CompanyAutocompleteInput = data;
 
-      console.log({ query, limit, type, params });
-
       const hits: Array<Pick<Company, 'id' | 'name' | 'image'>> =
         await queryReadReplica(ctx.con, ({ queryRunner }) =>
           queryRunner.manager

@@ -240,7 +240,6 @@ describe('autocomplete queries', () => {
         },
       });
 
-      console.log(res);
       expect(res.data.skillAutocomplete.query).toEqual('script');
       expect(res.data.skillAutocomplete.hits).toHaveLength(2);
       expect(res.data.skillAutocomplete.hits).toEqual(
@@ -340,7 +339,6 @@ describe('autocomplete queries', () => {
         },
       });
 
-      console.log(res);
       expect(res.data.experienceAutocomplete.query).toEqual('software');
       expect(res.data.experienceAutocomplete.hits).toHaveLength(3);
       expect(res.data.experienceAutocomplete.hits).toEqual(
