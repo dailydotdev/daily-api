@@ -6,6 +6,7 @@ import { SourceMemberRoles } from '../roles';
 export type SourceMemberFlags = Partial<{
   hideFeedPosts: boolean;
   collapsePinnedPosts: boolean;
+  hasUnreadPosts: boolean;
 }>;
 
 export type SourceMemberFlagsPublic = Pick<
