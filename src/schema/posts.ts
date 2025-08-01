@@ -930,10 +930,11 @@ export const typeDefs = /* GraphQL */ `
     endedAt: DateTime
     impressions: Int!
     clicks: Int!
-    users: Int!
+    users: Int
   }
 
   type CampaignData {
+    users: Int
     impressions: Int!
     engagements: Int!
     clicks: Int!
