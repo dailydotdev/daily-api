@@ -693,7 +693,12 @@ it('should not send email notification if the user prefers not to receive them',
   const userId = '1';
   const repo = con.getRepository(User);
   const user = await repo.findOneBy({ id: userId });
-  await repo.save({ ...user, notificationEmail: false });
+  await repo.save({
+    ...user,
+    notificationFlags: {
+      [NotificationType.CommentUpvoteMilestone]: { email: 'muted' },
+    },
+  });
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const comment = await con.getRepository(Comment).save({
     id: 'c1',
@@ -729,7 +734,12 @@ it('should not send follow email notification if the user prefers not to receive
   const userId = '1';
   const repo = con.getRepository(User);
   const user = await repo.findOneBy({ id: userId });
-  await repo.save({ ...user, followingEmail: false });
+  await repo.save({
+    ...user,
+    notificationFlags: {
+      [NotificationType.UserPostAdded]: { email: 'muted' },
+    },
+  });
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationUserContext & NotificationPostContext = {
     userIds: ['1'],
@@ -757,7 +767,12 @@ it('should not send award email notification if the user prefers not to receive 
   const repo = con.getRepository(User);
   const receiver = await repo.findOneBy({ id: userId });
   const sender = await repo.findOneBy({ id: '2' });
-  await repo.save({ ...receiver, awardEmail: false });
+  await repo.save({
+    ...receiver,
+    notificationFlags: {
+      [NotificationType.UserReceivedAward]: { email: 'muted' },
+    },
+  });
 
   await saveFixtures(con, Product, [
     {

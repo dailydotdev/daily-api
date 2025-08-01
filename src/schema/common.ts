@@ -9,7 +9,11 @@ import {
 import { GraphQLResolveInfo } from 'graphql';
 // @ts-expect-error - no types
 import GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
-import { GraphQLDateTime, GraphQLJSONObject } from 'graphql-scalars';
+import {
+  GraphQLDateTime,
+  GraphQLJSONObject,
+  GraphQLJSON,
+} from 'graphql-scalars';
 
 import { BaseContext, Context } from '../Context';
 import type { MeiliPagination } from '../integrations/meilisearch';
@@ -36,6 +40,8 @@ export const typeDefs = /* GraphQL */ `
   scalar DateTime
 
   scalar JSONObject
+
+  scalar JSON
 
   input ConnectionArgs {
     """
@@ -93,6 +99,7 @@ export const typeDefs = /* GraphQL */ `
 export const resolvers: IResolvers<unknown, BaseContext> = {
   DateTime: GraphQLDateTime,
   JSONObject: GraphQLJSONObject,
+  JSON: GraphQLJSON,
   Upload: GraphQLUpload,
 };
 

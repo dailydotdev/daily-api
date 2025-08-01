@@ -44,6 +44,29 @@ type GetMembersParams = {
   where: ObjectLiteral;
 };
 
+const filterUsersWithGlobalPreferences = async (
+  con: DataSource,
+  userIds: string[],
+  notificationType: NotificationType,
+  channel: 'email' | 'inApp',
+): Promise<string[]> => {
+  if (!userIds.length) {
+    return [];
+  }
+
+  const users = await con.getRepository(User).find({
+    select: ['id', 'notificationFlags'],
+    where: { id: In(userIds) },
+  });
+
+  return users
+    .filter((user) => {
+      const preference = user.notificationFlags?.[notificationType]?.[channel];
+      return !preference || preference.toLowerCase() === 'subscribed';
+    })
+    .map((user) => user.id);
+};
+
 export const getOptInSubscribedMembers = async ({
   con,
   type,
@@ -64,12 +87,21 @@ export const getOptInSubscribedMembers = async ({
       status: NotificationPreferenceStatus.Subscribed,
     });
 
-  return memberQuery
+  const members = await memberQuery
     .andWhere(`EXISTS(${subscribedquery.getQuery()}) IS TRUE`)
     .getRawMany<SourceMember>();
+
+  const allowedUserIds = await filterUsersWithGlobalPreferences(
+    con,
+    members.map((m) => m.userId),
+    type,
+    'inApp',
+  );
+
+  return members.filter((member) => allowedUserIds.includes(member.userId));
 };
 
-export const getSubscribedMembers = (
+export const getSubscribedMembers = async (
   con: DataSource,
   type: NotificationType,
   referenceId: string,
@@ -89,9 +121,18 @@ export const getSubscribedMembers = (
       status: NotificationPreferenceStatus.Muted,
     });
 
-  return memberQuery
+  const members = await memberQuery
     .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
     .getRawMany<SourceMember>();
+
+  const allowedUserIds = await filterUsersWithGlobalPreferences(
+    con,
+    members.map((m) => m.userId),
+    type,
+    'inApp',
+  );
+
+  return members.filter((member) => allowedUserIds.includes(member.userId));
 };
 
 export const buildPostContext = async (
@@ -213,14 +254,23 @@ export async function articleNewCommentHandler(
     status: NotificationPreferenceStatus.Muted,
   });
 
+  const entityFilteredUsers = users.filter((id) =>
+    muted.every(({ userId }) => userId !== id),
+  );
+
+  const finalUsers = await filterUsersWithGlobalPreferences(
+    con,
+    entityFilteredUsers,
+    type,
+    'inApp',
+  );
+
   return [
     {
       type,
       ctx: {
         ...ctx,
-        userIds: users.filter((id) =>
-          muted.every(({ userId }) => userId !== id),
-        ),
+        userIds: finalUsers,
         initiatorId: post.authorId,
       },
     },

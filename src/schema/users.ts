@@ -28,12 +28,15 @@ import {
   UserFlagsPublic,
   Alerts,
 } from '../entity';
+import { UserNotificationFlags } from '../entity/user/User';
 import {
   AuthenticationError,
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
+import { z } from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
+import { NotificationType } from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -147,6 +150,48 @@ import {
 import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
 
+const notificationPreferenceSchema = z.object({
+  email: z.enum(['muted', 'subscribed']),
+  inApp: z.enum(['muted', 'subscribed']),
+});
+
+const notificationFlagsSchema = z
+  .object({
+    [NotificationType.ArticleNewComment]: notificationPreferenceSchema,
+    [NotificationType.CommentReply]: notificationPreferenceSchema,
+    [NotificationType.ArticleUpvoteMilestone]: notificationPreferenceSchema,
+    [NotificationType.CommentUpvoteMilestone]: notificationPreferenceSchema,
+    [NotificationType.PostMention]: notificationPreferenceSchema,
+    [NotificationType.CommentMention]: notificationPreferenceSchema,
+    [NotificationType.ArticleReportApproved]: notificationPreferenceSchema,
+    [NotificationType.StreakResetRestore]: notificationPreferenceSchema,
+    [UserPersonalizedDigestType.StreakReminder]: notificationPreferenceSchema,
+    [NotificationType.UserTopReaderBadge]: notificationPreferenceSchema,
+    [NotificationType.DevCardUnlocked]: notificationPreferenceSchema,
+    [NotificationType.SourcePostAdded]: notificationPreferenceSchema,
+    [NotificationType.SquadPostAdded]: notificationPreferenceSchema,
+    [NotificationType.UserPostAdded]: notificationPreferenceSchema,
+    [NotificationType.CollectionUpdated]: notificationPreferenceSchema,
+    [NotificationType.PostBookmarkReminder]: notificationPreferenceSchema,
+    [NotificationType.PromotedToAdmin]: notificationPreferenceSchema,
+    [NotificationType.PromotedToModerator]: notificationPreferenceSchema,
+    [NotificationType.DemotedToMember]: notificationPreferenceSchema,
+    [NotificationType.SourceApproved]: notificationPreferenceSchema,
+    [NotificationType.SourceRejected]: notificationPreferenceSchema,
+    [NotificationType.SourcePostApproved]: notificationPreferenceSchema,
+    [NotificationType.SourcePostRejected]: notificationPreferenceSchema,
+    [NotificationType.SourcePostSubmitted]: notificationPreferenceSchema,
+    [NotificationType.ArticlePicked]: notificationPreferenceSchema,
+    [NotificationType.UserReceivedAward]: notificationPreferenceSchema,
+    [NotificationType.BriefingReady]: notificationPreferenceSchema,
+    [NotificationType.SquadNewComment]: notificationPreferenceSchema,
+    [NotificationType.ArticleAnalytics]: notificationPreferenceSchema,
+    [NotificationType.SquadMemberJoined]: notificationPreferenceSchema,
+    [NotificationType.SquadReply]: notificationPreferenceSchema,
+    [NotificationType.SquadBlocked]: notificationPreferenceSchema,
+  })
+  .strict();
+
 export interface GQLUpdateUserInput {
   name: string;
   email?: string;
@@ -181,6 +226,7 @@ export interface GQLUpdateUserInput {
   awardNotifications?: boolean;
   defaultFeedId?: string;
   flags: UserFlagsPublic;
+  notificationFlags?: UserNotificationFlags;
 }
 
 interface GQLUserParameters {
@@ -1017,6 +1063,11 @@ export const typeDefs = /* GraphQL */ `
     Check and apply Cores role
     """
     checkCoresRole: CheckCoresRole! @auth
+
+    """
+    Get current user's notification preferences
+    """
+    notificationSettings: JSON @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1234,6 +1285,11 @@ export const typeDefs = /* GraphQL */ `
     Claim unclaimed user ClaimableItem
     """
     claimUnclaimedItem: UserClaim @auth
+
+    """
+    Update user's notification preferences
+    """
+    updateNotificationSettings(notificationFlags: JSON!): EmptyResponse @auth
   }
 `;
 
@@ -2088,6 +2144,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         coresRole: userCoresRole,
       };
     },
+    notificationSettings: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<UserNotificationFlags> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        where: { id: ctx.userId },
+        select: ['notificationFlags'],
+      });
+      return user?.notificationFlags || {};
+    },
   },
   Mutation: {
     clearImage: async (
@@ -2269,14 +2336,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         flags,
       });
 
-      await Promise.all([
-        resubscribeUser(cio, ctx.userId),
+      const promises = [resubscribeUser(cio, ctx.userId)];
+
+      promises.push(
         identifyUserPersonalizedDigest({
           userId: ctx.userId,
           cio,
           subscribed: true,
         }),
-      ]);
+      );
+
+      await Promise.all(promises);
 
       return personalizedDigest;
     },
@@ -2301,7 +2371,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         cio,
         subscribed: false,
       });
-
       return { _: true };
     },
     acceptFeatureInvite: async (
@@ -2814,6 +2883,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: ctx.userId,
       });
       return addClaimableItemsToUser(ctx.con, user);
+    },
+    updateNotificationSettings: async (
+      _,
+      { notificationFlags }: { notificationFlags: UserNotificationFlags },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        notificationFlagsSchema.parse(notificationFlags);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          throw new ValidationError('Invalid notification flags');
+        }
+        throw error;
+      }
+
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { notificationFlags });
+
+      return { _: true };
     },
   },
   User: {

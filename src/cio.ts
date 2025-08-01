@@ -227,6 +227,10 @@ export async function identifyUserPersonalizedDigest({
   userId: string;
   subscribed: boolean;
 }): Promise<void> {
+  if (process.env.NODE_ENV === 'development') {
+    return;
+  }
+
   try {
     await cio.identify(userId, {
       [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
