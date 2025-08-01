@@ -2,7 +2,6 @@ import {
   NotificationAttachmentV2,
   NotificationAvatarV2,
   NotificationV2,
-  UserNotification,
 } from '../entity';
 import { DeepPartial, EntityManager, In, ObjectLiteral } from 'typeorm';
 import { NotificationBuilder } from './builder';
@@ -146,56 +145,47 @@ export async function storeNotificationBundleV2(
   const notification = generatedMaps[0] as NotificationV2;
   const uniqueKey = generateUserNotificationUniqueKey(notification);
 
-  const userPreferences = new Map<string, User>();
-  const userChunks: string[][] = [];
   const chunkSize = 500;
 
+  const userIdChunks: string[][] = [];
   for (let i = 0; i < bundle.userIds.length; i += chunkSize) {
-    userChunks.push(bundle.userIds.slice(i, i + chunkSize));
+    userIdChunks.push(bundle.userIds.slice(i, i + chunkSize));
   }
 
-  for (const chunk of userChunks) {
-    const users = await entityManager.getRepository(User).find({
-      select: ['id', 'notificationFlags'],
-      where: { id: In(chunk) },
-    });
+  for (const userChunk of userIdChunks) {
+    const channel = notification.public ? 'inApp' : 'email';
 
-    users.forEach((user) => {
-      userPreferences.set(user.id, user);
-    });
-  }
-
-  const chunks: Pick<
-    UserNotification,
-    'userId' | 'notificationId' | 'createdAt' | 'public' | 'uniqueKey'
-  >[][] = [];
-
-  bundle.userIds.forEach((userId) => {
-    if (chunks.length === 0 || chunks[chunks.length - 1].length === chunkSize) {
-      chunks.push([]);
-    }
-
-    chunks[chunks.length - 1].push({
-      userId,
-      notificationId: notification.id,
-      createdAt: notification.createdAt,
-      public: notification.public,
-      uniqueKey,
-    });
-  });
-
-  for (const chunk of chunks) {
-    await entityManager
+    const selectQuery = entityManager
       .createQueryBuilder()
-      .insert()
-      .into(UserNotification)
-      .values(chunk)
-      // onConflict deprecated (but still usable) because no way to use orIgnore with where clause
-      // https://github.com/typeorm/typeorm/issues/8124#issuecomment-1523780405
-      .onConflict(
-        '("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING',
+      .select('u.id', 'userId')
+      .addSelect(':notificationId', 'notificationId')
+      .addSelect(':createdAt', 'createdAt')
+      .addSelect(':public', 'public')
+      .addSelect(':uniqueKey', 'uniqueKey')
+      .from(User, 'u')
+      .where('u.id IN (:...userIds)', { userIds: userChunk })
+      .andWhere(
+        `COALESCE(u."notificationFlags" -> :notificationType ->> :channel, 'subscribed') != 'muted'`,
+        {
+          notificationType: notification.type,
+          channel,
+        },
       )
-      .execute();
+      .setParameters({
+        notificationId: notification.id,
+        createdAt: notification.createdAt,
+        public: notification.public,
+        uniqueKey,
+      });
+
+    const [query, params] = selectQuery.getQueryAndParameters();
+
+    await entityManager.query(
+      `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "public", "uniqueKey")
+       ${query}
+       ON CONFLICT ("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING`,
+      params,
+    );
   }
 
   return identifiers as { id: string }[];

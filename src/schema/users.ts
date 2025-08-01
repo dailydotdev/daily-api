@@ -165,7 +165,7 @@ const notificationFlagsSchema = z
     [NotificationType.CommentMention]: notificationPreferenceSchema,
     [NotificationType.ArticleReportApproved]: notificationPreferenceSchema,
     [NotificationType.StreakResetRestore]: notificationPreferenceSchema,
-    streak_reminder: notificationPreferenceSchema,
+    [UserPersonalizedDigestType.StreakReminder]: notificationPreferenceSchema,
     [NotificationType.UserTopReaderBadge]: notificationPreferenceSchema,
     [NotificationType.DevCardUnlocked]: notificationPreferenceSchema,
     [NotificationType.SourcePostAdded]: notificationPreferenceSchema,
@@ -2897,7 +2897,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         notificationFlagsSchema.parse(notificationFlags);
       } catch (error) {
         if (error instanceof z.ZodError) {
-          console.log('**** zod errors', error.errors);
           throw new ValidationError('Invalid notification flags');
         }
         throw error;
