@@ -103,6 +103,8 @@ const queryValidation = z
 const limitValidation = z
   .number()
   .int()
+  .min(1, 'Limit must be at least 1')
+  .max(100, 'Limit must not exceed 20')
   .positive()
   .optional()
   .default(DEFAULT_AUTOCOMPLETE_LIMIT);
