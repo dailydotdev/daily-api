@@ -23,11 +23,15 @@ import type {
   SubscriptionProvider,
   SubscriptionStatus,
 } from '../../common/plus';
+import type { UserJobPreferences } from './UserJobPreferences';
+import type { UserExperience } from './experiences/UserExperience';
 
 export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
   showPlusGift: boolean;
+  country: string | null;
+  city: string | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
@@ -281,4 +285,22 @@ export class User {
 
   @Column({ type: 'boolean', default: true })
   awardNotifications: boolean;
+
+  @OneToOne(
+    'UserJobPreferences',
+    (preferences: UserJobPreferences) => preferences.user,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
+  jobPreferences: Promise<UserJobPreferences>;
+
+  @OneToMany(
+    'UserExperience',
+    (experience: UserExperience) => experience.user,
+    {
+      onDelete: 'CASCADE',
+    },
+  )
+  experiences: Promise<UserExperience[]>;
 }
