@@ -75,6 +75,7 @@ import {
   parseBigInt,
   getBufferFromStream,
   isProfileCompleteById,
+  checkJobPreferenceParamsValidity,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -298,11 +299,10 @@ export interface GQLUserJobPreferences {
   preferredRoles: string[];
   preferredLocationType: WorkLocationType;
   openToRelocation: boolean;
-}
-
-export interface UserJobPreferencesInput extends GQLUserJobPreferences {
   currentTotalComp: UserCompensation;
 }
+
+type UserJobPreferencesInput = GQLUserJobPreferences;
 
 export const typeDefs = /* GraphQL */ `
   type Company {
@@ -2181,6 +2181,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info: GraphQLResolveInfo,
     ): Promise<GQLUserJobPreferences> => {
+      // important: if need to implement public user job preferences queries we need to remove currentTotalComp for other users
       const userJobPreferences = await graphorm.queryOne<GQLUserJobPreferences>(
         ctx,
         info,
@@ -2937,9 +2938,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     userJobPreferences: async (
       _,
-      preferences: UserJobPreferencesInput,
+      params: UserJobPreferencesInput,
       ctx: AuthContext,
+      info: GraphQLResolveInfo,
     ) => {
+      const {
+        data: preferences,
+        success: isValid,
+        error,
+      } = checkJobPreferenceParamsValidity(params);
+
+      if (!isValid) {
+        throw new ValidationError(error?.message);
+      }
+
       const isProfileComplete = await isProfileCompleteById(
         ctx.con,
         ctx.userId,
@@ -2955,7 +2967,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(UserJobPreferences)
         .update({ userId: ctx.userId }, preferences);
 
-      return preferences;
+      return graphorm.queryOneOrFail(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder = builder.queryBuilder.andWhere(
+            `${builder.alias}."userId" = :userId`,
+            { userId: ctx.userId },
+          );
+          return builder;
+        },
+        UserJobPreferences,
+        true,
+      );
     },
   },
   User: {

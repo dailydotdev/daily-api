@@ -22,6 +22,8 @@ import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
 import { UserExperienceType } from '../entity/user/experiences/types';
+import { z } from 'zod';
+import { WorkLocationType } from '../entity/user/UserJobPreferences';
 
 export interface User {
   id: string;
@@ -664,4 +666,39 @@ export const isProfileCompleteById = async (
   } catch {
     return false;
   }
+};
+
+const jobPreferenceUpdateValidation = z.object({
+  userId: z.string(),
+  openToOpportunities: z.boolean().optional().default(false),
+  preferredRoles: z
+    .array(
+      z
+        .string()
+        .min(3, 'Preferred roles must be at least 3 characters long')
+        .max(50, 'Preferred roles must be at most 50 characters long'),
+    )
+    .max(5, 'Preferred roles can have a maximum of 5 items')
+    .optional()
+    .default([]),
+  preferredLocationType: z.nativeEnum(WorkLocationType).optional(),
+  openToRelocation: z.boolean().optional().default(false),
+  currentTotalComp: z
+    .object({
+      currency: z.string(),
+      amount: z.number().int().positive(),
+    })
+    .or(z.object({}))
+    .optional()
+    .default({}),
+});
+export const checkJobPreferenceParamsValidity = (params: unknown) => {
+  const result = jobPreferenceUpdateValidation.safeParse(params);
+  if (!result.success) {
+    logger.error(
+      { error: result.error, params },
+      'Invalid job preference update parameters',
+    );
+  }
+  return result;
 };

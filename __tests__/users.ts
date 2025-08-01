@@ -6991,3 +6991,21 @@ describe('mutation uploadResume', () => {
     expect(body.errors[0].message).toEqual('File type not supported');
   });
 });
+
+describe('user job preferences', () => {
+  describe('query userJobPreferences', () => {
+    it('should throw error on query as guest', async () => {});
+
+    it('should return user job preferences', async () => {});
+  });
+
+  describe('mutation updateUserJobPreferences', () => {
+    it('should throw error on mutation as guest', async () => {});
+
+    it('should update user job preferences', async () => {});
+
+    it('should throw error on invalid job preferences', async () => {});
+
+    it('should not update user job preferences of other user', async () => {});
+  });
+});
