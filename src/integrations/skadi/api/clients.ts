@@ -4,7 +4,6 @@ import {
   type CancelPostCampaignResponse,
   type EstimatedBoostReachParams,
   type GetCampaignByIdProps,
-  type GetCampaignListResponse,
   type GetCampaignResponse,
   type GetCampaignsProps,
   type PostEstimatedReach,
@@ -186,11 +185,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     });
   }
 
-  getCampaigns({
-    limit,
-    offset,
-    userId,
-  }: GetCampaignsProps): Promise<GetCampaignListResponse> {
+  getCampaigns({ limit, offset, userId }: GetCampaignsProps) {
     return this.garmr.execute(async () => {
       const response = await fetchParse<PromotedPostList>(
         `${this.url}/promote/post/list`,
@@ -210,6 +205,7 @@ export class SkadiApiClient implements ISkadiApiClient {
         totalSpend: response.total_spend,
         impressions: response.impressions,
         clicks: response.clicks,
+        users: response.users,
       };
     });
   }

@@ -41,6 +41,7 @@ export interface PromotedPostList {
   promoted_posts: PromotedPost[];
   impressions: number;
   clicks: number;
+  users: number;
   total_spend: string;
   post_ids: string[];
 }
@@ -76,7 +77,7 @@ export interface GetCampaignResponse
 }
 
 export interface GetCampaignListResponse
-  extends Pick<PromotedPostList, 'clicks' | 'impressions'> {
+  extends Pick<PromotedPostList, 'clicks' | 'impressions' | 'users'> {
   promotedPosts: GetCampaignResponse[];
   postIds: string[];
   totalSpend: string; // float

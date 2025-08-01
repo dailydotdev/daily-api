@@ -2231,6 +2231,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             clicks: 0,
             totalSpend: 0,
             engagements: 0,
+            users: 0,
           }
         : undefined;
       const offset = after ? cursorToOffset(after) : 0;
@@ -2252,6 +2253,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           if (isFirstRequest && stats) {
             stats.clicks = campaigns.clicks;
             stats.impressions = campaigns.impressions;
+            stats.users = campaigns.users;
             stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
             stats.engagements = await queryReadReplica(
               ctx.con,
