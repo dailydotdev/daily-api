@@ -1,20 +1,16 @@
 import { getPostCommenterIds } from './post';
 import {
-  Comment,
-  CommentMention,
-  type Organization,
   Post,
-  Source,
-  SourceMember,
   User as DbUser,
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  View,
+  type Organization,
 } from '../entity';
 import { differenceInDays, isSameDay, max, startOfDay } from 'date-fns';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
-import { getTimezonedEndOfISOWeek, getTimezonedStartOfISOWeek } from './utils';
+import { CommentMention, Comment, View, Source, SourceMember } from '../entity';
+import { getTimezonedStartOfISOWeek, getTimezonedEndOfISOWeek } from './utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { utcToZonedTime } from 'date-fns-tz';
 import { sendAnalyticsEvent } from '../integrations/analytics';
