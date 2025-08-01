@@ -763,12 +763,6 @@ describe('logged in boot', () => {
         userId,
       );
       const storesRedisValue = await getRedisObject(redisKey);
-      console.log(
-        '@@@@@@@' + storesRedisValue,
-        redisKey,
-        storesRedisValue,
-        new Date().toISOString(),
-      );
 
       expect(storesRedisValue).not.toBeNull();
       expect(new Date(parseInt(storesRedisValue!))).toBeInstanceOf(Date);
