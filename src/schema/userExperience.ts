@@ -34,10 +34,6 @@ export const typeDefs = /* GraphQL */ `
   type ExperienceHit {
     id: ID!
     title: String
-    issuer: String
-    publisher: String
-    institution: String
-    fieldOfStudy: String
   }
 
   type CompanyHit {
@@ -82,8 +78,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Get autocomplete suggestions for companies
     """
-    companyAutocomplete(query: String!, limit: Int): CompanyAutocompleteResult!
-      @auth
+    companyAutocomplete(
+      query: String!
+      limit: Int
+      type: String
+    ): CompanyAutocompleteResult! @auth
 
     """
     Get autocomplete suggestions for skills
@@ -163,22 +162,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const { type, query, limit }: ExperienceAutocompleteInput = data;
-      const propertyName = experiencePropertyByType[type];
+      const propertyName = experiencePropertyByType[
+        type
+      ] as keyof UserExperience;
 
       const hits: Array<Partial<UserExperience>> = await queryReadReplica(
         ctx.con,
         ({ queryRunner }) =>
           queryRunner.manager
             .getRepository(UserExperience)
-            .createQueryBuilder('entity')
-            .select(`entity.id, DISTINCT entity.${propertyName}`)
+            .createQueryBuilder()
+            .select(`id`)
+            .addSelect(propertyName)
             .where({
-              [propertyName]: Raw((alias) => `${alias} ILIKE :query`, {
+              [propertyName]: Raw(() => `${propertyName} ILIKE :query`, {
                 query: `%${query}%`,
               }),
               status: ExperienceStatus.Published,
             })
-            .orderBy(`entity.${propertyName}`, 'ASC')
+            .orderBy(propertyName, 'ASC')
             .limit(limit)
             .getRawMany(),
       );
@@ -186,7 +188,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         query,
         limit,
-        hits,
+        hits: hits.map(({ id, [propertyName]: title }) => ({ id, title })),
       };
     },
     companyAutocomplete: async (
@@ -210,15 +212,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         await queryReadReplica(ctx.con, ({ queryRunner }) =>
           queryRunner.manager
             .getRepository(Company)
-            .createQueryBuilder('company')
-            .select(['company.id', 'company.name', 'company.image'])
+            .createQueryBuilder()
+            .select(['id', 'name', 'image'])
             .where({
-              name: Raw((alias) => `${alias} ILIKE :query`, {
+              name: Raw(() => `name ILIKE :query`, {
                 query: `%${query}%`,
               }),
               type,
             })
-            .orderBy('company.name', 'ASC')
+            .orderBy('name', 'ASC')
             .limit(limit)
             .getRawMany(),
         );
@@ -245,14 +247,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const hits = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager
           .getRepository(UserSkill)
-          .createQueryBuilder('skill')
-          .select(['skill.slug', 'skill.name'])
+          .createQueryBuilder()
+          .select(['slug', 'name'])
           .where({
-            name: Raw((alias) => `${alias} ILIKE :query`, {
+            name: Raw(() => `name ILIKE :query`, {
               query: `%${query}%`,
             }),
           })
-          .orderBy('skill.name', 'ASC')
+          .orderBy('name', 'ASC')
           .limit(limit)
           .getRawMany(),
       );

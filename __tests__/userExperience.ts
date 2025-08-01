@@ -10,8 +10,8 @@ import {
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
 import {
-  AutocompleteType,
   DEFAULT_AUTOCOMPLETE_LIMIT,
+  ExperienceAutocompleteType,
 } from '../src/schema/userExperience';
 import { UserSkill } from '../src/entity/user/UserSkill';
 import { Company, CompanyType } from '../src/entity/Company';
@@ -21,32 +21,47 @@ import { User } from '../src/entity';
 import { usersFixture } from './fixture';
 import { UserAwardExperience } from '../src/entity/user/experiences/UserAwardExperience';
 
-describe('autocomplete query', () => {
+describe('autocomplete queries', () => {
   let con: DataSource;
   let state: GraphQLTestingState;
   let client: GraphQLTestClient;
   let loggedUser: string | null = null;
 
-  const QUERY = `
-    query Autocomplete($type: String!, $query: String!, $limit: Int) {
+  const EXPERIENCE_QUERY = `
+    query ExperienceAutocomplete($type: String!, $query: String!, $limit: Int) {
       experienceAutocomplete(type: $type, query: $query, limit: $limit) {
         query
         limit
         hits {
-          __typename
-          ... on ExperienceHit {
-            id
-            title
-            issuer
-          }
-          ... on CompanyHit {
-            id
-            name
-          }
-          ... on SkillHit {
-            slug
-            name
-          }
+          id
+          title
+        }
+      }
+    }
+  `;
+
+  const COMPANY_QUERY = `
+    query CompanyAutocomplete($query: String!, $limit: Int, $type: String) {
+      companyAutocomplete(query: $query, limit: $limit, type: $type) {
+        query
+        limit
+        hits {
+          id
+          name
+          image
+        }
+      }
+    }
+  `;
+
+  const SKILL_QUERY = `
+    query SkillAutocomplete($query: String!, $limit: Int) {
+      skillAutocomplete(query: $query, limit: $limit) {
+        query
+        limit
+        hits {
+          slug
+          name
         }
       }
     }
@@ -69,81 +84,139 @@ describe('autocomplete query', () => {
   });
 
   describe('input validation', () => {
-    it('should throw error if user is not logged in', () => {
-      return testQueryErrorCode(
-        client,
-        {
-          query: QUERY,
-          variables: {
-            type: AutocompleteType.Skill,
-            query: 'test',
+    describe('experience', () => {
+      it('should throw error if user is not logged in', () => {
+        return testQueryErrorCode(
+          client,
+          {
+            query: EXPERIENCE_QUERY,
+            variables: {
+              type: ExperienceAutocompleteType.JobTitle,
+              query: 'test',
+            },
           },
-        },
-        'UNAUTHENTICATED',
-      );
-    });
+          'UNAUTHENTICATED',
+        );
+      });
 
-    it('should return empty hits for query shorter than 2 characters', async () => {
-      loggedUser = '1';
-      const res = await client.query(QUERY, {
-        variables: {
-          type: AutocompleteType.Skill,
+      it('should return empty hits for query shorter than 2 characters', async () => {
+        loggedUser = '1';
+        const res = await client.query(EXPERIENCE_QUERY, {
+          variables: {
+            type: ExperienceAutocompleteType.JobTitle,
+            query: 'a',
+          },
+        });
+        expect(res.data.experienceAutocomplete).toEqual({
           query: 'a',
-        },
-      });
-      expect(res.data.experienceAutocomplete).toEqual({
-        query: 'a',
-        limit: DEFAULT_AUTOCOMPLETE_LIMIT,
-        hits: [],
-      });
-    });
-
-    it('should return empty hits for empty query', async () => {
-      loggedUser = '1';
-      const res = await client.query(QUERY, {
-        variables: {
-          type: AutocompleteType.Skill,
-          query: '',
-        },
+          limit: DEFAULT_AUTOCOMPLETE_LIMIT,
+          hits: [],
+        });
       });
 
-      expect(res.data.experienceAutocomplete).toEqual({
-        query: '',
-        limit: DEFAULT_AUTOCOMPLETE_LIMIT,
-        hits: [],
-      });
-    });
-
-    it('should return empty hits for query longer than 100 characters', async () => {
-      loggedUser = '1';
-      const longQuery = 'a'.repeat(101);
-      const res = await client.query(QUERY, {
-        variables: {
-          type: AutocompleteType.Skill,
-          query: longQuery,
-        },
-      });
-
-      expect(res.data.experienceAutocomplete).toEqual({
-        query: longQuery,
-        limit: DEFAULT_AUTOCOMPLETE_LIMIT,
-        hits: [],
-      });
-    });
-
-    it('should throw validation error for invalid autocomplete type', () => {
-      loggedUser = '1';
-      return testQueryErrorCode(
-        client,
-        {
-          query: QUERY,
-          variables: {
-            type: 'invalid_type',
-            query: 'test',
+      it('should throw validation error for invalid experience type', () => {
+        loggedUser = '1';
+        return testQueryErrorCode(
+          client,
+          {
+            query: EXPERIENCE_QUERY,
+            variables: {
+              type: 'invalid_type',
+              query: 'test',
+            },
           },
-        },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
+          'GRAPHQL_VALIDATION_FAILED',
+        );
+      });
+    });
+
+    describe('company', () => {
+      it('should throw error if user is not logged in', () => {
+        return testQueryErrorCode(
+          client,
+          {
+            query: COMPANY_QUERY,
+            variables: {
+              query: 'test',
+            },
+          },
+          'UNAUTHENTICATED',
+        );
+      });
+
+      it('should return empty hits for query shorter than 2 characters', async () => {
+        loggedUser = '1';
+        const res = await client.query(COMPANY_QUERY, {
+          variables: {
+            query: 'a',
+          },
+        });
+        expect(res.data.companyAutocomplete).toEqual({
+          query: 'a',
+          limit: DEFAULT_AUTOCOMPLETE_LIMIT,
+          hits: [],
+        });
+      });
+    });
+
+    describe('skill', () => {
+      it('should throw error if user is not logged in', () => {
+        return testQueryErrorCode(
+          client,
+          {
+            query: SKILL_QUERY,
+            variables: {
+              query: 'test',
+            },
+          },
+          'UNAUTHENTICATED',
+        );
+      });
+
+      it('should return empty hits for query shorter than 2 characters', async () => {
+        loggedUser = '1';
+        const res = await client.query(SKILL_QUERY, {
+          variables: {
+            query: 'a',
+          },
+        });
+        expect(res.data.skillAutocomplete).toEqual({
+          query: 'a',
+          limit: DEFAULT_AUTOCOMPLETE_LIMIT,
+          hits: [],
+        });
+      });
+
+      it('should return empty hits for empty query', async () => {
+        loggedUser = '1';
+        const res = await client.query(SKILL_QUERY, {
+          variables: {
+            query: '',
+          },
+        });
+
+        expect(res.data.skillAutocomplete).toEqual({
+          query: '',
+          limit: DEFAULT_AUTOCOMPLETE_LIMIT,
+          hits: [],
+        });
+      });
+
+      it('should return empty hits for query longer than 100 characters', async () => {
+        loggedUser = '1';
+        const longQuery = 'a'.repeat(101);
+        const res = await client.query(SKILL_QUERY, {
+          variables: {
+            query: longQuery,
+          },
+        });
+
+        expect(res.data.skillAutocomplete).toEqual({
+          query: longQuery,
+          limit: DEFAULT_AUTOCOMPLETE_LIMIT,
+          hits: [],
+        });
+      });
     });
   });
 
@@ -161,35 +234,33 @@ describe('autocomplete query', () => {
 
     it('should return matching skills', async () => {
       loggedUser = '1';
-      const res = await client.query(QUERY, {
+      const res = await client.query(SKILL_QUERY, {
         variables: {
-          type: AutocompleteType.Skill,
           query: 'script',
         },
       });
 
-      expect(res.data.experienceAutocomplete.query).toEqual('script');
-      expect(res.data.experienceAutocomplete.hits).toHaveLength(2);
-      expect(res.data.experienceAutocomplete.hits).toEqual(
+      expect(res.data.skillAutocomplete.query).toEqual('script');
+      expect(res.data.skillAutocomplete.hits).toHaveLength(2);
+      expect(res.data.skillAutocomplete.hits).toEqual(
         expect.arrayContaining([
-          expect.objectContaining({ name: 'JavaScript' }),
-          expect.objectContaining({ name: 'TypeScript' }),
+          expect.objectContaining({ name: 'JavaScript', slug: 'javascript' }),
+          expect.objectContaining({ name: 'TypeScript', slug: 'typescript' }),
         ]),
       );
     });
 
     it('should respect the limit parameter', async () => {
       loggedUser = '1';
-      const res = await client.query(QUERY, {
+      const res = await client.query(SKILL_QUERY, {
         variables: {
-          type: AutocompleteType.Skill,
           query: 'script',
           limit: 1,
         },
       });
 
-      expect(res.data.experienceAutocomplete.limit).toEqual(1);
-      expect(res.data.experienceAutocomplete.hits).toHaveLength(1);
+      expect(res.data.skillAutocomplete.limit).toEqual(1);
+      expect(res.data.skillAutocomplete.hits).toHaveLength(1);
     });
   });
 
@@ -261,9 +332,9 @@ describe('autocomplete query', () => {
 
     it('should return matching job titles with published status', async () => {
       loggedUser = '1';
-      const res = await client.query(QUERY, {
+      const res = await client.query(EXPERIENCE_QUERY, {
         variables: {
-          type: AutocompleteType.JobTitle,
+          type: ExperienceAutocompleteType.JobTitle,
           query: 'software',
         },
       });
@@ -288,18 +359,52 @@ describe('autocomplete query', () => {
 
     it('should return matching issuers for published experiences', async () => {
       loggedUser = '1';
-      const res = await client.query(QUERY, {
+      const res = await client.query(EXPERIENCE_QUERY, {
         variables: {
-          type: AutocompleteType.AwardIssuer,
+          type: ExperienceAutocompleteType.AwardIssuer,
           query: 'proj',
         },
       });
 
       expect(res.data.experienceAutocomplete.query).toEqual('proj');
       expect(res.data.experienceAutocomplete.hits).toHaveLength(1);
-      expect(res.data.experienceAutocomplete.hits[0].issuer).toEqual(
+      expect(res.data.experienceAutocomplete.hits[0].title).toEqual(
         'Open Source Project',
       );
+    });
+
+    it('should return matching titles for award experiences', async () => {
+      loggedUser = '1';
+      const res = await client.query(EXPERIENCE_QUERY, {
+        variables: {
+          type: ExperienceAutocompleteType.AwardName,
+          query: 'award',
+        },
+      });
+
+      expect(res.data.experienceAutocomplete.query).toEqual('award');
+      expect(res.data.experienceAutocomplete.limit).toEqual(10);
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(2);
+      expect(res.data.experienceAutocomplete.hits).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: 'Best Developer Award' }),
+          expect.objectContaining({ title: 'Outstanding Contribution Award' }),
+        ]),
+      );
+    });
+
+    it('should respect the limit parameter', async () => {
+      loggedUser = '1';
+      const res = await client.query(EXPERIENCE_QUERY, {
+        variables: {
+          type: ExperienceAutocompleteType.JobTitle,
+          query: 'software',
+          limit: 2,
+        },
+      });
+
+      expect(res.data.experienceAutocomplete.limit).toEqual(2);
+      expect(res.data.experienceAutocomplete.hits).toHaveLength(2);
     });
   });
 
@@ -343,40 +448,63 @@ describe('autocomplete query', () => {
           type: CompanyType.School,
           image: 'https://example.com/mit.png',
         },
+        {
+          id: 'company7',
+          name: 'Apple dupe',
+          type: CompanyType.Business,
+          image: 'https://example.com/apple.png',
+        },
       ]);
     });
 
     it('should return matching business companies', async () => {
       loggedUser = '1';
-      const res = await client.query(QUERY, {
+      const res = await client.query(COMPANY_QUERY, {
         variables: {
-          type: AutocompleteType.Company,
           query: 'apple',
         },
       });
 
-      expect(res.data.experienceAutocomplete.query).toEqual('apple');
-      expect(res.data.experienceAutocomplete.hits).toHaveLength(1);
-      expect(res.data.experienceAutocomplete.hits[0].name).toEqual('Apple');
+      expect(res.data.companyAutocomplete.query).toEqual('apple');
+      expect(res.data.companyAutocomplete.hits).toHaveLength(2);
+      expect(res.data.companyAutocomplete.hits).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Apple' }),
+          expect.objectContaining({ name: 'Apple dupe' }),
+        ]),
+      );
     });
 
-    it('should return matching schools', async () => {
+    it('should not return business while searching for schools', async () => {
       loggedUser = '1';
-      const res = await client.query(QUERY, {
+      const res = await client.query(COMPANY_QUERY, {
         variables: {
-          type: AutocompleteType.School,
-          query: 'university',
+          query: 'univ',
+          type: CompanyType.School,
         },
       });
 
-      expect(res.data.experienceAutocomplete.query).toEqual('university');
-      expect(res.data.experienceAutocomplete.hits).toHaveLength(2);
-      expect(res.data.experienceAutocomplete.hits[0].name).toStrictEqual(
-        'Apple university',
+      expect(res.data.companyAutocomplete.hits).toHaveLength(2);
+      expect(res.data.companyAutocomplete.hits).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Apple university' }),
+          expect.objectContaining({ name: 'Stanford University' }),
+        ]),
       );
-      expect(res.data.experienceAutocomplete.hits[1].name).toStrictEqual(
-        'Stanford University',
-      );
+    });
+
+    it('should respect the limit parameter', async () => {
+      loggedUser = '1';
+      const res = await client.query(COMPANY_QUERY, {
+        variables: {
+          query: 'apple',
+          limit: 1,
+        },
+      });
+
+      expect(res.data.companyAutocomplete.limit).toEqual(1);
+      expect(res.data.companyAutocomplete.hits).toHaveLength(1);
+      expect(res.data.companyAutocomplete.hits[0].name).toEqual('Apple');
     });
   });
 });
