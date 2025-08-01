@@ -2898,14 +2898,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      const repo = ctx.con.getRepository(User);
-      const user = await repo.findOneBy({ id: ctx.userId });
-
-      if (!user) {
-        throw new AuthenticationError('Unauthorized!');
-      }
-
-      await repo.update({ id: ctx.userId }, { notificationFlags });
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { notificationFlags });
 
       return { _: true };
     },
