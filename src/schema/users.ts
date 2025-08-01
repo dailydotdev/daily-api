@@ -2338,15 +2338,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const promises = [resubscribeUser(cio, ctx.userId)];
 
-      if (process.env.NODE_ENV !== 'development') {
-        promises.push(
-          identifyUserPersonalizedDigest({
-            userId: ctx.userId,
-            cio,
-            subscribed: true,
-          }),
-        );
-      }
+      promises.push(
+        identifyUserPersonalizedDigest({
+          userId: ctx.userId,
+          cio,
+          subscribed: true,
+        }),
+      );
 
       await Promise.all(promises);
 
@@ -2368,13 +2366,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
       }
 
-      if (process.env.NODE_ENV !== 'development') {
-        await identifyUserPersonalizedDigest({
-          userId: ctx.userId,
-          cio,
-          subscribed: false,
-        });
-      }
+      await identifyUserPersonalizedDigest({
+        userId: ctx.userId,
+        cio,
+        subscribed: false,
+      });
       return { _: true };
     },
     acceptFeatureInvite: async (
