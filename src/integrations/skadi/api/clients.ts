@@ -28,6 +28,7 @@ const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
   endedAt: campaign.ended_at,
   impressions: campaign.impressions,
   clicks: campaign.clicks,
+  users: campaign.users,
 });
 
 export class SkadiApiClient implements ISkadiApiClient {
@@ -139,10 +140,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   estimatePostBoostReach({
     postId,
     userId,
-  }: Pick<
-    EstimatedBoostReachParams,
-    'userId' | 'postId'
-  >): Promise<PostEstimatedReachResponse> {
+  }: Pick<EstimatedBoostReachParams, 'userId' | 'postId'>) {
     const params = {
       post_id: postId,
       user_id: userId,
@@ -156,7 +154,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     userId,
     durationInDays,
     budget,
-  }: EstimatedBoostReachParams): Promise<PostEstimatedReachResponse> {
+  }: EstimatedBoostReachParams) {
     const params = {
       post_id: postId,
       user_id: userId,

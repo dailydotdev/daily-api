@@ -13,6 +13,11 @@ export interface PostEstimatedReach {
   max_impressions: number;
 }
 
+export type LegacyPostEstimatedReach = Pick<
+  PostEstimatedReachResponse,
+  'clicks' | 'impressions' | 'users'
+>;
+
 export interface PostEstimatedReachResponse
   extends Pick<PostEstimatedReach, 'impressions' | 'clicks' | 'users'> {
   minImpressions: number;
@@ -29,6 +34,7 @@ export interface PromotedPost {
   ended_at: number;
   impressions: number;
   clicks: number;
+  users: number;
 }
 
 export interface PromotedPostList {
@@ -61,7 +67,7 @@ export interface CancelPostCampaignResponse {
 export interface GetCampaignResponse
   extends Pick<
     PromotedPost,
-    'budget' | 'clicks' | 'impressions' | 'spend' | 'status'
+    'budget' | 'clicks' | 'impressions' | 'spend' | 'status' | 'users'
   > {
   startedAt: number;
   endedAt: number;
@@ -96,7 +102,7 @@ export interface ISkadiApiClient {
   }): Promise<{ currentBudget: string }>;
   estimatePostBoostReach(
     params: Pick<EstimatedBoostReachParams, 'userId' | 'postId'>,
-  ): Promise<PostEstimatedReachResponse>;
+  ): Promise<LegacyPostEstimatedReach>;
   estimatePostBoostReachDaily(
     params: EstimatedBoostReachParams,
   ): Promise<PostEstimatedReachResponse>;
