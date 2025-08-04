@@ -2,7 +2,8 @@
 import { z } from 'zod';
 import { CompanyType } from '../entity/Company';
 import { ValidationError } from 'apollo-server-errors';
-import { ExperienceStatus } from '../entity/user/experiences/types';
+import { ExperienceStatus, UserExperienceType } from '../entity/user/experiences/types';
+import { UserExperience } from '../entity/user/experiences/UserExperience';
 
 // Autocomplete
 
@@ -91,3 +92,10 @@ export const experiencesQueryValidation = z.object({
     .optional()
     .default([ExperienceStatus.Published]),
 });
+
+export const emptyExperienceTypesMap = Object.fromEntries(
+  Object.values(UserExperienceType).map((type) => [
+    type,
+    [] as Array<UserExperience>,
+  ]),
+) as Record<UserExperienceType, Array<UserExperience>>;

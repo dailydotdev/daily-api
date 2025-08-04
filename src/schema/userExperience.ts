@@ -14,6 +14,7 @@ import {
   autocomplete,
   AutocompleteInput,
   CompanyAutocompleteInput,
+  emptyExperienceTypesMap,
   ExperienceAutocompleteInput,
 } from '../common/userExperience';
 import { logger } from '../logger';
@@ -395,32 +396,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             status,
           })
           .orderBy({
-            'experience.startDate': 'DESC',
             'experience.endDate': 'DESC',
+            'experience.startDate': 'DESC',
           })
           .getMany(),
       );
 
-      const result = Object.fromEntries(
-        Object.values(UserExperienceType).map((type) => [
-          type,
-          [] as Array<UserExperience>,
-        ]),
-      ) as Record<UserExperienceType, Array<UserExperience>>;
-
-      for (const entry of entries) {
-        if (!(entry.type in result)) {
+      return entries.reduce((acc, entry) => {
+        const type = entry.type;
+        if (!(type in acc)) {
           logger.warn(
-            { entry, userId },
+            { entry, type, userId },
             `Unexpected experience type. Skipping entry.`,
           );
-          continue;
+          return acc;
         }
 
-        result[entry.type].push(entry);
-      }
-
-      return result;
+        return { ...acc, [type]: [...acc[type], entry] };
+      }, emptyExperienceTypesMap);
     },
   },
 });
