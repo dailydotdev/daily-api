@@ -12,21 +12,40 @@ import { DataSource } from 'typeorm';
 import {
   DEFAULT_AUTOCOMPLETE_LIMIT,
   ExperienceAutocompleteType,
-} from '../src/schema/userExperience';
+} from '../src/common/userExperience';
 import { UserSkill } from '../src/entity/user/UserSkill';
 import { Company, CompanyType } from '../src/entity/Company';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
-import { ExperienceStatus } from '../src/entity/user/experiences/types';
+import {
+  ExperienceStatus,
+  UserExperienceType,
+} from '../src/entity/user/experiences/types';
 import { User } from '../src/entity';
 import { usersFixture } from './fixture';
 import { UserAwardExperience } from '../src/entity/user/experiences/UserAwardExperience';
 
-describe('autocomplete queries', () => {
-  let con: DataSource;
-  let state: GraphQLTestingState;
-  let client: GraphQLTestClient;
-  let loggedUser: string | null = null;
+let con: DataSource;
+let state: GraphQLTestingState;
+let client: GraphQLTestClient;
+let loggedUser: string | null = null;
 
+beforeAll(async () => {
+  con = await createOrGetConnection();
+  state = await initializeGraphQLTesting(
+    () => new MockContext(con, loggedUser),
+  );
+  client = state.client;
+});
+
+beforeEach(async () => {
+  loggedUser = null;
+});
+
+afterAll(async () => {
+  await disposeGraphQLTesting(state);
+});
+
+describe('autocomplete queries', () => {
   const EXPERIENCE_QUERY = `
     query ExperienceAutocomplete($type: String!, $query: String!, $limit: Int) {
       experienceAutocomplete(type: $type, query: $query, limit: $limit) {
@@ -66,22 +85,6 @@ describe('autocomplete queries', () => {
       }
     }
   `;
-
-  beforeAll(async () => {
-    con = await createOrGetConnection();
-    state = await initializeGraphQLTesting(
-      () => new MockContext(con, loggedUser),
-    );
-    client = state.client;
-  });
-
-  beforeEach(async () => {
-    loggedUser = null;
-  });
-
-  afterAll(async () => {
-    await disposeGraphQLTesting(state);
-  });
 
   describe('input validation', () => {
     describe('experience', () => {
@@ -274,35 +277,35 @@ describe('autocomplete queries', () => {
           title: 'Software Engineer',
           status: ExperienceStatus.Published,
           description: '',
-          startDate: new Date(),
+          startDate: new Date('2024-01-01'),
         },
         {
           userId: '1',
           title: 'Senior Software Engineer',
           status: ExperienceStatus.Published,
           description: '',
-          startDate: new Date(),
+          startDate: new Date('2024-02-01'),
         },
         {
           userId: '1',
           title: 'Software Developer',
           status: ExperienceStatus.Published,
           description: '',
-          startDate: new Date(),
+          startDate: new Date('2024-03-01'),
         },
         {
           userId: '1',
           title: 'Frontend Developer',
           status: ExperienceStatus.Published,
           description: '',
-          startDate: new Date(),
+          startDate: new Date('2024-04-01'),
         },
         {
           userId: '1',
           title: 'Draft Job Title',
           status: ExperienceStatus.Draft,
           description: '',
-          startDate: new Date(),
+          startDate: new Date('2024-05-01'),
         },
       ]);
       await saveFixtures(con, UserAwardExperience, [
@@ -506,5 +509,192 @@ describe('autocomplete queries', () => {
       expect(res.data.companyAutocomplete.hits).toHaveLength(1);
       expect(res.data.companyAutocomplete.hits[0].name).toEqual('Apple');
     });
+  });
+});
+
+describe('user experience', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, UserWorkExperience, [
+      {
+        userId: '1',
+        title: 'Software Engineer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date('2024-01-01'),
+      },
+      {
+        userId: '1',
+        title: 'Senior Software Engineer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date('2024-02-01'),
+      },
+      {
+        userId: '1',
+        title: 'Software Developer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date('2024-03-01'),
+      },
+      {
+        userId: '1',
+        title: 'Frontend Developer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date('2024-04-01'),
+      },
+      {
+        userId: '1',
+        title: 'Draft Job Title',
+        status: ExperienceStatus.Draft,
+        description: '',
+        startDate: new Date('2024-05-01'),
+      },
+    ]);
+    await saveFixtures(con, UserAwardExperience, [
+      {
+        userId: '1',
+        title: 'Best Developer Award',
+        issuer: 'Tech Company',
+        status: ExperienceStatus.Published,
+        startDate: new Date('2024-12-12'),
+      },
+      {
+        userId: '1',
+        title: 'Outstanding Contribution Award',
+        issuer: 'Open Source Project',
+        status: ExperienceStatus.Published,
+        startDate: new Date('2024-12-12'),
+      },
+      {
+        userId: '1',
+        title: 'Draft Award Title',
+        issuer: 'Draft Issuer Project',
+        status: ExperienceStatus.Draft,
+        startDate: new Date('2024-12-12'),
+      },
+    ]);
+  });
+
+  const QUERY = `
+      query UserExperiences($status: [ExperienceStatus!]) {
+        userExperiences(status: $status) {
+          work{
+            id
+            userId
+            title
+            description
+            startDate
+            endDate
+            type
+            status
+            skills {
+              slug
+              name
+            }
+          }
+          award {
+            id
+            userId
+            title
+            description
+            startDate
+            endDate
+            type
+            status
+            skills {
+              slug
+              name
+            }
+          }
+        }
+      }
+  `;
+
+  it('should return user experiences', async () => {
+    loggedUser = '1';
+    const res = await client.query<
+      {
+        userExperiences: {
+          [UserExperienceType.Work]: UserWorkExperience[];
+          [UserExperienceType.Award]: UserAwardExperience[];
+        };
+      },
+      { status?: ExperienceStatus[] }
+    >(QUERY, {
+      variables: {},
+    });
+
+    expect(res.data.userExperiences.work).toHaveLength(4);
+    // check for work experiences array to contain all published works
+    expect(res.data.userExperiences.work).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: 'Software Engineer' }),
+        expect.objectContaining({ title: 'Senior Software Engineer' }),
+        expect.objectContaining({ title: 'Software Developer' }),
+        expect.objectContaining({ title: 'Frontend Developer' }),
+      ]),
+    );
+
+    expect(res.data.userExperiences.award).toHaveLength(2);
+    // check for award experiences array to contain all published awards
+    expect(res.data.userExperiences.award).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: 'Best Developer Award' }),
+        expect.objectContaining({ title: 'Outstanding Contribution Award' }),
+      ]),
+    );
+  });
+
+  it('should return both published and draft experiences', async () => {
+    loggedUser = '1';
+    const res = await client.query<
+      {
+        userExperiences: {
+          [UserExperienceType.Work]: UserWorkExperience[];
+          [UserExperienceType.Award]: UserAwardExperience[];
+        };
+      },
+      { status?: ExperienceStatus[] }
+    >(QUERY, {
+      variables: {
+        status: [ExperienceStatus.Published, ExperienceStatus.Draft],
+      },
+    });
+
+    expect(res.data.userExperiences.work).toHaveLength(5);
+    // check for work experiences array to contain all works including draft
+    expect(res.data.userExperiences.work).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: 'Draft Job Title' }),
+      ]),
+    );
+
+    expect(res.data.userExperiences.award).toHaveLength(3);
+    // check for award experiences array to contain all awards including draft
+    expect(res.data.userExperiences.award).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ title: 'Draft Award Title' }),
+      ]),
+    );
+  });
+
+  it('should return empty arrays if no experiences found', async () => {
+    loggedUser = '2'; // User with no experiences
+    const res = await client.query<
+      {
+        userExperiences: {
+          [UserExperienceType.Work]: UserWorkExperience[];
+          [UserExperienceType.Award]: UserAwardExperience[];
+        };
+      },
+      { status?: ExperienceStatus[] }
+    >(QUERY, {
+      variables: {},
+    });
+
+    expect(res.data.userExperiences.work).toHaveLength(0);
+    expect(res.data.userExperiences.award).toHaveLength(0);
   });
 });
