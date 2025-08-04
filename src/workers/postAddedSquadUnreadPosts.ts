@@ -33,11 +33,7 @@ export const postAddedSquadUnreadPostsWorker: TypedWorker<'api.v1.post-visible'>
           .select('sm."userId"')
           .from(SourceMember, 'sm')
           .where('sm.sourceId = :sourceId', { sourceId: source.id })
-          .andWhere('sm.flags @> :flags', {
-            flags: {
-              hasUnreadPosts: false,
-            },
-          })
+          .andWhere(`(sm.flags->>'hasUnreadPosts')::boolean != true`)
           .stream();
 
         await processStreamInBatches(
