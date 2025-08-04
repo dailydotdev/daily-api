@@ -212,6 +212,7 @@ describe('query postCampaignById', () => {
           spend
           impressions
           clicks
+          users
         }
       }
     }
@@ -278,6 +279,7 @@ describe('query postCampaignById', () => {
         ended_at: new Date('2024-12-31').getTime(), // Future date
         impressions: 50,
         clicks: 10,
+        users: 25,
       },
     });
 
@@ -292,6 +294,7 @@ describe('query postCampaignById', () => {
         impressions: 50,
         postId: 'p1',
         status: 'active',
+        users: 25,
       },
       post: {
         id: 'p1',
@@ -1116,10 +1119,12 @@ describe('query postCampaigns', () => {
               spend
               impressions
               clicks
+              users
             }
           }
         }
         stats {
+          users
           impressions
           clicks
           totalSpend
@@ -1149,6 +1154,7 @@ describe('query postCampaigns', () => {
       promoted_posts: [],
       impressions: 0,
       clicks: 0,
+      users: 0,
       total_spend: '0',
       post_ids: [],
     });
@@ -1169,6 +1175,7 @@ describe('query postCampaigns', () => {
         clicks: 0,
         totalSpend: 0,
         engagements: 0,
+        users: 0,
       },
     });
 
@@ -1238,6 +1245,7 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 1000,
           clicks: 50,
+          users: 500,
         },
         {
           campaign_id: 'campaign-2',
@@ -1248,10 +1256,12 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 2000,
           clicks: 100,
+          users: 800,
         },
       ],
       impressions: 3000,
       clicks: 150,
+      users: 1300, // 500 + 800
       total_spend: '30.5', // 30.5 USD = 3050 cores
       post_ids: ['post-1', 'post-2'],
     });
@@ -1284,6 +1294,7 @@ describe('query postCampaigns', () => {
           impressions: 1000,
           postId: 'post-1',
           status: 'active',
+          users: 500,
         },
       },
     });
@@ -1305,12 +1316,14 @@ describe('query postCampaigns', () => {
           impressions: 2000,
           postId: 'post-2',
           status: 'active',
+          users: 800,
         },
       },
     });
     expect(res.data.postCampaigns.stats).toEqual({
       impressions: 3000,
       clicks: 150,
+      users: 1300,
       totalSpend: 3050, // Converted from USD to cores
       engagements: 480, // 100+50+25+200+75+30 = 480
     });
@@ -1348,10 +1361,12 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 1500,
           clicks: 75,
+          users: 900,
         },
       ],
       impressions: 1500,
       clicks: 75,
+      users: 900, // 900
       total_spend: '15.0',
       post_ids: ['post-3'],
     });
@@ -1415,9 +1430,11 @@ describe('query postCampaigns', () => {
         ended_at: null,
         impressions: 1000 + index * 100,
         clicks: 50 + index * 10,
+        users: 600 + index * 50, // 600, 650
       })),
       impressions: 2100,
       clicks: 60,
+      users: 1250, // 600 + 650
       total_spend: '20.0',
       post_ids: posts.slice(0, 2).map((p) => p.id),
     });
@@ -1432,9 +1449,11 @@ describe('query postCampaigns', () => {
         ended_at: null,
         impressions: 1000 + (index + 2) * 100,
         clicks: 50 + (index + 2) * 10,
+        users: 600 + (index + 2) * 50, // 700, 750
       })),
       impressions: 2300,
       clicks: 80,
+      users: 1450, // 700 + 750
       total_spend: '20.0',
       post_ids: posts.slice(2, 4).map((p) => p.id),
     });
@@ -1451,6 +1470,7 @@ describe('query postCampaigns', () => {
     expect(res1.data.postCampaigns.stats).toEqual({
       impressions: 2100,
       clicks: 60,
+      users: 1250,
       totalSpend: 2000, // Converted from USD to cores
       engagements: 221, // 60+30+12+70+35+14 = 221
     });
@@ -1565,6 +1585,7 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 1000,
           clicks: 50,
+          users: 600,
         },
         {
           campaign_id: 'campaign-2',
@@ -1575,6 +1596,7 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 1000,
           clicks: 50,
+          users: 650,
         },
         {
           campaign_id: 'campaign-3',
@@ -1585,10 +1607,12 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 1000,
           clicks: 50,
+          users: 700,
         },
       ],
       impressions: 3000,
       clicks: 150,
+      users: 1950, // 600 + 650 + 700
       total_spend: '30.0',
       post_ids: ['article-post', 'freeform-post', 'share-post'],
     });
@@ -1643,6 +1667,7 @@ describe('query postCampaigns', () => {
       clicks: 150,
       totalSpend: 3000, // Converted from USD to cores
       engagements: 496, // 205+163+128
+      users: 1950, // 600 + 650 + 700
     });
   });
 
@@ -1677,10 +1702,12 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 0,
           clicks: 0,
+          users: 0,
         },
       ],
       impressions: 0,
       clicks: 0,
+      users: 0, // 0
       total_spend: '0.0',
       post_ids: ['zero-post'],
     });
@@ -1696,6 +1723,7 @@ describe('query postCampaigns', () => {
       spend: 0, // Converted from USD to cores
       impressions: 0,
       clicks: 0,
+      users: 0,
     });
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
@@ -1705,6 +1733,7 @@ describe('query postCampaigns', () => {
       clicks: 0,
       totalSpend: 0, // Converted from USD to cores
       engagements: 0, // 0+0+0+0+0 = 0
+      users: 0, // 0
     });
   });
 
@@ -1739,10 +1768,12 @@ describe('query postCampaigns', () => {
           ended_at: null,
           impressions: 1000,
           clicks: 50,
+          users: 750,
         },
       ],
       impressions: 1000,
       clicks: 50,
+      users: 750, // 750
       total_spend: '15.75', // 15.75 USD = 1575 cores
       post_ids: ['decimal-post'],
     });
@@ -1758,6 +1789,7 @@ describe('query postCampaigns', () => {
       spend: 1575, // 15.75 * 100 = 1575
       impressions: 1000,
       clicks: 50,
+      users: 750,
     });
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
@@ -1768,6 +1800,7 @@ describe('query postCampaigns', () => {
       clicks: 50,
       totalSpend: 1575, // Converted from USD to cores
       engagements: 109,
+      users: 750,
     });
   });
 });

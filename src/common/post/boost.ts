@@ -187,7 +187,7 @@ export const getFormattedCampaign = ({
 });
 
 export interface BoostedPostStats
-  extends Pick<GetCampaignListResponse, 'clicks' | 'impressions'> {
+  extends Pick<GetCampaignListResponse, 'clicks' | 'impressions' | 'users'> {
   engagements: number;
   totalSpend: number;
 }
