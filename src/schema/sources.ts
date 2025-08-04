@@ -321,6 +321,10 @@ export const typeDefs = /* GraphQL */ `
     Whether the source pinned posts are collapsed or not
     """
     collapsePinnedPosts: Boolean
+    """
+    Whether the source has unread posts for member
+    """
+    hasUnreadPosts: Boolean
   }
 
   type SourceMember {
