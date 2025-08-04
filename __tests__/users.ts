@@ -142,6 +142,9 @@ import * as googleCloud from '../src/common/googleCloud';
 import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
 import { Bucket } from '@google-cloud/storage';
+import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
+import { ExperienceStatus } from '../src/entity/user/experiences/types';
+import { UserJobPreferences } from '../src/entity/user/UserJobPreferences';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -6993,19 +6996,275 @@ describe('mutation uploadResume', () => {
 });
 
 describe('user job preferences', () => {
-  describe('query userJobPreferences', () => {
-    it('should throw error on query as guest', async () => {});
+  const QUERY = `
+    query UserJobPreferences {
+      userJobPreferences {
+        userId
+        openToOpportunities
+        preferredRoles
+        preferredLocationType
+        openToRelocation
+        currentTotalComp {
+          currency
+          amount
+        }
+      }
+    }
+  `;
 
-    it('should return user job preferences', async () => {});
+  const MUTATION = `
+    mutation UpdateUserJobPreferences($data: UserJobPreferencesInput!) {
+      userJobPreferences(data: $data) {
+        userId
+        openToOpportunities
+        preferredRoles
+        preferredLocationType
+        openToRelocation
+        currentTotalComp {
+          currency
+          amount
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // Set up a user with job preferences
+    await con.getRepository(UserJobPreferences).save({
+      userId: '1',
+      openToOpportunities: true,
+      preferredRoles: ['Software Engineer', 'Frontend Developer'],
+      preferredLocationType: 'remote',
+      openToRelocation: false,
+      currentTotalComp: {
+        currency: 'USD',
+        amount: 100000,
+      },
+    });
+
+    // Set up a user with a complete profile
+    await con.getRepository(User).update('1', {
+      flags: {
+        country: 'US',
+      },
+    });
+
+    // Add work experience to make sure profile is complete
+    await saveFixtures(con, UserWorkExperience, [
+      {
+        userId: '1',
+        title: 'Software Engineer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date(),
+      },
+      {
+        userId: '1',
+        title: 'Senior Software Engineer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date(),
+      },
+      {
+        userId: '1',
+        title: 'Software Developer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date(),
+      },
+      {
+        userId: '1',
+        title: 'Frontend Developer',
+        status: ExperienceStatus.Published,
+        description: '',
+        startDate: new Date(),
+      },
+      {
+        userId: '1',
+        title: 'Draft Job Title',
+        status: ExperienceStatus.Draft,
+        description: '',
+        startDate: new Date(),
+      },
+    ]);
+  });
+
+  describe('query userJobPreferences', () => {
+    it('should throw error on query as guest', async () => {
+      return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+    });
+
+    it('should return user job preferences', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userJobPreferences).toMatchObject({
+        openToOpportunities: true,
+        preferredRoles: ['Software Engineer', 'Frontend Developer'],
+        preferredLocationType: 'remote',
+        openToRelocation: false,
+        currentTotalComp: {
+          currency: 'USD',
+          amount: 100000,
+        },
+      });
+    });
+
+    it('should force openToOpportunities to false if profile is not complete', async () => {
+      loggedUser = '2'; // User without job preferences
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userJobPreferences).toMatchObject({
+        openToOpportunities: false,
+        preferredRoles: [],
+        preferredLocationType: null,
+        openToRelocation: false,
+        currentTotalComp: null,
+      });
+
+      // Verify database state
+      const prefs = await con.getRepository('UserJobPreferences').findOne({
+        where: { userId: '2' },
+      });
+      expect(prefs).toBeNull();
+    });
   });
 
   describe('mutation updateUserJobPreferences', () => {
-    it('should throw error on mutation as guest', async () => {});
+    it('should throw error on mutation as guest', async () => {
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: {
+            data: {
+              openToOpportunities: true,
+              preferredRoles: ['Software Engineer'],
+              preferredLocationType: 'remote',
+              openToRelocation: false,
+            },
+          },
+        },
+        'UNAUTHENTICATED',
+      );
+    });
 
-    it('should update user job preferences', async () => {});
+    it('should update user job preferences', async () => {
+      loggedUser = '1';
+      const variables = {
+        data: {
+          openToOpportunities: false,
+          preferredRoles: ['Product Manager', 'Project Manager'],
+          preferredLocationType: 'hybrid',
+          openToRelocation: true,
+          currentTotalComp: {
+            currency: 'EUR',
+            amount: 90000,
+          },
+        },
+      };
 
-    it('should throw error on invalid job preferences', async () => {});
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.userJobPreferences).toMatchObject({
+        userId: '1',
+        openToOpportunities: false,
+        preferredRoles: ['Product Manager', 'Project Manager'],
+        preferredLocationType: 'hybrid',
+        openToRelocation: true,
+        currentTotalComp: {
+          currency: 'EUR',
+          amount: 90000,
+        },
+      });
 
-    it('should not update user job preferences of other user', async () => {});
+      // Verify database state
+      const updatedPrefs = await con
+        .getRepository('UserJobPreferences')
+        .findOne({
+          where: { userId: '1' },
+        });
+      expect(updatedPrefs).toMatchObject({
+        userId: '1',
+        openToOpportunities: false,
+        preferredRoles: ['Product Manager', 'Project Manager'],
+        preferredLocationType: 'hybrid',
+        openToRelocation: true,
+        currentTotalComp: {
+          currency: 'EUR',
+          amount: 90000,
+        },
+      });
+    });
+
+    it('should throw error on invalid job preferences', async () => {
+      loggedUser = '1';
+
+      // Test with too many preferred roles
+      const variables = {
+        data: {
+          openToOpportunities: true,
+          preferredRoles: [
+            'Role 1',
+            'Role 2',
+            'Role 3',
+            'Role 4',
+            'Role 5',
+            'Role 6',
+          ],
+          preferredLocationType: 'remote',
+          openToRelocation: false,
+        },
+      };
+
+      return testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should not update user job preferences of other user', async () => {
+      // Create job preferences for user 2
+      await con.getRepository('UserJobPreferences').save({
+        userId: '2',
+        openToOpportunities: false,
+        preferredRoles: ['Designer'],
+        preferredLocationType: 'on_site',
+        openToRelocation: true,
+        currentTotalComp: {
+          currency: 'GBP',
+          amount: 80000,
+        },
+      });
+
+      // Log in as user 1
+      loggedUser = '1';
+
+      // Try to update user 2's preferences by setting userId
+      const variables = {
+        data: {
+          userId: '2', // This should be ignored
+          openToOpportunities: true,
+          preferredRoles: ['Hacker'],
+          preferredLocationType: 'remote',
+          openToRelocation: false,
+        },
+      };
+
+      const res = await client.mutate(MUTATION, { variables });
+      expect(res.errors).toBeFalsy();
+
+      // Verify that user 1's preferences were updated, not user 2's
+      const user1Prefs = await con.getRepository('UserJobPreferences').findOne({
+        where: { userId: '1' },
+      });
+      expect(user1Prefs.preferredRoles).toContain('Hacker');
+
+      const user2Prefs = await con.getRepository('UserJobPreferences').findOne({
+        where: { userId: '2' },
+      });
+      expect(user2Prefs.preferredRoles).toEqual(['Designer']);
+    });
   });
 });

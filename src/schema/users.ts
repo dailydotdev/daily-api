@@ -297,9 +297,9 @@ export interface GQLUserJobPreferences {
   userId: User['id'];
   openToOpportunities: boolean;
   preferredRoles: string[];
-  preferredLocationType: WorkLocationType;
+  preferredLocationType: WorkLocationType | null;
   openToRelocation: boolean;
-  currentTotalComp: UserCompensation;
+  currentTotalComp: Partial<UserCompensation>;
 }
 
 type UserJobPreferencesInput = GQLUserJobPreferences;
@@ -516,9 +516,27 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  User desired total compensation
+  """
+  type UserTotalCompensation {
+    """
+    Currency of the salary preference
+    """
+    currency: String
+    """
+    Amount of the salary preference
+    """
+    amount: Int
+  }
+
+  """
   User job preferences
   """
   type UserJobPreferences {
+    """
+    User ID of the job preferences
+    """
+    userId: String!
     """
     Whether the user is open to opportunities
     """
@@ -535,17 +553,24 @@ export const typeDefs = /* GraphQL */ `
     Whether the user is open to relocation
     """
     openToRelocation: Boolean!
+    """
+    Current total compensation of the user
+    """
+    currentTotalComp: UserTotalCompensation
   }
 
-  type UserSalaryPreference {
+  """
+  Input for desidered user total compensation
+  """
+  input UserTotalCompensationInput {
     """
-    Currency of the salary preference
+    Currency
     """
-    currency: String!
+    currency: String
     """
-    Amount of the salary preference
+    Yearly amount
     """
-    amount: Int!
+    amount: Int
   }
 
   """
@@ -571,7 +596,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Current total compensation of the user
     """
-    currentTotalComp: UserSalaryPreference
+    currentTotalComp: UserTotalCompensationInput
   }
 
   """
@@ -2181,33 +2206,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info: GraphQLResolveInfo,
     ): Promise<GQLUserJobPreferences> => {
-      // important: if need to implement public user job preferences queries we need to remove currentTotalComp for other users
-      const userJobPreferences = await graphorm.queryOne<GQLUserJobPreferences>(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder.andWhere(
-            `${builder.alias}."userId" = :userId`,
-            { userId: ctx.userId },
+      try {
+        // important: if you need to implement public user job preferences queries, we need to remove the "currentTotalComp" for other users
+        const userJobPreferences =
+          await graphorm.queryOne<GQLUserJobPreferences>(
+            ctx,
+            info,
+            (builder) => {
+              builder.queryBuilder = builder.queryBuilder.andWhere(
+                `${builder.alias}."userId" = :userId`,
+                { userId: ctx.userId },
+              );
+              return builder;
+            },
           );
-          return builder;
-        },
-      );
 
-      if (!userJobPreferences) {
-        throw new NotFoundError('User job preferences not found');
+        if (!userJobPreferences) {
+          // if no job preferences are set, return default values
+          return {
+            userId: ctx.userId,
+            openToOpportunities: false,
+            currentTotalComp: {},
+            preferredRoles: [],
+            preferredLocationType: null,
+            openToRelocation: false,
+          };
+        }
+
+        console.log(userJobPreferences);
+
+        const { openToOpportunities, ...preferences } = userJobPreferences;
+        const isProfileComplete = await isProfileCompleteById(
+          ctx.con,
+          ctx.userId,
+        );
+
+        return {
+          ...preferences,
+          openToOpportunities: openToOpportunities && isProfileComplete,
+        };
+      } catch (e) {
+        console.error(e);
       }
-
-      const { openToOpportunities, ...preferences } = userJobPreferences;
-      const isProfileComplete = await isProfileCompleteById(
-        ctx.con,
-        ctx.userId,
-      );
-
-      return {
-        ...preferences,
-        openToOpportunities: openToOpportunities && isProfileComplete,
-      };
     },
   },
   Mutation: {
@@ -3005,5 +3045,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   UserTopReader: {
     image: (topReader: GQLUserTopReader): GQLUserTopReader['image'] =>
       mapCloudinaryUrl(topReader.image),
+  },
+  UserJobPreferences: {
+    currentTotalComp: (jobPreferences: UserJobPreferences) => {
+      const { currency, amount } = jobPreferences.currentTotalComp ?? {};
+      return currency && amount ? jobPreferences.currentTotalComp : null;
+    },
   },
 });
