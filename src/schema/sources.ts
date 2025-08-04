@@ -2643,10 +2643,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ) => {
-      await ensureSourcePermissions(ctx, sourceId);
+      const source = await ensureSourcePermissions(ctx, sourceId);
 
       await ctx.con.getRepository(SourceMember).update(
-        { sourceId, userId: ctx.userId },
+        { sourceId: source.id, userId: ctx.userId },
         {
           flags: updateFlagsStatement<SourceMember>({
             hasUnreadPosts: false,
