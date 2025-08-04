@@ -23,7 +23,7 @@ export const postAddedSquadUnreadPostsWorker: TypedWorker<'api.v1.post-visible'>
           return;
         }
 
-        if (source?.type !== SourceType.Squad) {
+        if (source.type !== SourceType.Squad) {
           logger.debug({ message, source }, 'Source is not a squad');
           return;
         }
