@@ -556,7 +556,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Current total compensation of the user
     """
-    currentTotalComp: UserTotalCompensation
+    currentTotalComp: UserTotalCompensation!
   }
 
   """
@@ -571,32 +571,6 @@ export const typeDefs = /* GraphQL */ `
     Yearly amount
     """
     amount: Int
-  }
-
-  """
-  Update user job preferences input
-  """
-  input UserJobPreferencesInput {
-    """
-    Whether the user is open to opportunities
-    """
-    openToOpportunities: Boolean!
-    """
-    Preferred roles of the user
-    """
-    preferredRoles: [String!]!
-    """
-    Preferred location type of the user
-    """
-    preferredLocationType: String
-    """
-    Whether the user is open to relocation
-    """
-    openToRelocation: Boolean!
-    """
-    Current total compensation of the user
-    """
-    currentTotalComp: UserTotalCompensationInput
   }
 
   """
@@ -1345,7 +1319,28 @@ export const typeDefs = /* GraphQL */ `
     """
     Update job preferences for the current user
     """
-    userJobPreferences(data: UserJobPreferencesInput): UserJobPreferences @auth
+    userJobPreferences(
+      """
+      Whether the user is open to opportunities
+      """
+      openToOpportunities: Boolean!
+      """
+      Preferred roles of the user
+      """
+      preferredRoles: [String!]!
+      """
+      Preferred location type of the user
+      """
+      preferredLocationType: String
+      """
+      Whether the user is open to relocation
+      """
+      openToRelocation: Boolean!
+      """
+      Current total compensation of the user
+      """
+      currentTotalComp: UserTotalCompensationInput!
+    ): UserJobPreferences @auth
   }
 `;
 
@@ -2204,50 +2199,38 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       __,
       ctx: AuthContext,
-      info: GraphQLResolveInfo,
     ): Promise<GQLUserJobPreferences> => {
-      try {
-        // important: if you need to implement public user job preferences queries, we need to remove the "currentTotalComp" for other users
-        const userJobPreferences =
-          await graphorm.queryOne<GQLUserJobPreferences>(
-            ctx,
-            info,
-            (builder) => {
-              builder.queryBuilder = builder.queryBuilder.andWhere(
-                `${builder.alias}."userId" = :userId`,
-                { userId: ctx.userId },
-              );
-              return builder;
-            },
-          );
+      // important: if you need to implement public user job preferences queries, we need to remove the "currentTotalComp" for other users
+      const userJobPreferences = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          queryRunner.manager.getRepository(UserJobPreferences).findOne({
+            where: { userId: ctx.userId },
+          }),
+      );
 
-        if (!userJobPreferences) {
-          // if no job preferences are set, return default values
-          return {
-            userId: ctx.userId,
-            openToOpportunities: false,
-            currentTotalComp: {},
-            preferredRoles: [],
-            preferredLocationType: null,
-            openToRelocation: false,
-          };
-        }
-
-        console.log(userJobPreferences);
-
-        const { openToOpportunities, ...preferences } = userJobPreferences;
-        const isProfileComplete = await isProfileCompleteById(
-          ctx.con,
-          ctx.userId,
-        );
-
+      if (!userJobPreferences) {
+        // if no job preferences are set, return default values
         return {
-          ...preferences,
-          openToOpportunities: openToOpportunities && isProfileComplete,
+          userId: ctx.userId,
+          openToOpportunities: false,
+          currentTotalComp: {},
+          preferredRoles: [],
+          preferredLocationType: null,
+          openToRelocation: false,
         };
-      } catch (e) {
-        console.error(e);
       }
+
+      const { openToOpportunities, ...preferences } = userJobPreferences;
+      const isProfileComplete = await isProfileCompleteById(
+        ctx.con,
+        ctx.userId,
+      );
+
+      return {
+        ...preferences,
+        openToOpportunities: openToOpportunities && isProfileComplete,
+      };
     },
   },
   Mutation: {
@@ -2980,16 +2963,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       params: UserJobPreferencesInput,
       ctx: AuthContext,
-      info: GraphQLResolveInfo,
     ) => {
-      const {
-        data: preferences,
-        success: isValid,
-        error,
-      } = checkJobPreferenceParamsValidity(params);
+      const { data: preferences, success: isValid } =
+        checkJobPreferenceParamsValidity(params);
 
       if (!isValid) {
-        throw new ValidationError(error?.message);
+        throw new ValidationError(
+          'Invalid job preferences data. Please check your input.',
+        );
       }
 
       const isProfileComplete = await isProfileCompleteById(
@@ -3007,19 +2988,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(UserJobPreferences)
         .update({ userId: ctx.userId }, preferences);
 
-      return graphorm.queryOneOrFail(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder = builder.queryBuilder.andWhere(
-            `${builder.alias}."userId" = :userId`,
-            { userId: ctx.userId },
-          );
-          return builder;
-        },
-        UserJobPreferences,
-        true,
-      );
+      return {
+        ...preferences,
+        userId: ctx.userId,
+        openToOpportunities:
+          preferences.openToOpportunities && isProfileComplete,
+      };
     },
   },
   User: {
@@ -3045,11 +3019,5 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   UserTopReader: {
     image: (topReader: GQLUserTopReader): GQLUserTopReader['image'] =>
       mapCloudinaryUrl(topReader.image),
-  },
-  UserJobPreferences: {
-    currentTotalComp: (jobPreferences: UserJobPreferences) => {
-      const { currency, amount } = jobPreferences.currentTotalComp ?? {};
-      return currency && amount ? jobPreferences.currentTotalComp : null;
-    },
   },
 });

@@ -669,7 +669,6 @@ export const isProfileCompleteById = async (
 };
 
 const jobPreferenceUpdateValidation = z.object({
-  userId: z.string(),
   openToOpportunities: z.boolean().optional().default(false),
   preferredRoles: z
     .array(

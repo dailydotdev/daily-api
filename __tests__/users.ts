@@ -144,7 +144,10 @@ import { fileTypeFromBuffer } from './setup';
 import { Bucket } from '@google-cloud/storage';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
 import { ExperienceStatus } from '../src/entity/user/experiences/types';
-import { UserJobPreferences } from '../src/entity/user/UserJobPreferences';
+import {
+  UserJobPreferences,
+  WorkLocationType,
+} from '../src/entity/user/UserJobPreferences';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -7012,22 +7015,6 @@ describe('user job preferences', () => {
     }
   `;
 
-  const MUTATION = `
-    mutation UpdateUserJobPreferences($data: UserJobPreferencesInput!) {
-      userJobPreferences(data: $data) {
-        userId
-        openToOpportunities
-        preferredRoles
-        preferredLocationType
-        openToRelocation
-        currentTotalComp {
-          currency
-          amount
-        }
-      }
-    }
-  `;
-
   beforeEach(async () => {
     // Set up a user with job preferences
     await con.getRepository(UserJobPreferences).save({
@@ -7038,7 +7025,7 @@ describe('user job preferences', () => {
       openToRelocation: false,
       currentTotalComp: {
         currency: 'USD',
-        amount: 100000,
+        amount: 10,
       },
     });
 
@@ -7105,7 +7092,7 @@ describe('user job preferences', () => {
         openToRelocation: false,
         currentTotalComp: {
           currency: 'USD',
-          amount: 100000,
+          amount: 10,
         },
       });
     });
@@ -7119,7 +7106,7 @@ describe('user job preferences', () => {
         preferredRoles: [],
         preferredLocationType: null,
         openToRelocation: false,
-        currentTotalComp: null,
+        currentTotalComp: {},
       });
 
       // Verify database state
@@ -7131,18 +7118,45 @@ describe('user job preferences', () => {
   });
 
   describe('mutation updateUserJobPreferences', () => {
+    const MUTATION = `
+    mutation UpdateUserJobPreferences(
+      $openToOpportunities: Boolean!
+      $preferredRoles: [String!]!
+      $preferredLocationType: String
+      $openToRelocation: Boolean!
+      $currentTotalComp: UserTotalCompensationInput!
+    ) {
+      userJobPreferences(
+        openToOpportunities: $openToOpportunities
+        preferredRoles: $preferredRoles
+        preferredLocationType: $preferredLocationType
+        openToRelocation: $openToRelocation
+        currentTotalComp: $currentTotalComp
+      ) {
+        userId
+        openToOpportunities
+        preferredRoles
+        preferredLocationType
+        openToRelocation
+        currentTotalComp {
+          currency
+          amount
+        }
+      }
+    }
+  `;
+
     it('should throw error on mutation as guest', async () => {
       return testMutationErrorCode(
         client,
         {
           mutation: MUTATION,
           variables: {
-            data: {
-              openToOpportunities: true,
-              preferredRoles: ['Software Engineer'],
-              preferredLocationType: 'remote',
-              openToRelocation: false,
-            },
+            openToOpportunities: true,
+            preferredRoles: ['Software Engineer'],
+            preferredLocationType: 'remote',
+            openToRelocation: false,
+            currentTotalComp: {},
           },
         },
         'UNAUTHENTICATED',
@@ -7152,15 +7166,13 @@ describe('user job preferences', () => {
     it('should update user job preferences', async () => {
       loggedUser = '1';
       const variables = {
-        data: {
-          openToOpportunities: false,
-          preferredRoles: ['Product Manager', 'Project Manager'],
-          preferredLocationType: 'hybrid',
-          openToRelocation: true,
-          currentTotalComp: {
-            currency: 'EUR',
-            amount: 90000,
-          },
+        openToOpportunities: false,
+        preferredRoles: ['Product Manager', 'Project Manager'],
+        preferredLocationType: WorkLocationType.Remote,
+        openToRelocation: true,
+        currentTotalComp: {
+          currency: 'EUR',
+          amount: 10,
         },
       };
 
@@ -7170,11 +7182,11 @@ describe('user job preferences', () => {
         userId: '1',
         openToOpportunities: false,
         preferredRoles: ['Product Manager', 'Project Manager'],
-        preferredLocationType: 'hybrid',
+        preferredLocationType: WorkLocationType.Remote,
         openToRelocation: true,
         currentTotalComp: {
           currency: 'EUR',
-          amount: 90000,
+          amount: 10,
         },
       });
 
@@ -7188,11 +7200,11 @@ describe('user job preferences', () => {
         userId: '1',
         openToOpportunities: false,
         preferredRoles: ['Product Manager', 'Project Manager'],
-        preferredLocationType: 'hybrid',
+        preferredLocationType: WorkLocationType.Remote,
         openToRelocation: true,
         currentTotalComp: {
           currency: 'EUR',
-          amount: 90000,
+          amount: 10,
         },
       });
     });
@@ -7202,25 +7214,25 @@ describe('user job preferences', () => {
 
       // Test with too many preferred roles
       const variables = {
-        data: {
-          openToOpportunities: true,
-          preferredRoles: [
-            'Role 1',
-            'Role 2',
-            'Role 3',
-            'Role 4',
-            'Role 5',
-            'Role 6',
-          ],
-          preferredLocationType: 'remote',
-          openToRelocation: false,
-        },
+        openToOpportunities: true,
+        preferredRoles: [
+          'Role 1',
+          'Role 2',
+          'Role 3',
+          'Role 4',
+          'Role 5',
+          'Role 6',
+        ],
+        preferredLocationType: 'remote',
+        openToRelocation: false,
+        currentTotalComp: {},
       };
 
       return testMutationErrorCode(
         client,
         { mutation: MUTATION, variables },
         'GRAPHQL_VALIDATION_FAILED',
+        'Invalid job preferences data. Please check your input.',
       );
     });
 
@@ -7234,7 +7246,7 @@ describe('user job preferences', () => {
         openToRelocation: true,
         currentTotalComp: {
           currency: 'GBP',
-          amount: 80000,
+          amount: 20,
         },
       });
 
@@ -7243,13 +7255,12 @@ describe('user job preferences', () => {
 
       // Try to update user 2's preferences by setting userId
       const variables = {
-        data: {
-          userId: '2', // This should be ignored
-          openToOpportunities: true,
-          preferredRoles: ['Hacker'],
-          preferredLocationType: 'remote',
-          openToRelocation: false,
-        },
+        userId: '2', // This should be ignored
+        openToOpportunities: true,
+        preferredRoles: ['Hacker'],
+        preferredLocationType: 'remote',
+        openToRelocation: false,
+        currentTotalComp: {},
       };
 
       const res = await client.mutate(MUTATION, { variables });
@@ -7259,12 +7270,12 @@ describe('user job preferences', () => {
       const user1Prefs = await con.getRepository('UserJobPreferences').findOne({
         where: { userId: '1' },
       });
-      expect(user1Prefs.preferredRoles).toContain('Hacker');
+      expect(user1Prefs?.preferredRoles).toContain('Hacker');
 
       const user2Prefs = await con.getRepository('UserJobPreferences').findOne({
         where: { userId: '2' },
       });
-      expect(user2Prefs.preferredRoles).toEqual(['Designer']);
+      expect(user2Prefs?.preferredRoles).toEqual(['Designer']);
     });
   });
 });
