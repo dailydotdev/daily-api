@@ -17,6 +17,7 @@ export type SourceMemberFlagsPublic = Pick<
 @Entity()
 @Index('IDX_source_member_userId_role', ['userId', 'role'])
 @Index('IDX_source_member_sourceId_role', ['sourceId', 'role'])
+@Index('IDX_source_member_flags_hasUnreadPosts', { synchronize: false })
 export class SourceMember {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_source_member_sourceId')
