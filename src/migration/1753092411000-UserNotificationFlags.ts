@@ -9,12 +9,12 @@ export class UserNotificationFlags1753092411000 implements MigrationInterface {
     );
     
     await queryRunner.query(
-      `CREATE INDEX "IDX_user_notificationFlags_path_ops" ON "user" USING GIN ("notificationFlags" jsonb_path_ops)`,
+      `CREATE INDEX "IDX_user_notificationFlags_ops" ON "user" USING GIN ("notificationFlags" jsonb_ops)`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "IDX_user_notificationFlags_path_ops"`);
+    await queryRunner.query(`DROP INDEX "IDX_user_notificationFlags_ops"`);
     await queryRunner.query(`ALTER TABLE "user" DROP COLUMN "notificationFlags"`);
   }
 }

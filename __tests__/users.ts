@@ -3516,7 +3516,6 @@ describe('mutation updateUserProfile', () => {
         hashnode
         createdAt
         infoConfirmed
-        notificationEmail
         timezone
         experienceLevel
         language
@@ -3841,23 +3840,6 @@ describe('mutation updateUserProfile', () => {
 
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser!.language).toEqual(null);
-  });
-
-  it('should update notification email preference', async () => {
-    loggedUser = '1';
-
-    const repo = con.getRepository(User);
-    const user = await repo.findOneBy({ id: loggedUser });
-    expect(user?.notificationEmail).toBeTruthy();
-    const notificationEmail = false;
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        data: { username: 'sample', name: 'test', notificationEmail },
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    const updatedUser = await repo.findOneBy({ id: loggedUser });
-    expect(updatedUser?.notificationEmail).toEqual(notificationEmail);
   });
 
   it('should not update if username is empty', async () => {
@@ -7130,7 +7112,7 @@ describe('mutation updateNotificationSettings', () => {
     }
   }`;
 
-  it('should update notification settings', async () => {
+  it('should overwrite notification settings', async () => {
     loggedUser = '1';
 
     const updatedFlags = {

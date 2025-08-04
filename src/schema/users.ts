@@ -214,16 +214,11 @@ export interface GQLUpdateUserInput {
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
-  notificationEmail?: boolean;
   timezone?: string;
   weekStart?: number;
   infoConfirmed?: boolean;
   experienceLevel?: string;
   language?: ContentLanguage;
-  followingEmail?: boolean;
-  followNotifications?: boolean;
-  awardEmail?: boolean;
-  awardNotifications?: boolean;
   defaultFeedId?: string;
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
@@ -255,7 +250,6 @@ export interface GQLUser {
   hashnode?: string;
   portfolio?: string;
   reputation?: number;
-  notificationEmail?: boolean;
   timezone?: string;
   cover?: string | null;
   readme?: string;
@@ -479,10 +473,6 @@ export const typeDefs = /* GraphQL */ `
     """
     acceptedMarketing: Boolean
     """
-    If the user should receive email for notifications
-    """
-    notificationEmail: Boolean
-    """
     Markdown version of the user's readme
     """
     readme: String
@@ -640,10 +630,6 @@ export const typeDefs = /* GraphQL */ `
     """
     acceptedMarketing: Boolean
     """
-    If the user should receive email for notifications
-    """
-    notificationEmail: Boolean
-    """
     If the user's info is confirmed
     """
     infoConfirmed: Boolean
@@ -655,22 +641,6 @@ export const typeDefs = /* GraphQL */ `
     Preferred language of the user
     """
     language: String
-    """
-    Whether the user wants to receive follwing email notifications
-    """
-    followingEmail: Boolean
-    """
-    Whether the user wants to receives following push notifications
-    """
-    followNotifications: Boolean
-    """
-    Whether the user wants to receive award email notifications
-    """
-    awardEmail: Boolean
-    """
-    Whether the user wants to receive award push notifications
-    """
-    awardNotifications: Boolean
     """
     Default feed id for the user
     """
