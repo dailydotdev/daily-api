@@ -560,7 +560,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
-  Input for desidered user total compensation
+  Input for desired user total compensation
   """
   input UserTotalCompensationInput {
     """
@@ -2986,7 +2986,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       await ctx.con
         .getRepository(UserJobPreferences)
-        .update({ userId: ctx.userId }, preferences);
+        .upsert({ ...preferences, userId: ctx.userId }, ['userId']);
 
       return {
         ...preferences,

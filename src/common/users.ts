@@ -687,8 +687,7 @@ const jobPreferenceUpdateValidation = z.object({
       currency: z.string(),
       amount: z.number().int().positive(),
     })
-    .or(z.object({}))
-    .optional()
+    .partial()
     .default({}),
 });
 export const checkJobPreferenceParamsValidity = (params: unknown) => {
