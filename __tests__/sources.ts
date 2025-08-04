@@ -4448,3 +4448,113 @@ describe('sourceAwardsTotal query', () => {
     expect(res.data.sourceAwardsTotal.amount).toBe(0);
   });
 });
+
+describe('mutation clearUnreadPosts', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearUnreadPosts($sourceId: ID!) {
+      source: clearUnreadPosts(sourceId: $sourceId) {
+        id
+        currentMember {
+          flags {
+            hasUnreadPosts
+          }
+        }
+      }
+    }
+  `;
+  beforeEach(async () => {
+    await con.getRepository(SourceMember).update(
+      { userId: '1', sourceId: 'a' },
+      {
+        flags: updateFlagsStatement({
+          hasUnreadPosts: true,
+        }),
+      },
+    );
+  });
+
+  it('should return error for annonymous users', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a' },
+      },
+      'UNAUTHENTICATED',
+      'Access denied! You need to be authorized to perform this action!',
+    );
+  });
+
+  it('should return error for blocked users', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(SourceMember).update(
+      { userId: '1', sourceId: 'a' },
+      {
+        role: SourceMemberRoles.Blocked,
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { sourceId: 'a' },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+  });
+
+  it('should do nothing if user is not member of squad', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(SourceMember).count({
+        where: { userId: '1', sourceId: 'b' },
+      }),
+    ).toEqual(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'b' },
+    });
+
+    expect(
+      await con.getRepository(SourceMember).count({
+        where: { userId: '1', sourceId: 'b' },
+      }),
+    ).toEqual(0);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.id).toEqual('b');
+    expect(res.data.source.currentMember).toEqual(null);
+  });
+
+  it('should clear unread posts flag for member', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(SourceMember).count({
+        where: { userId: '1', sourceId: 'a', flags: { hasUnreadPosts: true } },
+      }),
+    ).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { sourceId: 'a' },
+    });
+
+    expect(
+      await con.getRepository(SourceMember).count({
+        where: { userId: '1', sourceId: 'a', flags: { hasUnreadPosts: true } },
+      }),
+    ).toEqual(0);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.source.id).toEqual('a');
+    expect(res.data.source.currentMember).toMatchObject({
+      flags: {
+        hasUnreadPosts: false,
+      },
+    });
+  });
+});
