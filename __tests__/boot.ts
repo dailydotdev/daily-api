@@ -1266,6 +1266,9 @@ describe('boot misc', () => {
         userId: '1',
         referralToken: 'rt5',
         role: SourceMemberRoles.Member,
+        flags: {
+          hasUnreadPosts: true,
+        },
       },
     ]);
     const res = await request(app.server)
@@ -1309,7 +1312,7 @@ describe('boot misc', () => {
         id: 's5',
         image: SQUAD_IMAGE_PLACEHOLDER,
         moderationRequired: false,
-        hasUnreadPosts: false,
+        hasUnreadPosts: true,
         name: 'Squad 5',
         permalink: 'http://localhost:5002/squads/s5',
         public: false,
