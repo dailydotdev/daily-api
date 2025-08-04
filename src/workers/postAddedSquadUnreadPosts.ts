@@ -62,7 +62,7 @@ export const postAddedSquadUnreadPostsWorker: TypedWorker<'api.v1.post-visible'>
         const err = _err as Error;
         logger.error(
           { err, sourceId: data.post.sourceId, message },
-          'Error updating flags',
+          'Error updating source hasUnreadPosts flag',
         );
       }
     },
