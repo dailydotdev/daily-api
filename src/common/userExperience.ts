@@ -103,11 +103,17 @@ export const experiences = {
         .optional()
         .default([ExperienceStatus.Published]),
     }),
+    remove: z.object({
+      id: z.string().uuid(),
+    }),
   },
 };
 
 export type ExperienceQueryParams = z.infer<
   typeof experiences.validation.queryAll
+>;
+export type ExperienceRemoveParams = z.infer<
+  typeof experiences.validation.remove
 >;
 
 export const getEmptyExperienceTypesMap = () => ({

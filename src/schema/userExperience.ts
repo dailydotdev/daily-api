@@ -4,7 +4,11 @@ import { UserSkill } from '../entity/user/UserSkill';
 import { Company } from '../entity/Company';
 import { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
-import { ExperienceStatus } from '../entity/user/experiences/types';
+import {
+  ExperienceStatus,
+  UserExperienceType,
+  WorkEmploymentType,
+} from '../entity/user/experiences/types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import {
@@ -13,44 +17,21 @@ import {
   CompanyAutocompleteInput,
   ExperienceAutocompleteInput,
   ExperienceQueryParams,
+  ExperienceRemoveParams,
   experiences,
   getEmptyExperienceTypesMap,
 } from '../common/userExperience';
 import { logger } from '../logger';
+import { GQLEmptyResponse } from './common';
+import { toGQLEnum } from '../common';
+import { WorkLocationType } from '../entity/user/UserJobPreferences';
+import { NotFoundError } from '../errors';
 
 export const typeDefs = /* GraphQL */ `
-  enum UserExperienceType {
-    work
-    education
-    project
-    certification
-    award
-    publication
-    course
-    open_source
-  }
-
-  enum ExperienceStatus {
-    draft
-    published
-  }
-
-  enum WorkEmploymentType {
-    full_time
-    part_time
-    self_employed
-    freelance
-    contract
-    internship
-    apprenticeship
-    seasonal
-  }
-
-  enum WorkLocationType {
-    REMOTE
-    HYBRID
-    ON_SITE
-  }
+  ${toGQLEnum(UserExperienceType, 'UserExperienceType')}
+  ${toGQLEnum(ExperienceStatus, 'ExperienceStatus')}
+  ${toGQLEnum(WorkEmploymentType, 'WorkEmploymentType')}
+  ${toGQLEnum(WorkLocationType, 'WorkLocationType')}
 
   type ExperienceHit {
     id: ID!
@@ -246,6 +227,13 @@ export const typeDefs = /* GraphQL */ `
     """
     userExperiences(status: [ExperienceStatus!]): UserExperiencesResult! @auth
   }
+
+  extend type Mutation {
+    """
+    Remove a user experience by ID
+    """
+    removeExperience(id: ID!): EmptyResponse! @auth
+  }
 `;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -419,6 +407,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         return { ...acc, [type]: [...acc[type], entry] };
       }, getEmptyExperienceTypesMap());
+    },
+  },
+  Mutation: {
+    removeExperience: async (
+      _,
+      params: ExperienceRemoveParams,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const {
+        data,
+        success: passedValidation,
+        error,
+      } = experiences.validation.remove.safeParse(params);
+
+      if (!passedValidation) {
+        throw new Error(`Invalid parameters: ${error.message}`);
+      }
+
+      const { id } = data;
+
+      const experience = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(UserExperience)
+          .findOneBy({ id, userId: ctx.userId }),
+      );
+
+      if (!experience) {
+        throw new NotFoundError('Experience not found');
+      }
+
+      await ctx.con.getRepository(UserExperience).remove(experience);
+
+      return { _: true };
     },
   },
 });

@@ -21,6 +21,7 @@ import { ExperienceStatus } from '../src/entity/user/experiences/types';
 import { User } from '../src/entity';
 import { usersFixture } from './fixture';
 import { UserAwardExperience } from '../src/entity/user/experiences/UserAwardExperience';
+import { v4 as uuidv4 } from 'uuid';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -511,10 +512,12 @@ describe('autocomplete queries', () => {
 });
 
 describe('user experience', () => {
+  const currentJobId = uuidv4();
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, UserWorkExperience, [
       {
+        id: currentJobId,
         userId: '1',
         title: 'Software Engineer',
         status: ExperienceStatus.Published,
@@ -580,7 +583,8 @@ describe('user experience', () => {
     ]);
   });
 
-  const QUERY = `
+  describe('query all', () => {
+    const QUERY = `
       query UserExperiences($status: [ExperienceStatus!]) {
         userExperiences(status: $status) {
           work{
@@ -615,120 +619,205 @@ describe('user experience', () => {
       }
   `;
 
-  it('should throw error if user is not logged in', () => {
-    return testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
+    it('should throw error if user is not logged in', () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: QUERY,
+          variables: {},
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
+    it('should return user experiences', async () => {
+      loggedUser = '1';
+      const res = await client.query<
+        {
+          userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
+        },
+        { status?: ExperienceStatus[] }
+      >(QUERY, {
         variables: {},
-      },
-      'UNAUTHENTICATED',
-    );
-  });
+      });
+      console.log(res.data.userExperiences);
 
-  it('should return user experiences', async () => {
-    loggedUser = '1';
-    const res = await client.query<
-      {
-        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
-      },
-      { status?: ExperienceStatus[] }
-    >(QUERY, {
-      variables: {},
-    });
-    console.log(res.data.userExperiences);
+      expect(res.data.userExperiences.work).toHaveLength(4);
+      // check for work experiences array to contain all published works
+      expect(res.data.userExperiences.work).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: 'Software Engineer' }),
+          expect.objectContaining({ title: 'Senior Software Engineer' }),
+          expect.objectContaining({ title: 'Software Developer' }),
+          expect.objectContaining({ title: 'Frontend Developer' }),
+        ]),
+      );
 
-    expect(res.data.userExperiences.work).toHaveLength(4);
-    // check for work experiences array to contain all published works
-    expect(res.data.userExperiences.work).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ title: 'Software Engineer' }),
-        expect.objectContaining({ title: 'Senior Software Engineer' }),
-        expect.objectContaining({ title: 'Software Developer' }),
-        expect.objectContaining({ title: 'Frontend Developer' }),
-      ]),
-    );
-
-    expect(res.data.userExperiences.award).toHaveLength(2);
-    // check for award experiences array to contain all published awards
-    expect(res.data.userExperiences.award).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ title: 'Best Developer Award' }),
-        expect.objectContaining({ title: 'Outstanding Contribution Award' }),
-      ]),
-    );
-  });
-
-  it('should return both published and draft experiences', async () => {
-    loggedUser = '1';
-    const res = await client.query<
-      {
-        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
-      },
-      { status?: ExperienceStatus[] }
-    >(QUERY, {
-      variables: {
-        status: [ExperienceStatus.Published, ExperienceStatus.Draft],
-      },
+      expect(res.data.userExperiences.award).toHaveLength(2);
+      // check for award experiences array to contain all published awards
+      expect(res.data.userExperiences.award).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: 'Best Developer Award' }),
+          expect.objectContaining({ title: 'Outstanding Contribution Award' }),
+        ]),
+      );
     });
 
-    expect(res.data.userExperiences.work).toHaveLength(5);
-    // check for work experiences array to contain all works including draft
-    expect(res.data.userExperiences.work).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ title: 'Draft Job Title' }),
-      ]),
-    );
+    it('should return both published and draft experiences', async () => {
+      loggedUser = '1';
+      const res = await client.query<
+        {
+          userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
+        },
+        { status?: ExperienceStatus[] }
+      >(QUERY, {
+        variables: {
+          status: [ExperienceStatus.Published, ExperienceStatus.Draft],
+        },
+      });
 
-    expect(res.data.userExperiences.award).toHaveLength(3);
-    // check for award experiences array to contain all awards including draft
-    expect(res.data.userExperiences.award).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ title: 'Draft Award Title' }),
-      ]),
-    );
-  });
+      expect(res.data.userExperiences.work).toHaveLength(5);
+      // check for work experiences array to contain all works including draft
+      expect(res.data.userExperiences.work).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: 'Draft Job Title' }),
+        ]),
+      );
 
-  it('should return empty arrays if no experiences found', async () => {
-    loggedUser = '2'; // User with no experiences
-    const res = await client.query<
-      {
-        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
-      },
-      { status?: ExperienceStatus[] }
-    >(QUERY, {
-      variables: {},
+      expect(res.data.userExperiences.award).toHaveLength(3);
+      // check for award experiences array to contain all awards including draft
+      expect(res.data.userExperiences.award).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ title: 'Draft Award Title' }),
+        ]),
+      );
     });
 
-    expect(res.data.userExperiences.work).toHaveLength(0);
-    expect(res.data.userExperiences.award).toHaveLength(0);
-  });
+    it('should return empty arrays if no experiences found', async () => {
+      loggedUser = '2'; // User with no experiences
+      const res = await client.query<
+        {
+          userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
+        },
+        { status?: ExperienceStatus[] }
+      >(QUERY, {
+        variables: {},
+      });
 
-  it('should return sorted experiences, first ongoing, then sorted by end date', async () => {
-    loggedUser = '1';
-    const res = await client.query<
-      {
-        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
-      },
-      { status?: ExperienceStatus[] }
-    >(QUERY, {
-      variables: {},
+      expect(res.data.userExperiences.work).toHaveLength(0);
+      expect(res.data.userExperiences.award).toHaveLength(0);
     });
 
-    expect(res.data.userExperiences.work).toHaveLength(4);
-    // check that ongoing experience is first
-    // - ongoing, started later
-    expect(res.data.userExperiences.work[0].title).toEqual(
-      'Software Developer',
-    );
-    // - ongoing, started earlier
-    expect(res.data.userExperiences.work[1].title).toEqual(
-      'Frontend Developer',
-    );
-    // check that experiences are sorted by the end date
-    expect(res.data.userExperiences.work[2].title).toEqual(
-      'Senior Software Engineer',
-    );
-    expect(res.data.userExperiences.work[3].title).toEqual('Software Engineer');
+    it('should return sorted experiences, first ongoing, then sorted by end date', async () => {
+      loggedUser = '1';
+      const res = await client.query<
+        {
+          userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
+        },
+        { status?: ExperienceStatus[] }
+      >(QUERY, {
+        variables: {},
+      });
+
+      expect(res.data.userExperiences.work).toHaveLength(4);
+      // check that ongoing experience is first
+      // - ongoing, started later
+      expect(res.data.userExperiences.work[0].title).toEqual(
+        'Software Developer',
+      );
+      // - ongoing, started earlier
+      expect(res.data.userExperiences.work[1].title).toEqual(
+        'Frontend Developer',
+      );
+      // check that experiences are sorted by the end date
+      expect(res.data.userExperiences.work[2].title).toEqual(
+        'Senior Software Engineer',
+      );
+      expect(res.data.userExperiences.work[3].title).toEqual(
+        'Software Engineer',
+      );
+    });
+  });
+
+  describe('remove experience', () => {
+    const MUTATION = `
+      mutation RemoveExperience($id: ID!) {
+        removeExperience(id: $id){
+          _
+        }
+      }
+    `;
+
+    it('should throw error if user is not logged in', () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: MUTATION,
+          variables: { id: currentJobId },
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
+    it('should throw error if experience does not exist', () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        {
+          query: MUTATION,
+          variables: { id: uuidv4() },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should throw error if experience does not belong to user', () => {
+      loggedUser = '2';
+      return testQueryErrorCode(
+        client,
+        {
+          query: MUTATION,
+          variables: { id: currentJobId }, // Experience belongs to user 1
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should remove the experience if it belongs to user', async () => {
+      loggedUser = '1';
+      const res = await client.query<
+        { removeExperience: { _: boolean } },
+        { id: string }
+      >(MUTATION, {
+        variables: { id: currentJobId },
+      });
+
+      expect(res.data.removeExperience._).toBe(true);
+
+      // Verify that the experience is removed
+      const queryRes = await client.query<
+        { userExperiences: ReturnType<typeof getEmptyExperienceTypesMap> },
+        { status?: ExperienceStatus[] }
+      >(
+        `
+          query UserExperiences($status: [ExperienceStatus!]) {
+            userExperiences(status: $status) {
+              work {
+                id
+                title
+              }
+            }
+          }
+        `,
+        {
+          variables: {},
+        },
+      );
+
+      expect(queryRes.data.userExperiences.work).toHaveLength(3);
+      expect(queryRes.data.userExperiences.work).not.toEqual(
+        expect.arrayContaining([expect.objectContaining({ id: currentJobId })]),
+      );
+    });
   });
 });
