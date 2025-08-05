@@ -4452,13 +4452,8 @@ describe('sourceAwardsTotal query', () => {
 describe('mutation clearUnreadPosts', () => {
   const MUTATION = /* GraphQL */ `
     mutation ClearUnreadPosts($sourceId: ID!) {
-      source: clearUnreadPosts(sourceId: $sourceId) {
-        id
-        currentMember {
-          flags {
-            hasUnreadPosts
-          }
-        }
+      clearUnreadPosts(sourceId: $sourceId) {
+        _
       }
     }
   `;
@@ -4526,8 +4521,7 @@ describe('mutation clearUnreadPosts', () => {
     ).toEqual(0);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.source.id).toEqual('b');
-    expect(res.data.source.currentMember).toEqual(null);
+    expect(res.data.clearUnreadPosts._).toEqual(false);
   });
 
   it('should clear unread posts flag for member', async () => {
@@ -4550,11 +4544,6 @@ describe('mutation clearUnreadPosts', () => {
     ).toEqual(0);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.source.id).toEqual('a');
-    expect(res.data.source.currentMember).toMatchObject({
-      flags: {
-        hasUnreadPosts: false,
-      },
-    });
+    expect(res.data.clearUnreadPosts._).toEqual(true);
   });
 });

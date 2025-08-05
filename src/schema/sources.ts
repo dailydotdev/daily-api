@@ -916,7 +916,7 @@ export const typeDefs = /* GraphQL */ `
       Source id to clear unread posts in
       """
       sourceId: ID!
-    ): Source! @auth
+    ): EmptyResponse! @auth
   }
 `;
 
@@ -2641,11 +2641,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { sourceId }: { sourceId: string },
       ctx: AuthContext,
-      info,
     ) => {
       const source = await ensureSourcePermissions(ctx, sourceId);
 
-      await ctx.con.getRepository(SourceMember).update(
+      const result = await ctx.con.getRepository(SourceMember).update(
         { sourceId: source.id, userId: ctx.userId },
         {
           flags: updateFlagsStatement<SourceMember>({
@@ -2654,7 +2653,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
-      return getSourceById(ctx, info, sourceId);
+      return {
+        _: !!result.affected,
+      };
     },
   },
   Source: {
