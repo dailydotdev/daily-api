@@ -35,7 +35,8 @@ export const postAddedSquadUnreadPostsWorker: TypedWorker<'api.v1.post-visible'>
           .where('sm.sourceId = :sourceId', { sourceId: source.id })
           .andWhere(
             `COALESCE((sm.flags->>'hasUnreadPosts')::boolean, false) != true`,
-          );
+          )
+          .andWhere(`sm.userId != :authorId`, { authorId: data.post.authorId });
 
         const stream = await query.stream();
 

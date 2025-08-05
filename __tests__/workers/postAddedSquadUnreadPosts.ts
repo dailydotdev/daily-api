@@ -93,6 +93,7 @@ describe('postAddedSquadUnreadPosts worker', () => {
     await expectSuccessfulTypedBackground(worker, {
       post: {
         sourceId: 'b',
+        authorId: 'some-author',
       } as ChangeObject<ArticlePost>,
     });
 
@@ -129,6 +130,7 @@ describe('postAddedSquadUnreadPosts worker', () => {
     await expectSuccessfulTypedBackground(worker, {
       post: {
         sourceId: 'a',
+        authorId: 'some-author',
       } as ChangeObject<ArticlePost>,
     });
 
@@ -145,5 +147,42 @@ describe('postAddedSquadUnreadPosts worker', () => {
     });
 
     expect(afterResult).toBe(2);
+  });
+
+  it('should not update hasUnreadPosts flag on source member that is post author', async () => {
+    const beforeResult = await con.getRepository(SourceMember).countBy({
+      sourceId: 'a',
+      flags: Or(
+        JsonContains({
+          hasUnreadPosts: false,
+        }),
+        JsonContains({
+          hasUnreadPosts: true,
+        }),
+      ),
+    });
+
+    expect(beforeResult).toBe(0);
+
+    await expectSuccessfulTypedBackground(worker, {
+      post: {
+        sourceId: 'a',
+        authorId: '1',
+      } as ChangeObject<ArticlePost>,
+    });
+
+    const afterResult = await con.getRepository(SourceMember).countBy({
+      sourceId: 'a',
+      flags: Or(
+        JsonContains({
+          hasUnreadPosts: false,
+        }),
+        JsonContains({
+          hasUnreadPosts: true,
+        }),
+      ),
+    });
+
+    expect(afterResult).toBe(1);
   });
 });
