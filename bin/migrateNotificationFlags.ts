@@ -30,17 +30,13 @@ function buildNotificationFlags(user: UserData): UserNotificationFlags {
   }
 
   if (!user.followingEmail) {
-    if (flags[NotificationType.UserPostAdded]) {
-      flags[NotificationType.UserPostAdded]!.email =
-        NotificationPreferenceStatus.Muted;
-    }
+    flags[NotificationType.UserPostAdded]!.email =
+      NotificationPreferenceStatus.Muted;
   }
 
   if (!user.followNotifications) {
-    if (flags[NotificationType.UserPostAdded]) {
-      flags[NotificationType.UserPostAdded]!.inApp =
-        NotificationPreferenceStatus.Muted;
-    }
+    flags[NotificationType.UserPostAdded]!.inApp =
+      NotificationPreferenceStatus.Muted;
   }
 
   if (!user.awardEmail) {

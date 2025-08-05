@@ -82,7 +82,6 @@ export enum NotificationPreferenceStatus {
   Subscribed = 'subscribed',
 }
 
-
 export const notificationPreferenceMap: Partial<
   Record<NotificationType, NotificationPreferenceType>
 > = {
