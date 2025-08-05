@@ -28,16 +28,19 @@ export const postAddedSquadUnreadPostsWorker: TypedWorker<'api.v1.post-visible'>
           return;
         }
 
-        const squadMembersStream = await con
+        const query = con
           .createQueryBuilder()
           .select('sm."userId"')
           .from(SourceMember, 'sm')
           .where('sm.sourceId = :sourceId', { sourceId: source.id })
-          .andWhere(`(sm.flags->>'hasUnreadPosts')::boolean != true`)
-          .stream();
+          .andWhere(
+            `COALESCE((sm.flags->>'hasUnreadPosts')::boolean, false) != true`,
+          );
+
+        const stream = await query.stream();
 
         await processStreamInBatches(
-          squadMembersStream,
+          stream,
           async (batch: { userId: string }[]) => {
             await con.getRepository(SourceMember).update(
               {
