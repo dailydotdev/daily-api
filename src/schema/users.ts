@@ -36,7 +36,10 @@ import {
 } from 'apollo-server-errors';
 import { z } from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
-import { NotificationType } from '../notifications/common';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationType,
+} from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -2123,7 +2126,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         where: { id: ctx.userId },
         select: ['notificationFlags'],
       });
-      return user?.notificationFlags || {};
+      return {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        ...user?.notificationFlags,
+      };
     },
   },
   Mutation: {
