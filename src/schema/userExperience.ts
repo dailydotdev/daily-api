@@ -4,18 +4,17 @@ import { UserSkill } from '../entity/user/UserSkill';
 import { Company } from '../entity/Company';
 import { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
-import {
-  ExperienceStatus,
-  UserExperienceType,
-} from '../entity/user/experiences/types';
+import { ExperienceStatus } from '../entity/user/experiences/types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import {
   autocomplete,
   AutocompleteInput,
   CompanyAutocompleteInput,
-  emptyExperienceTypesMap,
   ExperienceAutocompleteInput,
+  ExperienceQueryParams,
+  experiences,
+  getEmptyExperienceTypesMap,
 } from '../common/userExperience';
 import { logger } from '../logger';
 
@@ -379,13 +378,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     userExperiences: async (
       _,
-      params: {
-        status?: ExperienceStatus[];
-      },
+      params: ExperienceQueryParams,
       ctx: AuthContext,
     ) => {
       const { userId } = ctx;
-      const { status = [ExperienceStatus.Published] } = params;
+
+      const {
+        data,
+        success: passedValidation,
+        error,
+      } = experiences.validation.queryAll.safeParse(params);
+
+      if (!passedValidation) {
+        throw new Error(`Invalid parameters: ${error.message}`);
+      }
+
+      const { status } = data;
 
       const entries = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager
@@ -395,10 +403,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .andWhere('experience.status IN (:...status)', {
             status,
           })
-          .orderBy({
-            'experience.endDate': 'DESC',
-            'experience.startDate': 'DESC',
-          })
+          .addOrderBy('experience.endDate', 'DESC', 'NULLS FIRST')
           .getMany(),
       );
 
@@ -413,7 +418,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         return { ...acc, [type]: [...acc[type], entry] };
-      }, emptyExperienceTypesMap);
+      }, getEmptyExperienceTypesMap());
     },
   },
 });

@@ -12,14 +12,12 @@ import { DataSource } from 'typeorm';
 import {
   DEFAULT_AUTOCOMPLETE_LIMIT,
   ExperienceAutocompleteType,
+  getEmptyExperienceTypesMap,
 } from '../src/common/userExperience';
 import { UserSkill } from '../src/entity/user/UserSkill';
 import { Company, CompanyType } from '../src/entity/Company';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
-import {
-  ExperienceStatus,
-  UserExperienceType,
-} from '../src/entity/user/experiences/types';
+import { ExperienceStatus } from '../src/entity/user/experiences/types';
 import { User } from '../src/entity';
 import { usersFixture } from './fixture';
 import { UserAwardExperience } from '../src/entity/user/experiences/UserAwardExperience';
@@ -521,30 +519,35 @@ describe('user experience', () => {
         title: 'Software Engineer',
         status: ExperienceStatus.Published,
         description: '',
-        startDate: new Date('2024-01-01'),
+        startDate: new Date('2020-01-01'),
+        endDate: new Date('2021-01-31'),
       },
       {
         userId: '1',
         title: 'Senior Software Engineer',
         status: ExperienceStatus.Published,
         description: '',
-        startDate: new Date('2024-02-01'),
+        startDate: new Date('2021-02-01'),
+        endDate: new Date('2024-01-28'),
       },
       {
+        // ongoing experience
         userId: '1',
         title: 'Software Developer',
         status: ExperienceStatus.Published,
         description: '',
-        startDate: new Date('2024-03-01'),
+        startDate: new Date('2024-01-29'),
       },
       {
+        // ongoing experience
         userId: '1',
         title: 'Frontend Developer',
         status: ExperienceStatus.Published,
         description: '',
-        startDate: new Date('2024-04-01'),
+        startDate: new Date('2022-01-01'),
       },
       {
+        // drafted experience
         userId: '1',
         title: 'Draft Job Title',
         status: ExperienceStatus.Draft,
@@ -612,19 +615,28 @@ describe('user experience', () => {
       }
   `;
 
+  it('should throw error if user is not logged in', () => {
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {},
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
   it('should return user experiences', async () => {
     loggedUser = '1';
     const res = await client.query<
       {
-        userExperiences: {
-          [UserExperienceType.Work]: UserWorkExperience[];
-          [UserExperienceType.Award]: UserAwardExperience[];
-        };
+        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
       },
       { status?: ExperienceStatus[] }
     >(QUERY, {
       variables: {},
     });
+    console.log(res.data.userExperiences);
 
     expect(res.data.userExperiences.work).toHaveLength(4);
     // check for work experiences array to contain all published works
@@ -651,10 +663,7 @@ describe('user experience', () => {
     loggedUser = '1';
     const res = await client.query<
       {
-        userExperiences: {
-          [UserExperienceType.Work]: UserWorkExperience[];
-          [UserExperienceType.Award]: UserAwardExperience[];
-        };
+        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
       },
       { status?: ExperienceStatus[] }
     >(QUERY, {
@@ -684,10 +693,7 @@ describe('user experience', () => {
     loggedUser = '2'; // User with no experiences
     const res = await client.query<
       {
-        userExperiences: {
-          [UserExperienceType.Work]: UserWorkExperience[];
-          [UserExperienceType.Award]: UserAwardExperience[];
-        };
+        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
       },
       { status?: ExperienceStatus[] }
     >(QUERY, {
@@ -696,5 +702,33 @@ describe('user experience', () => {
 
     expect(res.data.userExperiences.work).toHaveLength(0);
     expect(res.data.userExperiences.award).toHaveLength(0);
+  });
+
+  it('should return sorted experiences, first ongoing, then sorted by end date', async () => {
+    loggedUser = '1';
+    const res = await client.query<
+      {
+        userExperiences: ReturnType<typeof getEmptyExperienceTypesMap>;
+      },
+      { status?: ExperienceStatus[] }
+    >(QUERY, {
+      variables: {},
+    });
+
+    expect(res.data.userExperiences.work).toHaveLength(4);
+    // check that ongoing experience is first
+    // - ongoing, started later
+    expect(res.data.userExperiences.work[0].title).toEqual(
+      'Software Developer',
+    );
+    // - ongoing, started earlier
+    expect(res.data.userExperiences.work[1].title).toEqual(
+      'Frontend Developer',
+    );
+    // check that experiences are sorted by the end date
+    expect(res.data.userExperiences.work[2].title).toEqual(
+      'Senior Software Engineer',
+    );
+    expect(res.data.userExperiences.work[3].title).toEqual('Software Engineer');
   });
 });

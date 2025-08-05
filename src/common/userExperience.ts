@@ -2,8 +2,17 @@
 import { z } from 'zod';
 import { CompanyType } from '../entity/Company';
 import { ValidationError } from 'apollo-server-errors';
-import { ExperienceStatus, UserExperienceType } from '../entity/user/experiences/types';
-import { UserExperience } from '../entity/user/experiences/UserExperience';
+import {
+  ExperienceStatus,
+  UserExperienceType,
+} from '../entity/user/experiences/types';
+import { UserWorkExperience } from '../entity/user/experiences/UserWorkExperience';
+import { UserProjectExperience } from '../entity/user/experiences/UserProjectExperience';
+import { UserCourseExperience } from '../entity/user/experiences/UserCourseExperience';
+import { UserPublicationExperience } from '../entity/user/experiences/UserPublicationExperience';
+import { UserAwardExperience } from '../entity/user/experiences/UserAwardExperience';
+import { UserCertificationExperience } from '../entity/user/experiences/UserCertificationExperience';
+import { UserEducationExperience } from '../entity/user/experiences/UserEducationExperience';
 
 // Autocomplete
 
@@ -86,16 +95,28 @@ export const autocomplete = {
 
 // Experiences
 
-export const experiencesQueryValidation = z.object({
-  status: z
-    .array(z.nativeEnum(ExperienceStatus))
-    .optional()
-    .default([ExperienceStatus.Published]),
-});
+export const experiences = {
+  validation: {
+    queryAll: z.object({
+      status: z
+        .array(z.nativeEnum(ExperienceStatus))
+        .optional()
+        .default([ExperienceStatus.Published]),
+    }),
+  },
+};
 
-export const emptyExperienceTypesMap = Object.fromEntries(
-  Object.values(UserExperienceType).map((type) => [
-    type,
-    [] as Array<UserExperience>,
-  ]),
-) as Record<UserExperienceType, Array<UserExperience>>;
+export type ExperienceQueryParams = z.infer<
+  typeof experiences.validation.queryAll
+>;
+
+export const getEmptyExperienceTypesMap = () => ({
+  [UserExperienceType.Work]: [] as Array<UserWorkExperience>,
+  [UserExperienceType.Education]: [] as Array<UserEducationExperience>,
+  [UserExperienceType.Certification]: [] as Array<UserCertificationExperience>,
+  [UserExperienceType.Award]: [] as Array<UserAwardExperience>,
+  [UserExperienceType.Publication]: [] as Array<UserPublicationExperience>,
+  [UserExperienceType.Course]: [] as Array<UserCourseExperience>,
+  [UserExperienceType.OpenSource]: [] as Array<UserProjectExperience>,
+  [UserExperienceType.Project]: [] as Array<UserProjectExperience>,
+});
