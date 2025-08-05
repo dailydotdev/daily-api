@@ -6,6 +6,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum CompanyType {
+  Business = 'business',
+  School = 'school',
+}
+
 @Entity()
 export class Company {
   @PrimaryColumn({ type: 'text' })
@@ -25,4 +30,10 @@ export class Company {
 
   @Column({ type: 'text', array: true, default: [] })
   domains: string[];
+
+  @Column({
+    type: 'text',
+    default: CompanyType.Business,
+  })
+  type = CompanyType.Business;
 }

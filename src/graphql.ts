@@ -29,6 +29,7 @@ import * as prompts from './schema/prompts';
 import * as paddle from './schema/paddle';
 import * as njord from './schema/njord';
 import * as organizations from './schema/organizations';
+import * as userExperience from './schema/userExperience';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -74,6 +75,7 @@ export const schema = urlDirective.transformer(
               paddle.typeDefs,
               njord.typeDefs,
               organizations.typeDefs,
+              userExperience.typeDefs,
             ],
             resolvers: merge(
               common.resolvers,
@@ -102,6 +104,7 @@ export const schema = urlDirective.transformer(
               paddle.resolvers,
               njord.resolvers,
               organizations.resolvers,
+              userExperience.resolvers,
             ),
           }),
         ),
