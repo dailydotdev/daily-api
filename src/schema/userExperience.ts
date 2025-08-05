@@ -203,11 +203,61 @@ export const typeDefs = /* GraphQL */ `
     userExperiences(status: [ExperienceStatus!]): UserExperiencesResult! @auth
   }
 
+  # Union input type for updateExperience
+  input ExperienceUpdateInput {
+    # Base fields
+    title: String
+    description: String
+    startDate: DateTime
+    endDate: DateTime
+    status: ExperienceStatus
+    type: UserExperienceType!
+
+    # Work experience fields
+    companyId: String
+    employmentType: WorkEmploymentType
+    location: String
+    locationType: WorkLocationType
+    achievements: [String!]
+
+    # Education experience fields
+    schoolId: String
+    fieldOfStudy: String
+    grade: String
+    extracurriculars: String
+
+    # Project experience fields
+    links: [ProjectLinkInput!]
+    contributors: [String!]
+    workingExperienceId: String
+    educationExperienceId: String
+
+    # Certification experience fields
+    courseNumber: String
+    credentialId: String
+    credentialUrl: String
+
+    # Award experience fields
+    issuer: String
+
+    # Publication experience fields
+    publisher: String
+    url: String
+
+    # Course experience fields
+    institution: String
+  }
+
   extend type Mutation {
     """
     Remove a user experience by ID
     """
     removeExperience(id: ID!): EmptyResponse! @auth
+
+    """
+    Update a user experience
+    """
+    updateExperience(id: ID!, input: ExperienceUpdateInput!): EmptyResponse! @auth
   }
 `;
 
