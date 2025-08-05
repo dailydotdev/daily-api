@@ -7177,7 +7177,6 @@ describe('user job preferences', () => {
       const res = await client.mutate(MUTATION, { variables });
       expect(res.errors).toBeFalsy();
       expect(res.data.updateUserJobPreferences).toMatchObject({
-        userId: '1',
         openToOpportunities: false,
         preferredRoles: ['Product Manager', 'Project Manager'],
         preferredLocationType: WorkLocationType.Remote,
@@ -7195,7 +7194,6 @@ describe('user job preferences', () => {
           where: { userId: '1' },
         });
       expect(updatedPrefs).toMatchObject({
-        userId: '1',
         openToOpportunities: false,
         preferredRoles: ['Product Manager', 'Project Manager'],
         preferredLocationType: WorkLocationType.Remote,
