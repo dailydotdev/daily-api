@@ -1,7 +1,8 @@
 import { UserExperience } from './UserExperience';
 import { ChildEntity, Column, JoinColumn, ManyToOne } from 'typeorm';
 import type { Company } from '../../Company';
-import { UserExperienceType } from './types';
+import { UserExperienceType, baseUserExperienceSchema } from './types';
+import { z } from 'zod';
 
 @ChildEntity(UserExperienceType.Certification)
 export class UserCertificationExperience extends UserExperience {
@@ -22,3 +23,16 @@ export class UserCertificationExperience extends UserExperience {
   @Column({ type: 'text', nullable: true })
   credentialUrl: string;
 }
+
+// Zod schema for UserCertificationExperience
+export const userCertificationExperienceSchema =
+  baseUserExperienceSchema.extend({
+    courseNumber: z.string().nullable().optional(),
+    companyId: z.string().uuid(),
+    credentialId: z.string().nullable().optional(),
+    credentialUrl: z
+      .string()
+      .url('Credential URL must be a valid URL')
+      .nullable()
+      .optional(),
+  });

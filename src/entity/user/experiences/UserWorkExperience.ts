@@ -6,7 +6,9 @@ import {
   UserExperienceType,
   WorkEmploymentType,
   WorkVerificationStatus,
+  baseUserExperienceSchema,
 } from './types';
+import { z } from 'zod';
 
 @ChildEntity(UserExperienceType.Work)
 export class UserWorkExperience extends UserExperience {
@@ -44,3 +46,17 @@ export class UserWorkExperience extends UserExperience {
   })
   verificationStatus: WorkVerificationStatus;
 }
+
+// Zod schema for UserWorkExperience
+export const userWorkExperienceSchema = baseUserExperienceSchema.extend({
+  companyId: z.string().uuid(),
+  employmentType: z.nativeEnum(WorkEmploymentType),
+  location: z.string().nullable().optional(),
+  locationType: z.nativeEnum(WorkLocationType).nullable().optional(),
+  achievements: z.array(z.string()).default([]),
+  verificationEmail: z.string().email().nullable().optional(),
+  verificationStatus: z
+    .nativeEnum(WorkVerificationStatus)
+    .nullable()
+    .optional(),
+});
