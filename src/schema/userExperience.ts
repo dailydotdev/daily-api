@@ -203,6 +203,11 @@ export const typeDefs = /* GraphQL */ `
     userExperiences(status: [ExperienceStatus!]): UserExperiencesResult! @auth
   }
 
+  input ProjectLinkInput {
+    type: ProjectLinkType!
+    url: String!
+  }
+
   # Union input type for updateExperience
   input ExperienceUpdateInput {
     # Base fields

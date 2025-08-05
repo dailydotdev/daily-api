@@ -20,6 +20,7 @@ import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExper
 import {
   ExperienceStatus,
   ProjectLinkType,
+  UserExperienceType,
 } from '../src/entity/user/experiences/types';
 import { User } from '../src/entity';
 import { usersFixture } from './fixture';
@@ -1152,29 +1153,229 @@ describe('user experience', () => {
       expect(res.data.removeExperience._).toBe(true);
 
       // Verify that the experience is removed
-      const queryRes = await client.query<
-        { userExperiences: ReturnType<typeof getEmptyExperienceTypesMap> },
-        { status?: ExperienceStatus[] }
-      >(
-        `
-          query UserExperiences($status: [ExperienceStatus!]) {
-            userExperiences(status: $status) {
-              work {
-                id
-                title
-              }
-            }
-          }
-        `,
-        {
-          variables: {},
-        },
-      );
+      const userExperiences = await con
+        .getRepository(UserWorkExperience)
+        .findBy({ userId: loggedUser });
 
-      expect(queryRes.data.userExperiences.work).toHaveLength(3);
-      expect(queryRes.data.userExperiences.work).not.toEqual(
+      expect(userExperiences).toHaveLength(4);
+      expect(userExperiences).not.toEqual(
         expect.arrayContaining([expect.objectContaining({ id: currentJobId })]),
       );
+    });
+  });
+
+  describe('update experiences', () => {
+    const MUTATION = `
+    mutation UpdateExperience($id: ID!, $input: ExperienceUpdateInput!) {
+      updateExperience(id: $id, input: $input){
+        _
+      }
+    }
+  `;
+
+    const currentJobId = uuidv4();
+    const currentEducationId = uuidv4();
+
+    beforeEach(async () => {
+      await saveFixtures(con, User, usersFixture);
+      // Create test companies for education and work
+      await saveFixtures(con, Company, [
+        {
+          id: 'school1',
+          name: 'Stanford University',
+          type: CompanyType.School,
+          image: 'https://example.com/stanford.png',
+        },
+        {
+          id: 'school2',
+          name: 'MIT',
+          type: CompanyType.School,
+          image: 'https://example.com/mit.png',
+        },
+        {
+          id: 'company1',
+          name: 'Google',
+          type: CompanyType.Business,
+          image: 'https://example.com/google.png',
+        },
+        {
+          id: 'company2',
+          name: 'Microsoft',
+          type: CompanyType.Business,
+          image: 'https://example.com/microsoft.png',
+        },
+      ]);
+
+      await saveFixtures(con, UserWorkExperience, [
+        {
+          id: currentJobId,
+          userId: '1',
+          title: 'Software Engineer',
+          status: ExperienceStatus.Published,
+          description: 'Building awesome software',
+          startDate: new Date('2020-01-01'),
+          endDate: new Date('2021-01-31'),
+          companyId: 'company1',
+        },
+      ]);
+
+      await saveFixtures(con, UserEducationExperience, [
+        {
+          id: currentEducationId,
+          userId: '1',
+          title: 'Computer Science Degree',
+          schoolId: 'school1',
+          fieldOfStudy: 'Computer Science',
+          grade: 'A',
+          status: ExperienceStatus.Published,
+          description: 'Bachelor of Science in Computer Science',
+          startDate: new Date('2016-09-01'),
+          endDate: new Date('2020-06-30'),
+        },
+      ]);
+    });
+
+    it('should throw error if user is not logged in', () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: MUTATION,
+          variables: {
+            id: currentJobId,
+            input: {
+              title: 'Updated Title',
+              type: UserExperienceType.Work,
+            },
+          },
+        },
+        'UNAUTHENTICATED',
+      );
+    });
+
+    it('should throw error if experience does not exist', () => {
+      loggedUser = '1';
+      return testQueryErrorCode(
+        client,
+        {
+          query: MUTATION,
+          variables: {
+            id: uuidv4(),
+            input: {
+              title: 'Updated Title',
+              type: UserExperienceType.Work,
+            },
+          },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should throw error if experience does not belong to user', () => {
+      loggedUser = '2';
+      return testQueryErrorCode(
+        client,
+        {
+          query: MUTATION,
+          variables: {
+            id: currentJobId, // Experience belongs to user 1
+            input: {
+              title: 'Updated Title',
+              type: UserExperienceType.Work,
+            },
+          },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should update work experience successfully', async () => {
+      loggedUser = '1';
+      const updatedTitle = 'Senior Software Engineer';
+      const updatedDescription = 'Leading a team of developers';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: currentJobId,
+          input: {
+            title: updatedTitle,
+            description: updatedDescription,
+            type: UserExperienceType.Work,
+          },
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.updateExperience._).toBe(true);
+
+      // Verify that the experience was updated
+      const updatedExperience = await con
+        .getRepository(UserWorkExperience)
+        .findOneOrFail({
+          where: { id: currentJobId },
+        });
+
+      expect(updatedExperience).toBeDefined();
+      expect(updatedExperience.title).toEqual(updatedTitle);
+      expect(updatedExperience.description).toEqual(updatedDescription);
+    });
+
+    it('should update education experience successfully', async () => {
+      loggedUser = '1';
+      const updatedTitle = 'Master of Computer Science';
+      const updatedFieldOfStudy = 'Artificial Intelligence';
+      const updatedGrade = 'A+';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: currentEducationId,
+          input: {
+            title: updatedTitle,
+            fieldOfStudy: updatedFieldOfStudy,
+            grade: updatedGrade,
+            type: UserExperienceType.Education,
+          },
+        },
+      });
+
+      expect(res.data.updateExperience._).toBe(true);
+
+      // Verify that the experience was updated
+      const updatedExperience = await con
+        .getRepository(UserEducationExperience)
+        .findOne({
+          where: { id: currentEducationId },
+        });
+
+      expect(updatedExperience).toBeDefined();
+      expect(updatedExperience?.title).toEqual(updatedTitle);
+      expect(updatedExperience?.fieldOfStudy).toEqual(updatedFieldOfStudy);
+      expect(updatedExperience?.grade).toEqual(updatedGrade);
+    });
+
+    it('should update status of an experience', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(MUTATION, {
+        variables: {
+          id: currentJobId,
+          input: {
+            status: ExperienceStatus.Draft,
+            type: UserExperienceType.Work,
+          },
+        },
+      });
+
+      expect(res.data.updateExperience._).toBe(true);
+
+      // Verify that the status was updated
+      const updatedExperience = await con
+        .getRepository(UserWorkExperience)
+        .findOneOrFail({
+          where: { id: currentJobId },
+        });
+
+      expect(updatedExperience).toBeDefined();
+      expect(updatedExperience.status).toEqual(ExperienceStatus.Draft);
     });
   });
 });
