@@ -365,6 +365,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             status,
           })
           .addOrderBy('experience.endDate', 'DESC', 'NULLS FIRST')
+          .addOrderBy('experience.startDate', 'DESC')
           .getMany(),
       );
 
