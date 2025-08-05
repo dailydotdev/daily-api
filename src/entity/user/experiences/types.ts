@@ -58,7 +58,6 @@ export const baseUserExperienceSchema = z.object({
   description: z.string().default(''),
   startDate: z.date(),
   endDate: z.date().nullable().optional(),
-  type: z.nativeEnum(UserExperienceType),
   status: z.nativeEnum(ExperienceStatus).default(ExperienceStatus.Draft),
   flags: z.record(z.string(), z.unknown()).default({}),
 });

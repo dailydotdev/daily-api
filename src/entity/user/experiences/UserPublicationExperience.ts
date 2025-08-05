@@ -40,6 +40,7 @@ export class UserPublicationExperience extends UserExperience {
 
 // Zod schema for UserPublicationExperience
 export const userPublicationExperienceSchema = baseUserExperienceSchema.extend({
+  type: z.literal(UserExperienceType.Publication),
   publisher: z.string().nullable().optional(),
   url: z.string().url('URL must be a valid URL').nullable().optional(),
   contributors: z.array(z.string()).default([]),

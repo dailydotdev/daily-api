@@ -127,28 +127,49 @@ export const experiences = {
       id: z.string().uuid(),
     }),
     update: z.discriminatedUnion('type', [
-      userAwardExperienceSchema.omit({ id: true, userId: true }),
-      userCertificationExperienceSchema.omit({
-        id: true,
-        userId: true,
-      }),
-      userCourseExperienceSchema.omit({ id: true, userId: true }),
-      userEducationExperienceSchema.omit({
-        id: true,
-        userId: true,
-      }),
-      userProjectExperienceSchema.omit({ id: true, userId: true }),
-      userPublicationExperienceSchema.omit({
-        id: true,
-        userId: true,
-      }),
-      userWorkExperienceSchema.omit({
-        id: true,
-        userId: true,
-        // cannot verify using udpate
-        verificationEmail: true,
-        verificationStatus: true,
-      }),
+      userAwardExperienceSchema
+        .omit({ id: true, userId: true })
+        .partial()
+        .required({ type: true }),
+      userCertificationExperienceSchema
+        .omit({
+          id: true,
+          userId: true,
+        })
+        .partial()
+        .required({ type: true }),
+      userCourseExperienceSchema
+        .omit({ id: true, userId: true })
+        .partial()
+        .required({ type: true }),
+      userEducationExperienceSchema
+        .omit({
+          id: true,
+          userId: true,
+        })
+        .partial()
+        .required({ type: true }),
+      userProjectExperienceSchema
+        .omit({ id: true, userId: true })
+        .partial()
+        .required({ type: true }),
+      userPublicationExperienceSchema
+        .omit({
+          id: true,
+          userId: true,
+        })
+        .partial()
+        .required({ type: true }),
+      userWorkExperienceSchema
+        .omit({
+          id: true,
+          userId: true,
+          // cannot verify using update
+          verificationEmail: true,
+          verificationStatus: true,
+        })
+        .partial()
+        .required({ type: true }),
     ]),
   },
 };

@@ -15,6 +15,7 @@ export class UserCourseExperience extends UserExperience {
 
 // Zod schema for UserCourseExperience
 export const userCourseExperienceSchema = baseUserExperienceSchema.extend({
+  type: z.literal(UserExperienceType.Course),
   courseNumber: z.string().nullable().optional(),
   institution: z.string().nullable().optional(),
 });

@@ -49,6 +49,7 @@ export class UserWorkExperience extends UserExperience {
 
 // Zod schema for UserWorkExperience
 export const userWorkExperienceSchema = baseUserExperienceSchema.extend({
+  type: z.literal(UserExperienceType.Work),
   companyId: z.string().uuid(),
   employmentType: z.nativeEnum(WorkEmploymentType),
   location: z.string().nullable().optional(),

@@ -40,6 +40,7 @@ export class UserProjectExperience extends UserExperience {
 
 // Zod schema for UserProjectExperience
 export const userProjectExperienceSchema = baseUserExperienceSchema.extend({
+  type: z.literal(UserExperienceType.Project),
   links: z.array(projectLinkSchema).default([]),
   contributors: z.array(z.string()).default([]),
   workingExperienceId: z.string().uuid().nullable().optional(),
