@@ -7002,7 +7002,6 @@ describe('user job preferences', () => {
   const QUERY = `
     query UserJobPreferences {
       userJobPreferences {
-        userId
         openToOpportunities
         preferredRoles
         preferredLocationType
@@ -7126,14 +7125,13 @@ describe('user job preferences', () => {
       $openToRelocation: Boolean!
       $currentTotalComp: UserTotalCompensationInput!
     ) {
-      userJobPreferences(
+      updateUserJobPreferences(
         openToOpportunities: $openToOpportunities
         preferredRoles: $preferredRoles
         preferredLocationType: $preferredLocationType
         openToRelocation: $openToRelocation
         currentTotalComp: $currentTotalComp
       ) {
-        userId
         openToOpportunities
         preferredRoles
         preferredLocationType
@@ -7178,7 +7176,7 @@ describe('user job preferences', () => {
 
       const res = await client.mutate(MUTATION, { variables });
       expect(res.errors).toBeFalsy();
-      expect(res.data.userJobPreferences).toMatchObject({
+      expect(res.data.updateUserJobPreferences).toMatchObject({
         userId: '1',
         openToOpportunities: false,
         preferredRoles: ['Product Manager', 'Project Manager'],

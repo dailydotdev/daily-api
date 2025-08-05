@@ -294,7 +294,6 @@ export interface SendReportArgs {
 }
 
 export interface GQLUserJobPreferences {
-  userId: User['id'];
   openToOpportunities: boolean;
   preferredRoles: string[];
   preferredLocationType: WorkLocationType | null;
@@ -533,10 +532,6 @@ export const typeDefs = /* GraphQL */ `
   User job preferences
   """
   type UserJobPreferences {
-    """
-    User ID of the job preferences
-    """
-    userId: String!
     """
     Whether the user is open to opportunities
     """
@@ -1319,7 +1314,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Update job preferences for the current user
     """
-    userJobPreferences(
+    updateUserJobPreferences(
       """
       Whether the user is open to opportunities
       """
@@ -2212,7 +2207,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (!userJobPreferences) {
         // if no job preferences are set, return default values
         return {
-          userId: ctx.userId,
           openToOpportunities: false,
           currentTotalComp: {},
           preferredRoles: [],
@@ -2959,7 +2953,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
       return addClaimableItemsToUser(ctx.con, user);
     },
-    userJobPreferences: async (
+    updateUserJobPreferences: async (
       _,
       params: UserJobPreferencesInput,
       ctx: AuthContext,

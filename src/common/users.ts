@@ -646,20 +646,21 @@ export const isProfileCompleteById = async (
   userId: User['id'],
 ) => {
   try {
-    const [user, experiencesCount] = await Promise.all([
-      queryReadReplica(con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository('User')
-          .findOneByOrFail({ id: userId }),
-      ),
-      queryReadReplica(con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository('UserExperience')
-          .count({ where: { userId, type: UserExperienceType.Work } }),
-      ),
-    ]);
+    const [user, experiencesCount] = await queryReadReplica(
+      con,
+      ({ queryRunner }) =>
+        Promise.all([
+          queryRunner.manager
+            .getRepository('User')
+            .findOneByOrFail({ id: userId }),
+          queryRunner.manager
+            .getRepository('UserExperience')
+            .count({ where: { userId, type: UserExperienceType.Work } }),
+        ]),
+    );
 
-    const hasCountry = user.flags.country?.length;
+    const hasCountry =
+      typeof user.flags.country === 'string' && user.flags.country.length >= 2;
     const hasEnoughExperiences = experiencesCount >= MIN_WORK_EXPERIENCE;
 
     return hasCountry && hasEnoughExperiences;
