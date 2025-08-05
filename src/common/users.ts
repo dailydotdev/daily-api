@@ -685,7 +685,7 @@ const jobPreferenceUpdateValidation = z.object({
   openToRelocation: z.boolean().optional().default(false),
   currentTotalComp: z
     .object({
-      currency: z.string(),
+      currency: z.string().length(3),
       amount: z.number().int().positive(),
     })
     .partial()
