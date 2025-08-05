@@ -123,6 +123,5 @@ export const getEmptyExperienceTypesMap = () => ({
   [UserExperienceType.Award]: [] as Array<UserAwardExperience>,
   [UserExperienceType.Publication]: [] as Array<UserPublicationExperience>,
   [UserExperienceType.Course]: [] as Array<UserCourseExperience>,
-  [UserExperienceType.OpenSource]: [] as Array<UserProjectExperience>,
   [UserExperienceType.Project]: [] as Array<UserProjectExperience>,
 });

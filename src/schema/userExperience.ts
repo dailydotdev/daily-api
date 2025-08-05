@@ -6,8 +6,10 @@ import { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
 import {
   ExperienceStatus,
+  ProjectLinkType,
   UserExperienceType,
   WorkEmploymentType,
+  WorkVerificationStatus,
 } from '../entity/user/experiences/types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
@@ -27,11 +29,27 @@ import { toGQLEnum } from '../common';
 import { WorkLocationType } from '../entity/user/UserJobPreferences';
 import { NotFoundError } from '../errors';
 
+// Common fields for all user experience types
+const baseUserExperienceFields = `
+  id: ID!
+  userId: String!
+  title: String!
+  description: String
+  startDate: DateTime!
+  endDate: DateTime
+  type: UserExperienceType!
+  status: ExperienceStatus!
+  skills: [SkillHit!]
+  flags: JSONObject
+`;
+
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(UserExperienceType, 'UserExperienceType')}
   ${toGQLEnum(ExperienceStatus, 'ExperienceStatus')}
   ${toGQLEnum(WorkEmploymentType, 'WorkEmploymentType')}
   ${toGQLEnum(WorkLocationType, 'WorkLocationType')}
+  ${toGQLEnum(ProjectLinkType, 'ProjectLinkType')}
+  ${toGQLEnum(WorkVerificationStatus, 'WorkVerificationStatus')}
 
   type ExperienceHit {
     id: ID!
@@ -49,46 +67,29 @@ export const typeDefs = /* GraphQL */ `
     name: String!
   }
 
-  type UserExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  type ProjectLink {
+    type: ProjectLinkType!
+    url: String!
   }
 
-  type UserWorkExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  interface UserExperience {
+    ${baseUserExperienceFields}
+  }
+
+  type UserWorkExperience implements UserExperience {
+    ${baseUserExperienceFields}
     companyId: String!
     company: CompanyHit
     employmentType: WorkEmploymentType!
     location: String
     locationType: WorkLocationType
     achievements: [String!]
+    # verificationEmail is intentionally not exposed to the frontend
+    verificationStatus: WorkVerificationStatus
   }
 
-  type UserEducationExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  type UserEducationExperience implements UserExperience {
+    ${baseUserExperienceFields}
     schoolId: String!
     school: CompanyHit
     fieldOfStudy: String!
@@ -96,76 +97,49 @@ export const typeDefs = /* GraphQL */ `
     extracurriculars: String
   }
 
-  type UserProjectExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  type UserProjectExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    links: [ProjectLink!]
+    contributors: [String!]
+    workingExperienceId: String
+    workingExperience: UserWorkExperience
+    educationExperienceId: String
+    educationExperience: UserEducationExperience
   }
 
-  type UserCertificationExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  type UserCertificationExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    courseNumber: String
+    companyId: String!
+    company: CompanyHit
+    credentialId: String
+    credentialUrl: String
   }
 
-  type UserAwardExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  type UserAwardExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    issuer: String
+    workingExperienceId: String
+    workingExperience: UserWorkExperience
+    educationExperienceId: String
+    educationExperience: UserEducationExperience
   }
 
-  type UserPublicationExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  type UserPublicationExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    publisher: String
+    url: String
+    contributors: [String!]
+    workingExperienceId: String
+    workingExperience: UserWorkExperience
+    educationExperienceId: String
+    educationExperience: UserEducationExperience
   }
 
-  type UserCourseExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
-  }
-
-  type UserOpenSourceExperience {
-    id: ID!
-    userId: String!
-    title: String!
-    description: String
-    startDate: DateTime!
-    endDate: DateTime
-    type: UserExperienceType!
-    status: ExperienceStatus!
-    skills: [SkillHit!]
+  type UserCourseExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    courseNumber: String
+    institution: String
   }
 
   type ExperienceAutocompleteResult {
@@ -194,7 +168,6 @@ export const typeDefs = /* GraphQL */ `
     award: [UserAwardExperience!]
     publication: [UserPublicationExperience!]
     course: [UserCourseExperience!]
-    openSource: [UserOpenSourceExperience!]
   }
 
   extend type Query {
