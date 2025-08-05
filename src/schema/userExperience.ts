@@ -21,6 +21,8 @@ import {
   ExperienceQueryParams,
   ExperienceRemoveParams,
   experiences,
+  experienceTypeToRepositoryMap,
+  ExperienceUpdateParams,
   getEmptyExperienceTypesMap,
 } from '../common/userExperience';
 import { logger } from '../logger';
@@ -415,31 +417,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
-    editExperience: async (
+    updateExperience: async (
       _,
       params: {
         id: string;
-        input: Partial<UserExperience>;
+        input: ExperienceUpdateParams;
       },
       ctx: AuthContext,
     ) => {
-      const { id, input } = params;
+      const {
+        data,
+        success: passedValidation,
+        error,
+      } = experiences.validation.update.safeParse(params.input);
+
+      const { id } = params;
+      if (!passedValidation) {
+        throw new Error(`Invalid parameters: ${error.message}`);
+      }
 
       const experience = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager
           .getRepository(UserExperience)
-          .findOneBy({ id, userId: ctx.userId }),
+          .findOneBy({ id, userId: ctx.userId, type: data?.type }),
       );
 
-      if (!experience) {
+      if (!experience || !(data?.type in experienceTypeToRepositoryMap)) {
         throw new NotFoundError('Experience not found');
       }
 
-      Object.assign(experience, input);
+      await ctx.con
+        .getRepository(experienceTypeToRepositoryMap[data?.type])
+        .update({ id, userId: ctx.userId, type: data?.type }, data);
 
-      return await ctx.con
-        .getRepository(UserExperience)
-        .save({ ...experience, ...input });
+      return { _: true };
     },
   },
 });

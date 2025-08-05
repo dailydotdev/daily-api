@@ -1,4 +1,3 @@
-// Common query and limit validation
 import { z } from 'zod';
 import { CompanyType } from '../entity/Company';
 import { ValidationError } from 'apollo-server-errors';
@@ -6,13 +5,34 @@ import {
   ExperienceStatus,
   UserExperienceType,
 } from '../entity/user/experiences/types';
-import { UserWorkExperience } from '../entity/user/experiences/UserWorkExperience';
-import { UserProjectExperience } from '../entity/user/experiences/UserProjectExperience';
-import { UserCourseExperience } from '../entity/user/experiences/UserCourseExperience';
-import { UserPublicationExperience } from '../entity/user/experiences/UserPublicationExperience';
-import { UserAwardExperience } from '../entity/user/experiences/UserAwardExperience';
-import { UserCertificationExperience } from '../entity/user/experiences/UserCertificationExperience';
-import { UserEducationExperience } from '../entity/user/experiences/UserEducationExperience';
+import {
+  UserWorkExperience,
+  userWorkExperienceSchema,
+} from '../entity/user/experiences/UserWorkExperience';
+import {
+  UserProjectExperience,
+  userProjectExperienceSchema,
+} from '../entity/user/experiences/UserProjectExperience';
+import {
+  UserCourseExperience,
+  userCourseExperienceSchema,
+} from '../entity/user/experiences/UserCourseExperience';
+import {
+  UserPublicationExperience,
+  userPublicationExperienceSchema,
+} from '../entity/user/experiences/UserPublicationExperience';
+import {
+  UserAwardExperience,
+  userAwardExperienceSchema,
+} from '../entity/user/experiences/UserAwardExperience';
+import {
+  UserCertificationExperience,
+  userCertificationExperienceSchema,
+} from '../entity/user/experiences/UserCertificationExperience';
+import {
+  UserEducationExperience,
+  userEducationExperienceSchema,
+} from '../entity/user/experiences/UserEducationExperience';
 
 // Autocomplete
 
@@ -106,6 +126,30 @@ export const experiences = {
     remove: z.object({
       id: z.string().uuid(),
     }),
+    update: z.discriminatedUnion('type', [
+      userAwardExperienceSchema.omit({ id: true, userId: true }),
+      userCertificationExperienceSchema.omit({
+        id: true,
+        userId: true,
+      }),
+      userCourseExperienceSchema.omit({ id: true, userId: true }),
+      userEducationExperienceSchema.omit({
+        id: true,
+        userId: true,
+      }),
+      userProjectExperienceSchema.omit({ id: true, userId: true }),
+      userPublicationExperienceSchema.omit({
+        id: true,
+        userId: true,
+      }),
+      userWorkExperienceSchema.omit({
+        id: true,
+        userId: true,
+        // cannot verify using udpate
+        verificationEmail: true,
+        verificationStatus: true,
+      }),
+    ]),
   },
 };
 
@@ -115,13 +159,27 @@ export type ExperienceQueryParams = z.infer<
 export type ExperienceRemoveParams = z.infer<
   typeof experiences.validation.remove
 >;
+export type ExperienceUpdateParams = z.infer<
+  typeof experiences.validation.update
+>;
 
 export const getEmptyExperienceTypesMap = () => ({
-  [UserExperienceType.Work]: [] as Array<UserWorkExperience>,
-  [UserExperienceType.Education]: [] as Array<UserEducationExperience>,
-  [UserExperienceType.Certification]: [] as Array<UserCertificationExperience>,
   [UserExperienceType.Award]: [] as Array<UserAwardExperience>,
-  [UserExperienceType.Publication]: [] as Array<UserPublicationExperience>,
+  [UserExperienceType.Certification]: [] as Array<UserCertificationExperience>,
   [UserExperienceType.Course]: [] as Array<UserCourseExperience>,
+  [UserExperienceType.Education]: [] as Array<UserEducationExperience>,
   [UserExperienceType.Project]: [] as Array<UserProjectExperience>,
+  [UserExperienceType.Publication]: [] as Array<UserPublicationExperience>,
+  [UserExperienceType.Work]: [] as Array<UserWorkExperience>,
 });
+
+export const experienceTypeToRepositoryMap: Record<UserExperienceType, string> =
+  {
+    [UserExperienceType.Work]: 'UserWorkExperience',
+    [UserExperienceType.Education]: 'UserEducationExperience',
+    [UserExperienceType.Project]: 'UserProjectExperience',
+    [UserExperienceType.Certification]: 'UserCertificationExperience',
+    [UserExperienceType.Award]: 'UserAwardExperience',
+    [UserExperienceType.Publication]: 'UserPublicationExperience',
+    [UserExperienceType.Course]: 'UserCourseExperience',
+  };
