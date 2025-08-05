@@ -36,10 +36,7 @@ import {
 } from 'apollo-server-errors';
 import { z } from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
-import {
-  DEFAULT_NOTIFICATION_SETTINGS,
-  NotificationType,
-} from '../notifications/common';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -152,49 +149,7 @@ import {
 } from '../entity/user/UserTransaction';
 import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
-
-const notificationPreferenceSchema = z.object({
-  email: z.enum(['muted', 'subscribed']),
-  inApp: z.enum(['muted', 'subscribed']),
-});
-
-const notificationFlagsSchema = z
-  .object({
-    [NotificationType.ArticleNewComment]: notificationPreferenceSchema,
-    [NotificationType.CommentReply]: notificationPreferenceSchema,
-    [NotificationType.ArticleUpvoteMilestone]: notificationPreferenceSchema,
-    [NotificationType.CommentUpvoteMilestone]: notificationPreferenceSchema,
-    [NotificationType.PostMention]: notificationPreferenceSchema,
-    [NotificationType.CommentMention]: notificationPreferenceSchema,
-    [NotificationType.ArticleReportApproved]: notificationPreferenceSchema,
-    [NotificationType.StreakResetRestore]: notificationPreferenceSchema,
-    [UserPersonalizedDigestType.StreakReminder]: notificationPreferenceSchema,
-    [NotificationType.UserTopReaderBadge]: notificationPreferenceSchema,
-    [NotificationType.DevCardUnlocked]: notificationPreferenceSchema,
-    [NotificationType.SourcePostAdded]: notificationPreferenceSchema,
-    [NotificationType.SquadPostAdded]: notificationPreferenceSchema,
-    [NotificationType.UserPostAdded]: notificationPreferenceSchema,
-    [NotificationType.CollectionUpdated]: notificationPreferenceSchema,
-    [NotificationType.PostBookmarkReminder]: notificationPreferenceSchema,
-    [NotificationType.PromotedToAdmin]: notificationPreferenceSchema,
-    [NotificationType.PromotedToModerator]: notificationPreferenceSchema,
-    [NotificationType.DemotedToMember]: notificationPreferenceSchema,
-    [NotificationType.SourceApproved]: notificationPreferenceSchema,
-    [NotificationType.SourceRejected]: notificationPreferenceSchema,
-    [NotificationType.SourcePostApproved]: notificationPreferenceSchema,
-    [NotificationType.SourcePostRejected]: notificationPreferenceSchema,
-    [NotificationType.SourcePostSubmitted]: notificationPreferenceSchema,
-    [NotificationType.ArticlePicked]: notificationPreferenceSchema,
-    [NotificationType.UserReceivedAward]: notificationPreferenceSchema,
-    [NotificationType.BriefingReady]: notificationPreferenceSchema,
-    [NotificationType.SquadNewComment]: notificationPreferenceSchema,
-    [NotificationType.ArticleAnalytics]: notificationPreferenceSchema,
-    [NotificationType.SquadMemberJoined]: notificationPreferenceSchema,
-    [NotificationType.SquadReply]: notificationPreferenceSchema,
-    [NotificationType.SquadBlocked]: notificationPreferenceSchema,
-  })
-  .strict();
-
+import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 export interface GQLUpdateUserInput {
   name: string;
   email?: string;
