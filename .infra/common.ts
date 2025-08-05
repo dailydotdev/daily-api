@@ -381,6 +381,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-follow',
     subscription: 'api.user-follow-notification',
   },
+  {
+    topic: 'api.v1.post-visible',
+    subscription: 'api.post-added-squad-unread-posts',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
