@@ -17,10 +17,18 @@ import {
 import { UserSkill } from '../src/entity/user/UserSkill';
 import { Company, CompanyType } from '../src/entity/Company';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
-import { ExperienceStatus } from '../src/entity/user/experiences/types';
+import {
+  ExperienceStatus,
+  ProjectLinkType,
+} from '../src/entity/user/experiences/types';
 import { User } from '../src/entity';
 import { usersFixture } from './fixture';
 import { UserAwardExperience } from '../src/entity/user/experiences/UserAwardExperience';
+import { UserEducationExperience } from '../src/entity/user/experiences/UserEducationExperience';
+import { UserProjectExperience } from '../src/entity/user/experiences/UserProjectExperience';
+import { UserCertificationExperience } from '../src/entity/user/experiences/UserCertificationExperience';
+import { UserPublicationExperience } from '../src/entity/user/experiences/UserPublicationExperience';
+import { UserCourseExperience } from '../src/entity/user/experiences/UserCourseExperience';
 import { v4 as uuidv4 } from 'uuid';
 
 let con: DataSource;
@@ -515,6 +523,22 @@ describe('user experience', () => {
   const currentJobId = uuidv4();
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    // Create test companies for education and certification
+    await saveFixtures(con, Company, [
+      {
+        id: 'school1',
+        name: 'Stanford University',
+        type: CompanyType.School,
+        image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'company1',
+        name: 'Certification Provider',
+        type: CompanyType.Business,
+        image: 'https://example.com/cert-provider.png',
+      },
+    ]);
+
     await saveFixtures(con, UserWorkExperience, [
       {
         id: currentJobId,
@@ -558,6 +582,134 @@ describe('user experience', () => {
         startDate: new Date('2024-05-01'),
       },
     ]);
+
+    await saveFixtures(con, UserEducationExperience, [
+      {
+        userId: '1',
+        title: 'Computer Science Degree',
+        schoolId: 'school1',
+        fieldOfStudy: 'Computer Science',
+        grade: 'A',
+        extracurriculars: 'Programming Club',
+        status: ExperienceStatus.Published,
+        description: 'Bachelor of Science in Computer Science',
+        startDate: new Date('2016-09-01'),
+        endDate: new Date('2020-06-30'),
+      },
+      {
+        userId: '1',
+        title: 'Draft Education',
+        schoolId: 'school1',
+        fieldOfStudy: 'Data Science',
+        status: ExperienceStatus.Draft,
+        description: '',
+        startDate: new Date('2022-09-01'),
+      },
+    ]);
+
+    await saveFixtures(con, UserProjectExperience, [
+      {
+        userId: '1',
+        title: 'Personal Portfolio Website',
+        status: ExperienceStatus.Published,
+        description: 'Created a personal portfolio website to showcase my work',
+        startDate: new Date('2023-01-01'),
+        endDate: new Date('2023-02-28'),
+        links: [
+          {
+            type: ProjectLinkType.Code,
+            url: 'https://github.com/user/portfolio',
+          },
+          {
+            type: ProjectLinkType.LivePreview,
+            url: 'https://portfolio.example.com',
+          },
+        ],
+        contributors: ['2'],
+        workingExperienceId: null,
+        educationExperienceId: null,
+      },
+      {
+        userId: '1',
+        title: 'Draft Project',
+        status: ExperienceStatus.Draft,
+        description: 'A project in draft status',
+        startDate: new Date('2024-01-01'),
+        links: [],
+        contributors: [],
+        workingExperienceId: null,
+        educationExperienceId: null,
+      },
+    ]);
+
+    await saveFixtures(con, UserCertificationExperience, [
+      {
+        userId: '1',
+        title: 'AWS Certified Developer',
+        companyId: 'company1',
+        courseNumber: 'AWS-DEV-123',
+        credentialId: 'CERT-12345',
+        credentialUrl: 'https://cert.example.com/verify/12345',
+        status: ExperienceStatus.Published,
+        description: 'Certification for AWS development',
+        startDate: new Date('2022-05-15'),
+      },
+      {
+        userId: '1',
+        title: 'Draft Certification',
+        companyId: 'company1',
+        status: ExperienceStatus.Draft,
+        description: '',
+        startDate: new Date('2024-03-01'),
+      },
+    ]);
+
+    await saveFixtures(con, UserPublicationExperience, [
+      {
+        userId: '1',
+        title: 'Introduction to GraphQL',
+        publisher: 'Tech Journal',
+        url: 'https://journal.example.com/graphql-intro',
+        contributors: ['2'],
+        status: ExperienceStatus.Published,
+        description: 'An article about GraphQL basics',
+        startDate: new Date('2023-06-15'),
+        workingExperienceId: null,
+        educationExperienceId: null,
+      },
+      {
+        userId: '1',
+        title: 'Draft Publication',
+        publisher: 'Draft Publisher',
+        status: ExperienceStatus.Draft,
+        description: '',
+        startDate: new Date('2024-04-01'),
+        workingExperienceId: null,
+        educationExperienceId: null,
+      },
+    ]);
+
+    await saveFixtures(con, UserCourseExperience, [
+      {
+        userId: '1',
+        title: 'Advanced JavaScript',
+        courseNumber: 'JS-301',
+        institution: 'Online Learning Platform',
+        status: ExperienceStatus.Published,
+        description: 'Course covering advanced JavaScript concepts',
+        startDate: new Date('2022-10-01'),
+        endDate: new Date('2022-12-15'),
+      },
+      {
+        userId: '1',
+        title: 'Draft Course',
+        institution: 'Draft Institution',
+        status: ExperienceStatus.Draft,
+        description: '',
+        startDate: new Date('2024-06-01'),
+      },
+    ]);
+
     await saveFixtures(con, UserAwardExperience, [
       {
         userId: '1',
@@ -587,7 +739,7 @@ describe('user experience', () => {
     const QUERY = `
       query UserExperiences($status: [ExperienceStatus!]) {
         userExperiences(status: $status) {
-          work{
+          work {
             id
             userId
             title
@@ -596,6 +748,94 @@ describe('user experience', () => {
             endDate
             type
             status
+            skills {
+              slug
+              name
+            }
+          }
+          education {
+            id
+            userId
+            title
+            description
+            startDate
+            endDate
+            type
+            status
+            schoolId
+            fieldOfStudy
+            grade
+            extracurriculars
+            skills {
+              slug
+              name
+            }
+          }
+          project {
+            id
+            userId
+            title
+            description
+            startDate
+            endDate
+            type
+            status
+            links {
+              type
+              url
+            }
+            contributors
+            skills {
+              slug
+              name
+            }
+          }
+          certification {
+            id
+            userId
+            title
+            description
+            startDate
+            endDate
+            type
+            status
+            companyId
+            courseNumber
+            credentialId
+            credentialUrl
+            skills {
+              slug
+              name
+            }
+          }
+          publication {
+            id
+            userId
+            title
+            description
+            startDate
+            endDate
+            type
+            status
+            publisher
+            url
+            contributors
+            skills {
+              slug
+              name
+            }
+          }
+          course {
+            id
+            userId
+            title
+            description
+            startDate
+            endDate
+            type
+            status
+            courseNumber
+            institution
             skills {
               slug
               name
@@ -610,6 +850,7 @@ describe('user experience', () => {
             endDate
             type
             status
+            issuer
             skills {
               slug
               name
@@ -640,10 +881,9 @@ describe('user experience', () => {
       >(QUERY, {
         variables: {},
       });
-      console.log(res.data.userExperiences);
 
+      // Test work experiences
       expect(res.data.userExperiences.work).toHaveLength(4);
-      // check for work experiences array to contain all published works
       expect(res.data.userExperiences.work).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ title: 'Software Engineer' }),
@@ -653,8 +893,71 @@ describe('user experience', () => {
         ]),
       );
 
+      // Test education experiences
+      expect(res.data.userExperiences.education).toHaveLength(1);
+      expect(res.data.userExperiences.education).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Computer Science Degree',
+            fieldOfStudy: 'Computer Science',
+            grade: 'A',
+            extracurriculars: 'Programming Club',
+          }),
+        ]),
+      );
+
+      // Test project experiences
+      expect(res.data.userExperiences.project).toHaveLength(1);
+      expect(res.data.userExperiences.project[0]).toEqual(
+        expect.objectContaining({
+          title: 'Personal Portfolio Website',
+          links: expect.arrayContaining([
+            expect.objectContaining({
+              type: ProjectLinkType.Code,
+              url: 'https://github.com/user/portfolio',
+            }),
+          ]),
+        }),
+      );
+
+      // Test certification experiences
+      expect(res.data.userExperiences.certification).toHaveLength(1);
+      expect(res.data.userExperiences.certification).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'AWS Certified Developer',
+            courseNumber: 'AWS-DEV-123',
+            credentialId: 'CERT-12345',
+          }),
+        ]),
+      );
+
+      // Test publication experiences
+      expect(res.data.userExperiences.publication).toHaveLength(1);
+      expect(res.data.userExperiences.publication).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Introduction to GraphQL',
+            publisher: 'Tech Journal',
+            url: 'https://journal.example.com/graphql-intro',
+          }),
+        ]),
+      );
+
+      // Test course experiences
+      expect(res.data.userExperiences.course).toHaveLength(1);
+      expect(res.data.userExperiences.course).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Advanced JavaScript',
+            courseNumber: 'JS-301',
+            institution: 'Online Learning Platform',
+          }),
+        ]),
+      );
+
+      // Test award experiences
       expect(res.data.userExperiences.award).toHaveLength(2);
-      // check for award experiences array to contain all published awards
       expect(res.data.userExperiences.award).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ title: 'Best Developer Award' }),
@@ -676,16 +979,70 @@ describe('user experience', () => {
         },
       });
 
+      // Test work experiences including draft
       expect(res.data.userExperiences.work).toHaveLength(5);
-      // check for work experiences array to contain all works including draft
       expect(res.data.userExperiences.work).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ title: 'Draft Job Title' }),
         ]),
       );
 
+      // Test education experiences including draft
+      expect(res.data.userExperiences.education).toHaveLength(2);
+      expect(res.data.userExperiences.education).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Draft Education',
+            fieldOfStudy: 'Data Science',
+          }),
+        ]),
+      );
+
+      // Test project experiences including draft
+      expect(res.data.userExperiences.project).toHaveLength(2);
+      expect(res.data.userExperiences.project).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Draft Project',
+            description: 'A project in draft status',
+          }),
+        ]),
+      );
+
+      // Test certification experiences including draft
+      expect(res.data.userExperiences.certification).toHaveLength(2);
+      expect(res.data.userExperiences.certification).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Draft Certification',
+          }),
+        ]),
+      );
+
+      // Test publication experiences including draft
+      expect(res.data.userExperiences.publication).toHaveLength(2);
+      expect(res.data.userExperiences.publication).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Draft Publication',
+            publisher: 'Draft Publisher',
+          }),
+        ]),
+      );
+
+      // Test course experiences including draft
+      expect(res.data.userExperiences.course).toHaveLength(2);
+      expect(res.data.userExperiences.course).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: 'Draft Course',
+            institution: 'Draft Institution',
+          }),
+        ]),
+      );
+
+      // Test award experiences including draft
       expect(res.data.userExperiences.award).toHaveLength(3);
-      // check for award experiences array to contain all awards including draft
       expect(res.data.userExperiences.award).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ title: 'Draft Award Title' }),
