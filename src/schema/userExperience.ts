@@ -415,5 +415,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
+    editExperience: async (
+      _,
+      params: {
+        id: string;
+        input: Partial<UserExperience>;
+      },
+      ctx: AuthContext,
+    ) => {
+      const { id, input } = params;
+
+      const experience = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(UserExperience)
+          .findOneBy({ id, userId: ctx.userId }),
+      );
+
+      if (!experience) {
+        throw new NotFoundError('Experience not found');
+      }
+
+      Object.assign(experience, input);
+
+      return await ctx.con
+        .getRepository(UserExperience)
+        .save({ ...experience, ...input });
+    },
   },
 });
