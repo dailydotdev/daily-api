@@ -2987,6 +2987,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
+      if (sourceId === ctx.userId) {
+        await ensureUserSourceExists(ctx.userId, ctx.con);
+      }
+
       const [post] = await Promise.all([
         ctx.con
           .createQueryBuilder()
