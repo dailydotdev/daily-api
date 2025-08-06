@@ -3,6 +3,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { ConnectionArguments } from 'graphql-relay';
 import { AuthContext, BaseContext, Context } from '../Context';
 import {
+  BRIEFING_SOURCE,
   createSharePost,
   NotificationPreferenceSource,
   REPUTATION_THRESHOLD,
@@ -1191,6 +1192,13 @@ export const ensureSourcePermissions = async (
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
+
+    if (
+      source.id === BRIEFING_SOURCE &&
+      permission === SourcePermissions.ConnectSlack
+    ) {
+      return source;
+    }
 
     const sourceMember = ctx.userId
       ? await ctx.con
