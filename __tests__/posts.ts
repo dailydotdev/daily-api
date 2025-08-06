@@ -123,7 +123,7 @@ jest.mock('../src/common/typedPubsub', () => ({
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
-let loggedUser: string = null;
+let loggedUser: string | null = null;
 let isTeamMember = false;
 let isPlus = false;
 let roles: Roles[] = [];
@@ -1245,8 +1245,32 @@ describe('query post', () => {
     );
   });
 
-  it('should throw not found when brief post is from other user', async () => {
+  it('should throw when brief post is from other user', async () => {
     loggedUser = '1';
+
+    await saveFixtures(con, BriefPost, [
+      {
+        id: 'pbriefanotherauthor',
+        shortId: 'pbfaa',
+        title: 'pbriefanotherauthor',
+        score: 0,
+        sourceId: BRIEFING_SOURCE,
+        createdAt: new Date('2021-09-22T07:15:51.247Z'),
+        private: true,
+        visible: true,
+        authorId: '2',
+      },
+    ]);
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY('pbriefanotherauthor') },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should throw for anonymous user accessing brief', async () => {
+    loggedUser = null;
 
     await saveFixtures(con, BriefPost, [
       {

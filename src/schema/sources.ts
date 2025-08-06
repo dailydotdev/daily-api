@@ -1205,10 +1205,9 @@ export const ensureSourcePermissions = async (
     if (
       permission == SourcePermissions.View &&
       source.id === BRIEFING_SOURCE &&
-      ctx.userId &&
       post?.type === PostType.Brief
     ) {
-      if (post.authorId !== ctx.userId) {
+      if (!ctx.userId || post.authorId !== ctx.userId) {
         throw new ForbiddenError('Access denied!');
       }
 
