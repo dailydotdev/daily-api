@@ -763,12 +763,6 @@ describe('logged in boot', () => {
         userId,
       );
       const storesRedisValue = await getRedisObject(redisKey);
-      console.log(
-        '@@@@@@@' + storesRedisValue,
-        redisKey,
-        storesRedisValue,
-        new Date().toISOString(),
-      );
 
       expect(storesRedisValue).not.toBeNull();
       expect(new Date(parseInt(storesRedisValue!))).toBeInstanceOf(Date);
@@ -1272,6 +1266,9 @@ describe('boot misc', () => {
         userId: '1',
         referralToken: 'rt5',
         role: SourceMemberRoles.Member,
+        flags: {
+          hasUnreadPosts: true,
+        },
       },
     ]);
     const res = await request(app.server)
@@ -1285,6 +1282,7 @@ describe('boot misc', () => {
         id: 's1',
         image: SQUAD_IMAGE_PLACEHOLDER,
         moderationRequired: false,
+        hasUnreadPosts: false,
         name: 'Squad',
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
@@ -1299,6 +1297,7 @@ describe('boot misc', () => {
         id: 's2',
         image: SQUAD_IMAGE_PLACEHOLDER,
         moderationRequired: false,
+        hasUnreadPosts: false,
         name: 'Squad 2',
         permalink: 'http://localhost:5002/squads/s2',
         public: false,
@@ -1313,6 +1312,7 @@ describe('boot misc', () => {
         id: 's5',
         image: SQUAD_IMAGE_PLACEHOLDER,
         moderationRequired: false,
+        hasUnreadPosts: true,
         name: 'Squad 5',
         permalink: 'http://localhost:5002/squads/s5',
         public: false,
@@ -1376,6 +1376,7 @@ describe('boot misc', () => {
         id: 's1',
         image: SQUAD_IMAGE_PLACEHOLDER,
         moderationRequired: false,
+        hasUnreadPosts: false,
         name: 'Squad',
         permalink: 'http://localhost:5002/squads/s1',
         public: true,
