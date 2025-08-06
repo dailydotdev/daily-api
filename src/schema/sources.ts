@@ -5,7 +5,6 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import {
   createSharePost,
   NotificationPreferenceSource,
-  PostType,
   REPUTATION_THRESHOLD,
   Source,
   SourceFeed,
@@ -14,9 +13,8 @@ import {
   SourceMemberFlagsPublic,
   SquadSource,
   User,
-  type Post,
 } from '../entity';
-import { BRIEFING_SOURCE, SourceType, SourceUser } from '../entity/Source';
+import { SourceType, SourceUser } from '../entity/Source';
 import {
   SourceMemberRoles,
   sourceRoleRank,
@@ -1188,31 +1186,11 @@ export const ensureSourcePermissions = async (
   sourceId: string | undefined,
   permission: SourcePermissions = SourcePermissions.View,
   validateRankAgainstId?: string,
-  post?: Pick<Post, 'type' | 'authorId' | 'private' | 'sourceId'>,
 ): Promise<Source> => {
   if (sourceId) {
     const source = await ctx.con
       .getRepository(Source)
       .findOneByOrFail([{ id: sourceId }, { handle: sourceId }]);
-
-    if (
-      source.id === BRIEFING_SOURCE &&
-      permission === SourcePermissions.ConnectSlack
-    ) {
-      return source;
-    }
-
-    if (
-      permission == SourcePermissions.View &&
-      source.id === BRIEFING_SOURCE &&
-      post?.type === PostType.Brief
-    ) {
-      if (!ctx.userId || post.authorId !== ctx.userId) {
-        throw new ForbiddenError('Access denied!');
-      }
-
-      return source;
-    }
 
     const sourceMember = ctx.userId
       ? await ctx.con

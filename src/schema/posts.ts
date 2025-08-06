@@ -3043,13 +3043,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(
-        ctx,
-        post.sourceId,
-        undefined,
-        undefined,
-        post,
-      );
+      await ensureSourcePermissions(ctx, post.sourceId);
       if (post.type !== PostType.Article) {
         await notifyView(
           ctx.log,
