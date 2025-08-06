@@ -21,7 +21,10 @@ import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
-import { UserExperienceType } from '../entity/user/experiences/types';
+import {
+  ExperienceStatus,
+  UserExperienceType,
+} from '../entity/user/experiences/types';
 import { z } from 'zod';
 import { WorkLocationType } from '../entity/user/UserJobPreferences';
 
@@ -653,9 +656,13 @@ export const isProfileCompleteById = async (
           queryRunner.manager
             .getRepository('User')
             .findOneByOrFail({ id: userId }),
-          queryRunner.manager
-            .getRepository('UserExperience')
-            .count({ where: { userId, type: UserExperienceType.Work } }),
+          queryRunner.manager.getRepository('UserExperience').count({
+            where: {
+              userId,
+              type: In([UserExperienceType.Work, UserExperienceType.Education]),
+              status: ExperienceStatus.Published,
+            },
+          }),
         ]),
     );
 
