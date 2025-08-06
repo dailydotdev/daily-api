@@ -20,7 +20,8 @@ export const briefFeedClient = new FeedClient(process.env.BRIEFING_FEED, {
       queuedRequests: 100,
     },
     retryOpts: {
-      maxAttempts: 0,
+      maxAttempts: 3,
+      backoff: 5 * 1000,
     },
   }),
 });
