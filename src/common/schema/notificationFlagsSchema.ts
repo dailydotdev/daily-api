@@ -41,5 +41,6 @@ export const notificationFlagsSchema = z
     [NotificationType.SquadMemberJoined]: notificationPreferenceSchema,
     [NotificationType.SquadReply]: notificationPreferenceSchema,
     [NotificationType.SquadBlocked]: notificationPreferenceSchema,
+    [NotificationType.SquadFeatured]: notificationPreferenceSchema,
   })
   .strict();

@@ -95,6 +95,8 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.SourcePostAdded]: NotificationPreferenceType.Source,
   [NotificationType.UserPostAdded]: NotificationPreferenceType.User,
   [NotificationType.UserTopReaderBadge]: NotificationPreferenceType.User,
+  [NotificationType.SourcePostSubmitted]: NotificationPreferenceType.Source,
+  [NotificationType.SquadFeatured]: NotificationPreferenceType.Source,
 };
 
 export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
@@ -223,6 +225,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.DemotedToMember]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.SquadFeatured]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
