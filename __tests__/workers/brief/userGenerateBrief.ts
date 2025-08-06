@@ -183,6 +183,7 @@ describe('userGenerateBrief worker', () => {
     });
 
     expect(briefPost).toBeDefined();
+    expect(briefPost!.private).toBe(false);
     expect(briefPost!.visible).toBe(true);
     expect(briefPost!.content).toBe(`## Must know
 
