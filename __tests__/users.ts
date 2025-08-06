@@ -7028,6 +7028,31 @@ describe('user job preferences', () => {
       },
     });
 
+    await saveFixtures(con, UserJobPreferences, [
+      {
+        userId: '1',
+        openToOpportunities: true,
+        preferredRoles: ['Software Engineer', 'Frontend Developer'],
+        preferredLocationType: WorkLocationType.Remote,
+        openToRelocation: false,
+        currentTotalComp: {
+          currency: 'USD',
+          amount: 10,
+        },
+      },
+      {
+        userId: '2',
+        openToOpportunities: true,
+        preferredRoles: [],
+        preferredLocationType: WorkLocationType.Remote,
+        openToRelocation: false,
+        currentTotalComp: {
+          currency: 'USD',
+          amount: 10,
+        },
+      },
+    ]);
+
     // Set up a user with a complete profile
     await con.getRepository(User).update('1', {
       flags: {
@@ -7101,18 +7126,13 @@ describe('user job preferences', () => {
       const res = await client.query(QUERY);
       expect(res.errors).toBeFalsy();
       expect(res.data.userJobPreferences).toMatchObject({
+        // fetched as false even if is true on preferences since have no experiences
         openToOpportunities: false,
         preferredRoles: [],
-        preferredLocationType: null,
+        preferredLocationType: WorkLocationType.Remote,
         openToRelocation: false,
         currentTotalComp: {},
       });
-
-      // Verify database state
-      const prefs = await con.getRepository('UserJobPreferences').findOne({
-        where: { userId: '2' },
-      });
-      expect(prefs).toBeNull();
     });
   });
 

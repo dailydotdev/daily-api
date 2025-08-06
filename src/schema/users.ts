@@ -2194,37 +2194,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       __,
       ctx: AuthContext,
+      info: GraphQLResolveInfo,
     ): Promise<GQLUserJobPreferences> => {
-      // important: if you need to implement public user job preferences queries, we need to remove the "currentTotalComp" for other users
-      const userJobPreferences = await queryReadReplica(
-        ctx.con,
-        ({ queryRunner }) =>
-          queryRunner.manager.getRepository(UserJobPreferences).findOne({
-            where: { userId: ctx.userId },
-          }),
+      return graphorm.queryOneOrFail<GQLUserJobPreferences>(
+        ctx,
+        info,
+        (builder) => builder,
+        UserJobPreferences,
+        true,
       );
-
-      if (!userJobPreferences) {
-        // if no job preferences are set, return default values
-        return {
-          openToOpportunities: false,
-          currentTotalComp: {},
-          preferredRoles: [],
-          preferredLocationType: null,
-          openToRelocation: false,
-        };
-      }
-
-      const { openToOpportunities, ...preferences } = userJobPreferences;
-      const isProfileComplete = await isProfileCompleteById(
-        ctx.con,
-        ctx.userId,
-      );
-
-      return {
-        ...preferences,
-        openToOpportunities: openToOpportunities && isProfileComplete,
-      };
     },
   },
   Mutation: {
