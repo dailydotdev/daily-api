@@ -15,7 +15,6 @@ import {
   ArticlePost,
   Bookmark,
   BookmarkList,
-  BRIEFING_SOURCE,
   clearPostTranslations,
   Comment,
   Feed,
@@ -104,7 +103,6 @@ import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { addDays } from 'date-fns';
-import { BriefPost } from '../src/entity/posts/BriefPost';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -123,7 +121,7 @@ jest.mock('../src/common/typedPubsub', () => ({
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
-let loggedUser: string = null;
+let loggedUser: string | null = null;
 let isTeamMember = false;
 let isPlus = false;
 let roles: Roles[] = [];
@@ -1245,30 +1243,6 @@ describe('query post', () => {
     );
   });
 
-  it('should throw not found when brief post is from other user', async () => {
-    loggedUser = '1';
-
-    await saveFixtures(con, BriefPost, [
-      {
-        id: 'pbriefanotherauthor',
-        shortId: 'pbfaa',
-        title: 'pbriefanotherauthor',
-        score: 0,
-        sourceId: BRIEFING_SOURCE,
-        createdAt: new Date('2021-09-22T07:15:51.247Z'),
-        private: true,
-        visible: true,
-        authorId: '2',
-      },
-    ]);
-
-    return testQueryErrorCode(
-      client,
-      { query: QUERY('pbriefanotherauthor') },
-      'FORBIDDEN',
-    );
-  });
-
   describe('clickbaitTitleDetected', () => {
     const LOCAL_QUERY = /* GraphQL */ `
       query Post($id: ID!) {
@@ -2297,13 +2271,14 @@ describe('mutation reportPost', () => {
 });
 
 describe('mutation sharePost', () => {
-  const MUTATION = `
-  mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
-    sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
-      id
-      titleHtml
+  const MUTATION = /* GraphQL */ `
+    mutation SharePost($sourceId: ID!, $id: ID!, $commentary: String) {
+      sharePost(sourceId: $sourceId, id: $id, commentary: $commentary) {
+        id
+        titleHtml
+      }
     }
-  }`;
+  `;
 
   const variables = {
     sourceId: 's1',
@@ -2672,6 +2647,77 @@ describe('mutation sharePost', () => {
           'Take a break. You already posted enough in the last 30 seconds',
         );
       });
+    });
+  });
+
+  describe('user source', () => {
+    beforeEach(async () => {
+      await con.getRepository(Feed).save({
+        id: '1',
+        userId: '1',
+      });
+    });
+
+    it('should create user source if it does not already exist when sharing', async () => {
+      loggedUser = '1';
+
+      expect(
+        await con
+          .getRepository(SourceUser)
+          .findOneBy({ id: loggedUser, userId: loggedUser }),
+      ).toBeFalsy();
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, sourceId: loggedUser },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const source = await con
+        .getRepository(SourceUser)
+        .findOneByOrFail({ id: loggedUser, userId: loggedUser });
+
+      expect(source).toBeTruthy();
+    });
+
+    it('should allow user to share to their own source', async () => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...variables, sourceId: loggedUser },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const post = await con
+        .getRepository(SharePost)
+        .findOneByOrFail({ sourceId: loggedUser, authorId: loggedUser });
+
+      expect(post).toBeTruthy();
+      expect(post.sharedPostId).toEqual('p1');
+      expect(post.title).toEqual('My comment');
+      expect(post.sourceId).toEqual(loggedUser);
+    });
+
+    it('should not allow other users to share to another user source', async () => {
+      loggedUser = '2';
+
+      await con.getRepository(SourceUser).save({
+        id: '1',
+        userId: '1',
+        name: 'User 1',
+        handle: 'user1',
+        private: false,
+      });
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...variables, sourceId: '1' },
+        },
+        'FORBIDDEN',
+      );
     });
   });
 });
