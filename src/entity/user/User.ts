@@ -315,7 +315,6 @@ export class User {
   )
   experiences: Promise<UserExperience[]>;
 
-  @Index('IDX_user_notificationFlags_path_ops', { synchronize: false })
   @Column({ type: 'jsonb', default: {} })
   notificationFlags: UserNotificationFlags;
 }
