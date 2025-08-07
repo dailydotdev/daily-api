@@ -23,11 +23,29 @@ import { GetUsersActiveState } from './googleCloud';
 import { logger } from '../logger';
 
 export enum CioUnsubscribeTopic {
+  Announcements = '1',
+  NewUserWelcome = '5',
   Marketing = '4',
   Notifications = '7',
   Digest = '8',
   Follow = '9',
   Award = '10',
+  ArticleUpvoteMilestone = '11',
+  CommentUpvoteMilestone = '12',
+  UserReceivedAward = '13',
+  SquadPostAdded = '14',
+  ArticleReportApproved = '15',
+  UsernameMention = '16',
+  CollectionUpdated = '17',
+  CommentReply = '18',
+  Achievements = '19',
+  CreatorUpdate = '20',
+  PaidSubscription = '21',
+  CommentsOnPost = '22',
+  SourcePostAdded = '23',
+  Streaks = '24',
+  InAppPurchases = '25',
+  UserPostAdded = '26',
 }
 
 export enum CioTransactionalMessageTemplateId {

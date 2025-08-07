@@ -10,6 +10,10 @@ import {
 import { camelCaseToSnakeCase, getDateBaseFromType } from './common/utils';
 import { CioUnsubscribeTopic, getFirstName } from './common/mailing';
 import { getShortGenericInviteLink } from './common/links';
+import {
+  NotificationType,
+  NotificationPreferenceStatus,
+} from './notifications/common';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
 import { DataSource, In } from 'typeorm';
@@ -113,6 +117,45 @@ export const generateIdentifyObject = async (
   };
 };
 
+export const getNotificationFlagsCioTopics = (
+  notificationFlags: User['notificationFlags'],
+) => {
+  const isSubscribed = (notificationType: NotificationType | string) =>
+    notificationFlags?.[notificationType]?.email !==
+    NotificationPreferenceStatus.Muted;
+
+  return {
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CommentsOnPost}`]:
+      isSubscribed(NotificationType.ArticleNewComment),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.UsernameMention}`]:
+      isSubscribed(NotificationType.PostMention),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Streaks}`]:
+      isSubscribed(NotificationType.StreakResetRestore),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Achievements}`]:
+      isSubscribed(NotificationType.UserTopReaderBadge),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.ArticleUpvoteMilestone}`]:
+      isSubscribed(NotificationType.ArticleUpvoteMilestone),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CommentUpvoteMilestone}`]:
+      isSubscribed(NotificationType.CommentUpvoteMilestone),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.UserReceivedAward}`]:
+      isSubscribed(NotificationType.UserReceivedAward),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.SquadPostAdded}`]:
+      isSubscribed(NotificationType.SquadPostAdded),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.ArticleReportApproved}`]:
+      isSubscribed(NotificationType.ArticleReportApproved),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CollectionUpdated}`]:
+      isSubscribed(NotificationType.CollectionUpdated),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CommentReply}`]:
+      isSubscribed(NotificationType.CommentReply),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CreatorUpdate}`]:
+      isSubscribed(NotificationType.ArticlePicked),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.SourcePostAdded}`]:
+      isSubscribed(NotificationType.SourcePostAdded),
+    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.UserPostAdded}`]:
+      isSubscribed(NotificationType.UserPostAdded),
+  };
+};
+
 export const getIdentifyAttributes = async (
   con: ConnectionManager,
   user: ChangeObject<User>,
@@ -155,6 +198,14 @@ export const getIdentifyAttributes = async (
       user.followingEmail,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Award}`]:
       user.awardEmail,
+    // Include notification flags topics if available
+    ...(user.notificationFlags
+      ? getNotificationFlagsCioTopics(
+          typeof user.notificationFlags === 'string'
+            ? JSON.parse(user.notificationFlags)
+            : user.notificationFlags,
+        )
+      : {}),
   };
 };
 
@@ -174,6 +225,33 @@ export async function identifyUser({
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
       logger.warn({ err, user }, 'failed to update user in cio');
+      return;
+    }
+    throw err;
+  }
+}
+
+export async function syncNotificationFlagsToCio({
+  userId,
+  notificationFlags,
+}: {
+  userId: string;
+  notificationFlags: User['notificationFlags'];
+}): Promise<void> {
+  if (!process.env.CIO_SITE_ID || !process.env.CIO_API_KEY) {
+    return;
+  }
+
+  const cioTopics = getNotificationFlagsCioTopics(notificationFlags);
+
+  try {
+    await cio.identify(userId, cioTopics);
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      logger.warn(
+        { err, userId },
+        'failed to update notification flags in cio',
+      );
       return;
     }
     throw err;

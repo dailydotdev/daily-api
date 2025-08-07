@@ -150,6 +150,7 @@ import {
 import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
+import { syncNotificationFlagsToCio } from '../cio';
 export interface GQLUpdateUserInput {
   name: string;
   email?: string;
@@ -2832,6 +2833,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con
         .getRepository(User)
         .update({ id: ctx.userId }, { notificationFlags });
+
+      // Sync notification preferences to CIO
+      await syncNotificationFlagsToCio({
+        userId: ctx.userId,
+        notificationFlags,
+      });
 
       return { _: true };
     },

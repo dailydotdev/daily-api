@@ -68,6 +68,9 @@ export enum NotificationType {
   PostBoostFirstMilestone = 'post_boost_first_milestone',
   BriefingReady = 'briefing_ready',
   UserFollow = 'user_follow',
+  Announcements = 'announcements',
+  NewUserWelcome = 'new_user_welcome',
+  Marketing = 'marketing',
 }
 
 export enum NotificationPreferenceType {
@@ -232,6 +235,19 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
+  // TODO: Will be added in phase 2
+  // [NotificationType.Announcements]: {
+  //   email: NotificationPreferenceStatus.Subscribed,
+  //   inApp: NotificationPreferenceStatus.Subscribed,
+  // },
+  // [NotificationType.NewUserWelcome]: {
+  //   email: NotificationPreferenceStatus.Subscribed,
+  //   inApp: NotificationPreferenceStatus.Subscribed,
+  // },
+  // [NotificationType.Marketing]: {
+  //   email: NotificationPreferenceStatus.Subscribed,
+  //   inApp: NotificationPreferenceStatus.Subscribed,
+  // },
 };
 
 export const commentReplyNotificationTypes = [
