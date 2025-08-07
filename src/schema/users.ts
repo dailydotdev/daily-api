@@ -34,7 +34,6 @@ import {
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
-import { z } from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
 // @ts-expect-error - no types
@@ -2818,13 +2817,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { notificationFlags }: { notificationFlags: UserNotificationFlags },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      try {
-        notificationFlagsSchema.parse(notificationFlags);
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          throw new ValidationError('Invalid notification flags');
-        }
-        throw error;
+      const validate = notificationFlagsSchema.safeParse(notificationFlags);
+
+      if (validate.error) {
+        throw new ValidationError(validate.error.errors[0].message);
       }
 
       await ctx.con
