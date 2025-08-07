@@ -17,7 +17,9 @@ export class UserJobPreferences {
   @PrimaryColumn()
   userId: string;
 
-  @OneToOne('User', (user: User) => user.jobPreferences)
+  @OneToOne('User', (user: User) => user.jobPreferences, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'userId' })
   user: Promise<User>;
 
