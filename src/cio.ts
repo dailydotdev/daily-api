@@ -198,7 +198,6 @@ export const getIdentifyAttributes = async (
       user.followingEmail,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Award}`]:
       user.awardEmail,
-    // Include notification flags topics if available
     ...(user.notificationFlags
       ? getNotificationFlagsCioTopics(
           typeof user.notificationFlags === 'string'

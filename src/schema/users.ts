@@ -2831,7 +2831,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRepository(User)
         .update({ id: ctx.userId }, { notificationFlags });
 
-      // Sync notification preferences to CIO
       await syncNotificationFlagsToCio({
         userId: ctx.userId,
         notificationFlags,
