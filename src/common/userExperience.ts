@@ -97,6 +97,7 @@ export const autocomplete = {
 };
 
 // Experiences
+export const EXPERIENCES_QUERY_LIMIT = 100;
 export const experiences = {
   validation: {
     queryAll: z.object({

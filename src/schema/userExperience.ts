@@ -21,11 +21,11 @@ import {
   ExperienceQueryParams,
   ExperienceRemoveParams,
   experiences,
+  EXPERIENCES_QUERY_LIMIT,
   experienceTypeToRepositoryMap,
   ExperienceUpdateParams,
   getEmptyExperienceTypesMap,
 } from '../common/userExperience';
-import { logger } from '../logger';
 import { GQLEmptyResponse } from './common';
 import { toGQLEnum } from '../common';
 import { WorkLocationType } from '../entity/user/UserJobPreferences';
@@ -422,20 +422,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           })
           .addOrderBy('experience.endDate', 'DESC', 'NULLS FIRST')
           .addOrderBy('experience.startDate', 'DESC')
+          .limit(EXPERIENCES_QUERY_LIMIT)
           .getMany(),
       );
 
       return entries.reduce((acc, entry) => {
-        const type = entry.type;
-        if (!(type in acc)) {
-          logger.warn(
-            { entry, type, userId },
-            `Unexpected experience type. Skipping entry.`,
-          );
-          return acc;
-        }
-
-        return { ...acc, [type]: [...acc[type], entry] };
+        return { ...acc, [entry.type]: [...acc[entry.type], entry] };
       }, getEmptyExperienceTypesMap());
     },
   },
