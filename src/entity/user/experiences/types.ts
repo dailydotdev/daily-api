@@ -6,7 +6,6 @@ export enum UserExperienceType {
   Award = 'award',
   Publication = 'publication',
   Course = 'course',
-  OpenSource = 'open_source',
 }
 
 export enum ExperienceStatus {

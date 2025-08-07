@@ -1,36 +1,57 @@
 import { Raw } from 'typeorm';
-import { z } from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { UserSkill } from '../entity/user/UserSkill';
-import { Company, CompanyType } from '../entity/Company';
-import { BaseContext, Context } from '../Context';
+import { Company } from '../entity/Company';
+import { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
-import { ExperienceStatus } from '../entity/user/experiences/types';
+import {
+  ExperienceStatus,
+  ProjectLinkType,
+  UserExperienceType,
+  WorkEmploymentType,
+  WorkVerificationStatus,
+} from '../entity/user/experiences/types';
 import { queryReadReplica } from '../common/queryReadReplica';
-import { ValidationError } from 'apollo-server-errors';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
+import {
+  autocomplete,
+  AutocompleteInput,
+  CompanyAutocompleteInput,
+  ExperienceAutocompleteInput,
+  ExperienceQueryParams,
+  ExperienceRemoveParams,
+  experiences,
+  EXPERIENCES_QUERY_LIMIT,
+  experienceTypeToRepositoryMap,
+  ExperienceUpdateParams,
+  getEmptyExperienceTypesMap,
+} from '../common/userExperience';
+import { GQLEmptyResponse } from './common';
+import { toGQLEnum } from '../common';
+import { WorkLocationType } from '../entity/user/UserJobPreferences';
 
-export enum ExperienceAutocompleteType {
-  JobTitle = 'job_title',
-  CertificationName = 'certification_name',
-  AwardName = 'award_name',
-  AwardIssuer = 'award_issuer',
-  PublicationPublisher = 'publication_publisher',
-  CourseInstitution = 'course_institution',
-  FieldOfStudy = 'field_of_study',
-}
-
-const experiencePropertyByType: Record<ExperienceAutocompleteType, string> = {
-  [ExperienceAutocompleteType.JobTitle]: 'title',
-  [ExperienceAutocompleteType.CertificationName]: 'title',
-  [ExperienceAutocompleteType.AwardName]: 'title',
-  [ExperienceAutocompleteType.AwardIssuer]: 'issuer',
-  [ExperienceAutocompleteType.PublicationPublisher]: 'publisher',
-  [ExperienceAutocompleteType.CourseInstitution]: 'institution',
-  [ExperienceAutocompleteType.FieldOfStudy]: 'fieldOfStudy',
-} as const;
+// Common fields for all user experience types
+const baseUserExperienceFields = `
+  id: ID!
+  userId: String!
+  title: String!
+  description: String
+  startDate: DateTime!
+  endDate: DateTime
+  type: UserExperienceType!
+  status: ExperienceStatus!
+  skills: [SkillHit!]
+  flags: JSONObject
+`;
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(UserExperienceType, 'UserExperienceType')}
+  ${toGQLEnum(ExperienceStatus, 'ExperienceStatus')}
+  ${toGQLEnum(WorkEmploymentType, 'WorkEmploymentType')}
+  ${toGQLEnum(WorkLocationType, 'WorkLocationType')}
+  ${toGQLEnum(ProjectLinkType, 'ProjectLinkType')}
+  ${toGQLEnum(WorkVerificationStatus, 'WorkVerificationStatus')}
+
   type ExperienceHit {
     id: ID!
     title: String
@@ -45,6 +66,81 @@ export const typeDefs = /* GraphQL */ `
   type SkillHit {
     slug: String!
     name: String!
+  }
+
+  type ProjectLink {
+    type: ProjectLinkType!
+    url: String!
+  }
+
+  interface UserExperience {
+    ${baseUserExperienceFields}
+  }
+
+  type UserWorkExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    companyId: String!
+    company: CompanyHit
+    employmentType: WorkEmploymentType!
+    location: String
+    locationType: WorkLocationType
+    achievements: [String!]
+    # verificationEmail is intentionally not exposed to the frontend
+    verificationStatus: WorkVerificationStatus
+  }
+
+  type UserEducationExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    schoolId: String!
+    school: CompanyHit
+    fieldOfStudy: String!
+    grade: String
+    extracurriculars: String
+  }
+
+  type UserProjectExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    links: [ProjectLink!]
+    contributors: [String!]
+    workingExperienceId: String
+    workingExperience: UserWorkExperience
+    educationExperienceId: String
+    educationExperience: UserEducationExperience
+  }
+
+  type UserCertificationExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    courseNumber: String
+    companyId: String!
+    company: CompanyHit
+    credentialId: String
+    credentialUrl: String
+  }
+
+  type UserAwardExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    issuer: String
+    workingExperienceId: String
+    workingExperience: UserWorkExperience
+    educationExperienceId: String
+    educationExperience: UserEducationExperience
+  }
+
+  type UserPublicationExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    publisher: String
+    url: String
+    contributors: [String!]
+    workingExperienceId: String
+    workingExperience: UserWorkExperience
+    educationExperienceId: String
+    educationExperience: UserEducationExperience
+  }
+
+  type UserCourseExperience implements UserExperience {
+    ${baseUserExperienceFields}
+    courseNumber: String
+    institution: String
   }
 
   type ExperienceAutocompleteResult {
@@ -63,6 +159,16 @@ export const typeDefs = /* GraphQL */ `
     query: String!
     limit: Int
     hits: [SkillHit!]!
+  }
+
+  type UserExperiencesResult {
+    work: [UserWorkExperience!]
+    education: [UserEducationExperience!]
+    project: [UserProjectExperience!]
+    certification: [UserCertificationExperience!]
+    award: [UserAwardExperience!]
+    publication: [UserPublicationExperience!]
+    course: [UserCourseExperience!]
   }
 
   extend type Query {
@@ -89,59 +195,75 @@ export const typeDefs = /* GraphQL */ `
     """
     skillAutocomplete(query: String!, limit: Int): SkillAutocompleteResult!
       @auth
+
+    """
+    Get user experiences grouped by type
+    """
+    userExperiences(status: [ExperienceStatus!]): UserExperiencesResult! @auth
+  }
+
+  input ProjectLinkInput {
+    type: ProjectLinkType!
+    url: String!
+  }
+
+  # Union input type for updateExperience
+  input ExperienceUpdateInput {
+    # Base fields
+    title: String
+    description: String
+    startDate: DateTime
+    endDate: DateTime
+    status: ExperienceStatus
+    type: UserExperienceType!
+
+    # Work experience fields
+    companyId: String
+    employmentType: WorkEmploymentType
+    location: String
+    locationType: WorkLocationType
+    achievements: [String!]
+
+    # Education experience fields
+    schoolId: String
+    fieldOfStudy: String
+    grade: String
+    extracurriculars: String
+
+    # Project experience fields
+    links: [ProjectLinkInput!]
+    contributors: [String!]
+    workingExperienceId: String
+    educationExperienceId: String
+
+    # Certification experience fields
+    courseNumber: String
+    credentialId: String
+    credentialUrl: String
+
+    # Award experience fields
+    issuer: String
+
+    # Publication experience fields
+    publisher: String
+    url: String
+
+    # Course experience fields
+    institution: String
+  }
+
+  extend type Mutation {
+    """
+    Remove a user experience by ID
+    """
+    removeExperience(id: ID!): EmptyResponse! @auth
+
+    """
+    Update a user experience
+    """
+    updateExperience(id: ID!, input: ExperienceUpdateInput!): EmptyResponse! @auth
   }
 `;
-
-export const DEFAULT_AUTOCOMPLETE_LIMIT = 10;
-
-// Common query and limit validation
-const queryValidation = z
-  .string()
-  .min(2, 'Query must be at least 2 characters long')
-  .max(100, 'Query must not exceed 100 characters');
-
-const limitValidation = z
-  .number()
-  .int()
-  .min(1, 'Limit must be at least 1')
-  .max(100, 'Limit must not exceed 20')
-  .positive()
-  .optional()
-  .default(DEFAULT_AUTOCOMPLETE_LIMIT);
-
-// Schema for experienceHitAutocomplete
-const baseValidation = z.object({
-  query: queryValidation,
-  limit: limitValidation,
-});
-
-const experienceValidation = baseValidation.extend({
-  type: z.nativeEnum(ExperienceAutocompleteType),
-});
-
-const companyValidation = baseValidation.extend({
-  type: z.nativeEnum(CompanyType).optional().default(CompanyType.Business),
-});
-
-type AutocompleteInput = z.infer<typeof baseValidation>;
-type ExperienceAutocompleteInput = z.infer<typeof experienceValidation>;
-type CompanyAutocompleteInput = z.infer<typeof companyValidation>;
-
-// Helper function to handle validation errors
-const handleValidationError = <T extends AutocompleteInput>(
-  error: z.SafeParseError<T>['error'],
-  params: T,
-) => {
-  if ('query' in error.formErrors.fieldErrors) {
-    return {
-      query: params.query ?? '',
-      limit: params.limit ?? DEFAULT_AUTOCOMPLETE_LIMIT,
-      hits: [],
-    };
-  }
-
-  throw new ValidationError(error.message);
-};
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -151,20 +273,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     experienceAutocomplete: async (
       _,
       params: ExperienceAutocompleteInput,
-      ctx: Context,
+      ctx: AuthContext,
     ) => {
       const {
         data,
         success: passedValidation,
         error,
-      } = experienceValidation.safeParse(params);
+      } = autocomplete.validation.experience.safeParse(params);
 
       if (!passedValidation) {
-        return handleValidationError(error, params);
+        return autocomplete.handleValidationError(error, params);
       }
 
       const { type, query, limit }: ExperienceAutocompleteInput = data;
-      const propertyName = experiencePropertyByType[
+      const propertyName = autocomplete.propertyByType[
         type
       ] as keyof UserExperience;
 
@@ -196,16 +318,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     companyAutocomplete: async (
       _,
       params: CompanyAutocompleteInput,
-      ctx: Context,
+      ctx: AuthContext,
     ) => {
       const {
         data,
         success: passedValidation,
         error,
-      } = companyValidation.safeParse(params);
+      } = autocomplete.validation.company.safeParse(params);
 
       if (!passedValidation) {
-        return handleValidationError(error, params);
+        return autocomplete.handleValidationError(error, params);
       }
 
       const { query, limit, type }: CompanyAutocompleteInput = data;
@@ -233,15 +355,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         hits,
       };
     },
-    skillAutocomplete: async (_, params: AutocompleteInput, ctx: Context) => {
+    skillAutocomplete: async (
+      _,
+      params: AutocompleteInput,
+      ctx: AuthContext,
+    ) => {
       const {
         data,
         success: passedValidation,
         error,
-      } = baseValidation.safeParse(params);
+      } = autocomplete.validation.base.safeParse(params);
 
       if (!passedValidation) {
-        return handleValidationError(error, params);
+        return autocomplete.handleValidationError(error, params);
       }
 
       const { query, limit }: AutocompleteInput = data;
@@ -266,6 +392,100 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         limit,
         hits,
       };
+    },
+    userExperiences: async (
+      _,
+      params: ExperienceQueryParams,
+      ctx: AuthContext,
+    ) => {
+      const { userId } = ctx;
+
+      const {
+        data,
+        success: passedValidation,
+        error,
+      } = experiences.validation.queryAll.safeParse(params);
+
+      if (!passedValidation) {
+        throw new Error(`Invalid parameters: ${error.message}`);
+      }
+
+      const { status } = data;
+
+      const entries = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(UserExperience)
+          .createQueryBuilder('experience')
+          .where('experience.userId = :userId', { userId })
+          .andWhere('experience.status IN (:...status)', {
+            status,
+          })
+          .addOrderBy('experience.endDate', 'DESC', 'NULLS FIRST')
+          .addOrderBy('experience.startDate', 'DESC')
+          .limit(EXPERIENCES_QUERY_LIMIT)
+          .getMany(),
+      );
+
+      return entries.reduce((acc, entry) => {
+        return { ...acc, [entry.type]: [...acc[entry.type], entry] };
+      }, getEmptyExperienceTypesMap());
+    },
+  },
+  Mutation: {
+    removeExperience: async (
+      _,
+      params: ExperienceRemoveParams,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const {
+        data,
+        success: passedValidation,
+        error,
+      } = experiences.validation.remove.safeParse(params);
+
+      if (!passedValidation) {
+        throw new Error(`Invalid parameters: ${error.message}`);
+      }
+
+      await ctx.con
+        .getRepository(UserExperience)
+        .createQueryBuilder()
+        .delete()
+        .where({ id: data.id, userId: ctx.userId })
+        .execute();
+
+      return { _: true };
+    },
+    updateExperience: async (
+      _,
+      params: {
+        id: string;
+        input: ExperienceUpdateParams;
+      },
+      ctx: AuthContext,
+    ) => {
+      const {
+        data,
+        success: passedValidation,
+        error,
+      } = experiences.validation.update.safeParse(params.input);
+
+      const { id } = params;
+      if (!passedValidation) {
+        throw new Error(`Invalid parameters: ${error.message}`);
+      }
+
+      await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(UserExperience)
+          .findOneByOrFail({ id, userId: ctx.userId, type: data.type }),
+      );
+
+      await ctx.con
+        .getRepository(experienceTypeToRepositoryMap[data.type])
+        .update({ id, userId: ctx.userId, type: data.type }, data);
+
+      return { _: true };
     },
   },
 });

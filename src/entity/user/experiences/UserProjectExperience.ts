@@ -1,10 +1,10 @@
 import { UserExperience } from './UserExperience';
 import { ChildEntity, Column, JoinColumn, OneToOne } from 'typeorm';
-import { ProjectLink, UserExperienceType } from './types';
+import { UserExperienceType, ProjectLink } from './types';
 
 @ChildEntity(UserExperienceType.Project)
 export class UserProjectExperience extends UserExperience {
-  @Column({ type: 'text', array: true, default: [] })
+  @Column({ type: 'jsonb', default: [] })
   links: Array<ProjectLink>;
 
   // user ids
