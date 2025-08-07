@@ -73,32 +73,31 @@ export const getOptInSubscribedMembers = async ({
   referenceId,
   where,
 }: GetMembersParams) => {
-  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
-  const memberQuery = builder.select('"userId"').where(where);
-  const subscribedquery = builder
-    .subQuery()
-    .select('np."userId"')
-    .from(NotificationPreference, 'np')
-    .where(`"np"."userId" = "${memberQuery.alias}"."userId"`)
-    .andWhere({
-      notificationType: type,
-      referenceId,
-      type: notificationPreferenceMap[type],
-      status: NotificationPreferenceStatus.Subscribed,
-    });
+  const members = await con
+    .getRepository(SourceMember)
+    .createQueryBuilder('sm')
+    .innerJoin(User, 'u', 'u.id = sm."userId"')
+    .innerJoin(
+      NotificationPreference,
+      'np',
+      'np."userId" = sm."userId" AND np."notificationType" = :type AND np."referenceId" = :referenceId AND np."type" = :preferenceType AND np."status" = :status',
+      {
+        type,
+        referenceId,
+        preferenceType: notificationPreferenceMap[type],
+        status: NotificationPreferenceStatus.Subscribed,
+      },
+    )
+    .select('sm."userId"', 'userId')
+    .where(where)
+    // Filter out users who have muted the notification type globally
+    .andWhere(
+      `COALESCE(u."notificationFlags"->:notificationType->>'inApp', 'subscribed') = 'subscribed'`,
+      { notificationType: type },
+    )
+    .getRawMany<{ userId: string }>();
 
-  const members = await memberQuery
-    .andWhere(`EXISTS(${subscribedquery.getQuery()}) IS TRUE`)
-    .getRawMany<SourceMember>();
-
-  const allowedUserIds = await filterUsersWithGlobalPreferences(
-    con,
-    members.map((m) => m.userId),
-    type,
-    'inApp',
-  );
-
-  return members.filter((member) => allowedUserIds.includes(member.userId));
+  return members;
 };
 
 export const getSubscribedMembers = async (
@@ -107,32 +106,32 @@ export const getSubscribedMembers = async (
   referenceId: string,
   where: ObjectLiteral,
 ) => {
-  const builder = con.getRepository(SourceMember).createQueryBuilder('sm');
-  const memberQuery = builder.select('"userId"').where(where);
-  const muteQuery = builder
-    .subQuery()
-    .select('np."userId"')
-    .from(NotificationPreference, 'np')
-    .where(`"np"."userId" = "${memberQuery.alias}"."userId"`)
-    .andWhere({
-      notificationType: type,
-      referenceId,
-      type: notificationPreferenceMap[type],
-      status: NotificationPreferenceStatus.Muted,
-    });
+  const members = await con
+    .getRepository(SourceMember)
+    .createQueryBuilder('sm')
+    .innerJoin(User, 'u', 'u.id = sm."userId"')
+    .leftJoin(
+      NotificationPreference,
+      'np',
+      'np."userId" = sm."userId" AND np."notificationType" = :type AND np."referenceId" = :referenceId AND np."type" = :preferenceType AND np."status" = :muteStatus',
+      {
+        type,
+        referenceId,
+        preferenceType: notificationPreferenceMap[type],
+        muteStatus: NotificationPreferenceStatus.Muted,
+      },
+    )
+    .select('sm."userId"', 'userId')
+    .where(where)
+    .andWhere('np."userId" IS NULL')
+    // Filter out users who have muted the notification type globally
+    .andWhere(
+      `COALESCE(u."notificationFlags"->:notificationType->>'inApp', 'subscribed') = 'subscribed'`,
+      { notificationType: type },
+    )
+    .getRawMany<{ userId: string }>();
 
-  const members = await memberQuery
-    .andWhere(`EXISTS(${muteQuery.getQuery()}) IS FALSE`)
-    .getRawMany<SourceMember>();
-
-  const allowedUserIds = await filterUsersWithGlobalPreferences(
-    con,
-    members.map((m) => m.userId),
-    type,
-    'inApp',
-  );
-
-  return members.filter((member) => allowedUserIds.includes(member.userId));
+  return members;
 };
 
 export const buildPostContext = async (
