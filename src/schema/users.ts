@@ -2681,10 +2681,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         // Save verified record
         ctx.con.getRepository(UserCompany).save(updatedRecord),
         // Verify user experience if exists
-        completeVerificationForExperienceByUserCompany(
-          ctx.con,
-          updatedRecord,
-        ),
+        completeVerificationForExperienceByUserCompany(ctx.con, updatedRecord),
       ]);
 
       return await graphorm.queryOneOrFail<GQLUserCompany>(
