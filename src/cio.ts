@@ -237,7 +237,7 @@ export async function syncNotificationFlagsToCio({
   userId: string;
   notificationFlags: User['notificationFlags'];
 }): Promise<void> {
-  if (!process.env.CIO_SITE_ID || !process.env.CIO_API_KEY) {
+  if (process.env.NODE_ENV === 'development') {
     return;
   }
 
