@@ -2679,9 +2679,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       await Promise.all([
         // Save verified record
-        await ctx.con.getRepository(UserCompany).save(updatedRecord),
+        ctx.con.getRepository(UserCompany).save(updatedRecord),
         // Verify user experience if exists
-        await completeVerificationForExperienceByUserCompany(
+        completeVerificationForExperienceByUserCompany(
           ctx.con,
           updatedRecord,
         ),

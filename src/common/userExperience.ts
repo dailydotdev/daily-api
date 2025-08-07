@@ -210,7 +210,7 @@ export const completeVerificationForExperienceByUserCompany = async (
 
   if (
     experience &&
-    experience?.verificationStatus !== WorkVerificationStatus.Verified
+    experience.verificationStatus !== WorkVerificationStatus.Verified
   ) {
     await con.getRepository<UserWorkExperience>('UserWorkExperience').update(
       { userId, companyId },
