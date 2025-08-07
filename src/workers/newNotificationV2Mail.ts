@@ -45,6 +45,7 @@ import { SubmissionFailErrorMessage } from '../errors';
 import { simplifyComment } from '../notifications/builder';
 import {
   getNotificationV2AndChildren,
+  NotificationChannel,
   NotificationType,
   streamNotificationUsers,
 } from '../notifications/common';
@@ -1052,7 +1053,11 @@ const worker: Worker = {
     if (!notification) {
       return;
     }
-    const stream = await streamNotificationUsers(con, notification.id, 'email');
+    const stream = await streamNotificationUsers(
+      con,
+      notification.id,
+      NotificationChannel.Email,
+    );
     try {
       await processStreamInBatches(
         stream,

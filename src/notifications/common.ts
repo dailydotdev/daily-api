@@ -82,6 +82,11 @@ export enum NotificationPreferenceStatus {
   Subscribed = 'subscribed',
 }
 
+export enum NotificationChannel {
+  Email = 'email',
+  InApp = 'inApp',
+}
+
 export const notificationPreferenceMap: Partial<
   Record<NotificationType, NotificationPreferenceType>
 > = {
@@ -379,7 +384,7 @@ export const getNotificationV2AndChildren = (
 export const streamNotificationUsers = (
   con: DataSource,
   id: string,
-  channel: 'inApp' | 'email',
+  channel: NotificationChannel,
 ): Promise<ReadStream> => {
   let query = con
     .createQueryBuilder()
@@ -389,13 +394,13 @@ export const streamNotificationUsers = (
     .innerJoin(NotificationV2, 'n', 'un."notificationId" = n.id')
     .where('un."notificationId" = :id', { id });
 
-  if (channel === 'inApp') {
+  if (channel === NotificationChannel.InApp) {
     query = query
       .andWhere('un.public = true')
       .andWhere(
         `COALESCE(u."notificationFlags" -> n.type ->> 'inApp', 'subscribed') != 'muted'`,
       );
-  } else if (channel === 'email') {
+  } else if (channel === NotificationChannel.Email) {
     query = query.andWhere(
       `COALESCE(u."notificationFlags" -> n.type ->> 'email', 'subscribed') != 'muted'`,
     );

@@ -7,6 +7,7 @@ import { processStreamInBatches } from '../common/streaming';
 import { User } from '../entity/user/User';
 import {
   getNotificationV2AndChildren,
+  NotificationChannel,
   streamNotificationUsers,
 } from '../notifications/common';
 import { counters } from '../telemetry';
@@ -33,7 +34,7 @@ const worker: Worker = {
           const stream = await streamNotificationUsers(
             con,
             notification.id,
-            'inApp',
+            NotificationChannel.InApp,
           );
           await processStreamInBatches(
             stream,
