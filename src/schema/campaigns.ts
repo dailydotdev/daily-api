@@ -88,7 +88,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLCampaign> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+        builder.queryBuilder.where({ id }).andWhere({ userId: ctx.userId });
 
         return builder;
       }),
@@ -99,7 +99,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<Connection<GQLCampaign>> => {
       const { userId } = ctx;
-      const { after, first } = args;
+      const { after, first = 20 } = args;
       const offset = after ? cursorToOffset(after) : 0;
 
       return graphorm.queryPaginated(
@@ -119,6 +119,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             `CASE WHEN "${alias}"."state" = '${CampaignState.Active}' THEN 0 ELSE 1 END`,
           );
           builder.queryBuilder.addOrderBy(`"${alias}"."createdAt"`, 'DESC');
+          builder.queryBuilder.limit(first ?? 20);
+
+          if (after) {
+            builder.queryBuilder.offset(offset);
+          }
 
           return builder;
         },
