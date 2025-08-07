@@ -33,10 +33,10 @@ export class UserExperience {
   @Column({ type: 'text', default: '' })
   description: string;
 
-  @Column({ type: 'date' })
+  @Column({ type: 'timestamp' })
   startDate: Date;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   endDate: Date;
 
   @Column({

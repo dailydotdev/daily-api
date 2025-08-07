@@ -34,6 +34,7 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
+  isProfileCompleteById,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
@@ -57,6 +58,10 @@ import {
   ContentPreferenceOrganization,
   ContentPreferenceOrganizationStatus,
 } from '../entity/contentPreference/ContentPreferenceOrganization';
+import {
+  UserCompensation,
+  WorkLocationType,
+} from '../entity/user/UserJobPreferences';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1303,6 +1308,49 @@ const obj = new GraphORM({
       },
       seatType: {
         alias: { field: 'status', type: 'string' },
+      },
+    },
+  },
+  UserJobPreferences: {
+    requiredColumns: [
+      'userId',
+      'openToOpportunities',
+      'preferredRoles',
+      'preferredLocationType',
+      'openToRelocation',
+      'currentTotalComp',
+    ],
+    additionalQuery: (ctx, alias, qb) =>
+      qb.andWhere(`"${alias}"."userId" = :currentUserId`, {
+        currentUserId: ctx.userId,
+      }),
+    fields: {
+      openToOpportunities: {
+        transform: async (value: boolean, ctx: Context) => {
+          if (!ctx.userId) {
+            return false;
+          }
+
+          const isProfileComplete = await isProfileCompleteById(
+            ctx.con,
+            ctx.userId,
+          );
+
+          return value && isProfileComplete;
+        },
+      },
+      preferredRoles: {
+        transform: (value: string[] | null) => value || [],
+      },
+      preferredLocationType: {
+        transform: (value: WorkLocationType | null) => value,
+      },
+      openToRelocation: {
+        transform: (value: boolean | null) => value ?? false,
+      },
+      currentTotalComp: {
+        jsonType: true,
+        transform: (value: Partial<UserCompensation> | null) => value || {},
       },
     },
   },

@@ -96,8 +96,6 @@ function buildNotificationFlags(user: UserData): UserNotificationFlags {
     );
 
     await con.transaction(async (manager) => {
-      await manager.query(`SET session_replication_role = replica;`);
-
       for (const user of users) {
         const userData: UserData = {
           id: user.id,
@@ -115,8 +113,6 @@ function buildNotificationFlags(user: UserData): UserNotificationFlags {
           .getRepository(User)
           .update({ id: user.id }, { notificationFlags: newFlags });
       }
-
-      await manager.query(`SET session_replication_role = DEFAULT;`);
     });
 
     console.log(

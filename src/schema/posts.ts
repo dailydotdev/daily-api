@@ -1780,13 +1780,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         sourceTypesWithMembers.includes(postSource.type)
       ) {
         try {
-          await ensureSourcePermissions(
-            ctx,
-            partialPost.sourceId,
-            undefined,
-            undefined,
-            partialPost,
-          );
+          await ensureSourcePermissions(ctx, partialPost.sourceId);
         } catch (permissionError) {
           if (permissionError instanceof ForbiddenError) {
             const forbiddenError = permissionError as ForbiddenError;
@@ -1950,13 +1944,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const post = await ctx.con
         .getRepository(Post)
         .findOneByOrFail([{ id: args.id }, { slug: args.id }]);
-      await ensureSourcePermissions(
-        ctx,
-        post.sourceId,
-        undefined,
-        undefined,
-        post,
-      );
+      await ensureSourcePermissions(ctx, post.sourceId);
 
       return queryPaginatedByDate(
         ctx,
@@ -2987,6 +2975,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
+      if (sourceId === ctx.userId) {
+        await ensureUserSourceExists(ctx.userId, ctx.con);
+      }
+
       const [post] = await Promise.all([
         ctx.con
           .createQueryBuilder()
@@ -3039,13 +3031,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
-      await ensureSourcePermissions(
-        ctx,
-        post.sourceId,
-        undefined,
-        undefined,
-        post,
-      );
+      await ensureSourcePermissions(ctx, post.sourceId);
       if (post.type !== PostType.Article) {
         await notifyView(
           ctx.log,

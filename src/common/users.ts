@@ -21,6 +21,12 @@ import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
+import {
+  ExperienceStatus,
+  UserExperienceType,
+} from '../entity/user/experiences/types';
+import { z } from 'zod';
+import { WorkLocationType } from '../entity/user/UserJobPreferences';
 
 export interface User {
   id: string;
@@ -636,3 +642,69 @@ export const bskySocialUrlMatch =
   /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/;
 
 export const portfolioLimit = 500;
+
+const MIN_WORK_EXPERIENCE = 1; // Minimum number of work experiences required for profile completion
+export const isProfileCompleteById = async (
+  con: DataSource,
+  userId: User['id'],
+) => {
+  try {
+    const [user, experiencesCount] = await queryReadReplica(
+      con,
+      ({ queryRunner }) =>
+        Promise.all([
+          queryRunner.manager
+            .getRepository('User')
+            .findOneByOrFail({ id: userId }),
+          queryRunner.manager.getRepository('UserExperience').count({
+            where: {
+              userId,
+              type: In([UserExperienceType.Work, UserExperienceType.Education]),
+              status: ExperienceStatus.Published,
+            },
+          }),
+        ]),
+    );
+
+    const hasCountry =
+      typeof user.flags.country === 'string' && user.flags.country.length >= 2;
+    const hasEnoughExperiences = experiencesCount >= MIN_WORK_EXPERIENCE;
+
+    return hasCountry && hasEnoughExperiences;
+  } catch {
+    return false;
+  }
+};
+
+const jobPreferenceUpdateValidation = z.object({
+  openToOpportunities: z.boolean().optional().default(false),
+  preferredRoles: z
+    .array(
+      z
+        .string()
+        .min(3, 'Preferred roles must be at least 3 characters long')
+        .max(50, 'Preferred roles must be at most 50 characters long'),
+    )
+    .max(5, 'Preferred roles can have a maximum of 5 items')
+    .optional()
+    .default([]),
+  preferredLocationType: z.nativeEnum(WorkLocationType).optional(),
+  openToRelocation: z.boolean().optional().default(false),
+  currentTotalComp: z
+    .object({
+      currency: z.string().length(3),
+      amount: z.number().int().positive(),
+    })
+    .partial()
+    .default({}),
+});
+export const checkJobPreferenceParamsValidity = (params: unknown) => {
+  const result = jobPreferenceUpdateValidation.safeParse(params);
+  if (!result.success) {
+    logger.error(
+      { error: result.error, params },
+      'Invalid job preference update parameters',
+    );
+  }
+  return result;
+};

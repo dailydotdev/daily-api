@@ -31,6 +31,8 @@ interface Data {
   post: ChangeObject<Post>;
 }
 
+const blockedTypes = Object.freeze([PostType.Welcome, PostType.Brief]);
+
 const worker: NotificationWorker = {
   subscription: 'api.post-added-notification-v2',
   handler: async (message, con) => {
@@ -41,7 +43,7 @@ const worker: NotificationWorker = {
     }
     const { post, source } = baseCtx;
 
-    if (post.type === PostType.Welcome) {
+    if (blockedTypes.includes(post.type)) {
       return;
     }
 
