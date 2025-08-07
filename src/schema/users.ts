@@ -2268,17 +2268,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         flags,
       });
 
-      const promises = [resubscribeUser(cio, ctx.userId)];
-
-      promises.push(
+      await Promise.all([
+        resubscribeUser(cio, ctx.userId),
         identifyUserPersonalizedDigest({
           userId: ctx.userId,
           cio,
           subscribed: true,
         }),
-      );
-
-      await Promise.all(promises);
+      ]);
 
       return personalizedDigest;
     },
