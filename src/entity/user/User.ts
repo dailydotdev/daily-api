@@ -25,6 +25,7 @@ import type {
 } from '../../common/plus';
 import type { UserJobPreferences } from './UserJobPreferences';
 import type { UserExperience } from './experiences/UserExperience';
+import type { NotificationPreferenceStatus } from '../../notifications/common';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -58,6 +59,16 @@ export type UserSubscriptionFlags = Partial<{
 }> &
   PaddleUserSubscriptionFlags &
   StoreKitUserSubscriptionFlags;
+
+export type UserNotificationFlags = Partial<
+  Record<
+    string,
+    {
+      email?: NotificationPreferenceStatus;
+      inApp?: NotificationPreferenceStatus;
+    }
+  >
+>;
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
@@ -303,4 +314,7 @@ export class User {
     },
   )
   experiences: Promise<UserExperience[]>;
+
+  @Column({ type: 'jsonb', default: {} })
+  notificationFlags: UserNotificationFlags;
 }
