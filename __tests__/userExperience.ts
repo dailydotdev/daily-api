@@ -1117,27 +1117,28 @@ describe('user experience', () => {
       );
     });
 
-    it('should throw error if experience does not exist', () => {
-      loggedUser = '1';
-      return testQueryErrorCode(
-        client,
-        {
-          query: MUTATION,
-          variables: { id: uuidv4() },
-        },
-        'NOT_FOUND',
-      );
-    });
-
-    it('should throw error if experience does not belong to user', () => {
+    it('should not delete any if the experience not belongs to user', async () => {
       loggedUser = '2';
-      return testQueryErrorCode(
-        client,
-        {
-          query: MUTATION,
-          variables: { id: currentJobId }, // Experience belongs to user 1
-        },
-        'NOT_FOUND',
+
+      const res = await client.query<
+        { removeExperience: { _: boolean } },
+        { id: string }
+      >(MUTATION, {
+        variables: { id: currentJobId },
+      });
+
+      expect(res.data.removeExperience._).toBe(true);
+
+      const experience = await con.getRepository(UserWorkExperience).findOne({
+        where: { id: currentJobId },
+      });
+
+      expect(experience).toBeDefined();
+      expect(experience).not.toBeNull();
+      expect(experience).toEqual(
+        expect.objectContaining({
+          userId: '1',
+        }),
       );
     });
 

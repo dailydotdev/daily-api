@@ -29,7 +29,6 @@ import { logger } from '../logger';
 import { GQLEmptyResponse } from './common';
 import { toGQLEnum } from '../common';
 import { WorkLocationType } from '../entity/user/UserJobPreferences';
-import { NotFoundError } from '../errors';
 
 // Common fields for all user experience types
 const baseUserExperienceFields = `
