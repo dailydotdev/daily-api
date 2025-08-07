@@ -12,7 +12,7 @@ export class UserExperiences1753885628500 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX "IDX_81852914f77ecea988f419beb2" ON "user_experience_skills" ("experienceId") `);
         await queryRunner.query(`CREATE INDEX "IDX_148b0c2faa3d2d6571c0f8f0c3" ON "user_experience_skills" ("skillSlug") `);
         await queryRunner.query(`ALTER TABLE "company" ADD "type" text NOT NULL DEFAULT 'business'`);
-        await queryRunner.query(`ALTER TABLE "user_job_preferences" ADD CONSTRAINT "FK_fadf8207a17a3e0a367266cf8c9" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "user_job_preferences" ADD CONSTRAINT "FK_fadf8207a17a3e0a367266cf8c9" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user_experience" ADD CONSTRAINT "FK_7566e52259026584992211a40df" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user_experience" ADD CONSTRAINT "FK_3f90b59b2b521e38d87c8f627dd" FOREIGN KEY ("companyId") REFERENCES "company"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "user_experience" ADD CONSTRAINT "FK_fc304c1e7340f2f6dcdd1df59ce" FOREIGN KEY ("workingExperienceId") REFERENCES "user_experience"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
