@@ -23,9 +23,6 @@ import {
 } from './schema/userExperience';
 
 // Autocomplete
-
-export const DEFAULT_AUTOCOMPLETE_LIMIT = 10;
-
 export enum ExperienceAutocompleteType {
   JobTitle = 'job_title',
   CertificationName = 'certification_name',
@@ -54,16 +51,14 @@ const experiencePropertyByType: Record<ExperienceAutocompleteType, string> = {
   [ExperienceAutocompleteType.FieldOfStudy]: 'fieldOfStudy',
 } as const;
 
-const queryValidation = z
-  .string()
-  .min(2, 'Query must be at least 2 characters long')
-  .max(100, 'Query must not exceed 100 characters');
+const queryValidation = z.string().min(2).max(100);
 
+export const DEFAULT_AUTOCOMPLETE_LIMIT = 10;
 const limitValidation = z
   .number()
   .int()
-  .min(1, 'Limit must be at least 1')
-  .max(100, 'Limit must not exceed 20')
+  .min(1)
+  .max(100)
   .positive()
   .optional()
   .default(DEFAULT_AUTOCOMPLETE_LIMIT);
