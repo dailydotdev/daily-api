@@ -3,18 +3,21 @@ import { getMostReadTags } from './../common/devcard';
 import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
+  Alerts,
+  CampaignType,
   Comment,
+  ConnectionManager,
   Feature,
   FeatureType,
   FeatureValue,
+  getAuthorPostStats,
+  Invite,
   MarketingCta,
   Post,
   PostStats,
   User,
+  UserFlagsPublic,
   UserMarketingCta,
-  View,
-  CampaignType,
-  Invite,
   UserPersonalizedDigest,
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestFlagsPublic,
@@ -23,10 +26,7 @@ import {
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
-  getAuthorPostStats,
-  ConnectionManager,
-  UserFlagsPublic,
-  Alerts,
+  View,
 } from '../entity';
 import {
   AuthenticationError,
@@ -43,39 +43,39 @@ import {
   queryPaginatedByDate,
 } from '../common/datePageGenerator';
 import {
-  DayOfWeek,
-  GQLUserCompany,
-  GQLUserIntegration,
-  GQLUserStreak,
-  GQLUserStreakTz,
-  StreakRecoverQueryResult,
-  TagsReadingStatus,
-  VALID_WEEK_STARTS,
   checkAndClearUserStreak,
+  checkJobPreferenceParamsValidity,
+  CioTransactionalMessageTemplateId,
+  clearFile,
+  DayOfWeek,
+  getBufferFromStream,
   getInviteLink,
   getShortUrl,
   getUserPermalink,
   getUserReadingRank,
+  GQLUserCompany,
+  GQLUserIntegration,
+  GQLUserStreak,
+  GQLUserStreakTz,
+  type GQLUserTopReader,
+  isProfileCompleteById,
+  mapCloudinaryUrl,
+  parseBigInt,
   resubscribeUser,
   sendEmail,
+  StreakRecoverQueryResult,
+  systemUser,
+  TagsReadingStatus,
   toGQLEnum,
-  uploadAvatar,
-  uploadProfileCover,
-  voteComment,
-  votePost,
-  CioTransactionalMessageTemplateId,
-  validateWorkEmailDomain,
-  type GQLUserTopReader,
-  mapCloudinaryUrl,
-  UploadPreset,
-  clearFile,
   updateFlagsStatement,
   updateSubscriptionFlags,
-  systemUser,
-  parseBigInt,
-  getBufferFromStream,
-  isProfileCompleteById,
-  checkJobPreferenceParamsValidity,
+  uploadAvatar,
+  UploadPreset,
+  uploadProfileCover,
+  VALID_WEEK_STARTS,
+  validateWorkEmailDomain,
+  voteComment,
+  votePost,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -86,8 +86,8 @@ import {
   NotFoundError,
   SubmissionFailErrorKeys,
   TransferError,
-  TypeORMQueryFailedError,
   TypeOrmError,
+  TypeORMQueryFailedError,
 } from '../errors';
 import {
   checkUserCoresAccess,
@@ -138,8 +138,8 @@ import { getGeo } from '../common/geo';
 import {
   getBalance,
   throwUserTransactionError,
-  transferCores,
   type TransactionCreated,
+  transferCores,
 } from '../common/njord';
 import {
   UserTransaction,
@@ -153,6 +153,7 @@ import {
   UserJobPreferences,
   WorkLocationType,
 } from '../entity/user/UserJobPreferences';
+import { completeVerificationForExperienceByUserCompany } from '../common/userExperience';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2600,7 +2601,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
 
-        if (existingUserCompanyEmail.verified === true) {
+        if (existingUserCompanyEmail.verified) {
+          // user has already verified this email, but want to verify work experience
+          const verifyUserCompany =
+            await completeVerificationForExperienceByUserCompany(
+              ctx.con,
+              existingUserCompanyEmail,
+            );
+
+          if (verifyUserCompany) {
+            return { _: true };
+          }
+
           throw new ValidationError('This email has already been verified');
         }
 
@@ -2664,7 +2676,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const updatedRecord = { ...userCompany, verified: true };
-      await ctx.con.getRepository(UserCompany).save(updatedRecord);
+
+      await Promise.all([
+        // Save verified record
+        await ctx.con.getRepository(UserCompany).save(updatedRecord),
+        // Verify user experience if exists
+        await completeVerificationForExperienceByUserCompany(
+          ctx.con,
+          updatedRecord,
+        ),
+      ]);
 
       return await graphorm.queryOneOrFail<GQLUserCompany>(
         ctx,

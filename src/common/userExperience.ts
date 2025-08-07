@@ -4,6 +4,7 @@ import { CompanyType } from '../entity/Company';
 import {
   ExperienceStatus,
   UserExperienceType,
+  WorkVerificationStatus,
 } from '../entity/user/experiences/types';
 import type { UserWorkExperience } from '../entity/user/experiences/UserWorkExperience';
 import type { UserProjectExperience } from '../entity/user/experiences/UserProjectExperience';
@@ -21,6 +22,9 @@ import {
   userPublicationExperienceSchema,
   userWorkExperienceSchema,
 } from './schema/userExperience';
+import { DataSource } from 'typeorm';
+import { UserCompany } from '../entity';
+import { queryReadReplica } from './queryReadReplica';
 
 // Autocomplete
 export enum ExperienceAutocompleteType {
@@ -187,3 +191,37 @@ export const experienceTypeToRepositoryMap: Record<UserExperienceType, string> =
     [UserExperienceType.Publication]: 'UserPublicationExperience',
     [UserExperienceType.Course]: 'UserCourseExperience',
   };
+
+// Work Email Verification
+export const completeVerificationForExperienceByUserCompany = async (
+  con: DataSource,
+  { companyId, userId, email: verificationEmail }: UserCompany,
+): Promise<boolean> => {
+  if (!companyId) return false;
+
+  const experience = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager
+      .getRepository<UserWorkExperience>('UserWorkExperience')
+      .findOneBy({
+        userId,
+        companyId,
+      }),
+  );
+
+  if (
+    experience &&
+    experience?.verificationStatus !== WorkVerificationStatus.Verified
+  ) {
+    await con.getRepository<UserWorkExperience>('UserWorkExperience').update(
+      { userId, companyId },
+      {
+        verificationEmail,
+        verificationStatus: WorkVerificationStatus.Verified,
+      },
+    );
+
+    return true;
+  }
+
+  return false;
+};
