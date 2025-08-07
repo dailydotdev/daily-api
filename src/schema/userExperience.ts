@@ -494,16 +494,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const experience = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager
           .getRepository(UserExperience)
-          .findOneBy({ id, userId: ctx.userId, type: data?.type }),
+          .findOneBy({ id, userId: ctx.userId, type: data.type }),
       );
 
-      if (!experience || !(data?.type in experienceTypeToRepositoryMap)) {
+      if (!experience || !(data.type in experienceTypeToRepositoryMap)) {
         throw new NotFoundError('Experience not found');
       }
 
       await ctx.con
-        .getRepository(experienceTypeToRepositoryMap[data?.type])
-        .update({ id, userId: ctx.userId, type: data?.type }, data);
+        .getRepository(experienceTypeToRepositoryMap[data.type])
+        .update({ id, userId: ctx.userId, type: data.type }, data);
 
       return { _: true };
     },

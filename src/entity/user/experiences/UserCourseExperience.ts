@@ -1,7 +1,6 @@
 import { UserExperience } from './UserExperience';
 import { ChildEntity, Column } from 'typeorm';
-import { UserExperienceType, baseUserExperienceSchema } from './types';
-import { z } from 'zod';
+import { UserExperienceType } from './types';
 
 @ChildEntity(UserExperienceType.Course)
 export class UserCourseExperience extends UserExperience {
@@ -12,10 +11,3 @@ export class UserCourseExperience extends UserExperience {
   @Column({ type: 'text', nullable: true })
   institution: string;
 }
-
-// Zod schema for UserCourseExperience
-export const userCourseExperienceSchema = baseUserExperienceSchema.extend({
-  type: z.literal(UserExperienceType.Course),
-  courseNumber: z.string().nullable().optional(),
-  institution: z.string().nullable().optional(),
-});

@@ -1,38 +1,26 @@
 import { z } from 'zod';
-import { CompanyType } from '../entity/Company';
 import { ValidationError } from 'apollo-server-errors';
+import { CompanyType } from '../entity/Company';
 import {
   ExperienceStatus,
   UserExperienceType,
 } from '../entity/user/experiences/types';
+import type { UserWorkExperience } from '../entity/user/experiences/UserWorkExperience';
+import type { UserProjectExperience } from '../entity/user/experiences/UserProjectExperience';
+import type { UserCourseExperience } from '../entity/user/experiences/UserCourseExperience';
+import type { UserPublicationExperience } from '../entity/user/experiences/UserPublicationExperience';
+import type { UserAwardExperience } from '../entity/user/experiences/UserAwardExperience';
+import type { UserCertificationExperience } from '../entity/user/experiences/UserCertificationExperience';
+import type { UserEducationExperience } from '../entity/user/experiences/UserEducationExperience';
 import {
-  UserWorkExperience,
-  userWorkExperienceSchema,
-} from '../entity/user/experiences/UserWorkExperience';
-import {
-  UserProjectExperience,
-  userProjectExperienceSchema,
-} from '../entity/user/experiences/UserProjectExperience';
-import {
-  UserCourseExperience,
-  userCourseExperienceSchema,
-} from '../entity/user/experiences/UserCourseExperience';
-import {
-  UserPublicationExperience,
-  userPublicationExperienceSchema,
-} from '../entity/user/experiences/UserPublicationExperience';
-import {
-  UserAwardExperience,
   userAwardExperienceSchema,
-} from '../entity/user/experiences/UserAwardExperience';
-import {
-  UserCertificationExperience,
   userCertificationExperienceSchema,
-} from '../entity/user/experiences/UserCertificationExperience';
-import {
-  UserEducationExperience,
+  userCourseExperienceSchema,
   userEducationExperienceSchema,
-} from '../entity/user/experiences/UserEducationExperience';
+  userProjectExperienceSchema,
+  userPublicationExperienceSchema,
+  userWorkExperienceSchema,
+} from './schema/userExperience';
 
 // Autocomplete
 
@@ -114,7 +102,6 @@ export const autocomplete = {
 };
 
 // Experiences
-
 export const experiences = {
   validation: {
     queryAll: z.object({

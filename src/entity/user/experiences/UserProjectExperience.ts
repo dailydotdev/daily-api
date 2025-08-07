@@ -1,12 +1,6 @@
 import { UserExperience } from './UserExperience';
 import { ChildEntity, Column, JoinColumn, OneToOne } from 'typeorm';
-import {
-  ProjectLink,
-  UserExperienceType,
-  baseUserExperienceSchema,
-  projectLinkSchema,
-} from './types';
-import { z } from 'zod';
+import { UserExperienceType, ProjectLink } from './types';
 
 @ChildEntity(UserExperienceType.Project)
 export class UserProjectExperience extends UserExperience {
@@ -37,12 +31,3 @@ export class UserProjectExperience extends UserExperience {
   })
   educationExperience: UserExperience | null;
 }
-
-// Zod schema for UserProjectExperience
-export const userProjectExperienceSchema = baseUserExperienceSchema.extend({
-  type: z.literal(UserExperienceType.Project),
-  links: z.array(projectLinkSchema).default([]),
-  contributors: z.array(z.string()).default([]),
-  workingExperienceId: z.string().uuid().nullable().optional(),
-  educationExperienceId: z.string().uuid().nullable().optional(),
-});

@@ -1,7 +1,6 @@
-import { UserExperienceType, baseUserExperienceSchema } from './types';
+import { UserExperienceType } from './types';
 import { ChildEntity, Column, JoinColumn, OneToOne } from 'typeorm';
 import { UserExperience } from './UserExperience';
-import { z } from 'zod';
 
 @ChildEntity(UserExperienceType.Publication)
 export class UserPublicationExperience extends UserExperience {
@@ -37,13 +36,3 @@ export class UserPublicationExperience extends UserExperience {
   })
   educationExperience: UserExperience | null;
 }
-
-// Zod schema for UserPublicationExperience
-export const userPublicationExperienceSchema = baseUserExperienceSchema.extend({
-  type: z.literal(UserExperienceType.Publication),
-  publisher: z.string().nullable().optional(),
-  url: z.string().url('URL must be a valid URL').nullable().optional(),
-  contributors: z.array(z.string()).default([]),
-  workingExperienceId: z.string().uuid().nullable().optional(),
-  educationExperienceId: z.string().uuid().nullable().optional(),
-});
