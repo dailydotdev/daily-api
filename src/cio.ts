@@ -8,7 +8,33 @@ import {
   UserStreak,
 } from './entity';
 import { camelCaseToSnakeCase, getDateBaseFromType } from './common/utils';
-import { CioUnsubscribeTopic, getFirstName } from './common/mailing';
+import { getFirstName } from './common/mailing';
+
+export enum CioUnsubscribeTopic {
+  Announcements = '1',
+  NewUserWelcome = '5',
+  Marketing = '4',
+  Notifications = '7',
+  Digest = '8',
+  Follow = '9',
+  Award = '10',
+  ArticleUpvoteMilestone = '11',
+  CommentUpvoteMilestone = '12',
+  UserReceivedAward = '13',
+  SquadPostAdded = '14',
+  ArticleReportApproved = '15',
+  UsernameMention = '16',
+  CollectionUpdated = '17',
+  CommentReply = '18',
+  Achievements = '19',
+  CreatorUpdate = '20',
+  PaidSubscription = '21',
+  CommentsOnPost = '22',
+  SourcePostAdded = '23',
+  Streaks = '24',
+  InAppPurchases = '25',
+  UserPostAdded = '26',
+}
 import { getShortGenericInviteLink } from './common/links';
 import {
   NotificationType,
@@ -64,6 +90,26 @@ export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
   'followingEmail',
   'awardEmail',
 ];
+
+const CIO_TOPIC_TO_NOTIFICATION_MAP: Record<string, NotificationType> = {
+  [CioUnsubscribeTopic.CommentsOnPost]: NotificationType.ArticleNewComment,
+  [CioUnsubscribeTopic.UsernameMention]: NotificationType.PostMention,
+  [CioUnsubscribeTopic.Streaks]: NotificationType.StreakResetRestore,
+  [CioUnsubscribeTopic.Achievements]: NotificationType.UserTopReaderBadge,
+  [CioUnsubscribeTopic.ArticleUpvoteMilestone]:
+    NotificationType.ArticleUpvoteMilestone,
+  [CioUnsubscribeTopic.CommentUpvoteMilestone]:
+    NotificationType.CommentUpvoteMilestone,
+  [CioUnsubscribeTopic.UserReceivedAward]: NotificationType.UserReceivedAward,
+  [CioUnsubscribeTopic.SquadPostAdded]: NotificationType.SquadPostAdded,
+  [CioUnsubscribeTopic.ArticleReportApproved]:
+    NotificationType.ArticleReportApproved,
+  [CioUnsubscribeTopic.CollectionUpdated]: NotificationType.CollectionUpdated,
+  [CioUnsubscribeTopic.CommentReply]: NotificationType.CommentReply,
+  [CioUnsubscribeTopic.CreatorUpdate]: NotificationType.ArticlePicked,
+  [CioUnsubscribeTopic.SourcePostAdded]: NotificationType.SourcePostAdded,
+  [CioUnsubscribeTopic.UserPostAdded]: NotificationType.UserPostAdded,
+};
 
 export async function identifyUserStreak({
   cio,
@@ -124,36 +170,37 @@ export const getNotificationFlagsCioTopics = (
     notificationFlags?.[notificationType]?.email !==
     NotificationPreferenceStatus.Muted;
 
-  return {
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CommentsOnPost}`]:
-      isSubscribed(NotificationType.ArticleNewComment),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.UsernameMention}`]:
-      isSubscribed(NotificationType.PostMention),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Streaks}`]:
-      isSubscribed(NotificationType.StreakResetRestore),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Achievements}`]:
-      isSubscribed(NotificationType.UserTopReaderBadge),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.ArticleUpvoteMilestone}`]:
-      isSubscribed(NotificationType.ArticleUpvoteMilestone),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CommentUpvoteMilestone}`]:
-      isSubscribed(NotificationType.CommentUpvoteMilestone),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.UserReceivedAward}`]:
-      isSubscribed(NotificationType.UserReceivedAward),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.SquadPostAdded}`]:
-      isSubscribed(NotificationType.SquadPostAdded),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.ArticleReportApproved}`]:
-      isSubscribed(NotificationType.ArticleReportApproved),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CollectionUpdated}`]:
-      isSubscribed(NotificationType.CollectionUpdated),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CommentReply}`]:
-      isSubscribed(NotificationType.CommentReply),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.CreatorUpdate}`]:
-      isSubscribed(NotificationType.ArticlePicked),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.SourcePostAdded}`]:
-      isSubscribed(NotificationType.SourcePostAdded),
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.UserPostAdded}`]:
-      isSubscribed(NotificationType.UserPostAdded),
-  };
+  const result: Record<string, boolean> = {};
+
+  Object.entries(CIO_TOPIC_TO_NOTIFICATION_MAP).forEach(
+    ([topicId, notificationType]) => {
+      result[`cio_subscription_preferences.topics.topic_${topicId}`] =
+        isSubscribed(notificationType);
+    },
+  );
+
+  return result;
+};
+
+export const getCioTopicsToNotificationFlags = (subscriptionPreferences: {
+  topics?: Record<string, boolean>;
+}): User['notificationFlags'] => {
+  const notificationFlags: User['notificationFlags'] = {};
+
+  const isSubscribed = (topicId: string): NotificationPreferenceStatus =>
+    subscriptionPreferences?.topics?.[`topic_${topicId}`] === false
+      ? NotificationPreferenceStatus.Muted
+      : NotificationPreferenceStatus.Subscribed;
+
+  Object.entries(CIO_TOPIC_TO_NOTIFICATION_MAP).forEach(
+    ([topicId, notificationType]) => {
+      notificationFlags[notificationType] = {
+        email: isSubscribed(topicId),
+      };
+    },
+  );
+
+  return notificationFlags;
 };
 
 export const getIdentifyAttributes = async (

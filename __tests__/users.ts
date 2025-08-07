@@ -190,6 +190,7 @@ jest.mock('../src/common/mailing.ts', () => ({
 jest.mock('../src/cio', () => ({
   ...(jest.requireActual('../src/cio') as Record<string, unknown>),
   identifyUserPersonalizedDigest: jest.fn(),
+  syncNotificationFlagsToCio: jest.fn(),
 }));
 
 beforeAll(async () => {
