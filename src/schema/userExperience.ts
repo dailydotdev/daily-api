@@ -456,19 +456,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new Error(`Invalid parameters: ${error.message}`);
       }
 
-      const { id } = data;
-
-      const experience = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(UserExperience)
-          .findOneBy({ id, userId: ctx.userId }),
-      );
-
-      if (!experience) {
-        throw new NotFoundError('Experience not found');
-      }
-
-      await ctx.con.getRepository(UserExperience).remove(experience);
+      await ctx.con
+        .getRepository(UserExperience)
+        .createQueryBuilder()
+        .delete()
+        .where({ id: data.id, userId: ctx.userId })
+        .execute();
 
       return { _: true };
     },
