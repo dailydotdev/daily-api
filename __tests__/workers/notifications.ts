@@ -62,6 +62,7 @@ import {
   ContentPreferenceType,
 } from '../../src/entity/contentPreference/types';
 import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
+import { BriefPost } from '../../src/entity/posts/BriefPost';
 
 let con: DataSource;
 
@@ -2709,5 +2710,47 @@ describe('user post added', () => {
     const bundle = actual![0];
     expect(bundle.ctx.userIds).toHaveLength(2);
     expect(bundle.ctx.userIds).toIncludeSameMembers(['3', '4']);
+  });
+
+  it('should not add notification for brief posts', async () => {
+    const { postAddedUserNotification: worker } = await import(
+      '../../src/workers/notifications/postAddedUserNotification'
+    );
+    const post = await con.getRepository(BriefPost).save({
+      ...postsFixture[0],
+      id: 'p1-brief-upa',
+      shortId: 'sp1-brief-upa',
+      authorId: '1',
+    });
+    await con.getRepository(ContentPreferenceUser).save([
+      {
+        userId: '2',
+        feedId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+      {
+        userId: '3',
+        feedId: '3',
+        referenceId: '1',
+        referenceUserId: '1',
+        status: ContentPreferenceStatus.Subscribed,
+      },
+    ]);
+    await con.getRepository(NotificationPreferenceUser).save([
+      {
+        userId: '2',
+        feedId: '2',
+        referenceId: '1',
+        referenceUserId: '1',
+        notificationType: NotificationType.UserPostAdded,
+        status: NotificationPreferenceStatus.Muted,
+      },
+    ]);
+    const actual = await invokeNotificationWorker(worker, {
+      post,
+    });
+    expect(actual).toBeUndefined();
   });
 });
