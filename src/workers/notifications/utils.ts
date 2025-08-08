@@ -222,23 +222,22 @@ export async function articleNewCommentHandler(
     ];
   }
 
-  const finalUsers = await con
+  const muted = await con
     .getRepository(User)
     .createQueryBuilder('u')
-    .leftJoin(
+    .innerJoin(
       NotificationPreferencePost,
       'npp',
-      'npp."userId" = u.id AND npp."referenceId" = :postId AND npp."notificationType" = :type AND npp."type" = :preferenceType AND npp."status" = :muteStatus',
+      'npp."userId" = u.id AND npp."referenceId" = :postId AND npp."notificationType" = :type AND npp."type" = :preferenceType AND npp."status" = :status',
       {
         postId: post.id,
         type,
         preferenceType: notificationPreferenceMap[type],
-        muteStatus: NotificationPreferenceStatus.Muted,
+        status: NotificationPreferenceStatus.Muted,
       },
     )
     .select('u.id', 'userId')
     .where({ id: In(users) })
-    .andWhere('npp."userId" IS NULL')
     .andWhere(
       `COALESCE(u."notificationFlags"->:notificationType->>'inApp', 'subscribed') = 'subscribed'`,
       { notificationType: type },
@@ -250,7 +249,22 @@ export async function articleNewCommentHandler(
       type,
       ctx: {
         ...ctx,
-        userIds: finalUsers.map(({ userId }) => userId),
+        userIds: users.filter((id) =>
+          muted.every(({ userId }) => userId !== id),
+        ),
+        initiatorId: post.authorId,
+      },
+    },
+  ];
+
+  return [
+    {
+      type,
+      ctx: {
+        ...ctx,
+        userIds: users.filter((id) =>
+          muted.every(({ userId }) => userId !== id),
+        ),
         initiatorId: post.authorId,
       },
     },
