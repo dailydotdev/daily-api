@@ -16,23 +16,17 @@ import {
 import { counters } from '../../telemetry/metrics';
 import { processStream } from '../../common/streaming';
 import { buildPostContext } from './utils';
-import { Post, PostType } from '../../entity/posts/Post';
+import { Post } from '../../entity/posts/Post';
 import { NotificationPreferenceUser } from '../../entity';
 import { Brackets } from 'typeorm';
 
 const sendQueueConcurrency = 10;
-
-const skippedTypes = Object.freeze([PostType.Brief]);
 
 export const postAddedUserNotification =
   generateTypedNotificationWorker<'api.v1.post-visible'>({
     subscription: 'api.post-added-user-notification',
     handler: async (data, con) => {
       if (data.post.private) {
-        return;
-      }
-
-      if (skippedTypes.includes(data.post.type)) {
         return;
       }
 
