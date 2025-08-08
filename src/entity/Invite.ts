@@ -9,7 +9,7 @@ import {
 import type { User } from './user';
 import type { FeatureType } from './Feature';
 
-export enum CampaignType {
+export enum InviteCampaignType {
   Search = 'search',
 }
 
@@ -21,7 +21,7 @@ export class Invite {
   token: string;
 
   @Column({ type: 'text' })
-  campaign: CampaignType | FeatureType;
+  campaign: InviteCampaignType | FeatureType;
 
   @Column({ length: 36 })
   userId: string;

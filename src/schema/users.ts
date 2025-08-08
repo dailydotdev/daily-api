@@ -13,7 +13,7 @@ import {
   User,
   UserMarketingCta,
   View,
-  CampaignType,
+  InviteCampaignType,
   Invite,
   UserPersonalizedDigest,
   UserPersonalizedDigestFlags,
@@ -1924,7 +1924,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const userInvite = await ctx.getRepository(Invite).findOneBy({
         userId: ctx.userId,
-        campaign: referralOrigin as CampaignType,
+        campaign: referralOrigin as InviteCampaignType,
       });
 
       const campaignUrl = getInviteLink({
@@ -2438,7 +2438,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .findOneByOrFail({
           userId: referrerId,
           token: token,
-          campaign: feature as CampaignType,
+          campaign: feature as InviteCampaignType,
         });
 
       if (referrerInvite.count >= referrerInvite.limit) {
