@@ -12,6 +12,7 @@ import {
   SourcePermissions,
 } from '../../schema/sources';
 import { ValidationError } from 'apollo-server-errors';
+import { randomUUID } from 'crypto';
 
 export interface StartSourceBoostArgs {
   postId: string;
@@ -42,7 +43,7 @@ interface StartSourceCampaign {
   args: StartCampaignArgs;
 }
 
-export const startSourceCampaign = async ({
+export const startCampaignSource = async ({
   ctx,
   args,
 }: StartSourceCampaign) => {
@@ -54,7 +55,9 @@ export const startSourceCampaign = async ({
   const total = budget * duration;
 
   const request = await ctx.con.transaction(async (manager) => {
+    const id = randomUUID();
     const campaign = manager.getRepository(CampaignSource).create({
+      id,
       flags: {
         budget: total,
         spend: 0,
@@ -73,7 +76,7 @@ export const startSourceCampaign = async ({
       manager,
       args,
       ctx,
-      onCampaignSaved: async (campaign) =>
+      onCampaignSaved: async () =>
         manager.getRepository(Source).update(
           { id: value },
           {

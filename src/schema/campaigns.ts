@@ -8,15 +8,19 @@ import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, Context, type AuthContext } from '../Context';
 import { traceResolvers } from './trace';
 import graphorm from '../graphorm';
-import { CampaignState, CampaignType, type Campaign } from '../entity/campaign';
+import { Campaign, CampaignState, CampaignType } from '../entity/campaign';
 import type { GQLPost } from './posts';
 import type { GQLSource } from './sources';
 import { getLimit } from '../common';
 import { type TransactionCreated } from '../common/njord';
-import { startPostCampaign } from '../common/campaign/post';
-import { StartCampaignArgs } from '../common/campaign/common';
+import { startCampaignPost } from '../common/campaign/post';
+import {
+  StartCampaignArgs,
+  stopCampaign,
+  typeToCancelFn,
+} from '../common/campaign/common';
 import { ValidationError } from 'apollo-server-errors';
-import { startSourceCampaign } from '../common/campaign/source';
+import { startCampaignSource } from '../common/campaign/source';
 
 interface GQLCampaign
   extends Pick<
@@ -145,12 +149,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       switch (type) {
         case CampaignType.Post:
-          return startPostCampaign({ ctx, args });
+          return startCampaignPost({ ctx, args });
         case CampaignType.Source:
-          return startSourceCampaign({ ctx, args });
+          return startCampaignSource({ ctx, args });
         default:
           throw new ValidationError('Unknown type to process');
       }
+    },
+    stopCampaign: async (
+      _,
+      args: Omit<{ campaignId: string }, 'userId'>,
+      ctx: AuthContext,
+    ): Promise<TransactionCreated> => {
+      const campaign = await ctx.con.getRepository(Campaign).findOneOrFail({
+        where: { id: args.campaignId, userId: ctx.userId },
+      });
+
+      return ctx.con.transaction(async (manager) => {
+        const result = await stopCampaign({
+          ctx,
+          campaign,
+          manager,
+          onCancelled: () =>
+            typeToCancelFn[campaign.type](manager, campaign.id),
+        });
+
+        return result.transaction;
+      });
     },
   },
 });

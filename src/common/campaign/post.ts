@@ -34,6 +34,7 @@ import {
   validateCampaignArgs,
   type StartCampaignArgs,
 } from './common';
+import { randomUUID } from 'crypto';
 
 export interface GQLPromotedPost
   extends Omit<
@@ -276,7 +277,7 @@ interface StartPostCampaign {
   args: StartCampaignArgs;
 }
 
-export const startPostCampaign = async ({ ctx, args }: StartPostCampaign) => {
+export const startCampaignPost = async ({ ctx, args }: StartPostCampaign) => {
   const { value: postId, duration, budget } = args;
   validateCampaignArgs(args);
   const post = await validatePostBoostPermissions(ctx, postId);
@@ -286,7 +287,9 @@ export const startPostCampaign = async ({ ctx, args }: StartPostCampaign) => {
   const total = budget * duration;
 
   const request = await ctx.con.transaction(async (manager) => {
+    const id = randomUUID();
     const campaign = manager.getRepository(CampaignPost).create({
+      id,
       flags: {
         budget: total,
         spend: 0,
@@ -305,7 +308,7 @@ export const startPostCampaign = async ({ ctx, args }: StartPostCampaign) => {
       manager,
       args,
       ctx,
-      onCampaignSaved: async (campaign) =>
+      onCampaignSaved: async () =>
         manager
           .getRepository(Post)
           .update(

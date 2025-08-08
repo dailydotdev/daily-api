@@ -52,6 +52,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     this.fetchOptions = fetchOptions;
     this.garmr = garmr;
   }
+
   startCampaign({
     type,
     value,
@@ -81,6 +82,7 @@ export class SkadiApiClient implements ISkadiApiClient {
       return { campaignId: response.campaign_id };
     });
   }
+
   cancelCampaign({
     campaignId,
     userId,
@@ -104,6 +106,7 @@ export class SkadiApiClient implements ISkadiApiClient {
       return { currentBudget: response.current_budget };
     });
   }
+
   estimateBoostReachDaily(
     params: CampaignDailyReach,
   ): Promise<PostEstimatedReachResponse> {

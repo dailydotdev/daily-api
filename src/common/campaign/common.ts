@@ -1,8 +1,8 @@
 import { ValidationError } from 'apollo-server-errors';
 import z from 'zod';
-import { Campaign } from '../../entity';
+import { Campaign, CampaignType, Post, Source } from '../../entity';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
-import { coresToUsd } from '../number';
+import { coresToUsd, usdToCores } from '../number';
 import { randomUUID } from 'crypto';
 import {
   UserTransaction,
@@ -10,12 +10,13 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../../entity/user/UserTransaction';
-import { parseBigInt, systemUser } from '../utils';
+import { parseBigInt, systemUser, updateFlagsStatement } from '../utils';
 import { TransferError } from '../../errors';
 import { transferCores, throwUserTransactionError } from '../njord';
 import type { AuthContext } from '../../Context';
 import type { EntityManager } from 'typeorm';
 import { capitalize } from 'lodash';
+import { logger } from '../../logger';
 
 export const CAMPAIGN_VALIDATION_SCHEMA = z.object({
   budget: z
@@ -52,12 +53,18 @@ export const validateCampaignArgs = (
   }
 };
 
+const campaignTypeToTransactionType: Record<CampaignType, UserTransactionType> =
+  {
+    [CampaignType.Post]: UserTransactionType.PostBoost,
+    [CampaignType.Source]: UserTransactionType.SquadBoost,
+  };
+
 interface StartCampaignProps {
   campaign: Campaign;
   manager: EntityManager;
   args: StartCampaignArgs;
   ctx: AuthContext;
-  onCampaignSaved: (campaign: Campaign) => Promise<unknown>;
+  onCampaignSaved: () => Promise<unknown>;
 }
 
 export const startCampaign = async ({
@@ -95,11 +102,11 @@ export const startCampaign = async ({
       request: ctx.requestMeta,
       flags: { note: `${capitalize(campaign.type)} Boost started` },
       referenceId: campaignId,
-      referenceType: UserTransactionType.PostBoost,
+      referenceType: campaignTypeToTransactionType[campaign.type],
     }),
   );
 
-  await onCampaignSaved(campaign);
+  await onCampaignSaved();
 
   try {
     const transfer = await transferCores({
@@ -130,4 +137,98 @@ export const startCampaign = async ({
 
     throw error;
   }
+};
+
+interface StopCampaignProps {
+  campaign: Campaign;
+  manager: EntityManager;
+  ctx: AuthContext;
+  onCancelled: () => Promise<unknown>;
+}
+
+export const stopCampaign = async ({
+  campaign,
+  manager,
+  ctx,
+  onCancelled,
+}: StopCampaignProps) => {
+  const { id: campaignId, userId } = campaign;
+
+  const { currentBudget } = await skadiApiClient.cancelCampaign({
+    campaignId,
+    userId,
+  });
+
+  const toRefund = parseFloat(currentBudget);
+
+  await onCancelled();
+
+  const userTransaction = await manager.getRepository(UserTransaction).save(
+    manager.getRepository(UserTransaction).create({
+      id: randomUUID(),
+      processor: UserTransactionProcessor.Njord,
+      receiverId: userId,
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: systemUser.id,
+      value: usdToCores(toRefund),
+      valueIncFees: 0,
+      fee: 0,
+      flags: { note: `${capitalize(campaign.type)} Boost refund` },
+      referenceId: campaignId,
+      referenceType: campaignTypeToTransactionType[campaign.type],
+    }),
+  );
+
+  try {
+    const transfer = await transferCores({
+      ctx: { userId },
+      transaction: userTransaction,
+      entityManager: manager,
+    });
+
+    return {
+      transfer,
+      transaction: {
+        referenceId: campaignId,
+        transactionId: userTransaction.id,
+        balance: {
+          amount: parseBigInt(transfer.receiverBalance?.newBalance),
+        },
+      },
+    };
+  } catch (error) {
+    if (error instanceof TransferError) {
+      await throwUserTransactionError({
+        ctx,
+        entityManager: manager,
+        error,
+        transaction: userTransaction,
+      });
+    } else {
+      logger.error({ campaign }, 'Error cancelling boost');
+    }
+
+    throw error;
+  }
+};
+
+export const typeToCancelFn: Record<
+  CampaignType,
+  (manager: EntityManager, referenceId: string) => Promise<unknown>
+> = {
+  [CampaignType.Post]: (manager, referenceId) =>
+    manager
+      .getRepository(Post)
+      .update(
+        { id: referenceId },
+        { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+      ),
+  [CampaignType.Source]: (manager, referenceId) =>
+    manager
+      .getRepository(Source)
+      .update(
+        { id: referenceId },
+        { flags: updateFlagsStatement<Source>({ campaignId: null }) },
+      ),
 };
