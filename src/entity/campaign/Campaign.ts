@@ -60,5 +60,5 @@ export class Campaign {
   state: CampaignState;
 
   @Column({ type: 'jsonb', default: {} })
-  flags: CampaignFlags;
+  flags: Partial<CampaignFlags>;
 }
