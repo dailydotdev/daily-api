@@ -132,8 +132,7 @@ import type {
   BoostedPostConnection,
   BoostedPostStats,
   GQLBoostedPost,
-  StartPostBoostArgs,
-} from '../common/post/boost';
+} from '../common/campaign/post';
 import {
   throwUserTransactionError,
   transferCores,
@@ -148,7 +147,6 @@ import {
 } from '../entity/user/UserTransaction';
 import { skadiApiClient } from '../integrations/skadi/api/clients';
 import {
-  validatePostBoostArgs,
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
   getTotalEngagements,
@@ -157,13 +155,17 @@ import {
   consolidateCampaignsWithPosts,
   getFormattedCampaign,
   getAdjustedReach,
-} from '../common/post/boost';
+} from '../common/campaign/post';
 import type { PostBoostReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { usdToCores, coresToUsd } from '../common/number';
+import {
+  validateCampaignArgs,
+  type StartCampaignArgs,
+} from '../common/campaign/common';
 
 export interface GQLPost {
   id: string;
@@ -2165,7 +2167,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { postId, budget, duration } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
-      validatePostBoostArgs({ budget, duration });
+      validateCampaignArgs({ budget, duration });
 
       const { minImpressions, maxImpressions } =
         await skadiApiClient.estimatePostBoostReachDaily({
@@ -2704,11 +2706,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     startPostBoost: async (
       _,
-      args: Omit<StartPostBoostArgs, 'userId'>,
+      args: Pick<StartCampaignArgs, 'budget' | 'duration'> & { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
       const { postId, duration, budget } = args;
-      validatePostBoostArgs(args);
+      validateCampaignArgs(args);
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
 

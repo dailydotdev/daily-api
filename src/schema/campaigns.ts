@@ -5,14 +5,18 @@ import {
   type ConnectionArguments,
 } from 'graphql-relay';
 import { IResolvers } from '@graphql-tools/utils';
-import { AuthContext, BaseContext, Context } from '../Context';
+import { BaseContext, Context, type AuthContext } from '../Context';
 import { traceResolvers } from './trace';
-
 import graphorm from '../graphorm';
-import { CampaignState, type Campaign } from '../entity/campaign';
+import { CampaignState, CampaignType, type Campaign } from '../entity/campaign';
 import type { GQLPost } from './posts';
 import type { GQLSource } from './sources';
 import { getLimit } from '../common';
+import { type TransactionCreated } from '../common/njord';
+import { startPostCampaign } from '../common/campaign/post';
+import { StartCampaignArgs } from '../common/campaign/common';
+import { ValidationError } from 'apollo-server-errors';
+import { startSourceCampaign } from '../common/campaign/source';
 
 interface GQLCampaign
   extends Pick<
@@ -129,6 +133,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
+    },
+  },
+  Mutation: {
+    startCampaign: async (
+      _,
+      args: Omit<StartCampaignArgs & { type: CampaignType }, 'userId'>,
+      ctx: AuthContext,
+    ): Promise<TransactionCreated> => {
+      const { type } = args;
+
+      switch (type) {
+        case CampaignType.Post:
+          return startPostCampaign({ ctx, args });
+        case CampaignType.Source:
+          return startSourceCampaign({ ctx, args });
+        default:
+          throw new ValidationError('Unknown type to process');
+      }
     },
   },
 });
