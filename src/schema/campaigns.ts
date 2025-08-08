@@ -12,6 +12,7 @@ import graphorm from '../graphorm';
 import { CampaignState, type Campaign } from '../entity/campaign';
 import type { GQLPost } from './posts';
 import type { GQLSource } from './sources';
+import { getLimit } from '../common';
 
 interface GQLCampaign
   extends Pick<
@@ -119,7 +120,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             `CASE WHEN "${alias}"."state" = '${CampaignState.Active}' THEN 0 ELSE 1 END`,
           );
           builder.queryBuilder.addOrderBy(`"${alias}"."createdAt"`, 'DESC');
-          builder.queryBuilder.limit(first ?? 20);
+          builder.queryBuilder.limit(getLimit({ limit: first ?? 20 }));
 
           if (after) {
             builder.queryBuilder.offset(offset);
