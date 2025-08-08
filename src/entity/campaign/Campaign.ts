@@ -6,7 +6,7 @@ import {
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
-import { User } from '../user';
+import type { User } from '../user';
 
 export enum CampaignType {
   Post = 'post',
