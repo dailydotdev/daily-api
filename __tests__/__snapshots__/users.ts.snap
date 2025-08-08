@@ -50,6 +50,7 @@ Object {
   "infoConfirmed": false,
   "language": null,
   "name": "Ido",
+  "notificationEmail": true,
   "permalink": "http://localhost:5002/aaa1",
   "timezone": "Europe/London",
   "twitter": null,

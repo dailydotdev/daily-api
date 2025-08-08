@@ -7,10 +7,11 @@ import { processStreamInBatches } from '../common/streaming';
 import { User } from '../entity/user/User';
 import {
   getNotificationV2AndChildren,
-  NotificationChannel,
+  NotificationType,
   streamNotificationUsers,
 } from '../notifications/common';
 import { counters } from '../telemetry';
+import { contentPreferenceNotificationTypes } from '../common/contentPreference';
 import { In } from 'typeorm';
 
 interface Data {
@@ -31,11 +32,13 @@ const worker: Worker = {
       );
       if (notification) {
         try {
-          const stream = await streamNotificationUsers(
-            con,
-            notification.id,
-            NotificationChannel.InApp,
-          );
+          const isFollowNotification =
+            contentPreferenceNotificationTypes.includes(notification.type);
+
+          const isAwardNotification =
+            notification.type === NotificationType.UserReceivedAward;
+
+          const stream = await streamNotificationUsers(con, notification.id);
           await processStreamInBatches(
             stream,
             async (batch: { userId: string }[]) => {
@@ -47,6 +50,8 @@ const worker: Worker = {
                 select: ['id'],
                 where: {
                   id: In(disconnectedUsers),
+                  followNotifications: isFollowNotification ? true : undefined,
+                  awardNotifications: isAwardNotification ? true : undefined,
                 },
               });
 

@@ -5,7 +5,6 @@ import { NotificationV2 } from '../entity';
 import { processStream } from '../common/streaming';
 import {
   getNotificationV2AndChildren,
-  NotificationChannel,
   streamNotificationUsers,
 } from '../notifications/common';
 import { counters } from '../telemetry';
@@ -28,11 +27,7 @@ const worker: Worker = {
       const [notification, attachments, avatars] =
         await getNotificationV2AndChildren(con, id);
       if (notification) {
-        const stream = await streamNotificationUsers(
-          con,
-          notification.id,
-          NotificationChannel.InApp,
-        );
+        const stream = await streamNotificationUsers(con, notification.id);
         await processStream<{ userId: string }>(
           stream,
           ({ userId }) =>

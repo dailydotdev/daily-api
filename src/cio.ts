@@ -8,38 +8,8 @@ import {
   UserStreak,
 } from './entity';
 import { camelCaseToSnakeCase, getDateBaseFromType } from './common/utils';
-import { getFirstName } from './common/mailing';
-
-export enum CioUnsubscribeTopic {
-  Announcements = '1',
-  NewUserWelcome = '5',
-  Marketing = '4',
-  Notifications = '7',
-  Digest = '8',
-  Follow = '9',
-  Award = '10',
-  ArticleUpvoteMilestone = '11',
-  CommentUpvoteMilestone = '12',
-  UserReceivedAward = '13',
-  SquadPostAdded = '14',
-  ArticleReportApproved = '15',
-  UsernameMention = '16',
-  CollectionUpdated = '17',
-  CommentReply = '18',
-  Achievements = '19',
-  CreatorUpdate = '20',
-  PaidSubscription = '21',
-  CommentsOnPost = '22',
-  SourcePostAdded = '23',
-  Streaks = '24',
-  InAppPurchases = '25',
-  UserPostAdded = '26',
-}
+import { CioUnsubscribeTopic, getFirstName } from './common/mailing';
 import { getShortGenericInviteLink } from './common/links';
-import {
-  NotificationType,
-  NotificationPreferenceStatus,
-} from './notifications/common';
 import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
 import { DataSource, In } from 'typeorm';
@@ -90,26 +60,6 @@ export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
   'followingEmail',
   'awardEmail',
 ];
-
-const CIO_TOPIC_TO_NOTIFICATION_MAP: Record<string, NotificationType> = {
-  [CioUnsubscribeTopic.CommentsOnPost]: NotificationType.ArticleNewComment,
-  [CioUnsubscribeTopic.UsernameMention]: NotificationType.PostMention,
-  [CioUnsubscribeTopic.Streaks]: NotificationType.StreakResetRestore,
-  [CioUnsubscribeTopic.Achievements]: NotificationType.UserTopReaderBadge,
-  [CioUnsubscribeTopic.ArticleUpvoteMilestone]:
-    NotificationType.ArticleUpvoteMilestone,
-  [CioUnsubscribeTopic.CommentUpvoteMilestone]:
-    NotificationType.CommentUpvoteMilestone,
-  [CioUnsubscribeTopic.UserReceivedAward]: NotificationType.UserReceivedAward,
-  [CioUnsubscribeTopic.SquadPostAdded]: NotificationType.SquadPostAdded,
-  [CioUnsubscribeTopic.ArticleReportApproved]:
-    NotificationType.ArticleReportApproved,
-  [CioUnsubscribeTopic.CollectionUpdated]: NotificationType.CollectionUpdated,
-  [CioUnsubscribeTopic.CommentReply]: NotificationType.CommentReply,
-  [CioUnsubscribeTopic.CreatorUpdate]: NotificationType.ArticlePicked,
-  [CioUnsubscribeTopic.SourcePostAdded]: NotificationType.SourcePostAdded,
-  [CioUnsubscribeTopic.UserPostAdded]: NotificationType.UserPostAdded,
-};
 
 export async function identifyUserStreak({
   cio,
@@ -163,46 +113,6 @@ export const generateIdentifyObject = async (
   };
 };
 
-export const getNotificationFlagsCioTopics = (
-  notificationFlags: User['notificationFlags'],
-) => {
-  const isSubscribed = (notificationType: NotificationType | string) =>
-    notificationFlags?.[notificationType]?.email !==
-    NotificationPreferenceStatus.Muted;
-
-  const result: Record<string, boolean> = {};
-
-  Object.entries(CIO_TOPIC_TO_NOTIFICATION_MAP).forEach(
-    ([topicId, notificationType]) => {
-      result[`cio_subscription_preferences.topics.topic_${topicId}`] =
-        isSubscribed(notificationType);
-    },
-  );
-
-  return result;
-};
-
-export const getCioTopicsToNotificationFlags = (subscriptionPreferences: {
-  topics?: Record<string, boolean>;
-}): User['notificationFlags'] => {
-  const notificationFlags: User['notificationFlags'] = {};
-
-  const isSubscribed = (topicId: string): NotificationPreferenceStatus =>
-    subscriptionPreferences?.topics?.[`topic_${topicId}`] === false
-      ? NotificationPreferenceStatus.Muted
-      : NotificationPreferenceStatus.Subscribed;
-
-  Object.entries(CIO_TOPIC_TO_NOTIFICATION_MAP).forEach(
-    ([topicId, notificationType]) => {
-      notificationFlags[notificationType] = {
-        email: isSubscribed(topicId),
-      };
-    },
-  );
-
-  return notificationFlags;
-};
-
 export const getIdentifyAttributes = async (
   con: ConnectionManager,
   user: ChangeObject<User>,
@@ -245,13 +155,6 @@ export const getIdentifyAttributes = async (
       user.followingEmail,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Award}`]:
       user.awardEmail,
-    ...(user.notificationFlags
-      ? getNotificationFlagsCioTopics(
-          typeof user.notificationFlags === 'string'
-            ? JSON.parse(user.notificationFlags)
-            : user.notificationFlags,
-        )
-      : {}),
   };
 };
 
@@ -271,33 +174,6 @@ export async function identifyUser({
   } catch (err) {
     if (err instanceof CustomerIORequestError && err.statusCode === 400) {
       logger.warn({ err, user }, 'failed to update user in cio');
-      return;
-    }
-    throw err;
-  }
-}
-
-export async function syncNotificationFlagsToCio({
-  userId,
-  notificationFlags,
-}: {
-  userId: string;
-  notificationFlags: User['notificationFlags'];
-}): Promise<void> {
-  if (process.env.NODE_ENV === 'development') {
-    return;
-  }
-
-  const cioTopics = getNotificationFlagsCioTopics(notificationFlags);
-
-  try {
-    await cio.identify(userId, cioTopics);
-  } catch (err) {
-    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
-      logger.warn(
-        { err, userId },
-        'failed to update notification flags in cio',
-      );
       return;
     }
     throw err;
@@ -351,10 +227,6 @@ export async function identifyUserPersonalizedDigest({
   userId: string;
   subscribed: boolean;
 }): Promise<void> {
-  if (process.env.NODE_ENV === 'development') {
-    return;
-  }
-
   try {
     await cio.identify(userId, {
       [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:

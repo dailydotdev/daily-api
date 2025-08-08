@@ -31,7 +31,7 @@ const worker: NotificationWorker = {
       {
         sourceId: member.sourceId,
         userId: Not(In([member.userId])),
-        role: In([SourceMemberRoles.Admin, SourceMemberRoles.Moderator]),
+        role: SourceMemberRoles.Admin,
       },
     );
 

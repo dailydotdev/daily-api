@@ -16,17 +16,19 @@ import {
   UserPersonalizedDigestType,
 } from '../entity';
 import { blockingBatchRunner, callWithRetryDefault } from './async';
-import {
-  CIO_REQUIRED_FIELDS,
-  cioV2,
-  generateIdentifyObject,
-  getCioTopicsToNotificationFlags,
-  CioUnsubscribeTopic,
-} from '../cio';
+import { CIO_REQUIRED_FIELDS, cioV2, generateIdentifyObject } from '../cio';
 import { setTimeout } from 'node:timers/promises';
 import { toChangeObject, updateFlagsStatement } from './utils';
 import { GetUsersActiveState } from './googleCloud';
 import { logger } from '../logger';
+
+export enum CioUnsubscribeTopic {
+  Marketing = '4',
+  Notifications = '7',
+  Digest = '8',
+  Follow = '9',
+  Award = '10',
+}
 
 export enum CioTransactionalMessageTemplateId {
   VerifyCompany = '51',
@@ -136,9 +138,6 @@ export const syncSubscription = async function (
         const isAwardSubscribed =
           isSubscribed(subs, CioUnsubscribeTopic.Award) && !unsubscribed;
 
-        // Convert CIO subscription preferences back to notification flags
-        const notificationFlags = getCioTopicsToNotificationFlags(subs);
-
         await manager.getRepository(User).update(
           { id: customer.id },
           {
@@ -146,7 +145,6 @@ export const syncSubscription = async function (
             acceptedMarketing: marketing,
             followingEmail: isFollowSubscribed,
             awardEmail: isAwardSubscribed,
-            notificationFlags,
           },
         );
         if (!digest) {
