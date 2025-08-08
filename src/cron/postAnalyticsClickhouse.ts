@@ -27,14 +27,14 @@ export const postAnalyticsClickhouseCron: Cron = {
             sum(shares_internal) AS "sharesInternal"
         FROM api.post_analytics
         FINAL
-        WHERE created_at > '2025-08-01 09:00:00' // last run time for cron
+        WHERE created_at > {lastRunTime: DateTime}
         AND created_at < NOW()
         GROUP BY post_id
         ORDER BY "updatedAt" DESC;
       `,
       format: 'JSONEachRow',
       query_params: {
-        last_run_time: format(lastRunTime, 'yyyy-MM-dd HH:mm:ss'),
+        lastRunTime: format(lastRunTime, 'yyyy-MM-dd HH:mm:ss'),
       },
     });
 
