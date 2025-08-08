@@ -3,7 +3,7 @@ import {
   Entity,
   Index,
   ManyToOne,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   TableInheritance,
 } from 'typeorm';
 import type { User } from '../user';
@@ -31,7 +31,7 @@ export interface CampaignFlags {
 @Entity()
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
 export class Campaign {
-  @PrimaryColumn({ type: 'uuid', generated: 'uuid' })
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'text' })
