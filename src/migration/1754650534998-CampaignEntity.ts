@@ -5,7 +5,7 @@ export class CampaignEntity1754650534998 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "campaign" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "referenceId" text NOT NULL, "userId" character varying NOT NULL, "type" text NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "endedAt" TIMESTAMP NOT NULL, "state" text NOT NULL, "flags" jsonb NOT NULL DEFAULT '{}', "postId" text, "sourceId" text, CONSTRAINT "PK_0ce34d26e7f2eb316a3a592cdc4" PRIMARY KEY ("id"))`,
+      `CREATE TABLE IF NOT EXISTS "campaign" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "referenceId" text NOT NULL, "userId" character varying NOT NULL, "type" text NOT NULL, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "endedAt" TIMESTAMP NOT NULL, "state" text NOT NULL, "flags" jsonb NOT NULL DEFAULT '{}', "postId" text, "sourceId" text, CONSTRAINT "PK_0ce34d26e7f2eb316a3a592cdc4" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "IDX_campaign_type" ON "campaign" ("type") `,
@@ -40,6 +40,6 @@ export class CampaignEntity1754650534998 implements MigrationInterface {
     await queryRunner.query(
       `DROP INDEX IF EXISTS "public"."IDX_campaign_type"`,
     );
-    await queryRunner.query(`DROP TABLE "campaign"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "campaign"`);
   }
 }
