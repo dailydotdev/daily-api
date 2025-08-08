@@ -44,29 +44,6 @@ type GetMembersParams = {
   where: ObjectLiteral;
 };
 
-const filterUsersWithGlobalPreferences = async (
-  con: DataSource,
-  userIds: string[],
-  notificationType: NotificationType,
-  channel: 'email' | 'inApp',
-): Promise<string[]> => {
-  if (!userIds.length) {
-    return [];
-  }
-
-  const users = await con.getRepository(User).find({
-    select: ['id', 'notificationFlags'],
-    where: { id: In(userIds) },
-  });
-
-  return users
-    .filter((user) => {
-      const preference = user.notificationFlags?.[notificationType]?.[channel];
-      return !preference || preference.toLowerCase() === 'subscribed';
-    })
-    .map((user) => user.id);
-};
-
 export const getOptInSubscribedMembers = async ({
   con,
   type,
@@ -245,31 +222,35 @@ export async function articleNewCommentHandler(
     ];
   }
 
-  const muted = await con.getRepository(NotificationPreferencePost).findBy({
-    userId: In(users),
-    referenceId: post.id,
-    notificationType: type,
-    type: notificationPreferenceMap[type],
-    status: NotificationPreferenceStatus.Muted,
-  });
-
-  const entityFilteredUsers = users.filter((id) =>
-    muted.every(({ userId }) => userId !== id),
-  );
-
-  const finalUsers = await filterUsersWithGlobalPreferences(
-    con,
-    entityFilteredUsers,
-    type,
-    'inApp',
-  );
+  const finalUsers = await con
+    .getRepository(User)
+    .createQueryBuilder('u')
+    .leftJoin(
+      NotificationPreferencePost,
+      'npp',
+      'npp."userId" = u.id AND npp."referenceId" = :postId AND npp."notificationType" = :type AND npp."type" = :preferenceType AND npp."status" = :muteStatus',
+      {
+        postId: post.id,
+        type,
+        preferenceType: notificationPreferenceMap[type],
+        muteStatus: NotificationPreferenceStatus.Muted,
+      },
+    )
+    .select('u.id', 'userId')
+    .where({ id: In(users) })
+    .andWhere('npp."userId" IS NULL')
+    .andWhere(
+      `COALESCE(u."notificationFlags"->:notificationType->>'inApp', 'subscribed') = 'subscribed'`,
+      { notificationType: type },
+    )
+    .getRawMany<{ userId: string }>();
 
   return [
     {
       type,
       ctx: {
         ...ctx,
-        userIds: finalUsers,
+        userIds: finalUsers.map(({ userId }) => userId),
         initiatorId: post.authorId,
       },
     },
