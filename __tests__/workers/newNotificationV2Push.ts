@@ -126,14 +126,7 @@ it('should not send follow push notification if the user prefers not to receive 
   const userId = '1';
   const repo = con.getRepository(User);
   const user = await repo.findOneBy({ id: userId });
-  await repo.save({
-    ...user,
-    notificationFlags: {
-      [NotificationType.UserPostAdded]: {
-        inApp: 'muted',
-      },
-    },
-  });
+  await repo.save({ ...user, followNotifications: false });
   await saveFixtures(con, Source, sourcesFixture);
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const source = await con.getRepository(Source).findOneBy({
@@ -166,14 +159,7 @@ it('should not send award push notification if the user prefers not to receive t
   const repo = con.getRepository(User);
   const receiver = await repo.findOneBy({ id: userId });
   const sender = await repo.findOneBy({ id: '2' });
-  await repo.save({
-    ...receiver,
-    notificationFlags: {
-      [NotificationType.UserReceivedAward]: {
-        inApp: 'muted',
-      },
-    },
-  });
+  await repo.save({ ...receiver, awardNotifications: false });
 
   await saveFixtures(con, Product, [
     {

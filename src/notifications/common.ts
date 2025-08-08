@@ -82,11 +82,6 @@ export enum NotificationPreferenceStatus {
   Subscribed = 'subscribed',
 }
 
-export enum NotificationChannel {
-  Email = 'email',
-  InApp = 'inApp',
-}
-
 export const notificationPreferenceMap: Partial<
   Record<NotificationType, NotificationPreferenceType>
 > = {
@@ -100,8 +95,6 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.SourcePostAdded]: NotificationPreferenceType.Source,
   [NotificationType.UserPostAdded]: NotificationPreferenceType.User,
   [NotificationType.UserTopReaderBadge]: NotificationPreferenceType.User,
-  [NotificationType.SourcePostSubmitted]: NotificationPreferenceType.Source,
-  [NotificationType.SquadFeatured]: NotificationPreferenceType.Source,
 };
 
 export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
@@ -230,10 +223,6 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.DemotedToMember]: {
-    email: NotificationPreferenceStatus.Subscribed,
-    inApp: NotificationPreferenceStatus.Subscribed,
-  },
-  [NotificationType.SquadFeatured]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
@@ -384,28 +373,12 @@ export const getNotificationV2AndChildren = (
 export const streamNotificationUsers = (
   con: DataSource,
   id: string,
-  channel: NotificationChannel,
 ): Promise<ReadStream> => {
-  let query = con
+  const query = con
     .createQueryBuilder()
     .select('un."userId"')
     .from(UserNotification, 'un')
-    .innerJoin('user', 'u', 'un."userId" = u.id')
-    .innerJoin(NotificationV2, 'n', 'un."notificationId" = n.id')
     .where('un."notificationId" = :id', { id });
-
-  if (channel === NotificationChannel.InApp) {
-    query = query
-      .andWhere('un.public = true')
-      .andWhere(
-        `COALESCE(u."notificationFlags" -> n.type ->> 'inApp', 'subscribed') != 'muted'`,
-      );
-  } else if (channel === NotificationChannel.Email) {
-    query = query.andWhere(
-      `COALESCE(u."notificationFlags" -> n.type ->> 'email', 'subscribed') != 'muted'`,
-    );
-  }
-
   return query.stream();
 };
 
