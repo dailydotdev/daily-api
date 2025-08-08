@@ -22,9 +22,8 @@ import {
   userPublicationExperienceSchema,
   userWorkExperienceSchema,
 } from './schema/userExperience';
-import { DataSource } from 'typeorm';
+import { DataSource, Not } from 'typeorm';
 import { UserCompany } from '../entity';
-import { queryReadReplica } from './queryReadReplica';
 
 // Autocomplete
 export enum ExperienceAutocompleteType {
@@ -199,29 +198,19 @@ export const completeVerificationForExperienceByUserCompany = async (
 ): Promise<boolean> => {
   if (!companyId) return false;
 
-  const experience = await queryReadReplica(con, ({ queryRunner }) =>
-    queryRunner.manager
-      .getRepository<UserWorkExperience>('UserWorkExperience')
-      .findOneBy({
+  const update = await con
+    .getRepository<UserWorkExperience>('UserWorkExperience')
+    .update(
+      {
         userId,
         companyId,
-      }),
-  );
-
-  if (
-    experience &&
-    experience.verificationStatus !== WorkVerificationStatus.Verified
-  ) {
-    await con.getRepository<UserWorkExperience>('UserWorkExperience').update(
-      { userId, companyId },
+        verificationStatus: Not(WorkVerificationStatus.Verified),
+      },
       {
         verificationEmail,
         verificationStatus: WorkVerificationStatus.Verified,
       },
     );
 
-    return true;
-  }
-
-  return false;
+  return !!update?.affected;
 };

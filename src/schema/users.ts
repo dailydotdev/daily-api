@@ -2677,12 +2677,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const updatedRecord = { ...userCompany, verified: true };
 
-      await Promise.all([
-        // Save verified record
-        ctx.con.getRepository(UserCompany).save(updatedRecord),
-        // Verify user experience if exists
-        completeVerificationForExperienceByUserCompany(ctx.con, updatedRecord),
-      ]);
+      await ctx.con.transaction(async (manager) => {
+        await Promise.all([
+          // Save verified record
+          manager.getRepository(UserCompany).save(updatedRecord),
+          // Verify user experience if exists
+          completeVerificationForExperienceByUserCompany(
+            manager.connection,
+            updatedRecord,
+          ),
+        ]);
+      });
 
       return await graphorm.queryOneOrFail<GQLUserCompany>(
         ctx,
