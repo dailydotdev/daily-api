@@ -1,3 +1,4 @@
+import fastq from 'fastq';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import {
@@ -7,6 +8,8 @@ import {
 } from '../src/notifications/common';
 import { User } from '../src/entity/user/User';
 import type { UserNotificationFlags } from '../src/entity/user/User';
+
+const QUEUE_CONCURRENCY = 1;
 
 interface UserData {
   id: string;
@@ -73,50 +76,53 @@ function buildNotificationFlags(user: UserData): UserNotificationFlags {
   const con = await createOrGetConnection();
 
   try {
-    const userRepo = con.getRepository(User);
-
-    const users = await userRepo
-      .createQueryBuilder('user')
-      .select([
-        'user.id',
-        'user.notificationEmail',
-        'user.followingEmail',
-        'user.followNotifications',
-        'user.awardEmail',
-        'user.awardNotifications',
-        'user.notificationFlags',
-      ])
-      .orderBy('user.id')
-      .limit(limit)
-      .offset(offset)
-      .getMany();
-
     console.log(
-      `Processing ${users.length} users (offset ${offset} to ${offset + users.length - 1})...`,
+      `Processing users starting from offset ${offset} (limit ${limit})...`,
     );
 
-    await con.transaction(async (manager) => {
-      for (const user of users) {
-        const userData: UserData = {
-          id: user.id,
-          notificationEmail: user.notificationEmail,
-          followingEmail: user.followingEmail,
-          followNotifications: user.followNotifications,
-          awardEmail: user.awardEmail,
-          awardNotifications: user.awardNotifications,
-          notificationFlags: user.notificationFlags,
-        };
+    let processedCount = 0;
 
-        const newFlags = buildNotificationFlags(userData);
+    await con.transaction(async (manager) => {
+      const userRepo = manager.getRepository(User);
+
+      const builder = userRepo
+        .createQueryBuilder('user')
+        .select('user.id', 'id')
+        .addSelect('user.notificationEmail', 'notificationEmail')
+        .addSelect('user.followingEmail', 'followingEmail')
+        .addSelect('user.followNotifications', 'followNotifications')
+        .addSelect('user.awardEmail', 'awardEmail')
+        .addSelect('user.awardNotifications', 'awardNotifications')
+        .addSelect('user.notificationFlags', 'notificationFlags')
+        .orderBy('user.id')
+        .limit(limit)
+        .offset(offset);
+
+      const stream = await builder.stream();
+
+      const insertQueue = fastq.promise(async (user: UserData) => {
+        const newFlags = buildNotificationFlags(user);
 
         await manager
           .getRepository(User)
           .update({ id: user.id }, { notificationFlags: newFlags });
-      }
+
+        processedCount++;
+      }, QUEUE_CONCURRENCY);
+
+      stream.on('data', (user: UserData) => {
+        insertQueue.push(user);
+      });
+
+      await new Promise((resolve, reject) => {
+        stream.on('error', reject);
+        stream.on('end', () => resolve(true));
+      });
+      await insertQueue.drained();
     });
 
     console.log(
-      `Migration completed successfully. Updated ${users.length} users (offset ${offset} to ${offset + users.length - 1}).`,
+      `Migration completed successfully. Updated ${processedCount} users (offset ${offset} to ${offset + processedCount - 1}).`,
     );
   } catch (error) {
     console.error('Migration failed:', error);
