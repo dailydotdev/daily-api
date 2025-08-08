@@ -1354,6 +1354,14 @@ const obj = new GraphORM({
       },
     },
   },
+  Campaign: {
+    requiredColumns: ['id', 'createdAt'],
+    fields: {
+      flags: {
+        jsonType: true,
+      },
+    },
+  },
 });
 
 export default obj;
