@@ -19,6 +19,9 @@ importers:
       '@bufbuild/protobuf':
         specifier: ^1.10.0
         version: 1.10.0
+      '@clickhouse/client':
+        specifier: 1.12.0
+        version: 1.12.0
       '@connectrpc/connect':
         specifier: ^1.6.1
         version: 1.6.1(@bufbuild/protobuf@1.10.0)
@@ -655,6 +658,13 @@ packages:
 
   '@bufbuild/protobuf@1.10.0':
     resolution: {integrity: sha512-QDdVFLoN93Zjg36NoQPZfsVH9tZew7wKDKyV5qRdj8ntT4wQCOradQjRaTdwMhWUYsgKsvCINKKm87FdEk96Ag==}
+
+  '@clickhouse/client-common@1.12.0':
+    resolution: {integrity: sha512-cyI4n7u9jK30d9q1q0ceQ7IwJ/MtTs5HxoQfc8yHpN+ok5wqaU2jAtq5hpa1z7C7sS1pDy/ZOFmOzg1v1F683g==}
+
+  '@clickhouse/client@1.12.0':
+    resolution: {integrity: sha512-vJUSX8THhTzlVn0WxPukVjOgNRaSoY02ubQkB0LpqNoHFxXuF5jQZZAYvGZWpBGbYQ/4gfPrqu8g4TX5UKeNxA==}
+    engines: {node: '>=16'}
 
   '@connectrpc/connect-fastify@1.6.1':
     resolution: {integrity: sha512-JkY+FpJxlQI7z1DR3wYA+z3mZfrU3ptAUOlaaPli8GOd3LwhfHcizERhG4hiBwCIxJiTxr7oxGb1k6roQ8mMYQ==}
@@ -5120,6 +5130,12 @@ snapshots:
   '@bcoe/v8-coverage@0.2.3': {}
 
   '@bufbuild/protobuf@1.10.0': {}
+
+  '@clickhouse/client-common@1.12.0': {}
+
+  '@clickhouse/client@1.12.0':
+    dependencies:
+      '@clickhouse/client-common': 1.12.0
 
   '@connectrpc/connect-fastify@1.6.1(@bufbuild/protobuf@1.10.0)(@connectrpc/connect-node@1.6.1(@bufbuild/protobuf@1.10.0)(@connectrpc/connect@1.6.1(@bufbuild/protobuf@1.10.0)))(@connectrpc/connect@1.6.1(@bufbuild/protobuf@1.10.0))(fastify@5.3.3)':
     dependencies:
