@@ -462,7 +462,6 @@ const getUser = (
       'company',
       'title',
       'infoConfirmed',
-      'notificationEmail',
       'acceptedMarketing',
       'reputation',
       'bio',
@@ -484,14 +483,10 @@ const getUser = (
       'cover',
       'experienceLevel',
       'language',
-      'followingEmail',
-      'followNotifications',
       'subscriptionFlags',
       'defaultFeedId',
       'flags',
       'coresRole',
-      'awardEmail',
-      'awardNotifications',
     ],
   });
 

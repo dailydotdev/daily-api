@@ -1,11 +1,10 @@
 import { generateTypedNotificationWorker } from './worker';
-import { SourceMember } from '../../entity';
 import { In } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostModerationContext } from '../../notifications';
 import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
-import { getPostModerationContext } from './utils';
+import { getPostModerationContext, getSubscribedMembers } from './utils';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
@@ -22,19 +21,19 @@ const worker =
         const moderationCtx = await queryReadReplica(con, ({ queryRunner }) => {
           return getPostModerationContext(queryRunner.manager, post);
         });
-        const mods = await queryReadReplica(con, ({ queryRunner }) => {
-          return queryRunner.manager.getRepository(SourceMember).find({
-            select: ['userId'],
-            where: {
-              sourceId: post.sourceId,
-              role: In([SourceMemberRoles.Admin, SourceMemberRoles.Moderator]),
-            },
-          });
-        });
+        const members = await getSubscribedMembers(
+          con,
+          NotificationType.SourcePostSubmitted,
+          post.sourceId,
+          {
+            sourceId: post.sourceId,
+            role: In([SourceMemberRoles.Admin, SourceMemberRoles.Moderator]),
+          },
+        );
 
         const ctx: NotificationPostModerationContext = {
           ...moderationCtx,
-          userIds: mods.map((m) => m.userId),
+          userIds: members.map((m) => m.userId),
         };
 
         return [{ type: NotificationType.SourcePostSubmitted, ctx }];

@@ -9,11 +9,8 @@ import {
   UserPersonalizedDigestType,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import {
-  CioUnsubscribeTopic,
-  syncSubscription,
-  updateFlagsStatement,
-} from '../../src/common';
+import { syncSubscription, updateFlagsStatement } from '../../src/common';
+import { CioUnsubscribeTopic } from '../../src/cio';
 
 let con: DataSource;
 
