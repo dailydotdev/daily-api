@@ -2,9 +2,8 @@ import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
 import { NotificationSourceContext } from '../../notifications';
 import { SourceMemberRoles } from '../../roles';
-import { SourceMember } from '../../entity';
 import { In } from 'typeorm';
-import { queryReadReplica } from '../../common/queryReadReplica';
+import { getSubscribedMembers } from './utils';
 
 const toNotify = [SourceMemberRoles.Admin, SourceMemberRoles.Moderator];
 
@@ -16,19 +15,22 @@ const worker = generateTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         return undefined;
       }
 
-      const users = await queryReadReplica(con, ({ queryRunner }) => {
-        return queryRunner.manager.getRepository(SourceMember).findBy({
+      const members = await getSubscribedMembers(
+        con,
+        NotificationType.SquadFeatured,
+        squad.id,
+        {
           sourceId: squad.id,
           role: In(toNotify),
-        });
-      });
+        },
+      );
 
-      if (!users.length) {
+      if (!members.length) {
         return undefined;
       }
 
       const ctx: NotificationSourceContext = {
-        userIds: users.map((u) => u.userId),
+        userIds: members.map((u) => u.userId),
         source: squad,
       };
 

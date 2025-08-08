@@ -28,12 +28,14 @@ import {
   UserFlagsPublic,
   Alerts,
 } from '../entity';
+import { UserNotificationFlags } from '../entity/user/User';
 import {
   AuthenticationError,
   ForbiddenError,
   ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -148,6 +150,8 @@ import {
 } from '../entity/user/UserTransaction';
 import { uploadResumeFromBuffer } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
+import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
+import { syncNotificationFlagsToCio } from '../cio';
 import {
   UserCompensation,
   UserJobPreferences,
@@ -176,18 +180,14 @@ export interface GQLUpdateUserInput {
   hashnode?: string;
   portfolio?: string;
   acceptedMarketing?: boolean;
-  notificationEmail?: boolean;
   timezone?: string;
   weekStart?: number;
   infoConfirmed?: boolean;
   experienceLevel?: string;
   language?: ContentLanguage;
-  followingEmail?: boolean;
-  followNotifications?: boolean;
-  awardEmail?: boolean;
-  awardNotifications?: boolean;
   defaultFeedId?: string;
   flags: UserFlagsPublic;
+  notificationFlags?: UserNotificationFlags;
 }
 
 interface GQLUserParameters {
@@ -216,7 +216,6 @@ export interface GQLUser {
   hashnode?: string;
   portfolio?: string;
   reputation?: number;
-  notificationEmail?: boolean;
   timezone?: string;
   cover?: string | null;
   readme?: string;
@@ -450,10 +449,6 @@ export const typeDefs = /* GraphQL */ `
     """
     acceptedMarketing: Boolean
     """
-    If the user should receive email for notifications
-    """
-    notificationEmail: Boolean
-    """
     Markdown version of the user's readme
     """
     readme: String
@@ -665,10 +660,6 @@ export const typeDefs = /* GraphQL */ `
     """
     acceptedMarketing: Boolean
     """
-    If the user should receive email for notifications
-    """
-    notificationEmail: Boolean
-    """
     If the user's info is confirmed
     """
     infoConfirmed: Boolean
@@ -680,22 +671,6 @@ export const typeDefs = /* GraphQL */ `
     Preferred language of the user
     """
     language: String
-    """
-    Whether the user wants to receive follwing email notifications
-    """
-    followingEmail: Boolean
-    """
-    Whether the user wants to receives following push notifications
-    """
-    followNotifications: Boolean
-    """
-    Whether the user wants to receive award email notifications
-    """
-    awardEmail: Boolean
-    """
-    Whether the user wants to receive award push notifications
-    """
-    awardNotifications: Boolean
     """
     Default feed id for the user
     """
@@ -1090,6 +1065,11 @@ export const typeDefs = /* GraphQL */ `
     checkCoresRole: CheckCoresRole! @auth
 
     """
+    Get current user's notification preferences
+    """
+    notificationSettings: JSON @auth
+
+    """
     Get job preferences for the current user
     """
     userJobPreferences: UserJobPreferences @auth
@@ -1310,6 +1290,11 @@ export const typeDefs = /* GraphQL */ `
     Claim unclaimed user ClaimableItem
     """
     claimUnclaimedItem: UserClaim @auth
+
+    """
+    Update user's notification preferences
+    """
+    updateNotificationSettings(notificationFlags: JSON!): EmptyResponse @auth
 
     """
     Update job preferences for the current user
@@ -2190,6 +2175,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         coresRole: userCoresRole,
       };
     },
+    notificationSettings: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<UserNotificationFlags> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        where: { id: ctx.userId },
+        select: ['notificationFlags'],
+      });
+      return {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        ...user?.notificationFlags,
+      };
+    },
     userJobPreferences: async (
       _,
       __,
@@ -2417,7 +2416,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         cio,
         subscribed: false,
       });
-
       return { _: true };
     },
     acceptFeatureInvite: async (
@@ -2930,6 +2928,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         id: ctx.userId,
       });
       return addClaimableItemsToUser(ctx.con, user);
+    },
+    updateNotificationSettings: async (
+      _,
+      { notificationFlags }: { notificationFlags: UserNotificationFlags },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const validate = notificationFlagsSchema.safeParse(notificationFlags);
+
+      if (validate.error) {
+        throw new ValidationError(validate.error.errors[0].message);
+      }
+
+      await ctx.con
+        .getRepository(User)
+        .update({ id: ctx.userId }, { notificationFlags });
+
+      await syncNotificationFlagsToCio({
+        userId: ctx.userId,
+        notificationFlags,
+      });
+
+      return { _: true };
     },
     updateUserJobPreferences: async (
       _,
