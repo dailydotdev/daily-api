@@ -53,10 +53,10 @@ export class Campaign {
   @Index('IDX_campaign_type')
   type: CampaignType;
 
-  @CreateDateColumn({ default: () => 'now()' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ default: () => 'now()' })
+  @UpdateDateColumn()
   updatedAt: Date;
 
   @Column()
