@@ -1,10 +1,12 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   ManyToOne,
   PrimaryGeneratedColumn,
   TableInheritance,
+  UpdateDateColumn,
 } from 'typeorm';
 import type { User } from '../user';
 
@@ -29,6 +31,7 @@ export interface CampaignFlags {
 }
 
 @Entity()
+@Index('IDX_campaign_state_created_at_sort', { synchronize: false })
 @TableInheritance({ column: { type: 'varchar', name: 'type' } })
 export class Campaign {
   @PrimaryGeneratedColumn('uuid')
@@ -50,8 +53,11 @@ export class Campaign {
   @Index('IDX_campaign_type')
   type: CampaignType;
 
-  @Column({ default: () => 'now()' })
+  @CreateDateColumn({ default: () => 'now()' })
   createdAt: Date;
+
+  @UpdateDateColumn({ default: () => 'now()' })
+  updatedAt: Date;
 
   @Column()
   endedAt: Date;
