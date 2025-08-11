@@ -66,18 +66,7 @@ export const postAnalyticsClickhouseCron: Cron = {
         chunks.push([]);
       }
 
-      chunks[chunks.length - 1].push({
-        id: item.id,
-        updatedAt: item.updatedAt,
-        impressions: item.impressions,
-        reach: item.reach,
-        bookmarks: item.bookmarks,
-        profileViews: item.profileViews,
-        followers: item.followers,
-        squadJoins: item.squadJoins,
-        sharesExternal: item.sharesExternal,
-        sharesInternal: item.sharesInternal,
-      } as PostAnalytics);
+      chunks[chunks.length - 1].push(item as PostAnalytics);
     });
 
     await con.transaction(async (entityManager) => {
