@@ -124,6 +124,6 @@ export const crons: Cron[] = [
   },
   {
     name: 'post-analytics-clickhouse',
-    schedule: '*/40 * * * *',
+    schedule: '*/5 * * * *',
   },
 ];
