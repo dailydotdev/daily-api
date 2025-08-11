@@ -1,5 +1,4 @@
 import z from 'zod';
-import { UserPersonalizedDigestType } from '../../entity';
 import { NotificationType } from '../../notifications/common';
 
 const notificationPreferenceSchema = z.object({
@@ -17,7 +16,7 @@ export const notificationFlagsSchema = z
     [NotificationType.CommentMention]: notificationPreferenceSchema,
     [NotificationType.ArticleReportApproved]: notificationPreferenceSchema,
     [NotificationType.StreakResetRestore]: notificationPreferenceSchema,
-    [UserPersonalizedDigestType.StreakReminder]: notificationPreferenceSchema,
+    ['streak_reminder']: notificationPreferenceSchema,
     [NotificationType.UserTopReaderBadge]: notificationPreferenceSchema,
     [NotificationType.DevCardUnlocked]: notificationPreferenceSchema,
     [NotificationType.SourcePostAdded]: notificationPreferenceSchema,

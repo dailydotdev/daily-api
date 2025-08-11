@@ -182,10 +182,15 @@ export const getNotificationFlagsCioTopics = (
   return result;
 };
 
-export const getCioTopicsToNotificationFlags = (subscriptionPreferences: {
-  topics?: Record<string, boolean>;
-}): User['notificationFlags'] => {
-  const notificationFlags: User['notificationFlags'] = {};
+export const getCioTopicsToNotificationFlags = (
+  subscriptionPreferences: {
+    topics?: Record<string, boolean>;
+  },
+  existingNotificationFlags: User['notificationFlags'] = {},
+): User['notificationFlags'] => {
+  const mergedNotificationFlags: User['notificationFlags'] = {
+    ...existingNotificationFlags,
+  };
 
   const isSubscribed = (topicId: string): NotificationPreferenceStatus =>
     subscriptionPreferences?.topics?.[`topic_${topicId}`] === false
@@ -194,13 +199,15 @@ export const getCioTopicsToNotificationFlags = (subscriptionPreferences: {
 
   Object.entries(CIO_TOPIC_TO_NOTIFICATION_MAP).forEach(
     ([topicId, notificationType]) => {
-      notificationFlags[notificationType] = {
+      mergedNotificationFlags[notificationType] = {
+        ...mergedNotificationFlags[notificationType],
+        // CIO is only email, so we don't touch inApp
         email: isSubscribed(topicId),
       };
     },
   );
 
-  return notificationFlags;
+  return mergedNotificationFlags;
 };
 
 export const getIdentifyAttributes = async (
