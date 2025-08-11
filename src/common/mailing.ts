@@ -27,6 +27,8 @@ import { setTimeout } from 'node:timers/promises';
 import { toChangeObject, updateFlagsStatement } from './utils';
 import { GetUsersActiveState } from './googleCloud';
 import { logger } from '../logger';
+import { notificationFlagsSchema } from './schema/notificationFlagsSchema';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
 
 export enum CioTransactionalMessageTemplateId {
   VerifyCompany = '51',
@@ -136,19 +138,49 @@ export const syncSubscription = async function (
         const isAwardSubscribed =
           isSubscribed(subs, CioUnsubscribeTopic.Award) && !unsubscribed;
 
-        // Convert CIO subscription preferences back to notification flags
-        const notificationFlags = getCioTopicsToNotificationFlags(subs);
+        const user = await manager.getRepository(User).findOne({
+          where: { id: customer.id },
+          select: ['notificationFlags'],
+        });
 
-        await manager.getRepository(User).update(
-          { id: customer.id },
-          {
-            notificationEmail: notifications,
-            acceptedMarketing: marketing,
-            followingEmail: isFollowSubscribed,
-            awardEmail: isAwardSubscribed,
-            notificationFlags,
-          },
+        const existingFlags = {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          ...(user?.notificationFlags || {}),
+        };
+
+        const mergedNotificationFlags = getCioTopicsToNotificationFlags(
+          subs,
+          existingFlags,
         );
+
+        const validation = notificationFlagsSchema.safeParse(
+          mergedNotificationFlags,
+        );
+        if (!validation.success) {
+          logger.warn(
+            {
+              userId: customer.id,
+              errors: validation.error.errors,
+              flags: mergedNotificationFlags,
+            },
+            'Failed to validate merged notification flags from CIO sync, skipping notification flags update',
+          );
+        }
+
+        const updateFields = {
+          notificationEmail: notifications,
+          acceptedMarketing: marketing,
+          followingEmail: isFollowSubscribed,
+          awardEmail: isAwardSubscribed,
+          ...(validation.success && {
+            notificationFlags: mergedNotificationFlags,
+          }),
+        };
+
+        await manager
+          .getRepository(User)
+          .update({ id: customer.id }, updateFields);
+
         if (!digest) {
           await manager.getRepository(UserPersonalizedDigest).delete({
             userId: customer.id,
