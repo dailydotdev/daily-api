@@ -2528,7 +2528,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       // Actual upload using buffer as a stream
-      const filename = `${ctx.userId}.${extension}`;
+      const filename = ctx.userId;
       await uploadResumeFromBuffer(filename, buffer);
 
       return { _: true };

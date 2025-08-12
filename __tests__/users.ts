@@ -6785,13 +6785,13 @@ describe('add claimable items to user', () => {
 });
 
 describe('mutation uploadResume', () => {
-  const MUTATION = `
-        mutation UploadResume($resume: Upload!) {
-          uploadResume(resume: $resume) {
-            _
-          }
-        }
-      `;
+  const MUTATION = /* GraphQL */ `
+    mutation UploadResume($resume: Upload!) {
+      uploadResume(resume: $resume) {
+        _
+      }
+    }
+  `;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -6832,7 +6832,7 @@ describe('mutation uploadResume', () => {
 
     // Mock the upload function to return a URL
     uploadResumeFromBuffer.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.pdf`,
+      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1`,
     );
 
     // Execute the mutation with a file upload
@@ -6857,7 +6857,7 @@ describe('mutation uploadResume', () => {
 
     // Verify the mocks were called correctly
     expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
-      `${loggedUser}.pdf`,
+      loggedUser,
       expect.any(Object),
     );
   });
@@ -6873,7 +6873,7 @@ describe('mutation uploadResume', () => {
 
     // Mock the upload function to return a URL
     uploadResumeFromBuffer.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.docx`,
+      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1`,
     );
 
     // Execute the mutation with a file upload
@@ -6898,7 +6898,7 @@ describe('mutation uploadResume', () => {
 
     // Verify the mocks were called correctly
     expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
-      `${loggedUser}.docx`,
+      loggedUser,
       expect.any(Object),
     );
   });
