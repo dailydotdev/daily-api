@@ -84,7 +84,7 @@ importers:
         version: 1.13.4
       '@mando75/typeorm-graphql-loader':
         specifier: ^0.3.0
-        version: 0.3.0(typeorm@0.3.24(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3)))
+        version: 0.3.0(typeorm@0.3.25(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3)))
       '@maxmind/geoip2-node':
         specifier: ^6.1.0
         version: 6.1.0
@@ -335,8 +335,8 @@ importers:
         specifier: ^1.2.2
         version: 1.2.2
       typeorm:
-        specifier: 0.3.24
-        version: 0.3.24(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3))
+        specifier: 0.3.25
+        version: 0.3.25(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3))
       ua-parser-js:
         specifier: ^2.0.3
         version: 2.0.3
@@ -4641,8 +4641,8 @@ packages:
     resolution: {integrity: sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA==}
     engines: {node: '>=16'}
 
-  typeorm@0.3.24:
-    resolution: {integrity: sha512-4IrHG7A0tY8l5gEGXfW56VOMfUVWEkWlH/h5wmcyZ+V8oCiLj7iTPp0lEjMEZVrxEkGSdP9ErgTKHKXQApl/oA==}
+  typeorm@0.3.25:
+    resolution: {integrity: sha512-fTKDFzWXKwAaBdEMU4k661seZewbNYET4r1J/z3Jwf+eAvlzMVpTLKAVcAzg75WwQk7GDmtsmkZ5MfkmXCiFWg==}
     engines: {node: '>=16.13.0'}
     hasBin: true
     peerDependencies:
@@ -5731,9 +5731,9 @@ snapshots:
 
   '@lukeed/ms@2.0.2': {}
 
-  '@mando75/typeorm-graphql-loader@0.3.0(typeorm@0.3.24(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3)))':
+  '@mando75/typeorm-graphql-loader@0.3.0(typeorm@0.3.25(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3)))':
     dependencies:
-      typeorm: 0.3.24(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3))
+      typeorm: 0.3.25(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3))
 
   '@maxmind/geoip2-node@6.1.0':
     dependencies:
@@ -9789,7 +9789,7 @@ snapshots:
 
   type-fest@4.41.0: {}
 
-  typeorm@0.3.24(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3)):
+  typeorm@0.3.25(ioredis@5.6.1)(pg-query-stream@4.10.0(pg@8.16.0))(pg@8.16.0)(reflect-metadata@0.2.2)(ts-node@10.9.2(@swc/core@1.11.31)(@types/node@22.15.32)(typescript@5.8.3)):
     dependencies:
       '@sqltools/formatter': 1.2.5
       ansis: 3.17.0
