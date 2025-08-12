@@ -5,8 +5,9 @@ let client: ReturnType<typeof createClient> | null = null;
 export const getClickHouseClient = () => {
   if (!client) {
     client = createClient({
-      url: process.env.CLICKHOUSE_URL || 'http://host.docker.internal:18123',
-      password: process.env.CLICKHOUSE_PASSWORD || 'changeme',
+      url: process.env.CLICKHOUSE_URL,
+      username: process.env.CLICKHOUSE_USER,
+      password: process.env.CLICKHOUSE_PASSWORD,
     });
   }
 

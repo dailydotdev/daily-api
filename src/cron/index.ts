@@ -19,6 +19,7 @@ import { cleanZombieUserCompany } from './cleanZombieUserCompany';
 import { calculateTopReaders } from './calculateTopReaders';
 import cleanGiftedPlus from './cleanGiftedPlus';
 import { cleanStaleUserTransactions } from './cleanStaleUserTransactions';
+import { postAnalyticsClickhouseCron } from './postAnalyticsClickhouse';
 
 export const crons: Cron[] = [
   updateViews,
@@ -41,4 +42,5 @@ export const crons: Cron[] = [
   validateActiveUsers,
   cleanGiftedPlus,
   cleanStaleUserTransactions,
+  postAnalyticsClickhouseCron,
 ];
