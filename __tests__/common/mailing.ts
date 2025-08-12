@@ -100,13 +100,10 @@ describe('mailing', () => {
 
       users.forEach((user, index) => {
         expect(user.acceptedMarketing).toBe(false);
-        expect(user.notificationEmail).toBe(true);
         expect(digests[index]).toMatchObject({
           userId: user.id,
           type: UserPersonalizedDigestType.Digest,
         });
-        expect(user.followingEmail).toBe(false);
-        expect(user.awardEmail).toBe(false);
       });
     });
 
@@ -179,7 +176,6 @@ describe('mailing', () => {
 
       users.forEach((user, index) => {
         expect(user.acceptedMarketing).toBe(false);
-        expect(user.notificationEmail).toBe(true);
         expect(digests[index]).toMatchObject({
           userId: user.id,
           type: UserPersonalizedDigestType.Brief,
@@ -187,8 +183,6 @@ describe('mailing', () => {
             sendType: UserPersonalizedDigestSendType.daily,
           },
         });
-        expect(user.followingEmail).toBe(false);
-        expect(user.awardEmail).toBe(false);
       });
     });
 
@@ -310,11 +304,12 @@ describe('mailing', () => {
         {
           notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
           acceptedMarketing: false,
-          notificationEmail: false,
         },
       );
 
-      const loggerSpy = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+      const loggerSpy = jest
+        .spyOn(logger, 'error')
+        .mockImplementation(() => {});
 
       const mockGetCioTopicsToNotificationFlags = jest
         .spyOn(cio, 'getCioTopicsToNotificationFlags')
@@ -360,14 +355,13 @@ describe('mailing', () => {
 
       const user = await con.getRepository(User).findOne({
         where: { id: testUserId },
-        select: ['notificationFlags', 'acceptedMarketing', 'notificationEmail'],
+        select: ['notificationFlags', 'acceptedMarketing'],
       });
 
       // notificationFlags should remain unchanged due to validation failure
       expect(user.notificationFlags).toEqual(DEFAULT_NOTIFICATION_SETTINGS);
 
       expect(user.acceptedMarketing).toBe(true); // Updated from CIO
-      expect(user.notificationEmail).toBe(true); // Updated from CIO
 
       mockGetCioTopicsToNotificationFlags.mockRestore();
       loggerSpy.mockRestore();

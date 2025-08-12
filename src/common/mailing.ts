@@ -128,15 +128,8 @@ export const syncSubscription = async function (
         const unsubscribed = customer?.unsubscribed;
         const marketing =
           isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
-        const notifications =
-          isSubscribed(subs, CioUnsubscribeTopic.Notifications) &&
-          !unsubscribed;
         const digest =
           isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
-        const isFollowSubscribed =
-          isSubscribed(subs, CioUnsubscribeTopic.Follow) && !unsubscribed;
-        const isAwardSubscribed =
-          isSubscribed(subs, CioUnsubscribeTopic.Award) && !unsubscribed;
 
         const user = await manager.getRepository(User).findOne({
           where: { id: customer.id },
@@ -157,7 +150,7 @@ export const syncSubscription = async function (
           mergedNotificationFlags,
         );
         if (!validation.success) {
-          logger.warn(
+          logger.error(
             {
               userId: customer.id,
               errors: validation.error.errors,
@@ -168,10 +161,7 @@ export const syncSubscription = async function (
         }
 
         const updateFields = {
-          notificationEmail: notifications,
           acceptedMarketing: marketing,
-          followingEmail: isFollowSubscribed,
-          awardEmail: isAwardSubscribed,
           ...(validation.success && {
             notificationFlags: mergedNotificationFlags,
           }),
