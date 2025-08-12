@@ -12,6 +12,7 @@ export const userTopReaderAdded =
     subscription: 'api.user-top-reader-added',
     handler: async ({ userTopReader }, con) => {
       if (process.env.NODE_ENV === 'development') {
+        logger.info('userTopReaderAdded: Development mode, skipping');
         return;
       }
 
