@@ -1,4 +1,9 @@
-import { Bucket, DownloadOptions, Storage } from '@google-cloud/storage';
+import {
+  Bucket,
+  DownloadOptions,
+  Storage,
+  type SaveOptions,
+} from '@google-cloud/storage';
 import { acceptedResumeExtensions, PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
@@ -40,27 +45,31 @@ interface UploadFileFromStreamParams {
   bucketName: string;
   fileName: string;
   file: Buffer;
+  options?: SaveOptions;
 }
 
 export const uploadFileFromBuffer = async ({
   bucketName,
   fileName,
   file,
+  options,
 }: UploadFileFromStreamParams): Promise<string> => {
   const storage = new Storage();
-  await storage.bucket(bucketName).file(fileName).save(file);
+  await storage.bucket(bucketName).file(fileName).save(file, options);
   return `https://storage.cloud.google.com/${bucketName}/${fileName}`;
 };
 
 export const uploadResumeFromBuffer = async (
   fileName: string,
   file: Buffer,
+  options?: SaveOptions,
   bucketName = RESUMES_BUCKET_NAME,
 ): Promise<string> => {
   return uploadFileFromBuffer({
     bucketName,
     fileName,
     file,
+    options,
   });
 };
 
@@ -99,12 +108,7 @@ export const deleteResumeByUserId = async (
     const storage = new Storage();
     const bucket = storage.bucket(bucketName);
 
-    await Promise.all(
-      // delete all possible accepted {id}.{ext} files uploaded by the user
-      acceptedResumeExtensions.map((ext) =>
-        deleteFileFromBucket(bucket, `${userId}.${ext}`),
-      ),
-    );
+    await deleteFileFromBucket(bucket, userId);
 
     logger.info(
       {
