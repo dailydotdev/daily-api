@@ -115,11 +115,7 @@ import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember, SubscriptionCycles } from '../src/paddle';
-import {
-  acceptedResumeExtensions,
-  CoresRole,
-  StreakRestoreCoresPrice,
-} from '../src/types';
+import { CoresRole, StreakRestoreCoresPrice } from '../src/types';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -4393,13 +4389,10 @@ describe('mutation deleteUser', () => {
       await client.mutate(MUTATION);
 
       // Verify we requested delete action for every extension supported
-      acceptedResumeExtensions.forEach((ext, index) => {
-        expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
-          index + 1,
-          expect.any(Bucket),
-          `${loggedUser}.${ext}`,
-        );
-      });
+      expect(deleteFileFromBucket).toHaveBeenCalledWith(
+        expect.any(Bucket),
+        loggedUser,
+      );
     });
 
     it('should handle case when user has no resume', async () => {
@@ -4410,13 +4403,10 @@ describe('mutation deleteUser', () => {
       await client.mutate(MUTATION);
 
       // Verify the function was called but no error was thrown
-      acceptedResumeExtensions.forEach((ext, index) => {
-        expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
-          index + 1,
-          expect.any(Bucket),
-          `${loggedUser}.${ext}`,
-        );
-      });
+      expect(deleteFileFromBucket).toHaveBeenCalledWith(
+        expect.any(Bucket),
+        loggedUser,
+      );
 
       // User should still be deleted
       const userOne = await con.getRepository(User).findOneBy({ id: '1' });
