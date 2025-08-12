@@ -1,15 +1,36 @@
-import { format } from 'date-fns';
+import { format, startOfToday } from 'date-fns';
 import { Cron } from './cron';
 import { getClickHouseClient } from '../common/clickhouse';
 import { postAnalyticsClickhouseSchema } from '../common/schema/postAnalytics';
 import { z } from 'zod';
 import { PostAnalytics } from '../entity/posts/PostAnalytics';
+import { getRedisHash, setRedisHash } from '../redis';
+import { generateStorageKey, StorageTopic } from '../config';
 
-const lastRunTime = new Date('2025-01-01T00:00:00Z'); // TODO save to redis or database
+type PostAnalyticsClickhouseCronConfig = Partial<{
+  lastRunAt: string;
+}>;
 
 export const postAnalyticsClickhouseCron: Cron = {
   name: 'post-analytics-clickhouse',
   handler: async (con, logger) => {
+    const redisStorageKey = generateStorageKey(
+      StorageTopic.Cron,
+      postAnalyticsClickhouseCron.name,
+      'config',
+    );
+
+    const cronConfig: Partial<PostAnalyticsClickhouseCronConfig> =
+      await getRedisHash(redisStorageKey);
+
+    const lastRunAt = cronConfig.lastRunAt
+      ? new Date(cronConfig.lastRunAt)
+      : startOfToday(); // for now use start of today if no last run time is set
+
+    if (Number.isNaN(lastRunAt.getTime())) {
+      throw new Error('Invalid last run time');
+    }
+
     const clickhouseClient = getClickHouseClient();
 
     const response = await clickhouseClient.query({
@@ -27,14 +48,14 @@ export const postAnalyticsClickhouseCron: Cron = {
             sum(shares_internal) AS "sharesInternal"
         FROM api.post_analytics
         FINAL
-        WHERE created_at > {lastRunTime: DateTime}
-        AND created_at < NOW()
+        WHERE created_at >= now() - INTERVAL 45 DAY
         GROUP BY post_id
+        HAVING "updatedAt" > {lastRunAt: DateTime}
         ORDER BY "updatedAt" DESC;
       `,
       format: 'JSONEachRow',
       query_params: {
-        lastRunTime: format(lastRunTime, 'yyyy-MM-dd HH:mm:ss'),
+        lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
       },
     });
 
@@ -69,6 +90,8 @@ export const postAnalyticsClickhouseCron: Cron = {
       chunks[chunks.length - 1].push(item as PostAnalytics);
     });
 
+    const currentRunAt = new Date();
+
     await con.transaction(async (entityManager) => {
       for (const chunk of chunks) {
         if (chunk.length === 0) {
@@ -83,6 +106,10 @@ export const postAnalyticsClickhouseCron: Cron = {
           .orUpdate(Object.keys(chunk[0]), ['id'])
           .execute();
       }
+    });
+
+    await setRedisHash<PostAnalyticsClickhouseCronConfig>(redisStorageKey, {
+      lastRunAt: currentRunAt.toISOString(),
     });
   },
 };

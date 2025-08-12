@@ -34,6 +34,7 @@ export enum StorageTopic {
   Njord = 'njord',
   Paddle = 'paddle',
   RedisCounter = 'redis_counter',
+  Cron = 'cron',
 }
 
 export enum StorageKey {
