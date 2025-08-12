@@ -99,12 +99,7 @@ export const deleteResumeByUserId = async (
     const storage = new Storage();
     const bucket = storage.bucket(bucketName);
 
-    await Promise.all(
-      // delete all possible accepted {id}.{ext} files uploaded by the user
-      acceptedResumeExtensions.map((ext) =>
-        deleteFileFromBucket(bucket, `${userId}.${ext}`),
-      ),
-    );
+    await deleteFileFromBucket(bucket, userId);
 
     logger.info(
       {

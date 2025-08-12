@@ -135,7 +135,7 @@
     "reflect-metadata": "^0.2.2",
     "retry": "^0.13.1",
     "rss": "^1.2.2",
-    "typeorm": "0.3.24",
+    "typeorm": "0.3.25",
     "ua-parser-js": "^2.0.3",
     "uuid": "^11.1.0",
     "validate.js": "^0.13.1",
