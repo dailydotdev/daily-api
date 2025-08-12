@@ -6849,6 +6849,7 @@ describe('mutation uploadResume', () => {
     expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
       loggedUser,
       expect.any(Object),
+      { contentType: 'application/pdf' },
     );
   });
 
@@ -6890,6 +6891,10 @@ describe('mutation uploadResume', () => {
     expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
       loggedUser,
       expect.any(Object),
+      {
+        contentType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      },
     );
   });
 
