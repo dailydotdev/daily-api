@@ -160,6 +160,12 @@ config:
       secure: AAABACPC/WLJuAHpqC3oE43YKjEzcFSXYSLfAx69vvRnC5xsOj2Md4tHo3RAAeVfrFaLRwugIQ7bPEZ4VBJnwJPem1NW0Nkm
     briefingFeed:
       secure: AAABAJWDkWAezGM15dk8xXwDdav6cmPwS/2x+tKvSwql/JUzFadVDpmlRRTSOGIh7WA++s+D7C6wdyy35Cg2FQ==
+    clickhouseUser:
+      secure: AAABAGoCA+Y4PvGtDV8m3osmBGGiI2vVoyzbdEDJ3n7W8a40Tk5rk/hbCQ==
+    clickhousePassword:
+      secure: AAABAAysCHiW8/lYE8NP3D9CE2UBE8YJdDZKf4B7aYVygfgyUAj9rk52klyHA26/jRtBW5pzCTTMHTatBm+ABdMTajgGy1GZ3yYkXMwzhhbJo30a+pq18vYGcx0F04MI
+    clickhouseUrl:
+      secure: AAABAOH/zIUW1KRNkCa3XH3Wxrs/GLDTjOeXsHqlDPoGowQC04O958oU8MXxtE0OeiNoHjTm/e6PrEr66nluAeEcwV0BhQLvVAAoP3L150tQNUU=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
