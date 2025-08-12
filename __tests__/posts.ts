@@ -89,6 +89,7 @@ import { generateUUID } from '../src/ids';
 import { GQLResponse } from 'mercurius-integration-testing';
 import type { GQLPostSmartTitle } from '../src/schema/posts';
 import { SubscriptionCycles } from '../src/paddle';
+import { remoteConfig } from '../src/remoteConfig';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -2576,6 +2577,17 @@ describe('mutation sharePost', () => {
 
   describe('rate limiting', () => {
     const redisKey = `${rateLimiterName}:1:createPost`;
+
+    beforeEach(() => {
+      // Set the post rate limit to 1 for testing
+      remoteConfig.vars.postRateLimit = 1;
+    });
+
+    afterEach(() => {
+      // Reset to default
+      remoteConfig.vars.postRateLimit = undefined;
+    });
+
     it('store rate limiting state in redis', async () => {
       loggedUser = '1';
 
@@ -2609,6 +2621,28 @@ describe('mutation sharePost', () => {
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
       expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(30);
       expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(20);
+    });
+
+    it('should bypass rate limit for Plus members', async () => {
+      loggedUser = '1';
+
+      // Set user as Plus member
+      await con.getRepository(User).update(
+        { id: '1' },
+        {
+          subscriptionFlags: { cycle: SubscriptionCycles.Yearly },
+          reputation: 1,
+        },
+      );
+
+      // Create multiple posts without hitting rate limit
+      for (let i = 0; i < 3; i++) {
+        await deleteKeysByPattern(`${rateLimiterName}:*`);
+        const res = await client.mutate(MUTATION, {
+          variables: variables,
+        });
+        expect(res.errors).toBeFalsy();
+      }
     });
 
     describe('high rate squads', () => {
