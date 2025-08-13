@@ -18,7 +18,7 @@ export enum ReputationReason {
   PostReportConfirmed = 'post_report_confirmed',
   SourceRequestApproved = 'source_request_approved',
   CommentDownvoted = 'comment_downvoted',
-  $$$ = '$$$',
+  $$$ = '$$$', // should be assigned manually to users only with product team approval
 }
 
 export enum ReputationType {
