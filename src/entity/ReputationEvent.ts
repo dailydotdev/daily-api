@@ -18,6 +18,7 @@ export enum ReputationReason {
   PostReportConfirmed = 'post_report_confirmed',
   SourceRequestApproved = 'source_request_approved',
   CommentDownvoted = 'comment_downvoted',
+  $$$ = '$$$',
 }
 
 export enum ReputationType {
@@ -35,6 +36,7 @@ export const reputationReasonAmount: Record<ReputationReason, number> = {
   [ReputationReason.PostReportConfirmed]: 100,
   [ReputationReason.SourceRequestApproved]: 200,
   [ReputationReason.CommentDownvoted]: -50,
+  [ReputationReason.$$$]: 300,
 };
 
 export const REPUTATION_THRESHOLD = parseInt(
