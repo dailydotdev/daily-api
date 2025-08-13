@@ -3,6 +3,7 @@ import { Comment, Post, User } from '../entity';
 import { remoteConfig } from '../remoteConfig';
 import { subDays } from 'date-fns';
 import { GraphQLError } from 'graphql/index';
+import { isPlusMember } from '../paddle';
 
 export class RateLimitError extends GraphQLError {
   extensions = {};
@@ -32,11 +33,16 @@ const ensureReputationBasedRateLimit = async (
   errorMessage: string,
 ): Promise<void> => {
   const [user, countValue] = await Promise.all([
-    con
-      .getRepository(User)
-      .findOneOrFail({ select: ['id', 'reputation'], where: { id: userId } }),
+    con.getRepository(User).findOneOrFail({
+      select: ['id', 'reputation', 'subscriptionFlags'],
+      where: { id: userId },
+    }),
     count,
   ]);
+
+  if (isPlusMember(user.subscriptionFlags?.cycle)) {
+    return;
+  }
 
   if (
     remoteConfig.vars?.rateLimitReputationThreshold &&

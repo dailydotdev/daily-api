@@ -31,6 +31,7 @@
   "dependencies": {
     "@apple/app-store-server-library": "^1.5.0",
     "@bufbuild/protobuf": "^1.10.0",
+    "@clickhouse/client": "1.12.0",
     "@connectrpc/connect": "^1.6.1",
     "@connectrpc/connect-fastify": "^1.6.1",
     "@connectrpc/connect-node": "^1.6.1",
@@ -135,7 +136,7 @@
     "reflect-metadata": "^0.2.2",
     "retry": "^0.13.1",
     "rss": "^1.2.2",
-    "typeorm": "0.3.24",
+    "typeorm": "0.3.25",
     "ua-parser-js": "^2.0.3",
     "uuid": "^11.1.0",
     "validate.js": "^0.13.1",

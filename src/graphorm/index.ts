@@ -195,13 +195,7 @@ const obj = new GraphORM({
       followingEmail: {
         transform: nullIfNotSameUser,
       },
-      followNotifications: {
-        transform: nullIfNotSameUser,
-      },
       awardEmail: {
-        transform: nullIfNotSameUser,
-      },
-      awardNotifications: {
         transform: nullIfNotSameUser,
       },
       createdAt: {
@@ -1357,6 +1351,14 @@ const obj = new GraphORM({
       currentTotalComp: {
         jsonType: true,
         transform: (value: Partial<UserCompensation> | null) => value || {},
+      },
+    },
+  },
+  Campaign: {
+    requiredColumns: ['id', 'createdAt'],
+    fields: {
+      flags: {
+        jsonType: true,
       },
     },
   },

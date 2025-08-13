@@ -16,19 +16,19 @@ import {
   UserPersonalizedDigestType,
 } from '../entity';
 import { blockingBatchRunner, callWithRetryDefault } from './async';
-import { CIO_REQUIRED_FIELDS, cioV2, generateIdentifyObject } from '../cio';
+import {
+  CIO_REQUIRED_FIELDS,
+  cioV2,
+  generateIdentifyObject,
+  getCioTopicsToNotificationFlags,
+  CioUnsubscribeTopic,
+} from '../cio';
 import { setTimeout } from 'node:timers/promises';
 import { toChangeObject, updateFlagsStatement } from './utils';
 import { GetUsersActiveState } from './googleCloud';
 import { logger } from '../logger';
-
-export enum CioUnsubscribeTopic {
-  Marketing = '4',
-  Notifications = '7',
-  Digest = '8',
-  Follow = '9',
-  Award = '10',
-}
+import { notificationFlagsSchema } from './schema/notificationFlagsSchema';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
 
 export enum CioTransactionalMessageTemplateId {
   VerifyCompany = '51',
@@ -128,25 +128,49 @@ export const syncSubscription = async function (
         const unsubscribed = customer?.unsubscribed;
         const marketing =
           isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
-        const notifications =
-          isSubscribed(subs, CioUnsubscribeTopic.Notifications) &&
-          !unsubscribed;
         const digest =
           isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
-        const isFollowSubscribed =
-          isSubscribed(subs, CioUnsubscribeTopic.Follow) && !unsubscribed;
-        const isAwardSubscribed =
-          isSubscribed(subs, CioUnsubscribeTopic.Award) && !unsubscribed;
 
-        await manager.getRepository(User).update(
-          { id: customer.id },
-          {
-            notificationEmail: notifications,
-            acceptedMarketing: marketing,
-            followingEmail: isFollowSubscribed,
-            awardEmail: isAwardSubscribed,
-          },
+        const user = await manager.getRepository(User).findOne({
+          where: { id: customer.id },
+          select: ['notificationFlags'],
+        });
+
+        const existingFlags = {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          ...(user?.notificationFlags || {}),
+        };
+
+        const mergedNotificationFlags = getCioTopicsToNotificationFlags(
+          subs,
+          existingFlags,
         );
+
+        const validation = notificationFlagsSchema.safeParse(
+          mergedNotificationFlags,
+        );
+        if (!validation.success) {
+          logger.error(
+            {
+              userId: customer.id,
+              errors: validation.error.errors,
+              flags: mergedNotificationFlags,
+            },
+            'Failed to validate merged notification flags from CIO sync, skipping notification flags update',
+          );
+        }
+
+        const updateFields = {
+          acceptedMarketing: marketing,
+          ...(validation.success && {
+            notificationFlags: mergedNotificationFlags,
+          }),
+        };
+
+        await manager
+          .getRepository(User)
+          .update({ id: customer.id }, updateFields);
+
         if (!digest) {
           await manager.getRepository(UserPersonalizedDigest).delete({
             userId: customer.id,
