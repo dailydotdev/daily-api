@@ -50,7 +50,11 @@ import {
   TargetType,
 } from '../../integrations/analytics';
 import { paddleInstance } from '../../common/paddle';
-import { DEFAULT_NOTIFICATION_SETTINGS } from '../../notifications/common';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../notifications/common';
 
 export type AddUserData = Pick<
   User,
@@ -341,6 +345,16 @@ export const addNewUser = async (
     };
   }
 
+  const notificationFlags = data.acceptedMarketing
+    ? DEFAULT_NOTIFICATION_SETTINGS
+    : {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        [NotificationType.Marketing]: {
+          email: NotificationPreferenceStatus.Muted,
+          inApp: NotificationPreferenceStatus.Muted,
+        },
+      };
+
   try {
     return safeInsertUser(req, con, {
       id: data.id,
@@ -361,7 +375,7 @@ export const addNewUser = async (
       twitter: data.twitter,
       experienceLevel: data.experienceLevel,
       language: data.language,
-      notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
+      notificationFlags,
       flags: {
         trustScore: 1,
         vordr: false,
