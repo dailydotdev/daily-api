@@ -18,6 +18,7 @@ import createOrGetConnection from '../src/db';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
 import { DayOfWeek } from '../src/common';
 import { ContentLanguage, CoresRole } from '../src/types';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../src/notifications/common';
 import { postsFixture } from './fixture/post';
 import { DeletedUser } from '../src/entity/user/DeletedUser';
 import { getGeo } from '../src/common/geo';
@@ -293,6 +294,7 @@ describe('POST /p/newUser', () => {
     expect(users[0].email).toEqual(usersFixture[0].email);
     expect(users[0].infoConfirmed).toBeTruthy();
     expect(users[0].createdAt).not.toBeNull();
+    expect(users[0].notificationFlags).toEqual(DEFAULT_NOTIFICATION_SETTINGS);
   });
 
   it('should allow underscore in username', async () => {
