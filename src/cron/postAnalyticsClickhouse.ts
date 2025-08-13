@@ -34,7 +34,7 @@ export const postAnalyticsClickhouseCron: Cron = {
     const clickhouseClient = getClickHouseClient();
 
     const response = await clickhouseClient.query({
-      query: `
+      query: /* sql */ `
         SELECT
             post_id AS id,
             created_at AS "updatedAt",
