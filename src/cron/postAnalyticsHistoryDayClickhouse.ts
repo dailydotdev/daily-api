@@ -97,7 +97,7 @@ export const postAnalyticsHistoryDayClickhouseCron: Cron = {
           .insert()
           .into(PostAnalyticsHistory)
           .values(chunk)
-          .orUpdate(Object.keys(chunk[0]), ['id'])
+          .orUpdate(Object.keys(chunk[0]), ['id', 'date'])
           .execute();
       }
     });
