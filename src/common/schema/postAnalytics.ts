@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import { z } from 'zod';
 
 export const postAnalyticsClickhouseSchema = z
@@ -12,5 +13,14 @@ export const postAnalyticsClickhouseSchema = z
     squadJoins: z.coerce.number().nonnegative(),
     sharesExternal: z.coerce.number().nonnegative(),
     sharesInternal: z.coerce.number().nonnegative(),
+  })
+  .strict();
+
+export const postAnalyticsHistoryClickhouseSchema = z
+  .object({
+    id: z.string(),
+    updatedAt: z.coerce.date(),
+    impressions: z.coerce.number().nonnegative(),
+    date: z.coerce.date().transform((date) => format(date, 'yyyy-MM-dd')),
   })
   .strict();
