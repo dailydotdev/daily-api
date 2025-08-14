@@ -1493,7 +1493,7 @@ describe('query postCampaigns', () => {
 
     // Verify the HTTP call was made with correct parameters
     expect(mockFetchParse.mock.calls[1]).toEqual([
-      'http://skadi-api-server.local.svc.cluster.local/promote/post/list',
+      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/list',
       {
         method: 'POST',
         headers: {
@@ -2638,7 +2638,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the skadi client was called with correct parameters
     expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-api-server.local.svc.cluster.local/promote/post/cancel',
+      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
       {
         method: 'POST',
         headers: {
@@ -2694,7 +2694,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the skadi client was called with correct parameters
     expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-api-server.local.svc.cluster.local/promote/post/cancel',
+      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
       {
         method: 'POST',
         headers: {
@@ -2750,7 +2750,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the skadi client was called with correct parameters
     expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-api-server.local.svc.cluster.local/promote/post/cancel',
+      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
       {
         method: 'POST',
         headers: {
