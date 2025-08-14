@@ -83,6 +83,40 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): CampaignConnection! @auth
   }
+
+  extend type Mutation {
+    """
+    Start a campaign for a post or source
+    """
+    startCampaign(
+      """
+      Type of campaign (post or source)
+      """
+      type: String!
+      """
+      ID of the post or source to promote
+      """
+      value: ID!
+      """
+      Duration of the campaign in days (1-30)
+      """
+      duration: Int!
+      """
+      Budget for the campaign in cores (1000-100000, must be divisible by 1000)
+      """
+      budget: Int!
+    ): TransactionCreated @auth
+
+    """
+    Stop an existing campaign
+    """
+    stopCampaign(
+      """
+      ID of the campaign to stop
+      """
+      campaignId: ID!
+    ): TransactionCreated @auth
+  }
 `;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
