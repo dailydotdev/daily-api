@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   OneToOne,
   PrimaryColumn,
   UpdateDateColumn,
@@ -61,9 +62,11 @@ export class PostAnalytics {
   @Column({ default: 0 })
   awards: number;
 
+  //  not added to migration because raw events data has some invalid post ids
   @OneToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'id' })
   post: Promise<Post>;
 }
