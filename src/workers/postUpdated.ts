@@ -28,10 +28,15 @@ import {
   WelcomePost,
   YouTubePost,
 } from '../entity';
-import { SubmissionFailErrorKeys, SubmissionFailErrorMessage } from '../errors';
+import {
+  SubmissionFailErrorKeys,
+  SubmissionFailErrorMessage,
+  TypeOrmError,
+  type TypeORMQueryFailedError,
+} from '../errors';
 import { generateShortId } from '../ids';
 import { FastifyBaseLogger } from 'fastify';
-import { EntityManager } from 'typeorm';
+import { EntityManager, QueryFailedError } from 'typeorm';
 import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import { counters } from '../telemetry';
@@ -822,6 +827,14 @@ const worker: Worker = {
         }
       });
     } catch (err) {
+      if (err instanceof QueryFailedError) {
+        const queryFailedError = err as TypeORMQueryFailedError;
+
+        if (queryFailedError.code === TypeOrmError.DEADLOCK_DETECTED) {
+          throw err;
+        }
+      }
+
       logger.error(
         { data, messageId: message.messageId, err },
         'failed to update post',
