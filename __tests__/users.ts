@@ -88,7 +88,7 @@ import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { CampaignType, Invite } from '../src/entity/Invite';
+import { Invite, InviteCampaignType } from '../src/entity/Invite';
 import { plusUsersFixture, usersFixture } from './fixture/user';
 import {
   deleteKeysByPattern,
@@ -4495,7 +4495,7 @@ describe('DELETE /v1/users/me', () => {
   it('removes associated invite records', async () => {
     await con.getRepository(Invite).insert({
       userId: '1',
-      campaign: CampaignType.Search,
+      campaign: InviteCampaignType.Search,
     });
 
     mockLogout();
@@ -4548,7 +4548,7 @@ describe('query referralCampaign', () => {
   beforeEach(async () => {
     await con.getRepository(Invite).save({
       userId: '1',
-      campaign: CampaignType.Search,
+      campaign: InviteCampaignType.Search,
       limit: 5,
       count: 1,
       token: 'd688afeb-381c-43b5-89af-533f81ccd036',
@@ -5021,7 +5021,7 @@ describe('mutation acceptFeatureInvite', () => {
   beforeEach(async () => {
     await con.getRepository(Invite).save({
       userId: '2',
-      campaign: CampaignType.Search,
+      campaign: InviteCampaignType.Search,
       limit: 5,
       count: 1,
       token: 'd688afeb-381c-43b5-89af-533f81ccd036',
@@ -5036,7 +5036,7 @@ describe('mutation acceptFeatureInvite', () => {
         variables: {
           token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 2,
-          feature: CampaignType.Search,
+          feature: InviteCampaignType.Search,
         },
       },
       'UNAUTHENTICATED',
@@ -5053,7 +5053,7 @@ describe('mutation acceptFeatureInvite', () => {
         variables: {
           token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 1,
-          feature: CampaignType.Search,
+          feature: InviteCampaignType.Search,
         },
       },
       'NOT_FOUND',
@@ -5077,7 +5077,7 @@ describe('mutation acceptFeatureInvite', () => {
         variables: {
           token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 2,
-          feature: CampaignType.Search,
+          feature: InviteCampaignType.Search,
         },
       },
       (errors) => {
@@ -5106,7 +5106,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 
@@ -5124,7 +5124,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 
@@ -5142,7 +5142,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 
@@ -5178,7 +5178,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 
