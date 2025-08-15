@@ -3,6 +3,7 @@ import { AuthContext } from '../../Context';
 import {
   ArticlePost,
   CampaignPost,
+  CampaignType,
   Post,
   PostType,
   type ConnectionManager,
@@ -279,7 +280,10 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   checkPostAlreadyBoosted(post);
 
   const request = await ctx.con.transaction(async (manager) => {
-    const campaign = createNewCampaign(props, CampaignPost, { postId });
+    const campaign = createNewCampaign(props, CampaignPost, {
+      postId,
+      type: CampaignType.Post,
+    });
 
     return startCampaign({
       campaign,

@@ -47,9 +47,9 @@ import {
 import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import * as njordCommon from '../src/common/njord';
-import { fetchParse } from '../src/integrations/retry';
 import { updateFlagsStatement } from '../src/common';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
+import nock from 'nock';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -57,15 +57,10 @@ jest.mock('../src/common/pubsub', () => ({
   notifyContentRequested: jest.fn(),
 }));
 
-// Mock fetchParse to test actual HTTP calls
-jest.mock('../src/integrations/retry', () => ({
-  fetchParse: jest.fn(),
-}));
-
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
-let loggedUser: string = null!;
+let loggedUser: string | null = null;
 let isTeamMember = false;
 let isPlus = false;
 
@@ -86,7 +81,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  loggedUser = null!;
+  loggedUser = null;
   isTeamMember = false;
   isPlus = false;
   jest.clearAllMocks();
@@ -751,8 +746,20 @@ describe('mutation startCampaign', () => {
         { flags: updateFlagsStatement<Post>({ campaignId: null }) },
       );
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/create', (body) => {
+        const matched =
+          body.user_id === '1' &&
+          body.budget === 10 &&
+          body.duration === 86400 &&
+          body.type === 'post';
+
+        const matchedUuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+        return matched && matchedUuidRegex.test(body.value);
+      })
+      .replyWithError('Skadi API is down');
 
     const initialTransactionCount = await con
       .getRepository(UserTransaction)
@@ -773,8 +780,20 @@ describe('mutation startCampaign', () => {
 
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({ campaign_id: 'mock-campaign-id' });
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/create', (body) => {
+        const matched =
+          body.user_id === '1' &&
+          body.budget === 10 &&
+          body.duration === 86400 &&
+          body.type === 'post';
+
+        const matchedUuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+        return matched && matchedUuidRegex.test(body.value);
+      })
+      .reply(200, { campaign_id: 'mock-campaign-id' });
 
     const errorTransport = createMockNjordErrorTransport({
       errorStatus: 2,
@@ -810,17 +829,6 @@ describe('mutation startCampaign', () => {
     expect(finalTransactionCount).toBe(initialTransactionCount);
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/create`,
-      expect.objectContaining({
-        agent: expect.any(Function),
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: expect.stringMatching(
-          /.*"value":".*".*"budget":10.*"user_id":"1".*"duration":86400.*/,
-        ),
-      }),
-    );
   });
 
   describe('post campaigns', () => {
@@ -874,8 +882,20 @@ describe('mutation startCampaign', () => {
 
     it('should successfully start post campaign', async () => {
       loggedUser = '1';
-      const mockFetchParse = fetchParse as jest.Mock;
-      mockFetchParse.mockResolvedValue({ campaign_id: 'mock-campaign-id' });
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/create', (body) => {
+          const matched =
+            body.user_id === '1' &&
+            body.budget === 10 &&
+            body.duration === 86400 &&
+            body.type === 'post';
+
+          const matchedUuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+          return matched && matchedUuidRegex.test(body.value);
+        })
+        .reply(200, { campaign_id: 'mock-campaign-id' });
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
@@ -903,14 +923,6 @@ describe('mutation startCampaign', () => {
       const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
       expect(post?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
-      );
-
-      expect(mockFetchParse).toHaveBeenCalledWith(
-        `${process.env.SKADI_API_ORIGIN}/promote/create`,
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        }),
       );
     });
   });
@@ -949,8 +961,20 @@ describe('mutation startCampaign', () => {
 
     it('should successfully start source campaign', async () => {
       loggedUser = '3'; // moderator in 'm'
-      const mockFetchParse = fetchParse as jest.Mock;
-      mockFetchParse.mockResolvedValue({ campaign_id: 'mock-campaign-id' });
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/create', (body) => {
+          const matched =
+            body.user_id === '3' &&
+            body.budget === 10 &&
+            body.duration === 86400 &&
+            body.type === 'source';
+
+          const matchedUuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+          return matched && matchedUuidRegex.test(body.value);
+        })
+        .reply(200, { campaign_id: 'mock-campaign-id' });
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
@@ -978,11 +1002,6 @@ describe('mutation startCampaign', () => {
       const source = await con.getRepository(Source).findOneBy({ id: 'm' });
       expect(source?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
-      );
-
-      expect(mockFetchParse).toHaveBeenCalledWith(
-        `${process.env.SKADI_API_ORIGIN}/promote/create`,
-        expect.objectContaining({ method: 'POST' }),
       );
     });
   });
@@ -1051,8 +1070,15 @@ describe('mutation stopCampaign', () => {
         { flags: updateFlagsStatement<Post>({ campaignId: CAMPAIGN_UUID_1 }) },
       );
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({ current_budget: '5.5' });
+    nock(process.env.SKADI_API_ORIGIN)
+      .post(
+        '/promote/cancel',
+        JSON.stringify({
+          campaign_id: CAMPAIGN_UUID_1,
+          user_id: '1',
+        }),
+      )
+      .reply(200, { current_budget: '5.5' });
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
@@ -1080,11 +1106,6 @@ describe('mutation stopCampaign', () => {
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
-
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/cancel`,
-      expect.objectContaining({ method: 'POST' }),
-    );
   });
 
   it('should successfully cancel source campaign', async () => {
@@ -1107,8 +1128,15 @@ describe('mutation stopCampaign', () => {
       },
     );
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({ current_budget: '3.25' });
+    nock(process.env.SKADI_API_ORIGIN)
+      .post(
+        '/promote/cancel',
+        JSON.stringify({
+          campaign_id: CAMPAIGN_UUID_3,
+          user_id: '3',
+        }),
+      )
+      .reply(200, { current_budget: '3.25' });
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
@@ -1133,11 +1161,6 @@ describe('mutation stopCampaign', () => {
 
     const source = await con.getRepository(Source).findOneBy({ id: 'm' });
     expect(source?.flags?.campaignId).toBeFalsy();
-
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/cancel`,
-      expect.objectContaining({ method: 'POST' }),
-    );
   });
 
   it('should handle skadi integration failure gracefully', async () => {
@@ -1160,8 +1183,15 @@ describe('mutation stopCampaign', () => {
         { flags: updateFlagsStatement<Post>({ campaignId: CAMPAIGN_UUID_2 }) },
       );
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+    nock(process.env.SKADI_API_ORIGIN)
+      .post(
+        '/promote/cancel',
+        JSON.stringify({
+          campaign_id: CAMPAIGN_UUID_2,
+          user_id: '1',
+        }),
+      )
+      .reply(500, { error: 'Skadi service unavailable' });
 
     const initialTransactionCount = await con
       .getRepository(UserTransaction)
@@ -1200,8 +1230,15 @@ describe('mutation stopCampaign', () => {
         { flags: updateFlagsStatement<Post>({ campaignId: CAMPAIGN_UUID_5 }) },
       );
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({ current_budget: '5.5' });
+    nock(process.env.SKADI_API_ORIGIN)
+      .post(
+        '/promote/cancel',
+        JSON.stringify({
+          campaign_id: CAMPAIGN_UUID_5,
+          user_id: '1',
+        }),
+      )
+      .reply(200, { current_budget: '5.5' });
 
     const errorTransport = createMockNjordErrorTransport({
       errorStatus: 2,
@@ -1227,10 +1264,5 @@ describe('mutation stopCampaign', () => {
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBe(CAMPAIGN_UUID_5);
-
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/cancel`,
-      expect.objectContaining({ method: 'POST' }),
-    );
   });
 });

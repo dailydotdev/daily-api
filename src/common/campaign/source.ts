@@ -1,4 +1,4 @@
-import { CampaignSource, Source } from '../../entity';
+import { CampaignSource, CampaignType, Source } from '../../entity';
 
 import { updateFlagsStatement } from '../utils';
 import type { AuthContext } from '../../Context';
@@ -47,6 +47,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
   const request = await ctx.con.transaction(async (manager) => {
     const campaign = createNewCampaign(props, CampaignSource, {
       sourceId: source.id,
+      type: CampaignType.Source,
     });
 
     return startCampaign({
