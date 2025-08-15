@@ -21,7 +21,7 @@ export interface StartSourceBoostArgs {
   budget: number;
 }
 
-const validateSquadBoostPermissions = async (
+export const validateSquadBoostPermissions = async (
   ctx: AuthContext,
   sourceId: string,
 ) => {

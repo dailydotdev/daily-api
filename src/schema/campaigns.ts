@@ -13,14 +13,26 @@ import type { GQLPost } from './posts';
 import type { GQLSource } from './sources';
 import { getLimit } from '../common';
 import { type TransactionCreated } from '../common/njord';
-import { startCampaignPost } from '../common/campaign/post';
+import {
+  checkPostAlreadyBoosted,
+  getAdjustedReach,
+  startCampaignPost,
+  validatePostBoostPermissions,
+} from '../common/campaign/post';
 import {
   StartCampaignArgs,
   stopCampaign,
   typeToCancelFn,
+  validateCampaignArgs,
 } from '../common/campaign/common';
 import { ValidationError } from 'apollo-server-errors';
-import { startCampaignSource } from '../common/campaign/source';
+import {
+  startCampaignSource,
+  validateSquadBoostPermissions,
+} from '../common/campaign/source';
+import { coresToUsd } from '../common/number';
+import type { CampaignReach } from '../integrations/skadi';
+import { skadiApiClient } from '../integrations/skadi/api/clients';
 
 interface GQLCampaign
   extends Pick<
@@ -64,6 +76,11 @@ export const typeDefs = /* GraphQL */ `
     edges: [CampaignEdge]!
   }
 
+  type BoostEstimate {
+    min: Int!
+    max: Int!
+  }
+
   extend type Query {
     campaignById(
       """
@@ -82,6 +99,25 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): CampaignConnection! @auth
+
+    dailyCampaignReachEstimate(
+      """
+      Type of campaign (post or source)
+      """
+      type: String!
+      """
+      ID of the post or source to promote
+      """
+      value: ID!
+      """
+      Duration of the campaign in days (1-30)
+      """
+      duration: Int!
+      """
+      Budget for the campaign in cores (1000-100000, must be divisible by 1000)
+      """
+      budget: Int!
+    ): BoostEstimate @auth
   }
 
   extend type Mutation {
@@ -118,6 +154,11 @@ export const typeDefs = /* GraphQL */ `
     ): TransactionCreated @auth
   }
 `;
+
+type StartCampaignMutationArgs = Omit<
+  StartCampaignArgs & { type: CampaignType },
+  'userId'
+>;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -172,11 +213,49 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
+    dailyCampaignReachEstimate: async (
+      _,
+      args: StartCampaignMutationArgs,
+      ctx: AuthContext,
+    ): Promise<CampaignReach> => {
+      const { value, budget, duration, type } = args;
+      switch (args.type) {
+        case CampaignType.Post:
+          const post = await validatePostBoostPermissions(ctx, value);
+          checkPostAlreadyBoosted(post);
+          validateCampaignArgs({ budget, duration });
+          break;
+        case CampaignType.Source:
+          validateCampaignArgs(args);
+          await validateSquadBoostPermissions(ctx, value);
+          break;
+        default:
+          throw new ValidationError('Unknown campaign type to estimate reach');
+      }
+
+      const { minImpressions, maxImpressions } =
+        await skadiApiClient.estimateBoostReachDaily({
+          type,
+          value,
+          userId: ctx.userId,
+          budget: coresToUsd(budget),
+          durationInDays: duration,
+        });
+
+      if (minImpressions === maxImpressions) {
+        return getAdjustedReach(maxImpressions);
+      }
+
+      const min = Math.max(minImpressions, 0);
+      const max = Math.max(maxImpressions, min);
+
+      return { min, max };
+    },
   },
   Mutation: {
     startCampaign: async (
       _,
-      args: Omit<StartCampaignArgs & { type: CampaignType }, 'userId'>,
+      args: StartCampaignMutationArgs,
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
       const { type } = args;

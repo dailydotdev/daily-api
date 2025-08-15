@@ -156,7 +156,7 @@ import {
   getFormattedCampaign,
   getAdjustedReach,
 } from '../common/campaign/post';
-import type { PostBoostReach } from '../integrations/skadi';
+import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
@@ -917,11 +917,6 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
-  type PostBoostEstimate {
-    min: Int!
-    max: Int!
-  }
-
   type CampaignPost {
     campaignId: String!
     postId: String!
@@ -1131,7 +1126,7 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to boost
       """
       postId: ID!
-    ): PostBoostEstimate! @auth
+    ): BoostEstimate! @auth
 
     """
     Estimate the daily reach for a post boost campaign with specific budget and duration
@@ -1151,7 +1146,7 @@ export const typeDefs = /* GraphQL */ `
       Amount of days to run the campaign
       """
       duration: Int!
-    ): PostBoostEstimate! @auth
+    ): BoostEstimate! @auth
 
     postCampaignById(
       """
@@ -2147,7 +2142,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: { postId: string },
       ctx: AuthContext,
-    ): Promise<PostBoostReach> => {
+    ): Promise<CampaignReach> => {
       const { postId } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
@@ -2163,7 +2158,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: { postId: string; budget: number; duration: number },
       ctx: AuthContext,
-    ): Promise<PostBoostReach> => {
+    ): Promise<CampaignReach> => {
       const { postId, budget, duration } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);

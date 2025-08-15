@@ -1,7 +1,7 @@
 import type { User } from '../../../entity';
 import type { CampaignType } from '../../../entity/campaign';
 
-export interface PostBoostReach {
+export interface CampaignReach {
   min: number;
   max: number;
 }
@@ -118,7 +118,7 @@ export interface ISkadiApiClient {
     params: CancelCampaignArgs,
   ): Promise<{ currentBudget: string }>;
   estimateBoostReachDaily(
-    params: CampaignDailyReach,
+    params: StartCampaignParams,
   ): Promise<EstimatedReachResponse>;
   startPostCampaign(
     params: StartPostCampaignParams,

@@ -1,7 +1,6 @@
 import { RequestInit } from 'node-fetch';
 import {
   ISkadiApiClient,
-  type CampaignDailyReach,
   type CancelPostCampaignResponse,
   type EstimatedPostBoostReachParams,
   type GetCampaignByIdProps,
@@ -105,9 +104,13 @@ export class SkadiApiClient implements ISkadiApiClient {
     });
   }
 
-  estimateBoostReachDaily(
-    params: CampaignDailyReach,
-  ): Promise<EstimatedReachResponse> {
+  estimateBoostReachDaily({
+    durationInDays,
+    userId,
+    budget,
+    value,
+    type,
+  }: StartCampaignParams): Promise<EstimatedReachResponse> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<EstimatedReach>(
         `${this.url}/promote/reach`,
@@ -117,7 +120,13 @@ export class SkadiApiClient implements ISkadiApiClient {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(params),
+          body: JSON.stringify({
+            user_id: userId,
+            budget,
+            value,
+            type,
+            duration: durationInDays * ONE_DAY_IN_SECONDS,
+          }),
         },
       );
 
