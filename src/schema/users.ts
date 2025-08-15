@@ -4,7 +4,6 @@ import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
   Alerts,
-  CampaignType,
   Comment,
   ConnectionManager,
   Feature,
