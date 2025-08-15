@@ -6,6 +6,7 @@ import {
   MockContext,
   saveFixtures,
   testQueryErrorCode,
+  testMutationErrorCode,
 } from './helpers';
 import {
   ArticlePost,
@@ -39,10 +40,16 @@ import { randomUUID } from 'crypto';
 import { deleteKeysByPattern, ioRedisPool } from '../src/redis';
 import { rateLimiterName } from '../src/directive/rateLimit';
 import { badUsersFixture } from './fixture/user';
-import { createMockNjordTransport } from './helpers';
+import {
+  createMockNjordTransport,
+  createMockNjordErrorTransport,
+} from './helpers';
 import { createClient } from '@connectrpc/connect';
-import { Credits } from '@dailydotdev/schema';
+import { Credits, EntityType } from '@dailydotdev/schema';
 import * as njordCommon from '../src/common/njord';
+import { fetchParse } from '../src/integrations/retry';
+import { updateFlagsStatement } from '../src/common';
+import { UserTransaction } from '../src/entity/user/UserTransaction';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -635,5 +642,595 @@ describe('query campaignsList', () => {
     expect(res.data.campaignsList.edges).toHaveLength(0);
     expect(res.data.campaignsList.pageInfo.hasNextPage).toBe(false);
     expect(res.data.campaignsList.pageInfo.hasPreviousPage).toBe(false);
+  });
+});
+
+describe('mutation startCampaign', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation StartCampaign(
+      $type: String!
+      $value: ID!
+      $duration: Int!
+      $budget: Int!
+    ) {
+      startCampaign(
+        type: $type
+        value: $value
+        duration: $duration
+        budget: $budget
+      ) {
+        transactionId
+        referenceId
+        balance {
+          amount
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { type: 'post', value: 'p1', duration: 7, budget: 5000 },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if duration is less than 1', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { type: 'post', value: 'p1', duration: 0, budget: 5000 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if duration is greater than 30', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { type: 'post', value: 'p1', duration: 31, budget: 5000 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is less than 1000', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { type: 'post', value: 'p1', duration: 7, budget: 999 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is greater than 100000', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { type: 'post', value: 'p1', duration: 7, budget: 100001 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if budget is not divisible by 1000', async () => {
+    loggedUser = '1';
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { type: 'post', value: 'p1', duration: 7, budget: 1500 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should handle skadi integration failure gracefully', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+      );
+
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { type: 'post', value: 'p1', duration: 1, budget: 1000 },
+    });
+
+    expect(res.errors).toBeTruthy();
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
+  it('should handle transfer failure gracefully', async () => {
+    loggedUser = '1';
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({ campaign_id: 'mock-campaign-id' });
+
+    const errorTransport = createMockNjordErrorTransport({
+      errorStatus: 2,
+      errorMessage: 'Transfer failed',
+    });
+    const testNjordClient = createClient(Credits, errorTransport);
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-transfer-failure-campaign',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000,
+        },
+      ],
+    });
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
+
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { type: 'post', value: 'p1', duration: 1, budget: 1000 },
+    });
+    expect(res.errors).toBeTruthy();
+
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/create`,
+      expect.objectContaining({
+        agent: expect.any(Function),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: expect.stringMatching(
+          /.*"value":".*".*"budget":10.*"user_id":"1".*"duration":86400.*/,
+        ),
+      }),
+    );
+  });
+
+  describe('post campaigns', () => {
+    it('should return an error if post is already boosted', async () => {
+      loggedUser = '1';
+      await con
+        .getRepository(Post)
+        .update(
+          { id: 'p1' },
+          { flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }) },
+        );
+
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { type: 'post', value: 'p1', duration: 7, budget: 5000 },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if post does not exist', async () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: {
+            type: 'post',
+            value: 'nonexistent',
+            duration: 7,
+            budget: 5000,
+          },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should return an error if user is not the author or scout of the post', async () => {
+      loggedUser = '2';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { type: 'post', value: 'p1', duration: 7, budget: 5000 },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should successfully start post campaign', async () => {
+      loggedUser = '1';
+      const mockFetchParse = fetchParse as jest.Mock;
+      mockFetchParse.mockResolvedValue({ campaign_id: 'mock-campaign-id' });
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-campaign',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '1', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'post', value: 'p1', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.startCampaign.transactionId).toBeDefined();
+      expect(res.data.startCampaign.balance.amount).toBe(9000);
+
+      const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+      expect(post?.flags?.campaignId).toEqual(
+        res.data.startCampaign.referenceId,
+      );
+
+      expect(mockFetchParse).toHaveBeenCalledWith(
+        `${process.env.SKADI_API_ORIGIN}/promote/create`,
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+    });
+  });
+
+  describe('source campaigns', () => {
+    it('should return an error if user lacks permissions to boost source', async () => {
+      loggedUser = '4'; // member in 'm', not moderator
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { type: 'source', value: 'm', duration: 7, budget: 5000 },
+        },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should return an error if source already boosted', async () => {
+      loggedUser = '3'; // moderator in 'm'
+      await con
+        .getRepository(Source)
+        .update(
+          { id: 'm' },
+          { flags: updateFlagsStatement<Source>({ campaignId: 'mock-id' }) },
+        );
+
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { type: 'source', value: 'm', duration: 7, budget: 5000 },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should successfully start source campaign', async () => {
+      loggedUser = '3'; // moderator in 'm'
+      const mockFetchParse = fetchParse as jest.Mock;
+      mockFetchParse.mockResolvedValue({ campaign_id: 'mock-campaign-id' });
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-source-campaign',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'source', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.startCampaign.transactionId).toBeDefined();
+      expect(res.data.startCampaign.balance.amount).toBe(9000);
+
+      const source = await con.getRepository(Source).findOneBy({ id: 'm' });
+      expect(source?.flags?.campaignId).toEqual(
+        res.data.startCampaign.referenceId,
+      );
+
+      expect(mockFetchParse).toHaveBeenCalledWith(
+        `${process.env.SKADI_API_ORIGIN}/promote/create`,
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+  });
+});
+
+describe('mutation stopCampaign', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation StopCampaign($campaignId: ID!) {
+      stopCampaign(campaignId: $campaignId) {
+        transactionId
+        referenceId
+        balance {
+          amount
+        }
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { campaignId: 'some-id' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return not found when campaign does not belong to user', async () => {
+    loggedUser = '1';
+    // Create campaign for another user
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_4,
+      referenceId: 'p4',
+      userId: '2',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date(),
+      endedAt: new Date(),
+      flags: { budget: 1000, spend: 0, users: 0, clicks: 0, impressions: 0 },
+      postId: 'p4',
+    });
+
+    return testMutationErrorCode(
+      client,
+      { mutation: MUTATION, variables: { campaignId: CAMPAIGN_UUID_4 } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should successfully cancel post campaign', async () => {
+    loggedUser = '1';
+    // Create campaign for user 1 and set boosted flag
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_1,
+      referenceId: 'p1',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date(),
+      endedAt: new Date(),
+      flags: { budget: 1000, spend: 0, users: 0, clicks: 0, impressions: 0 },
+      postId: 'p1',
+    });
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { flags: updateFlagsStatement<Post>({ campaignId: CAMPAIGN_UUID_1 }) },
+      );
+
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({ current_budget: '5.5' });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-cancel-campaign',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '1', type: EntityType.USER },
+          amount: 10000,
+        },
+      ],
+    });
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { campaignId: CAMPAIGN_UUID_1 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.stopCampaign.transactionId).toBeDefined();
+    expect(res.data.stopCampaign.referenceId).toBe(CAMPAIGN_UUID_1);
+    expect(res.data.stopCampaign.balance.amount).toBe(10550);
+
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/cancel`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('should successfully cancel source campaign', async () => {
+    loggedUser = '3'; // moderator of source 'm'
+    await con.getRepository(CampaignSource).save({
+      id: CAMPAIGN_UUID_3,
+      referenceId: 'm',
+      userId: '3',
+      type: CampaignType.Source,
+      state: CampaignState.Active,
+      createdAt: new Date(),
+      endedAt: new Date(),
+      flags: { budget: 1000, spend: 0, users: 0, clicks: 0, impressions: 0 },
+      sourceId: 'm',
+    });
+    await con.getRepository(Source).update(
+      { id: 'm' },
+      {
+        flags: updateFlagsStatement<Source>({ campaignId: CAMPAIGN_UUID_3 }),
+      },
+    );
+
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({ current_budget: '3.25' });
+
+    const testNjordClient = njordCommon.getNjordClient();
+    await testNjordClient.transfer({
+      idempotencyKey: 'initial-balance-cancel-source-campaign',
+      transfers: [
+        {
+          sender: { id: 'system', type: EntityType.SYSTEM },
+          receiver: { id: '3', type: EntityType.USER },
+          amount: 10000,
+        },
+      ],
+    });
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => testNjordClient);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { campaignId: CAMPAIGN_UUID_3 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.stopCampaign.balance.amount).toBe(10325);
+
+    const source = await con.getRepository(Source).findOneBy({ id: 'm' });
+    expect(source?.flags?.campaignId).toBeFalsy();
+
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/cancel`,
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('should handle skadi integration failure gracefully', async () => {
+    loggedUser = '1';
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_2,
+      referenceId: 'p2',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date(),
+      endedAt: new Date(),
+      flags: { budget: 1000, spend: 0, users: 0, clicks: 0, impressions: 0 },
+      postId: 'p2',
+    });
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p2' },
+        { flags: updateFlagsStatement<Post>({ campaignId: CAMPAIGN_UUID_2 }) },
+      );
+
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { receiverId: '1', referenceType: 'PostBoost' } });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { campaignId: CAMPAIGN_UUID_2 },
+    });
+    expect(res.errors).toBeTruthy();
+
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { receiverId: '1', referenceType: 'PostBoost' } });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p2' });
+    expect(post?.flags?.campaignId).toBe(CAMPAIGN_UUID_2);
+  });
+
+  it('should handle transfer failure gracefully', async () => {
+    loggedUser = '1';
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_5,
+      referenceId: 'p1',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date(),
+      endedAt: new Date(),
+      flags: { budget: 1000, spend: 0, users: 0, clicks: 0, impressions: 0 },
+      postId: 'p1',
+    });
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { flags: updateFlagsStatement<Post>({ campaignId: CAMPAIGN_UUID_5 }) },
+      );
+
+    const mockFetchParse = fetchParse as jest.Mock;
+    mockFetchParse.mockResolvedValue({ current_budget: '5.5' });
+
+    const errorTransport = createMockNjordErrorTransport({
+      errorStatus: 2,
+      errorMessage: 'Transfer failed',
+    });
+    jest
+      .spyOn(njordCommon, 'getNjordClient')
+      .mockImplementation(() => createClient(Credits, errorTransport));
+
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { receiverId: '1', referenceType: 'PostBoost' } });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { campaignId: CAMPAIGN_UUID_5 },
+    });
+    expect(res.errors).toBeTruthy();
+
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { receiverId: '1', referenceType: 'PostBoost' } });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBe(CAMPAIGN_UUID_5);
+
+    expect(mockFetchParse).toHaveBeenCalledWith(
+      `${process.env.SKADI_API_ORIGIN}/promote/cancel`,
+      expect.objectContaining({ method: 'POST' }),
+    );
   });
 });

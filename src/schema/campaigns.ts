@@ -199,13 +199,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         where: { id: args.campaignId, userId: ctx.userId },
       });
 
+      const onCancelledFn = typeToCancelFn[campaign.type];
+
+      if (!onCancelledFn) {
+        throw new ValidationError('Unknown campaign type to cancel');
+      }
+
+      if (campaign.state !== CampaignState.Active) {
+        throw new ValidationError('Campaign is not active');
+      }
+
       return ctx.con.transaction(async (manager) => {
         const result = await stopCampaign({
           ctx,
           campaign,
           manager,
-          onCancelled: () =>
-            typeToCancelFn[campaign.type](manager, campaign.id),
+          onCancelled: () => onCancelledFn(manager, campaign.referenceId),
         });
 
         return result.transaction;
