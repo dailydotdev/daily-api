@@ -1266,3 +1266,606 @@ describe('mutation stopCampaign', () => {
     expect(post?.flags?.campaignId).toBe(CAMPAIGN_UUID_5);
   });
 });
+
+describe('query dailyCampaignReachEstimate', () => {
+  const QUERY = `
+    query DailyCampaignReachEstimate(
+      $type: String!
+      $value: ID!
+      $duration: Int!
+      $budget: Int!
+    ) {
+      dailyCampaignReachEstimate(
+        type: $type
+        value: $value
+        duration: $duration
+        budget: $budget
+      ) {
+        min
+        max
+      }
+    }
+  `;
+
+  const postParams = { type: 'post', value: 'p1' };
+  const sourceParams = { type: 'source', value: 'm' };
+
+  beforeEach(async () => {
+    await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
+  });
+
+  it('should not authorize when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...postParams, budget: 5000, duration: 7 } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return an error if post does not exist', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          type: 'post',
+          value: 'nonexistent',
+          budget: 5000,
+          duration: 7,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if source does not exist', async () => {
+    loggedUser = '3';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          type: 'source',
+          value: 'nonexistent',
+          budget: 5000,
+          duration: 7,
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not the author or scout of the post', async () => {
+    loggedUser = '2'; // User 2 is not the author or scout of post p1
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...postParams, budget: 5000, duration: 7 } },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return an error if user is not a moderator of the source', async () => {
+    loggedUser = '4'; // User 4 is a member but not a moderator of source 'm'
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { ...sourceParams, budget: 5000, duration: 7 },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return an error if post is already boosted', async () => {
+    loggedUser = '1';
+    // Set the post as already boosted
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+      },
+    );
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { ...postParams, budget: 5000, duration: 7 } },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if source is already boosted', async () => {
+    loggedUser = '3'; // moderator in 'm'
+    // Set the source as already boosted
+    await con.getRepository(Source).update(
+      { id: 'm' },
+      {
+        flags: updateFlagsStatement<Source>({ campaignId: 'mock-id' }),
+      },
+    );
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { ...sourceParams, budget: 5000, duration: 7 },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should return an error if user lacks permissions to boost source', async () => {
+    loggedUser = '4'; // member in 'm', not moderator
+    return testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { ...sourceParams, budget: 5000, duration: 7 },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  describe('budget validation', () => {
+    beforeEach(() => {
+      loggedUser = '1';
+    });
+
+    it('should return an error if budget is less than 1000', async () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: QUERY,
+          variables: { ...postParams, budget: 999, duration: 7 },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if budget is greater than 100000', async () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: QUERY,
+          variables: { ...postParams, budget: 100001, duration: 7 },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if budget is not divisible by 1000', async () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: QUERY,
+          variables: { ...postParams, budget: 1500, duration: 7 },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should accept valid budget values and make correct HTTP call', async () => {
+      // Mock the HTTP response using nock
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/reach', (body) => {
+          return (
+            body.user_id === '1' &&
+            body.budget === 20 &&
+            body.duration === 432000 &&
+            body.type === 'post' &&
+            body.value === 'p1'
+          );
+        })
+        .reply(200, {
+          impressions: 100,
+          clicks: 5,
+          users: 50,
+          min_impressions: 45,
+          max_impressions: 55,
+        });
+
+      const res = await client.query(QUERY, {
+        variables: { ...postParams, budget: 2000, duration: 5 }, // Valid budget
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.dailyCampaignReachEstimate).toEqual({
+        min: 45,
+        max: 55,
+      });
+    });
+
+    it('should handle minimum budget value (1000 cores)', async () => {
+      // Mock the HTTP response using nock
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/reach', (body) => {
+          return (
+            body.user_id === '1' &&
+            body.budget === 10 &&
+            body.duration === 432000 &&
+            body.type === 'post' &&
+            body.value === 'p1'
+          );
+        })
+        .reply(200, {
+          impressions: 50,
+          clicks: 3,
+          users: 25,
+          min_impressions: 23,
+          max_impressions: 27,
+        });
+
+      const res = await client.query(QUERY, {
+        variables: { ...postParams, budget: 1000, duration: 5 }, // 1000 cores = 10 USD
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.dailyCampaignReachEstimate).toEqual({
+        min: 23,
+        max: 27,
+      });
+    });
+
+    it('should handle maximum budget value (100000 cores)', async () => {
+      // Mock the HTTP response using nock
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/reach', (body) => {
+          return (
+            body.user_id === '1' &&
+            body.budget === 1000 &&
+            body.duration === 432000 &&
+            body.type === 'post' &&
+            body.value === 'p1'
+          );
+        })
+        .reply(200, {
+          impressions: 50000,
+          clicks: 2500,
+          users: 15000,
+          min_impressions: 13800,
+          max_impressions: 16200,
+        });
+
+      const res = await client.query(QUERY, {
+        variables: { ...postParams, budget: 100000, duration: 5 }, // 100000 cores = 1000 USD
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.dailyCampaignReachEstimate).toEqual({
+        min: 13800,
+        max: 16200,
+      });
+    });
+  });
+
+  describe('duration validation', () => {
+    beforeEach(() => {
+      loggedUser = '1';
+    });
+
+    it('should return an error if duration is less than 1', async () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: QUERY,
+          variables: { ...postParams, budget: 5000, duration: 0 },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should return an error if duration is greater than 30', async () => {
+      return testQueryErrorCode(
+        client,
+        {
+          query: QUERY,
+          variables: { ...postParams, budget: 5000, duration: 31 },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should accept valid duration values and make correct HTTP call', async () => {
+      // Mock the HTTP response using nock
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/reach', (body) => {
+          return (
+            body.user_id === '1' &&
+            body.budget === 30 &&
+            body.duration === 1296000 &&
+            body.type === 'post' &&
+            body.value === 'p1'
+          );
+        })
+        .reply(200, {
+          impressions: 200,
+          clicks: 10,
+          users: 75,
+          min_impressions: 68,
+          max_impressions: 82,
+        });
+
+      const res = await client.query(QUERY, {
+        variables: { ...postParams, budget: 3000, duration: 15 }, // Valid duration
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.dailyCampaignReachEstimate).toEqual({
+        min: 68,
+        max: 82,
+      });
+    });
+
+    it('should handle minimum duration value (1 day)', async () => {
+      // Mock the HTTP response using nock
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/reach', (body) => {
+          return (
+            body.user_id === '1' &&
+            body.budget === 20 &&
+            body.duration === 86400 &&
+            body.type === 'post' &&
+            body.value === 'p1'
+          );
+        })
+        .reply(200, {
+          impressions: 80,
+          clicks: 5,
+          users: 35,
+          min_impressions: 33,
+          max_impressions: 37,
+        });
+
+      const res = await client.query(QUERY, {
+        variables: { ...postParams, budget: 2000, duration: 1 }, // 1 day
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.dailyCampaignReachEstimate).toEqual({
+        min: 33,
+        max: 37,
+      });
+    });
+
+    it('should handle maximum duration value (30 days)', async () => {
+      // Mock the HTTP response using nock
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/promote/reach', (body) => {
+          return (
+            body.user_id === '1' &&
+            body.budget === 50 &&
+            body.duration === 2592000 &&
+            body.type === 'post' &&
+            body.value === 'p1'
+          );
+        })
+        .reply(200, {
+          impressions: 1200,
+          clicks: 60,
+          users: 450,
+          min_impressions: 414,
+          max_impressions: 486,
+        });
+
+      const res = await client.query(QUERY, {
+        variables: { ...postParams, budget: 5000, duration: 30 }, // 30 days
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.dailyCampaignReachEstimate).toEqual({
+        min: 414,
+        max: 486,
+      });
+    });
+  });
+
+  it('should return estimated reach with budget and duration parameters', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response using nock
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/reach', (body) => {
+        return (
+          body.user_id === '1' &&
+          body.budget === 100 &&
+          body.duration === 1209600 &&
+          body.type === 'post' &&
+          body.value === 'p1'
+        );
+      })
+      .reply(200, {
+        impressions: 500,
+        clicks: 40,
+        users: 180,
+        min_impressions: 166,
+        max_impressions: 194,
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...postParams, budget: 10000, duration: 14 }, // 10000 cores = 100 USD, 14 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 166,
+      max: 194,
+    });
+  });
+
+
+
+  it('should work for post scout as well as author', async () => {
+    loggedUser = '1';
+
+    // Set user as scout instead of author
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        authorId: '2', // Different author
+        scoutId: '1', // Current user is scout
+      },
+    );
+
+    // Mock the HTTP response using nock
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/reach', (body) => {
+        return (
+          body.user_id === '1' &&
+          body.budget === 30 &&
+          body.duration === 432000 &&
+          body.type === 'post' &&
+          body.value === 'p1'
+        );
+      })
+      .reply(200, {
+        impressions: 150,
+        clicks: 10,
+        users: 65,
+        min_impressions: 60,
+        max_impressions: 70,
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...postParams, budget: 3000, duration: 5 }, // 3000 cores = 30 USD, 5 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 60,
+      max: 70,
+    });
+  });
+
+  it('should work for source moderator', async () => {
+    loggedUser = '3'; // moderator in 'm'
+
+    // Mock the HTTP response using nock
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/reach', (body) => {
+        return (
+          body.user_id === '3' &&
+          body.budget === 30 &&
+          body.duration === 432000 &&
+          body.type === 'source' &&
+          body.value === 'm'
+        );
+      })
+      .reply(200, {
+        impressions: 200,
+        clicks: 12,
+        users: 90,
+        min_impressions: 83,
+        max_impressions: 97,
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...sourceParams, budget: 3000, duration: 5 }, // 3000 cores = 30 USD, 5 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 83,
+      max: 97,
+    });
+  });
+
+  it('should fall back to getAdjustedReach when min and max impressions are equal', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response where min and max impressions are the same
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/reach', (body) => {
+        return (
+          body.user_id === '1' &&
+          body.budget === 40 &&
+          body.duration === 864000 &&
+          body.type === 'post' &&
+          body.value === 'p1'
+        );
+      })
+      .reply(200, {
+        impressions: 200,
+        clicks: 15,
+        users: 100,
+        min_impressions: 75, // Same value
+        max_impressions: 75, // Same value
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...postParams, budget: 4000, duration: 10 }, // 4000 cores = 40 USD, 10 days
+    });
+
+    expect(res.errors).toBeFalsy();
+    // When min_impressions === max_impressions, it should use getAdjustedReach(maxImpressions)
+    // getAdjustedReach applies ±8% calculation: 75 ± Math.floor(75 * 0.08) = 75 ± 6
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 69, // 75 - Math.floor(75 * 0.08) = 75 - 6 = 69
+      max: 81, // 75 + Math.floor(75 * 0.08) = 75 + 6 = 81
+    });
+  });
+
+  it('should work correctly for both post and source campaign types', async () => {
+    // Test post campaign
+    loggedUser = '1';
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/reach', (body) => {
+        return (
+          body.user_id === '1' &&
+          body.budget === 30 &&
+          body.duration === 432000 &&
+          body.type === 'post' &&
+          body.value === 'p1'
+        );
+      })
+      .reply(200, {
+        impressions: 150,
+        clicks: 8,
+        users: 75,
+        min_impressions: 69,
+        max_impressions: 81,
+      });
+
+    const postRes = await client.query(QUERY, {
+      variables: { ...postParams, budget: 3000, duration: 5 },
+    });
+
+    expect(postRes.errors).toBeFalsy();
+    expect(postRes.data.dailyCampaignReachEstimate).toEqual({
+      min: 69,
+      max: 81,
+    });
+
+    // Test source campaign
+    loggedUser = '3';
+    nock(process.env.SKADI_API_ORIGIN)
+      .post('/promote/reach', (body) => {
+        return (
+          body.user_id === '3' &&
+          body.budget === 30 &&
+          body.duration === 432000 &&
+          body.type === 'source' &&
+          body.value === 'm'
+        );
+      })
+      .reply(200, {
+        impressions: 200,
+        clicks: 12,
+        users: 100,
+        min_impressions: 92,
+        max_impressions: 108,
+      });
+
+    const sourceRes = await client.query(QUERY, {
+      variables: { ...sourceParams, budget: 3000, duration: 5 },
+    });
+
+    expect(sourceRes.errors).toBeFalsy();
+    expect(sourceRes.data.dailyCampaignReachEstimate).toEqual({
+      min: 92,
+      max: 108,
+    });
+  });
+});

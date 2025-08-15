@@ -219,14 +219,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<CampaignReach> => {
       const { value, budget, duration, type } = args;
+
+      validateCampaignArgs({ budget, duration });
+
       switch (args.type) {
         case CampaignType.Post:
-          const post = await validatePostBoostPermissions(ctx, value);
-          checkPostAlreadyBoosted(post);
-          validateCampaignArgs({ budget, duration });
+          checkPostAlreadyBoosted(
+            await validatePostBoostPermissions(ctx, value),
+          );
           break;
         case CampaignType.Source:
-          validateCampaignArgs(args);
           await validateSquadBoostPermissions(ctx, value);
           break;
         default:
