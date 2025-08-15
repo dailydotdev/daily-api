@@ -944,6 +944,7 @@ export enum SourcePermissions {
   Edit = 'edit',
   ConnectSlack = 'connect_slack',
   ModeratePost = 'moderate_post',
+  BoostSquad = 'boost_squad',
 }
 
 const memberPermissions = [
@@ -964,6 +965,7 @@ const moderatorPermissions = [
   SourcePermissions.ViewBlockedMembers,
   SourcePermissions.WelcomePostEdit,
   SourcePermissions.ModeratePost,
+  SourcePermissions.BoostSquad,
 ];
 const adminPermissions = [
   ...moderatorPermissions,

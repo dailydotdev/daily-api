@@ -1,8 +1,9 @@
-import { z } from 'zod';
 import { ValidationError } from 'apollo-server-errors';
 import { AuthContext } from '../../Context';
 import {
   ArticlePost,
+  CampaignPost,
+  CampaignType,
   Post,
   PostType,
   type ConnectionManager,
@@ -19,7 +20,7 @@ import { In } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
-import { debeziumTimeToDate } from '../utils';
+import { debeziumTimeToDate, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
 import { largeNumberFormat } from '../devcard';
@@ -27,6 +28,13 @@ import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { usdToCores } from '../number';
+
+import {
+  createNewCampaign,
+  startCampaign,
+  validateCampaignArgs,
+  type StartCampaignMutationArgs,
+} from './common';
 
 export interface GQLPromotedPost
   extends Omit<
@@ -38,42 +46,6 @@ export interface GQLPromotedPost
   startedAt: Date;
   endedAt: Date;
 }
-
-export interface StartPostBoostArgs {
-  postId: string;
-  userId: string;
-  duration: number;
-  budget: number;
-}
-
-export const POST_BOOST_VALIDATION_SCHEMA = z.object({
-  budget: z
-    .number()
-    .int()
-    .min(1000)
-    .max(100000)
-    .refine((value) => value % 1000 === 0, {
-      message: 'Budget must be divisible by 1000',
-    }),
-  duration: z
-    .number()
-    .int()
-    .min(1)
-    .max(30)
-    .refine((value) => value % 1 === 0, {
-      message: 'Duration must be a whole number',
-    }),
-});
-
-export const validatePostBoostArgs = (
-  args: Omit<StartPostBoostArgs, 'userId' | 'postId'>,
-) => {
-  const result = POST_BOOST_VALIDATION_SCHEMA.safeParse(args);
-
-  if (result.error) {
-    throw new ValidationError(result.error.errors[0].message);
-  }
-};
 
 export const validatePostBoostPermissions = async (
   ctx: AuthContext,
@@ -298,4 +270,35 @@ export const getAdjustedReach = (value: number) => {
   };
 
   return estimatedReach;
+};
+
+export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
+  const { ctx, args } = props;
+  const { value: postId } = args;
+  validateCampaignArgs(args);
+  const post = await validatePostBoostPermissions(ctx, postId);
+  checkPostAlreadyBoosted(post);
+
+  const request = await ctx.con.transaction(async (manager) => {
+    const campaign = createNewCampaign(props, CampaignPost, {
+      postId,
+      type: CampaignType.Post,
+    });
+
+    return startCampaign({
+      campaign,
+      manager,
+      args,
+      ctx,
+      onCampaignSaved: async () =>
+        manager
+          .getRepository(Post)
+          .update(
+            { id: postId },
+            { flags: updateFlagsStatement<Post>({ campaignId: campaign.id }) },
+          ),
+    });
+  });
+
+  return request.transaction;
 };

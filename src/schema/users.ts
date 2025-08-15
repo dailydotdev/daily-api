@@ -4,7 +4,6 @@ import { GraphORMBuilder } from '../graphorm/graphorm';
 import { Connection, ConnectionArguments } from 'graphql-relay';
 import {
   Alerts,
-  CampaignType,
   Comment,
   ConnectionManager,
   Feature,
@@ -18,6 +17,7 @@ import {
   User,
   UserFlagsPublic,
   UserMarketingCta,
+  InviteCampaignType,
   UserPersonalizedDigest,
   UserPersonalizedDigestFlags,
   UserPersonalizedDigestFlagsPublic,
@@ -1910,7 +1910,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const userInvite = await ctx.getRepository(Invite).findOneBy({
         userId: ctx.userId,
-        campaign: referralOrigin as CampaignType,
+        campaign: referralOrigin as InviteCampaignType,
       });
 
       const campaignUrl = getInviteLink({
@@ -2437,7 +2437,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .findOneByOrFail({
           userId: referrerId,
           token: token,
-          campaign: feature as CampaignType,
+          campaign: feature as InviteCampaignType,
         });
 
       if (referrerInvite.count >= referrerInvite.limit) {

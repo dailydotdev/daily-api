@@ -117,6 +117,7 @@ Object {
         "view_blocked_members",
         "welcome_post_edit",
         "moderate_post",
+        "boost_squad",
         "member_role_update",
         "post_limit",
         "delete",
