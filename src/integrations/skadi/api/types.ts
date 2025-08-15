@@ -6,7 +6,7 @@ export interface PostBoostReach {
   max: number;
 }
 
-export interface PostEstimatedReach {
+export interface EstimatedReach {
   impressions: number;
   clicks: number;
   users: number;
@@ -15,12 +15,12 @@ export interface PostEstimatedReach {
 }
 
 export type LegacyPostEstimatedReach = Pick<
-  PostEstimatedReachResponse,
+  EstimatedReachResponse,
   'clicks' | 'impressions' | 'users'
 >;
 
-export interface PostEstimatedReachResponse
-  extends Pick<PostEstimatedReach, 'impressions' | 'clicks' | 'users'> {
+export interface EstimatedReachResponse
+  extends Pick<EstimatedReach, 'impressions' | 'clicks' | 'users'> {
   minImpressions: number;
   maxImpressions: number;
 }
@@ -107,32 +107,31 @@ export interface CampaignDailyReach {
   user_id: string;
 }
 
+export interface CancelCampaignArgs {
+  campaignId: string;
+  userId: string;
+}
+
 export interface ISkadiApiClient {
   startCampaign(params: StartCampaignParams): Promise<{ campaignId: string }>;
-  cancelCampaign(params: {
-    campaignId: string;
-    userId: string;
-  }): Promise<{ currentBudget: string }>;
-  estimateBoostReachDaily(params: {
-    type: CampaignType;
-    value: string;
-    budget: number;
-    duration: number;
-    user_id: string;
-  }): Promise<PostEstimatedReachResponse>;
+  cancelCampaign(
+    params: CancelCampaignArgs,
+  ): Promise<{ currentBudget: string }>;
+  estimateBoostReachDaily(
+    params: CampaignDailyReach,
+  ): Promise<EstimatedReachResponse>;
   startPostCampaign(
     params: StartPostCampaignParams,
   ): Promise<{ campaignId: string }>;
-  cancelPostCampaign(params: {
-    campaignId: string;
-    userId: string;
-  }): Promise<{ currentBudget: string }>;
+  cancelPostCampaign(
+    params: CancelCampaignArgs,
+  ): Promise<{ currentBudget: string }>;
   estimatePostBoostReach(
     params: Pick<EstimatedPostBoostReachParams, 'userId' | 'postId'>,
   ): Promise<LegacyPostEstimatedReach>;
   estimatePostBoostReachDaily(
     params: StartPostCampaignParams,
-  ): Promise<PostEstimatedReachResponse>;
+  ): Promise<EstimatedReachResponse>;
   getCampaignById: (
     params: GetCampaignByIdProps,
   ) => Promise<GetCampaignResponse>;

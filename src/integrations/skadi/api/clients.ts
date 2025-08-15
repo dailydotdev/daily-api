@@ -7,13 +7,14 @@ import {
   type GetCampaignByIdProps,
   type GetCampaignResponse,
   type GetCampaignsProps,
-  type PostEstimatedReach,
-  type PostEstimatedReachResponse,
+  type EstimatedReach,
+  type EstimatedReachResponse,
   type PromotedPost,
   type PromotedPostList,
   type StartCampaignParams,
   type StartPostCampaignParams,
   type StartPostCampaignResponse,
+  type CancelCampaignArgs,
 } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../../garmr';
 import { fetchOptions as globalFetchOptions } from '../../../http';
@@ -86,10 +87,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   cancelCampaign({
     campaignId,
     userId,
-  }: {
-    campaignId: string;
-    userId: string;
-  }): Promise<{ currentBudget: string }> {
+  }: CancelCampaignArgs): Promise<{ currentBudget: string }> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<CancelPostCampaignResponse>(
         `${this.url}/promote/cancel`,
@@ -109,9 +107,9 @@ export class SkadiApiClient implements ISkadiApiClient {
 
   estimateBoostReachDaily(
     params: CampaignDailyReach,
-  ): Promise<PostEstimatedReachResponse> {
+  ): Promise<EstimatedReachResponse> {
     return this.garmr.execute(async () => {
-      const response = await fetchParse<PostEstimatedReach>(
+      const response = await fetchParse<EstimatedReach>(
         `${this.url}/promote/reach`,
         {
           ...this.fetchOptions,
@@ -164,10 +162,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   cancelPostCampaign({
     campaignId,
     userId,
-  }: {
-    campaignId: string;
-    userId: string;
-  }): Promise<{ currentBudget: string }> {
+  }: CancelCampaignArgs): Promise<{ currentBudget: string }> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<CancelPostCampaignResponse>(
         `${this.url}/promote/post/cancel`,
@@ -190,9 +185,9 @@ export class SkadiApiClient implements ISkadiApiClient {
     user_id: string;
     budget?: number;
     duration?: number;
-  }): Promise<PostEstimatedReachResponse> {
+  }): Promise<EstimatedReachResponse> {
     return this.garmr.execute(async () => {
-      const response = await fetchParse<PostEstimatedReach>(
+      const response = await fetchParse<EstimatedReach>(
         `${this.url}/promote/post/reach`,
         {
           ...this.fetchOptions,
