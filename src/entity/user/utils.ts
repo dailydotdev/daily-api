@@ -50,6 +50,7 @@ import {
   TargetType,
 } from '../../integrations/analytics';
 import { paddleInstance } from '../../common/paddle';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../../notifications/common';
 
 export type AddUserData = Pick<
   User,
@@ -360,6 +361,7 @@ export const addNewUser = async (
       twitter: data.twitter,
       experienceLevel: data.experienceLevel,
       language: data.language,
+      notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
       flags: {
         trustScore: 1,
         vordr: false,

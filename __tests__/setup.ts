@@ -51,6 +51,7 @@ jest.mock('../src/remoteConfig', () => ({
       de: 'German',
       'zh-Hans': 'ChineseSimplified',
     },
+    postRateLimit: 2,
   },
 }));
 

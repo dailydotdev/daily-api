@@ -122,4 +122,12 @@ export const crons: Cron[] = [
     name: 'clean-stale-user-transactions',
     schedule: '50 6 * * 0',
   },
+  {
+    name: 'post-analytics-clickhouse',
+    schedule: '*/5 * * * *',
+  },
+  {
+    name: 'post-analytics-history-day-clickhouse',
+    schedule: '3-59/5 * * * *',
+  },
 ];

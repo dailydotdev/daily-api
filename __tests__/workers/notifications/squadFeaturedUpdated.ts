@@ -1,13 +1,12 @@
 import { DataSource } from 'typeorm';
-import worker from '../../../src/workers/notifications/sourcePostModerationSubmittedNotification';
+import worker from '../../../src/workers/notifications/squadFeaturedUpdated';
 import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeNotificationWorker, saveFixtures } from '../../helpers';
-import { SourcePostModerationStatus } from '../../../src/entity/SourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
-import { NotificationPostModerationContext } from '../../../src/notifications';
+import { NotificationSourceContext } from '../../../src/notifications';
 import { NotificationPreferenceSource } from '../../../src/entity/notifications/NotificationPreferenceSource';
 import {
   NotificationPreferenceStatus,
@@ -26,7 +25,7 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
 });
 
-describe('SourcePostModerationSubmitted', () => {
+describe('SquadFeaturedUpdated', () => {
   it('should be registered', () => {
     const registeredWorker = workers.find(
       (item) => item.subscription === worker.subscription,
@@ -35,22 +34,21 @@ describe('SourcePostModerationSubmitted', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should not send notification when the status is not pending', async () => {
-    const post = {
-      sourceId: 'a',
-      status: SourcePostModerationStatus.Approved,
+  it('should not send notification when squad is not featured', async () => {
+    const squad = {
+      id: 'a',
+      flags: { featured: false },
     };
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result = await invokeNotificationWorker(worker, { squad });
 
     expect(result).toBeUndefined();
   });
 
-  it('should send notification to admins', async () => {
-    const post = {
-      sourceId: 'a',
-      createdById: '2',
-      status: SourcePostModerationStatus.Pending,
+  it('should send notification to admins when squad becomes featured', async () => {
+    const squad = {
+      id: 'a',
+      flags: { featured: true },
     };
     await con
       .getRepository(Source)
@@ -62,20 +60,19 @@ describe('SourcePostModerationSubmitted', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { post });
-    const ctx = result[0].ctx as NotificationPostModerationContext;
+    const result = await invokeNotificationWorker(worker, { squad });
+    const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('source_post_submitted');
-    expect(ctx.post).toEqual(post);
+    expect(result[0].type).toEqual('squad_featured');
+    expect(ctx.source).toEqual(squad);
     expect(ctx.userIds).toEqual(['1']);
   });
 
-  it('should send notification to moderators', async () => {
-    const post = {
-      sourceId: 'a',
-      createdById: '2',
-      status: SourcePostModerationStatus.Pending,
+  it('should send notification to moderators when squad becomes featured', async () => {
+    const squad = {
+      id: 'a',
+      flags: { featured: true },
     };
     await con
       .getRepository(Source)
@@ -87,20 +84,19 @@ describe('SourcePostModerationSubmitted', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { post });
-    const ctx = result[0].ctx as NotificationPostModerationContext;
+    const result = await invokeNotificationWorker(worker, { squad });
+    const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('source_post_submitted');
-    expect(ctx.post).toEqual(post);
+    expect(result[0].type).toEqual('squad_featured');
+    expect(ctx.source).toEqual(squad);
     expect(ctx.userIds).toEqual(['1']);
   });
 
-  it('should not send notification to members', async () => {
-    const post = {
-      sourceId: 'a',
-      createdById: '2',
-      status: SourcePostModerationStatus.Pending,
+  it('should not send notification to regular members', async () => {
+    const squad = {
+      id: 'a',
+      flags: { featured: true },
     };
     await con
       .getRepository(Source)
@@ -109,7 +105,7 @@ describe('SourcePostModerationSubmitted', () => {
       {
         sourceId: 'a',
         userId: '1',
-        role: SourceMemberRoles.Moderator,
+        role: SourceMemberRoles.Admin,
         referralToken: 'a',
       },
       {
@@ -120,22 +116,21 @@ describe('SourcePostModerationSubmitted', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { post });
-    const ctx = result[0].ctx as NotificationPostModerationContext;
+    const result = await invokeNotificationWorker(worker, { squad });
+    const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('source_post_submitted');
-    expect(ctx.post).toEqual(post);
+    expect(result[0].type).toEqual('squad_featured');
+    expect(ctx.source).toEqual(squad);
     expect(ctx.userIds).toEqual(['1']);
     const noMembers = ctx.userIds.every((id) => id !== '3');
     expect(noMembers).toBeTruthy();
   });
 
   it('should not send notification to blocked members', async () => {
-    const post = {
-      sourceId: 'a',
-      createdById: '2',
-      status: SourcePostModerationStatus.Pending,
+    const squad = {
+      id: 'a',
+      flags: { featured: true },
     };
     await con
       .getRepository(Source)
@@ -144,7 +139,7 @@ describe('SourcePostModerationSubmitted', () => {
       {
         sourceId: 'a',
         userId: '1',
-        role: SourceMemberRoles.Moderator,
+        role: SourceMemberRoles.Admin,
         referralToken: 'a',
       },
       {
@@ -155,58 +150,42 @@ describe('SourcePostModerationSubmitted', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { post });
-    const ctx = result[0].ctx as NotificationPostModerationContext;
+    const result = await invokeNotificationWorker(worker, { squad });
+    const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('source_post_submitted');
-    expect(ctx.post).toEqual(post);
+    expect(result[0].type).toEqual('squad_featured');
+    expect(ctx.source).toEqual(squad);
     expect(ctx.userIds).toEqual(['1']);
-    const noMembers = ctx.userIds.every((id) => id !== '3');
-    expect(noMembers).toBeTruthy();
+    const noBlocked = ctx.userIds.every((id) => id !== '3');
+    expect(noBlocked).toBeTruthy();
   });
 
-  it('should not send notification to post author', async () => {
-    const post = {
-      sourceId: 'a',
-      createdById: '2',
-      status: SourcePostModerationStatus.Pending,
+  it('should return undefined when no eligible users exist', async () => {
+    const squad = {
+      id: 'a',
+      flags: { featured: true },
     };
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
-    await con.getRepository(SourceMember).save([
-      {
-        sourceId: 'a',
-        userId: '1',
-        role: SourceMemberRoles.Moderator,
-        referralToken: 'a',
-      },
-      {
-        sourceId: 'a',
-        userId: '3',
-        role: SourceMemberRoles.Blocked,
-        referralToken: 'b',
-      },
-    ]);
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      role: SourceMemberRoles.Member,
+      referralToken: 'a',
+    });
 
-    const result = await invokeNotificationWorker(worker, { post });
-    const ctx = result[0].ctx as NotificationPostModerationContext;
+    const result = await invokeNotificationWorker(worker, { squad });
 
-    expect(result.length).toEqual(1);
-    expect(result[0].type).toEqual('source_post_submitted');
-    expect(ctx.post).toEqual(post);
-    expect(ctx.userIds).toEqual(['1']);
-    const noAuthor = ctx.userIds.every((id) => id !== '2');
-    expect(noAuthor).toBeTruthy();
+    expect(result).toBeUndefined();
   });
 
   describe('content preference filtering', () => {
-    it('should send notifications to users with no content preferences', async () => {
-      const post = {
-        sourceId: 'a',
-        createdById: '2',
-        status: SourcePostModerationStatus.Pending,
+    it('should send notifications to users with no content preferences (default subscribed)', async () => {
+      const squad = {
+        id: 'a',
+        flags: { featured: true },
       };
       await con
         .getRepository(Source)
@@ -226,19 +205,18 @@ describe('SourcePostModerationSubmitted', () => {
         },
       ]);
 
-      const result = await invokeNotificationWorker(worker, { post });
-      const ctx = result[0].ctx as NotificationPostModerationContext;
+      const result = await invokeNotificationWorker(worker, { squad });
+      const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
-      expect(result[0].type).toEqual('source_post_submitted');
+      expect(result[0].type).toEqual('squad_featured');
       expect(ctx.userIds.sort()).toEqual(['1', '3']);
     });
 
     it('should not send notifications to users who have muted this source', async () => {
-      const post = {
-        sourceId: 'a',
-        createdById: '2',
-        status: SourcePostModerationStatus.Pending,
+      const squad = {
+        id: 'a',
+        flags: { featured: true },
       };
       await con
         .getRepository(Source)
@@ -258,29 +236,28 @@ describe('SourcePostModerationSubmitted', () => {
         },
       ]);
 
-      // User '3' mutes SourcePostSubmitted notifications for squad 'a'
+      // User '3' mutes SquadFeatured notifications for squad 'a'
       await con.getRepository(NotificationPreferenceSource).save({
         userId: '3',
         sourceId: 'a',
         referenceId: 'a',
-        notificationType: NotificationType.SourcePostSubmitted,
+        notificationType: NotificationType.SquadFeatured,
         type: 'source',
         status: NotificationPreferenceStatus.Muted,
       });
 
-      const result = await invokeNotificationWorker(worker, { post });
-      const ctx = result[0].ctx as NotificationPostModerationContext;
+      const result = await invokeNotificationWorker(worker, { squad });
+      const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
-      expect(result[0].type).toEqual('source_post_submitted');
+      expect(result[0].type).toEqual('squad_featured');
       expect(ctx.userIds).toEqual(['1']); // Only admin '1', moderator '3' is filtered out
     });
 
     it('should send notifications to users who have explicitly subscribed', async () => {
-      const post = {
-        sourceId: 'a',
-        createdById: '2',
-        status: SourcePostModerationStatus.Pending,
+      const squad = {
+        id: 'a',
+        flags: { featured: true },
       };
       await con
         .getRepository(Source)
@@ -300,29 +277,28 @@ describe('SourcePostModerationSubmitted', () => {
         },
       ]);
 
-      // User '1' explicitly subscribes to SourcePostSubmitted notifications for squad 'a'
+      // User '1' explicitly subscribes to SquadFeatured notifications for squad 'a'
       await con.getRepository(NotificationPreferenceSource).save({
         userId: '1',
         sourceId: 'a',
         referenceId: 'a',
-        notificationType: NotificationType.SourcePostSubmitted,
+        notificationType: NotificationType.SquadFeatured,
         type: 'source',
         status: NotificationPreferenceStatus.Subscribed,
       });
 
-      const result = await invokeNotificationWorker(worker, { post });
-      const ctx = result[0].ctx as NotificationPostModerationContext;
+      const result = await invokeNotificationWorker(worker, { squad });
+      const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
-      expect(result[0].type).toEqual('source_post_submitted');
+      expect(result[0].type).toEqual('squad_featured');
       expect(ctx.userIds.sort()).toEqual(['1', '3']); // Both should receive notifications
     });
 
     it('should not send notifications to users who have globally muted this notification type', async () => {
-      const post = {
-        sourceId: 'a',
-        createdById: '2',
-        status: SourcePostModerationStatus.Pending,
+      const squad = {
+        id: 'a',
+        flags: { featured: true },
       };
       await con
         .getRepository(Source)
@@ -342,12 +318,12 @@ describe('SourcePostModerationSubmitted', () => {
         },
       ]);
 
-      // User '3' globally mutes SourcePostSubmitted notifications
+      // User '3' globally mutes SquadFeatured notifications
       await con.getRepository(User).update(
         { id: '3' },
         {
           notificationFlags: {
-            [NotificationType.SourcePostSubmitted]: {
+            [NotificationType.SquadFeatured]: {
               email: NotificationPreferenceStatus.Muted,
               inApp: NotificationPreferenceStatus.Muted,
             },
@@ -355,19 +331,18 @@ describe('SourcePostModerationSubmitted', () => {
         },
       );
 
-      const result = await invokeNotificationWorker(worker, { post });
-      const ctx = result[0].ctx as NotificationPostModerationContext;
+      const result = await invokeNotificationWorker(worker, { squad });
+      const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
-      expect(result[0].type).toEqual('source_post_submitted');
+      expect(result[0].type).toEqual('squad_featured');
       expect(ctx.userIds).toEqual(['1']); // Only admin '1', moderator '3' is filtered out
     });
 
     it('should not send notifications to users who have subscribed to a specific source but globally muted the notification type', async () => {
-      const post = {
-        sourceId: 'a',
-        createdById: '2',
-        status: SourcePostModerationStatus.Pending,
+      const squad = {
+        id: 'a',
+        flags: { featured: true },
       };
       await con
         .getRepository(Source)
@@ -387,22 +362,22 @@ describe('SourcePostModerationSubmitted', () => {
         },
       ]);
 
-      // User '3' explicitly subscribes to SourcePostSubmitted notifications for squad 'a'
+      // User '3' explicitly subscribes to SquadFeatured notifications for squad 'a'
       await con.getRepository(NotificationPreferenceSource).save({
         userId: '3',
         sourceId: 'a',
         referenceId: 'a',
-        notificationType: NotificationType.SourcePostSubmitted,
+        notificationType: NotificationType.SquadFeatured,
         type: 'source',
         status: NotificationPreferenceStatus.Subscribed,
       });
 
-      // But user '3' also globally mutes SourcePostSubmitted notifications
+      // But user '3' also globally mutes SquadFeatured notifications
       await con.getRepository(User).update(
         { id: '3' },
         {
           notificationFlags: {
-            [NotificationType.SourcePostSubmitted]: {
+            [NotificationType.SquadFeatured]: {
               email: NotificationPreferenceStatus.Muted,
               inApp: NotificationPreferenceStatus.Muted,
             },
@@ -410,19 +385,18 @@ describe('SourcePostModerationSubmitted', () => {
         },
       );
 
-      const result = await invokeNotificationWorker(worker, { post });
-      const ctx = result[0].ctx as NotificationPostModerationContext;
+      const result = await invokeNotificationWorker(worker, { squad });
+      const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
-      expect(result[0].type).toEqual('source_post_submitted');
+      expect(result[0].type).toEqual('squad_featured');
       expect(ctx.userIds).toEqual(['1']); // Only admin '1', moderator '3' is filtered out due to global mute
     });
 
     it('should handle mixed preference scenarios correctly', async () => {
-      const post = {
-        sourceId: 'a',
-        createdById: '2',
-        status: SourcePostModerationStatus.Pending,
+      const squad = {
+        id: 'a',
+        flags: { featured: true },
       };
       await con
         .getRepository(Source)
@@ -454,7 +428,7 @@ describe('SourcePostModerationSubmitted', () => {
         userId: '3',
         sourceId: 'a',
         referenceId: 'a',
-        notificationType: NotificationType.SourcePostSubmitted,
+        notificationType: NotificationType.SquadFeatured,
         type: 'source',
         status: NotificationPreferenceStatus.Muted,
       });
@@ -463,17 +437,65 @@ describe('SourcePostModerationSubmitted', () => {
         userId: '4',
         sourceId: 'a',
         referenceId: 'a',
-        notificationType: NotificationType.SourcePostSubmitted,
+        notificationType: NotificationType.SquadFeatured,
         type: 'source',
         status: NotificationPreferenceStatus.Subscribed,
       });
 
-      const result = await invokeNotificationWorker(worker, { post });
-      const ctx = result[0].ctx as NotificationPostModerationContext;
+      const result = await invokeNotificationWorker(worker, { squad });
+      const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
-      expect(result[0].type).toEqual('source_post_submitted');
+      expect(result[0].type).toEqual('squad_featured');
       expect(ctx.userIds.sort()).toEqual(['1', '4']); // '1' (default) and '4' (subscribed), '3' is muted
+    });
+
+    it('should return undefined when all eligible users have muted notifications', async () => {
+      const squad = {
+        id: 'a',
+        flags: { featured: true },
+      };
+      await con
+        .getRepository(Source)
+        .update({ id: 'a' }, { type: SourceType.Squad });
+      await con.getRepository(SourceMember).save([
+        {
+          sourceId: 'a',
+          userId: '1',
+          role: SourceMemberRoles.Admin,
+          referralToken: 'a',
+        },
+        {
+          sourceId: 'a',
+          userId: '3',
+          role: SourceMemberRoles.Moderator,
+          referralToken: 'b',
+        },
+      ]);
+
+      // Both users mute SquadFeatured notifications for squad 'a'
+      await con.getRepository(NotificationPreferenceSource).save([
+        {
+          userId: '1',
+          sourceId: 'a',
+          referenceId: 'a',
+          notificationType: NotificationType.SquadFeatured,
+          type: 'source',
+          status: NotificationPreferenceStatus.Muted,
+        },
+        {
+          userId: '3',
+          sourceId: 'a',
+          referenceId: 'a',
+          notificationType: NotificationType.SquadFeatured,
+          type: 'source',
+          status: NotificationPreferenceStatus.Muted,
+        },
+      ]);
+
+      const result = await invokeNotificationWorker(worker, { squad });
+
+      expect(result).toBeUndefined(); // No notifications should be sent
     });
   });
 });

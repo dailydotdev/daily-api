@@ -90,7 +90,6 @@ describe('dedicated api routes', () => {
         createdAt: userCreatedDate,
         reputation: 10,
         acceptedMarketing: false,
-        notificationEmail: true,
         roadmap: null,
         threads: null,
         codepen: null,

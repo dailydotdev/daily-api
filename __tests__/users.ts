@@ -115,11 +115,7 @@ import { identifyUserPersonalizedDigest } from '../src/cio';
 import type { GQLUser } from '../src/schema/users';
 import { cancelSubscription } from '../src/common/paddle';
 import { isPlusMember, SubscriptionCycles } from '../src/paddle';
-import {
-  acceptedResumeExtensions,
-  CoresRole,
-  StreakRestoreCoresPrice,
-} from '../src/types';
+import { CoresRole, StreakRestoreCoresPrice } from '../src/types';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -142,6 +138,10 @@ import * as googleCloud from '../src/common/googleCloud';
 import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
 import { Bucket } from '@google-cloud/storage';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationType,
+} from '../src/notifications/common';
 import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
 import { ExperienceStatus } from '../src/entity/user/experiences/types';
 import {
@@ -192,6 +192,7 @@ jest.mock('../src/common/mailing.ts', () => ({
 jest.mock('../src/cio', () => ({
   ...(jest.requireActual('../src/cio') as Record<string, unknown>),
   identifyUserPersonalizedDigest: jest.fn(),
+  syncNotificationFlagsToCio: jest.fn(),
 }));
 
 beforeAll(async () => {
@@ -3390,7 +3391,6 @@ describe('mutation updateUserProfile', () => {
         hashnode
         createdAt
         infoConfirmed
-        notificationEmail
         timezone
         experienceLevel
         language
@@ -3715,23 +3715,6 @@ describe('mutation updateUserProfile', () => {
 
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser!.language).toEqual(null);
-  });
-
-  it('should update notification email preference', async () => {
-    loggedUser = '1';
-
-    const repo = con.getRepository(User);
-    const user = await repo.findOneBy({ id: loggedUser });
-    expect(user?.notificationEmail).toBeTruthy();
-    const notificationEmail = false;
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        data: { username: 'sample', name: 'test', notificationEmail },
-      },
-    });
-    expect(res.errors).toBeFalsy();
-    const updatedUser = await repo.findOneBy({ id: loggedUser });
-    expect(updatedUser?.notificationEmail).toEqual(notificationEmail);
   });
 
   it('should not update if username is empty', async () => {
@@ -4393,13 +4376,10 @@ describe('mutation deleteUser', () => {
       await client.mutate(MUTATION);
 
       // Verify we requested delete action for every extension supported
-      acceptedResumeExtensions.forEach((ext, index) => {
-        expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
-          index + 1,
-          expect.any(Bucket),
-          `${loggedUser}.${ext}`,
-        );
-      });
+      expect(deleteFileFromBucket).toHaveBeenCalledWith(
+        expect.any(Bucket),
+        loggedUser,
+      );
     });
 
     it('should handle case when user has no resume', async () => {
@@ -4410,13 +4390,10 @@ describe('mutation deleteUser', () => {
       await client.mutate(MUTATION);
 
       // Verify the function was called but no error was thrown
-      acceptedResumeExtensions.forEach((ext, index) => {
-        expect(deleteFileFromBucket).toHaveBeenNthCalledWith(
-          index + 1,
-          expect.any(Bucket),
-          `${loggedUser}.${ext}`,
-        );
-      });
+      expect(deleteFileFromBucket).toHaveBeenCalledWith(
+        expect.any(Bucket),
+        loggedUser,
+      );
 
       // User should still be deleted
       const userOne = await con.getRepository(User).findOneBy({ id: '1' });
@@ -6785,13 +6762,13 @@ describe('add claimable items to user', () => {
 });
 
 describe('mutation uploadResume', () => {
-  const MUTATION = `
-        mutation UploadResume($resume: Upload!) {
-          uploadResume(resume: $resume) {
-            _
-          }
-        }
-      `;
+  const MUTATION = /* GraphQL */ `
+    mutation UploadResume($resume: Upload!) {
+      uploadResume(resume: $resume) {
+        _
+      }
+    }
+  `;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -6832,7 +6809,7 @@ describe('mutation uploadResume', () => {
 
     // Mock the upload function to return a URL
     uploadResumeFromBuffer.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.pdf`,
+      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1`,
     );
 
     // Execute the mutation with a file upload
@@ -6857,8 +6834,9 @@ describe('mutation uploadResume', () => {
 
     // Verify the mocks were called correctly
     expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
-      `${loggedUser}.pdf`,
+      loggedUser,
       expect.any(Object),
+      { contentType: 'application/pdf' },
     );
   });
 
@@ -6873,7 +6851,7 @@ describe('mutation uploadResume', () => {
 
     // Mock the upload function to return a URL
     uploadResumeFromBuffer.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1.docx`,
+      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1`,
     );
 
     // Execute the mutation with a file upload
@@ -6898,8 +6876,12 @@ describe('mutation uploadResume', () => {
 
     // Verify the mocks were called correctly
     expect(uploadResumeFromBuffer).toHaveBeenCalledWith(
-      `${loggedUser}.docx`,
+      loggedUser,
       expect.any(Object),
+      {
+        contentType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      },
     );
   });
 
@@ -6995,6 +6977,56 @@ describe('mutation uploadResume', () => {
     const body = res.body;
     expect(body.errors).toBeTruthy();
     expect(body.errors[0].message).toEqual('File type not supported');
+  });
+});
+describe('mutation updateNotificationSettings', () => {
+  const MUTATION = `mutation UpdateNotificationSettings($notificationFlags: JSON!) {
+    updateNotificationSettings(notificationFlags: $notificationFlags) {
+      _
+    }
+  }`;
+
+  it('should overwrite notification settings', async () => {
+    loggedUser = '1';
+
+    const updatedFlags = {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      [NotificationType.ArticleNewComment]: {
+        email: 'muted',
+        inApp: 'subscribed',
+      },
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: { notificationFlags: updatedFlags },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateNotificationSettings._).toBeTruthy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.notificationFlags).toEqual(updatedFlags);
+  });
+
+  it('should throw error because of invalid notification flags', async () => {
+    loggedUser = '1';
+
+    const updatedFlags = {
+      ...DEFAULT_NOTIFICATION_SETTINGS,
+      new_pokemon: {
+        email: 'subscribed',
+        inApp: 'subscribed',
+      },
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { notificationFlags: updatedFlags },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
   });
 });
 

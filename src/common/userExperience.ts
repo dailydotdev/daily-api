@@ -4,6 +4,7 @@ import { CompanyType } from '../entity/Company';
 import {
   ExperienceStatus,
   UserExperienceType,
+  WorkVerificationStatus,
 } from '../entity/user/experiences/types';
 import type { UserWorkExperience } from '../entity/user/experiences/UserWorkExperience';
 import type { UserProjectExperience } from '../entity/user/experiences/UserProjectExperience';
@@ -21,6 +22,8 @@ import {
   userPublicationExperienceSchema,
   userWorkExperienceSchema,
 } from './schema/userExperience';
+import { DataSource, Not } from 'typeorm';
+import { UserCompany } from '../entity';
 
 // Autocomplete
 export enum ExperienceAutocompleteType {
@@ -187,3 +190,27 @@ export const experienceTypeToRepositoryMap: Record<UserExperienceType, string> =
     [UserExperienceType.Publication]: 'UserPublicationExperience',
     [UserExperienceType.Course]: 'UserCourseExperience',
   };
+
+// Work Email Verification
+export const completeVerificationForExperienceByUserCompany = async (
+  con: DataSource,
+  { companyId, userId, email: verificationEmail }: UserCompany,
+): Promise<boolean> => {
+  if (!companyId) return false;
+
+  const update = await con
+    .getRepository<UserWorkExperience>('UserWorkExperience')
+    .update(
+      {
+        userId,
+        companyId,
+        verificationStatus: Not(WorkVerificationStatus.Verified),
+      },
+      {
+        verificationEmail,
+        verificationStatus: WorkVerificationStatus.Verified,
+      },
+    );
+
+  return !!update?.affected;
+};

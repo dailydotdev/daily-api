@@ -10,6 +10,7 @@ import {
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
 import {
+  completeVerificationForExperienceByUserCompany,
   DEFAULT_AUTOCOMPLETE_LIMIT,
   ExperienceAutocompleteType,
   getEmptyExperienceTypesMap,
@@ -21,8 +22,10 @@ import {
   ExperienceStatus,
   ProjectLinkType,
   UserExperienceType,
+  WorkEmploymentType,
+  WorkVerificationStatus,
 } from '../src/entity/user/experiences/types';
-import { User } from '../src/entity';
+import { User, UserCompany } from '../src/entity';
 import { usersFixture } from './fixture';
 import { UserAwardExperience } from '../src/entity/user/experiences/UserAwardExperience';
 import { UserEducationExperience } from '../src/entity/user/experiences/UserEducationExperience';
@@ -1378,5 +1381,226 @@ describe('user experience', () => {
       expect(updatedExperience).toBeDefined();
       expect(updatedExperience.status).toEqual(ExperienceStatus.Draft);
     });
+  });
+});
+
+describe('work experience verification flow', () => {
+  const companyId = 'company1';
+  const userId = '1';
+  let workExperienceId: string;
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+
+    // Create test company
+    await saveFixtures(con, Company, [
+      {
+        id: companyId,
+        name: 'Test Company',
+        type: CompanyType.Business,
+        image: 'https://example.com/company.png',
+        domains: ['testcompany.com'],
+      },
+    ]);
+
+    // Create a work experience that needs verification
+    const workExperience = await con.getRepository(UserWorkExperience).save({
+      userId,
+      title: 'Software Engineer',
+      status: ExperienceStatus.Published,
+      description: 'Working on awesome projects',
+      startDate: new Date('2023-01-01'),
+      companyId,
+      employmentType: WorkEmploymentType.FullTime,
+      verificationStatus: WorkVerificationStatus.Pending,
+    });
+
+    workExperienceId = workExperience.id;
+  });
+
+  it('should verify work experience when UserCompany is verified', async () => {
+    // Create a verified UserCompany record
+    const userCompany = await con.getRepository(UserCompany).save({
+      userId,
+      companyId,
+      email: 'user@testcompany.com',
+      code: '123456',
+      verified: true,
+    });
+
+    // Call the verification function
+    const result = await completeVerificationForExperienceByUserCompany(
+      con,
+      userCompany,
+    );
+
+    // Verify the result is true (verification was successful)
+    expect(result).toBe(true);
+
+    // Check that the work experience was updated
+    const updatedExperience = await con
+      .getRepository(UserWorkExperience)
+      .findOneBy({ id: workExperienceId });
+
+    expect(updatedExperience).toBeDefined();
+    expect(updatedExperience?.verificationStatus).toBe(
+      WorkVerificationStatus.Verified,
+    );
+    expect(updatedExperience?.verificationEmail).toBe('user@testcompany.com');
+  });
+
+  it('should not verify work experience when UserCompany has no companyId', async () => {
+    // Create a UserCompany record without companyId
+    const userCompany = await con.getRepository(UserCompany).save({
+      userId,
+      companyId: null,
+      email: 'user@testcompany.com',
+      code: '123456',
+      verified: true,
+    });
+
+    // Call the verification function
+    const result = await completeVerificationForExperienceByUserCompany(
+      con,
+      userCompany,
+    );
+
+    // Verify the result is false (verification was not successful)
+    expect(result).toBe(false);
+
+    // Check that the work experience was not updated
+    const updatedExperience = await con
+      .getRepository(UserWorkExperience)
+      .findOneBy({ id: workExperienceId });
+
+    expect(updatedExperience).toBeDefined();
+    expect(updatedExperience?.verificationStatus).toBe(
+      WorkVerificationStatus.Pending,
+    );
+  });
+
+  it('should not verify work experience when no matching experience exists', async () => {
+    // Create a UserCompany record with a different companyId
+    await con.getRepository(Company).save({
+      id: 'different-company-id',
+      name: 'Test Company 2',
+      type: CompanyType.Business,
+      image: 'https://example.com/company2.png',
+      domains: ['testcompany2.com'],
+    });
+    const userCompany = await con.getRepository(UserCompany).save({
+      userId,
+      companyId: 'different-company-id',
+      email: 'user@othercompany.com',
+      code: '123456',
+      verified: true,
+    });
+
+    // Call the verification function
+    const result = await completeVerificationForExperienceByUserCompany(
+      con,
+      userCompany,
+    );
+
+    // Verify the result is false (verification was not successful)
+    expect(result).toBe(false);
+
+    // Check that the work experience was not updated
+    const updatedExperience = await con
+      .getRepository(UserWorkExperience)
+      .findOneBy({ id: workExperienceId });
+
+    expect(updatedExperience).toBeDefined();
+    expect(updatedExperience?.verificationStatus).toBe(
+      WorkVerificationStatus.Pending,
+    );
+  });
+
+  it('should not update already verified work experience', async () => {
+    // First, update the work experience to be already verified
+    await con.getRepository(UserWorkExperience).update(
+      { id: workExperienceId },
+      {
+        verificationStatus: WorkVerificationStatus.Verified,
+        verificationEmail: 'already@verified.com',
+      },
+    );
+
+    // Create a UserCompany record
+    const userCompany = await con.getRepository(UserCompany).save({
+      userId,
+      companyId,
+      email: 'new@testcompany.com',
+      code: '123456',
+      verified: true,
+    });
+
+    // Call the verification function
+    const result = await completeVerificationForExperienceByUserCompany(
+      con,
+      userCompany,
+    );
+
+    // Verify the result is false (no update was needed)
+    expect(result).toBe(false);
+
+    // Check that the work experience was not updated
+    const updatedExperience = await con
+      .getRepository(UserWorkExperience)
+      .findOneBy({ id: workExperienceId });
+
+    expect(updatedExperience).toBeDefined();
+    expect(updatedExperience?.verificationStatus).toBe(
+      WorkVerificationStatus.Verified,
+    );
+    expect(updatedExperience?.verificationEmail).toBe('already@verified.com');
+  });
+
+  it('should verify work experience when verifyUserCompanyCode is called', async () => {
+    loggedUser = '1';
+
+    // Create an unverified UserCompany record
+    await con.getRepository(UserCompany).save({
+      userId,
+      companyId,
+      email: 'user@testcompany.com',
+      code: '123456',
+      verified: false,
+    });
+
+    const MUTATION = `mutation VerifyUserCompanyCode($email: String!, $code: String!) {
+    verifyUserCompanyCode(email: $email, code: $code) {
+      email
+    }
+  }`;
+
+    // Call the verifyUserCompanyCode mutation (which internally calls completeVerificationForExperienceByUserCompany)
+    const res = await client.mutate(MUTATION, {
+      variables: { email: 'user@testcompany.com', code: '123456' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.verifyUserCompanyCode.email).toEqual(
+      'user@testcompany.com',
+    );
+
+    const row = await con.getRepository(UserCompany).findOneBy({
+      email: 'user@testcompany.com',
+    });
+    expect(row?.verified).toBeTruthy();
+
+    // Check that the work experience was updated
+    const updatedExperience = await con
+      .getRepository(UserWorkExperience)
+      .findOneBy({ id: workExperienceId });
+
+    expect(updatedExperience).toBeDefined();
+    expect(updatedExperience).toEqual(
+      expect.objectContaining({
+        companyId,
+        userId,
+        verificationStatus: WorkVerificationStatus.Verified,
+        verificationEmail: 'user@testcompany.com',
+      }),
+    );
   });
 });
