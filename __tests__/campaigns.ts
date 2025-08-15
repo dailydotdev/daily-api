@@ -1695,8 +1695,6 @@ describe('query dailyCampaignReachEstimate', () => {
     });
   });
 
-
-
   it('should work for post scout as well as author', async () => {
     loggedUser = '1';
 
