@@ -1,18 +1,18 @@
-import { CampaignSource, CampaignState, Source } from '../../entity';
+import { CampaignSource, Source } from '../../entity';
 
 import { updateFlagsStatement } from '../utils';
 import type { AuthContext } from '../../Context';
 import {
+  createNewCampaign,
   startCampaign,
   validateCampaignArgs,
-  type StartCampaignArgs,
+  type StartCampaignMutationArgs,
 } from './common';
 import {
   ensureSourcePermissions,
   SourcePermissions,
 } from '../../schema/sources';
 import { ValidationError } from 'apollo-server-errors';
-import { randomUUID } from 'crypto';
 
 export interface StartSourceBoostArgs {
   postId: string;
@@ -38,37 +38,15 @@ const validateSquadBoostPermissions = async (
   return source;
 };
 
-interface StartSourceCampaign {
-  ctx: AuthContext;
-  args: StartCampaignArgs;
-}
-
-export const startCampaignSource = async ({
-  ctx,
-  args,
-}: StartSourceCampaign) => {
-  const { value, duration, budget } = args;
+export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
+  const { ctx, args } = props;
+  const { value } = args;
   validateCampaignArgs(args);
   const source = await validateSquadBoostPermissions(ctx, value);
 
-  const { userId } = ctx;
-  const total = budget * duration;
-
   const request = await ctx.con.transaction(async (manager) => {
-    const id = randomUUID();
-    const campaign = manager.getRepository(CampaignSource).create({
-      id,
-      flags: {
-        budget: total,
-        spend: 0,
-        users: 0,
-        clicks: 0,
-        impressions: 0,
-      },
-      userId,
-      referenceId: value,
+    const campaign = createNewCampaign(props, CampaignSource, {
       sourceId: source.id,
-      state: CampaignState.Active,
     });
 
     return startCampaign({

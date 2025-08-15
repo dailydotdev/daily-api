@@ -3,7 +3,6 @@ import { AuthContext } from '../../Context';
 import {
   ArticlePost,
   CampaignPost,
-  CampaignState,
   Post,
   PostType,
   type ConnectionManager,
@@ -30,11 +29,11 @@ import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { usdToCores } from '../number';
 
 import {
+  createNewCampaign,
   startCampaign,
   validateCampaignArgs,
-  type StartCampaignArgs,
+  type StartCampaignMutationArgs,
 } from './common';
-import { randomUUID } from 'crypto';
 
 export interface GQLPromotedPost
   extends Omit<
@@ -272,36 +271,15 @@ export const getAdjustedReach = (value: number) => {
   return estimatedReach;
 };
 
-interface StartPostCampaign {
-  ctx: AuthContext;
-  args: StartCampaignArgs;
-}
-
-export const startCampaignPost = async ({ ctx, args }: StartPostCampaign) => {
-  const { value: postId, duration, budget } = args;
+export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
+  const { ctx, args } = props;
+  const { value: postId } = args;
   validateCampaignArgs(args);
   const post = await validatePostBoostPermissions(ctx, postId);
   checkPostAlreadyBoosted(post);
 
-  const { userId } = ctx;
-  const total = budget * duration;
-
   const request = await ctx.con.transaction(async (manager) => {
-    const id = randomUUID();
-    const campaign = manager.getRepository(CampaignPost).create({
-      id,
-      flags: {
-        budget: total,
-        spend: 0,
-        users: 0,
-        clicks: 0,
-        impressions: 0,
-      },
-      userId,
-      referenceId: postId,
-      postId,
-      state: CampaignState.Active,
-    });
+    const campaign = createNewCampaign(props, CampaignPost, { postId });
 
     return startCampaign({
       campaign,

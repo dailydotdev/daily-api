@@ -1,6 +1,12 @@
 import { ValidationError } from 'apollo-server-errors';
 import z from 'zod';
-import { Campaign, CampaignType, Post, Source } from '../../entity';
+import {
+  Campaign,
+  CampaignState,
+  CampaignType,
+  Post,
+  Source,
+} from '../../entity';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
 import { coresToUsd, usdToCores } from '../number';
 import { randomUUID } from 'crypto';
@@ -14,9 +20,10 @@ import { parseBigInt, systemUser, updateFlagsStatement } from '../utils';
 import { TransferError } from '../../errors';
 import { transferCores, throwUserTransactionError } from '../njord';
 import type { AuthContext } from '../../Context';
-import type { EntityManager } from 'typeorm';
+import type { DeepPartial, EntityManager, EntityTarget } from 'typeorm';
 import { capitalize } from 'lodash';
 import { logger } from '../../logger';
+import { addDays } from 'date-fns';
 
 export const CAMPAIGN_VALIDATION_SCHEMA = z.object({
   budget: z
@@ -41,6 +48,11 @@ export interface StartCampaignArgs {
   value: string;
   duration: number;
   budget: number;
+}
+
+export interface StartCampaignMutationArgs {
+  ctx: AuthContext;
+  args: StartCampaignArgs;
 }
 
 export const validateCampaignArgs = (
@@ -79,8 +91,8 @@ export const startCampaign = async ({
   const userId = campaign.userId;
 
   await manager.getRepository(Campaign).save(campaign);
-
-  const { campaignId } = await skadiApiClient.startCampaign({
+  const campaignId = campaign.id;
+  await skadiApiClient.startCampaign({
     value: campaign.id,
     type: campaign.type,
     durationInDays: duration,
@@ -231,4 +243,32 @@ export const typeToCancelFn: Record<
         { id: referenceId },
         { flags: updateFlagsStatement<Source>({ campaignId: null }) },
       ),
+};
+
+export const createNewCampaign = <T extends Campaign>(
+  { ctx, args }: StartCampaignMutationArgs,
+  entity: EntityTarget<T>,
+  partial: DeepPartial<T>,
+): T => {
+  const { userId } = ctx;
+  const { budget, duration, value } = args;
+  const id = randomUUID();
+  const total = budget * duration;
+  const endedAt = addDays(new Date(), duration);
+
+  return ctx.con.getRepository(entity).create({
+    ...partial,
+    id,
+    flags: {
+      budget: total,
+      spend: 0,
+      users: 0,
+      clicks: 0,
+      impressions: 0,
+    },
+    userId,
+    referenceId: value,
+    state: CampaignState.Active,
+    endedAt,
+  });
 };
