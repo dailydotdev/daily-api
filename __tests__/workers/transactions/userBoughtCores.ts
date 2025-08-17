@@ -16,7 +16,11 @@ import {
   sendEmail,
 } from '../../../src/common';
 import type { ChangeObject } from '../../../src/types';
-import { DEFAULT_NOTIFICATION_SETTINGS, NotificationPreferenceStatus, NotificationType } from '../../../src/notifications/common';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../../src/notifications/common';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
