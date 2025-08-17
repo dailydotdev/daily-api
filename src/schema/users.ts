@@ -180,7 +180,6 @@ export interface GQLUpdateUserInput {
   mastodon?: string;
   hashnode?: string;
   portfolio?: string;
-  acceptedMarketing?: boolean;
   timezone?: string;
   weekStart?: number;
   infoConfirmed?: boolean;
@@ -446,10 +445,6 @@ export const typeDefs = /* GraphQL */ `
     """
     reputation: Int
     """
-    If the user has accepted marketing
-    """
-    acceptedMarketing: Boolean
-    """
     Markdown version of the user's readme
     """
     readme: String
@@ -498,6 +493,11 @@ export const typeDefs = /* GraphQL */ `
     Role for Cores access
     """
     coresRole: Int
+
+    """
+    User's notification preferences
+    """
+    notificationFlags: JSON
   }
 
   """
@@ -656,10 +656,6 @@ export const typeDefs = /* GraphQL */ `
     User website
     """
     portfolio: String
-    """
-    If the user has accepted marketing
-    """
-    acceptedMarketing: Boolean
     """
     If the user's info is confirmed
     """
@@ -3017,6 +3013,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     image: (user: GQLUser): GQLUser['image'] => mapCloudinaryUrl(user.image),
     cover: (user: GQLUser): GQLUser['cover'] => mapCloudinaryUrl(user.cover),
     permalink: getUserPermalink,
+    notificationFlags: (user: GQLUser): UserNotificationFlags => {
+      return {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        ...(typeof user.notificationFlags === 'string'
+          ? JSON.parse(user.notificationFlags)
+          : user.notificationFlags),
+      };
+    },
   },
   UserIntegration: {
     name: (userIntegration: UserIntegration) => {

@@ -13,6 +13,7 @@ import { userCreatedDate, usersFixture } from './fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { DEFAULT_TIMEZONE } from '../src/common';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../src/notifications/common';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -64,7 +65,7 @@ describe('query whoami', () => {
 
     const res = await client.query(QUERY);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { email, ...user } = usersFixture[0];
+    const { email, notificationFlags, ...user } = usersFixture[0];
     expect(res.data.whoami).toEqual({
       ...user,
       timezone: DEFAULT_TIMEZONE,
@@ -89,7 +90,6 @@ describe('dedicated api routes', () => {
         timezone: DEFAULT_TIMEZONE,
         createdAt: userCreatedDate,
         reputation: 10,
-        acceptedMarketing: false,
         roadmap: null,
         threads: null,
         codepen: null,
@@ -98,6 +98,7 @@ describe('dedicated api routes', () => {
         youtube: null,
         linkedin: null,
         mastodon: null,
+        notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
       });
     });
   });

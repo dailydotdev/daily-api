@@ -18,6 +18,7 @@ import mocked = jest.mocked;
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { usersFixture } from '../fixture/user';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
   ...jest.requireActual('../../src/common'),
@@ -58,11 +59,8 @@ describe('userUpdatedCio', () => {
     updatedAt: 1714577744717000,
     bio: 'bio',
     readme: 'readme',
-    notificationEmail: true,
-    acceptedMarketing: true,
-    followingEmail: true,
     emailConfirmed: true,
-    awardEmail: true,
+    notificationFlags: JSON.stringify(DEFAULT_NOTIFICATION_SETTINGS),
   };
 
   it('should be registered', () => {
@@ -87,27 +85,26 @@ describe('userUpdatedCio', () => {
       updated_at: 1714577744,
       username: 'cio',
       referral_link: referral,
-      accepted_marketing: true,
       email_confirmed: true,
       'cio_subscription_preferences.topics.topic_4': true,
-      'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': false,
-      'cio_subscription_preferences.topics.topic_9': true,
-      'cio_subscription_preferences.topics.topic_10': true,
-    });
-  });
-
-  it('should support accepted marketing false', async () => {
-    mocked(getShortGenericInviteLink).mockImplementation(async () => '');
-    await expectSuccessfulTypedBackground(worker, {
-      newProfile: { ...base, acceptedMarketing: false },
-      user: base,
-    } as unknown as PubSubSchema['user-updated']);
-    expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
-      'cio_subscription_preferences.topics.topic_4': false,
-      'cio_subscription_preferences.topics.topic_7': true,
-      'cio_subscription_preferences.topics.topic_8': false,
-      'cio_subscription_preferences.topics.topic_9': true,
+      'cio_subscription_preferences.topics.topic_1': true,
+      'cio_subscription_preferences.topics.topic_11': true,
+      'cio_subscription_preferences.topics.topic_12': true,
+      'cio_subscription_preferences.topics.topic_13': true,
+      'cio_subscription_preferences.topics.topic_14': true,
+      'cio_subscription_preferences.topics.topic_15': true,
+      'cio_subscription_preferences.topics.topic_16': true,
+      'cio_subscription_preferences.topics.topic_17': true,
+      'cio_subscription_preferences.topics.topic_18': true,
+      'cio_subscription_preferences.topics.topic_19': true,
+      'cio_subscription_preferences.topics.topic_20': true,
+      'cio_subscription_preferences.topics.topic_22': true,
+      'cio_subscription_preferences.topics.topic_23': true,
+      'cio_subscription_preferences.topics.topic_24': true,
+      'cio_subscription_preferences.topics.topic_25': true,
+      'cio_subscription_preferences.topics.topic_26': true,
+      'cio_subscription_preferences.topics.topic_5': true,
     });
   });
 
@@ -148,9 +145,7 @@ describe('userUpdatedCio', () => {
     } as unknown as PubSubSchema['user-updated']);
     expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
       'cio_subscription_preferences.topics.topic_4': true,
-      'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': false,
-      'cio_subscription_preferences.topics.topic_9': false,
     });
   });
 
@@ -162,9 +157,7 @@ describe('userUpdatedCio', () => {
     } as unknown as PubSubSchema['user-updated']);
     expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
       'cio_subscription_preferences.topics.topic_4': true,
-      'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': false,
-      'cio_subscription_preferences.topics.topic_10': false,
     });
   });
 
@@ -179,6 +172,7 @@ describe('userUpdatedCio', () => {
       email: 'uucu1@daily.dev',
       twitter: 'uucu1',
       username: 'uucu1',
+      notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
     });
     await con.getRepository(UserPersonalizedDigest).findBy({
       userId: 'uucu1',
@@ -191,9 +185,7 @@ describe('userUpdatedCio', () => {
     } as unknown as PubSubSchema['user-updated']);
     expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
       'cio_subscription_preferences.topics.topic_4': true,
-      'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': true,
-      'cio_subscription_preferences.topics.topic_9': true,
     });
   });
 
@@ -208,6 +200,7 @@ describe('userUpdatedCio', () => {
       email: 'uucu1@daily.dev',
       twitter: 'uucu1',
       username: 'uucu1',
+      notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
     });
 
     await con.getRepository(UserPersonalizedDigest).update(
@@ -230,9 +223,7 @@ describe('userUpdatedCio', () => {
     } as unknown as PubSubSchema['user-updated']);
     expect(mocked(cio.identify).mock.calls[0][1]).toMatchObject({
       'cio_subscription_preferences.topics.topic_4': true,
-      'cio_subscription_preferences.topics.topic_7': true,
       'cio_subscription_preferences.topics.topic_8': true,
-      'cio_subscription_preferences.topics.topic_9': true,
     });
   });
 });

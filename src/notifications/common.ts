@@ -71,6 +71,7 @@ export enum NotificationType {
   Marketing = 'marketing',
   NewUserWelcome = 'new_user_welcome',
   Announcements = 'announcements',
+  InAppPurchases = 'in_app_purchases',
 }
 
 export enum NotificationPreferenceType {
@@ -249,6 +250,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.Announcements]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.InAppPurchases]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

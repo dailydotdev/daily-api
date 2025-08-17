@@ -112,6 +112,10 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   post_boost_first_milestone: '80',
   briefing_ready: '81',
   user_follow: '',
+  marketing: '',
+  new_user_welcome: '',
+  announcements: '',
+  in_app_purchases: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1024,6 +1028,18 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   user_follow: async () => {
+    return null;
+  },
+  marketing: async () => {
+    return null;
+  },
+  new_user_welcome: async () => {
+    return null;
+  },
+  announcements: async () => {
+    return null;
+  },
+  in_app_purchases: async () => {
     return null;
   },
 };

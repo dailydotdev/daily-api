@@ -45,5 +45,6 @@ export const notificationFlagsSchema = z
     [NotificationType.Marketing]: notificationPreferenceSchema,
     [NotificationType.NewUserWelcome]: notificationPreferenceSchema,
     [NotificationType.Announcements]: notificationPreferenceSchema,
+    [NotificationType.InAppPurchases]: notificationPreferenceSchema,
   })
   .strict();
