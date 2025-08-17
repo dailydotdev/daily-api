@@ -226,6 +226,7 @@ export interface GQLUser {
   topReader?: GQLUserTopReader;
   coresRole: CoresRole;
   isPlus?: boolean;
+  notificationFlags: UserNotificationFlags;
 }
 
 export interface GQLView {
