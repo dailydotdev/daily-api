@@ -348,7 +348,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
       }),
     );
 
-    return startCampaignTransferCores({
+    return await startCampaignTransferCores({
       ctx,
       manager,
       campaignId,
@@ -397,7 +397,7 @@ export const stopCampaignPost = async ({
       }),
     );
 
-    return stopCampaignTransferCores({
+    return await stopCampaignTransferCores({
       ctx,
       manager,
       campaignId,
