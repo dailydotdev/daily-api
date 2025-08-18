@@ -33,11 +33,15 @@ export const postAnalyticsClickhouseCron: Cron = {
 
     const clickhouseClient = getClickHouseClient();
 
+    const queryParams = {
+      lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
+    };
+
     const response = await clickhouseClient.query({
       query: /* sql */ `
         SELECT
             post_id AS id,
-            created_at AS "updatedAt",
+            max(created_at) AS "updatedAt",
             sum(impressions) AS impressions,
             uniqMerge(reach) AS reach,
             uniqMerge(bookmarks) AS bookmarks,
@@ -48,15 +52,12 @@ export const postAnalyticsClickhouseCron: Cron = {
             sum(shares_internal) AS "sharesInternal"
         FROM api.post_analytics
         FINAL
-        WHERE created_at > {lastRunAt: DateTime}
-        GROUP BY post_id, created_at
-        ORDER BY created_at DESC
-        LIMIT 1 BY post_id;
+        GROUP BY id
+        HAVING "updatedAt" > {lastRunAt: DateTime}
+        ORDER BY "updatedAt" DESC;
       `,
       format: 'JSONEachRow',
-      query_params: {
-        lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
-      },
+      query_params: queryParams,
     });
 
     const result = z
@@ -111,5 +112,10 @@ export const postAnalyticsClickhouseCron: Cron = {
     await setRedisHash<PostAnalyticsClickhouseCronConfig>(redisStorageKey, {
       lastRunAt: currentRunAt.toISOString(),
     });
+
+    logger.info(
+      { rows: data.length, queryParams },
+      'synced post analytics data',
+    );
   },
 };
