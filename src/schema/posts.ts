@@ -53,6 +53,7 @@ import {
   systemUser,
   parseBigInt,
   triggerTypedEvent,
+  isProd,
 } from '../common';
 import {
   ArticlePost,
@@ -164,6 +165,8 @@ import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { usdToCores, coresToUsd } from '../common/number';
+import type { PostAnalytics } from '../entity/posts/PostAnalytics';
+import type { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 
 export interface GQLPost {
   id: string;
@@ -284,6 +287,13 @@ export interface GQLPostRelationArgs extends ConnectionArguments {
 export type GQLPostCodeSnippet = Pick<
   PostCodeSnippet,
   'postId' | 'language' | 'content' | 'order'
+>;
+
+export type GQLPostAnalytics = Omit<PostAnalytics, 'post' | 'createdAt'>;
+
+export type GQLPostAnalyticsHistory = Omit<
+  PostAnalyticsHistory,
+  'post' | 'createdAt'
 >;
 
 export const typeDefs = /* GraphQL */ `
@@ -964,6 +974,50 @@ export const typeDefs = /* GraphQL */ `
     postId: String!
   }
 
+  type PostAnalytics {
+    id: ID!
+    impressions: Int!
+    reach: Int!
+    bookmarks: Int!
+    profileViews: Int!
+    followers: Int!
+    squadJoins: Int!
+    sharesExternal: Int!
+    sharesInternal: Int!
+    reputation: Int!
+    coresEarned: Int!
+    upvotes: Int!
+    downvotes: Int!
+    comments: Int!
+    awards: Int!
+    upvotesRatio: Int!
+    shares: Int!
+  }
+
+  type PostAnalyticsHistory {
+    id: ID!
+    date: DateTime!
+    impressions: Int!
+  }
+
+  type PostAnalyticsHistoryEdge {
+    node: PostAnalyticsHistory!
+
+    """
+    Used in before and after args
+    """
+    cursor: String!
+  }
+
+  type PostAnalyticsHistoryConnection {
+    pageInfo: PageInfo!
+    edges: [PostAnalyticsHistoryEdge!]!
+    """
+    The original query in case of a search operation
+    """
+    query: String
+  }
+
   extend type Query {
     """
     Get specific squad post moderation item
@@ -1182,6 +1236,35 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): PostConnection! @auth
+
+    """
+    Get post analytics
+    """
+    postAnalytics(
+      """
+      Id of the post
+      """
+      id: ID!
+    ): PostAnalytics! @auth
+
+    """
+    Get post analytics history
+    """
+    postAnalyticsHistory(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Id of the post
+      """
+      id: ID!
+    ): PostAnalyticsHistoryConnection! @auth
   }
 
   extend type Mutation {
@@ -2288,6 +2371,67 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             return builder;
           },
           orderByKey: 'DESC',
+        },
+      );
+    },
+    postAnalytics: async (
+      _,
+      args: {
+        id: string;
+      },
+      ctx: Context,
+      info,
+    ): Promise<GQLPostAnalytics> => {
+      // for now allow only for team members
+      if (isProd && !ctx.isTeamMember) {
+        throw new ForbiddenError('not allowed for you yet');
+      }
+
+      return graphorm.queryOneOrFail<GQLPostAnalytics>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.andWhere(
+            `"${builder.alias}".id = :postId`,
+            { postId: args.id },
+          ),
+        }),
+        undefined,
+        true,
+      );
+    },
+    postAnalyticsHistory: async (
+      _,
+      args: ConnectionArguments & {
+        id: string;
+      },
+      ctx: Context,
+      info,
+    ): Promise<ConnectionRelay<GQLPostAnalyticsHistory>> => {
+      // for now allow only for team members
+      if (isProd && !ctx.isTeamMember) {
+        throw new ForbiddenError('not allowed for you yet');
+      }
+
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'updatedAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}.id = :postId`,
+              {
+                postId: args.id,
+              },
+            );
+
+            return builder;
+          },
+          orderByKey: 'ASC',
+          readReplica: true,
         },
       );
     },
