@@ -7,8 +7,7 @@ import {
 
 import type { AuthContext } from '../../Context';
 import {
-  startCampaignTransferCores,
-  validateCampaignArgs,
+  campaignTransferCores,
   type StartCampaignMutationArgs,
   type StopCampaignProps,
 } from './common';
@@ -50,7 +49,6 @@ export const validateSquadBoostPermissions = async (
 export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
   const { value } = args;
-  validateCampaignArgs(args);
   const source = await validateSquadBoostPermissions(ctx, value);
 
   const request = await ctx.con.transaction(async (manager) => {
@@ -106,7 +104,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
       }),
     );
 
-    return startCampaignTransferCores({
+    return campaignTransferCores({
       ctx,
       manager,
       campaignId,
@@ -154,7 +152,7 @@ export const stopCampaignSource = async ({
       }),
     );
 
-    return startCampaignTransferCores({
+    return campaignTransferCores({
       ctx,
       manager,
       campaignId,

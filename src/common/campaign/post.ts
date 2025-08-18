@@ -30,8 +30,7 @@ import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { coresToUsd, usdToCores } from '../number';
 
 import {
-  startCampaignTransferCores,
-  validateCampaignArgs,
+  campaignTransferCores,
   type StartCampaignMutationArgs,
   type StopCampaignProps,
 } from './common';
@@ -284,7 +283,6 @@ export const getAdjustedReach = (value: number) => {
 export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
   const { value: postId } = args;
-  validateCampaignArgs(args);
   const post = await validatePostBoostPermissions(ctx, postId);
   checkPostAlreadyBoosted(post);
 
@@ -341,7 +339,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
       }),
     );
 
-    return startCampaignTransferCores({
+    return campaignTransferCores({
       ctx,
       manager,
       campaignId,
@@ -390,7 +388,7 @@ export const stopCampaignPost = async ({
       }),
     );
 
-    return startCampaignTransferCores({
+    return campaignTransferCores({
       ctx,
       manager,
       campaignId,

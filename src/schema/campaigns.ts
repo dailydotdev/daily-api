@@ -260,7 +260,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: StartCampaignMutationArgs,
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      const { type } = args;
+      const { type, budget, duration } = args;
+
+      validateCampaignArgs({ budget, duration });
 
       switch (type) {
         case CampaignType.Post:

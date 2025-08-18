@@ -36,7 +36,7 @@ interface StartCampaignTransferCoresProps {
   manager: EntityManager;
 }
 
-export const startCampaignTransferCores = async ({
+export const campaignTransferCores = async ({
   ctx,
   campaignId,
   userTransaction,
