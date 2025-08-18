@@ -4,10 +4,6 @@ import createOrGetConnection from '../src/db';
 
 const QUEUE_CONCURRENCY = 1;
 
-interface DigestData {
-  userId: string;
-}
-
 (async (): Promise<void> => {
   const limitArgument = process.argv[2];
   const offsetArgument = process.argv[3];
@@ -54,20 +50,20 @@ interface DigestData {
 
       const stream = await builder.stream();
 
-      const updateQueue = fastq.promise(async (digest: DigestData) => {
+      const updateQueue = fastq.promise(async (userId: string) => {
         await manager.query(
           `UPDATE public.user 
            SET "notificationFlags" = jsonb_set("notificationFlags", '{briefing_ready,email}', '"subscribed"')
            WHERE id = $1
-           AND COALESCE("notificationFlags"->'briefing_ready'->>'email', 'subscribed') = 'muted'`,
-          [digest.userId],
+           AND "notificationFlags"->'briefing_ready'->>'email' = 'muted'`,
+          [userId],
         );
 
         processedCount++;
       }, QUEUE_CONCURRENCY);
 
-      stream.on('data', (digest: DigestData) => {
-        updateQueue.push(digest);
+      stream.on('data', (digest: { userId: string }) => {
+        updateQueue.push(digest.userId);
       });
 
       await new Promise((resolve, reject) => {
