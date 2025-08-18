@@ -33,6 +33,10 @@ export const postAnalyticsClickhouseCron: Cron = {
 
     const clickhouseClient = getClickHouseClient();
 
+    const queryParams = {
+      lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
+    };
+
     const response = await clickhouseClient.query({
       query: /* sql */ `
         SELECT
@@ -54,9 +58,7 @@ export const postAnalyticsClickhouseCron: Cron = {
         LIMIT 1 BY post_id;
       `,
       format: 'JSONEachRow',
-      query_params: {
-        lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
-      },
+      query_params: queryParams,
     });
 
     const result = z
@@ -111,5 +113,10 @@ export const postAnalyticsClickhouseCron: Cron = {
     await setRedisHash<PostAnalyticsClickhouseCronConfig>(redisStorageKey, {
       lastRunAt: currentRunAt.toISOString(),
     });
+
+    logger.info(
+      { rows: data.length, queryParams },
+      'synced post analytics data',
+    );
   },
 };
