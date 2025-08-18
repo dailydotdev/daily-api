@@ -17,18 +17,17 @@ import {
   checkPostAlreadyBoosted,
   getAdjustedReach,
   startCampaignPost,
+  stopCampaignPost,
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
-  cancelCampaignPost,
-  cancelCampaignSource,
   StartCampaignArgs,
-  stopCampaign,
   validateCampaignArgs,
 } from '../common/campaign/common';
 import { ValidationError } from 'apollo-server-errors';
 import {
   startCampaignSource,
+  stopCampaignSource,
   validateSquadBoostPermissions,
 } from '../common/campaign/source';
 import { coresToUsd } from '../common/number';
@@ -285,25 +284,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Campaign is not active');
       }
 
-      return ctx.con.transaction(async (manager) => {
-        const result = await stopCampaign({
-          ctx,
-          campaign,
-          manager,
-          onCancelled: () => {
-            switch (campaign.type) {
-              case CampaignType.Post:
-                return cancelCampaignPost(manager, campaign.referenceId);
-              case CampaignType.Source:
-                return cancelCampaignSource(manager, campaign.referenceId);
-              default:
-                throw new ValidationError('Unknown campaign type to cancel');
-            }
-          },
-        });
-
-        return result.transaction;
-      });
+      switch (campaign.type) {
+        case CampaignType.Post:
+          return stopCampaignPost({ ctx, campaign });
+        case CampaignType.Source:
+          return stopCampaignSource({ ctx, campaign });
+        default:
+          throw new ValidationError('Unknown type to process');
+      }
     },
   },
 });
