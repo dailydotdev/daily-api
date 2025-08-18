@@ -5,6 +5,7 @@ import {
   CampaignType,
   Post,
   Source,
+  type ConnectionManager,
 } from '../../entity';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
 import { coresToUsd, usdToCores } from '../number';
@@ -206,25 +207,27 @@ export const stopCampaign = async ({
   }
 };
 
-export const typeToCancelFn: Record<
-  CampaignType,
-  (manager: EntityManager, referenceId: string) => Promise<unknown>
-> = {
-  [CampaignType.Post]: (manager, referenceId) =>
-    manager
-      .getRepository(Post)
-      .update(
-        { id: referenceId },
-        { flags: updateFlagsStatement<Post>({ campaignId: null }) },
-      ),
-  [CampaignType.Source]: (manager, referenceId) =>
-    manager
-      .getRepository(Source)
-      .update(
-        { id: referenceId },
-        { flags: updateFlagsStatement<Source>({ campaignId: null }) },
-      ),
-};
+export const cancelCampaignPost = (
+  manager: ConnectionManager,
+  referenceId: string,
+) =>
+  manager
+    .getRepository(Post)
+    .update(
+      { id: referenceId },
+      { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+    );
+
+export const cancelCampaignSource = (
+  manager: ConnectionManager,
+  referenceId: string,
+) =>
+  manager
+    .getRepository(Source)
+    .update(
+      { id: referenceId },
+      { flags: updateFlagsStatement<Source>({ campaignId: null }) },
+    );
 
 export const createNewCampaign = <T extends Campaign>(
   { ctx, args }: StartCampaignMutationArgs,

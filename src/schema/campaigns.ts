@@ -20,9 +20,10 @@ import {
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
+  cancelCampaignPost,
+  cancelCampaignSource,
   StartCampaignArgs,
   stopCampaign,
-  typeToCancelFn,
   validateCampaignArgs,
 } from '../common/campaign/common';
 import { ValidationError } from 'apollo-server-errors';
@@ -280,12 +281,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         where: { id: args.campaignId, userId: ctx.userId },
       });
 
-      const onCancelledFn = typeToCancelFn[campaign.type];
-
-      if (!onCancelledFn) {
-        throw new ValidationError('Unknown campaign type to cancel');
-      }
-
       if (campaign.state !== CampaignState.Active) {
         throw new ValidationError('Campaign is not active');
       }
@@ -295,7 +290,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ctx,
           campaign,
           manager,
-          onCancelled: () => onCancelledFn(manager, campaign.referenceId),
+          onCancelled: () => {
+            switch (campaign.type) {
+              case CampaignType.Post:
+                return cancelCampaignPost(manager, campaign.referenceId);
+              case CampaignType.Source:
+                return cancelCampaignSource(manager, campaign.referenceId);
+              default:
+                throw new ValidationError('Unknown campaign type to cancel');
+            }
+          },
         });
 
         return result.transaction;
