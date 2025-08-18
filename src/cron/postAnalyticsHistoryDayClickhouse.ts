@@ -48,8 +48,8 @@ export const postAnalyticsHistoryDayClickhouseCron: Cron = {
         FROM api.post_analytics_history
         FINAL
         WHERE date = {date: Date}
-        AND created_at > {lastRunAt: DateTime}
-        GROUP BY date, post_id
+        GROUP BY date, id
+        HAVING "updatedAt" > {lastRunAt: DateTime}
       `,
       format: 'JSONEachRow',
       query_params: queryParams,

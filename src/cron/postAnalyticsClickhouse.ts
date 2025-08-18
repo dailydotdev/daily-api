@@ -41,7 +41,7 @@ export const postAnalyticsClickhouseCron: Cron = {
       query: /* sql */ `
         SELECT
             post_id AS id,
-            created_at AS "updatedAt",
+            max(created_at) AS "updatedAt",
             sum(impressions) AS impressions,
             uniqMerge(reach) AS reach,
             uniqMerge(bookmarks) AS bookmarks,
@@ -52,10 +52,9 @@ export const postAnalyticsClickhouseCron: Cron = {
             sum(shares_internal) AS "sharesInternal"
         FROM api.post_analytics
         FINAL
-        WHERE created_at > {lastRunAt: DateTime}
-        GROUP BY post_id, created_at
-        ORDER BY created_at DESC
-        LIMIT 1 BY post_id;
+        GROUP BY id
+        HAVING "updatedAt" > {lastRunAt: DateTime}
+        ORDER BY "updatedAt" DESC;
       `,
       format: 'JSONEachRow',
       query_params: queryParams,
