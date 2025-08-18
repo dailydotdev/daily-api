@@ -103,7 +103,9 @@ import {
 import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
 import { UserBriefingRequest } from '@dailydotdev/schema';
-import { addDays } from 'date-fns';
+import { addDays, format, subDays } from 'date-fns';
+import { PostAnalytics } from '../src/entity/posts/PostAnalytics';
+import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -8521,5 +8523,207 @@ describe('mutation generateBriefing', () => {
 
     expect(res2.errors).toBeFalsy();
     expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('query post analytics', () => {
+  const QUERY = `
+  query PostAnalytics($id: ID!) {
+    postAnalytics(id: $id) {
+      id
+      impressions
+      reach
+      bookmarks
+      profileViews
+      followers
+      squadJoins
+      reputation
+      coresEarned
+      upvotes
+      downvotes
+      comments
+      awards
+      upvotesRatio
+      shares
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      Post,
+      postsFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-paq`,
+          shortId: `${item.shortId}-paq`,
+          url: `https://example.com/posts/${item.id}-paq`,
+          canonicalUrl: `https://example.com/posts/${item.id}-paq`,
+          yggdrasilId: randomUUID(),
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
+      PostAnalytics,
+      postsFixture.map<PostAnalytics>((item) => {
+        return con.getRepository(PostAnalytics).create({
+          ...item,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          id: `${item.id}-paq`,
+          impressions: 10,
+          reach: 5,
+          followers: 2,
+          bookmarks: 1,
+          profileViews: 3,
+          squadJoins: 4,
+          sharesExternal: 5,
+          sharesInternal: 6,
+          reputation: 7,
+          coresEarned: 8,
+          upvotes: 9,
+          downvotes: 2,
+          comments: 1,
+          awards: 2,
+        });
+      }),
+    );
+  });
+
+  it('should throw error when user is not logged in', async () => {
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1-paq' } },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return post analytics data', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1-paq',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.postAnalytics).toMatchObject({
+      id: 'p1-paq',
+      impressions: 10,
+      reach: 5,
+      bookmarks: 1,
+      profileViews: 3,
+      followers: 2,
+      squadJoins: 4,
+      shares: 11,
+      reputation: 7,
+      coresEarned: 8,
+      upvotes: 9,
+      downvotes: 2,
+      comments: 1,
+      upvotesRatio: 82,
+      awards: 2,
+    });
+  });
+});
+
+describe('query history for post analytics', () => {
+  const QUERY = `
+  query PostAnalyticsHistory($after: String, $first: Int, $id: ID!) {
+    postAnalyticsHistory(after: $after, first: $first, id: $id) {
+      edges {
+        cursor
+        node {
+          id
+          date
+          impressions
+        }
+      }
+    }
+  }
+`;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      Post,
+      postsFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-paqh`,
+          shortId: `${item.shortId}-paqh`,
+          url: `https://example.com/posts/${item.id}-paqh`,
+          canonicalUrl: `https://example.com/posts/${item.id}-paqh`,
+          yggdrasilId: randomUUID(),
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
+      PostAnalyticsHistory,
+      postsFixture
+        .map<PostAnalyticsHistory[]>((item) => {
+          return [
+            new Date(),
+            subDays(new Date(), 1),
+            subDays(new Date(), 2),
+          ].map((date) => {
+            return con.getRepository(PostAnalyticsHistory).create({
+              ...item,
+              createdAt: date,
+              updatedAt: date,
+              id: `${item.id}-paqh`,
+              date: format(date, 'yyyy-MM-dd'),
+              impressions: 10,
+            });
+          });
+        })
+        .flat(1),
+    );
+  });
+
+  it('should throw error when user is not logged in', async () => {
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1-paqh' } },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return post analytics data', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1-paqh',
+        first: 45,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.postAnalyticsHistory.edges).toHaveLength(3);
+
+    res.data.postAnalyticsHistory.edges.forEach((edge, index) => {
+      if (index > 0) {
+        const previousEdge = res.data.postAnalyticsHistory.edges[index - 1];
+
+        expect(new Date(edge.node.date).getTime()).toBeGreaterThan(
+          new Date(previousEdge.node.date).getTime(),
+        );
+      }
+
+      expect(edge.node).toMatchObject({
+        id: 'p1-paqh',
+        date: expect.any(String),
+        impressions: 10,
+      });
+    });
   });
 });
