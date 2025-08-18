@@ -1,5 +1,4 @@
 import { ValidationError } from 'apollo-server-errors';
-import z from 'zod';
 import {
   Campaign,
   CampaignState,
@@ -24,25 +23,7 @@ import type { DeepPartial, EntityManager, EntityTarget } from 'typeorm';
 import { capitalize } from 'lodash';
 import { logger } from '../../logger';
 import { addDays } from 'date-fns';
-
-export const CAMPAIGN_VALIDATION_SCHEMA = z.object({
-  budget: z
-    .number()
-    .int()
-    .min(1000)
-    .max(100000)
-    .refine((value) => value % 1000 === 0, {
-      message: 'Budget must be divisible by 1000',
-    }),
-  duration: z
-    .number()
-    .int()
-    .min(1)
-    .max(30)
-    .refine((value) => value % 1 === 0, {
-      message: 'Duration must be a whole number',
-    }),
-});
+import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
 
 export interface StartCampaignArgs {
   value: string;
