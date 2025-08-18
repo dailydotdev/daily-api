@@ -4,6 +4,7 @@ import {
   ArticlePost,
   CampaignPost,
   CampaignState,
+  CampaignType,
   Post,
   PostType,
   type ConnectionManager,
@@ -308,6 +309,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
         state: CampaignState.Active,
         endedAt,
         postId,
+        type: CampaignType.Post,
       }),
     );
 

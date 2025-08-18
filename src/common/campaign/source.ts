@@ -2,6 +2,7 @@ import {
   CampaignPost,
   CampaignSource,
   CampaignState,
+  CampaignType,
   Source,
 } from '../../entity';
 
@@ -73,6 +74,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
         state: CampaignState.Active,
         endedAt,
         sourceId: source.id,
+        type: CampaignType.Source,
       }),
     );
 
