@@ -8527,27 +8527,27 @@ describe('mutation generateBriefing', () => {
 });
 
 describe('query post analytics', () => {
-  const QUERY = `
-  query PostAnalytics($id: ID!) {
-    postAnalytics(id: $id) {
-      id
-      impressions
-      reach
-      bookmarks
-      profileViews
-      followers
-      squadJoins
-      reputation
-      coresEarned
-      upvotes
-      downvotes
-      comments
-      awards
-      upvotesRatio
-      shares
+  const QUERY = /* GraphQL */ `
+    query PostAnalytics($id: ID!) {
+      postAnalytics(id: $id) {
+        id
+        impressions
+        reach
+        bookmarks
+        profileViews
+        followers
+        squadJoins
+        reputation
+        coresEarned
+        upvotes
+        downvotes
+        comments
+        awards
+        upvotesRatio
+        shares
+      }
     }
-  }
-`;
+  `;
 
   beforeEach(async () => {
     await saveFixtures(
@@ -8633,20 +8633,20 @@ describe('query post analytics', () => {
 });
 
 describe('query history for post analytics', () => {
-  const QUERY = `
-  query PostAnalyticsHistory($after: String, $first: Int, $id: ID!) {
-    postAnalyticsHistory(after: $after, first: $first, id: $id) {
-      edges {
-        cursor
-        node {
-          id
-          date
-          impressions
+  const QUERY = /* GraphQL */ `
+    query PostAnalyticsHistory($after: String, $first: Int, $id: ID!) {
+      postAnalyticsHistory(after: $after, first: $first, id: $id) {
+        edges {
+          cursor
+          node {
+            id
+            date
+            impressions
+          }
         }
       }
     }
-  }
-`;
+  `;
 
   beforeEach(async () => {
     await saveFixtures(
