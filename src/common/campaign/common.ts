@@ -36,7 +36,7 @@ interface StartCampaignTransferCoresProps {
   manager: EntityManager;
 }
 
-export const campaignTransferCores = async ({
+export const startCampaignTransferCores = async ({
   ctx,
   campaignId,
   userTransaction,
@@ -56,6 +56,43 @@ export const campaignTransferCores = async ({
         transactionId: userTransaction.id,
         balance: {
           amount: parseBigInt(transfer.senderBalance?.newBalance),
+        },
+      },
+    };
+  } catch (error) {
+    if (error instanceof TransferError) {
+      await throwUserTransactionError({
+        ctx,
+        entityManager: manager,
+        error,
+        transaction: userTransaction,
+      });
+    }
+
+    throw error;
+  }
+};
+
+export const stopCampaignTransferCores = async ({
+  ctx,
+  campaignId,
+  userTransaction,
+  manager,
+}: StartCampaignTransferCoresProps) => {
+  try {
+    const transfer = await transferCores({
+      ctx,
+      transaction: userTransaction,
+      entityManager: manager,
+    });
+
+    return {
+      transfer,
+      transaction: {
+        referenceId: campaignId,
+        transactionId: userTransaction.id,
+        balance: {
+          amount: parseBigInt(transfer.receiverBalance?.newBalance),
         },
       },
     };

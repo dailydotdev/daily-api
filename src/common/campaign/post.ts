@@ -31,7 +31,8 @@ import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { coresToUsd, usdToCores } from '../number';
 
 import {
-  campaignTransferCores,
+  startCampaignTransferCores,
+  stopCampaignTransferCores,
   type StartCampaignMutationArgs,
   type StopCampaignProps,
 } from './common';
@@ -43,7 +44,6 @@ import {
   UserTransactionType,
 } from '../../entity/user/UserTransaction';
 import { addDays } from 'date-fns';
-import { capitalize } from 'lodash';
 
 export interface GQLPromotedPost
   extends Omit<
@@ -348,7 +348,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
       }),
     );
 
-    return campaignTransferCores({
+    return startCampaignTransferCores({
       ctx,
       manager,
       campaignId,
@@ -391,13 +391,13 @@ export const stopCampaignPost = async ({
         value: usdToCores(toRefund),
         valueIncFees: 0,
         fee: 0,
-        flags: { note: `${capitalize(campaign.type)} Boost refund` },
+        flags: { note: `Post Boost refund` },
         referenceId: campaignId,
         referenceType: UserTransactionType.PostBoost,
       }),
     );
 
-    return campaignTransferCores({
+    return stopCampaignTransferCores({
       ctx,
       manager,
       campaignId,

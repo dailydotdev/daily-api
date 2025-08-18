@@ -8,7 +8,8 @@ import {
 
 import type { AuthContext } from '../../Context';
 import {
-  campaignTransferCores,
+  startCampaignTransferCores,
+  stopCampaignTransferCores,
   type StartCampaignMutationArgs,
   type StopCampaignProps,
 } from './common';
@@ -28,7 +29,6 @@ import {
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
 import { coresToUsd, usdToCores } from '../number';
 import { systemUser, updateFlagsStatement } from '../utils';
-import { capitalize } from 'lodash';
 
 export const validateSquadBoostPermissions = async (
   ctx: AuthContext,
@@ -113,7 +113,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
       }),
     );
 
-    return campaignTransferCores({
+    return startCampaignTransferCores({
       ctx,
       manager,
       campaignId,
@@ -156,13 +156,13 @@ export const stopCampaignSource = async ({
         value: usdToCores(toRefund),
         valueIncFees: 0,
         fee: 0,
-        flags: { note: `${capitalize(campaign.type)} Boost refund` },
+        flags: { note: `Squad Boost refund` },
         referenceId: campaignId,
         referenceType: UserTransactionType.SquadBoost,
       }),
     );
 
-    return campaignTransferCores({
+    return stopCampaignTransferCores({
       ctx,
       manager,
       campaignId,
