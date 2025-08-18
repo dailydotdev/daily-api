@@ -88,6 +88,13 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
       userId: campaign.userId,
     });
 
+    await manager
+      .getRepository(Source)
+      .update(
+        { id: source.id },
+        { flags: updateFlagsStatement<Source>({ campaignId: id }) },
+      );
+
     const userTransaction = await manager.getRepository(UserTransaction).save(
       manager.getRepository(UserTransaction).create({
         id: randomUUID(),
@@ -130,6 +137,7 @@ export const stopCampaignSource = async ({
 
   const result = await ctx.con.transaction(async (manager) => {
     const toRefund = parseFloat(currentBudget);
+
     await manager
       .getRepository(Source)
       .update(

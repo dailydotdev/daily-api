@@ -323,6 +323,13 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
       userId: campaign.userId,
     });
 
+    await manager
+      .getRepository(Post)
+      .update(
+        { id: postId },
+        { flags: updateFlagsStatement<Post>({ campaignId: id }) },
+      );
+
     const userTransaction = await manager.getRepository(UserTransaction).save(
       manager.getRepository(UserTransaction).create({
         id: randomUUID(),
