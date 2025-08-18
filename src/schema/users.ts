@@ -3014,14 +3014,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     image: (user: GQLUser): GQLUser['image'] => mapCloudinaryUrl(user.image),
     cover: (user: GQLUser): GQLUser['cover'] => mapCloudinaryUrl(user.cover),
     permalink: getUserPermalink,
-    notificationFlags: (user: GQLUser): UserNotificationFlags => {
-      return {
-        ...DEFAULT_NOTIFICATION_SETTINGS,
-        ...(typeof user.notificationFlags === 'string'
-          ? JSON.parse(user.notificationFlags)
-          : user.notificationFlags),
-      };
-    },
   },
   UserIntegration: {
     name: (userIntegration: UserIntegration) => {
