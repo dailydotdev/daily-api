@@ -8,83 +8,82 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, In, MoreThan } from 'typeorm';
 import {
+  canModeratePosts,
   ensureSourcePermissions,
+  ensureUserSourceExists,
   GQLSource,
   isPrivilegedMember,
-  canModeratePosts,
   SourcePermissions,
   sourceTypesWithMembers,
-  ensureUserSourceExists,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  createFreeformPost,
   CreatePost,
   CreatePostArgs,
+  createSourcePostModeration,
+  CreateSourcePostModerationArgs,
   DEFAULT_POST_TITLE,
   EditablePost,
   EditPostArgs,
   fetchLinkPreview,
+  getAllModerationItemsAsAdmin,
   getDiscussionLink,
+  getExistingPost,
+  getModerationItemsAsAdminForSource,
+  getModerationItemsByUserForSource,
+  getPostSmartTitle,
+  getPostTranslatedTitle,
+  getTranslationRecord,
+  type GQLSourcePostModeration,
+  isProd,
   isValidHttpUrl,
+  mapCloudinaryUrl,
   notifyView,
+  ONE_MINUTE_IN_SECONDS,
+  parseBigInt,
   pickImageUrl,
-  createFreeformPost,
+  type SourcePostModerationArgs,
   standardizeURL,
+  systemUser,
+  toGQLEnum,
+  triggerTypedEvent,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
-  ONE_MINUTE_IN_SECONDS,
-  toGQLEnum,
-  getExistingPost,
-  createSourcePostModeration,
-  CreateSourcePostModerationArgs,
-  mapCloudinaryUrl,
   validateSourcePostModeration,
-  getPostTranslatedTitle,
-  getPostSmartTitle,
-  getModerationItemsAsAdminForSource,
-  getModerationItemsByUserForSource,
-  type GQLSourcePostModeration,
-  type SourcePostModerationArgs,
-  getAllModerationItemsAsAdmin,
-  getTranslationRecord,
-  systemUser,
-  parseBigInt,
-  triggerTypedEvent,
-  isProd,
 } from '../common';
 import {
   ArticlePost,
+  BRIEFING_SOURCE,
+  ContentImage,
   createExternalLink,
   createSharePost,
+  deletePost,
+  determineSharedPostId,
   ExternalLinkPreview,
   FreeformPost,
   Post,
   PostFlagsPublic,
   PostMention,
-  PostType,
-  Toc,
-  UserActionType,
-  WelcomePost,
-  ContentImage,
   PostQuestion,
+  PostRelation,
+  PostRelationType,
+  type PostTranslation,
+  PostType,
+  Settings,
+  SharePost,
+  SubmitExternalLinkArgs,
+  Toc,
+  updateSharePost,
+  User,
+  UserActionType,
   UserPost,
   UserPostFlagsPublic,
-  updateSharePost,
   View,
-  User,
-  PostRelationType,
-  PostRelation,
-  deletePost,
-  SubmitExternalLinkArgs,
-  Settings,
-  type PostTranslation,
-  determineSharedPostId,
-  SharePost,
-  BRIEFING_SOURCE,
-  UserAction,
+  WelcomePost,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -135,9 +134,20 @@ import type {
   GQLBoostedPost,
 } from '../common/campaign/post';
 import {
+  checkPostAlreadyBoosted,
+  consolidateCampaignsWithPosts,
+  getAdjustedReach,
+  getBoostedPost,
+  getFormattedBoostedPost,
+  getFormattedCampaign,
+  getTotalEngagements,
+  validatePostBoostPermissions,
+} from '../common/campaign/post';
+import {
+  getBalance,
   throwUserTransactionError,
-  transferCores,
   type TransactionCreated,
+  transferCores,
 } from '../common/njord';
 import { randomUUID } from 'crypto';
 import {
@@ -147,28 +157,22 @@ import {
   UserTransactionType,
 } from '../entity/user/UserTransaction';
 import { skadiApiClient } from '../integrations/skadi/api/clients';
-import {
-  validatePostBoostPermissions,
-  checkPostAlreadyBoosted,
-  getTotalEngagements,
-  getFormattedBoostedPost,
-  getBoostedPost,
-  consolidateCampaignsWithPosts,
-  getFormattedCampaign,
-  getAdjustedReach,
-} from '../common/campaign/post';
 import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
-import { usdToCores, coresToUsd } from '../common/number';
+import { coresToUsd, usdToCores } from '../common/number';
 import {
-  validateCampaignArgs,
   type StartCampaignArgs,
+  validateCampaignArgs,
 } from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
+import {
+  ExperimentAllocationClient,
+  getUserGrowthBookInstance,
+} from '../growthbook';
 
 export interface GQLPost {
   id: string;
@@ -297,6 +301,8 @@ export type GQLPostAnalyticsHistory = Omit<
   PostAnalyticsHistory,
   'post' | 'createdAt'
 >;
+
+const allocationClient = new ExperimentAllocationClient();
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(BriefingType, 'BriefingType')}
@@ -3387,67 +3393,144 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { type }: { type: BriefingType },
       ctx: AuthContext,
     ): Promise<{ postId: string }> => {
-      // for now allow multiple on demand generations for team members
-      if (!ctx.isTeamMember) {
-        const action = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-          queryRunner.manager.getRepository(UserAction).findOne({
-            select: ['completedAt'],
-            where: {
-              userId: ctx.userId,
-              type: UserActionType.GeneratedBrief,
-            },
-          }),
+      const { isPlus } = ctx;
+
+      const requestGeneration = async () => {
+        const pendingBrief = await queryReadReplica(
+          ctx.con,
+          async ({ queryRunner }) => {
+            return queryRunner.manager.getRepository(BriefPost).findOne({
+              select: ['id', 'createdAt'],
+              where: { visible: false, authorId: ctx.userId },
+            });
+          },
         );
 
-        if (action?.completedAt) {
-          throw new ForbiddenError(
-            'Not allowed for you anymore, go to /briefing page to learn more',
+        if (pendingBrief) {
+          throw new ConflictError(
+            'There is already a briefing being generated',
+            {
+              postId: pendingBrief.id,
+              createdAt: pendingBrief.createdAt,
+            },
           );
         }
-      }
 
-      const pendingBrief = await queryReadReplica(
-        ctx.con,
-        async ({ queryRunner }) => {
-          return queryRunner.manager.getRepository(BriefPost).findOne({
-            select: ['id', 'createdAt'],
-            where: { visible: false, authorId: ctx.userId },
-          });
-        },
-      );
+        const postId = await generateShortId();
 
-      if (pendingBrief) {
-        throw new ConflictError('There is already a briefing being generated', {
-          postId: pendingBrief.id,
-          createdAt: pendingBrief.createdAt,
+        const post = ctx.con.getRepository(BriefPost).create({
+          id: postId,
+          shortId: postId,
+          authorId: ctx.userId,
+          private: true,
+          visible: false,
+          sourceId: BRIEFING_SOURCE,
         });
+
+        await ctx.con.getRepository(BriefPost).insert(post);
+
+        triggerTypedEvent(logger, 'api.v1.brief-generate', {
+          payload: new UserBriefingRequest({
+            userId: ctx.userId,
+            frequency: type,
+            modelName: BriefingModel.Default,
+          }),
+          postId,
+        });
+
+        return { postId };
+      };
+
+      if (isPlus) {
+        return await requestGeneration();
       }
 
-      const postId = await generateShortId();
+      // 1. should check if the user has already generate a briefing
+      const existingBriefing = await ctx.con.getRepository(Post).findOne({
+        where: { authorId: ctx.userId, type: PostType.Brief },
+      });
+      // 2. if the user has not generated a briefing yet, we can allow them to generate one
+      if (!existingBriefing) {
+        return requestGeneration();
+      }
+      // 3 we should get the pricing for each briefing type
+      //    from GrowthBook feature key named "brief_generate_pricing"
+      // Get pricing from GrowthBook feature
+      const gbClient = getUserGrowthBookInstance(ctx.userId, {
+        allocationClient,
+      });
+      const pricingConfig = gbClient.getFeatureValue(
+        'brief_generate_pricing',
+        {},
+      ) as Record<BriefingType, number>;
 
-      const post = ctx.con.getRepository(BriefPost).create({
-        id: postId,
-        shortId: postId,
-        authorId: ctx.userId,
-        private: true,
-        visible: false,
-        sourceId: BRIEFING_SOURCE,
+      // 4. if the user has generated a briefing, we should check if they have
+      //    enough balance to generate another one
+      const briefCost = pricingConfig[type];
+      const userBalance = await getBalance(ctx);
+      const userCanAfford = userBalance.amount >= briefCost;
+
+      // 5. if the user has enough cores, we can allow them to generate another
+      //    briefing, otherwise we should throw an error
+      if (!userCanAfford) {
+        logger.warn(
+          {
+            userId: ctx.userId,
+            briefType: type,
+            briefCost,
+            userBalance,
+          },
+          'User attempted to generate brief without sufficient cores',
+        );
+
+        throw new ForbiddenError(
+          `You need ${briefCost} cores to generate a ${type} brief, but you only have ${userBalance.amount} cores.`,
+        );
+      }
+
+      // perform the transaction then request generation
+      await ctx.con.transaction(async (entityManager) => {
+        const userTransaction = await entityManager
+          .getRepository(UserTransaction)
+          .save(
+            entityManager.getRepository(UserTransaction).create({
+              id: randomUUID(),
+              processor: UserTransactionProcessor.Njord,
+              receiverId: systemUser.id,
+              status: UserTransactionStatus.Success,
+              productId: null,
+              senderId: ctx.userId,
+              value: briefCost,
+              valueIncFees: 0,
+              fee: 0,
+              request: ctx.requestMeta,
+              flags: { note: `Brief generation - ${type}` },
+              referenceId: null,
+              referenceType: UserTransactionType.BriefGeneration, // You may need to add this enum value
+            }),
+          );
+
+        try {
+          const transfer = await transferCores({
+            ctx,
+            transaction: userTransaction,
+            entityManager,
+          });
+          return { transfer };
+        } catch (error) {
+          if (error instanceof TransferError) {
+            await throwUserTransactionError({
+              ctx,
+              entityManager,
+              error,
+              transaction: userTransaction,
+            });
+          }
+          throw error;
+        }
       });
 
-      await ctx.con.getRepository(BriefPost).insert(post);
-
-      triggerTypedEvent(logger, 'api.v1.brief-generate', {
-        payload: new UserBriefingRequest({
-          userId: ctx.userId,
-          frequency: type,
-          modelName: BriefingModel.Default,
-        }),
-        postId,
-      });
-
-      return {
-        postId,
-      };
+      return await requestGeneration();
     },
   },
   Subscription: {
