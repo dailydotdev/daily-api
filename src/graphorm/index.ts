@@ -1362,6 +1362,45 @@ const obj = new GraphORM({
       },
     },
   },
+  PostAnalytics: {
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+      upvotesRatio: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            CASE
+              WHEN (${alias}.upvotes + ${alias}.downvotes) > 0
+              THEN ROUND((${alias}.upvotes::numeric / (${alias}.upvotes + ${alias}.downvotes)) * 100, 0)
+              ELSE 0
+            END
+          `;
+        },
+      },
+      shares: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            COALESCE(${alias}.sharesInternal + ${alias}.sharesExternal, 0)
+          `;
+        },
+      },
+    },
+  },
+  PostAnalyticsHistory: {
+    requiredColumns: ['id', 'date', 'updatedAt'],
+    fields: {
+      date: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+    },
+  },
 });
 
 export default obj;

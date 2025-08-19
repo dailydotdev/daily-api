@@ -1,26 +1,26 @@
 import { format, startOfToday } from 'date-fns';
 import { Cron } from './cron';
 import { getClickHouseClient } from '../common/clickhouse';
-import { postAnalyticsClickhouseSchema } from '../common/schema/postAnalytics';
+import { postAnalyticsHistoryClickhouseSchema } from '../common/schema/postAnalytics';
 import { z } from 'zod';
-import { PostAnalytics } from '../entity/posts/PostAnalytics';
 import { getRedisHash, setRedisHash } from '../redis';
 import { generateStorageKey, StorageTopic } from '../config';
+import { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 
-type PostAnalyticsClickhouseCronConfig = Partial<{
+type PostAnalyticsHistoryClickhouseCronConfig = Partial<{
   lastRunAt: string;
 }>;
 
-export const postAnalyticsClickhouseCron: Cron = {
-  name: 'post-analytics-clickhouse',
+export const postAnalyticsHistoryDayClickhouseCron: Cron = {
+  name: 'post-analytics-history-day-clickhouse',
   handler: async (con, logger) => {
     const redisStorageKey = generateStorageKey(
       StorageTopic.Cron,
-      postAnalyticsClickhouseCron.name,
+      postAnalyticsHistoryDayClickhouseCron.name,
       'config',
     );
 
-    const cronConfig: Partial<PostAnalyticsClickhouseCronConfig> =
+    const cronConfig: Partial<PostAnalyticsHistoryClickhouseCronConfig> =
       await getRedisHash(redisStorageKey);
 
     const lastRunAt = cronConfig.lastRunAt
@@ -35,33 +35,28 @@ export const postAnalyticsClickhouseCron: Cron = {
 
     const queryParams = {
       lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
+      date: format(new Date(), 'yyyy-MM-dd'),
     };
 
     const response = await clickhouseClient.query({
       query: /* sql */ `
         SELECT
-            post_id AS id,
-            max(created_at) AS "updatedAt",
-            sum(impressions) AS impressions,
-            uniqMerge(reach) AS reach,
-            uniqMerge(bookmarks) AS bookmarks,
-            uniqMerge(profile_views) AS "profileViews",
-            uniqMerge(followers) AS followers,
-            uniqMerge(squad_joins) AS "squadJoins",
-            sum(shares_external) AS "sharesExternal",
-            sum(shares_internal) AS "sharesInternal"
-        FROM api.post_analytics
+          post_id AS id,
+          date,
+          max(created_at) AS "updatedAt",
+          sum(impressions) AS impressions
+        FROM api.post_analytics_history
         FINAL
-        GROUP BY id
+        WHERE date = {date: Date}
+        GROUP BY date, id
         HAVING "updatedAt" > {lastRunAt: DateTime}
-        ORDER BY "updatedAt" DESC;
       `,
       format: 'JSONEachRow',
       query_params: queryParams,
     });
 
     const result = z
-      .array(postAnalyticsClickhouseSchema)
+      .array(postAnalyticsHistoryClickhouseSchema)
       .safeParse(await response.json());
 
     if (!result.success) {
@@ -77,7 +72,7 @@ export const postAnalyticsClickhouseCron: Cron = {
 
     const { data } = result;
 
-    const chunks: PostAnalytics[][] = [];
+    const chunks: PostAnalyticsHistory[][] = [];
     const chunkSize = 500;
 
     data.forEach((item) => {
@@ -88,7 +83,7 @@ export const postAnalyticsClickhouseCron: Cron = {
         chunks.push([]);
       }
 
-      chunks[chunks.length - 1].push(item as PostAnalytics);
+      chunks[chunks.length - 1].push(item as PostAnalyticsHistory);
     });
 
     const currentRunAt = new Date();
@@ -102,20 +97,23 @@ export const postAnalyticsClickhouseCron: Cron = {
         await entityManager
           .createQueryBuilder()
           .insert()
-          .into(PostAnalytics)
+          .into(PostAnalyticsHistory)
           .values(chunk)
-          .orUpdate(Object.keys(chunk[0]), ['id'])
+          .orUpdate(Object.keys(chunk[0]), ['id', 'date'])
           .execute();
       }
     });
 
-    await setRedisHash<PostAnalyticsClickhouseCronConfig>(redisStorageKey, {
-      lastRunAt: currentRunAt.toISOString(),
-    });
+    await setRedisHash<PostAnalyticsHistoryClickhouseCronConfig>(
+      redisStorageKey,
+      {
+        lastRunAt: currentRunAt.toISOString(),
+      },
+    );
 
     logger.info(
       { rows: data.length, queryParams },
-      'synced post analytics data',
+      'synced post analytics history data',
     );
   },
 };
