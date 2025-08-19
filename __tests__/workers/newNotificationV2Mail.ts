@@ -1405,15 +1405,12 @@ it('should not send brief email notification if the user prefers not to receive 
     {
       notificationFlags: () =>
         `jsonb_set(
-          jsonb_set("notificationFlags", '{briefing_ready}', coalesce("notificationFlags"->'briefing_ready', '{}'::jsonb), true),
+          jsonb_set("notificationFlags", '{briefing_ready}', coalesce("notificationFlags"->'briefing_ready', '{}'::jsonb)),
           '{briefing_ready,email}',
-          '"muted"',
-          true
+          '"muted"'
         )`,
     },
   );
-
-  console.log(await con.getRepository(User).findOneBy({ id: '1' }));
 
   const notificationId = await saveNotificationV2Fixture(
     con,
