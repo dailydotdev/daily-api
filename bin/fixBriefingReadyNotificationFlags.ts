@@ -44,7 +44,7 @@ const QUEUE_CONCURRENCY = 1;
           emailFlag: 'email',
           emailValue: 'true',
         })
-        .orderBy('upd.userId')
+        .orderBy('upd.lastSendDate', 'DESC', 'NULLS LAST')
         .limit(limit)
         .offset(offset);
 
