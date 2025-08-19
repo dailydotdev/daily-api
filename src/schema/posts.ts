@@ -133,8 +133,7 @@ import type {
   BoostedPostConnection,
   BoostedPostStats,
   GQLBoostedPost,
-  StartPostBoostArgs,
-} from '../common/post/boost';
+} from '../common/campaign/post';
 import {
   throwUserTransactionError,
   transferCores,
@@ -149,7 +148,6 @@ import {
 } from '../entity/user/UserTransaction';
 import { skadiApiClient } from '../integrations/skadi/api/clients';
 import {
-  validatePostBoostArgs,
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
   getTotalEngagements,
@@ -158,13 +156,17 @@ import {
   consolidateCampaignsWithPosts,
   getFormattedCampaign,
   getAdjustedReach,
-} from '../common/post/boost';
-import type { PostBoostReach } from '../integrations/skadi';
+} from '../common/campaign/post';
+import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { usdToCores, coresToUsd } from '../common/number';
+import {
+  validateCampaignArgs,
+  type StartCampaignArgs,
+} from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 
@@ -925,11 +927,6 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
-  type PostBoostEstimate {
-    min: Int!
-    max: Int!
-  }
-
   type CampaignPost {
     campaignId: String!
     postId: String!
@@ -1183,7 +1180,7 @@ export const typeDefs = /* GraphQL */ `
       ID of the post to boost
       """
       postId: ID!
-    ): PostBoostEstimate! @auth
+    ): BoostEstimate! @auth
 
     """
     Estimate the daily reach for a post boost campaign with specific budget and duration
@@ -1203,7 +1200,7 @@ export const typeDefs = /* GraphQL */ `
       Amount of days to run the campaign
       """
       duration: Int!
-    ): PostBoostEstimate! @auth
+    ): BoostEstimate! @auth
 
     postCampaignById(
       """
@@ -2228,7 +2225,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: { postId: string },
       ctx: AuthContext,
-    ): Promise<PostBoostReach> => {
+    ): Promise<CampaignReach> => {
       const { postId } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
@@ -2244,11 +2241,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: { postId: string; budget: number; duration: number },
       ctx: AuthContext,
-    ): Promise<PostBoostReach> => {
+    ): Promise<CampaignReach> => {
       const { postId, budget, duration } = args;
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
-      validatePostBoostArgs({ budget, duration });
+      validateCampaignArgs({ budget, duration });
 
       const { minImpressions, maxImpressions } =
         await skadiApiClient.estimatePostBoostReachDaily({
@@ -2848,11 +2845,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     startPostBoost: async (
       _,
-      args: Omit<StartPostBoostArgs, 'userId'>,
+      args: Pick<StartCampaignArgs, 'budget' | 'duration'> & { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
       const { postId, duration, budget } = args;
-      validatePostBoostArgs(args);
+      validateCampaignArgs(args);
       const post = await validatePostBoostPermissions(ctx, postId);
       checkPostAlreadyBoosted(post);
 

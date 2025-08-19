@@ -2,11 +2,11 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import {
-  CampaignType,
   Feature,
   FeatureType,
   FeatureValue,
   Invite,
+  InviteCampaignType,
   User,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
@@ -67,7 +67,7 @@ const featuresFixture: Partial<Feature>[] = [
 const invitesFixture: Partial<Invite>[] = [
   {
     token: 'd688afeb-381c-43b5-89af-533f81ccd036',
-    campaign: CampaignType.Search,
+    campaign: InviteCampaignType.Search,
     userId: '3',
   },
 ];
@@ -94,11 +94,11 @@ describe('generateSearchInvites cron', () => {
     ).toEqual(
       expect.arrayContaining([
         {
-          campaign: CampaignType.Search,
+          campaign: InviteCampaignType.Search,
           userId: '3',
         },
         {
-          campaign: CampaignType.Search,
+          campaign: InviteCampaignType.Search,
           userId: '4',
         },
       ]),
