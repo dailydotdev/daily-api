@@ -313,5 +313,5 @@ export const isSubscribedToNotificationType = (
   type: NotificationType,
   channel: NotificationChannel,
 ): boolean => {
-  return flags?.[type]?.[channel] === NotificationPreferenceStatus.Subscribed;
+  return flags[type]?.[channel] === NotificationPreferenceStatus.Subscribed;
 };
