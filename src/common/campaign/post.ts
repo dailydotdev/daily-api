@@ -1,8 +1,10 @@
-import { z } from 'zod';
 import { ValidationError } from 'apollo-server-errors';
 import { AuthContext } from '../../Context';
 import {
   ArticlePost,
+  CampaignPost,
+  CampaignState,
+  CampaignType,
   Post,
   PostType,
   type ConnectionManager,
@@ -19,14 +21,29 @@ import { In } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
-import { debeziumTimeToDate } from '../utils';
+import { debeziumTimeToDate, systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
 import { largeNumberFormat } from '../devcard';
 import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
-import { usdToCores } from '../number';
+import { coresToUsd, usdToCores } from '../number';
+
+import {
+  startCampaignTransferCores,
+  stopCampaignTransferCores,
+  type StartCampaignMutationArgs,
+  type StopCampaignProps,
+} from './common';
+import { randomUUID } from 'crypto';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+  UserTransactionType,
+} from '../../entity/user/UserTransaction';
+import { addDays } from 'date-fns';
 
 export interface GQLPromotedPost
   extends Omit<
@@ -38,42 +55,6 @@ export interface GQLPromotedPost
   startedAt: Date;
   endedAt: Date;
 }
-
-export interface StartPostBoostArgs {
-  postId: string;
-  userId: string;
-  duration: number;
-  budget: number;
-}
-
-export const POST_BOOST_VALIDATION_SCHEMA = z.object({
-  budget: z
-    .number()
-    .int()
-    .min(1000)
-    .max(100000)
-    .refine((value) => value % 1000 === 0, {
-      message: 'Budget must be divisible by 1000',
-    }),
-  duration: z
-    .number()
-    .int()
-    .min(1)
-    .max(30)
-    .refine((value) => value % 1 === 0, {
-      message: 'Duration must be a whole number',
-    }),
-});
-
-export const validatePostBoostArgs = (
-  args: Omit<StartPostBoostArgs, 'userId' | 'postId'>,
-) => {
-  const result = POST_BOOST_VALIDATION_SCHEMA.safeParse(args);
-
-  if (result.error) {
-    throw new ValidationError(result.error.errors[0].message);
-  }
-};
 
 export const validatePostBoostPermissions = async (
   ctx: AuthContext,
@@ -298,4 +279,131 @@ export const getAdjustedReach = (value: number) => {
   };
 
   return estimatedReach;
+};
+
+export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
+  const { ctx, args } = props;
+  const { value: postId } = args;
+  const post = await validatePostBoostPermissions(ctx, postId);
+  checkPostAlreadyBoosted(post);
+
+  const request = await ctx.con.transaction(async (manager) => {
+    const id = randomUUID();
+    const { budget, duration } = args;
+    const total = budget * duration;
+    const userId = ctx.userId;
+    const endedAt = addDays(new Date(), duration);
+
+    const campaign = await manager.getRepository(CampaignPost).save(
+      manager.getRepository(CampaignPost).create({
+        id,
+        flags: {
+          budget: total,
+          spend: 0,
+          users: 0,
+          clicks: 0,
+          impressions: 0,
+        },
+        userId,
+        referenceId: postId,
+        state: CampaignState.Active,
+        endedAt,
+        postId,
+        type: CampaignType.Post,
+      }),
+    );
+
+    const campaignId = campaign.id;
+
+    await skadiApiClient.startCampaign({
+      value: campaign.id,
+      type: campaign.type,
+      durationInDays: duration,
+      budget: coresToUsd(budget),
+      userId: campaign.userId,
+    });
+
+    await manager
+      .getRepository(Post)
+      .update(
+        { id: postId },
+        { flags: updateFlagsStatement<Post>({ campaignId: id }) },
+      );
+
+    const userTransaction = await manager.getRepository(UserTransaction).save(
+      manager.getRepository(UserTransaction).create({
+        id: randomUUID(),
+        processor: UserTransactionProcessor.Njord,
+        receiverId: systemUser.id,
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: userId,
+        value: total,
+        valueIncFees: 0,
+        fee: 0,
+        request: ctx.requestMeta,
+        flags: { note: `Post Boost started` },
+        referenceId: campaignId,
+        referenceType: UserTransactionType.PostBoost,
+      }),
+    );
+
+    return await startCampaignTransferCores({
+      ctx,
+      manager,
+      campaignId,
+      userTransaction,
+    });
+  });
+
+  return request.transaction;
+};
+
+export const stopCampaignPost = async ({
+  campaign,
+  ctx,
+}: StopCampaignProps) => {
+  const { id: campaignId, userId, referenceId } = campaign;
+
+  const { currentBudget } = await skadiApiClient.cancelCampaign({
+    campaignId,
+    userId,
+  });
+
+  const result = await ctx.con.transaction(async (manager) => {
+    const toRefund = parseFloat(currentBudget);
+
+    await manager
+      .getRepository(Post)
+      .update(
+        { id: referenceId },
+        { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+      );
+
+    const userTransaction = await manager.getRepository(UserTransaction).save(
+      manager.getRepository(UserTransaction).create({
+        id: randomUUID(),
+        processor: UserTransactionProcessor.Njord,
+        receiverId: userId,
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: systemUser.id,
+        value: usdToCores(toRefund),
+        valueIncFees: 0,
+        fee: 0,
+        flags: { note: `Post Boost refund` },
+        referenceId: campaignId,
+        referenceType: UserTransactionType.PostBoost,
+      }),
+    );
+
+    return await stopCampaignTransferCores({
+      ctx,
+      manager,
+      campaignId,
+      userTransaction,
+    });
+  });
+
+  return result.transaction;
 };

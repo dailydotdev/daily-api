@@ -1,11 +1,12 @@
 import type { User } from '../../../entity';
+import type { CampaignType } from '../../../entity/campaign';
 
-export interface PostBoostReach {
+export interface CampaignReach {
   min: number;
   max: number;
 }
 
-export interface PostEstimatedReach {
+export interface EstimatedReach {
   impressions: number;
   clicks: number;
   users: number;
@@ -14,12 +15,12 @@ export interface PostEstimatedReach {
 }
 
 export type LegacyPostEstimatedReach = Pick<
-  PostEstimatedReachResponse,
+  EstimatedReachResponse,
   'clicks' | 'impressions' | 'users'
 >;
 
-export interface PostEstimatedReachResponse
-  extends Pick<PostEstimatedReach, 'impressions' | 'clicks' | 'users'> {
+export interface EstimatedReachResponse
+  extends Pick<EstimatedReach, 'impressions' | 'clicks' | 'users'> {
   minImpressions: number;
   maxImpressions: number;
 }
@@ -83,30 +84,54 @@ export interface GetCampaignListResponse
   totalSpend: string; // float
 }
 
-export type EstimatedBoostReachParams = {
+export type EstimatedPostBoostReachParams = StartPostCampaignParams;
+
+export interface StartPostCampaignParams
+  extends Pick<StartCampaignParams, 'userId' | 'budget' | 'durationInDays'> {
   postId: string;
+}
+
+export interface StartCampaignParams {
+  value: string;
   userId: string;
   durationInDays: number;
   budget: number;
-};
+  type: CampaignType;
+}
+
+export interface CampaignDailyReach {
+  type: CampaignType;
+  value: string;
+  budget: number;
+  duration: number;
+  user_id: string;
+}
+
+export interface CancelCampaignArgs {
+  campaignId: string;
+  userId: string;
+}
 
 export interface ISkadiApiClient {
-  startPostCampaign(params: {
-    postId: string;
-    userId: string;
-    durationInDays: number;
-    budget: number;
-  }): Promise<{ campaignId: string }>;
-  cancelPostCampaign(params: {
-    campaignId: string;
-    userId: string;
-  }): Promise<{ currentBudget: string }>;
+  startCampaign(params: StartCampaignParams): Promise<{ campaignId: string }>;
+  cancelCampaign(
+    params: CancelCampaignArgs,
+  ): Promise<{ currentBudget: string }>;
+  estimateBoostReachDaily(
+    params: StartCampaignParams,
+  ): Promise<EstimatedReachResponse>;
+  startPostCampaign(
+    params: StartPostCampaignParams,
+  ): Promise<{ campaignId: string }>;
+  cancelPostCampaign(
+    params: CancelCampaignArgs,
+  ): Promise<{ currentBudget: string }>;
   estimatePostBoostReach(
-    params: Pick<EstimatedBoostReachParams, 'userId' | 'postId'>,
+    params: Pick<EstimatedPostBoostReachParams, 'userId' | 'postId'>,
   ): Promise<LegacyPostEstimatedReach>;
   estimatePostBoostReachDaily(
-    params: EstimatedBoostReachParams,
-  ): Promise<PostEstimatedReachResponse>;
+    params: StartPostCampaignParams,
+  ): Promise<EstimatedReachResponse>;
   getCampaignById: (
     params: GetCampaignByIdProps,
   ) => Promise<GetCampaignResponse>;
