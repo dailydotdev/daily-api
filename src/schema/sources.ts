@@ -43,6 +43,7 @@ import {
   getSourceLink,
   mapCloudinaryUrl,
   updateFlagsStatement,
+  uploadSquadHeaderImage,
   uploadSquadImage,
 } from '../common';
 import { toGQLEnum } from '../common/utils';
@@ -777,6 +778,10 @@ export const typeDefs = /* GraphQL */ `
       """
       image: Upload
       """
+      Cover image used in Squads directory
+      """
+      headerImage: Upload
+      """
       Role required for members to post
       """
       memberPostingRole: String
@@ -1349,6 +1354,7 @@ interface SquadCreateInputArgs extends SquadInputArgs {
 
 interface SquadEditInputArgs extends SquadInputArgs {
   sourceId: string;
+  headerImage?: FileUpload;
 }
 
 const getSourceById = async (
@@ -2300,6 +2306,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         name,
         handle: inputHandle,
         image,
+        headerImage,
         description,
         memberPostingRole,
         memberInviteRole,
@@ -2363,9 +2370,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           async (entityManager) => {
             const repo = entityManager.getRepository(SquadSource);
 
-            // Update existing squad
             await repo.update({ id: sourceId }, updates);
-            // Upload the image (if provided)
+
             if (image) {
               const { createReadStream } = await image;
               const stream = createReadStream();
@@ -2374,6 +2380,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 stream,
               );
               await repo.update({ id: sourceId }, { image: imageUrl });
+            }
+
+            if (headerImage) {
+              const { createReadStream } = await headerImage;
+              const stream = createReadStream();
+              const { url: imageUrl } = await uploadSquadHeaderImage(
+                sourceId,
+                stream,
+              );
+              await repo.update({ id: sourceId }, { headerImage: imageUrl });
             }
             return sourceId;
           },

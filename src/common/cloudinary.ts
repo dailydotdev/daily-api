@@ -27,6 +27,7 @@ export enum UploadPreset {
   DevCard = 'devcard',
   Avatar = 'avatar',
   SquadImage = 'squad',
+  SquadHeaderImage = 'squad_header',
   PostBannerImage = 'post_image',
   FreeformImage = 'freeform_image',
   FreeformGif = 'freeform_gif',
@@ -89,6 +90,9 @@ export const uploadDevCardBackground: UploadFn = (name, stream) =>
 
 export const uploadSquadImage: UploadFn = (name, stream) =>
   uploadFile(name, UploadPreset.SquadImage, stream);
+
+export const uploadSquadHeaderImage: UploadFn = (name, stream) =>
+  uploadFile(name, UploadPreset.SquadHeaderImage, stream);
 
 export const uploadOrganizationImage: UploadFn = (name, stream) =>
   uploadFile(name, UploadPreset.Organization, stream);
