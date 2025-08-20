@@ -48,8 +48,6 @@ import {
   type SourcePostModerationArgs,
   getAllModerationItemsAsAdmin,
   getTranslationRecord,
-  systemUser,
-  parseBigInt,
   triggerTypedEvent,
   isProd,
 } from '../common';
@@ -84,13 +82,13 @@ import {
   BRIEFING_SOURCE,
   UserAction,
   CampaignPost,
+  CampaignState,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
   ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
-  TransferError,
   TypeOrmError,
   TypeORMQueryFailedError,
 } from '../errors';
@@ -132,31 +130,22 @@ import type {
   BoostedPostConnection,
   GQLBoostedPost,
 } from '../common/campaign/post';
-import {
-  throwUserTransactionError,
-  transferCores,
-  type TransactionCreated,
-} from '../common/njord';
-import { randomUUID } from 'crypto';
-import {
-  UserTransaction,
-  UserTransactionProcessor,
-  UserTransactionStatus,
-  UserTransactionType,
-} from '../entity/user/UserTransaction';
+import { type TransactionCreated } from '../common/njord';
+
 import { skadiApiClient } from '../integrations/skadi/api/clients';
 import {
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
   getAdjustedReach,
   startCampaignPost,
+  stopCampaignPost,
 } from '../common/campaign/post';
 import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
-import { usdToCores, coresToUsd } from '../common/number';
+import { coresToUsd } from '../common/number';
 import {
   fetchCampaignsList,
   validateCampaignArgs,
@@ -2853,85 +2842,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { postId }: { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      const { userId } = ctx;
-      const post = await validatePostBoostPermissions(ctx, postId);
-      const campaignId = post?.flags?.campaignId;
-
-      if (!campaignId) {
-        throw new ValidationError('Post is not currently boosted');
-      }
-
-      const result = await ctx.con.transaction(async (entityManager) => {
-        const { currentBudget } = await skadiApiClient.cancelPostCampaign({
-          campaignId,
-          userId: ctx.userId,
-        });
-
-        await entityManager
-          .getRepository(Post)
-          .update(
-            { id: postId },
-            { flags: updateFlagsStatement<Post>({ campaignId: null }) },
-          );
-
-        const toRefund = parseFloat(currentBudget);
-
-        const userTransaction = await entityManager
-          .getRepository(UserTransaction)
-          .save(
-            entityManager.getRepository(UserTransaction).create({
-              id: randomUUID(),
-              processor: UserTransactionProcessor.Njord,
-              receiverId: userId,
-              status: UserTransactionStatus.Success,
-              productId: null,
-              senderId: systemUser.id,
-              value: usdToCores(toRefund),
-              valueIncFees: 0,
-              fee: 0,
-              flags: { note: 'Post Boost refund' },
-              referenceId: campaignId,
-              referenceType: UserTransactionType.PostBoost,
-            }),
-          );
-
-        try {
-          const transfer = await transferCores({
-            ctx: { userId },
-            transaction: userTransaction,
-            entityManager,
-          });
-
-          return {
-            transfer,
-            transaction: {
-              referenceId: campaignId,
-              transactionId: userTransaction.id,
-              balance: {
-                amount: parseBigInt(transfer.receiverBalance?.newBalance),
-              },
-            },
-          };
-        } catch (error) {
-          if (error instanceof TransferError) {
-            await throwUserTransactionError({
-              ctx,
-              entityManager,
-              error,
-              transaction: userTransaction,
-            });
-          } else {
-            logger.error(
-              { campaignId, userId, postId: post.id },
-              'Error cancelling post boost',
-            );
-          }
-
-          throw error;
-        }
+      const campaign = await ctx.con.getRepository(CampaignPost).findOneOrFail({
+        where: { postId, userId: ctx.userId, state: CampaignState.Active },
       });
 
-      return result.transaction;
+      if (campaign.state !== CampaignState.Active) {
+        throw new ValidationError('No active campaign for the sent post');
+      }
+
+      return await stopCampaignPost({ ctx, campaign });
     },
     checkLinkPreview: async (
       _,
