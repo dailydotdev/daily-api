@@ -148,9 +148,6 @@ import { skadiApiClient } from '../integrations/skadi/api/clients';
 import {
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
-  getFormattedBoostedPost,
-  getBoostedPost,
-  getFormattedCampaign,
   getAdjustedReach,
 } from '../common/campaign/post';
 import type { CampaignReach } from '../integrations/skadi';
@@ -2266,20 +2263,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLBoostedPost> => {
-      const campaign = await skadiApiClient.getCampaignById({
-        campaignId: id,
-        userId: ctx.userId!,
-      });
+      const campaign = await ctx.con
+        .getRepository(CampaignPost)
+        .findOneByOrFail({ id, userId: ctx.userId });
 
-      if (!campaign) {
-        throw new NotFoundError('Campaign does not exist!');
-      }
-
-      const post = await getBoostedPost(ctx.con, campaign.postId);
+      const post = await campaign.post;
 
       return {
-        campaign: getFormattedCampaign(campaign),
-        post: getFormattedBoostedPost(post),
+        campaign: {
+          budget: campaign.flags.budget ?? 0,
+          clicks: campaign.flags.clicks ?? 0,
+          users: campaign.flags.users ?? 0,
+          spend: campaign.flags.spend ?? 0,
+          impressions: campaign.flags.impressions ?? 0,
+          campaignId: campaign.id,
+          postId: campaign.referenceId,
+          endedAt: campaign.endedAt,
+          startedAt: campaign.createdAt,
+          status: campaign.state,
+        },
+        post,
       };
     },
     postCampaigns: async (
