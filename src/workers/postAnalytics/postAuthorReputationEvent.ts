@@ -1,8 +1,8 @@
-import { queryReadReplica } from '../common/queryReadReplica';
-import { Post } from '../entity/posts/Post';
-import { PostAnalytics } from '../entity/posts/PostAnalytics';
-import { ReputationType } from '../entity/ReputationEvent';
-import type { TypedWorker } from './worker';
+import { queryReadReplica } from '../../common/queryReadReplica';
+import { Post } from '../../entity/posts/Post';
+import { PostAnalytics } from '../../entity/posts/PostAnalytics';
+import { ReputationType } from '../../entity/ReputationEvent';
+import type { TypedWorker } from '../worker';
 
 export const postAuthorReputationEvent: TypedWorker<'api.v1.reputation-event'> =
   {
@@ -43,10 +43,10 @@ export const postAuthorReputationEvent: TypedWorker<'api.v1.reputation-event'> =
         .into(PostAnalytics, ['id', 'reputation'])
         .values({
           id: payload.targetId,
-          reputation: payload.amount,
+          reputation: op === 'c' ? payload.amount : -payload.amount,
         })
         .onConflict(
-          `("id") DO UPDATE SET reputation = post_analytics.reputation ${op === 'c' ? '+' : '-'} EXCLUDED.reputation`,
+          `("id") DO UPDATE SET reputation = post_analytics.reputation + EXCLUDED.reputation`,
         )
         .returning([])
         .execute();
