@@ -1,38 +1,9 @@
 import fastq from 'fastq';
 import '../src/config';
 import createOrGetConnection from '../src/db';
-import {
-  DEFAULT_NOTIFICATION_SETTINGS,
-  NotificationPreferenceStatus,
-  NotificationType,
-} from '../src/notifications/common';
 import { User } from '../src/entity/user/User';
-import type { UserNotificationFlags } from '../src/entity/user/User';
 
 const QUEUE_CONCURRENCY = 1;
-
-interface UserData {
-  id: string;
-  acceptedMarketing: boolean;
-  notificationFlags: UserNotificationFlags;
-}
-
-function updateMarketingFlags(user: UserData): UserNotificationFlags {
-  const flags: UserNotificationFlags = { ...user.notificationFlags };
-
-  // If user has acceptedMarketing = false, mute Marketing email notifications
-  if (!user.acceptedMarketing) {
-    if (!flags[NotificationType.Marketing]) {
-      flags[NotificationType.Marketing] = {
-        ...DEFAULT_NOTIFICATION_SETTINGS[NotificationType.Marketing],
-      };
-    }
-    flags[NotificationType.Marketing]!.email =
-      NotificationPreferenceStatus.Muted;
-  }
-
-  return flags;
-}
 
 (async (): Promise<void> => {
   const limitArgument = process.argv[2];
@@ -67,8 +38,6 @@ function updateMarketingFlags(user: UserData): UserNotificationFlags {
       const builder = userRepo
         .createQueryBuilder('user')
         .select('user.id', 'id')
-        .addSelect('user.acceptedMarketing', 'acceptedMarketing')
-        .addSelect('user.notificationFlags', 'notificationFlags')
         .where('user.acceptedMarketing = false')
         .orderBy('user.createdAt')
         .limit(limit)
@@ -76,25 +45,34 @@ function updateMarketingFlags(user: UserData): UserNotificationFlags {
 
       const stream = await builder.stream();
 
-      const insertQueue = fastq.promise(async (user: UserData) => {
-        const newFlags = updateMarketingFlags(user);
-
-        await manager
-          .getRepository(User)
-          .update({ id: user.id }, { notificationFlags: newFlags });
+      const updateQueue = fastq.promise(async (userId: string) => {
+        await manager.query(
+          `UPDATE public.user 
+           SET "notificationFlags" = jsonb_set(
+             "notificationFlags",
+             '{marketing}', 
+             '{"email":"muted","inApp":"muted"}'::jsonb,
+             true
+           )
+           WHERE id = $1 
+           AND "acceptedMarketing" = false
+           AND ("notificationFlags"->'marketing' IS NULL 
+                OR "notificationFlags"->'marketing'->>'email' != 'muted')`,
+          [userId],
+        );
 
         processedCount++;
       }, QUEUE_CONCURRENCY);
 
-      stream.on('data', (user: UserData) => {
-        insertQueue.push(user);
+      stream.on('data', (user: { id: string }) => {
+        updateQueue.push(user.id);
       });
 
       await new Promise((resolve, reject) => {
         stream.on('error', reject);
         stream.on('end', () => resolve(true));
       });
-      await insertQueue.drained();
+      await updateQueue.drained();
     });
 
     console.log(
