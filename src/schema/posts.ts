@@ -1,8 +1,6 @@
 import {
   Connection as ConnectionRelay,
-  ConnectionArguments,
-  cursorToOffset,
-  offsetToCursor,
+  type ConnectionArguments,
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
@@ -85,6 +83,7 @@ import {
   SharePost,
   BRIEFING_SOURCE,
   UserAction,
+  CampaignPost,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -131,7 +130,6 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type {
   BoostedPostConnection,
-  BoostedPostStats,
   GQLBoostedPost,
 } from '../common/campaign/post';
 import {
@@ -150,10 +148,8 @@ import { skadiApiClient } from '../integrations/skadi/api/clients';
 import {
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
-  getTotalEngagements,
   getFormattedBoostedPost,
   getBoostedPost,
-  consolidateCampaignsWithPosts,
   getFormattedCampaign,
   getAdjustedReach,
 } from '../common/campaign/post';
@@ -164,6 +160,7 @@ import { BriefPost } from '../entity/posts/BriefPost';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { usdToCores, coresToUsd } from '../common/number';
 import {
+  fetchCampaignsList,
   validateCampaignArgs,
   type StartCampaignArgs,
 } from '../common/campaign/common';
@@ -2289,58 +2286,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: ConnectionArguments,
       ctx: AuthContext,
+      info,
     ): Promise<BoostedPostConnection> => {
-      const { userId } = ctx;
-      const { first, after } = args;
-      const isFirstRequest = !after;
-      const stats: BoostedPostStats | undefined = isFirstRequest
-        ? {
-            impressions: 0,
-            clicks: 0,
-            totalSpend: 0,
-            engagements: 0,
-            users: 0,
-          }
-        : undefined;
-      const offset = after ? cursorToOffset(after) : 0;
-      const paginated = await graphorm.queryPaginatedIntegration(
-        () => !!after,
-        (nodeSize) => nodeSize === first,
-        (_, i) => offsetToCursor(offset + i + 1),
-        async () => {
-          const campaigns = await skadiApiClient.getCampaigns({
-            userId,
-            offset,
-            limit: first!,
-          });
+      const result = await fetchCampaignsList(args, ctx, info, (qb) => {
+        qb.queryBuilder.andWhere(`"${qb.alias}"."postId" IS NOT NULL`);
 
-          if (!campaigns?.promotedPosts?.length) {
-            return [];
-          }
-
-          if (isFirstRequest && stats) {
-            stats.clicks = campaigns.clicks;
-            stats.impressions = campaigns.impressions;
-            stats.users = campaigns.users;
-            stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
-            stats.engagements = await queryReadReplica(
-              ctx.con,
-              ({ queryRunner }) =>
-                getTotalEngagements(queryRunner.manager, campaigns.postIds),
-            );
-          }
-
-          return queryReadReplica(ctx.con, ({ queryRunner }) =>
-            consolidateCampaignsWithPosts(
-              campaigns.promotedPosts,
-              queryRunner.manager,
-            ),
-          );
-        },
+        return qb;
+      });
+      const stats = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(CampaignPost)
+          .createQueryBuilder('c')
+          .select(
+            `SUM(COALESCE(c.flags->>'impressions'::int), 0)`,
+            'impressions',
+          )
+          .addSelect(`SUM(COALESCE(c.flags->>'users'::int), 0)`, 'users')
+          .addSelect(`SUM(COALESCE(c.flags->>'clicks'::int), 0)`, 'clicks')
+          .addSelect(`SUM(COALESCE(c.flags->>'spend'::int), 0)`, 'totalSpend')
+          .where({ userId: ctx.userId })
+          .getRawOne(),
       );
 
       return {
-        ...paginated,
+        ...result,
+        edges: result.edges.map((edge) => ({
+          ...edge,
+          node: {
+            post: edge.node.post,
+            campaign: {
+              budget: edge.node.flags.budget ?? 0,
+              clicks: edge.node.flags.clicks ?? 0,
+              users: edge.node.flags.users ?? 0,
+              spend: edge.node.flags.spend ?? 0,
+              impressions: edge.node.flags.impressions ?? 0,
+              campaignId: edge.node.id,
+              postId: edge.node.referenceId,
+              endedAt: edge.node.endedAt,
+              startedAt: edge.node.createdAt,
+              status: edge.node.state,
+            },
+          },
+        })),
         stats,
       };
     },

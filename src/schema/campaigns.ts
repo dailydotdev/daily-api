@@ -1,9 +1,4 @@
-import {
-  cursorToOffset,
-  offsetToCursor,
-  type Connection,
-  type ConnectionArguments,
-} from 'graphql-relay';
+import { type Connection, type ConnectionArguments } from 'graphql-relay';
 import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, Context, type AuthContext } from '../Context';
 import { traceResolvers } from './trace';
@@ -11,7 +6,6 @@ import graphorm from '../graphorm';
 import { Campaign, CampaignState, CampaignType } from '../entity/campaign';
 import type { GQLPost } from './posts';
 import type { GQLSource } from './sources';
-import { getLimit } from '../common';
 import { type TransactionCreated } from '../common/njord';
 import {
   checkPostAlreadyBoosted,
@@ -21,6 +15,7 @@ import {
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
+  fetchCampaignsList,
   StartCampaignArgs,
   validateCampaignArgs,
 } from '../common/campaign/common';
@@ -61,6 +56,7 @@ export const typeDefs = /* GraphQL */ `
     flags: CampaignFlags!
     post: Post
     source: Source
+    user: User
   }
 
   type CampaignEdge {
@@ -181,38 +177,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments,
       ctx: AuthContext,
       info,
-    ): Promise<Connection<GQLCampaign>> => {
-      const { userId } = ctx;
-      const { after, first = 20 } = args;
-      const offset = after ? cursorToOffset(after) : 0;
-
-      return graphorm.queryPaginated(
-        ctx,
-        info,
-        () => !!after,
-        (nodeSize) => nodeSize === first,
-        (_, i) => offsetToCursor(offset + i + 1),
-        (builder) => {
-          const { alias } = builder;
-
-          builder.queryBuilder.andWhere(`"${alias}"."userId" = :userId`, {
-            userId,
-          });
-
-          builder.queryBuilder.orderBy(
-            `CASE WHEN "${alias}"."state" = '${CampaignState.Active}' THEN 0 ELSE 1 END`,
-          );
-          builder.queryBuilder.addOrderBy(`"${alias}"."createdAt"`, 'DESC');
-          builder.queryBuilder.limit(getLimit({ limit: first ?? 20 }));
-
-          if (after) {
-            builder.queryBuilder.offset(offset);
-          }
-
-          return builder;
-        },
-      );
-    },
+    ): Promise<Connection<GQLCampaign>> => fetchCampaignsList(args, ctx, info),
     dailyCampaignReachEstimate: async (
       _,
       args: StartCampaignMutationArgs,
