@@ -1,4 +1,8 @@
-import { ChangeObject, type ContentLanguage } from '../types';
+import {
+  ChangeObject,
+  type ChangeMessage,
+  type ContentLanguage,
+} from '../types';
 import type {
   Post,
   SourceRequest,
@@ -10,6 +14,7 @@ import type {
   UserTopReader,
   PostTranslation,
   Organization,
+  ReputationEvent,
 } from '../entity';
 import {
   type EventLogger,
@@ -158,6 +163,10 @@ export type PubSubSchema = {
     userId: User['id'];
     campaignId: string;
     action: CampaignUpdateAction;
+  };
+  'api.v1.reputation-event': {
+    op: ChangeMessage<unknown>['payload']['op'];
+    payload: ChangeObject<ReputationEvent>;
   };
 };
 
