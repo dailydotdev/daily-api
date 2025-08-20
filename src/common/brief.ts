@@ -75,8 +75,7 @@ export const getUserConfigForBriefingRequest = async ({
   };
 };
 
-// Helper function to check daily brief limit for non-team members
-const checkDailyBriefLimit = async (
+const throwIfExceedDailyLimit = async (
   con: DataSource,
   userId: string,
 ): Promise<void> => {
@@ -106,19 +105,10 @@ const checkDailyBriefLimit = async (
   }
 };
 
-export const requestBriefGeneration = async (
+const throwIfAnyPendingBrief = async (
   con: DataSource,
-  {
-    userId,
-    type,
-    isTeamMember,
-  }: { userId: string; type: BriefingType; isTeamMember?: boolean },
-) => {
-  // Check daily limit for non-team members
-  if (!isTeamMember) {
-    await checkDailyBriefLimit(con, userId);
-  }
-
+  userId: string,
+): Promise<void> => {
   const pendingBrief = await queryReadReplica(con, async ({ queryRunner }) => {
     return queryRunner.manager.getRepository(BriefPost).findOne({
       select: ['id', 'createdAt'],
@@ -132,6 +122,22 @@ export const requestBriefGeneration = async (
       createdAt: pendingBrief.createdAt,
     });
   }
+};
+
+export const requestBriefGeneration = async (
+  con: DataSource,
+  {
+    userId,
+    type,
+    isTeamMember,
+  }: { userId: string; type: BriefingType; isTeamMember?: boolean },
+) => {
+  // Check daily limit for non-team members
+  if (!isTeamMember) {
+    await throwIfExceedDailyLimit(con, userId);
+  }
+
+  await throwIfAnyPendingBrief(con, userId);
 
   const postId = await generateShortId();
 
