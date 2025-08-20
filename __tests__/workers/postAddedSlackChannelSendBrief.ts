@@ -133,7 +133,6 @@ describe('postAddedSlackChannelSendBrief worker', () => {
       type: UserPersonalizedDigestType.Brief,
       flags: {
         sendType: UserPersonalizedDigestSendType.daily,
-        slack: true,
       },
     });
   });
@@ -329,36 +328,6 @@ describe('postAddedSlackChannelSendBrief worker', () => {
       userId: '1',
       type: UserPersonalizedDigestType.Brief,
     });
-
-    const post = await con.getRepository(BriefPost).findOneByOrFail({
-      id: 'bsp-p1',
-    });
-
-    await expectSuccessfulTypedBackground(worker, {
-      payload: new UserBriefingRequest({
-        userId: '1',
-        frequency: 'daily',
-        modelName: BriefingModel.Default,
-      }),
-      postId: post.id,
-    });
-
-    expect(conversationsJoin).toHaveBeenCalledTimes(0);
-    expect(chatPostMessage).toHaveBeenCalledTimes(0);
-  });
-
-  it('should ignore if digest slack flag is not true', async () => {
-    await con.getRepository(UserPersonalizedDigest).update(
-      {
-        userId: '1',
-        type: UserPersonalizedDigestType.Brief,
-      },
-      {
-        flags: updateFlagsStatement<UserPersonalizedDigest>({
-          slack: false,
-        }),
-      },
-    );
 
     const post = await con.getRepository(BriefPost).findOneByOrFail({
       id: 'bsp-p1',

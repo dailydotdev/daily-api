@@ -68,7 +68,7 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.brief-rea
           }),
         ]);
 
-        if (!personalizedDigest?.flags?.slack) {
+        if (!personalizedDigest) {
           return;
         }
 

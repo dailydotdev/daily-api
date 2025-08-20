@@ -983,7 +983,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     });
 
-    if (!personalizedDigest?.flags?.email) {
+    if (!personalizedDigest) {
       return null;
     }
 
