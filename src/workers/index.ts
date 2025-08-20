@@ -65,7 +65,7 @@ import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscri
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
 import postBoostActionSlack from './postBoostActionSlack';
 import { postAddedSquadUnreadPostsWorker } from './postAddedSquadUnreadPosts';
-import { postAnalyticsUpdate } from './postAnalyticsUpdate';
+import { postAnalyticsUpdate } from './postAnalytics/postAnalyticsUpdate';
 
 export { Worker } from './worker';
 

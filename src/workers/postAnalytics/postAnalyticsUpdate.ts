@@ -1,5 +1,5 @@
-import { PostAnalytics } from '../entity/posts/PostAnalytics';
-import type { TypedWorker } from './worker';
+import { PostAnalytics } from '../../entity/posts/PostAnalytics';
+import type { TypedWorker } from '../worker';
 
 export const postAnalyticsUpdate: TypedWorker<'api.v1.post-metrics-updated'> = {
   subscription: 'api.post-analytics-update',

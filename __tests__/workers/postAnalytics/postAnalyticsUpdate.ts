@@ -1,9 +1,9 @@
 import type { DataSource } from 'typeorm';
-import createOrGetConnection from '../../src/db';
-import { expectSuccessfulTypedBackground } from '../helpers';
-import { typedWorkers } from '../../src/workers';
-import { postAnalyticsUpdate as worker } from '../../src/workers/postAnalyticsUpdate';
-import { PostAnalytics } from '../../src/entity/posts/PostAnalytics';
+import createOrGetConnection from '../../../src/db';
+import { expectSuccessfulTypedBackground } from '../../helpers';
+import { typedWorkers } from '../../../src/workers';
+import { postAnalyticsUpdate as worker } from '../../../src/workers/postAnalytics/postAnalyticsUpdate';
+import { PostAnalytics } from '../../../src/entity/posts/PostAnalytics';
 
 let con: DataSource;
 
