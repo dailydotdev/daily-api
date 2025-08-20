@@ -17,14 +17,11 @@ export enum UserPersonalizedDigestType {
 
 export type UserPersonalizedDigestFlags = Partial<{
   sendType: UserPersonalizedDigestSendType;
-  email: boolean;
-  inApp: boolean;
-  slack: boolean;
 }>;
 
 export type UserPersonalizedDigestFlagsPublic = Pick<
   UserPersonalizedDigestFlags,
-  'sendType' | 'email' | 'inApp' | 'slack'
+  'sendType'
 >;
 
 @Entity()
