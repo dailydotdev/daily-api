@@ -8,7 +8,6 @@ import {
   formatMailDate,
   notificationsLink,
   sendEmail,
-  updateFlagsStatement,
 } from '../../src/common';
 import worker, {
   notificationToTemplateId,
@@ -1375,21 +1374,43 @@ it('should not invoke squad_blocked email', async () => {
 it('should not send brief email notification if the user prefers not to receive them', async () => {
   const userId = '1';
 
+  const briefPost = await con.getRepository(BriefPost).save({
+    id: 'bnp-1-send',
+    shortId: 'bnp-1-send',
+    sourceId: BRIEFING_SOURCE,
+    visible: true,
+    private: true,
+    authorId: '1',
+    title: 'Presidential briefing',
+    content: '',
+    readTime: 4,
+    contentJSON: [],
+  });
+
   const ctx: NotificationPostContext = {
     userIds: ['1'],
     source: sourcesFixture.find(
       (item) => item.id === 'unknown',
     ) as Reference<Source>,
-    post: postsFixture[0] as Reference<Post>,
+    post: briefPost as Reference<Post>,
   };
 
   await con.getRepository(UserPersonalizedDigest).save({
     userId: '1',
     type: UserPersonalizedDigestType.Brief,
-    flags: {
-      email: false,
-    },
   } as UserPersonalizedDigest);
+
+  await con.getRepository(User).update(
+    { id: '1' },
+    {
+      notificationFlags: () =>
+        `jsonb_set(
+          jsonb_set("notificationFlags", '{briefing_ready}', coalesce("notificationFlags"->'briefing_ready', '{}'::jsonb)),
+          '{briefing_ready,email}',
+          '"muted"'
+        )`,
+    },
+  );
 
   const notificationId = await saveNotificationV2Fixture(
     con,
@@ -2712,18 +2733,11 @@ describe('briefing_ready notification', () => {
     expect(args.transactional_message_id).toEqual('81');
   });
 
-  it('should not send email if digest flag is not true', async () => {
-    await con.getRepository(UserPersonalizedDigest).update(
-      {
-        userId: 'u-bnp-1',
-        type: UserPersonalizedDigestType.Brief,
-      },
-      {
-        flags: updateFlagsStatement<UserPersonalizedDigest>({
-          email: false,
-        }),
-      },
-    );
+  it('should not send email if digest subscription is missing', async () => {
+    await con.getRepository(UserPersonalizedDigest).delete({
+      userId: 'u-bnp-1',
+      type: UserPersonalizedDigestType.Brief,
+    });
 
     const postContext = await buildPostContext(con, 'bnp-1');
 
