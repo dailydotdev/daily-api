@@ -35,7 +35,10 @@ import {
   ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+} from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -657,6 +660,10 @@ export const typeDefs = /* GraphQL */ `
     User website
     """
     portfolio: String
+    """
+    If the user has accepted marketing
+    """
+    acceptedMarketing: Boolean
     """
     If the user's info is confirmed
     """
@@ -2238,6 +2245,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       try {
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
+
+        if (!updatedUser.acceptedMarketing) {
+          updatedUser.notificationFlags = {
+            ...user.notificationFlags,
+            marketing: {
+              email: NotificationPreferenceStatus.Muted,
+              inApp: NotificationPreferenceStatus.Muted,
+            },
+          };
+        } else {
+          updatedUser.notificationFlags = {
+            ...user.notificationFlags,
+            marketing: {
+              email: NotificationPreferenceStatus.Subscribed,
+              inApp: NotificationPreferenceStatus.Subscribed,
+            },
+          };
+        }
 
         if (
           !user.infoConfirmed &&
