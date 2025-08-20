@@ -149,6 +149,7 @@ import {
   validatePostBoostPermissions,
   checkPostAlreadyBoosted,
   getAdjustedReach,
+  startCampaignPost,
 } from '../common/campaign/post';
 import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
@@ -2838,81 +2839,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: Pick<StartCampaignArgs, 'budget' | 'duration'> & { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      const { postId, duration, budget } = args;
+      const { postId, budget, duration } = args;
+
       validateCampaignArgs(args);
-      const post = await validatePostBoostPermissions(ctx, postId);
-      checkPostAlreadyBoosted(post);
 
-      const { userId } = ctx;
-      const total = budget * duration;
-
-      const request = await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } = await skadiApiClient.startPostCampaign({
-          postId,
-          durationInDays: duration,
-          budget: coresToUsd(budget),
-          userId,
-        });
-
-        const userTransaction = await entityManager
-          .getRepository(UserTransaction)
-          .save(
-            entityManager.getRepository(UserTransaction).create({
-              id: randomUUID(),
-              processor: UserTransactionProcessor.Njord,
-              receiverId: systemUser.id,
-              status: UserTransactionStatus.Success,
-              productId: null,
-              senderId: userId,
-              value: total,
-              valueIncFees: 0,
-              fee: 0,
-              request: ctx.requestMeta,
-              flags: { note: 'Post Boost started' },
-              referenceId: campaignId,
-              referenceType: UserTransactionType.PostBoost,
-            }),
-          );
-
-        await entityManager
-          .getRepository(Post)
-          .update(
-            { id: postId },
-            { flags: updateFlagsStatement<Post>({ campaignId }) },
-          );
-
-        try {
-          const transfer = await transferCores({
-            ctx,
-            transaction: userTransaction,
-            entityManager,
-          });
-
-          return {
-            transfer,
-            transaction: {
-              referenceId: campaignId,
-              transactionId: userTransaction.id,
-              balance: {
-                amount: parseBigInt(transfer.senderBalance?.newBalance),
-              },
-            },
-          };
-        } catch (error) {
-          if (error instanceof TransferError) {
-            await throwUserTransactionError({
-              ctx,
-              entityManager,
-              error,
-              transaction: userTransaction,
-            });
-          }
-
-          throw error;
-        }
+      return await startCampaignPost({
+        ctx,
+        args: { value: postId, budget, duration },
       });
-
-      return request.transaction;
     },
     cancelPostBoost: async (
       _,
