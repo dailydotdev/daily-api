@@ -127,6 +127,7 @@ export enum TypeOrmError {
   FOREIGN_KEY = '23503',
   DUPLICATE_ENTRY = '23505',
   USER_CONSTRAINT = 'FK_dce2a8927967051c447ae10bc8b',
+  DEADLOCK_DETECTED = '40P01',
 }
 
 export enum SourcePermissionErrorKeys {

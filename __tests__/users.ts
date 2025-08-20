@@ -88,7 +88,7 @@ import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import setCookieParser from 'set-cookie-parser';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
-import { CampaignType, Invite } from '../src/entity/Invite';
+import { Invite, InviteCampaignType } from '../src/entity/Invite';
 import { plusUsersFixture, usersFixture } from './fixture/user';
 import {
   deleteKeysByPattern,
@@ -4472,7 +4472,7 @@ describe('DELETE /v1/users/me', () => {
   it('removes associated invite records', async () => {
     await con.getRepository(Invite).insert({
       userId: '1',
-      campaign: CampaignType.Search,
+      campaign: InviteCampaignType.Search,
     });
 
     mockLogout();
@@ -4525,7 +4525,7 @@ describe('query referralCampaign', () => {
   beforeEach(async () => {
     await con.getRepository(Invite).save({
       userId: '1',
-      campaign: CampaignType.Search,
+      campaign: InviteCampaignType.Search,
       limit: 5,
       count: 1,
       token: 'd688afeb-381c-43b5-89af-533f81ccd036',
@@ -4653,9 +4653,7 @@ describe('query personalizedDigest', () => {
       personalizedDigest {
         type
         flags {
-          email
           sendType
-          slack
         }
       }
   }`;
@@ -4675,8 +4673,6 @@ describe('query personalizedDigest', () => {
         type: UserPersonalizedDigestType.Digest,
         flags: {
           sendType: UserPersonalizedDigestSendType.workdays,
-          email: true,
-          slack: true,
         },
       });
 
@@ -4686,8 +4682,6 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest.length).toEqual(1);
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.workdays,
-        email: true,
-        slack: true,
       });
     });
 
@@ -4698,21 +4692,16 @@ describe('query personalizedDigest', () => {
       expect(res.data.personalizedDigest.length).toEqual(1);
       expect(res.data.personalizedDigest[0].flags).toEqual({
         sendType: UserPersonalizedDigestSendType.weekly,
-        email: null,
-        slack: null,
       });
     });
   });
 });
 
 describe('mutation subscribePersonalizedDigest', () => {
-  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType, $sendType: UserPersonalizedDigestSendType, $email: Boolean) {
-    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type, sendType: $sendType, email: $email) {
+  const MUTATION = `mutation SubscribePersonalizedDigest($hour: Int, $day: Int, $type: DigestType, $sendType: UserPersonalizedDigestSendType) {
+    subscribePersonalizedDigest(hour: $hour, day: $day, type: $type, sendType: $sendType) {
       preferredDay
       preferredHour
-      flags {
-        email
-      }
     }
   }`;
 
@@ -4826,16 +4815,12 @@ describe('mutation subscribePersonalizedDigest', () => {
       variables: {
         day: DayOfWeek.Wednesday,
         hour: 17,
-        email: true,
       },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.subscribePersonalizedDigest).toMatchObject({
       preferredDay: DayOfWeek.Wednesday,
       preferredHour: 17,
-      flags: {
-        email: true,
-      },
     });
   });
 
@@ -4998,7 +4983,7 @@ describe('mutation acceptFeatureInvite', () => {
   beforeEach(async () => {
     await con.getRepository(Invite).save({
       userId: '2',
-      campaign: CampaignType.Search,
+      campaign: InviteCampaignType.Search,
       limit: 5,
       count: 1,
       token: 'd688afeb-381c-43b5-89af-533f81ccd036',
@@ -5013,7 +4998,7 @@ describe('mutation acceptFeatureInvite', () => {
         variables: {
           token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 2,
-          feature: CampaignType.Search,
+          feature: InviteCampaignType.Search,
         },
       },
       'UNAUTHENTICATED',
@@ -5030,7 +5015,7 @@ describe('mutation acceptFeatureInvite', () => {
         variables: {
           token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 1,
-          feature: CampaignType.Search,
+          feature: InviteCampaignType.Search,
         },
       },
       'NOT_FOUND',
@@ -5054,7 +5039,7 @@ describe('mutation acceptFeatureInvite', () => {
         variables: {
           token: 'd688afeb-381c-43b5-89af-533f81ccd036',
           referrerId: 2,
-          feature: CampaignType.Search,
+          feature: InviteCampaignType.Search,
         },
       },
       (errors) => {
@@ -5083,7 +5068,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 
@@ -5101,7 +5086,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 
@@ -5119,7 +5104,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 
@@ -5155,7 +5140,7 @@ describe('mutation acceptFeatureInvite', () => {
       variables: {
         token: 'd688afeb-381c-43b5-89af-533f81ccd036',
         referrerId: '2',
-        feature: CampaignType.Search,
+        feature: InviteCampaignType.Search,
       },
     });
 

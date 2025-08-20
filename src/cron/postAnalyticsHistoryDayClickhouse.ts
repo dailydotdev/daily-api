@@ -33,6 +33,11 @@ export const postAnalyticsHistoryDayClickhouseCron: Cron = {
 
     const clickhouseClient = getClickHouseClient();
 
+    const queryParams = {
+      lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
+      date: format(new Date(), 'yyyy-MM-dd'),
+    };
+
     const response = await clickhouseClient.query({
       query: /* sql */ `
         SELECT
@@ -43,14 +48,11 @@ export const postAnalyticsHistoryDayClickhouseCron: Cron = {
         FROM api.post_analytics_history
         FINAL
         WHERE date = {date: Date}
-        AND created_at > {lastRunAt: DateTime}
-        GROUP BY date, post_id
+        GROUP BY date, id
+        HAVING "updatedAt" > {lastRunAt: DateTime}
       `,
       format: 'JSONEachRow',
-      query_params: {
-        lastRunAt: format(lastRunAt, 'yyyy-MM-dd HH:mm:ss'),
-        date: format(new Date(), 'yyyy-MM-dd'),
-      },
+      query_params: queryParams,
     });
 
     const result = z
@@ -97,7 +99,7 @@ export const postAnalyticsHistoryDayClickhouseCron: Cron = {
           .insert()
           .into(PostAnalyticsHistory)
           .values(chunk)
-          .orUpdate(Object.keys(chunk[0]), ['id'])
+          .orUpdate(Object.keys(chunk[0]), ['id', 'date'])
           .execute();
       }
     });
@@ -107,6 +109,11 @@ export const postAnalyticsHistoryDayClickhouseCron: Cron = {
       {
         lastRunAt: currentRunAt.toISOString(),
       },
+    );
+
+    logger.info(
+      { rows: data.length, queryParams },
+      'synced post analytics history data',
     );
   },
 };

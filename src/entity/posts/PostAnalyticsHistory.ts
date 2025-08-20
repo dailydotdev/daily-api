@@ -14,14 +14,14 @@ export class PostAnalyticsHistory {
   @PrimaryColumn({ type: 'text' })
   id: string;
 
+  @PrimaryColumn()
+  date: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @Column()
-  date: string;
 
   @Column({ default: 0 })
   impressions: number;

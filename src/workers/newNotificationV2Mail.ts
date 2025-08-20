@@ -59,7 +59,7 @@ import { BriefPost } from '../entity/posts/BriefPost';
 import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
-import { generateBoostEmailUpdate } from '../common/post/boost';
+import { generateBoostEmailUpdate } from '../common/campaign/post';
 import { isNullOrUndefined } from '../common/object';
 
 interface Data {
@@ -979,7 +979,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       },
     });
 
-    if (!personalizedDigest?.flags?.email) {
+    if (!personalizedDigest) {
       return null;
     }
 
