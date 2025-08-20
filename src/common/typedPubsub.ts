@@ -26,6 +26,7 @@ import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import type { CampaignUpdateAction } from '../integrations/skadi';
+import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -158,6 +159,12 @@ export type PubSubSchema = {
     userId: User['id'];
     campaignId: string;
     action: CampaignUpdateAction;
+  };
+  'api.v1.post-metrics-updated': {
+    postId: string;
+    payload: Partial<
+      Pick<PostAnalytics, 'upvotes' | 'downvotes' | 'comments' | 'awards'>
+    >;
   };
 };
 
