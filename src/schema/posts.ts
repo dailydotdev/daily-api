@@ -48,7 +48,6 @@ import {
   standardizeURL,
   systemUser,
   toGQLEnum,
-  triggerTypedEvent,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
@@ -57,7 +56,6 @@ import {
 } from '../common';
 import {
   ArticlePost,
-  BRIEFING_SOURCE,
   ContentImage,
   createExternalLink,
   createSharePost,
@@ -87,7 +85,6 @@ import {
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
-  ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
   TransferError,
@@ -159,9 +156,7 @@ import {
 import { skadiApiClient } from '../integrations/skadi/api/clients';
 import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
-import { BriefingModel, BriefingType } from '../integrations/feed';
-import { BriefPost } from '../entity/posts/BriefPost';
-import { UserBriefingRequest } from '@dailydotdev/schema';
+import { BriefingType } from '../integrations/feed';
 import { coresToUsd, usdToCores } from '../common/number';
 import {
   type StartCampaignArgs,
@@ -170,9 +165,9 @@ import {
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 import {
-  ExperimentAllocationClient,
-  getUserGrowthBookInstance,
-} from '../growthbook';
+  getBriefGenerationCost,
+  requestBriefGeneration,
+} from '../common/brief';
 
 export interface GQLPost {
   id: string;
@@ -301,8 +296,6 @@ export type GQLPostAnalyticsHistory = Omit<
   PostAnalyticsHistory,
   'post' | 'createdAt'
 >;
-
-const allocationClient = new ExperimentAllocationClient();
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(BriefingType, 'BriefingType')}
@@ -3393,89 +3386,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { type }: { type: BriefingType },
       ctx: AuthContext,
     ): Promise<{ postId: string }> => {
-      const { isPlus } = ctx;
-
-      const requestGeneration = async () => {
-        const pendingBrief = await queryReadReplica(
-          ctx.con,
-          async ({ queryRunner }) => {
-            return queryRunner.manager.getRepository(BriefPost).findOne({
-              select: ['id', 'createdAt'],
-              where: { visible: false, authorId: ctx.userId },
-            });
-          },
-        );
-
-        if (pendingBrief) {
-          throw new ConflictError(
-            'There is already a briefing being generated',
-            {
-              postId: pendingBrief.id,
-              createdAt: pendingBrief.createdAt,
-            },
-          );
-        }
-
-        const postId = await generateShortId();
-
-        const post = ctx.con.getRepository(BriefPost).create({
-          id: postId,
-          shortId: postId,
-          authorId: ctx.userId,
-          private: true,
-          visible: false,
-          sourceId: BRIEFING_SOURCE,
-        });
-
-        await ctx.con.getRepository(BriefPost).insert(post);
-
-        triggerTypedEvent(logger, 'api.v1.brief-generate', {
-          payload: new UserBriefingRequest({
-            userId: ctx.userId,
-            frequency: type,
-            modelName: BriefingModel.Default,
-          }),
-          postId,
-        });
-
-        return { postId };
-      };
+      const { isPlus, userId, isTeamMember } = ctx;
 
       if (isPlus) {
-        return await requestGeneration();
+        // No need to check balance or brief cost, just perform the request
+        return await requestBriefGeneration(ctx.con, {
+          userId,
+          type,
+          isTeamMember,
+        });
       }
 
-      // 1. should check if the user has already generate a briefing
-      const existingBriefing = await ctx.con.getRepository(Post).findOne({
-        where: { authorId: ctx.userId, type: PostType.Brief },
+      const briefCost = await getBriefGenerationCost(ctx.con, {
+        userId,
+        type,
       });
-      // 2. if the user has not generated a briefing yet, we can allow them to generate one
-      if (!existingBriefing) {
-        return requestGeneration();
-      }
-      // 3 we should get the pricing for each briefing type
-      //    from GrowthBook feature key named "brief_generate_pricing"
-      // Get pricing from GrowthBook feature
-      const gbClient = getUserGrowthBookInstance(ctx.userId, {
-        allocationClient,
-      });
-      const pricingConfig = gbClient.getFeatureValue(
-        'brief_generate_pricing',
-        {},
-      ) as Record<BriefingType, number>;
 
-      // 4. if the user has generated a briefing, we should check if they have
-      //    enough balance to generate another one
-      const briefCost = pricingConfig[type];
       const userBalance = await getBalance(ctx);
       const userCanAfford = userBalance.amount >= briefCost;
+      const isFree = briefCost === 0;
 
-      // 5. if the user has enough cores, we can allow them to generate another
-      //    briefing, otherwise we should throw an error
       if (!userCanAfford) {
         logger.warn(
           {
-            userId: ctx.userId,
+            userId,
             briefType: type,
             briefCost,
             userBalance,
@@ -3488,49 +3422,55 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      // perform the transaction then request generation
-      await ctx.con.transaction(async (entityManager) => {
-        const userTransaction = await entityManager
-          .getRepository(UserTransaction)
-          .save(
-            entityManager.getRepository(UserTransaction).create({
-              id: randomUUID(),
-              processor: UserTransactionProcessor.Njord,
-              receiverId: systemUser.id,
-              status: UserTransactionStatus.Success,
-              productId: null,
-              senderId: ctx.userId,
-              value: briefCost,
-              valueIncFees: 0,
-              fee: 0,
-              request: ctx.requestMeta,
-              flags: { note: `Brief generation - ${type}` },
-              referenceId: null,
-              referenceType: UserTransactionType.BriefGeneration, // You may need to add this enum value
-            }),
-          );
+      if (!isFree) {
+        // perform the transaction then request generation
+        await ctx.con.transaction(async (entityManager) => {
+          const userTransaction = await entityManager
+            .getRepository(UserTransaction)
+            .save(
+              entityManager.getRepository(UserTransaction).create({
+                id: randomUUID(),
+                processor: UserTransactionProcessor.Njord,
+                receiverId: systemUser.id,
+                status: UserTransactionStatus.Success,
+                productId: null,
+                senderId: userId,
+                value: briefCost,
+                valueIncFees: 0,
+                fee: 0,
+                request: ctx.requestMeta,
+                flags: { note: `Brief generation - ${type}` },
+                referenceId: null,
+                referenceType: UserTransactionType.BriefGeneration, // You may need to add this enum value
+              }),
+            );
 
-        try {
-          const transfer = await transferCores({
-            ctx,
-            transaction: userTransaction,
-            entityManager,
-          });
-          return { transfer };
-        } catch (error) {
-          if (error instanceof TransferError) {
-            await throwUserTransactionError({
+          try {
+            const transfer = await transferCores({
               ctx,
-              entityManager,
-              error,
               transaction: userTransaction,
+              entityManager,
             });
+            return { transfer };
+          } catch (error) {
+            if (error instanceof TransferError) {
+              await throwUserTransactionError({
+                ctx,
+                entityManager,
+                error,
+                transaction: userTransaction,
+              });
+            }
+            throw error;
           }
-          throw error;
-        }
-      });
+        });
+      }
 
-      return await requestGeneration();
+      return await requestBriefGeneration(ctx.con, {
+        userId,
+        type,
+        isTeamMember,
+      });
     },
   },
   Subscription: {
