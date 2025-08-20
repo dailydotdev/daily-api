@@ -35,8 +35,6 @@ import {
   SourceUser,
   SquadSource,
   User,
-  UserAction,
-  UserActionType,
   UserPost,
   View,
   WelcomePost,
@@ -99,13 +97,16 @@ import {
   UserTransaction,
   UserTransactionProcessor,
   UserTransactionStatus,
+  UserTransactionType,
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
-import { UserBriefingRequest } from '@dailydotdev/schema';
+import { TransferResult, UserBriefingRequest } from '@dailydotdev/schema';
 import { addDays, format, subDays } from 'date-fns';
 import { PostAnalytics } from '../src/entity/posts/PostAnalytics';
 import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
+import * as njordCommon from '../src/common/njord';
+import { BriefPost } from '../src/entity/posts/BriefPost';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -8397,6 +8398,11 @@ describe('mutation generateBriefing', () => {
   }
 }`;
 
+  afterEach(async () => {
+    // clean all the briefings
+    await con.getRepository(BriefPost).deleteAll();
+  });
+
   const variables = {
     type: BriefingType.Daily,
   };
@@ -8412,8 +8418,43 @@ describe('mutation generateBriefing', () => {
     );
   });
 
-  it('should start briefing generation', async () => {
+  it('should allow plus user to generate brief without payment', async () => {
     loggedUser = '1';
+    isPlus = true;
+
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.generateBriefing.postId).toBeDefined();
+
+    expectTypedEvent('api.v1.brief-generate', {
+      payload: new UserBriefingRequest({
+        userId: loggedUser,
+        frequency: variables.type,
+        modelName: BriefingModel.Default,
+      }),
+      postId: res.data.generateBriefing.postId,
+    });
+
+    // Should not create any transaction for plus users
+    const transactions = await con.getRepository(UserTransaction).find({
+      where: {
+        senderId: loggedUser,
+        referenceType: UserTransactionType.BriefGeneration,
+      },
+    });
+    expect(transactions).toHaveLength(0);
+  });
+
+  it('should allow non-plus user to generate first brief for free', async () => {
+    loggedUser = '1';
+
+    // Mock sufficient balance
+    jest.spyOn(njordCommon, 'getBalance').mockResolvedValue({
+      amount: 0,
+    });
 
     const res = await client.mutate(MUTATION, {
       variables,
@@ -8431,10 +8472,147 @@ describe('mutation generateBriefing', () => {
       }),
       postId: res.data.generateBriefing.postId,
     });
+
+    // Should not create any transaction for first brief
+    const transactions = await con.getRepository(UserTransaction).find({
+      where: {
+        senderId: loggedUser,
+        referenceType: UserTransactionType.BriefGeneration,
+      },
+    });
+    expect(transactions).toHaveLength(0);
+  });
+
+  it('should charge cores for non-plus user briefs', async () => {
+    loggedUser = '1';
+
+    // Create an existing brief to make this not the first one
+    await con.getRepository(Post).save({
+      id: 'existing-brief',
+      shortId: 'existing-brief',
+      authorId: loggedUser,
+      type: PostType.Brief,
+      private: true,
+      visible: true,
+      sourceId: 'briefing',
+      createdAt: subDays(new Date(), 1),
+    });
+
+    // Mock sufficient balance
+    jest.spyOn(njordCommon, 'getBalance').mockResolvedValue({
+      amount: 500,
+    });
+
+    // Mock successful transfer
+    jest.spyOn(njordCommon, 'transferCores').mockResolvedValue({
+      id: 'transfer-123',
+    } as TransferResult);
+
+    const res = await client.mutate(MUTATION, {
+      variables,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.generateBriefing.postId).toBeDefined();
+
+    // Should create a transaction for non-first brief
+    const transactions = await con.getRepository(UserTransaction).find({
+      where: {
+        senderId: loggedUser,
+        referenceType: UserTransactionType.BriefGeneration,
+      },
+    });
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].value).toEqual(300); // Default daily price
+    expect(transactions[0].flags.note).toContain('daily');
+  });
+
+  it('should charge different price for weekly briefs', async () => {
+    loggedUser = '1';
+
+    // Create an existing brief to make this not the first one
+    await con.getRepository(Post).save({
+      id: 'prev-brief-w',
+      shortId: 'prev-brief-w',
+      authorId: loggedUser,
+      type: PostType.Brief,
+      private: true,
+      visible: true,
+      sourceId: 'briefing',
+      createdAt: subDays(new Date(), 1),
+    });
+
+    // Mock sufficient balance
+    jest.spyOn(njordCommon, 'getBalance').mockResolvedValue({
+      amount: 600,
+    });
+
+    // Mock successful transfer
+    jest.spyOn(njordCommon, 'transferCores').mockResolvedValue({
+      id: 'transfer-124',
+    } as TransferResult);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { type: BriefingType.Weekly },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.generateBriefing.postId).toBeDefined();
+
+    // Should create a transaction with a weekly price
+    const transactions = await con.getRepository(UserTransaction).find({
+      where: {
+        senderId: loggedUser,
+        referenceType: UserTransactionType.BriefGeneration,
+      },
+    });
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].value).toEqual(500); // Default weekly price
+    expect(transactions[0].flags.note).toContain('weekly');
+  });
+
+  it('should throw error when non-plus user has insufficient cores', async () => {
+    loggedUser = '1';
+
+    // Create an existing brief to make this not the first one
+    await con.getRepository(Post).save({
+      id: 'prev-brief-p',
+      shortId: 'prev-brief-p',
+      authorId: loggedUser,
+      type: PostType.Brief,
+      private: true,
+      visible: true,
+      sourceId: 'briefing',
+      createdAt: subDays(new Date(), 1),
+    });
+
+    // Mock insufficient balance
+    jest.spyOn(njordCommon, 'getBalance').mockResolvedValue({
+      amount: 100, // Less than required 300
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables,
+      },
+      'FORBIDDEN',
+    );
+
+    // Should not create any transaction
+    const transactions = await con.getRepository(UserTransaction).find({
+      where: {
+        senderId: loggedUser,
+        referenceType: UserTransactionType.BriefGeneration,
+      },
+    });
+    expect(transactions).toHaveLength(0);
   });
 
   it('should not start briefing generation if already generating', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     const res = await client.mutate(MUTATION, {
       variables,
@@ -8456,28 +8634,9 @@ describe('mutation generateBriefing', () => {
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
   });
 
-  it('should not start briefing generation if generated brief action exists', async () => {
-    loggedUser = '1';
-
-    await con.getRepository(UserAction).save({
-      userId: loggedUser,
-      type: UserActionType.GeneratedBrief,
-    });
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables,
-      },
-      'FORBIDDEN',
-    );
-
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
-  });
-
   it('should throw existing post data if briefing is already generating', async () => {
     loggedUser = '1';
+    isPlus = true;
 
     const res = await client.mutate(MUTATION, {
       variables,

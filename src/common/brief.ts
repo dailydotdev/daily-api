@@ -132,12 +132,12 @@ export const requestBriefGeneration = async (
     isTeamMember,
   }: { userId: string; type: BriefingType; isTeamMember?: boolean },
 ) => {
+  await throwIfAnyPendingBrief(con, userId);
+
   // Check daily limit for non-team members
   if (!isTeamMember) {
     await throwIfExceedDailyLimit(con, userId);
   }
-
-  await throwIfAnyPendingBrief(con, userId);
 
   const postId = await generateShortId();
 
