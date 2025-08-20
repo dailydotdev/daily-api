@@ -83,6 +83,7 @@ import {
   UserAction,
   CampaignPost,
   CampaignState,
+  CampaignType,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
@@ -2232,8 +2233,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       validateCampaignArgs({ budget, duration });
 
       const { minImpressions, maxImpressions } =
-        await skadiApiClient.estimatePostBoostReachDaily({
-          postId,
+        await skadiApiClient.estimateBoostReachDaily({
+          type: CampaignType.Post,
+          value: postId,
           userId: ctx.userId,
           budget: coresToUsd(budget),
           durationInDays: duration,
