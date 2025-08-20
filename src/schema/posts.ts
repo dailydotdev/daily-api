@@ -3441,7 +3441,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 request: ctx.requestMeta,
                 flags: { note: `Brief generation - ${type}` },
                 referenceId: null,
-                referenceType: UserTransactionType.BriefGeneration, // You may need to add this enum value
+                referenceType: UserTransactionType.BriefGeneration,
               }),
             );
 
