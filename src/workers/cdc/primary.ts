@@ -623,6 +623,25 @@ const onPostChange = async (
     if (isChanged(data.payload.before!, data.payload.after!, 'title')) {
       await clearPostTranslations(con, data.payload.after!.id, 'title');
     }
+
+    if (
+      isChanged(data.payload.before!, data.payload.after!, [
+        'upvotes',
+        'downvotes',
+        'comments',
+        'awards',
+      ])
+    ) {
+      await triggerTypedEvent(logger, 'api.v1.post-metrics-updated', {
+        postId: data.payload.after!.id,
+        payload: {
+          upvotes: data.payload.after!.upvotes,
+          downvotes: data.payload.after!.downvotes,
+          comments: data.payload.after!.comments,
+          awards: data.payload.after!.awards,
+        },
+      });
+    }
   } else if (data.payload.op === 'd') {
     await notifyPostBannedOrRemoved(logger, data.payload.before!);
   }

@@ -31,6 +31,8 @@ import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import type { CampaignUpdateAction } from '../integrations/skadi';
+import { z } from 'zod';
+import type { postMetricsUpdatedTopic } from './schema/topics';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -164,6 +166,7 @@ export type PubSubSchema = {
     campaignId: string;
     action: CampaignUpdateAction;
   };
+  'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
