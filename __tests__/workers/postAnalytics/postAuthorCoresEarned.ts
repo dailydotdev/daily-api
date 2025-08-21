@@ -13,6 +13,7 @@ import {
   UserTransaction,
   UserTransactionProcessor,
   UserTransactionStatus,
+  UserTransactionType,
 } from '../../../src/entity/user/UserTransaction';
 
 let con: DataSource;
@@ -300,5 +301,56 @@ describe('postAuthorCoresEarned worker', () => {
 
     expect(postAnalytics).not.toBeNull();
     expect(postAnalytics!.coresEarned).toBe(130);
+  });
+
+  it('should skip post boosts', async () => {
+    await con.getRepository(PostAnalytics).save({
+      id: 'pacew-p1',
+      coresEarned: 50,
+    });
+
+    const postAnalyticsBefore = await con.getRepository(PostAnalytics).findOne({
+      where: { id: 'pacew-p1' },
+    });
+
+    expect(postAnalyticsBefore).not.toBeNull();
+    expect(postAnalyticsBefore!.coresEarned).toBe(50);
+
+    await con.getRepository(Post).save({
+      id: 'pacew-p1',
+      shortId: 'pacew-p1',
+      authorId: 'pacew-2',
+      sourceId: 'a',
+    });
+
+    const transaction = await con.getRepository(UserTransaction).save({
+      processor: UserTransactionProcessor.Njord,
+      receiverId: 'pacew-2',
+      status: UserTransactionStatus.Success,
+      productId: null,
+      senderId: 'pacew-1',
+      fee: 20,
+      value: 100,
+      valueIncFees: 80,
+      referenceId: 'pacew-p1',
+      referenceType: UserTransactionType.PostBoost,
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      transaction: {
+        ...transaction,
+        createdAt: transaction.createdAt.getTime(),
+        updatedAt: transaction.updatedAt.getTime(),
+        request: JSON.stringify(transaction.request),
+        flags: JSON.stringify(transaction.flags),
+      },
+    });
+
+    const postAnalytics = await con.getRepository(PostAnalytics).findOne({
+      where: { id: 'pacew-p1' },
+    });
+
+    expect(postAnalytics).not.toBeNull();
+    expect(postAnalytics!.coresEarned).toBe(50);
   });
 });
