@@ -2377,7 +2377,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           const { createReadStream } = await headerImage;
           const stream = createReadStream();
           const { url: imageUrl } = await uploadSquadHeaderImage(
-            sourceId,
+            `cover_${sourceId}`,
             stream,
           );
           updates.headerImage = imageUrl;
