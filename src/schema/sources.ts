@@ -63,6 +63,7 @@ import {
 import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
 import type { GQLTagResults } from './tags';
+import { MIN_SEARCH_QUERY_LENGTH } from './tags';
 import { SourceTagView } from '../entity/SourceTagView';
 import { TrendingSource } from '../entity/TrendingSource';
 import { PopularSource } from '../entity/PopularSource';
@@ -77,7 +78,6 @@ import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
 } from '../common/contentPreference';
-import { MIN_SEARCH_QUERY_LENGTH } from './tags';
 import { getSearchLimit } from '../common/search';
 import {
   SourcePostModeration,
@@ -2049,9 +2049,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }
 
           if (role) {
-            queryBuilder = queryBuilder.andWhere(`${alias}.role = :role`, {
-              role,
-            });
+            if (role === SourceMemberRoles.Moderator) {
+              // We should include both Moderator and Admin now
+              queryBuilder = queryBuilder.andWhere(
+                `(${alias}."role" = :role OR ${alias}."role" = :role2)`,
+                {
+                  role: SourceMemberRoles.Moderator,
+                  role2: SourceMemberRoles.Admin,
+                },
+              );
+            } else {
+              queryBuilder = queryBuilder.andWhere(`${alias}."role" = :role`, {
+                role,
+              });
+            }
           } else if (
             typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
             'string'
