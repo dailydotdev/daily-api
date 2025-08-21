@@ -26,7 +26,8 @@ import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import type { CampaignUpdateAction } from '../integrations/skadi';
-import type { PostAnalytics } from '../entity/posts/PostAnalytics';
+import { z } from 'zod';
+import type { postMetricsUpdatedTopic } from './schema/topics';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -160,12 +161,7 @@ export type PubSubSchema = {
     campaignId: string;
     action: CampaignUpdateAction;
   };
-  'api.v1.post-metrics-updated': {
-    postId: string;
-    payload: Partial<
-      Pick<PostAnalytics, 'upvotes' | 'downvotes' | 'comments' | 'awards'>
-    >;
-  };
+  'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

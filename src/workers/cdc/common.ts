@@ -19,8 +19,17 @@ import { logger } from '../../logger';
 import { JsonValue, Message } from '@bufbuild/protobuf';
 import { debeziumTimeToDate } from '../../common/utils';
 
-export const isChanged = <T>(before: T, after: T, property: keyof T): boolean =>
-  before[property] != after[property];
+export const isChanged = <T>(
+  before: T,
+  after: T,
+  property: keyof T | (keyof T)[],
+): boolean => {
+  if (Array.isArray(property)) {
+    return property.some((key) => before[key] != after[key]);
+  }
+
+  return before[property] != after[property];
+};
 
 export const getTableName = <Entity extends ObjectLiteral>(
   con: DataSource,

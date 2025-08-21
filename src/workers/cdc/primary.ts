@@ -623,17 +623,13 @@ const onPostChange = async (
       await clearPostTranslations(con, data.payload.after!.id, 'title');
     }
 
-    const postMetrics: (keyof ChangeObject<Post>)[] = [
-      'upvotes',
-      'downvotes',
-      'comments',
-      'awards',
-    ];
-
     if (
-      postMetrics.some((field) =>
-        isChanged(data.payload.before!, data.payload.after!, field),
-      )
+      isChanged(data.payload.before!, data.payload.after!, [
+        'upvotes',
+        'downvotes',
+        'comments',
+        'awards',
+      ])
     ) {
       await triggerTypedEvent(logger, 'api.v1.post-metrics-updated', {
         postId: data.payload.after!.id,

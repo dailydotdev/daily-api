@@ -1,3 +1,4 @@
+import { postMetricsUpdatedTopic } from '../../common/schema/topics';
 import { PostAnalytics } from '../../entity/posts/PostAnalytics';
 import type { TypedWorker } from '../worker';
 
@@ -23,5 +24,8 @@ export const postAnalyticsUpdate: TypedWorker<'api.v1.post-metrics-updated'> = {
         conflictPaths: ['id'],
       },
     );
+  },
+  parseMessage: (message) => {
+    return postMetricsUpdatedTopic.parse(message.data);
   },
 };
