@@ -4,6 +4,11 @@ import { PostAnalytics } from '../../entity/posts/PostAnalytics';
 import { UserTransactionType } from '../../entity/user/UserTransaction';
 import type { TypedWorker } from '../worker';
 
+const skipTransactionTypes = [
+  UserTransactionType.PostBoost,
+  UserTransactionType.SquadBoost,
+];
+
 export const postAuthorCoresEarned: TypedWorker<'api.v1.user-transaction'> = {
   subscription: 'api.post-author-cores-earned',
   handler: async ({ data }, con): Promise<void> => {
@@ -14,7 +19,7 @@ export const postAuthorCoresEarned: TypedWorker<'api.v1.user-transaction'> = {
     }
 
     if (
-      [UserTransactionType.PostBoost, UserTransactionType.SquadBoost].includes(
+      skipTransactionTypes.includes(
         transaction.referenceType as UserTransactionType,
       )
     ) {
