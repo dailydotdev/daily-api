@@ -3,34 +3,6 @@ import { TypedWorker } from './worker';
 import { cio, identifyUser } from '../cio';
 import { isSubscribedToEmails } from './notifications/utils';
 
-import { isSubscribedToNotificationType } from './notifications/utils';
-import { NotificationChannel, NotificationType } from '../notifications/common';
-import type { UserNotificationFlags } from '../entity/user';
-
-const shouldResubscribeUser = (
-  oldFlags: UserNotificationFlags,
-  newFlags: UserNotificationFlags,
-) => {
-  const oldUserReceivedEmail = isSubscribedToEmails(oldFlags);
-  const newUserReceivesEmail = isSubscribedToEmails(newFlags);
-
-  const oldUserReceivedMarketing = isSubscribedToNotificationType(
-    oldFlags,
-    NotificationType.Marketing,
-    NotificationChannel.Email,
-  );
-  const newUserReceivesMarketing = isSubscribedToNotificationType(
-    newFlags,
-    NotificationType.Marketing,
-    NotificationChannel.Email,
-  );
-
-  return (
-    (newUserReceivesEmail && !oldUserReceivedEmail) ||
-    (newUserReceivesMarketing && !oldUserReceivedMarketing)
-  );
-};
-
 const worker: TypedWorker<'user-updated'> = {
   subscription: 'api.user-updated-cio',
   handler: async (message, con, log) => {
@@ -60,7 +32,7 @@ const worker: TypedWorker<'user-updated'> = {
           ? JSON.parse(user.notificationFlags)
           : user.notificationFlags;
 
-      if (shouldResubscribeUser(oldFlags, newFlags)) {
+      if (isSubscribedToEmails(newFlags) && !isSubscribedToEmails(oldFlags)) {
         await resubscribeUser(cio, user.id);
       }
 
