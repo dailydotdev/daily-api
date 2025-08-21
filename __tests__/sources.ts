@@ -1805,6 +1805,37 @@ describe('query sourceMembers', () => {
       }
     });
   });
+
+  it('should return both moderators and admins when querying by Moderator role', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(SourceMember);
+
+    // Set up users with different roles
+    await repo.update(
+      { userId: '1', sourceId: 'a' },
+      { role: SourceMemberRoles.Admin },
+    );
+    await repo.update(
+      { userId: '2', sourceId: 'a' },
+      { role: SourceMemberRoles.Moderator },
+    );
+    await repo.update(
+      { userId: '3' },
+      { role: SourceMemberRoles.Member, sourceId: 'a' },
+    );
+
+    const res = await client.query(QUERY, {
+      variables: { role: SourceMemberRoles.Moderator, id: 'a' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sourceMembers.edges).toHaveLength(2);
+
+    const roles = res.data.sourceMembers.edges.map((edge) => edge.node.role);
+    expect(roles).toContain(SourceMemberRoles.Admin);
+    expect(roles).toContain(SourceMemberRoles.Moderator);
+    expect(roles).not.toContain(SourceMemberRoles.Member);
+  });
 });
 
 describe('query mySourceMemberships', () => {
