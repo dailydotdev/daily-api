@@ -65,6 +65,8 @@ import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscri
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
 import postBoostActionSlack from './postBoostActionSlack';
 import { postAddedSquadUnreadPostsWorker } from './postAddedSquadUnreadPosts';
+import { postAnalyticsUpdate } from './postAnalytics/postAnalyticsUpdate';
+import { postAuthorReputationEvent } from './postAnalytics/postAuthorReputationEvent';
 import { postAuthorCoresEarned } from './postAnalytics/postAuthorCoresEarned';
 
 export { Worker } from './worker';
@@ -134,6 +136,8 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postAddedSlackChannelSendBriefWorker,
   postBoostActionSlack,
   postAddedSquadUnreadPostsWorker,
+  postAnalyticsUpdate,
+  postAuthorReputationEvent,
   postAuthorCoresEarned,
 ];
 
