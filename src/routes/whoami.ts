@@ -29,7 +29,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         infoConfirmed
         timezone
         reputation
-        notificationFlags
       }
     }`;
 

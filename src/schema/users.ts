@@ -498,11 +498,6 @@ export const typeDefs = /* GraphQL */ `
     Role for Cores access
     """
     coresRole: Int
-
-    """
-    User's notification preferences
-    """
-    notificationFlags: JSON
   }
 
   """
