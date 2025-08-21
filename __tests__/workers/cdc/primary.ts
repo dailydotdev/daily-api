@@ -1607,6 +1607,48 @@ describe('post', () => {
     expect(notifyPostYggdrasilIdSet).toHaveBeenCalledTimes(0);
   });
 
+  it('should notify on post metrics changed', async () => {
+    await saveFixtures(con, Source, sourcesFixture);
+    await saveFixtures(con, ArticlePost, postsFixture);
+    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
+
+    const before = {
+      ...oldPost,
+      flags: '{}',
+    };
+    const after: ChangeObject<ObjectType> = {
+      ...before,
+      flags: '{}',
+      upvotes: 10,
+      downvotes: 5,
+      comments: 2,
+      awards: 1,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: before,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
+      'api.v1.post-metrics-updated',
+      {
+        postId: 'p1',
+        payload: {
+          upvotes: 10,
+          downvotes: 5,
+          comments: 2,
+          awards: 1,
+        },
+      },
+    ]);
+  });
+
   describe('collection', () => {
     it('should notify when collection content is updated', async () => {
       const before = {
