@@ -67,6 +67,7 @@ import postBoostActionSlack from './postBoostActionSlack';
 import { postAddedSquadUnreadPostsWorker } from './postAddedSquadUnreadPosts';
 import { postAnalyticsUpdate } from './postAnalytics/postAnalyticsUpdate';
 import { postAuthorReputationEvent } from './postAnalytics/postAuthorReputationEvent';
+import { postAuthorCoresEarned } from './postAnalytics/postAuthorCoresEarned';
 
 export { Worker } from './worker';
 
@@ -137,6 +138,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postAddedSquadUnreadPostsWorker,
   postAnalyticsUpdate,
   postAuthorReputationEvent,
+  postAuthorCoresEarned,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
