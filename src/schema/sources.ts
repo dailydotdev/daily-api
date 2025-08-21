@@ -2052,10 +2052,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             if (role === SourceMemberRoles.Moderator) {
               // We should include both Moderator and Admin now
               queryBuilder = queryBuilder.andWhere(
-                `(${alias}."role" = :role OR ${alias}."role" = :role2)`,
+                `${alias}."role" IN (:...roles)`,
                 {
-                  role: SourceMemberRoles.Moderator,
-                  role2: SourceMemberRoles.Admin,
+                  roles: [SourceMemberRoles.Moderator, SourceMemberRoles.Admin],
                 },
               );
             } else {
