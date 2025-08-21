@@ -2366,28 +2366,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       try {
-        await ctx.con.transaction(async (entityManager) => {
-          const repo = entityManager.getRepository(SquadSource);
+        if (image) {
+          const { createReadStream } = await image;
+          const stream = createReadStream();
+          const { url: imageUrl } = await uploadSquadImage(sourceId, stream);
+          updates.image = imageUrl;
+        }
 
-          if (image) {
-            const { createReadStream } = await image;
-            const stream = createReadStream();
-            const { url: imageUrl } = await uploadSquadImage(sourceId, stream);
-            updates.image = imageUrl;
-          }
+        if (headerImage) {
+          const { createReadStream } = await headerImage;
+          const stream = createReadStream();
+          const { url: imageUrl } = await uploadSquadHeaderImage(
+            sourceId,
+            stream,
+          );
+          updates.headerImage = imageUrl;
+        }
 
-          if (headerImage) {
-            const { createReadStream } = await headerImage;
-            const stream = createReadStream();
-            const { url: imageUrl } = await uploadSquadHeaderImage(
-              sourceId,
-              stream,
-            );
-            updates.headerImage = imageUrl;
-          }
-
-          await repo.update({ id: sourceId }, updates);
-        });
+        await ctx.con
+          .getRepository(SquadSource)
+          .update({ id: sourceId }, updates);
 
         return getSourceById(ctx, info, sourceId);
       } catch (originalError) {
