@@ -389,6 +389,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.post-metrics-updated',
     subscription: 'api.post-analytics-update',
   },
+  {
+    topic: 'api.v1.reputation-event',
+    subscription: 'api.post-author-reputation-event',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

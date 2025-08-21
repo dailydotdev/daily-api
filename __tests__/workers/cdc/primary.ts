@@ -2116,6 +2116,44 @@ describe('reputation event', () => {
       .findOneBy({ id: defaultUser.id });
     expect(user.reputation).toEqual(5);
   });
+
+  it('should notify post reputation on create', async () => {
+    const after = { ...base, targetType: ReputationType.Post, targetId: 'p1' };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: after,
+        before: null,
+        op: 'c',
+        table: 'reputation_event',
+      }),
+    );
+
+    expectTypedEvent('api.v1.reputation-event', {
+      op: 'c',
+      payload: after,
+    });
+  });
+
+  it('should notify post reputation on delete', async () => {
+    const before = { ...base, targetType: ReputationType.Post, targetId: 'p1' };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after: null,
+        before: before,
+        op: 'd',
+        table: 'reputation_event',
+      }),
+    );
+
+    expectTypedEvent('api.v1.reputation-event', {
+      op: 'd',
+      payload: before,
+    });
+  });
 });
 
 describe('submission', () => {
