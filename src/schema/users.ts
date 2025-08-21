@@ -73,6 +73,7 @@ import {
   TagsReadingStatus,
   toGQLEnum,
   updateFlagsStatement,
+  updateNotificationFlags,
   updateSubscriptionFlags,
   uploadAvatar,
   UploadPreset,
@@ -2246,23 +2247,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
-        if (!updatedUser.acceptedMarketing) {
-          updatedUser.notificationFlags = {
-            ...user.notificationFlags,
-            marketing: {
-              email: NotificationPreferenceStatus.Muted,
-              inApp: NotificationPreferenceStatus.Muted,
-            },
-          };
-        } else {
-          updatedUser.notificationFlags = {
-            ...user.notificationFlags,
-            marketing: {
+        const marketingFlag = updatedUser.acceptedMarketing
+          ? {
               email: NotificationPreferenceStatus.Subscribed,
               inApp: NotificationPreferenceStatus.Subscribed,
-            },
-          };
-        }
+            }
+          : {
+              email: NotificationPreferenceStatus.Muted,
+              inApp: NotificationPreferenceStatus.Muted,
+            };
 
         if (
           !user.infoConfirmed &&
@@ -2279,6 +2272,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ...updatedUser,
             permalink: undefined,
             flags: data?.flags ? updateFlagsStatement(data.flags) : undefined,
+            notificationFlags: updateNotificationFlags({
+              marketing: marketingFlag,
+            }),
           },
         );
 

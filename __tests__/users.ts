@@ -3625,6 +3625,36 @@ describe('mutation updateUserProfile', () => {
     });
   });
 
+  it('should update marketing notification flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+
+    const res1 = await client.mutate(MUTATION, {
+      variables: { data: { acceptedMarketing: false } },
+    });
+
+    expect(res1.errors?.length).toBeFalsy();
+    const updatedUser1 = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser1?.notificationFlags.marketing.email).toEqual('muted');
+    expect(updatedUser1?.notificationFlags.marketing.inApp).toEqual('muted');
+
+    loggedUser = '2';
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: { data: { acceptedMarketing: true } },
+    });
+
+    expect(res2.errors?.length).toBeFalsy();
+    const updatedUser2 = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser2?.notificationFlags.marketing.email).toEqual(
+      'subscribed',
+    );
+    expect(updatedUser2?.notificationFlags.marketing.inApp).toEqual(
+      'subscribed',
+    );
+  });
+
   it('should update user profile and set info confirmed', async () => {
     loggedUser = '1';
 

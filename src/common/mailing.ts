@@ -151,6 +151,8 @@ export const syncSubscription = async function (
           await manager.getRepository(User).update(
             { id: customer.id },
             {
+              acceptedMarketing:
+                mergedNotificationFlags.marketing?.email === 'subscribed',
               notificationFlags: mergedNotificationFlags,
             },
           );
