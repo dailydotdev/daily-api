@@ -38,6 +38,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
   NotificationPreferenceStatus,
+  NotificationType,
 } from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
@@ -2954,9 +2955,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError(validate.error.errors[0].message);
       }
 
-      await ctx.con
-        .getRepository(User)
-        .update({ id: ctx.userId }, { notificationFlags });
+      const acceptedMarketing =
+        notificationFlags[NotificationType.Marketing]?.email === 'subscribed';
+
+      await ctx.con.getRepository(User).update(
+        { id: ctx.userId },
+        {
+          notificationFlags,
+          acceptedMarketing,
+        },
+      );
 
       await syncNotificationFlagsToCio({
         userId: ctx.userId,

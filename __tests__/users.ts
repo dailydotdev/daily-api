@@ -7023,6 +7023,32 @@ describe('mutation updateNotificationSettings', () => {
     expect(user?.notificationFlags).toEqual(updatedFlags);
   });
 
+  it('should update acceptedMarketing flag', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { acceptedMarketing: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        notificationFlags: {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          marketing: {
+            email: 'muted',
+            inApp: 'muted',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateNotificationSettings._).toBeTruthy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.acceptedMarketing).toBeFalsy();
+  });
+
   it('should throw error because of invalid notification flags', async () => {
     loggedUser = '1';
 
