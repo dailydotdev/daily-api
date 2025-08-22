@@ -153,8 +153,6 @@ export async function storeNotificationBundleV2(
   }
 
   for (const userChunk of userIdChunks) {
-    const channel = notification.public ? 'inApp' : 'email';
-
     const selectQuery = entityManager
       .createQueryBuilder()
       .select('u.id', 'userId')
@@ -164,13 +162,6 @@ export async function storeNotificationBundleV2(
       .addSelect(':uniqueKey', 'uniqueKey')
       .from(User, 'u')
       .where('u.id IN (:...userIds)', { userIds: userChunk })
-      .andWhere(
-        `COALESCE(u."notificationFlags" -> :notificationType ->> :channel, 'subscribed') != 'muted'`,
-        {
-          notificationType: notification.type,
-          channel,
-        },
-      )
       .setParameters({
         notificationId: notification.id,
         createdAt: notification.createdAt,
