@@ -10,6 +10,11 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../../entity/user/UserTransaction';
+import {
+  NotificationChannel,
+  NotificationType,
+} from '../../notifications/common';
+import { isSubscribedToNotificationType } from '../notifications/utils';
 import type { TypedWorker } from '../worker';
 
 const purchaseProcessors = [
@@ -53,6 +58,16 @@ export const userBoughtCores: TypedWorker<'api.v1.user-transaction'> = {
     }
 
     const user = await transaction.receiver;
+
+    const shouldReceiveEmail = isSubscribedToNotificationType(
+      user.notificationFlags,
+      NotificationType.InAppPurchases,
+      NotificationChannel.Email,
+    );
+
+    if (!shouldReceiveEmail) {
+      return;
+    }
 
     const coreAmount = formatCoresCurrency(transaction.valueIncFees);
 

@@ -1,6 +1,7 @@
 import { DeepPartial } from 'typeorm';
 import { User } from '../../src/entity';
 import { SubscriptionCycles } from '../../src/paddle';
+import { DEFAULT_NOTIFICATION_SETTINGS } from '../../src/notifications/common';
 
 export const userCreatedDate = '2022-06-28T14:48:47.891Z';
 
@@ -17,6 +18,7 @@ export const usersFixture: DeepPartial<User>[] = [
     twitter: null,
     username: 'idoshamun',
     infoConfirmed: true,
+    notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
   },
   {
     id: '2',

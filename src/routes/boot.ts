@@ -462,7 +462,6 @@ const getUser = (
       'company',
       'title',
       'infoConfirmed',
-      'acceptedMarketing',
       'reputation',
       'bio',
       'twitter',

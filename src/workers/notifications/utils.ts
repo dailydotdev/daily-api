@@ -11,6 +11,7 @@ import {
   SourceType,
   User,
   UserActionType,
+  type UserNotificationFlags,
 } from '../../entity';
 import {
   NotificationCommenterContext,
@@ -21,6 +22,7 @@ import {
   notificationPreferenceMap,
   NotificationPreferenceStatus,
   NotificationType,
+  type NotificationChannel,
 } from '../../notifications/common';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
@@ -298,4 +300,18 @@ export const getPostModerationContext = async (
   ]);
 
   return { post, user, source };
+};
+
+export const isSubscribedToEmails = (flags: UserNotificationFlags): boolean => {
+  return Object.values(flags).some(
+    (notif) => notif?.email === NotificationPreferenceStatus.Subscribed,
+  );
+};
+
+export const isSubscribedToNotificationType = (
+  flags: UserNotificationFlags,
+  type: NotificationType,
+  channel: NotificationChannel,
+): boolean => {
+  return flags[type]?.[channel] === NotificationPreferenceStatus.Subscribed;
 };

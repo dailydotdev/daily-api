@@ -99,7 +99,6 @@ describe('mailing', () => {
       expect(digests).toHaveLength(4);
 
       users.forEach((user, index) => {
-        expect(user.acceptedMarketing).toBe(false);
         expect(digests[index]).toMatchObject({
           userId: user.id,
           type: UserPersonalizedDigestType.Digest,
@@ -175,7 +174,6 @@ describe('mailing', () => {
       expect(digests).toHaveLength(4);
 
       users.forEach((user, index) => {
-        expect(user.acceptedMarketing).toBe(false);
         expect(digests[index]).toMatchObject({
           userId: user.id,
           type: UserPersonalizedDigestType.Brief,
@@ -303,7 +301,6 @@ describe('mailing', () => {
         { id: testUserId },
         {
           notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
-          acceptedMarketing: false,
         },
       );
 
@@ -355,13 +352,11 @@ describe('mailing', () => {
 
       const user = await con.getRepository(User).findOne({
         where: { id: testUserId },
-        select: ['notificationFlags', 'acceptedMarketing'],
+        select: ['notificationFlags'],
       });
 
       // notificationFlags should remain unchanged due to validation failure
       expect(user.notificationFlags).toEqual(DEFAULT_NOTIFICATION_SETTINGS);
-
-      expect(user.acceptedMarketing).toBe(true); // Updated from CIO
 
       mockGetCioTopicsToNotificationFlags.mockRestore();
       loggerSpy.mockRestore();
