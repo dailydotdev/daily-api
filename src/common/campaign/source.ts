@@ -112,8 +112,9 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
 
     const campaignId = campaign.id;
     const last30tags = await getSourceTags(manager, source.id);
+    const finalTags = last30tags.length > 3 ? last30tags : []; // when it is 3 or below, we set global targeting
 
-    await skadiApiClient.startCampaign(campaign, last30tags);
+    await skadiApiClient.startCampaign(campaign, finalTags);
 
     await manager
       .getRepository(Source)

@@ -18,6 +18,7 @@ import {
   SquadSource,
   User,
   YouTubePost,
+  PostType,
 } from '../src/entity';
 import {
   CampaignPost,
@@ -750,6 +751,7 @@ describe('mutation startCampaign', () => {
       .post('/campaign/create', (body) => {
         const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           typeof body.advertiser_id === 'string' &&
           uuidRegex.test(body.campaign_id) &&
@@ -757,7 +759,10 @@ describe('mutation startCampaign', () => {
           Array.isArray(body.creatives) &&
           body.creatives.length === 1 &&
           body.creatives[0].type === 'post' &&
-          body.creatives[0].value === 'p1'
+          body.creatives[0].value === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .replyWithError('Skadi API is down');
@@ -785,13 +790,17 @@ describe('mutation startCampaign', () => {
       .post('/campaign/create', (body) => {
         const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           typeof body.advertiser_id === 'string' &&
           uuidRegex.test(body.campaign_id) &&
           body.budget === 10 &&
           Array.isArray(body.creatives) &&
           body.creatives[0].type === 'post' &&
-          body.creatives[0].value === 'p1'
+          body.creatives[0].value === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .reply(200, {});
@@ -887,13 +896,17 @@ describe('mutation startCampaign', () => {
         .post('/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             typeof body.advertiser_id === 'string' &&
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'post' &&
-            body.creatives[0].value === 'p1'
+            body.creatives[0].value === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
           );
         })
         .reply(200, {});
@@ -972,7 +985,8 @@ describe('mutation startCampaign', () => {
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'source' &&
-            body.creatives[0].value === 'm'
+            body.creatives[0].value === 'm' &&
+            body?.targeting?.type === 'none'
           );
         })
         .reply(200, {});
@@ -1004,6 +1018,123 @@ describe('mutation startCampaign', () => {
       expect(source?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
       );
+    });
+
+    it('should include recent squad tags when available for source campaign (>3 tags)', async () => {
+      loggedUser = '3'; // moderator in 'm'
+
+      // Insert a recent post in squad 'm' with tags so getSourceTags returns keywords
+      await con.getRepository(Post).save({
+        id: 'mp1',
+        shortId: 'mp1',
+        title: 'M Post 1',
+        url: 'http://mp1.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        tagsStr: 'squadtag1,squadtag2,squadtag3,squadtag4',
+        visible: true,
+      });
+
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            typeof body.advertiser_id === 'string' &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'source' &&
+            body.creatives[0].value === 'm' &&
+            body?.targeting?.type === 'boost' &&
+            Array.isArray(keywords) &&
+            keywords.includes('squadtag1') &&
+            keywords.includes('squadtag2') &&
+            keywords.includes('squadtag3') &&
+            keywords.includes('squadtag4')
+          );
+        })
+        .reply(200, {});
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-source-campaign-with-tags',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'source', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const source = await con.getRepository(Source).findOneBy({ id: 'm' });
+      expect(source?.flags?.campaignId).toEqual(
+        res.data.startCampaign.referenceId,
+      );
+    });
+
+    it('should not send keywords when squad has 3 or fewer tags', async () => {
+      loggedUser = '3';
+
+      await con.getRepository(Post).save({
+        id: 'mp2',
+        shortId: 'mp2',
+        title: 'M Post 2',
+        url: 'http://mp2.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        tagsStr: 'one,two,three',
+        visible: true,
+      });
+
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          return (
+            typeof body.advertiser_id === 'string' &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'source' &&
+            body.creatives[0].value === 'm' &&
+            body?.targeting?.type === 'none'
+          );
+        })
+        .reply(200, {});
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-source-campaign-with-3-tags',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'source', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
     });
   });
 });
@@ -1436,10 +1567,14 @@ describe('query dailyCampaignReachEstimate', () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN)
         .post('/campaign/reach', (body) => {
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 20 &&
             body.targeting?.type === 'boost' &&
-            body.targeting?.value?.boost?.post_id === 'p1'
+            body.targeting?.value?.boost?.post_id === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
           );
         })
         .reply(200, {
@@ -1465,10 +1600,14 @@ describe('query dailyCampaignReachEstimate', () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN)
         .post('/campaign/reach', (body) => {
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 10 &&
             body.targeting?.type === 'boost' &&
-            body.targeting?.value?.boost?.post_id === 'p1'
+            body.targeting?.value?.boost?.post_id === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
           );
         })
         .reply(200, {
@@ -1494,10 +1633,14 @@ describe('query dailyCampaignReachEstimate', () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN)
         .post('/campaign/reach', (body) => {
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 1000 &&
             body.targeting?.type === 'boost' &&
-            body.targeting?.value?.boost?.post_id === 'p1'
+            body.targeting?.value?.boost?.post_id === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
           );
         })
         .reply(200, {
@@ -1526,10 +1669,14 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN)
       .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 100 &&
           body.targeting?.type === 'boost' &&
-          body.targeting?.value?.boost?.post_id === 'p1'
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .reply(200, {
@@ -1566,10 +1713,14 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN)
       .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
           body.targeting?.type === 'boost' &&
-          body.targeting?.value?.boost?.post_id === 'p1'
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .reply(200, {
@@ -1628,10 +1779,14 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response where min and max impressions are the same
     nock(process.env.SKADI_API_ORIGIN)
       .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 40 &&
           body.targeting?.type === 'boost' &&
-          body.targeting?.value?.boost?.post_id === 'p1'
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .reply(200, {
