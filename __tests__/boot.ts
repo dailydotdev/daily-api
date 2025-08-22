@@ -153,6 +153,7 @@ const LOGGED_IN_BODY = {
     subscriptionFlags: {},
     coresRole: CoresRole.None,
     clickbaitTries: null,
+    hasLocationSet: false,
   },
   marketingCta: null,
   feeds: [],
@@ -390,6 +391,22 @@ describe('logged in boot', () => {
           LOGGED_IN_BODY.user.reputation >= submitArticleThreshold,
       },
     });
+  });
+
+  it('should set hasLocationSet to true when user has country flag', async () => {
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      flags: {
+        country: 'US',
+      },
+    });
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.user.hasLocationSet).toBe(true);
   });
 
   it('should set kratos cookie expiration', async () => {
@@ -1668,6 +1685,7 @@ describe('funnel boot', () => {
         'roles',
         'subscriptionFlags',
         'clickbaitTries',
+        'hasLocationSet',
       ]),
     });
   });

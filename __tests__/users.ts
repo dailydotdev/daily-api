@@ -6581,6 +6581,155 @@ describe('coresRole field on User', () => {
   });
 });
 
+describe('query checkLocation', () => {
+  const QUERY = /* GraphQL */ `
+    query checkLocation {
+      checkLocation {
+        _
+      }
+    }
+  `;
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return false when user already has country flag set', async () => {
+    loggedUser = '1';
+
+    // Set up user with existing country flag
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { flags: { country: 'US' } });
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(false);
+  });
+
+  it('should return false when user does not exist', async () => {
+    loggedUser = 'nonexistent';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(false);
+  });
+
+  it('should throw error when geo cannot be extracted', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    (getGeo as jest.Mock).mockImplementation(() => null);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toBe('GRAPHQL_VALIDATION_FAILED');
+    expect(res.errors[0].message).toBe('Geo could not be extracted');
+  });
+
+  it('should throw error when geo has no country', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    (getGeo as jest.Mock).mockImplementation(() => ({
+      city: 'New York',
+    }));
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toBe('GRAPHQL_VALIDATION_FAILED');
+    expect(res.errors[0].message).toBe('Geo could not be extracted');
+  });
+
+  it('should return true and set flags when geo is successfully extracted', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    const mockGeo = {
+      country: 'US',
+      city: 'New York',
+      continent: 'North America',
+      subdivision: 'NY',
+      location: {
+        accuracyRadius: 50,
+        lat: 40.7128,
+        lng: -74.006,
+      },
+    };
+
+    (getGeo as jest.Mock).mockImplementation(() => mockGeo);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(true);
+
+    // Verify flags were updated
+    const updatedUser = await con.getRepository(User).findOne({
+      where: { id: '1' },
+      select: ['flags'],
+    });
+
+    expect(updatedUser.flags).toEqual({
+      country: 'US',
+      city: 'New York',
+      continent: 'North America',
+      subdivision: 'NY',
+      location: {
+        accuracyRadius: 50,
+        lat: 40.7128,
+        lng: -74.006,
+      },
+    });
+  });
+
+  it('should return true and set partial flags when geo has minimal data', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    const mockGeo = {
+      country: 'CA',
+    };
+
+    (getGeo as jest.Mock).mockImplementation(() => mockGeo);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(true);
+
+    // Verify flags were updated with available data
+    const updatedUser = await con.getRepository(User).findOne({
+      where: { id: '1' },
+      select: ['flags'],
+    });
+
+    expect(updatedUser.flags).toEqual({
+      country: 'CA',
+      city: undefined,
+      continent: undefined,
+      subdivision: undefined,
+      location: {
+        accuracyRadius: undefined,
+        lat: undefined,
+        lng: undefined,
+      },
+    });
+  });
+});
+
 describe('query checkCoresRole', () => {
   const QUERY = /* GraphQL */ `
     query checkCoresRole {

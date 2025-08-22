@@ -1065,6 +1065,11 @@ export const typeDefs = /* GraphQL */ `
     checkCoresRole: CheckCoresRole! @auth
 
     """
+    Check and apply location based on geo IP
+    """
+    checkLocation: EmptyResponse @auth
+
+    """
     Get current user's notification preferences
     """
     notificationSettings: JSON @auth
@@ -2164,6 +2169,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         coresRole: userCoresRole,
       };
+    },
+    checkLocation: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        select: ['flags'],
+        where: { id: ctx.userId },
+      });
+
+      if (!user || !!user.flags?.country) {
+        return { _: false };
+      }
+
+      const geo = getGeo({ ip: ctx.req.ip });
+      if (!geo?.country) {
+        throw new ValidationError('Geo could not be extracted');
+      }
+
+      // Update user flags with geo location info
+      await ctx.con.getRepository(User).update(
+        { id: ctx.userId },
+        {
+          flags: updateFlagsStatement<User>({
+            country: geo?.country,
+            city: geo?.city,
+            continent: geo?.continent,
+            subdivision: geo?.subdivision,
+            location: {
+              accuracyRadius: geo?.location?.accuracyRadius,
+              lat: geo?.location?.lat,
+              lng: geo?.location?.lng,
+            },
+          }),
+        },
+      );
+
+      return { _: true };
     },
     notificationSettings: async (
       _,

@@ -281,7 +281,7 @@ const initGeoReader = async (): Promise<ReaderModel | undefined> => {
     }
 
     const reader = await Reader.open(
-      join(process.env.GEOIP_PATH, 'GeoIP2-Country.mmdb'),
+      join(process.env.GEOIP_PATH, 'GeoIP2-City.mmdb'),
       {
         cache: {
           max: 10_000,
@@ -314,11 +314,18 @@ export const getGeo = ({ ip }: { ip: string }): GeoRecord => {
   }
 
   try {
-    const geo = geoReader.country(ip);
+    const geo = geoReader.city(ip);
 
     return {
       country: geo.country?.isoCode,
       continent: geo.continent?.code,
+      city: geo.city?.names?.en,
+      location: {
+        accuracyRadius: geo.location?.accuracyRadius,
+        lat: geo.location?.latitude,
+        lng: geo.location?.longitude,
+      },
+      subdivision: geo.subdivisions?.[0]?.isoCode,
     };
   } catch (error) {
     logger.warn({ err: error, ip }, 'Error fetching geo data');
