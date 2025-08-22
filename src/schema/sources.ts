@@ -43,6 +43,7 @@ import {
   getSourceLink,
   mapCloudinaryUrl,
   updateFlagsStatement,
+  uploadSquadHeaderImage,
   uploadSquadImage,
 } from '../common';
 import { toGQLEnum } from '../common/utils';
@@ -777,6 +778,10 @@ export const typeDefs = /* GraphQL */ `
       """
       image: Upload
       """
+      Cover image used in Squads directory
+      """
+      headerImage: Upload
+      """
       Role required for members to post
       """
       memberPostingRole: String
@@ -1349,6 +1354,7 @@ interface SquadCreateInputArgs extends SquadInputArgs {
 
 interface SquadEditInputArgs extends SquadInputArgs {
   sourceId: string;
+  headerImage?: FileUpload;
 }
 
 const getSourceById = async (
@@ -2310,6 +2316,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         name,
         handle: inputHandle,
         image,
+        headerImage,
         description,
         memberPostingRole,
         memberInviteRole,
@@ -2369,26 +2376,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       try {
-        const editedSourceId = await ctx.con.transaction(
-          async (entityManager) => {
-            const repo = entityManager.getRepository(SquadSource);
+        if (image) {
+          const { createReadStream } = await image;
+          const stream = createReadStream();
+          const { url: imageUrl } = await uploadSquadImage(sourceId, stream);
+          updates.image = imageUrl;
+        }
 
-            // Update existing squad
-            await repo.update({ id: sourceId }, updates);
-            // Upload the image (if provided)
-            if (image) {
-              const { createReadStream } = await image;
-              const stream = createReadStream();
-              const { url: imageUrl } = await uploadSquadImage(
-                sourceId,
-                stream,
-              );
-              await repo.update({ id: sourceId }, { image: imageUrl });
-            }
-            return sourceId;
-          },
-        );
-        return getSourceById(ctx, info, editedSourceId);
+        if (headerImage) {
+          const { createReadStream } = await headerImage;
+          const stream = createReadStream();
+          const { url: imageUrl } = await uploadSquadHeaderImage(
+            `cover_${sourceId}`,
+            stream,
+          );
+          updates.headerImage = imageUrl;
+        }
+
+        await ctx.con
+          .getRepository(SquadSource)
+          .update({ id: sourceId }, updates);
+
+        return getSourceById(ctx, info, sourceId);
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
 

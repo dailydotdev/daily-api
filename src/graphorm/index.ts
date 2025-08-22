@@ -1386,6 +1386,11 @@ const obj = new GraphORM({
           `;
         },
       },
+      reputation: {
+        transform: (value) => {
+          return Math.max(0, value);
+        },
+      },
     },
   },
   PostAnalyticsHistory: {
