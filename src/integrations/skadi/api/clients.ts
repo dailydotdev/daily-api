@@ -40,6 +40,24 @@ const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
 const skadiNamespace = '67fb92c7-8105-43a9-802a-07aac76493cc';
 const getAdvertiserId = (userId: string) => v5(userId, skadiNamespace);
 
+const generateTargeting = (
+  type: CampaignType,
+  referenceId: string,
+  keywords: string[],
+) => {
+  const isNone = type === CampaignType.Source && keywords.length === 0;
+
+  return {
+    type: isNone ? TargetingType.None : TargetingType.Boost,
+    value: {
+      boost: {
+        post_id: type === CampaignType.Post ? referenceId : undefined,
+        keywords,
+      },
+    },
+  };
+};
+
 export class SkadiApiClient implements ISkadiApiClient {
   private readonly fetchOptions: RequestInit;
   private readonly garmr: IGarmrService;
@@ -75,7 +93,7 @@ export class SkadiApiClient implements ISkadiApiClient {
       referenceId,
     } = campaign;
     const advertiser_id = getAdvertiserId(userId);
-    const isNone = type === CampaignType.Source && keywords.length === 0;
+    const targeting = generateTargeting(type, referenceId, keywords);
 
     return this.garmr.execute(async () => {
       const response = await fetchParse<{ error?: string }>(
@@ -93,15 +111,7 @@ export class SkadiApiClient implements ISkadiApiClient {
             start_time: createdAt.getTime(),
             end_time: endedAt.getTime(),
             creatives: [{ id: creativeId, type, value: referenceId }],
-            targeting: {
-              type: isNone ? TargetingType.None : TargetingType.Boost,
-              value: {
-                boost: {
-                  post_id: type === CampaignType.Post ? referenceId : undefined,
-                  keywords,
-                },
-              },
-            },
+            targeting,
           }),
         },
       );
@@ -137,7 +147,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     type,
     keywords = [],
   }: EstimatedDailyReachParams): Promise<EstimatedReachResponse> {
-    const isNone = type === CampaignType.Source && keywords.length === 0;
+    const targeting = generateTargeting(type, value, keywords);
 
     return this.garmr.execute(async () => {
       const response = await fetchParse<EstimatedReach>(
@@ -150,15 +160,7 @@ export class SkadiApiClient implements ISkadiApiClient {
           },
           body: JSON.stringify({
             budget,
-            targeting: {
-              type: isNone ? TargetingType.None : TargetingType.Boost,
-              value: {
-                boost: {
-                  post_id: type === CampaignType.Post ? value : undefined,
-                  keywords,
-                },
-              },
-            },
+            targeting,
           }),
         },
       );
