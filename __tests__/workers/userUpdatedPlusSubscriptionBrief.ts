@@ -82,7 +82,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
   it('should replace digest with brief when user becomes plus', async () => {
     const newBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({ cycle: '1234' }),
     };
 
     const digestBefore = await con
@@ -213,7 +213,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
   it('should not replace subscription if flags the same', async () => {
     const before: ChangeObject<ObjectType> = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({ cycle: '1234' }),
     };
 
     const digestBefore = await con
@@ -256,7 +256,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     const oldBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({ cycle: '1234' }),
     };
 
     const digestBefore = await con
@@ -343,7 +343,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     const oldBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({ cycle: '1234' }),
     };
 
     const digestBefore = await con
@@ -400,7 +400,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     const newBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({ cycle: '1234' }),
     };
 
     const digestBefore = await con

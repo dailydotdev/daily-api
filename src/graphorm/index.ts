@@ -1078,8 +1078,6 @@ const obj = new GraphORM({
         ): UserPersonalizedDigestFlagsPublic => {
           return {
             sendType: value?.sendType ?? UserPersonalizedDigestSendType.weekly,
-            email: value?.email,
-            slack: value?.slack,
           };
         },
       },
@@ -1386,6 +1384,11 @@ const obj = new GraphORM({
           return `
             COALESCE(${alias}.sharesInternal + ${alias}.sharesExternal, 0)
           `;
+        },
+      },
+      reputation: {
+        transform: (value) => {
+          return Math.max(0, value);
         },
       },
     },

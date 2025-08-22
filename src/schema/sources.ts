@@ -43,6 +43,7 @@ import {
   getSourceLink,
   mapCloudinaryUrl,
   updateFlagsStatement,
+  uploadSquadHeaderImage,
   uploadSquadImage,
 } from '../common';
 import { toGQLEnum } from '../common/utils';
@@ -63,6 +64,7 @@ import {
 import { validateAndTransformHandle } from '../common/handles';
 import { QueryBuilder } from '../graphorm/graphorm';
 import type { GQLTagResults } from './tags';
+import { MIN_SEARCH_QUERY_LENGTH } from './tags';
 import { SourceTagView } from '../entity/SourceTagView';
 import { TrendingSource } from '../entity/TrendingSource';
 import { PopularSource } from '../entity/PopularSource';
@@ -77,7 +79,6 @@ import {
   cleanContentNotificationPreference,
   entityToNotificationTypeMap,
 } from '../common/contentPreference';
-import { MIN_SEARCH_QUERY_LENGTH } from './tags';
 import { getSearchLimit } from '../common/search';
 import {
   SourcePostModeration,
@@ -777,6 +778,10 @@ export const typeDefs = /* GraphQL */ `
       """
       image: Upload
       """
+      Cover image used in Squads directory
+      """
+      headerImage: Upload
+      """
       Role required for members to post
       """
       memberPostingRole: String
@@ -1349,6 +1354,7 @@ interface SquadCreateInputArgs extends SquadInputArgs {
 
 interface SquadEditInputArgs extends SquadInputArgs {
   sourceId: string;
+  headerImage?: FileUpload;
 }
 
 const getSourceById = async (
@@ -2049,9 +2055,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }
 
           if (role) {
-            queryBuilder = queryBuilder.andWhere(`${alias}.role = :role`, {
-              role,
-            });
+            if (role === SourceMemberRoles.Moderator) {
+              // We should include both Moderator and Admin now
+              queryBuilder = queryBuilder.andWhere(
+                `${alias}."role" IN (:...roles)`,
+                {
+                  roles: [SourceMemberRoles.Moderator, SourceMemberRoles.Admin],
+                },
+              );
+            } else {
+              queryBuilder = queryBuilder.andWhere(`${alias}."role" = :role`, {
+                role,
+              });
+            }
           } else if (
             typeof graphorm.mappings?.SourceMember.fields?.roleRank.select ===
             'string'
@@ -2300,6 +2316,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         name,
         handle: inputHandle,
         image,
+        headerImage,
         description,
         memberPostingRole,
         memberInviteRole,
@@ -2359,26 +2376,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       try {
-        const editedSourceId = await ctx.con.transaction(
-          async (entityManager) => {
-            const repo = entityManager.getRepository(SquadSource);
+        if (image) {
+          const { createReadStream } = await image;
+          const stream = createReadStream();
+          const { url: imageUrl } = await uploadSquadImage(sourceId, stream);
+          updates.image = imageUrl;
+        }
 
-            // Update existing squad
-            await repo.update({ id: sourceId }, updates);
-            // Upload the image (if provided)
-            if (image) {
-              const { createReadStream } = await image;
-              const stream = createReadStream();
-              const { url: imageUrl } = await uploadSquadImage(
-                sourceId,
-                stream,
-              );
-              await repo.update({ id: sourceId }, { image: imageUrl });
-            }
-            return sourceId;
-          },
-        );
-        return getSourceById(ctx, info, editedSourceId);
+        if (headerImage) {
+          const { createReadStream } = await headerImage;
+          const stream = createReadStream();
+          const { url: imageUrl } = await uploadSquadHeaderImage(
+            `cover_${sourceId}`,
+            stream,
+          );
+          updates.headerImage = imageUrl;
+        }
+
+        await ctx.con
+          .getRepository(SquadSource)
+          .update({ id: sourceId }, updates);
+
+        return getSourceById(ctx, info, sourceId);
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
 

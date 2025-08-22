@@ -385,6 +385,18 @@ export const workers: Worker[] = [
     topic: 'api.v1.post-visible',
     subscription: 'api.post-added-squad-unread-posts',
   },
+  {
+    topic: 'api.v1.post-metrics-updated',
+    subscription: 'api.post-analytics-update',
+  },
+  {
+    topic: 'api.v1.reputation-event',
+    subscription: 'api.post-author-reputation-event',
+  },
+  {
+    topic: 'api.v1.user-transaction',
+    subscription: 'api.post-author-cores-earned',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
