@@ -51,6 +51,7 @@ import * as njordCommon from '../src/common/njord';
 import { updateFlagsStatement } from '../src/common';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
 import nock from 'nock';
+import { getAdvertiserId } from '../src/integrations/skadi/api/clients';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -753,7 +754,7 @@ describe('mutation startCampaign', () => {
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          typeof body.advertiser_id === 'string' &&
+          body.advertiser_id === getAdvertiserId('1') &&
           uuidRegex.test(body.campaign_id) &&
           body.budget === 10 &&
           Array.isArray(body.creatives) &&
@@ -792,7 +793,7 @@ describe('mutation startCampaign', () => {
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          typeof body.advertiser_id === 'string' &&
+          body.advertiser_id === getAdvertiserId('1') &&
           uuidRegex.test(body.campaign_id) &&
           body.budget === 10 &&
           Array.isArray(body.creatives) &&
@@ -898,7 +899,7 @@ describe('mutation startCampaign', () => {
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
-            typeof body.advertiser_id === 'string' &&
+            body.advertiser_id === getAdvertiserId('1') &&
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
@@ -980,7 +981,7 @@ describe('mutation startCampaign', () => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           return (
-            typeof body.advertiser_id === 'string' &&
+            body.advertiser_id === getAdvertiserId('3') &&
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
@@ -1042,7 +1043,7 @@ describe('mutation startCampaign', () => {
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
-            typeof body.advertiser_id === 'string' &&
+            body.advertiser_id === getAdvertiserId('3') &&
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
@@ -1104,7 +1105,7 @@ describe('mutation startCampaign', () => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           return (
-            typeof body.advertiser_id === 'string' &&
+            body.advertiser_id === getAdvertiserId('3') &&
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
@@ -1203,11 +1204,13 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/campaign/cancel', {
-        campaign_id: CAMPAIGN_UUID_1,
-        user_id: '1',
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_1 &&
+          body?.advertiser_id === getAdvertiserId('1')
+        );
       })
-      .reply(200, { current_budget: '5.5' });
+      .reply(200, { budget: '5.5' });
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
@@ -1258,11 +1261,13 @@ describe('mutation stopCampaign', () => {
     );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/campaign/cancel', {
-        campaign_id: CAMPAIGN_UUID_3,
-        user_id: '3',
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_3 &&
+          body?.advertiser_id === getAdvertiserId('3')
+        );
       })
-      .reply(200, { current_budget: '3.25' });
+      .reply(200, { budget: '3.25' });
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
@@ -1310,9 +1315,11 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/campaign/cancel', {
-        campaign_id: CAMPAIGN_UUID_2,
-        user_id: '1',
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_2 &&
+          body?.advertiser_id === getAdvertiserId('1')
+        );
       })
       .reply(500, { error: 'Skadi service unavailable' });
 
@@ -1354,11 +1361,13 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/campaign/cancel', {
-        campaign_id: CAMPAIGN_UUID_5,
-        user_id: '1',
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_5 &&
+          body?.advertiser_id === getAdvertiserId('1')
+        );
       })
-      .reply(200, { current_budget: '5.5' });
+      .reply(200, { budget: '5.5' });
 
     const errorTransport = createMockNjordErrorTransport({
       errorStatus: 2,

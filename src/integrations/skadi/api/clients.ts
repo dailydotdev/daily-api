@@ -38,7 +38,7 @@ const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
 });
 
 const skadiNamespace = '67fb92c7-8105-43a9-802a-07aac76493cc';
-const getAdvertiserId = (userId: string) => v5(userId, skadiNamespace);
+export const getAdvertiserId = (userId: string) => v5(userId, skadiNamespace);
 
 const generateTargeting = (
   type: CampaignType,
@@ -123,7 +123,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   cancelCampaign({
     campaignId,
     userId,
-  }: CancelCampaignArgs): Promise<{ currentBudget: string }> {
+  }: CancelCampaignArgs): Promise<CancelPostCampaignResponse> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<CancelPostCampaignResponse>(
         `${this.url}/campaign/cancel`,
@@ -133,11 +133,14 @@ export class SkadiApiClient implements ISkadiApiClient {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ campaign_id: campaignId, user_id: userId }),
+          body: JSON.stringify({
+            campaign_id: campaignId,
+            advertiser_id: getAdvertiserId(userId),
+          }),
         },
       );
 
-      return { currentBudget: response.current_budget };
+      return { budget: response.budget, error: response.error };
     });
   }
 
@@ -208,7 +211,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     userId,
   }: CancelCampaignArgs): Promise<{ currentBudget: string }> {
     return this.garmr.execute(async () => {
-      const response = await fetchParse<CancelPostCampaignResponse>(
+      const response = await fetchParse<{ current_budget: string }>(
         `${this.url}/promote/post/cancel`,
         {
           ...this.fetchOptions,

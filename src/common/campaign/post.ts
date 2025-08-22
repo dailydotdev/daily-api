@@ -362,13 +362,13 @@ export const stopCampaignPost = async ({
 }: StopCampaignProps) => {
   const { id: campaignId, userId, referenceId } = campaign;
 
-  const { currentBudget } = await skadiApiClient.cancelCampaign({
+  const { budget } = await skadiApiClient.cancelCampaign({
     campaignId,
     userId,
   });
 
   const result = await ctx.con.transaction(async (manager) => {
-    const toRefund = parseFloat(currentBudget);
+    const toRefund = parseFloat(budget);
 
     await manager
       .getRepository(Post)

@@ -63,7 +63,8 @@ export interface StartPostCampaignResponse {
 }
 
 export interface CancelPostCampaignResponse {
-  current_budget: string;
+  budget: string;
+  error?: string;
 }
 
 export interface GetCampaignResponse
@@ -114,7 +115,7 @@ export interface ISkadiApiClient {
   startCampaign(campaign: Campaign): Promise<{ error?: string }>;
   cancelCampaign(
     params: CancelCampaignArgs,
-  ): Promise<{ currentBudget: string }>;
+  ): Promise<CancelPostCampaignResponse>;
   estimateBoostReachDaily(
     params: EstimatedDailyReachParams,
   ): Promise<EstimatedReachResponse>;
