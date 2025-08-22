@@ -7,7 +7,11 @@ import { DeepPartial, EntityManager, In, ObjectLiteral } from 'typeorm';
 import { NotificationBuilder } from './builder';
 import { NotificationBaseContext, NotificationBundleV2 } from './types';
 import { generateNotificationMap, notificationTitleMap } from './generate';
-import { generateUserNotificationUniqueKey, NotificationType } from './common';
+import {
+  generateUserNotificationUniqueKey,
+  NotificationChannel,
+  NotificationType,
+} from './common';
 import { NotificationHandlerReturn } from '../workers/notifications/worker';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
@@ -158,7 +162,6 @@ export async function storeNotificationBundleV2(
       .select('u.id', 'userId')
       .addSelect(':notificationId', 'notificationId')
       .addSelect(':createdAt', 'createdAt')
-      .addSelect(':public', 'public')
       .addSelect(':uniqueKey', 'uniqueKey')
       .from(User, 'u')
       .where('u.id IN (:...userIds)', { userIds: userChunk })
@@ -167,12 +170,27 @@ export async function storeNotificationBundleV2(
         createdAt: notification.createdAt,
         public: notification.public,
         uniqueKey,
+        notificationType: notification.type,
+        // here we filter in app notification, all other filtering is done in streamNotificationUsers on
+        // appropriate channel
+        channel: NotificationChannel.InApp,
       });
+
+    // if notification is public check user inApp preference and mute it if needed
+    // else just keep notification original public state
+    if (notification.public) {
+      selectQuery.addSelect(
+        `COALESCE(u."notificationFlags" -> :notificationType ->> :channel, 'subscribed') != 'muted'`,
+        'public',
+      );
+    } else {
+      selectQuery.addSelect(':public', 'public');
+    }
 
     const [query, params] = selectQuery.getQueryAndParameters();
 
     await entityManager.query(
-      `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "public", "uniqueKey")
+      `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "uniqueKey", "public")
        ${query}
        ON CONFLICT ("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING`,
       params,
