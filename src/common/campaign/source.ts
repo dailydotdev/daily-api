@@ -67,14 +67,14 @@ export const getSourceTags = async (
         AND   p."sourceId" = $1
         ORDER BY p."createdAt" DESC
       ) s
-      CROSS JOIN LATERAL regexp_split_to_table(s.tagstr, '\s*,\s*') AS t
+      CROSS JOIN LATERAL regexp_split_to_table(s.tagstr, ',') AS t
       WHERE trim(t) <> ''
       LIMIT 30;
     `,
     [sourceId],
   );
 
-  return result.map(({ tag }) => tag);
+  return result.map(({ tag }) => tag.trim()).filter((tag) => tag.length > 0);
 };
 
 export const startCampaignSource = async (props: StartCampaignMutationArgs) => {

@@ -409,19 +409,20 @@ export const getPostTags = async (con: ConnectionManager, postId: string) => {
   const builder = con.getRepository(Post).createQueryBuilder('p1');
   const subquery = builder
     .subQuery()
-    .select('p2."tagsStr"')
+    .select(`COALESCE(p2."tagsStr", '')`)
     .from(Post, 'p2')
     .where('p2.id = p1."sharedPostId"')
     .getQuery();
 
   const result = await builder
-    .select('p1."tagsStr"')
+    .select(`COALESCE(p1."tagsStr", '')`, 'tagsStr')
     .addSelect(`(${subquery})`, 'sharedTagsStr')
     .where('p1.id = :id', { id: postId })
     .getRawOne<{ tagsStr: string; sharedTagsStr: string }>();
 
   const tags1 = (result?.tagsStr ?? '').split(',');
   const tags2 = (result?.sharedTagsStr ?? '').split(',');
+  const list = [...tags1, ...tags2].filter((tag) => tag.trim().length > 0);
 
-  return [...new Set(...tags1, ...tags2)];
+  return Array.from(new Set(list));
 };

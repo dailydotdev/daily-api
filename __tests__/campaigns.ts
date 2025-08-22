@@ -987,7 +987,7 @@ describe('mutation startCampaign', () => {
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'source' &&
             body.creatives[0].value === 'm' &&
-            body?.targeting?.type === 'none'
+            body?.targeting?.type === 'NONE'
           );
         })
         .reply(200, {});
@@ -1049,7 +1049,7 @@ describe('mutation startCampaign', () => {
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'source' &&
             body.creatives[0].value === 'm' &&
-            body?.targeting?.type === 'boost' &&
+            body?.targeting?.type === 'BOOST' &&
             Array.isArray(keywords) &&
             keywords.includes('squadtag1') &&
             keywords.includes('squadtag2') &&
@@ -1111,7 +1111,7 @@ describe('mutation startCampaign', () => {
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'source' &&
             body.creatives[0].value === 'm' &&
-            body?.targeting?.type === 'none'
+            body?.targeting?.type === 'NONE'
           );
         })
         .reply(200, {});
@@ -1579,7 +1579,7 @@ describe('query dailyCampaignReachEstimate', () => {
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 20 &&
-            body.targeting?.type === 'boost' &&
+            body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             Array.isArray(keywords) &&
             keywords.includes('javascript') &&
@@ -1612,7 +1612,7 @@ describe('query dailyCampaignReachEstimate', () => {
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 10 &&
-            body.targeting?.type === 'boost' &&
+            body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             Array.isArray(keywords) &&
             keywords.includes('javascript') &&
@@ -1645,7 +1645,7 @@ describe('query dailyCampaignReachEstimate', () => {
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 1000 &&
-            body.targeting?.type === 'boost' &&
+            body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             Array.isArray(keywords) &&
             keywords.includes('javascript') &&
@@ -1681,7 +1681,7 @@ describe('query dailyCampaignReachEstimate', () => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 100 &&
-          body.targeting?.type === 'boost' &&
+          body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           Array.isArray(keywords) &&
           keywords.includes('javascript') &&
@@ -1725,7 +1725,7 @@ describe('query dailyCampaignReachEstimate', () => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
-          body.targeting?.type === 'boost' &&
+          body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           Array.isArray(keywords) &&
           keywords.includes('javascript') &&
@@ -1757,10 +1757,13 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN)
       .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
-          body.targeting?.value?.boost &&
-          body.targeting?.value?.boost?.post_id === undefined
+          body.targeting?.type === 'NONE' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(keywords) &&
+          keywords.length === 0
         );
       })
       .reply(200, {
@@ -1791,7 +1794,7 @@ describe('query dailyCampaignReachEstimate', () => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 40 &&
-          body.targeting?.type === 'boost' &&
+          body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           Array.isArray(keywords) &&
           keywords.includes('javascript') &&
@@ -1826,7 +1829,7 @@ describe('query dailyCampaignReachEstimate', () => {
       .post('/campaign/reach', (body) => {
         return (
           body.budget === 30 &&
-          body.targeting?.type === 'boost' &&
+          body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1'
         );
       })
@@ -1852,10 +1855,13 @@ describe('query dailyCampaignReachEstimate', () => {
     loggedUser = '3';
     nock(process.env.SKADI_API_ORIGIN)
       .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
-          body.targeting?.value?.boost &&
-          body.targeting?.value?.boost?.post_id === undefined
+          body.targeting?.type === 'NONE' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(keywords) &&
+          keywords.length === 0
         );
       })
       .reply(200, {
