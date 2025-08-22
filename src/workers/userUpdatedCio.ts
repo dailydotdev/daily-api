@@ -1,6 +1,7 @@
 import { ghostUser, resubscribeUser } from '../common';
 import { TypedWorker } from './worker';
 import { cio, identifyUser } from '../cio';
+import { isSubscribedToEmails } from './notifications/utils';
 
 const worker: TypedWorker<'user-updated'> = {
   subscription: 'api.user-updated-cio',
@@ -22,10 +23,16 @@ const worker: TypedWorker<'user-updated'> = {
         return;
       }
 
-      if (
-        (user.notificationEmail && !oldUser.notificationEmail) ||
-        (user.acceptedMarketing && !oldUser.acceptedMarketing)
-      ) {
+      const oldFlags =
+        typeof oldUser.notificationFlags === 'string'
+          ? JSON.parse(oldUser.notificationFlags)
+          : oldUser.notificationFlags;
+      const newFlags =
+        typeof user.notificationFlags === 'string'
+          ? JSON.parse(user.notificationFlags)
+          : user.notificationFlags;
+
+      if (isSubscribedToEmails(newFlags) && !isSubscribedToEmails(oldFlags)) {
         await resubscribeUser(cio, user.id);
       }
 

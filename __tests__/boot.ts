@@ -120,7 +120,7 @@ const LOGGED_IN_BODY = {
     token: expect.any(String),
   },
   user: {
-    ...usersFixture[0],
+    ...excludeProperties(usersFixture[0], ['notificationFlags']),
     createdAt: (usersFixture[0].createdAt as Date).toISOString(),
     permalink: 'http://localhost:5002/idoshamun',
     providers: [null],
@@ -129,7 +129,6 @@ const LOGGED_IN_BODY = {
     timezone: DEFAULT_TIMEZONE,
     reputation: 10,
     portfolio: null,
-    acceptedMarketing: false,
     company: null,
     experienceLevel: null,
     isTeamMember: false,

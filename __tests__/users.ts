@@ -3625,6 +3625,36 @@ describe('mutation updateUserProfile', () => {
     });
   });
 
+  it('should update marketing notification flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+
+    const res1 = await client.mutate(MUTATION, {
+      variables: { data: { acceptedMarketing: false } },
+    });
+
+    expect(res1.errors?.length).toBeFalsy();
+    const updatedUser1 = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser1?.notificationFlags.marketing.email).toEqual('muted');
+    expect(updatedUser1?.notificationFlags.marketing.inApp).toEqual('muted');
+
+    loggedUser = '2';
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: { data: { acceptedMarketing: true } },
+    });
+
+    expect(res2.errors?.length).toBeFalsy();
+    const updatedUser2 = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser2?.notificationFlags.marketing.email).toEqual(
+      'subscribed',
+    );
+    expect(updatedUser2?.notificationFlags.marketing.inApp).toEqual(
+      'subscribed',
+    );
+  });
+
   it('should update user profile and set info confirmed', async () => {
     loggedUser = '1';
 
@@ -6991,6 +7021,32 @@ describe('mutation updateNotificationSettings', () => {
 
     const user = await con.getRepository(User).findOneBy({ id: loggedUser });
     expect(user?.notificationFlags).toEqual(updatedFlags);
+  });
+
+  it('should update acceptedMarketing flag', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { acceptedMarketing: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        notificationFlags: {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          marketing: {
+            email: 'muted',
+            inApp: 'muted',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateNotificationSettings._).toBeTruthy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.acceptedMarketing).toBeFalsy();
   });
 
   it('should throw error because of invalid notification flags', async () => {

@@ -51,6 +51,16 @@ export const updateFlagsStatement = <Entity extends { flags: object }>(
   return () => `flags || '${JSON.stringify(update)}'`;
 };
 
+export const updateNotificationFlags = <
+  Entity extends {
+    notificationFlags: object;
+  },
+>(
+  update: Partial<Entity['notificationFlags']>,
+): (() => string) => {
+  return () => `notificationFlags || '${JSON.stringify(update)}'`;
+};
+
 export const updateSubscriptionFlags = <
   Entity extends {
     subscriptionFlags: object;

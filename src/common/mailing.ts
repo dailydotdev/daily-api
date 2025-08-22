@@ -126,8 +126,6 @@ export const syncSubscription = async function (
           customer?.attributes?.cio_subscription_preferences || '{}',
         );
         const unsubscribed = customer?.unsubscribed;
-        const marketing =
-          isSubscribed(subs, CioUnsubscribeTopic.Marketing) && !unsubscribed;
         const digest =
           isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
 
@@ -149,7 +147,16 @@ export const syncSubscription = async function (
         const validation = notificationFlagsSchema.safeParse(
           mergedNotificationFlags,
         );
-        if (!validation.success) {
+        if (validation.success) {
+          await manager.getRepository(User).update(
+            { id: customer.id },
+            {
+              acceptedMarketing:
+                mergedNotificationFlags.marketing?.email === 'subscribed',
+              notificationFlags: mergedNotificationFlags,
+            },
+          );
+        } else {
           logger.error(
             {
               userId: customer.id,
@@ -159,17 +166,6 @@ export const syncSubscription = async function (
             'Failed to validate merged notification flags from CIO sync, skipping notification flags update',
           );
         }
-
-        const updateFields = {
-          acceptedMarketing: marketing,
-          ...(validation.success && {
-            notificationFlags: mergedNotificationFlags,
-          }),
-        };
-
-        await manager
-          .getRepository(User)
-          .update({ id: customer.id }, updateFields);
 
         if (!digest) {
           await manager.getRepository(UserPersonalizedDigest).delete({
