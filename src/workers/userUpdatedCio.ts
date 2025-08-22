@@ -2,6 +2,7 @@ import { ghostUser, resubscribeUser } from '../common';
 import { TypedWorker } from './worker';
 import { cio, identifyUser } from '../cio';
 import { isSubscribedToEmails } from './notifications/utils';
+import type { UserNotificationFlags } from '../entity';
 
 const worker: TypedWorker<'user-updated'> = {
   subscription: 'api.user-updated-cio',
@@ -23,16 +24,24 @@ const worker: TypedWorker<'user-updated'> = {
         return;
       }
 
-      const oldFlags =
+      const oldFlags: UserNotificationFlags | undefined =
+        oldUser?.notificationFlags &&
         typeof oldUser.notificationFlags === 'string'
           ? JSON.parse(oldUser.notificationFlags)
           : oldUser.notificationFlags;
-      const newFlags =
-        typeof user.notificationFlags === 'string'
+
+      const newFlags: UserNotificationFlags | undefined =
+        user?.notificationFlags && typeof user.notificationFlags === 'string'
           ? JSON.parse(user.notificationFlags)
           : user.notificationFlags;
 
-      if (isSubscribedToEmails(newFlags) && !isSubscribedToEmails(oldFlags)) {
+      const hasFlags = oldFlags && newFlags;
+
+      if (
+        hasFlags &&
+        isSubscribedToEmails(newFlags) &&
+        !isSubscribedToEmails(oldFlags)
+      ) {
         await resubscribeUser(cio, user.id);
       }
 
