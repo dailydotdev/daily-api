@@ -8,6 +8,7 @@ import {
   formatMailDate,
   notificationsLink,
   sendEmail,
+  updateNotificationFlags,
 } from '../../src/common';
 import worker, {
   notificationToTemplateId,
@@ -62,7 +63,10 @@ import {
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
-import { NotificationType } from '../../src/notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../src/notifications/common';
 import {
   buildPostContext,
   getPostModerationContext,
@@ -1424,6 +1428,61 @@ it('should not send brief email notification if the user prefers not to receive 
     },
   });
   expect(sendEmail).toHaveBeenCalledTimes(0);
+});
+
+it('should send email notification if the user prefers not to receive in app notifications', async () => {
+  const userId = '1';
+
+  const briefPost = await con.getRepository(BriefPost).save({
+    id: 'bnp-1-send',
+    shortId: 'bnp-1-send',
+    sourceId: BRIEFING_SOURCE,
+    visible: true,
+    private: true,
+    authorId: '1',
+    title: 'Presidential briefing',
+    content: '',
+    readTime: 4,
+    contentJSON: [],
+  });
+
+  const ctx: NotificationPostContext = {
+    userIds: ['1'],
+    source: sourcesFixture.find(
+      (item) => item.id === 'unknown',
+    ) as Reference<Source>,
+    post: briefPost as Reference<Post>,
+  };
+
+  await con.getRepository(UserPersonalizedDigest).save({
+    userId: '1',
+    type: UserPersonalizedDigestType.Brief,
+  } as UserPersonalizedDigest);
+
+  await con.getRepository(User).update(
+    { id: '1' },
+    {
+      notificationFlags: updateNotificationFlags<User>({
+        briefing_ready: {
+          inApp: NotificationPreferenceStatus.Muted,
+          email: NotificationPreferenceStatus.Subscribed,
+        },
+      }),
+    },
+  );
+
+  const notificationId = await saveNotificationV2Fixture(
+    con,
+    NotificationType.BriefingReady,
+    ctx,
+  );
+  await expectSuccessfulBackground(worker, {
+    notification: {
+      id: notificationId,
+      userId,
+    },
+  });
+  expect(sendEmail).toHaveBeenCalledTimes(1);
 });
 
 describe('collection_post notification', () => {
