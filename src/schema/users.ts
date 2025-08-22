@@ -35,7 +35,10 @@ import {
   ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+} from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -70,6 +73,7 @@ import {
   TagsReadingStatus,
   toGQLEnum,
   updateFlagsStatement,
+  updateNotificationFlags,
   updateSubscriptionFlags,
   uploadAvatar,
   UploadPreset,
@@ -494,11 +498,6 @@ export const typeDefs = /* GraphQL */ `
     Role for Cores access
     """
     coresRole: Int
-
-    """
-    User's notification preferences
-    """
-    notificationFlags: JSON
   }
 
   """
@@ -657,6 +656,10 @@ export const typeDefs = /* GraphQL */ `
     User website
     """
     portfolio: String
+    """
+    If the user has accepted marketing
+    """
+    acceptedMarketing: Boolean
     """
     If the user's info is confirmed
     """
@@ -2239,6 +2242,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
+        const marketingFlag = updatedUser.acceptedMarketing
+          ? {
+              email: NotificationPreferenceStatus.Subscribed,
+              inApp: NotificationPreferenceStatus.Subscribed,
+            }
+          : {
+              email: NotificationPreferenceStatus.Muted,
+              inApp: NotificationPreferenceStatus.Muted,
+            };
+
         if (
           !user.infoConfirmed &&
           updatedUser.email &&
@@ -2254,6 +2267,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ...updatedUser,
             permalink: undefined,
             flags: data?.flags ? updateFlagsStatement(data.flags) : undefined,
+            notificationFlags: updateNotificationFlags({
+              marketing: marketingFlag,
+            }),
           },
         );
 
