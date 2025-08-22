@@ -2956,7 +2956,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const acceptedMarketing =
-        notificationFlags[NotificationType.Marketing]?.email === 'subscribed';
+        notificationFlags[NotificationType.Marketing]?.email ===
+        NotificationPreferenceStatus.Subscribed;
 
       await ctx.con.getRepository(User).update(
         { id: ctx.userId },
