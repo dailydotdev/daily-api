@@ -10,15 +10,19 @@ import {
   type EstimatedReachResponse,
   type PromotedPost,
   type PromotedPostList,
-  type StartCampaignParams,
   type StartPostCampaignParams,
   type StartPostCampaignResponse,
   type CancelCampaignArgs,
+  type EstimatedDailyReachParams,
+  TargetingType,
 } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../../garmr';
 import { fetchOptions as globalFetchOptions } from '../../../http';
 import { fetchParse } from '../../retry';
 import { ONE_DAY_IN_SECONDS } from '../../../common';
+import { CampaignType, type Campaign } from '../../../entity';
+import { v5 } from 'uuid';
+import { coresToUsd } from '../../../common/number';
 
 const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
   campaignId: campaign.campaign_id,
@@ -32,6 +36,9 @@ const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
   clicks: campaign.clicks,
   users: campaign.users,
 });
+
+const skadiNamespace = '67fb92c7-8105-43a9-802a-07aac76493cc';
+const getAdvertiserId = (userId: string) => v5(userId, skadiNamespace);
 
 export class SkadiApiClient implements ISkadiApiClient {
   private readonly fetchOptions: RequestInit;
@@ -53,16 +60,26 @@ export class SkadiApiClient implements ISkadiApiClient {
     this.garmr = garmr;
   }
 
-  startCampaign({
-    type,
-    value,
-    budget,
-    userId,
-    durationInDays,
-  }: StartCampaignParams): Promise<{ campaignId: string }> {
+  startCampaign(
+    campaign: Campaign,
+    keywords: string[] = [],
+  ): Promise<{ error?: string }> {
+    const {
+      userId,
+      type,
+      id,
+      creativeId,
+      createdAt,
+      endedAt,
+      flags,
+      referenceId,
+    } = campaign;
+    const advertiser_id = getAdvertiserId(userId);
+    const isNone = type === CampaignType.Source && keywords.length === 0;
+
     return this.garmr.execute(async () => {
-      const response = await fetchParse<StartPostCampaignResponse>(
-        `${this.url}/promote/create`,
+      const response = await fetchParse<{ error?: string }>(
+        `${this.url}/campaign/create`,
         {
           ...this.fetchOptions,
           method: 'POST',
@@ -70,16 +87,26 @@ export class SkadiApiClient implements ISkadiApiClient {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            type,
-            value,
-            budget,
-            user_id: userId,
-            duration: durationInDays * ONE_DAY_IN_SECONDS,
+            advertiser_id,
+            campaign_id: id,
+            budget: coresToUsd(flags.budget!),
+            start_time: createdAt.getTime(),
+            end_time: endedAt.getTime(),
+            creatives: [{ id: creativeId, type, value: referenceId }],
+            targeting: {
+              type: isNone ? TargetingType.None : TargetingType.Boost,
+              value: {
+                boost: {
+                  post_id: type === CampaignType.Post ? referenceId : undefined,
+                  keywords,
+                },
+              },
+            },
           }),
         },
       );
 
-      return { campaignId: response.campaign_id };
+      return { error: response.error };
     });
   }
 
@@ -89,7 +116,7 @@ export class SkadiApiClient implements ISkadiApiClient {
   }: CancelCampaignArgs): Promise<{ currentBudget: string }> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<CancelPostCampaignResponse>(
-        `${this.url}/promote/cancel`,
+        `${this.url}/campaign/cancel`,
         {
           ...this.fetchOptions,
           method: 'POST',
@@ -105,15 +132,16 @@ export class SkadiApiClient implements ISkadiApiClient {
   }
 
   estimateBoostReachDaily({
-    durationInDays,
-    userId,
     budget,
     value,
     type,
-  }: StartCampaignParams): Promise<EstimatedReachResponse> {
+    keywords = [],
+  }: EstimatedDailyReachParams): Promise<EstimatedReachResponse> {
+    const isNone = type === CampaignType.Source && keywords.length === 0;
+
     return this.garmr.execute(async () => {
       const response = await fetchParse<EstimatedReach>(
-        `${this.url}/promote/reach`,
+        `${this.url}/campaign/reach`,
         {
           ...this.fetchOptions,
           method: 'POST',
@@ -121,11 +149,16 @@ export class SkadiApiClient implements ISkadiApiClient {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            user_id: userId,
             budget,
-            value,
-            type,
-            duration: durationInDays * ONE_DAY_IN_SECONDS,
+            targeting: {
+              type: isNone ? TargetingType.None : TargetingType.Boost,
+              value: {
+                boost: {
+                  post_id: type === CampaignType.Post ? value : undefined,
+                  keywords,
+                },
+              },
+            },
           }),
         },
       );

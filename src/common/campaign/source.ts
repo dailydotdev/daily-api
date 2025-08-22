@@ -3,7 +3,9 @@ import {
   CampaignSource,
   CampaignState,
   CampaignType,
+  Post,
   Source,
+  type ConnectionManager,
 } from '../../entity';
 
 import type { AuthContext } from '../../Context';
@@ -27,7 +29,7 @@ import {
   UserTransactionType,
 } from '../../entity/user/UserTransaction';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
-import { coresToUsd, usdToCores } from '../number';
+import { usdToCores } from '../number';
 import { systemUser, updateFlagsStatement } from '../utils';
 
 export const validateSquadBoostPermissions = async (
@@ -47,6 +49,34 @@ export const validateSquadBoostPermissions = async (
   return source;
 };
 
+export const getSourceTags = async (
+  con: ConnectionManager,
+  sourceId: string,
+): Promise<string[]> => {
+  const result = await con.getRepository(Post).query<{ tag: string }[]>(
+    `
+      SELECT DISTINCT trim(t) AS tag
+      FROM (
+        SELECT
+          p.id,
+          p."createdAt",
+          COALESCE(NULLIF(p."tagsStr", ''), sp."tagsStr") AS tagstr
+        FROM  post p
+        LEFT  JOIN post sp ON sp.id = p."sharedPostId"
+        WHERE COALESCE(NULLIF(p."tagsStr", ''), sp."tagsStr") IS NOT NULL
+        AND   p."sourceId" = $1
+        ORDER BY p."createdAt" DESC
+      ) s
+      CROSS JOIN LATERAL regexp_split_to_table(s.tagstr, '\s*,\s*') AS t
+      WHERE trim(t) <> ''
+      LIMIT 30;
+    `,
+    [sourceId],
+  );
+
+  return result.map(({ tag }) => tag);
+};
+
 export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
   const { value } = args;
@@ -54,6 +84,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
 
   const request = await ctx.con.transaction(async (manager) => {
     const id = randomUUID();
+    const creativeId = randomUUID();
     const { budget, duration } = args;
     const total = budget * duration;
     const userId = ctx.userId;
@@ -62,6 +93,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const campaign = await manager.getRepository(CampaignPost).save(
       manager.getRepository(CampaignSource).create({
         id,
+        creativeId,
         flags: {
           budget: total,
           spend: 0,
@@ -79,14 +111,9 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     );
 
     const campaignId = campaign.id;
+    const last30tags = await getSourceTags(manager, source.id);
 
-    await skadiApiClient.startCampaign({
-      value: campaign.id,
-      type: campaign.type,
-      durationInDays: duration,
-      budget: coresToUsd(budget),
-      userId: campaign.userId,
-    });
+    await skadiApiClient.startCampaign(campaign, last30tags);
 
     await manager
       .getRepository(Source)
