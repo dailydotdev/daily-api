@@ -77,11 +77,11 @@ export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
   }
 };
 
-interface CampaignBoostedPost
-  extends Pick<Post, 'id' | 'shortId' | 'title' | 'slug'> {
-  image: string;
-  permalink: string;
-  engagements: number;
+interface CampaignBoostedPost extends Pick<Post, 'id' | 'shortId' | 'title'> {
+  slug?: string;
+  image?: string;
+  permalink?: string;
+  engagements?: number;
   commentsPermalink?: string;
 }
 

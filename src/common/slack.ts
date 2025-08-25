@@ -1,5 +1,5 @@
 import { IncomingWebhook } from '@slack/webhook';
-import { Post, Comment, User, Source } from '../entity';
+import { Post, Comment, User, Source, type Campaign } from '../entity';
 import { getDiscussionLink, getSourceLink } from './links';
 import { NotFoundError } from '../errors';
 import { DataSource } from 'typeorm';
@@ -7,10 +7,8 @@ import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
-import type { GetCampaignResponse } from '../integrations/skadi';
 import { getAbsoluteDifferenceInDays } from './users';
-import { usdToCores } from './number';
-import { concatTextToNewline, debeziumTimeToDate } from './utils';
+import { concatTextToNewline } from './utils';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -31,20 +29,20 @@ export const webhooks = Object.freeze({
     : nullWebhook,
 });
 
-interface NotifyBoostedPostProps {
-  post: Post;
-  campaign: GetCampaignResponse;
+interface NotifyBoostedProps {
+  mdLink: string;
+  campaign: Campaign;
   userId: string;
 }
 
 export const notifyNewPostBoostedSlack = async ({
-  post,
+  mdLink,
   campaign,
   userId,
-}: NotifyBoostedPostProps): Promise<void> => {
+}: NotifyBoostedProps): Promise<void> => {
   const difference = getAbsoluteDifferenceInDays(
-    debeziumTimeToDate(campaign.endedAt),
-    debeziumTimeToDate(campaign.startedAt),
+    campaign.endedAt,
+    campaign.createdAt,
   );
 
   await webhooks.ads.send({
@@ -53,7 +51,7 @@ export const notifyNewPostBoostedSlack = async ({
         type: 'header',
         text: {
           type: 'plain_text',
-          text: ':boost: New post boosted',
+          text: ':boost: New boost has started',
           emoji: true,
         },
       },
@@ -62,10 +60,7 @@ export const notifyNewPostBoostedSlack = async ({
         fields: [
           {
             type: 'mrkdwn',
-            text: concatTextToNewline(
-              '*Post:*',
-              `<${getDiscussionLink(post.id)}|${post.id}>`,
-            ),
+            text: concatTextToNewline('*Post:*', mdLink),
           },
           {
             type: 'mrkdwn',
@@ -83,7 +78,7 @@ export const notifyNewPostBoostedSlack = async ({
             type: 'mrkdwn',
             text: concatTextToNewline(
               '*Budget:*',
-              `${usdToCores(parseFloat(campaign.budget))} :cores:`,
+              `${campaign.flags.budget} :cores:`,
             ),
           },
           {
@@ -99,7 +94,7 @@ export const notifyNewPostBoostedSlack = async ({
         type: 'section',
         text: {
           type: 'mrkdwn',
-          text: concatTextToNewline('*Campaign:*', campaign.campaignId),
+          text: concatTextToNewline('*Campaign:*', campaign.id),
         },
       },
     ],
