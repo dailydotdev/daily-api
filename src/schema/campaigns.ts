@@ -11,7 +11,7 @@ import graphorm from '../graphorm';
 import { Campaign, CampaignState, CampaignType } from '../entity/campaign';
 import type { GQLPost } from './posts';
 import type { GQLSource } from './sources';
-import { getLimit } from '../common';
+import { getLimit, toGQLEnum } from '../common';
 import { type TransactionCreated } from '../common/njord';
 import {
   checkPostAlreadyBoosted,
@@ -21,6 +21,7 @@ import {
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
+  getReferenceTags,
   StartCampaignArgs,
   validateCampaignArgs,
 } from '../common/campaign/common';
@@ -44,6 +45,8 @@ interface GQLCampaign
 }
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(CampaignType, 'CampaignType')}
+
   type CampaignFlags {
     budget: Int!
     spend: Int!
@@ -104,15 +107,11 @@ export const typeDefs = /* GraphQL */ `
       """
       Type of campaign (post or source)
       """
-      type: String!
+      type: CampaignType!
       """
       ID of the post or source to promote
       """
       value: ID!
-      """
-      Duration of the campaign in days (1-30)
-      """
-      duration: Int!
       """
       Budget for the campaign in cores (1000-100000, must be divisible by 1000)
       """
@@ -128,7 +127,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Type of campaign (post or source)
       """
-      type: String!
+      type: CampaignType!
       """
       ID of the post or source to promote
       """
@@ -218,11 +217,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: StartCampaignMutationArgs,
       ctx: AuthContext,
     ): Promise<CampaignReach> => {
-      const { value, budget, duration, type } = args;
+      const { value, budget, type } = args;
 
-      validateCampaignArgs({ budget, duration });
+      validateCampaignArgs({ budget, duration: 1 });
 
-      switch (args.type) {
+      switch (type) {
         case CampaignType.Post:
           checkPostAlreadyBoosted(
             await validatePostBoostPermissions(ctx, value),
@@ -235,13 +234,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           throw new ValidationError('Unknown campaign type to estimate reach');
       }
 
+      const tags = await getReferenceTags(ctx.con, type, value);
       const { minImpressions, maxImpressions } =
         await skadiApiClient.estimateBoostReachDaily({
           type,
           value,
-          userId: ctx.userId,
+          keywords: tags,
           budget: coresToUsd(budget),
-          durationInDays: duration,
         });
 
       if (minImpressions === maxImpressions) {

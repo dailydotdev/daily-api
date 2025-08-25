@@ -6,6 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   TableInheritance,
+  Generated,
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from '../user';
@@ -36,6 +37,10 @@ export interface CampaignFlags {
 export class Campaign {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Generated('uuid')
+  @Column({ type: 'uuid' })
+  creativeId: string;
 
   @Column({ type: 'text' })
   referenceId: string;
