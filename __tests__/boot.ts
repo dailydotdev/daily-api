@@ -393,11 +393,14 @@ describe('logged in boot', () => {
     });
   });
 
-  it('should set hasLocationSet to true when user has country flag', async () => {
+  it('should set hasLocationSet to true when user has location date flag', async () => {
     await con.getRepository(User).save({
       ...usersFixture[0],
       flags: {
         country: 'US',
+        location: {
+          lastStored: new Date(),
+        },
       },
     });
     mockLoggedIn();

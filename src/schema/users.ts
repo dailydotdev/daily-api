@@ -2180,7 +2180,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         where: { id: ctx.userId },
       });
 
-      if (!user || !!user.flags?.country) {
+      if (!user || !!user.flags?.location?.lastStored) {
         return { _: false };
       }
 
