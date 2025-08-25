@@ -8735,7 +8735,7 @@ describe('query history for post analytics', () => {
       if (index > 0) {
         const previousEdge = res.data.postAnalyticsHistory.edges[index - 1];
 
-        expect(new Date(edge.node.date).getTime()).toBeGreaterThan(
+        expect(new Date(edge.node.date).getTime()).toBeLessThan(
           new Date(previousEdge.node.date).getTime(),
         );
       }

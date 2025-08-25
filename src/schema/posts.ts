@@ -2427,7 +2427,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             return builder;
           },
-          orderByKey: 'ASC',
+          orderByKey: 'DESC',
           readReplica: true,
         },
       );
