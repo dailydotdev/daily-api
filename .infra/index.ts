@@ -127,10 +127,10 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 960;
+const memory = 860;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '600m',
-  memory: '720Mi',
+  memory: '620Mi',
 };
 const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
@@ -429,11 +429,11 @@ if (isAdhocEnv) {
       minReplicas: 2,
       maxReplicas: 2,
       requests: {
-        memory: '192Mi',
+        memory: '392Mi',
         cpu: '10m',
       },
       limits: {
-        memory: '256Mi',
+        memory: '456Mi',
       },
       readinessProbe,
       livenessProbe,
