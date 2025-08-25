@@ -320,7 +320,7 @@ export const getGeo = ({ ip }: { ip: string }): GeoRecord => {
       country: geo.country?.isoCode,
       continent: geo.continent?.code,
       city: geo.city?.names?.en,
-      location: geo.location
+      location: geo.location,
       subdivision: geo.subdivisions?.[0]?.isoCode,
     };
   } catch (error) {
