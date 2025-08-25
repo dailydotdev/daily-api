@@ -141,7 +141,6 @@ import {
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
-  getBalance,
   throwUserTransactionError,
   type TransactionCreated,
   transferCores,
@@ -3401,26 +3400,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId,
         type,
       });
-
-      const userBalance = await getBalance(ctx);
-      const userCanAfford = userBalance.amount >= briefCost;
       const isFree = briefCost === 0;
-
-      if (!userCanAfford) {
-        logger.warn(
-          {
-            userId,
-            briefType: type,
-            briefCost,
-            userBalance,
-          },
-          'User attempted to generate brief without sufficient cores',
-        );
-
-        throw new ForbiddenError(
-          `You need ${briefCost} cores to generate a ${type} brief, but you only have ${userBalance.amount} cores.`,
-        );
-      }
 
       if (!isFree) {
         // perform the transaction then request generation
@@ -3453,6 +3433,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             });
             return { transfer };
           } catch (error) {
+            // log error with details
+            logger.warn(
+              {
+                userId,
+                briefType: type,
+                briefCost,
+              },
+              'User attempted to generate brief but failed',
+            );
+
             if (error instanceof TransferError) {
               await throwUserTransactionError({
                 ctx,
