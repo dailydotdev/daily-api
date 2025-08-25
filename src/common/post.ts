@@ -52,6 +52,7 @@ import graphorm from '../graphorm';
 import type { GraphQLResolveInfo } from 'graphql';
 import { offsetPageGenerator } from '../schema/common';
 import { SourceMemberRoles } from '../roles';
+import { queryReadReplica } from './queryReadReplica';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -895,4 +896,36 @@ export const getTranslationRecord = ({
     },
     {},
   );
+};
+
+export const ensurePostAnalyticsPermissions = async ({
+  ctx,
+  postId,
+}: {
+  ctx: AuthContext;
+  postId: string;
+}) => {
+  const { userId, isTeamMember } = ctx;
+
+  // for now allow team members to view
+  if (isTeamMember) {
+    return true;
+  }
+
+  if (!userId) {
+    throw new ForbiddenError('Auth is required');
+  }
+
+  const post = await queryReadReplica(ctx.con, ({ queryRunner }) => {
+    return queryRunner.manager.getRepository(Post).findOneOrFail({
+      select: ['id', 'authorId'],
+      where: { id: postId || '' },
+    });
+  });
+
+  if (post.authorId !== userId) {
+    throw new ForbiddenError(
+      'You do not have permission to view post analytics',
+    );
+  }
 };
