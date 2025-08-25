@@ -6594,13 +6594,16 @@ describe('query checkLocation', () => {
     jest.clearAllMocks();
   });
 
-  it('should return false when user already has country flag set', async () => {
+  it('should return false when user already has lastStored location flag set', async () => {
     loggedUser = '1';
 
     // Set up user with existing country flag
     await con
       .getRepository(User)
-      .update({ id: '1' }, { flags: { country: 'US' } });
+      .update(
+        { id: '1' },
+        { flags: { country: 'US', location: { lastStored: new Date() } } },
+      );
 
     const res = await client.query(QUERY);
 
@@ -6686,6 +6689,7 @@ describe('query checkLocation', () => {
       continent: 'North America',
       subdivision: 'NY',
       location: {
+        lastStored: expect.any(Date),
         accuracyRadius: 50,
         lat: 40.7128,
         lng: -74.006,
@@ -6722,6 +6726,7 @@ describe('query checkLocation', () => {
       continent: undefined,
       subdivision: undefined,
       location: {
+        lastStored: expect.any(Date),
         accuracyRadius: undefined,
         lat: undefined,
         lng: undefined,
