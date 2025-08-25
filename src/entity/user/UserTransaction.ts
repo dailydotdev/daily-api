@@ -49,6 +49,7 @@ export enum UserTransactionProcessor {
 export enum UserTransactionType {
   PostBoost = 'post_boost',
   SquadBoost = 'squad_boost',
+  BriefGeneration = 'brief_generation',
 }
 
 @Entity()

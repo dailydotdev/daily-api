@@ -8,87 +8,83 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, In, MoreThan } from 'typeorm';
 import {
+  canModeratePosts,
   ensureSourcePermissions,
+  ensureUserSourceExists,
   GQLSource,
   isPrivilegedMember,
-  canModeratePosts,
   SourcePermissions,
   sourceTypesWithMembers,
-  ensureUserSourceExists,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  createFreeformPost,
   CreatePost,
   CreatePostArgs,
+  createSourcePostModeration,
+  CreateSourcePostModerationArgs,
   DEFAULT_POST_TITLE,
   EditablePost,
   EditPostArgs,
   fetchLinkPreview,
+  getAllModerationItemsAsAdmin,
   getDiscussionLink,
+  getExistingPost,
+  getModerationItemsAsAdminForSource,
+  getModerationItemsByUserForSource,
+  getPostSmartTitle,
+  getPostTranslatedTitle,
+  getTranslationRecord,
+  type GQLSourcePostModeration,
+  isProd,
   isValidHttpUrl,
+  mapCloudinaryUrl,
   notifyView,
+  ONE_MINUTE_IN_SECONDS,
+  parseBigInt,
   pickImageUrl,
-  createFreeformPost,
+  type SourcePostModerationArgs,
   standardizeURL,
+  systemUser,
+  toGQLEnum,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
-  ONE_MINUTE_IN_SECONDS,
-  toGQLEnum,
-  getExistingPost,
-  createSourcePostModeration,
-  CreateSourcePostModerationArgs,
-  mapCloudinaryUrl,
   validateSourcePostModeration,
-  getPostTranslatedTitle,
-  getPostSmartTitle,
-  getModerationItemsAsAdminForSource,
-  getModerationItemsByUserForSource,
-  type GQLSourcePostModeration,
-  type SourcePostModerationArgs,
-  getAllModerationItemsAsAdmin,
-  getTranslationRecord,
-  systemUser,
-  parseBigInt,
-  triggerTypedEvent,
-  isProd,
 } from '../common';
 import {
   ArticlePost,
+  ContentImage,
   createExternalLink,
   createSharePost,
+  deletePost,
+  determineSharedPostId,
   ExternalLinkPreview,
   FreeformPost,
   Post,
   PostFlagsPublic,
   PostMention,
-  PostType,
-  Toc,
-  UserActionType,
-  WelcomePost,
-  ContentImage,
   PostQuestion,
+  PostRelation,
+  PostRelationType,
+  type PostTranslation,
+  PostType,
+  Settings,
+  SharePost,
+  SubmitExternalLinkArgs,
+  Toc,
+  updateSharePost,
+  User,
+  UserActionType,
   UserPost,
   UserPostFlagsPublic,
-  updateSharePost,
   View,
-  User,
-  PostRelationType,
-  PostRelation,
-  deletePost,
-  SubmitExternalLinkArgs,
-  Settings,
-  type PostTranslation,
-  determineSharedPostId,
-  SharePost,
-  BRIEFING_SOURCE,
-  UserAction,
+  WelcomePost,
 } from '../entity';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
-  ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
   TransferError,
@@ -135,9 +131,19 @@ import type {
   GQLBoostedPost,
 } from '../common/campaign/post';
 import {
+  checkPostAlreadyBoosted,
+  consolidateCampaignsWithPosts,
+  getAdjustedReach,
+  getBoostedPost,
+  getFormattedBoostedPost,
+  getFormattedCampaign,
+  getTotalEngagements,
+  validatePostBoostPermissions,
+} from '../common/campaign/post';
+import {
   throwUserTransactionError,
-  transferCores,
   type TransactionCreated,
+  transferCores,
 } from '../common/njord';
 import { randomUUID } from 'crypto';
 import {
@@ -147,28 +153,20 @@ import {
   UserTransactionType,
 } from '../entity/user/UserTransaction';
 import { skadiApiClient } from '../integrations/skadi/api/clients';
-import {
-  validatePostBoostPermissions,
-  checkPostAlreadyBoosted,
-  getTotalEngagements,
-  getFormattedBoostedPost,
-  getBoostedPost,
-  consolidateCampaignsWithPosts,
-  getFormattedCampaign,
-  getAdjustedReach,
-} from '../common/campaign/post';
 import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
-import { BriefingModel, BriefingType } from '../integrations/feed';
-import { BriefPost } from '../entity/posts/BriefPost';
-import { UserBriefingRequest } from '@dailydotdev/schema';
-import { usdToCores, coresToUsd } from '../common/number';
+import { BriefingType } from '../integrations/feed';
+import { coresToUsd, usdToCores } from '../common/number';
 import {
-  validateCampaignArgs,
   type StartCampaignArgs,
+  validateCampaignArgs,
 } from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
+import {
+  getBriefGenerationCost,
+  requestBriefGeneration,
+} from '../common/brief';
 
 export interface GQLPost {
   id: string;
@@ -3387,67 +3385,82 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { type }: { type: BriefingType },
       ctx: AuthContext,
     ): Promise<{ postId: string }> => {
-      // for now allow multiple on demand generations for team members
-      if (!ctx.isTeamMember) {
-        const action = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-          queryRunner.manager.getRepository(UserAction).findOne({
-            select: ['completedAt'],
-            where: {
-              userId: ctx.userId,
-              type: UserActionType.GeneratedBrief,
-            },
-          }),
-        );
+      const { isPlus, userId, isTeamMember } = ctx;
 
-        if (action?.completedAt) {
-          throw new ForbiddenError(
-            'Not allowed for you anymore, go to /briefing page to learn more',
-          );
-        }
-      }
-
-      const pendingBrief = await queryReadReplica(
-        ctx.con,
-        async ({ queryRunner }) => {
-          return queryRunner.manager.getRepository(BriefPost).findOne({
-            select: ['id', 'createdAt'],
-            where: { visible: false, authorId: ctx.userId },
-          });
-        },
-      );
-
-      if (pendingBrief) {
-        throw new ConflictError('There is already a briefing being generated', {
-          postId: pendingBrief.id,
-          createdAt: pendingBrief.createdAt,
+      if (isPlus) {
+        // No need to check balance or brief cost, just perform the request
+        return await requestBriefGeneration(ctx.con, {
+          userId,
+          type,
+          isTeamMember,
         });
       }
 
-      const postId = await generateShortId();
-
-      const post = ctx.con.getRepository(BriefPost).create({
-        id: postId,
-        shortId: postId,
-        authorId: ctx.userId,
-        private: true,
-        visible: false,
-        sourceId: BRIEFING_SOURCE,
+      const briefCost = await getBriefGenerationCost(ctx.con, {
+        userId,
+        type,
       });
+      const isFree = briefCost === 0;
 
-      await ctx.con.getRepository(BriefPost).insert(post);
+      if (!isFree) {
+        // perform the transaction then request generation
+        await ctx.con.transaction(async (entityManager) => {
+          const userTransaction = await entityManager
+            .getRepository(UserTransaction)
+            .save(
+              entityManager.getRepository(UserTransaction).create({
+                id: randomUUID(),
+                processor: UserTransactionProcessor.Njord,
+                receiverId: systemUser.id,
+                status: UserTransactionStatus.Success,
+                productId: null,
+                senderId: userId,
+                value: briefCost,
+                valueIncFees: 0,
+                fee: 0,
+                request: ctx.requestMeta,
+                flags: { note: `Brief generation - ${type}` },
+                referenceId: null,
+                referenceType: UserTransactionType.BriefGeneration,
+              }),
+            );
 
-      triggerTypedEvent(logger, 'api.v1.brief-generate', {
-        payload: new UserBriefingRequest({
-          userId: ctx.userId,
-          frequency: type,
-          modelName: BriefingModel.Default,
-        }),
-        postId,
+          try {
+            const transfer = await transferCores({
+              ctx,
+              transaction: userTransaction,
+              entityManager,
+            });
+            return { transfer };
+          } catch (error) {
+            // log error with details
+            logger.warn(
+              {
+                userId,
+                briefType: type,
+                briefCost,
+              },
+              'User attempted to generate brief but failed',
+            );
+
+            if (error instanceof TransferError) {
+              await throwUserTransactionError({
+                ctx,
+                entityManager,
+                error,
+                transaction: userTransaction,
+              });
+            }
+            throw error;
+          }
+        });
+      }
+
+      return await requestBriefGeneration(ctx.con, {
+        userId,
+        type,
+        isTeamMember,
       });
-
-      return {
-        postId,
-      };
     },
   },
   Subscription: {
