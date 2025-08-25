@@ -2199,6 +2199,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             continent: geo?.continent,
             subdivision: geo?.subdivision,
             location: {
+              lastStored: new Date(),
               accuracyRadius: geo?.location?.accuracyRadius,
               lat: geo?.location?.lat,
               lng: geo?.location?.lng,

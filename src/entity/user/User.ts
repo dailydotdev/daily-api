@@ -35,6 +35,7 @@ export type UserFlags = Partial<{
   city: string | null;
   continent: string | null;
   location: {
+    lastStored: Date | null;
     accuracyRadius: number | null | undefined;
     lat: number | null | undefined;
     lng: number | null | undefined;
