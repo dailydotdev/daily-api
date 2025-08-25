@@ -429,11 +429,11 @@ if (isAdhocEnv) {
       minReplicas: 2,
       maxReplicas: 2,
       requests: {
-        memory: '392Mi',
+        memory: '450Mi',
         cpu: '10m',
       },
       limits: {
-        memory: '456Mi',
+        memory: '510Mi',
       },
       readinessProbe,
       livenessProbe,
