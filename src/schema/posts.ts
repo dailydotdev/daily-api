@@ -830,6 +830,7 @@ export const typeDefs = /* GraphQL */ `
     id: String
     title: String!
     image: String!
+    url: String
     relatedPublicPosts: [Post!]
   }
 
@@ -3043,7 +3044,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         order: { createdAt: 'DESC' },
       });
 
-      return { ...post, relatedPublicPosts };
+      return { ...post, url, relatedPublicPosts };
     },
     submitExternalLink: async (
       _,
