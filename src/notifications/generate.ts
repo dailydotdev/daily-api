@@ -342,7 +342,7 @@ export const generateNotificationMap: Record<
   ) =>
     builder
       .icon(NotificationIcon.Bell)
-      .referencePost(ctx.post)
+      .referenceSource(ctx.source)
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
