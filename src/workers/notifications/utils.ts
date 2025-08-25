@@ -162,7 +162,6 @@ export async function articleNewCommentHandler(
 
   const { post, source } = postCtx;
   const excludedUsers = [comment.userId];
-  const isReply = !!comment.parentId;
 
   if (source.type === SourceType.Squad) {
     await insertOrIgnoreAction(
@@ -170,21 +169,6 @@ export async function articleNewCommentHandler(
       comment.userId,
       UserActionType.SquadFirstComment,
     );
-  }
-
-  if (isReply && (post.authorId || post.scoutId)) {
-    const ids = [...new Set([post.authorId, post.scoutId])];
-    const threadFollower = await repo
-      .createQueryBuilder()
-      .select('"userId"')
-      .where(`(id = :id OR "parentId" = :id)`, { id: comment.parentId })
-      .andWhere({ userId: In(ids) })
-      .groupBy('"userId"')
-      .getRawMany();
-
-    if (threadFollower.length) {
-      threadFollower.forEach(({ userId }) => excludedUsers.push(userId));
-    }
   }
 
   const excluded = [...new Set(excludedUsers)];
@@ -245,19 +229,6 @@ export async function articleNewCommentHandler(
       { notificationType: type },
     )
     .getRawMany<{ userId: string }>();
-
-  return [
-    {
-      type,
-      ctx: {
-        ...ctx,
-        userIds: users.filter((id) =>
-          muted.every(({ userId }) => userId !== id),
-        ),
-        initiatorId: post.authorId,
-      },
-    },
-  ];
 
   return [
     {
