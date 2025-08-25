@@ -127,10 +127,10 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
-const memory = 640;
+const memory = 760;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '600m',
-  memory: '400Mi',
+  memory: '520Mi',
 };
 const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,

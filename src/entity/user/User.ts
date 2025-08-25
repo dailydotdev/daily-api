@@ -33,6 +33,14 @@ export type UserFlags = Partial<{
   showPlusGift: boolean;
   country: string | null;
   city: string | null;
+  continent: string | null;
+  location: {
+    lastStored: Date | null;
+    accuracyRadius: number | null | undefined;
+    lat: number | null | undefined;
+    lng: number | null | undefined;
+  };
+  subdivision: string | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
