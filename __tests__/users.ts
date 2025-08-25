@@ -6689,7 +6689,7 @@ describe('query checkLocation', () => {
       continent: 'North America',
       subdivision: 'NY',
       location: {
-        lastStored: expect.any(Date),
+        lastStored: expect.any(String),
         accuracyRadius: 50,
         lat: 40.7128,
         lng: -74.006,
@@ -6726,7 +6726,7 @@ describe('query checkLocation', () => {
       continent: undefined,
       subdivision: undefined,
       location: {
-        lastStored: expect.any(Date),
+        lastStored: expect.any(String),
         accuracyRadius: undefined,
         lat: undefined,
         lng: undefined,
