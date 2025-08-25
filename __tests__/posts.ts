@@ -8789,6 +8789,27 @@ describe('query post analytics', () => {
       awards: 2,
     });
   });
+
+  it('should not return negative reputation', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(PostAnalytics)
+      .update({ id: 'p1-paq' }, { reputation: -5 });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1-paq',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.postAnalytics).toMatchObject({
+      id: 'p1-paq',
+      reputation: 0,
+    });
+  });
 });
 
 describe('query history for post analytics', () => {

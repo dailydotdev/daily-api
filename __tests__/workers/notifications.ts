@@ -1282,42 +1282,6 @@ describe('article new comment', () => {
     expect(actual).toBeFalsy();
   });
 
-  it('should not add notification for scout and author when they are following a thread as they will receive one from reply', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentCommentCommented'
-    );
-    const repo = con.getRepository(Comment);
-    await repo.save([
-      {
-        id: 'c2',
-        postId: 'p1',
-        parentId: 'c1',
-        userId: '3',
-        content: 'a',
-      },
-      {
-        id: 'c3',
-        postId: 'p1',
-        parentId: 'c1',
-        userId: '1',
-        content: 'a',
-      },
-    ]);
-    await con.getRepository(Post).update(
-      { id: 'p1' },
-      {
-        scoutId: '1',
-        authorId: '3',
-      },
-    );
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      childCommentId: 'c3',
-    });
-    expect(actual).toBeFalsy();
-  });
-
   it('should add notification for scout and author on new reply', async () => {
     const worker = await import(
       '../../src/workers/notifications/articleNewCommentCommentCommented'

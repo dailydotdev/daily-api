@@ -15,6 +15,11 @@ import { badUsersFixture, plusUsersFixture, usersFixture } from '../fixture';
 import { updateFlagsStatement } from '../../src/common';
 import { ioRedisPool } from '../../src/redis';
 import { cioV2 } from '../../src/cio';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../src/notifications/common';
 
 let con: DataSource;
 
@@ -237,6 +242,19 @@ describe('users for reactivation', () => {
       downgradeUsers: ['4'],
     });
 
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        notificationFlags: {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          [NotificationType.Marketing]: {
+            email: NotificationPreferenceStatus.Muted,
+            inApp: NotificationPreferenceStatus.Subscribed,
+          },
+        },
+      },
+    );
+
     const postSpy = jest
       .spyOn(cioModule.cioV2.request, 'post')
       .mockResolvedValue({});
@@ -255,12 +273,25 @@ describe('users for reactivation', () => {
         type: 'person',
         identifiers: { id: '1' },
         attributes: {
-          accepted_marketing: false,
           'cio_subscription_preferences.topics.topic_4': false,
-          'cio_subscription_preferences.topics.topic_7': true,
+          'cio_subscription_preferences.topics.topic_5': true,
           'cio_subscription_preferences.topics.topic_8': true,
-          'cio_subscription_preferences.topics.topic_9': true,
-          'cio_subscription_preferences.topics.topic_10': true,
+          'cio_subscription_preferences.topics.topic_1': true,
+          'cio_subscription_preferences.topics.topic_11': true,
+          'cio_subscription_preferences.topics.topic_12': true,
+          'cio_subscription_preferences.topics.topic_13': true,
+          'cio_subscription_preferences.topics.topic_14': true,
+          'cio_subscription_preferences.topics.topic_15': true,
+          'cio_subscription_preferences.topics.topic_16': true,
+          'cio_subscription_preferences.topics.topic_17': true,
+          'cio_subscription_preferences.topics.topic_18': true,
+          'cio_subscription_preferences.topics.topic_19': true,
+          'cio_subscription_preferences.topics.topic_20': true,
+          'cio_subscription_preferences.topics.topic_22': true,
+          'cio_subscription_preferences.topics.topic_23': true,
+          'cio_subscription_preferences.topics.topic_24': true,
+          'cio_subscription_preferences.topics.topic_25': true,
+          'cio_subscription_preferences.topics.topic_26': true,
           created_at: 1656427727,
           first_name: 'Ido',
           name: 'Ido',
