@@ -1484,6 +1484,12 @@ describe('mutation stopCampaign', () => {
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
+
+    // Verify campaign state is updated to cancelled
+    const campaign = await con
+      .getRepository(CampaignPost)
+      .findOneBy({ id: CAMPAIGN_UUID_1 });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should successfully cancel source campaign', async () => {
@@ -1538,6 +1544,12 @@ describe('mutation stopCampaign', () => {
 
     const source = await con.getRepository(Source).findOneBy({ id: 'm' });
     expect(source?.flags?.campaignId).toBeFalsy();
+
+    // Verify campaign state is updated to cancelled
+    const campaign = await con
+      .getRepository(CampaignSource)
+      .findOneBy({ id: CAMPAIGN_UUID_3 });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should handle skadi integration failure gracefully', async () => {
@@ -1584,6 +1596,12 @@ describe('mutation stopCampaign', () => {
     expect(finalTransactionCount).toBe(initialTransactionCount);
     const post = await con.getRepository(Post).findOneBy({ id: 'p2' });
     expect(post?.flags?.campaignId).toBe(CAMPAIGN_UUID_2);
+
+    // Verify campaign state remains active when cancellation fails
+    const campaign = await con
+      .getRepository(CampaignPost)
+      .findOneBy({ id: CAMPAIGN_UUID_2 });
+    expect(campaign?.state).toBe(CampaignState.Active);
   });
 
   it('should handle transfer failure gracefully', async () => {
@@ -1639,6 +1657,12 @@ describe('mutation stopCampaign', () => {
 
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBe(CAMPAIGN_UUID_5);
+
+    // Verify campaign state remains active when transfer fails
+    const campaign = await con
+      .getRepository(CampaignPost)
+      .findOneBy({ id: CAMPAIGN_UUID_5 });
+    expect(campaign?.state).toBe(CampaignState.Active);
   });
 });
 

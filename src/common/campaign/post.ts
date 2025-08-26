@@ -372,6 +372,10 @@ export const stopCampaignPost = async ({
     const toRefund = parseFloat(budget);
 
     await manager
+      .getRepository(CampaignPost)
+      .update({ id: campaignId }, { state: CampaignState.Cancelled });
+
+    await manager
       .getRepository(Post)
       .update(
         { id: referenceId },
