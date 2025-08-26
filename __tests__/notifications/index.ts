@@ -959,8 +959,8 @@ describe('generateNotification', () => {
     expect(actual.notification.type).toEqual(type);
     expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual(post.id);
-    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.referenceId).toEqual(source.id);
+    expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.uniqueKey).toEqual('2');
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21',
