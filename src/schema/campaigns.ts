@@ -32,8 +32,7 @@ import {
   validateSquadBoostPermissions,
 } from '../common/campaign/source';
 import { coresToUsd } from '../common/number';
-import type { CampaignReach } from '../integrations/skadi';
-import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
+import { skadiApiClientV2 } from '../integrations/skadi/api/v2/clients';
 
 interface GQLCampaign
   extends Pick<
@@ -217,7 +216,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: StartCampaignMutationArgs,
       ctx: AuthContext,
-    ): Promise<CampaignReach> => {
+    ): Promise<{ min: number; max: number }> => {
       const { value, budget, type } = args;
 
       validateCampaignArgs({ budget, duration: 1 });
@@ -237,7 +236,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const tags = await getReferenceTags(ctx.con, type, value);
       const { minImpressions, maxImpressions } =
-        await skadiApiClientV1.estimateBoostReachDaily({
+        await skadiApiClientV2.estimateBoostReachDaily({
           type,
           value,
           keywords: tags,

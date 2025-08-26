@@ -55,6 +55,7 @@ config:
     digestQueueConcurrency: 1000
     enablePubsub: true
     skadiApiOrigin: http://skadi-post-boost-api.local.svc.cluster.local
+    skadiApiOriginV2: http://skadi-api-server.local.svc.cluster.local
     freyjaOrigin: http://freyja
     gcloudProject: local
     heimdallOrigin: http://heimdall-api

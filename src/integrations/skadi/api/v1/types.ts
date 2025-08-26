@@ -1,10 +1,4 @@
 import type { User } from '../../../../entity';
-import type { Campaign, CampaignType } from '../../../../entity/campaign';
-
-export interface CampaignReach {
-  min: number;
-  max: number;
-}
 
 export interface EstimatedReach {
   impressions: number;
@@ -58,15 +52,6 @@ export interface GetCampaignsProps {
   limit: number;
 }
 
-export interface StartPostCampaignResponse {
-  campaign_id: string;
-}
-
-export interface CancelPostCampaignResponse {
-  budget: string;
-  error?: string;
-}
-
 export interface GetCampaignResponse
   extends Pick<
     PromotedPost,
@@ -94,29 +79,12 @@ export interface StartPostCampaignParams {
   durationInDays: number;
 }
 
-export enum TargetingType {
-  Boost = 'BOOST',
-  None = 'NONE',
-}
-
-export interface EstimatedDailyReachParams {
-  budget: number;
-  value: string;
-  type: CampaignType;
-  keywords?: string[];
-}
-
 export interface CancelCampaignArgs {
   campaignId: string;
   userId: string;
 }
 
 export interface ISkadiApiClientV1 {
-  startCampaign(campaign: Campaign): Promise<void>;
-  cancelCampaign(params: CancelCampaignArgs): Promise<{ budget: string }>;
-  estimateBoostReachDaily(
-    params: EstimatedDailyReachParams,
-  ): Promise<EstimatedReachResponse>;
   startPostCampaign(
     params: StartPostCampaignParams,
   ): Promise<{ campaignId: string }>;

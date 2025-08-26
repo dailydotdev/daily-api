@@ -44,6 +44,7 @@ import {
   UserTransactionType,
 } from '../../entity/user/UserTransaction';
 import { addDays } from 'date-fns';
+import { skadiApiClientV2 } from '../../integrations/skadi/api/v2/clients';
 
 export interface GQLPromotedPost
   extends Omit<
@@ -318,7 +319,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
     const campaignId = campaign.id;
     const tags = await getPostTags(manager, postId);
 
-    await skadiApiClientV1.startCampaign(campaign, tags);
+    await skadiApiClientV2.startCampaign(campaign, tags);
 
     await manager
       .getRepository(Post)
@@ -362,7 +363,7 @@ export const stopCampaignPost = async ({
 }: StopCampaignProps) => {
   const { id: campaignId, userId, referenceId } = campaign;
 
-  const { budget } = await skadiApiClientV1.cancelCampaign({
+  const { budget } = await skadiApiClientV2.cancelCampaign({
     campaignId,
     userId,
   });
