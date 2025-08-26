@@ -72,7 +72,7 @@ export const getSourceTags = async (
     [sourceId],
   );
 
-  return result.map(({ tag }) => tag.trim()).filter((tag) => tag.length > 0);
+  return result.map(({ tag }) => tag.trim()).filter(Boolean);
 };
 
 export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
