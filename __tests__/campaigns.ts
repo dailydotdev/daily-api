@@ -52,7 +52,7 @@ import * as njordCommon from '../src/common/njord';
 import { updateFlagsStatement } from '../src/common';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
 import nock from 'nock';
-import { getAdvertiserId } from '../src/integrations/skadi/api/clients';
+import { getAdvertiserId } from '../src/integrations/skadi/api/v2/clients';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),

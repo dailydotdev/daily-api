@@ -1,18 +1,5 @@
 import type { Campaign, CampaignType } from '../../../../entity/campaign';
-
-export interface EstimatedReach {
-  impressions: number;
-  clicks: number;
-  users: number;
-  min_impressions: number;
-  max_impressions: number;
-}
-
-export interface EstimatedReachResponse
-  extends Pick<EstimatedReach, 'impressions' | 'clicks' | 'users'> {
-  minImpressions: number;
-  maxImpressions: number;
-}
+import type { CancelCampaignArgs, EstimatedReachResponse } from '../common';
 
 export enum TargetingType {
   Boost = 'BOOST',
@@ -24,11 +11,6 @@ export interface EstimatedDailyReachParams {
   value: string;
   type: CampaignType;
   keywords?: string[];
-}
-
-export interface CancelCampaignArgs {
-  campaignId: string;
-  userId: string;
 }
 
 export interface CancelPostCampaignResponse {

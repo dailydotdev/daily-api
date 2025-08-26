@@ -157,7 +157,6 @@ import {
   getFormattedCampaign,
   getAdjustedReach,
 } from '../common/campaign/post';
-import type { CampaignReach } from '../integrations/skadi';
 import graphorm from '../graphorm';
 import { BriefingModel, BriefingType } from '../integrations/feed';
 import { BriefPost } from '../entity/posts/BriefPost';
@@ -169,6 +168,7 @@ import {
 } from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
+import type { CampaignReach } from '../integrations/skadi/api/common';
 
 export interface GQLPost {
   id: string;
