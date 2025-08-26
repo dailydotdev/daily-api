@@ -13,7 +13,7 @@ import { addDays } from 'date-fns';
 
 // Mock the skadi API client
 jest.mock('../../src/integrations/skadi/api/v1/clients', () => ({
-  skadiApiClient: {
+  skadiApiClientV1: {
     getCampaignById: jest.fn(),
   },
 }));
