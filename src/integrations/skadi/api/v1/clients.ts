@@ -5,17 +5,19 @@ import {
   type GetCampaignByIdProps,
   type GetCampaignResponse,
   type GetCampaignsProps,
-  type EstimatedReach,
-  type EstimatedReachResponse,
   type PromotedPost,
   type PromotedPostList,
   type StartPostCampaignParams,
-  type CancelCampaignArgs,
 } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../../../garmr';
 import { fetchOptions as globalFetchOptions } from '../../../../http';
 import { fetchParse } from '../../../retry';
 import { ONE_DAY_IN_SECONDS } from '../../../../common';
+import type {
+  CancelCampaignArgs,
+  EstimatedReachResponse,
+  EstimatedReach,
+} from '../common';
 
 const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
   campaignId: campaign.campaign_id,

@@ -1,8 +1,5 @@
 import { RequestInit } from 'node-fetch';
 import {
-  type EstimatedReach,
-  type EstimatedReachResponse,
-  type CancelCampaignArgs,
   type EstimatedDailyReachParams,
   TargetingType,
   type CancelPostCampaignResponse,
@@ -14,6 +11,11 @@ import { fetchParse } from '../../../retry';
 import { CampaignType, type Campaign } from '../../../../entity';
 import { v5 } from 'uuid';
 import { coresToUsd } from '../../../../common/number';
+import type {
+  CancelCampaignArgs,
+  EstimatedReachResponse,
+  EstimatedReach,
+} from '../common';
 
 const skadiNamespace = '67fb92c7-8105-43a9-802a-07aac76493cc';
 
