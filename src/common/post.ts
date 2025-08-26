@@ -904,12 +904,12 @@ export const ensurePostAnalyticsPermissions = async ({
 }: {
   ctx: AuthContext;
   postId: string;
-}) => {
+}): Promise<void> => {
   const { userId, isTeamMember } = ctx;
 
   // for now allow team members to view
   if (isTeamMember) {
-    return true;
+    return;
   }
 
   if (!userId) {
