@@ -786,6 +786,52 @@ describe('mutation startCampaign', () => {
     expect(post?.flags?.campaignId).toBeFalsy();
   });
 
+  it('should handle skadi 400 status response gracefully', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+      );
+
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/create', (body) => {
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
+        return (
+          body.advertiser_id === getAdvertiserId('1') &&
+          uuidRegex.test(body.campaign_id) &&
+          body.budget === 10 &&
+          Array.isArray(body.creatives) &&
+          body.creatives.length === 1 &&
+          body.creatives[0].type === 'post' &&
+          body.creatives[0].value === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
+        );
+      })
+      .reply(400, 'Invalid campaign parameters'); // 400 status with text response
+
+    const initialTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { type: 'post', value: 'p1', duration: 1, budget: 1000 },
+    });
+
+    expect(res.errors).toBeTruthy();
+    const finalTransactionCount = await con
+      .getRepository(UserTransaction)
+      .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+    expect(finalTransactionCount).toBe(initialTransactionCount);
+    const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+    expect(post?.flags?.campaignId).toBeFalsy();
+  });
+
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
     nock(process.env.SKADI_API_ORIGIN_V2)
@@ -805,7 +851,7 @@ describe('mutation startCampaign', () => {
           keywords.includes('webdev')
         );
       })
-      .reply(200, {});
+      .reply(200, ''); // Successful response with empty string
 
     const errorTransport = createMockNjordErrorTransport({
       errorStatus: 2,
@@ -911,7 +957,7 @@ describe('mutation startCampaign', () => {
             keywords.includes('webdev')
           );
         })
-        .reply(200, {});
+        .reply(200, ''); // Successful response with empty string (Skadi returns nothing on success)
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
@@ -940,6 +986,156 @@ describe('mutation startCampaign', () => {
       expect(post?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
       );
+    });
+
+    it('should handle skadi success response with JSON but no error field', async () => {
+      loggedUser = '1';
+      await con
+        .getRepository(Post)
+        .update(
+          { id: 'p1' },
+          { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+        );
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            body.advertiser_id === getAdvertiserId('1') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives.length === 1 &&
+            body.creatives[0].type === 'post' &&
+            body.creatives[0].value === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
+          );
+        })
+        .reply(200, { status: 'created' }); // 200 OK with JSON but no error field
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-success-json-no-error',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '1', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'post', value: 'p1', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.startCampaign.transactionId).toBeDefined();
+      expect(res.data.startCampaign.balance.amount).toBe(9000);
+
+      const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+      expect(post?.flags?.campaignId).toEqual(
+        res.data.startCampaign.referenceId,
+      );
+    });
+
+    it('should handle skadi success response with error field containing message', async () => {
+      loggedUser = '1';
+      await con
+        .getRepository(Post)
+        .update(
+          { id: 'p1' },
+          { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+        );
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            body.advertiser_id === getAdvertiserId('1') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives.length === 1 &&
+            body.creatives[0].type === 'post' &&
+            body.creatives[0].value === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
+          );
+        })
+        .reply(200, { error: 'Campaign already exists' }); // 200 OK but with error field in JSON
+
+      const initialTransactionCount = await con
+        .getRepository(UserTransaction)
+        .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'post', value: 'p1', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeTruthy();
+      const finalTransactionCount = await con
+        .getRepository(UserTransaction)
+        .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+      expect(finalTransactionCount).toBe(initialTransactionCount);
+      const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+      expect(post?.flags?.campaignId).toBeFalsy();
+    });
+
+    it('should handle skadi 500 status response gracefully', async () => {
+      loggedUser = '1';
+      await con
+        .getRepository(Post)
+        .update(
+          { id: 'p1' },
+          { flags: updateFlagsStatement<Post>({ campaignId: null }) },
+        );
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            body.advertiser_id === getAdvertiserId('1') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives.length === 1 &&
+            body.creatives[0].type === 'post' &&
+            body.creatives[0].value === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
+          );
+        })
+        .reply(500, 'Internal Server Error'); // 500 status with text response
+
+      const initialTransactionCount = await con
+        .getRepository(UserTransaction)
+        .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'post', value: 'p1', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeTruthy();
+      const finalTransactionCount = await con
+        .getRepository(UserTransaction)
+        .count({ where: { senderId: '1', referenceType: 'PostBoost' } });
+      expect(finalTransactionCount).toBe(initialTransactionCount);
+      const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+      expect(post?.flags?.campaignId).toBeFalsy();
     });
   });
 
@@ -991,7 +1187,7 @@ describe('mutation startCampaign', () => {
             body?.targeting?.type === 'NONE'
           );
         })
-        .reply(200, {});
+        .reply(200, ''); // Successful response with empty string (Skadi returns nothing on success)
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
@@ -1020,6 +1216,42 @@ describe('mutation startCampaign', () => {
       expect(source?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
       );
+    });
+
+    it('should handle source campaign error responses gracefully', async () => {
+      loggedUser = '3'; // moderator in 'm'
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'source' &&
+            body.creatives[0].value === 'm' &&
+            body?.targeting?.type === 'NONE'
+          );
+        })
+        .reply(400, 'Source campaign limit exceeded'); // 400 status with text response
+
+      const initialTransactionCount = await con
+        .getRepository(UserTransaction)
+        .count({ where: { senderId: '3', referenceType: 'PostBoost' } });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'source', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeTruthy();
+      const finalTransactionCount = await con
+        .getRepository(UserTransaction)
+        .count({ where: { senderId: '3', referenceType: 'PostBoost' } });
+      expect(finalTransactionCount).toBe(initialTransactionCount);
+      const source = await con.getRepository(Source).findOneBy({ id: 'm' });
+      expect(source?.flags?.campaignId).toBeFalsy();
     });
 
     it('should include recent squad tags when available for source campaign (>3 tags)', async () => {
@@ -1065,7 +1297,7 @@ describe('mutation startCampaign', () => {
             keywords.includes('squadtag4')
           );
         })
-        .reply(200, {});
+        .reply(200, ''); // Successful response with empty string
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
@@ -1128,7 +1360,7 @@ describe('mutation startCampaign', () => {
             body?.targeting?.type === 'NONE'
           );
         })
-        .reply(200, {});
+        .reply(200, ''); // Successful response with empty string
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({

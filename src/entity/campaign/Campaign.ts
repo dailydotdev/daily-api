@@ -12,15 +12,15 @@ import {
 import type { User } from '../user';
 
 export enum CampaignType {
-  Post = 'post',
-  Source = 'source',
+  Post = 'POST',
+  Source = 'SOURCE',
 }
 
 export enum CampaignState {
-  Pending = 'pending',
-  Active = 'active',
-  Completed = 'completed',
-  Cancelled = 'cancelled',
+  Pending = 'PENDING',
+  Active = 'ACTIVE',
+  Completed = 'COMPLETED',
+  Cancelled = 'CANCELLED',
 }
 
 export interface CampaignFlags {

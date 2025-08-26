@@ -74,7 +74,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
     const targeting = generateTargeting(type, referenceId, keywords);
 
     return this.garmr.execute(async () => {
-      const response = (await fetch(`${this.url}/api/campaign/create`, {
+      const response = await fetch(`${this.url}/api/campaign/create`, {
         ...this.fetchOptions,
         method: 'POST',
         headers: {
@@ -89,10 +89,22 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
           creatives: [{ id: creativeId, type, value: referenceId }],
           targeting,
         }),
-      })) as { error?: string };
+      });
 
-      if (response.error) {
-        throw new Error(response.error);
+      const text = await response.text();
+
+      if (!response.ok) {
+        throw new Error(text || 'An error occured starting the campaign');
+      }
+
+      if (!text) {
+        return; // Skadi returns nothing when successful
+      }
+
+      const { error } = JSON.parse(text);
+
+      if (error) {
+        throw new Error(error);
       }
     });
   }
