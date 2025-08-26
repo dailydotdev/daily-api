@@ -33,7 +33,7 @@ import {
 } from '../common/campaign/source';
 import { coresToUsd } from '../common/number';
 import type { CampaignReach } from '../integrations/skadi';
-import { skadiApiClient } from '../integrations/skadi/api/clients';
+import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
 
 interface GQLCampaign
   extends Pick<
@@ -57,6 +57,7 @@ export const typeDefs = /* GraphQL */ `
 
   type Campaign {
     id: String!
+    referenceId: String!
     type: String!
     state: String!
     createdAt: DateTime!
@@ -236,7 +237,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const tags = await getReferenceTags(ctx.con, type, value);
       const { minImpressions, maxImpressions } =
-        await skadiApiClient.estimateBoostReachDaily({
+        await skadiApiClientV1.estimateBoostReachDaily({
           type,
           value,
           keywords: tags,

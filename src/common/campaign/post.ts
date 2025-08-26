@@ -23,7 +23,7 @@ import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
 import { debeziumTimeToDate, systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
-import { skadiApiClient } from '../../integrations/skadi/api/clients';
+import { skadiApiClientV1 } from '../../integrations/skadi/api/v1/clients';
 import { largeNumberFormat } from '../devcard';
 import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
@@ -226,7 +226,7 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
   user,
   notification,
 ) => {
-  const campaign = await skadiApiClient.getCampaignById({
+  const campaign = await skadiApiClientV1.getCampaignById({
     campaignId: notification.referenceId!,
     userId: user.id,
   });
@@ -318,7 +318,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
     const campaignId = campaign.id;
     const tags = await getPostTags(manager, postId);
 
-    await skadiApiClient.startCampaign(campaign, tags);
+    await skadiApiClientV1.startCampaign(campaign, tags);
 
     await manager
       .getRepository(Post)
@@ -362,7 +362,7 @@ export const stopCampaignPost = async ({
 }: StopCampaignProps) => {
   const { id: campaignId, userId, referenceId } = campaign;
 
-  const { budget } = await skadiApiClient.cancelCampaign({
+  const { budget } = await skadiApiClientV1.cancelCampaign({
     campaignId,
     userId,
   });

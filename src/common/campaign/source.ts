@@ -28,7 +28,7 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../../entity/user/UserTransaction';
-import { skadiApiClient } from '../../integrations/skadi/api/clients';
+import { skadiApiClientV1 } from '../../integrations/skadi/api/v1/clients';
 import { usdToCores } from '../number';
 import { systemUser, updateFlagsStatement } from '../utils';
 
@@ -112,7 +112,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const last30tags = await getSourceTags(manager, source.id);
     const finalTags = last30tags.length > 3 ? last30tags : []; // when it is 3 or below, we set global targeting
 
-    await skadiApiClient.startCampaign(campaign, finalTags);
+    await skadiApiClientV1.startCampaign(campaign, finalTags);
 
     await manager
       .getRepository(Source)
@@ -156,7 +156,7 @@ export const stopCampaignSource = async ({
 }: StopCampaignProps) => {
   const { id: campaignId, userId, referenceId } = campaign;
 
-  const { budget } = await skadiApiClient.cancelCampaign({
+  const { budget } = await skadiApiClientV1.cancelCampaign({
     campaignId,
     userId,
   });

@@ -1,3 +1,3 @@
 export * from './types';
 export { SkadiClient, skadiPersonalizedDigestClient } from './clients';
-export * from './api';
+export * from './api/v1';

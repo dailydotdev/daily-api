@@ -1,5 +1,5 @@
-import type { User } from '../../../entity';
-import type { Campaign, CampaignType } from '../../../entity/campaign';
+import type { User } from '../../../../entity';
+import type { Campaign, CampaignType } from '../../../../entity/campaign';
 
 export interface CampaignReach {
   min: number;
@@ -111,7 +111,7 @@ export interface CancelCampaignArgs {
   userId: string;
 }
 
-export interface ISkadiApiClient {
+export interface ISkadiApiClientV1 {
   startCampaign(campaign: Campaign): Promise<void>;
   cancelCampaign(params: CancelCampaignArgs): Promise<{ budget: string }>;
   estimateBoostReachDaily(

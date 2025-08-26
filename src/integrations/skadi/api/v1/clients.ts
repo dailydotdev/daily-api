@@ -1,6 +1,6 @@
 import { RequestInit } from 'node-fetch';
 import {
-  ISkadiApiClient,
+  ISkadiApiClientV1,
   type CancelPostCampaignResponse,
   type EstimatedPostBoostReachParams,
   type GetCampaignByIdProps,
@@ -16,13 +16,13 @@ import {
   type EstimatedDailyReachParams,
   TargetingType,
 } from './types';
-import { GarmrNoopService, IGarmrService, GarmrService } from '../../garmr';
-import { fetchOptions as globalFetchOptions } from '../../../http';
-import { fetchParse } from '../../retry';
-import { ONE_DAY_IN_SECONDS } from '../../../common';
-import { CampaignType, type Campaign } from '../../../entity';
+import { GarmrNoopService, IGarmrService, GarmrService } from '../../../garmr';
+import { fetchOptions as globalFetchOptions } from '../../../../http';
+import { fetchParse } from '../../../retry';
+import { ONE_DAY_IN_SECONDS } from '../../../../common';
+import { CampaignType, type Campaign } from '../../../../entity';
 import { v5 } from 'uuid';
-import { coresToUsd } from '../../../common/number';
+import { coresToUsd } from '../../../../common/number';
 
 const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
   campaignId: campaign.campaign_id,
@@ -58,7 +58,7 @@ const generateTargeting = (
   };
 };
 
-export class SkadiApiClient implements ISkadiApiClient {
+export class SkadiApiClientV1 implements ISkadiApiClientV1 {
   private readonly fetchOptions: RequestInit;
   private readonly garmr: IGarmrService;
 
@@ -335,7 +335,7 @@ export class SkadiApiClient implements ISkadiApiClient {
 }
 
 const garmBoostService = new GarmrService({
-  service: SkadiApiClient.name,
+  service: SkadiApiClientV1.name,
   breakerOpts: {
     halfOpenAfter: 5 * 1000,
     threshold: 0.1,
@@ -346,6 +346,7 @@ const garmBoostService = new GarmrService({
   },
 });
 
-export const skadiApiClient = new SkadiApiClient(process.env.SKADI_API_ORIGIN, {
-  garmr: garmBoostService,
-});
+export const skadiApiClientV1 = new SkadiApiClientV1(
+  process.env.SKADI_API_ORIGIN,
+  { garmr: garmBoostService },
+);
