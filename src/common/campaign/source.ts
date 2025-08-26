@@ -55,7 +55,7 @@ export const getSourceTags = async (
 ): Promise<string[]> => {
   const result = await con.getRepository(Post).query<{ tag: string }[]>(
     `
-      SELECT  ps.keyword AS tag
+      SELECT  DISTINCT ps.keyword AS tag
 
       FROM    from post_keyword ps
       INNER   JOIN post p
