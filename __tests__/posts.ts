@@ -1,4 +1,5 @@
 import {
+  createMockNjordTransport,
   disposeGraphQLTesting,
   expectTypedEvent,
   GraphQLTestClient,
@@ -86,6 +87,8 @@ import {
 import { generateUUID } from '../src/ids';
 import { GQLResponse } from 'mercurius-integration-testing';
 import type { GQLPostSmartTitle } from '../src/schema/posts';
+import { TransferError } from '../src/errors';
+import { TransferStatus, TransferType } from '@dailydotdev/schema';
 import { SubscriptionCycles } from '../src/paddle';
 import { remoteConfig } from '../src/remoteConfig';
 import {
@@ -101,12 +104,17 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
-import { TransferResult, UserBriefingRequest } from '@dailydotdev/schema';
+import {
+  Credits,
+  TransferResult,
+  UserBriefingRequest,
+} from '@dailydotdev/schema';
 import { addDays, format, subDays } from 'date-fns';
 import { PostAnalytics } from '../src/entity/posts/PostAnalytics';
 import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
 import * as njordCommon from '../src/common/njord';
 import { BriefPost } from '../src/entity/posts/BriefPost';
+import { createClient } from '@connectrpc/connect';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -1258,7 +1266,7 @@ describe('query post', () => {
 
     it('should return true if clickbait title probability (string) is above threshold', async () => {
       await con.getRepository(ArticlePost).update('p1', {
-        contentQuality: { is_clickbait_probability: '1.99' }, // Use 1.99 as it's above the fallback threshold
+        contentQuality: { is_clickbait_probability: 1.99 }, // Use 1.99 as it's above the fallback threshold
         contentMeta: { alt_title: { translations: { en: 'Clickbait title' } } },
       });
 
@@ -8391,6 +8399,12 @@ describe('query post awards', () => {
 });
 
 describe('mutation generateBriefing', () => {
+  const mockTransport = createMockNjordTransport();
+
+  jest
+    .spyOn(njordCommon, 'getNjordClient')
+    .mockImplementation(() => createClient(Credits, mockTransport));
+
   const MUTATION = `
   mutation GenerateBriefing($type: BriefingType!) {
   generateBriefing(type: $type) {
@@ -8506,6 +8520,11 @@ describe('mutation generateBriefing', () => {
     // Mock successful transfer
     jest.spyOn(njordCommon, 'transferCores').mockResolvedValue({
       id: 'transfer-123',
+      senderBalance: {
+        newBalance: BigInt(400), // 500 - 100 (cost)
+        previousBalance: BigInt(500),
+        changeAmount: BigInt(-100),
+      },
     } as TransferResult);
 
     const res = await client.mutate(MUTATION, {
@@ -8550,6 +8569,11 @@ describe('mutation generateBriefing', () => {
     // Mock successful transfer
     jest.spyOn(njordCommon, 'transferCores').mockResolvedValue({
       id: 'transfer-124',
+      senderBalance: {
+        newBalance: BigInt(100), // 600 - 500 (weekly cost)
+        previousBalance: BigInt(600),
+        changeAmount: BigInt(-500),
+      },
     } as TransferResult);
 
     const res = await client.mutate(MUTATION, {
@@ -8591,23 +8615,44 @@ describe('mutation generateBriefing', () => {
       amount: 100, // Less than required 300
     });
 
+    // Mock transfer failure due to insufficient cores
+    jest.spyOn(njordCommon, 'transferCores').mockRejectedValue(
+      new TransferError({
+        status: TransferStatus.INSUFFICIENT_FUNDS,
+        errorMessage: 'Insufficient balance',
+        idempotencyKey: 'test-key',
+        results: [
+          {
+            senderId: loggedUser,
+            transferType: TransferType.TRANSFER,
+            senderBalance: {
+              newBalance: BigInt(100),
+              previousBalance: BigInt(100),
+              changeAmount: BigInt(0),
+            },
+          },
+        ],
+      } as any)
+    );
+
     await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
         variables,
       },
-      'FORBIDDEN',
+      'BALANCE_TRANSACTION_ERROR',
     );
 
-    // Should not create any transaction
+    // Should create a transaction with failed status
     const transactions = await con.getRepository(UserTransaction).find({
       where: {
         senderId: loggedUser,
         referenceType: UserTransactionType.BriefGeneration,
       },
     });
-    expect(transactions).toHaveLength(0);
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].status).toEqual(TransferStatus.INSUFFICIENT_FUNDS);
   });
 
   it('should not start briefing generation if already generating', async () => {

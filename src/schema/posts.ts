@@ -141,6 +141,7 @@ import {
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
+  type GetBalanceResult,
   throwUserTransactionError,
   type TransactionCreated,
   transferCores,
@@ -968,6 +969,7 @@ export const typeDefs = /* GraphQL */ `
 
   type GenerateBriefingResponse {
     postId: String!
+    balance: UserBalance
   }
 
   type PostAnalytics {
@@ -3379,8 +3381,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { type }: { type: BriefingType },
       ctx: AuthContext,
-    ): Promise<{ postId: string }> => {
+    ): Promise<{ postId: string; balance?: GetBalanceResult }> => {
       const { isPlus, userId, isTeamMember } = ctx;
+      let balance;
 
       if (isPlus) {
         // No need to check balance or brief cost, just perform the request
@@ -3399,63 +3402,71 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (!isFree) {
         // perform the transaction then request generation
-        await ctx.con.transaction(async (entityManager) => {
-          const userTransaction = await entityManager
-            .getRepository(UserTransaction)
-            .save(
-              entityManager.getRepository(UserTransaction).create({
-                id: randomUUID(),
-                processor: UserTransactionProcessor.Njord,
-                receiverId: systemUser.id,
-                status: UserTransactionStatus.Success,
-                productId: null,
-                senderId: userId,
-                value: briefCost,
-                valueIncFees: 0,
-                fee: 0,
-                request: ctx.requestMeta,
-                flags: { note: `Brief generation - ${type}` },
-                referenceId: null,
-                referenceType: UserTransactionType.BriefGeneration,
-              }),
-            );
+        const { transfer } = await ctx.con.transaction(
+          async (entityManager) => {
+            const userTransaction = await entityManager
+              .getRepository(UserTransaction)
+              .save(
+                entityManager.getRepository(UserTransaction).create({
+                  id: randomUUID(),
+                  processor: UserTransactionProcessor.Njord,
+                  receiverId: systemUser.id,
+                  status: UserTransactionStatus.Success,
+                  productId: null,
+                  senderId: userId,
+                  value: briefCost,
+                  valueIncFees: 0,
+                  fee: 0,
+                  request: ctx.requestMeta,
+                  flags: { note: `Brief generation - ${type}` },
+                  referenceId: null,
+                  referenceType: UserTransactionType.BriefGeneration,
+                }),
+              );
 
-          try {
-            const transfer = await transferCores({
-              ctx,
-              transaction: userTransaction,
-              entityManager,
-            });
-            return { transfer };
-          } catch (error) {
-            // log error with details
-            logger.warn(
-              {
-                userId,
-                briefType: type,
-                briefCost,
-              },
-              'User attempted to generate brief but failed',
-            );
-
-            if (error instanceof TransferError) {
-              await throwUserTransactionError({
+            try {
+              const transfer = await transferCores({
                 ctx,
-                entityManager,
-                error,
                 transaction: userTransaction,
+                entityManager,
               });
+              return { transfer };
+            } catch (error) {
+              // log error with details
+              logger.warn(
+                {
+                  userId,
+                  briefType: type,
+                  briefCost,
+                },
+                'User attempted to generate brief but failed',
+              );
+
+              if (error instanceof TransferError) {
+                await throwUserTransactionError({
+                  ctx,
+                  entityManager,
+                  error,
+                  transaction: userTransaction,
+                });
+              }
+              throw error;
             }
-            throw error;
-          }
-        });
+          },
+        );
+
+        balance = {
+          amount: parseBigInt(transfer.senderBalance!.newBalance),
+        };
       }
 
-      return await requestBriefGeneration(ctx.con, {
+      const result = await requestBriefGeneration(ctx.con, {
         userId,
         type,
         isTeamMember,
       });
+
+      return { ...result, balance };
     },
   },
   Subscription: {
