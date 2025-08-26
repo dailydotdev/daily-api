@@ -1601,11 +1601,13 @@ describe('query dailyCampaignReachEstimate', () => {
           );
         })
         .reply(200, {
-          impressions: 100,
-          clicks: 5,
-          users: 50,
-          min_impressions: 45,
-          max_impressions: 55,
+          reach: {
+            impressions: 100,
+            clicks: 5,
+            users: 50,
+            min_impressions: 45,
+            max_impressions: 55,
+          },
         });
 
       const res = await client.query(QUERY, {
@@ -1634,11 +1636,13 @@ describe('query dailyCampaignReachEstimate', () => {
           );
         })
         .reply(200, {
-          impressions: 50,
-          clicks: 3,
-          users: 25,
-          min_impressions: 23,
-          max_impressions: 27,
+          reach: {
+            impressions: 50,
+            clicks: 3,
+            users: 25,
+            min_impressions: 23,
+            max_impressions: 27,
+          },
         });
 
       const res = await client.query(QUERY, {
@@ -1667,11 +1671,13 @@ describe('query dailyCampaignReachEstimate', () => {
           );
         })
         .reply(200, {
-          impressions: 50000,
-          clicks: 2500,
-          users: 15000,
-          min_impressions: 13800,
-          max_impressions: 16200,
+          reach: {
+            impressions: 50000,
+            clicks: 2500,
+            users: 15000,
+            min_impressions: 13800,
+            max_impressions: 16200,
+          },
         });
 
       const res = await client.query(QUERY, {
@@ -1684,6 +1690,34 @@ describe('query dailyCampaignReachEstimate', () => {
         max: 16200,
       });
     });
+  });
+
+  it('should handle API errors gracefully', async () => {
+    loggedUser = '1';
+
+    // Mock the HTTP response with error
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
+        return (
+          body.budget === 20 &&
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
+        );
+      })
+      .reply(200, {
+        error: 'Skadi service unavailable',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...postParams, budget: 2000 },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].message).toContain('Skadi service unavailable');
   });
 
   it('should return estimated reach with budget and duration parameters', async () => {
@@ -1703,11 +1737,13 @@ describe('query dailyCampaignReachEstimate', () => {
         );
       })
       .reply(200, {
-        impressions: 500,
-        clicks: 40,
-        users: 180,
-        min_impressions: 166,
-        max_impressions: 194,
+        reach: {
+          impressions: 500,
+          clicks: 40,
+          users: 180,
+          min_impressions: 166,
+          max_impressions: 194,
+        },
       });
 
     const res = await client.query(QUERY, {
@@ -1747,11 +1783,13 @@ describe('query dailyCampaignReachEstimate', () => {
         );
       })
       .reply(200, {
-        impressions: 150,
-        clicks: 10,
-        users: 65,
-        min_impressions: 60,
-        max_impressions: 70,
+        reach: {
+          impressions: 150,
+          clicks: 10,
+          users: 65,
+          min_impressions: 60,
+          max_impressions: 70,
+        },
       });
 
     const res = await client.query(QUERY, {
@@ -1781,11 +1819,13 @@ describe('query dailyCampaignReachEstimate', () => {
         );
       })
       .reply(200, {
-        impressions: 200,
-        clicks: 12,
-        users: 90,
-        min_impressions: 83,
-        max_impressions: 97,
+        reach: {
+          impressions: 200,
+          clicks: 12,
+          users: 90,
+          min_impressions: 83,
+          max_impressions: 97,
+        },
       });
 
     const res = await client.query(QUERY, {
@@ -1816,11 +1856,13 @@ describe('query dailyCampaignReachEstimate', () => {
         );
       })
       .reply(200, {
-        impressions: 200,
-        clicks: 15,
-        users: 100,
-        min_impressions: 75, // Same value
-        max_impressions: 75, // Same value
+        reach: {
+          impressions: 200,
+          clicks: 15,
+          users: 100,
+          min_impressions: 75, // Same value
+          max_impressions: 75, // Same value
+        },
       });
 
     const res = await client.query(QUERY, {
@@ -1848,11 +1890,13 @@ describe('query dailyCampaignReachEstimate', () => {
         );
       })
       .reply(200, {
-        impressions: 150,
-        clicks: 8,
-        users: 75,
-        min_impressions: 69,
-        max_impressions: 81,
+        reach: {
+          impressions: 150,
+          clicks: 8,
+          users: 75,
+          min_impressions: 69,
+          max_impressions: 81,
+        },
       });
 
     const postRes = await client.query(QUERY, {
@@ -1879,11 +1923,13 @@ describe('query dailyCampaignReachEstimate', () => {
         );
       })
       .reply(200, {
-        impressions: 200,
-        clicks: 12,
-        users: 100,
-        min_impressions: 92,
-        max_impressions: 108,
+        reach: {
+          impressions: 200,
+          clicks: 12,
+          users: 100,
+          min_impressions: 92,
+          max_impressions: 108,
+        },
       });
 
     const sourceRes = await client.query(QUERY, {

@@ -137,20 +137,24 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
     const targeting = generateTargeting(type, value, keywords);
 
     return this.garmr.execute(async () => {
-      const { reach } = await fetchParse<{ reach: EstimatedReach }>(
-        `${this.url}/campaign/reach`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            budget,
-            targeting,
-          }),
+      const { reach, error } = await fetchParse<{
+        reach: EstimatedReach;
+        error?: string;
+      }>(`${this.url}/campaign/reach`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          budget,
+          targeting,
+        }),
+      });
+
+      if (error) {
+        throw new Error(error);
+      }
 
       return {
         impressions: reach.impressions ?? 0,
