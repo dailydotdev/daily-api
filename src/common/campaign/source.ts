@@ -3,7 +3,9 @@ import {
   CampaignSource,
   CampaignState,
   CampaignType,
+  Post,
   Source,
+  type ConnectionManager,
 } from '../../entity';
 
 import type { AuthContext } from '../../Context';
@@ -27,7 +29,7 @@ import {
   UserTransactionType,
 } from '../../entity/user/UserTransaction';
 import { skadiApiClient } from '../../integrations/skadi/api/clients';
-import { coresToUsd, usdToCores } from '../number';
+import { usdToCores } from '../number';
 import { systemUser, updateFlagsStatement } from '../utils';
 
 export const validateSquadBoostPermissions = async (
@@ -47,6 +49,32 @@ export const validateSquadBoostPermissions = async (
   return source;
 };
 
+export const getSourceTags = async (
+  con: ConnectionManager,
+  sourceId: string,
+): Promise<string[]> => {
+  const result = await con.getRepository(Post).query<{ tag: string }[]>(
+    `
+      WITH recent_posts AS (
+        SELECT id, "sharedPostId"
+        FROM post
+        WHERE "sourceId" = $1
+        ORDER BY "createdAt" DESC
+        LIMIT 30
+      )
+      SELECT DISTINCT ps.keyword AS tag
+      FROM post_keyword ps
+      INNER JOIN recent_posts rp
+        ON ps."postId" = rp.id
+        OR ps."postId" = rp."sharedPostId"
+      LIMIT 30;
+    `,
+    [sourceId],
+  );
+
+  return result.map(({ tag }) => tag.trim()).filter(Boolean);
+};
+
 export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
   const { value } = args;
@@ -54,6 +82,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
 
   const request = await ctx.con.transaction(async (manager) => {
     const id = randomUUID();
+    const creativeId = randomUUID();
     const { budget, duration } = args;
     const total = budget * duration;
     const userId = ctx.userId;
@@ -62,6 +91,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const campaign = await manager.getRepository(CampaignPost).save(
       manager.getRepository(CampaignSource).create({
         id,
+        creativeId,
         flags: {
           budget: total,
           spend: 0,
@@ -79,14 +109,10 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     );
 
     const campaignId = campaign.id;
+    const last30tags = await getSourceTags(manager, source.id);
+    const finalTags = last30tags.length > 3 ? last30tags : []; // when it is 3 or below, we set global targeting
 
-    await skadiApiClient.startCampaign({
-      value: campaign.id,
-      type: campaign.type,
-      durationInDays: duration,
-      budget: coresToUsd(budget),
-      userId: campaign.userId,
-    });
+    await skadiApiClient.startCampaign(campaign, finalTags);
 
     await manager
       .getRepository(Source)
@@ -130,13 +156,13 @@ export const stopCampaignSource = async ({
 }: StopCampaignProps) => {
   const { id: campaignId, userId, referenceId } = campaign;
 
-  const { currentBudget } = await skadiApiClient.cancelCampaign({
+  const { budget } = await skadiApiClient.cancelCampaign({
     campaignId,
     userId,
   });
 
   const result = await ctx.con.transaction(async (manager) => {
-    const toRefund = parseFloat(currentBudget);
+    const toRefund = parseFloat(budget);
 
     await manager
       .getRepository(Source)

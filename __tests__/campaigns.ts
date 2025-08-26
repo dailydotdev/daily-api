@@ -11,6 +11,7 @@ import {
 import {
   ArticlePost,
   Post,
+  PostKeyword,
   PostTag,
   Source,
   SourceMember,
@@ -18,6 +19,7 @@ import {
   SquadSource,
   User,
   YouTubePost,
+  PostType,
 } from '../src/entity';
 import {
   CampaignPost,
@@ -50,6 +52,7 @@ import * as njordCommon from '../src/common/njord';
 import { updateFlagsStatement } from '../src/common';
 import { UserTransaction } from '../src/entity/user/UserTransaction';
 import nock from 'nock';
+import { getAdvertiserId } from '../src/integrations/skadi/api/clients';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -643,7 +646,7 @@ describe('query campaignsList', () => {
 describe('mutation startCampaign', () => {
   const MUTATION = /* GraphQL */ `
     mutation StartCampaign(
-      $type: String!
+      $type: CampaignType!
       $value: ID!
       $duration: Int!
       $budget: Int!
@@ -747,17 +750,22 @@ describe('mutation startCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/create', (body) => {
-        const matched =
-          body.user_id === '1' &&
-          body.budget === 10 &&
-          body.duration === 86400 &&
-          body.type === 'post';
-
-        const matchedUuidRegex =
+      .post('/campaign/create', (body) => {
+        const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-        return matched && matchedUuidRegex.test(body.value);
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
+        return (
+          body.advertiser_id === getAdvertiserId('1') &&
+          uuidRegex.test(body.campaign_id) &&
+          body.budget === 10 &&
+          Array.isArray(body.creatives) &&
+          body.creatives.length === 1 &&
+          body.creatives[0].type === 'post' &&
+          body.creatives[0].value === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
+        );
       })
       .replyWithError('Skadi API is down');
 
@@ -781,19 +789,23 @@ describe('mutation startCampaign', () => {
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/create', (body) => {
-        const matched =
-          body.user_id === '1' &&
-          body.budget === 10 &&
-          body.duration === 86400 &&
-          body.type === 'post';
-
-        const matchedUuidRegex =
+      .post('/campaign/create', (body) => {
+        const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-        return matched && matchedUuidRegex.test(body.value);
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
+        return (
+          body.advertiser_id === getAdvertiserId('1') &&
+          uuidRegex.test(body.campaign_id) &&
+          body.budget === 10 &&
+          Array.isArray(body.creatives) &&
+          body.creatives[0].type === 'post' &&
+          body.creatives[0].value === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
+        );
       })
-      .reply(200, { campaign_id: 'mock-campaign-id' });
+      .reply(200, {});
 
     const errorTransport = createMockNjordErrorTransport({
       errorStatus: 2,
@@ -883,19 +895,23 @@ describe('mutation startCampaign', () => {
     it('should successfully start post campaign', async () => {
       loggedUser = '1';
       nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/create', (body) => {
-          const matched =
-            body.user_id === '1' &&
-            body.budget === 10 &&
-            body.duration === 86400 &&
-            body.type === 'post';
-
-          const matchedUuidRegex =
+        .post('/campaign/create', (body) => {
+          const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-          return matched && matchedUuidRegex.test(body.value);
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            body.advertiser_id === getAdvertiserId('1') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'post' &&
+            body.creatives[0].value === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
+          );
         })
-        .reply(200, { campaign_id: 'mock-campaign-id' });
+        .reply(200, {});
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
@@ -962,19 +978,20 @@ describe('mutation startCampaign', () => {
     it('should successfully start source campaign', async () => {
       loggedUser = '3'; // moderator in 'm'
       nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/create', (body) => {
-          const matched =
-            body.user_id === '3' &&
-            body.budget === 10 &&
-            body.duration === 86400 &&
-            body.type === 'source';
-
-          const matchedUuidRegex =
+        .post('/campaign/create', (body) => {
+          const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-
-          return matched && matchedUuidRegex.test(body.value);
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'source' &&
+            body.creatives[0].value === 'm' &&
+            body?.targeting?.type === 'NONE'
+          );
         })
-        .reply(200, { campaign_id: 'mock-campaign-id' });
+        .reply(200, {});
 
       const testNjordClient = njordCommon.getNjordClient();
       await testNjordClient.transfer({
@@ -1003,6 +1020,136 @@ describe('mutation startCampaign', () => {
       expect(source?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
       );
+    });
+
+    it('should include recent squad tags when available for source campaign (>3 tags)', async () => {
+      loggedUser = '3'; // moderator in 'm'
+
+      // Insert a recent post in squad 'm' with tags so getSourceTags returns keywords
+      await con.getRepository(Post).save({
+        id: 'mp1',
+        shortId: 'mp1',
+        title: 'M Post 1',
+        url: 'http://mp1.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        visible: true,
+      });
+
+      // Add keywords to PostKeyword table
+      await con.getRepository(PostKeyword).save([
+        { postId: 'mp1', keyword: 'squadtag1' },
+        { postId: 'mp1', keyword: 'squadtag2' },
+        { postId: 'mp1', keyword: 'squadtag3' },
+        { postId: 'mp1', keyword: 'squadtag4' },
+      ]);
+
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'source' &&
+            body.creatives[0].value === 'm' &&
+            body?.targeting?.type === 'BOOST' &&
+            Array.isArray(keywords) &&
+            keywords.includes('squadtag1') &&
+            keywords.includes('squadtag2') &&
+            keywords.includes('squadtag3') &&
+            keywords.includes('squadtag4')
+          );
+        })
+        .reply(200, {});
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-source-campaign-with-tags',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'source', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const source = await con.getRepository(Source).findOneBy({ id: 'm' });
+      expect(source?.flags?.campaignId).toEqual(
+        res.data.startCampaign.referenceId,
+      );
+    });
+
+    it('should not send keywords when squad has 3 or fewer tags', async () => {
+      loggedUser = '3';
+
+      await con.getRepository(Post).save({
+        id: 'mp2',
+        shortId: 'mp2',
+        title: 'M Post 2',
+        url: 'http://mp2.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        visible: true,
+      });
+
+      // Add keywords to PostKeyword table (3 or fewer tags)
+      await con.getRepository(PostKeyword).save([
+        { postId: 'mp2', keyword: 'one' },
+        { postId: 'mp2', keyword: 'two' },
+        { postId: 'mp2', keyword: 'three' },
+      ]);
+
+      nock(process.env.SKADI_API_ORIGIN)
+        .post('/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'source' &&
+            body.creatives[0].value === 'm' &&
+            body?.targeting?.type === 'NONE'
+          );
+        })
+        .reply(200, {});
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-source-campaign-with-3-tags',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'source', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
     });
   });
 });
@@ -1071,14 +1218,13 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post(
-        '/promote/cancel',
-        JSON.stringify({
-          campaign_id: CAMPAIGN_UUID_1,
-          user_id: '1',
-        }),
-      )
-      .reply(200, { current_budget: '5.5' });
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_1 &&
+          body?.advertiser_id === getAdvertiserId('1')
+        );
+      })
+      .reply(200, { budget: '5.5' });
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
@@ -1129,14 +1275,13 @@ describe('mutation stopCampaign', () => {
     );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post(
-        '/promote/cancel',
-        JSON.stringify({
-          campaign_id: CAMPAIGN_UUID_3,
-          user_id: '3',
-        }),
-      )
-      .reply(200, { current_budget: '3.25' });
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_3 &&
+          body?.advertiser_id === getAdvertiserId('3')
+        );
+      })
+      .reply(200, { budget: '3.25' });
 
     const testNjordClient = njordCommon.getNjordClient();
     await testNjordClient.transfer({
@@ -1184,14 +1329,13 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post(
-        '/promote/cancel',
-        JSON.stringify({
-          campaign_id: CAMPAIGN_UUID_2,
-          user_id: '1',
-        }),
-      )
-      .reply(500, { error: 'Skadi service unavailable' });
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_2 &&
+          body?.advertiser_id === getAdvertiserId('1')
+        );
+      })
+      .reply(200, { error: 'Skadi service unavailable' });
 
     const initialTransactionCount = await con
       .getRepository(UserTransaction)
@@ -1231,14 +1375,13 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN)
-      .post(
-        '/promote/cancel',
-        JSON.stringify({
-          campaign_id: CAMPAIGN_UUID_5,
-          user_id: '1',
-        }),
-      )
-      .reply(200, { current_budget: '5.5' });
+      .post('/campaign/cancel', (body) => {
+        return (
+          body?.campaign_id === CAMPAIGN_UUID_5 &&
+          body?.advertiser_id === getAdvertiserId('1')
+        );
+      })
+      .reply(200, { budget: '5.5' });
 
     const errorTransport = createMockNjordErrorTransport({
       errorStatus: 2,
@@ -1270,15 +1413,13 @@ describe('mutation stopCampaign', () => {
 describe('query dailyCampaignReachEstimate', () => {
   const QUERY = `
     query DailyCampaignReachEstimate(
-      $type: String!
+      $type: CampaignType!
       $value: ID!
-      $duration: Int!
       $budget: Int!
     ) {
       dailyCampaignReachEstimate(
         type: $type
         value: $value
-        duration: $duration
         budget: $budget
       ) {
         min
@@ -1297,7 +1438,7 @@ describe('query dailyCampaignReachEstimate', () => {
   it('should not authorize when not logged in', () =>
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: { ...postParams, budget: 5000, duration: 7 } },
+      { query: QUERY, variables: { ...postParams, budget: 5000 } },
       'UNAUTHENTICATED',
     ));
 
@@ -1312,7 +1453,6 @@ describe('query dailyCampaignReachEstimate', () => {
           type: 'post',
           value: 'nonexistent',
           budget: 5000,
-          duration: 7,
         },
       },
       'NOT_FOUND',
@@ -1330,7 +1470,6 @@ describe('query dailyCampaignReachEstimate', () => {
           type: 'source',
           value: 'nonexistent',
           budget: 5000,
-          duration: 7,
         },
       },
       'NOT_FOUND',
@@ -1342,7 +1481,7 @@ describe('query dailyCampaignReachEstimate', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY, variables: { ...postParams, budget: 5000, duration: 7 } },
+      { query: QUERY, variables: { ...postParams, budget: 5000 } },
       'NOT_FOUND',
     );
   });
@@ -1354,7 +1493,7 @@ describe('query dailyCampaignReachEstimate', () => {
       client,
       {
         query: QUERY,
-        variables: { ...sourceParams, budget: 5000, duration: 7 },
+        variables: { ...sourceParams, budget: 5000 },
       },
       'FORBIDDEN',
     );
@@ -1372,7 +1511,7 @@ describe('query dailyCampaignReachEstimate', () => {
 
     return testQueryErrorCode(
       client,
-      { query: QUERY, variables: { ...postParams, budget: 5000, duration: 7 } },
+      { query: QUERY, variables: { ...postParams, budget: 5000 } },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
@@ -1391,7 +1530,7 @@ describe('query dailyCampaignReachEstimate', () => {
       client,
       {
         query: QUERY,
-        variables: { ...sourceParams, budget: 5000, duration: 7 },
+        variables: { ...sourceParams, budget: 5000 },
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
@@ -1419,7 +1558,7 @@ describe('query dailyCampaignReachEstimate', () => {
         client,
         {
           query: QUERY,
-          variables: { ...postParams, budget: 999, duration: 7 },
+          variables: { ...postParams, budget: 999 },
         },
         'GRAPHQL_VALIDATION_FAILED',
       );
@@ -1430,7 +1569,7 @@ describe('query dailyCampaignReachEstimate', () => {
         client,
         {
           query: QUERY,
-          variables: { ...postParams, budget: 100001, duration: 7 },
+          variables: { ...postParams, budget: 100001 },
         },
         'GRAPHQL_VALIDATION_FAILED',
       );
@@ -1441,7 +1580,7 @@ describe('query dailyCampaignReachEstimate', () => {
         client,
         {
           query: QUERY,
-          variables: { ...postParams, budget: 1500, duration: 7 },
+          variables: { ...postParams, budget: 1500 },
         },
         'GRAPHQL_VALIDATION_FAILED',
       );
@@ -1450,13 +1589,15 @@ describe('query dailyCampaignReachEstimate', () => {
     it('should accept valid budget values and make correct HTTP call', async () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/reach', (body) => {
+        .post('/campaign/reach', (body) => {
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
-            body.user_id === '1' &&
             body.budget === 20 &&
-            body.duration === 432000 &&
-            body.type === 'post' &&
-            body.value === 'p1'
+            body.targeting?.type === 'BOOST' &&
+            body.targeting?.value?.boost?.post_id === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
           );
         })
         .reply(200, {
@@ -1468,7 +1609,7 @@ describe('query dailyCampaignReachEstimate', () => {
         });
 
       const res = await client.query(QUERY, {
-        variables: { ...postParams, budget: 2000, duration: 5 }, // Valid budget
+        variables: { ...postParams, budget: 2000 }, // Valid budget
       });
 
       expect(res.errors).toBeFalsy();
@@ -1481,13 +1622,15 @@ describe('query dailyCampaignReachEstimate', () => {
     it('should handle minimum budget value (1000 cores)', async () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/reach', (body) => {
+        .post('/campaign/reach', (body) => {
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
-            body.user_id === '1' &&
             body.budget === 10 &&
-            body.duration === 432000 &&
-            body.type === 'post' &&
-            body.value === 'p1'
+            body.targeting?.type === 'BOOST' &&
+            body.targeting?.value?.boost?.post_id === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
           );
         })
         .reply(200, {
@@ -1499,7 +1642,7 @@ describe('query dailyCampaignReachEstimate', () => {
         });
 
       const res = await client.query(QUERY, {
-        variables: { ...postParams, budget: 1000, duration: 5 }, // 1000 cores = 10 USD
+        variables: { ...postParams, budget: 1000 }, // 1000 cores = 10 USD
       });
 
       expect(res.errors).toBeFalsy();
@@ -1512,13 +1655,15 @@ describe('query dailyCampaignReachEstimate', () => {
     it('should handle maximum budget value (100000 cores)', async () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/reach', (body) => {
+        .post('/campaign/reach', (body) => {
+          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
-            body.user_id === '1' &&
             body.budget === 1000 &&
-            body.duration === 432000 &&
-            body.type === 'post' &&
-            body.value === 'p1'
+            body.targeting?.type === 'BOOST' &&
+            body.targeting?.value?.boost?.post_id === 'p1' &&
+            Array.isArray(keywords) &&
+            keywords.includes('javascript') &&
+            keywords.includes('webdev')
           );
         })
         .reply(200, {
@@ -1530,7 +1675,7 @@ describe('query dailyCampaignReachEstimate', () => {
         });
 
       const res = await client.query(QUERY, {
-        variables: { ...postParams, budget: 100000, duration: 5 }, // 100000 cores = 1000 USD
+        variables: { ...postParams, budget: 100000 }, // 100000 cores = 1000 USD
       });
 
       expect(res.errors).toBeFalsy();
@@ -1541,139 +1686,20 @@ describe('query dailyCampaignReachEstimate', () => {
     });
   });
 
-  describe('duration validation', () => {
-    beforeEach(() => {
-      loggedUser = '1';
-    });
-
-    it('should return an error if duration is less than 1', async () => {
-      return testQueryErrorCode(
-        client,
-        {
-          query: QUERY,
-          variables: { ...postParams, budget: 5000, duration: 0 },
-        },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should return an error if duration is greater than 30', async () => {
-      return testQueryErrorCode(
-        client,
-        {
-          query: QUERY,
-          variables: { ...postParams, budget: 5000, duration: 31 },
-        },
-        'GRAPHQL_VALIDATION_FAILED',
-      );
-    });
-
-    it('should accept valid duration values and make correct HTTP call', async () => {
-      // Mock the HTTP response using nock
-      nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/reach', (body) => {
-          return (
-            body.user_id === '1' &&
-            body.budget === 30 &&
-            body.duration === 1296000 &&
-            body.type === 'post' &&
-            body.value === 'p1'
-          );
-        })
-        .reply(200, {
-          impressions: 200,
-          clicks: 10,
-          users: 75,
-          min_impressions: 68,
-          max_impressions: 82,
-        });
-
-      const res = await client.query(QUERY, {
-        variables: { ...postParams, budget: 3000, duration: 15 }, // Valid duration
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.dailyCampaignReachEstimate).toEqual({
-        min: 68,
-        max: 82,
-      });
-    });
-
-    it('should handle minimum duration value (1 day)', async () => {
-      // Mock the HTTP response using nock
-      nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/reach', (body) => {
-          return (
-            body.user_id === '1' &&
-            body.budget === 20 &&
-            body.duration === 86400 &&
-            body.type === 'post' &&
-            body.value === 'p1'
-          );
-        })
-        .reply(200, {
-          impressions: 80,
-          clicks: 5,
-          users: 35,
-          min_impressions: 33,
-          max_impressions: 37,
-        });
-
-      const res = await client.query(QUERY, {
-        variables: { ...postParams, budget: 2000, duration: 1 }, // 1 day
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.dailyCampaignReachEstimate).toEqual({
-        min: 33,
-        max: 37,
-      });
-    });
-
-    it('should handle maximum duration value (30 days)', async () => {
-      // Mock the HTTP response using nock
-      nock(process.env.SKADI_API_ORIGIN)
-        .post('/promote/reach', (body) => {
-          return (
-            body.user_id === '1' &&
-            body.budget === 50 &&
-            body.duration === 2592000 &&
-            body.type === 'post' &&
-            body.value === 'p1'
-          );
-        })
-        .reply(200, {
-          impressions: 1200,
-          clicks: 60,
-          users: 450,
-          min_impressions: 414,
-          max_impressions: 486,
-        });
-
-      const res = await client.query(QUERY, {
-        variables: { ...postParams, budget: 5000, duration: 30 }, // 30 days
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.dailyCampaignReachEstimate).toEqual({
-        min: 414,
-        max: 486,
-      });
-    });
-  });
-
   it('should return estimated reach with budget and duration parameters', async () => {
     loggedUser = '1';
 
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/reach', (body) => {
+      .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.user_id === '1' &&
           body.budget === 100 &&
-          body.duration === 1209600 &&
-          body.type === 'post' &&
-          body.value === 'p1'
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .reply(200, {
@@ -1685,7 +1711,7 @@ describe('query dailyCampaignReachEstimate', () => {
       });
 
     const res = await client.query(QUERY, {
-      variables: { ...postParams, budget: 10000, duration: 14 }, // 10000 cores = 100 USD, 14 days
+      variables: { ...postParams, budget: 10000 }, // 10000 cores = 100 USD
     });
 
     expect(res.errors).toBeFalsy();
@@ -1709,13 +1735,15 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/reach', (body) => {
+      .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.user_id === '1' &&
           body.budget === 30 &&
-          body.duration === 432000 &&
-          body.type === 'post' &&
-          body.value === 'p1'
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .reply(200, {
@@ -1727,7 +1755,7 @@ describe('query dailyCampaignReachEstimate', () => {
       });
 
     const res = await client.query(QUERY, {
-      variables: { ...postParams, budget: 3000, duration: 5 }, // 3000 cores = 30 USD, 5 days
+      variables: { ...postParams, budget: 3000 }, // 3000 cores = 30 USD
     });
 
     expect(res.errors).toBeFalsy();
@@ -1742,13 +1770,14 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/reach', (body) => {
+      .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.user_id === '3' &&
           body.budget === 30 &&
-          body.duration === 432000 &&
-          body.type === 'source' &&
-          body.value === 'm'
+          body.targeting?.type === 'NONE' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(keywords) &&
+          keywords.length === 0
         );
       })
       .reply(200, {
@@ -1760,7 +1789,7 @@ describe('query dailyCampaignReachEstimate', () => {
       });
 
     const res = await client.query(QUERY, {
-      variables: { ...sourceParams, budget: 3000, duration: 5 }, // 3000 cores = 30 USD, 5 days
+      variables: { ...sourceParams, budget: 3000 }, // 3000 cores = 30 USD
     });
 
     expect(res.errors).toBeFalsy();
@@ -1775,13 +1804,15 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response where min and max impressions are the same
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/reach', (body) => {
+      .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.user_id === '1' &&
           body.budget === 40 &&
-          body.duration === 864000 &&
-          body.type === 'post' &&
-          body.value === 'p1'
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          Array.isArray(keywords) &&
+          keywords.includes('javascript') &&
+          keywords.includes('webdev')
         );
       })
       .reply(200, {
@@ -1793,7 +1824,7 @@ describe('query dailyCampaignReachEstimate', () => {
       });
 
     const res = await client.query(QUERY, {
-      variables: { ...postParams, budget: 4000, duration: 10 }, // 4000 cores = 40 USD, 10 days
+      variables: { ...postParams, budget: 4000 }, // 4000 cores = 40 USD
     });
 
     expect(res.errors).toBeFalsy();
@@ -1809,13 +1840,11 @@ describe('query dailyCampaignReachEstimate', () => {
     // Test post campaign
     loggedUser = '1';
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/reach', (body) => {
+      .post('/campaign/reach', (body) => {
         return (
-          body.user_id === '1' &&
           body.budget === 30 &&
-          body.duration === 432000 &&
-          body.type === 'post' &&
-          body.value === 'p1'
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === 'p1'
         );
       })
       .reply(200, {
@@ -1827,7 +1856,7 @@ describe('query dailyCampaignReachEstimate', () => {
       });
 
     const postRes = await client.query(QUERY, {
-      variables: { ...postParams, budget: 3000, duration: 5 },
+      variables: { ...postParams, budget: 3000 },
     });
 
     expect(postRes.errors).toBeFalsy();
@@ -1839,13 +1868,14 @@ describe('query dailyCampaignReachEstimate', () => {
     // Test source campaign
     loggedUser = '3';
     nock(process.env.SKADI_API_ORIGIN)
-      .post('/promote/reach', (body) => {
+      .post('/campaign/reach', (body) => {
+        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.user_id === '3' &&
           body.budget === 30 &&
-          body.duration === 432000 &&
-          body.type === 'source' &&
-          body.value === 'm'
+          body.targeting?.type === 'NONE' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(keywords) &&
+          keywords.length === 0
         );
       })
       .reply(200, {
@@ -1857,7 +1887,7 @@ describe('query dailyCampaignReachEstimate', () => {
       });
 
     const sourceRes = await client.query(QUERY, {
-      variables: { ...sourceParams, budget: 3000, duration: 5 },
+      variables: { ...sourceParams, budget: 3000 },
     });
 
     expect(sourceRes.errors).toBeFalsy();
