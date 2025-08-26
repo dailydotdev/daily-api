@@ -3099,6 +3099,40 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.visible).toEqual(true);
   });
 
+  it('should share existing post by redirector link', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: `${process.env.URL_PREFIX}/r/p6?key=value`,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p6' });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share existing post by post page link', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: `${process.env.COMMENTS_PREFIX}/posts/p6?key=value`,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p6' });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
   it('should share existing post to squad when URL has allowed search params', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -3753,6 +3787,37 @@ describe('mutation checkLinkPreview', () => {
     const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
     expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
+  });
+
+  it('should return post by redirector link', async () => {
+    loggedUser = '1';
+    const url = `${process.env.URL_PREFIX}/r/p1?key=value`;
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual('p1');
+  });
+
+  it('should return post by post page link', async () => {
+    loggedUser = '1';
+    const url = `${process.env.COMMENTS_PREFIX}/posts/p1?key=value`;
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual('p1');
+  });
+
+  it('should check for existing posts based on the scraper url', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { url: `${process.env.COMMENTS_PREFIX}/posts/p1` };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual('p1');
   });
 
   it('should return related public posts', async () => {
