@@ -59,6 +59,7 @@ import { signJwt } from '../auth';
 import { Message } from '@bufbuild/protobuf';
 import { ensureSourcePermissions } from '../schema/sources';
 import { SourceMemberRoles } from '../roles';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -153,7 +154,7 @@ export const createTransaction = createAuthProtectedFn(
         id: id || randomUUID(),
         processor: UserTransactionProcessor.Njord,
         receiverId,
-        status: UserTransactionStatus.Success,
+        status: UserTransactionStatus.Processing,
         productId: product.id,
         senderId,
         value: product.value,
@@ -269,17 +270,24 @@ export const transferCores = createAuthProtectedFn(
       throw new Error('No transfer result');
     }
 
+    const successTransactionUpdatePayload: QueryDeepPartialEntity<UserTransaction> =
+      {
+        status: UserTransactionStatus.Success,
+      };
+
     // update transaction with received value after any fees are applied
     if (typeof result.receiverBalance?.changeAmount === 'bigint') {
-      await entityManager.getRepository(UserTransaction).update(
-        {
-          id: transaction.id,
-        },
-        {
-          valueIncFees: parseBigInt(result.receiverBalance.changeAmount),
-        },
+      successTransactionUpdatePayload.valueIncFees = parseBigInt(
+        result.receiverBalance.changeAmount,
       );
     }
+
+    await entityManager.getRepository(UserTransaction).update(
+      {
+        id: transaction.id,
+      },
+      successTransactionUpdatePayload,
+    );
 
     await Promise.allSettled([
       [
