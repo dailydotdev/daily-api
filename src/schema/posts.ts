@@ -55,6 +55,7 @@ import {
   ensurePostAnalyticsPermissions,
 } from '../common';
 import {
+  ContentImage,
   createExternalLink,
   createSharePost,
   deletePost,
