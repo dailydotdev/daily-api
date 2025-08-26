@@ -186,5 +186,7 @@ export const getBriefGenerationCost = async (
     [BriefingType.Weekly]: 500,
   }) as Record<BriefingType, number>;
 
+  await allocationClient.waitForSend();
+
   return pricingConfig[type];
 };
