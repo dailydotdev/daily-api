@@ -62,6 +62,7 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
     endedAt: DateTime!
     flags: CampaignFlags!
+    user: User
     post: Post
     source: Source
   }

@@ -1,4 +1,4 @@
-import { RequestInit } from 'node-fetch';
+import fetch, { RequestInit } from 'node-fetch';
 import {
   type EstimatedDailyReachParams,
   TargetingType,
@@ -74,25 +74,22 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
     const targeting = generateTargeting(type, referenceId, keywords);
 
     return this.garmr.execute(async () => {
-      const response = await fetchParse<{ error?: string }>(
-        `${this.url}/campaign/create`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            advertiser_id,
-            campaign_id: id,
-            budget: coresToUsd(flags.budget!),
-            start_time: createdAt.getTime(),
-            end_time: endedAt.getTime(),
-            creatives: [{ id: creativeId, type, value: referenceId }],
-            targeting,
-          }),
+      const response = (await fetch(`${this.url}/api/campaign/create`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          advertiser_id,
+          campaign_id: id,
+          budget: coresToUsd(flags.budget!),
+          start_time: createdAt.getTime(),
+          end_time: endedAt.getTime(),
+          creatives: [{ id: creativeId, type, value: referenceId }],
+          targeting,
+        }),
+      })) as { error?: string };
 
       if (response.error) {
         throw new Error(response.error);
@@ -105,8 +102,8 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
     userId,
   }: CancelCampaignArgs): Promise<{ budget: string }> {
     return this.garmr.execute(async () => {
-      const response = await fetchParse<CancelPostCampaignResponse>(
-        `${this.url}/campaign/cancel`,
+      const { budget, error } = await fetchParse<CancelPostCampaignResponse>(
+        `${this.url}/api/campaign/cancel`,
         {
           ...this.fetchOptions,
           method: 'POST',
@@ -120,11 +117,11 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
         },
       );
 
-      if (response.error) {
-        throw new Error(response.error);
+      if (error) {
+        throw new Error(error);
       }
 
-      return { budget: response.budget };
+      return { budget };
     });
   }
 
@@ -140,7 +137,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
       const { reach, error } = await fetchParse<{
         reach: EstimatedReach;
         error?: string;
-      }>(`${this.url}/campaign/reach`, {
+      }>(`${this.url}/api/reach`, {
         ...this.fetchOptions,
         method: 'POST',
         headers: {

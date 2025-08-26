@@ -750,7 +750,7 @@ describe('mutation startCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/create', (body) => {
+      .post('/api/campaign/create', (body) => {
         const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
         const keywords = body?.targeting?.value?.boost?.keywords || [];
@@ -789,7 +789,7 @@ describe('mutation startCampaign', () => {
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/create', (body) => {
+      .post('/api/campaign/create', (body) => {
         const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
         const keywords = body?.targeting?.value?.boost?.keywords || [];
@@ -895,7 +895,7 @@ describe('mutation startCampaign', () => {
     it('should successfully start post campaign', async () => {
       loggedUser = '1';
       nock(process.env.SKADI_API_ORIGIN_V2)
-        .post('/campaign/create', (body) => {
+        .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           const keywords = body?.targeting?.value?.boost?.keywords || [];
@@ -978,7 +978,7 @@ describe('mutation startCampaign', () => {
     it('should successfully start source campaign', async () => {
       loggedUser = '3'; // moderator in 'm'
       nock(process.env.SKADI_API_ORIGIN_V2)
-        .post('/campaign/create', (body) => {
+        .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           return (
@@ -1046,7 +1046,7 @@ describe('mutation startCampaign', () => {
       ]);
 
       nock(process.env.SKADI_API_ORIGIN_V2)
-        .post('/campaign/create', (body) => {
+        .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           const keywords = body?.targeting?.value?.boost?.keywords || [];
@@ -1115,7 +1115,7 @@ describe('mutation startCampaign', () => {
       ]);
 
       nock(process.env.SKADI_API_ORIGIN_V2)
-        .post('/campaign/create', (body) => {
+        .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
           return (
@@ -1218,7 +1218,7 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/cancel', (body) => {
+      .post('/api/campaign/cancel', (body) => {
         return (
           body?.campaign_id === CAMPAIGN_UUID_1 &&
           body?.advertiser_id === getAdvertiserId('1')
@@ -1275,7 +1275,7 @@ describe('mutation stopCampaign', () => {
     );
 
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/cancel', (body) => {
+      .post('/api/campaign/cancel', (body) => {
         return (
           body?.campaign_id === CAMPAIGN_UUID_3 &&
           body?.advertiser_id === getAdvertiserId('3')
@@ -1329,7 +1329,7 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/cancel', (body) => {
+      .post('/api/campaign/cancel', (body) => {
         return (
           body?.campaign_id === CAMPAIGN_UUID_2 &&
           body?.advertiser_id === getAdvertiserId('1')
@@ -1375,7 +1375,7 @@ describe('mutation stopCampaign', () => {
       );
 
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/cancel', (body) => {
+      .post('/api/campaign/cancel', (body) => {
         return (
           body?.campaign_id === CAMPAIGN_UUID_5 &&
           body?.advertiser_id === getAdvertiserId('1')
@@ -1589,7 +1589,7 @@ describe('query dailyCampaignReachEstimate', () => {
     it('should accept valid budget values and make correct HTTP call', async () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN_V2)
-        .post('/campaign/reach', (body) => {
+        .post('/api/reach', (body) => {
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 20 &&
@@ -1624,7 +1624,7 @@ describe('query dailyCampaignReachEstimate', () => {
     it('should handle minimum budget value (1000 cores)', async () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN_V2)
-        .post('/campaign/reach', (body) => {
+        .post('/api/reach', (body) => {
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 10 &&
@@ -1659,7 +1659,7 @@ describe('query dailyCampaignReachEstimate', () => {
     it('should handle maximum budget value (100000 cores)', async () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN_V2)
-        .post('/campaign/reach', (body) => {
+        .post('/api/reach', (body) => {
           const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 1000 &&
@@ -1697,7 +1697,7 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response with error
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/reach', (body) => {
+      .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 20 &&
@@ -1725,7 +1725,7 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/reach', (body) => {
+      .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 100 &&
@@ -1771,7 +1771,7 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/reach', (body) => {
+      .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
@@ -1808,7 +1808,7 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/reach', (body) => {
+      .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
@@ -1844,7 +1844,7 @@ describe('query dailyCampaignReachEstimate', () => {
 
     // Mock the HTTP response where min and max impressions are the same
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/reach', (body) => {
+      .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 40 &&
@@ -1882,7 +1882,7 @@ describe('query dailyCampaignReachEstimate', () => {
     // Test post campaign
     loggedUser = '1';
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/reach', (body) => {
+      .post('/api/reach', (body) => {
         return (
           body.budget === 30 &&
           body.targeting?.type === 'BOOST' &&
@@ -1912,7 +1912,7 @@ describe('query dailyCampaignReachEstimate', () => {
     // Test source campaign
     loggedUser = '3';
     nock(process.env.SKADI_API_ORIGIN_V2)
-      .post('/campaign/reach', (body) => {
+      .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
