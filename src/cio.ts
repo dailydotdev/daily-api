@@ -73,11 +73,7 @@ const OMIT_FIELDS: (keyof ChangeObject<User>)[] = [
   'readme',
   'readmeHtml',
   'infoConfirmed',
-  'notificationEmail',
-  'followingEmail',
-  'followNotifications',
-  'awardEmail',
-  'awardNotifications',
+  'notificationFlags',
 ];
 
 export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
@@ -85,10 +81,7 @@ export const CIO_REQUIRED_FIELDS: (keyof ChangeObject<User>)[] = [
   'name',
   'createdAt',
   'updatedAt',
-  'notificationEmail',
-  'acceptedMarketing',
-  'followingEmail',
-  'awardEmail',
+  'notificationFlags',
 ];
 
 const CIO_TOPIC_TO_NOTIFICATION_MAP: Record<string, NotificationType> = {
@@ -109,6 +102,10 @@ const CIO_TOPIC_TO_NOTIFICATION_MAP: Record<string, NotificationType> = {
   [CioUnsubscribeTopic.CreatorUpdate]: NotificationType.ArticlePicked,
   [CioUnsubscribeTopic.SourcePostAdded]: NotificationType.SourcePostAdded,
   [CioUnsubscribeTopic.UserPostAdded]: NotificationType.UserPostAdded,
+  [CioUnsubscribeTopic.Marketing]: NotificationType.Marketing,
+  [CioUnsubscribeTopic.NewUserWelcome]: NotificationType.NewUserWelcome,
+  [CioUnsubscribeTopic.Announcements]: NotificationType.Announcements,
+  [CioUnsubscribeTopic.InAppPurchases]: NotificationType.InAppPurchases,
 };
 
 export async function identifyUserStreak({
@@ -242,16 +239,8 @@ export const getIdentifyAttributes = async (
       ? dateToCioTimestamp(getDateBaseFromType(dup.updatedAt))
       : undefined,
     referral_link: genericInviteURL,
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Marketing}`]:
-      user.acceptedMarketing,
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Notifications}`]:
-      user.notificationEmail,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
       !!personalizedDigest,
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Follow}`]:
-      user.followingEmail,
-    [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Award}`]:
-      user.awardEmail,
     ...(user.notificationFlags
       ? getNotificationFlagsCioTopics(
           typeof user.notificationFlags === 'string'

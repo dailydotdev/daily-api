@@ -35,7 +35,11 @@ import {
   ValidationError,
 } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DEFAULT_NOTIFICATION_SETTINGS } from '../notifications/common';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../notifications/common';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
@@ -70,6 +74,7 @@ import {
   TagsReadingStatus,
   toGQLEnum,
   updateFlagsStatement,
+  updateNotificationFlags,
   updateSubscriptionFlags,
   uploadAvatar,
   UploadPreset,
@@ -180,7 +185,6 @@ export interface GQLUpdateUserInput {
   mastodon?: string;
   hashnode?: string;
   portfolio?: string;
-  acceptedMarketing?: boolean;
   timezone?: string;
   weekStart?: number;
   infoConfirmed?: boolean;
@@ -227,6 +231,7 @@ export interface GQLUser {
   topReader?: GQLUserTopReader;
   coresRole: CoresRole;
   isPlus?: boolean;
+  notificationFlags: UserNotificationFlags;
 }
 
 export interface GQLView {
@@ -445,10 +450,6 @@ export const typeDefs = /* GraphQL */ `
     Reputation of the user
     """
     reputation: Int
-    """
-    If the user has accepted marketing
-    """
-    acceptedMarketing: Boolean
     """
     Markdown version of the user's readme
     """
@@ -1062,6 +1063,11 @@ export const typeDefs = /* GraphQL */ `
     Check and apply Cores role
     """
     checkCoresRole: CheckCoresRole! @auth
+
+    """
+    Check and apply location based on geo IP
+    """
+    checkLocation: EmptyResponse @auth
 
     """
     Get current user's notification preferences
@@ -2164,6 +2170,46 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         coresRole: userCoresRole,
       };
     },
+    checkLocation: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        select: ['flags'],
+        where: { id: ctx.userId },
+      });
+
+      if (!user || !!user.flags?.location?.lastStored) {
+        return { _: false };
+      }
+
+      const geo = getGeo({ ip: ctx.req.ip });
+      if (!geo?.country) {
+        throw new ValidationError('Geo could not be extracted');
+      }
+
+      // Update user flags with geo location info
+      await ctx.con.getRepository(User).update(
+        { id: ctx.userId },
+        {
+          flags: updateFlagsStatement<User>({
+            country: geo?.country,
+            city: geo?.city,
+            continent: geo?.continent,
+            subdivision: geo?.subdivision,
+            location: {
+              lastStored: new Date(),
+              accuracyRadius: geo?.location?.accuracyRadius,
+              lat: geo?.location?.lat,
+              lng: geo?.location?.lng,
+            },
+          }),
+        },
+      );
+
+      return { _: true };
+    },
     notificationSettings: async (
       _,
       __,
@@ -2242,6 +2288,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const updatedUser = { ...user, ...data, image: avatar };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
+        const marketingFlag = updatedUser.acceptedMarketing
+          ? {
+              email: NotificationPreferenceStatus.Subscribed,
+              inApp: NotificationPreferenceStatus.Subscribed,
+            }
+          : {
+              email: NotificationPreferenceStatus.Muted,
+              inApp: NotificationPreferenceStatus.Muted,
+            };
+
         if (
           !user.infoConfirmed &&
           updatedUser.email &&
@@ -2257,6 +2313,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ...updatedUser,
             permalink: undefined,
             flags: data?.flags ? updateFlagsStatement(data.flags) : undefined,
+            notificationFlags: updateNotificationFlags({
+              marketing: marketingFlag,
+            }),
           },
         );
 
@@ -2941,9 +3000,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError(validate.error.errors[0].message);
       }
 
-      await ctx.con
-        .getRepository(User)
-        .update({ id: ctx.userId }, { notificationFlags });
+      const acceptedMarketing =
+        notificationFlags[NotificationType.Marketing]?.email ===
+        NotificationPreferenceStatus.Subscribed;
+
+      await ctx.con.getRepository(User).update(
+        { id: ctx.userId },
+        {
+          notificationFlags,
+          acceptedMarketing,
+        },
+      );
 
       await syncNotificationFlagsToCio({
         userId: ctx.userId,

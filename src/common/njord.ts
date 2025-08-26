@@ -22,6 +22,7 @@ import {
   UserTransactionFlags,
   UserTransactionProcessor,
   UserTransactionStatus,
+  UserTransactionType,
 } from '../entity/user/UserTransaction';
 import { isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
@@ -58,6 +59,7 @@ import { signJwt } from '../auth';
 import { Message } from '@bufbuild/protobuf';
 import { ensureSourcePermissions } from '../schema/sources';
 import { SourceMemberRoles } from '../roles';
+import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -120,6 +122,10 @@ export type TransactionProps = {
   receiverId: string;
   note?: string;
   flags?: Pick<UserTransactionFlags, 'sourceId'>;
+  entityReference?: {
+    id: string;
+    type: UserTransactionType;
+  };
 };
 
 export const createTransaction = createAuthProtectedFn(
@@ -131,6 +137,7 @@ export const createTransaction = createAuthProtectedFn(
     receiverId,
     note,
     flags,
+    entityReference,
   }: TransactionProps & {
     id?: string;
     entityManager: EntityManager;
@@ -147,7 +154,7 @@ export const createTransaction = createAuthProtectedFn(
         id: id || randomUUID(),
         processor: UserTransactionProcessor.Njord,
         receiverId,
-        status: UserTransactionStatus.Success,
+        status: UserTransactionStatus.Processing,
         productId: product.id,
         senderId,
         value: product.value,
@@ -158,6 +165,8 @@ export const createTransaction = createAuthProtectedFn(
           note,
           ...flags,
         },
+        referenceId: entityReference?.id,
+        referenceType: entityReference?.type,
       });
 
     const userTransactionResult = await entityManager
@@ -261,17 +270,24 @@ export const transferCores = createAuthProtectedFn(
       throw new Error('No transfer result');
     }
 
+    const successTransactionUpdatePayload: QueryDeepPartialEntity<UserTransaction> =
+      {
+        status: UserTransactionStatus.Success,
+      };
+
     // update transaction with received value after any fees are applied
     if (typeof result.receiverBalance?.changeAmount === 'bigint') {
-      await entityManager.getRepository(UserTransaction).update(
-        {
-          id: transaction.id,
-        },
-        {
-          valueIncFees: parseBigInt(result.receiverBalance.changeAmount),
-        },
+      successTransactionUpdatePayload.valueIncFees = parseBigInt(
+        result.receiverBalance.changeAmount,
       );
     }
+
+    await entityManager.getRepository(UserTransaction).update(
+      {
+        id: transaction.id,
+      },
+      successTransactionUpdatePayload,
+    );
 
     await Promise.allSettled([
       [
@@ -742,6 +758,10 @@ export const awardPost = async (
           productId: product.id,
           receiverId: post.authorId,
           note,
+          entityReference: {
+            id: post.id,
+            type: UserTransactionType.Post,
+          },
         });
 
         if (!transaction.productId) {
@@ -898,6 +918,10 @@ export const awardComment = async (
           productId: product.id,
           receiverId: comment.userId,
           note,
+          entityReference: {
+            id: comment.id,
+            type: UserTransactionType.Comment,
+          },
         });
 
         if (!transaction.productId) {

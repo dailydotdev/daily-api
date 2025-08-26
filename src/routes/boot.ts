@@ -462,7 +462,6 @@ const getUser = (
       'company',
       'title',
       'infoConfirmed',
-      'acceptedMarketing',
       'reputation',
       'bio',
       'twitter',
@@ -561,6 +560,7 @@ const loggedInBoot = async ({
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+    const hasLocationSet = !!user.flags?.location?.lastStored;
     const isTeamMember = exp?.a?.team === 1;
     const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
 
@@ -606,6 +606,7 @@ const loggedInBoot = async ({
           status: user.subscriptionFlags?.status,
         },
         clickbaitTries,
+        hasLocationSet,
       },
       visit,
       alerts: {
