@@ -21,6 +21,9 @@ database.server.name: "%database_dbname%"
 # schema.include.list: An optional list of regular expressions that match schema names to be monitored;
 schema.include.list: "public"
 
+# no need to patch client anymore, we can use jdbc settings
+clickhouse.jdbc.settings: "insert_allow_materialized_columns=1,async_insert=1,wait_for_async_insert=0"
+
 # plugin.name:  The name of the PostgreSQL logical decoding plug-in installed on the PostgreSQL server. Supported values are decoderbufs, and pgoutput.
 plugin.name: "pgoutput"
 
