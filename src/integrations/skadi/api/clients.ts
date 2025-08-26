@@ -78,10 +78,7 @@ export class SkadiApiClient implements ISkadiApiClient {
     this.garmr = garmr;
   }
 
-  startCampaign(
-    campaign: Campaign,
-    keywords: string[] = [],
-  ): Promise<{ error?: string }> {
+  startCampaign(campaign: Campaign, keywords: string[] = []) {
     const {
       userId,
       type,
@@ -116,14 +113,16 @@ export class SkadiApiClient implements ISkadiApiClient {
         },
       );
 
-      return { error: response.error };
+      if (response.error) {
+        throw new Error(response.error);
+      }
     });
   }
 
   cancelCampaign({
     campaignId,
     userId,
-  }: CancelCampaignArgs): Promise<CancelPostCampaignResponse> {
+  }: CancelCampaignArgs): Promise<{ budget: string }> {
     return this.garmr.execute(async () => {
       const response = await fetchParse<CancelPostCampaignResponse>(
         `${this.url}/campaign/cancel`,
@@ -140,7 +139,11 @@ export class SkadiApiClient implements ISkadiApiClient {
         },
       );
 
-      return { budget: response.budget, error: response.error };
+      if (response.error) {
+        throw new Error(response.error);
+      }
+
+      return { budget: response.budget };
     });
   }
 

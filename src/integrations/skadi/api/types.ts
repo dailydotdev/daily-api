@@ -112,10 +112,8 @@ export interface CancelCampaignArgs {
 }
 
 export interface ISkadiApiClient {
-  startCampaign(campaign: Campaign): Promise<{ error?: string }>;
-  cancelCampaign(
-    params: CancelCampaignArgs,
-  ): Promise<CancelPostCampaignResponse>;
+  startCampaign(campaign: Campaign): Promise<void>;
+  cancelCampaign(params: CancelCampaignArgs): Promise<{ budget: string }>;
   estimateBoostReachDaily(
     params: EstimatedDailyReachParams,
   ): Promise<EstimatedReachResponse>;

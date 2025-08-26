@@ -1321,7 +1321,7 @@ describe('mutation stopCampaign', () => {
           body?.advertiser_id === getAdvertiserId('1')
         );
       })
-      .reply(500, { error: 'Skadi service unavailable' });
+      .reply(200, { error: 'Skadi service unavailable' });
 
     const initialTransactionCount = await con
       .getRepository(UserTransaction)
