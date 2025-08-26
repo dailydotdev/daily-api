@@ -11,6 +11,7 @@ import {
 import {
   ArticlePost,
   Post,
+  PostKeyword,
   PostTag,
   Source,
   SourceMember,
@@ -1033,9 +1034,16 @@ describe('mutation startCampaign', () => {
         createdAt: new Date(),
         sourceId: 'm',
         type: PostType.Article,
-        tagsStr: 'squadtag1,squadtag2,squadtag3,squadtag4',
         visible: true,
       });
+
+      // Add keywords to PostKeyword table
+      await con.getRepository(PostKeyword).save([
+        { postId: 'mp1', keyword: 'squadtag1' },
+        { postId: 'mp1', keyword: 'squadtag2' },
+        { postId: 'mp1', keyword: 'squadtag3' },
+        { postId: 'mp1', keyword: 'squadtag4' },
+      ]);
 
       nock(process.env.SKADI_API_ORIGIN)
         .post('/campaign/create', (body) => {
@@ -1096,9 +1104,15 @@ describe('mutation startCampaign', () => {
         createdAt: new Date(),
         sourceId: 'm',
         type: PostType.Article,
-        tagsStr: 'one,two,three',
         visible: true,
       });
+
+      // Add keywords to PostKeyword table (3 or fewer tags)
+      await con.getRepository(PostKeyword).save([
+        { postId: 'mp2', keyword: 'one' },
+        { postId: 'mp2', keyword: 'two' },
+        { postId: 'mp2', keyword: 'three' },
+      ]);
 
       nock(process.env.SKADI_API_ORIGIN)
         .post('/campaign/create', (body) => {

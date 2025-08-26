@@ -55,16 +55,19 @@ export const getSourceTags = async (
 ): Promise<string[]> => {
   const result = await con.getRepository(Post).query<{ tag: string }[]>(
     `
-      SELECT  DISTINCT ps.keyword AS tag
-
-      FROM    from post_keyword ps
-      INNER   JOIN post p
-      ON      ps."postId" = p.id
-      OR      ps."postId" = p."sharedPostId"
-
-      WHERE   p."sourceId" = $1
-      ORDER   BY p."createdAt" DESC
-      LIMIT   30;
+      WITH recent_posts AS (
+        SELECT id, "sharedPostId"
+        FROM post
+        WHERE "sourceId" = $1
+        ORDER BY "createdAt" DESC
+        LIMIT 30
+      )
+      SELECT DISTINCT ps.keyword AS tag
+      FROM post_keyword ps
+      INNER JOIN recent_posts rp
+        ON ps."postId" = rp.id
+        OR ps."postId" = rp."sharedPostId"
+      LIMIT 30;
     `,
     [sourceId],
   );
