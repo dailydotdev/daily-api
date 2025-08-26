@@ -22,6 +22,10 @@ const handlePostBoostStarted = async (
   con: DataSource,
   { postId, campaignId, userId }: PubSubSchema['skadi.v1.campaign-updated'],
 ) => {
+  if (process.env.NODE_ENV === 'development') {
+    return;
+  }
+
   const post = await con.getRepository(Post).findOne({ where: { id: postId } });
 
   if (!post) {

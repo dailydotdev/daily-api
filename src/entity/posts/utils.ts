@@ -257,6 +257,7 @@ export interface ExternalLinkPreview {
   id?: string;
   title: string;
   image: string;
+  url?: string;
 }
 
 export interface ExternalLink extends Partial<ExternalLinkPreview> {

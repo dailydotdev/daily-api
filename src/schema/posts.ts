@@ -28,31 +28,33 @@ import {
   EditablePost,
   EditPostArgs,
   fetchLinkPreview,
-  getAllModerationItemsAsAdmin,
   getDiscussionLink,
   getExistingPost,
-  getModerationItemsAsAdminForSource,
-  getModerationItemsByUserForSource,
-  getPostSmartTitle,
-  getPostTranslatedTitle,
-  getTranslationRecord,
-  type GQLSourcePostModeration,
   isProd,
   isValidHttpUrl,
   mapCloudinaryUrl,
   notifyView,
   ONE_MINUTE_IN_SECONDS,
-  parseBigInt,
   pickImageUrl,
-  type SourcePostModerationArgs,
   standardizeURL,
-  systemUser,
   toGQLEnum,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
   validateSourcePostModeration,
+  getPostTranslatedTitle,
+  getPostSmartTitle,
+  getModerationItemsAsAdminForSource,
+  getModerationItemsByUserForSource,
+  type GQLSourcePostModeration,
+  type SourcePostModerationArgs,
+  getAllModerationItemsAsAdmin,
+  getTranslationRecord,
+  systemUser,
+  parseBigInt,
+  triggerTypedEvent,
+  ensurePostAnalyticsPermissions,
 } from '../common';
 import {
   ArticlePost,
@@ -828,6 +830,7 @@ export const typeDefs = /* GraphQL */ `
     id: String
     title: String!
     image: String!
+    url: String
     relatedPublicPosts: [Post!]
   }
 
@@ -2374,13 +2377,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: {
         id: string;
       },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPostAnalytics> => {
-      // for now allow only for team members
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('not allowed for you yet');
-      }
+      await ensurePostAnalyticsPermissions({ ctx, postId: args.id });
 
       return graphorm.queryOneOrFail<GQLPostAnalytics>(
         ctx,
@@ -2401,13 +2401,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments & {
         id: string;
       },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<ConnectionRelay<GQLPostAnalyticsHistory>> => {
-      // for now allow only for team members
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('not allowed for you yet');
-      }
+      await ensurePostAnalyticsPermissions({ ctx, postId: args.id });
 
       return queryPaginatedByDate(
         ctx,
@@ -2425,7 +2422,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             return builder;
           },
-          orderByKey: 'ASC',
+          orderByKey: 'DESC',
           readReplica: true,
         },
       );
@@ -3041,7 +3038,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         order: { createdAt: 'DESC' },
       });
 
-      return { ...post, relatedPublicPosts };
+      return { ...post, url, relatedPublicPosts };
     },
     submitExternalLink: async (
       _,

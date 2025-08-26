@@ -8711,6 +8711,17 @@ describe('query post analytics', () => {
   beforeEach(async () => {
     await saveFixtures(
       con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-paq`,
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
       Post,
       postsFixture.map((item) => {
         return {
@@ -8720,6 +8731,7 @@ describe('query post analytics', () => {
           url: `https://example.com/posts/${item.id}-paq`,
           canonicalUrl: `https://example.com/posts/${item.id}-paq`,
           yggdrasilId: randomUUID(),
+          authorId: '1-paq',
         };
       }),
     );
@@ -8761,7 +8773,7 @@ describe('query post analytics', () => {
   });
 
   it('should return post analytics data', async () => {
-    loggedUser = '1';
+    loggedUser = '1-paq';
 
     const res = await client.query(QUERY, {
       variables: {
@@ -8791,7 +8803,7 @@ describe('query post analytics', () => {
   });
 
   it('should not return negative reputation', async () => {
-    loggedUser = '1';
+    loggedUser = '1-paq';
 
     await con
       .getRepository(PostAnalytics)
@@ -8809,6 +8821,16 @@ describe('query post analytics', () => {
       id: 'p1-paq',
       reputation: 0,
     });
+  });
+
+  it('should throw when user is not author', async () => {
+    loggedUser = '2-paq';
+
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1-paq' } },
+      'FORBIDDEN',
+    );
   });
 });
 
@@ -8831,6 +8853,17 @@ describe('query history for post analytics', () => {
   beforeEach(async () => {
     await saveFixtures(
       con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-paqh`,
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
       Post,
       postsFixture.map((item) => {
         return {
@@ -8840,6 +8873,7 @@ describe('query history for post analytics', () => {
           url: `https://example.com/posts/${item.id}-paqh`,
           canonicalUrl: `https://example.com/posts/${item.id}-paqh`,
           yggdrasilId: randomUUID(),
+          authorId: '1-paqh',
         };
       }),
     );
@@ -8877,7 +8911,7 @@ describe('query history for post analytics', () => {
   });
 
   it('should return post analytics data', async () => {
-    loggedUser = '1';
+    loggedUser = '1-paqh';
 
     const res = await client.query(QUERY, {
       variables: {
@@ -8894,7 +8928,7 @@ describe('query history for post analytics', () => {
       if (index > 0) {
         const previousEdge = res.data.postAnalyticsHistory.edges[index - 1];
 
-        expect(new Date(edge.node.date).getTime()).toBeGreaterThan(
+        expect(new Date(edge.node.date).getTime()).toBeLessThan(
           new Date(previousEdge.node.date).getTime(),
         );
       }
@@ -8905,5 +8939,15 @@ describe('query history for post analytics', () => {
         impressions: 10,
       });
     });
+  });
+
+  it('should throw when user is not author', async () => {
+    loggedUser = '2-paqh';
+
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1-paqh', first: 45 } },
+      'FORBIDDEN',
+    );
   });
 });

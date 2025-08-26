@@ -239,6 +239,13 @@ export const serviceClientId = 'api';
 export type GeoRecord = Partial<{
   country: string;
   continent: string;
+  city: string;
+  location: Partial<{
+    lat: number;
+    lng: number;
+    accuracyRadius: number;
+  }>;
+  subdivision?: string;
 }>;
 
 export enum StreakRestoreCoresPrice {
