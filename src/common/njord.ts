@@ -22,6 +22,7 @@ import {
   UserTransactionFlags,
   UserTransactionProcessor,
   UserTransactionStatus,
+  UserTransactionType,
 } from '../entity/user/UserTransaction';
 import { isSpecialUser, parseBigInt, systemUser } from './utils';
 import { ForbiddenError } from 'apollo-server-errors';
@@ -120,6 +121,10 @@ export type TransactionProps = {
   receiverId: string;
   note?: string;
   flags?: Pick<UserTransactionFlags, 'sourceId'>;
+  entityReference?: {
+    id: string;
+    type: UserTransactionType;
+  };
 };
 
 export const createTransaction = createAuthProtectedFn(
@@ -131,6 +136,7 @@ export const createTransaction = createAuthProtectedFn(
     receiverId,
     note,
     flags,
+    entityReference,
   }: TransactionProps & {
     id?: string;
     entityManager: EntityManager;
@@ -158,6 +164,8 @@ export const createTransaction = createAuthProtectedFn(
           note,
           ...flags,
         },
+        referenceId: entityReference?.id,
+        referenceType: entityReference?.type,
       });
 
     const userTransactionResult = await entityManager
@@ -742,6 +750,10 @@ export const awardPost = async (
           productId: product.id,
           receiverId: post.authorId,
           note,
+          entityReference: {
+            id: post.id,
+            type: UserTransactionType.Post,
+          },
         });
 
         if (!transaction.productId) {
@@ -898,6 +910,10 @@ export const awardComment = async (
           productId: product.id,
           receiverId: comment.userId,
           note,
+          entityReference: {
+            id: comment.id,
+            type: UserTransactionType.Comment,
+          },
         });
 
         if (!transaction.productId) {
