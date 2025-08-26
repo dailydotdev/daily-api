@@ -55,21 +55,16 @@ export const getSourceTags = async (
 ): Promise<string[]> => {
   const result = await con.getRepository(Post).query<{ tag: string }[]>(
     `
-      SELECT DISTINCT trim(t) AS tag
-      FROM (
-        SELECT
-          p.id,
-          p."createdAt",
-          COALESCE(NULLIF(p."tagsStr", ''), sp."tagsStr") AS tagstr
-        FROM  post p
-        LEFT  JOIN post sp ON sp.id = p."sharedPostId"
-        WHERE COALESCE(NULLIF(p."tagsStr", ''), sp."tagsStr") IS NOT NULL
-        AND   p."sourceId" = $1
-        ORDER BY p."createdAt" DESC
-      ) s
-      CROSS JOIN LATERAL regexp_split_to_table(s.tagstr, ',') AS t
-      WHERE trim(t) <> ''
-      LIMIT 30;
+      SELECT  ps.keyword AS tag
+
+      FROM    from post_keyword ps
+      INNER   JOIN post p
+      ON      ps."postId" = p.id
+      OR      ps."postId" = p."sharedPostId"
+
+      WHERE   p."sourceId" = $1
+      ORDER   BY p."createdAt" DESC
+      LIMIT   30;
     `,
     [sourceId],
   );
