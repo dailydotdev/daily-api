@@ -1,5 +1,5 @@
 import type { User } from '../../../entity';
-import type { CampaignType } from '../../../entity/campaign';
+import type { Campaign, CampaignType } from '../../../entity/campaign';
 
 export interface CampaignReach {
   min: number;
@@ -63,7 +63,8 @@ export interface StartPostCampaignResponse {
 }
 
 export interface CancelPostCampaignResponse {
-  current_budget: string;
+  budget: string;
+  error?: string;
 }
 
 export interface GetCampaignResponse
@@ -86,25 +87,23 @@ export interface GetCampaignListResponse
 
 export type EstimatedPostBoostReachParams = StartPostCampaignParams;
 
-export interface StartPostCampaignParams
-  extends Pick<StartCampaignParams, 'userId' | 'budget' | 'durationInDays'> {
+export interface StartPostCampaignParams {
   postId: string;
-}
-
-export interface StartCampaignParams {
-  value: string;
   userId: string;
-  durationInDays: number;
   budget: number;
-  type: CampaignType;
+  durationInDays: number;
 }
 
-export interface CampaignDailyReach {
-  type: CampaignType;
-  value: string;
+export enum TargetingType {
+  Boost = 'BOOST',
+  None = 'NONE',
+}
+
+export interface EstimatedDailyReachParams {
   budget: number;
-  duration: number;
-  user_id: string;
+  value: string;
+  type: CampaignType;
+  keywords?: string[];
 }
 
 export interface CancelCampaignArgs {
@@ -113,12 +112,10 @@ export interface CancelCampaignArgs {
 }
 
 export interface ISkadiApiClient {
-  startCampaign(params: StartCampaignParams): Promise<{ campaignId: string }>;
-  cancelCampaign(
-    params: CancelCampaignArgs,
-  ): Promise<{ currentBudget: string }>;
+  startCampaign(campaign: Campaign): Promise<void>;
+  cancelCampaign(params: CancelCampaignArgs): Promise<{ budget: string }>;
   estimateBoostReachDaily(
-    params: StartCampaignParams,
+    params: EstimatedDailyReachParams,
   ): Promise<EstimatedReachResponse>;
   startPostCampaign(
     params: StartPostCampaignParams,

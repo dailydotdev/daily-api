@@ -28,7 +28,7 @@ import { largeNumberFormat } from '../devcard';
 import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
-import { coresToUsd, usdToCores } from '../number';
+import { usdToCores } from '../number';
 
 import {
   startCampaignTransferCores,
@@ -289,6 +289,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
 
   const request = await ctx.con.transaction(async (manager) => {
     const id = randomUUID();
+    const creativeId = randomUUID();
     const { budget, duration } = args;
     const total = budget * duration;
     const userId = ctx.userId;
@@ -297,6 +298,7 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
     const campaign = await manager.getRepository(CampaignPost).save(
       manager.getRepository(CampaignPost).create({
         id,
+        creativeId,
         flags: {
           budget: total,
           spend: 0,
@@ -314,14 +316,9 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
     );
 
     const campaignId = campaign.id;
+    const tags = await getPostTags(manager, postId);
 
-    await skadiApiClient.startCampaign({
-      value: campaign.id,
-      type: campaign.type,
-      durationInDays: duration,
-      budget: coresToUsd(budget),
-      userId: campaign.userId,
-    });
+    await skadiApiClient.startCampaign(campaign, tags);
 
     await manager
       .getRepository(Post)
@@ -365,13 +362,13 @@ export const stopCampaignPost = async ({
 }: StopCampaignProps) => {
   const { id: campaignId, userId, referenceId } = campaign;
 
-  const { currentBudget } = await skadiApiClient.cancelCampaign({
+  const { budget } = await skadiApiClient.cancelCampaign({
     campaignId,
     userId,
   });
 
   const result = await ctx.con.transaction(async (manager) => {
-    const toRefund = parseFloat(currentBudget);
+    const toRefund = parseFloat(budget);
 
     await manager
       .getRepository(Post)
@@ -406,4 +403,26 @@ export const stopCampaignPost = async ({
   });
 
   return result.transaction;
+};
+
+export const getPostTags = async (con: ConnectionManager, postId: string) => {
+  const builder = con.getRepository(Post).createQueryBuilder('p1');
+  const subquery = builder
+    .subQuery()
+    .select(`COALESCE(p2."tagsStr", '')`)
+    .from(Post, 'p2')
+    .where('p2.id = p1."sharedPostId"')
+    .getQuery();
+
+  const result = await builder
+    .select(`COALESCE(p1."tagsStr", '')`, 'tagsStr')
+    .addSelect(`(${subquery})`, 'sharedTagsStr')
+    .where('p1.id = :id', { id: postId })
+    .getRawOne<{ tagsStr: string; sharedTagsStr: string }>();
+
+  const tags1 = (result?.tagsStr ?? '').split(',');
+  const tags2 = (result?.sharedTagsStr ?? '').split(',');
+  const list = [...tags1, ...tags2].filter((tag) => tag.trim().length > 0);
+
+  return Array.from(new Set(list));
 };

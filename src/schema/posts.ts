@@ -54,6 +54,7 @@ import {
   triggerTypedEvent,
   isProd,
   findPostByUrl,
+  ensurePostAnalyticsPermissions,
 } from '../common';
 import {
   createExternalLink,
@@ -2376,13 +2377,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: {
         id: string;
       },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPostAnalytics> => {
-      // for now allow only for team members
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('not allowed for you yet');
-      }
+      await ensurePostAnalyticsPermissions({ ctx, postId: args.id });
 
       return graphorm.queryOneOrFail<GQLPostAnalytics>(
         ctx,
@@ -2403,13 +2401,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments & {
         id: string;
       },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<ConnectionRelay<GQLPostAnalyticsHistory>> => {
-      // for now allow only for team members
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('not allowed for you yet');
-      }
+      await ensurePostAnalyticsPermissions({ ctx, postId: args.id });
 
       return queryPaginatedByDate(
         ctx,
