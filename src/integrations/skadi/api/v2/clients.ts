@@ -137,7 +137,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
     const targeting = generateTargeting(type, value, keywords);
 
     return this.garmr.execute(async () => {
-      const response = await fetchParse<EstimatedReach>(
+      const { reach } = await fetchParse<{ reach: EstimatedReach }>(
         `${this.url}/campaign/reach`,
         {
           ...this.fetchOptions,
@@ -153,11 +153,11 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
       );
 
       return {
-        impressions: response.impressions ?? 0,
-        clicks: response.clicks ?? 0,
-        users: response.users ?? 0,
-        minImpressions: response.min_impressions ?? 0,
-        maxImpressions: response.max_impressions ?? 0,
+        impressions: reach.impressions ?? 0,
+        clicks: reach.clicks ?? 0,
+        users: reach.users ?? 0,
+        minImpressions: reach.min_impressions ?? 0,
+        maxImpressions: reach.max_impressions ?? 0,
       };
     });
   }
