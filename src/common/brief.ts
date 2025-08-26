@@ -1,4 +1,4 @@
-import { In, type EntityManager, DataSource, Between, MoreThan } from 'typeorm';
+import { In, type EntityManager, DataSource, MoreThan } from 'typeorm';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import { User } from '../entity/user/User';
 import { FeedClient } from '../integrations/feed/clients';
@@ -18,6 +18,7 @@ import {
   getUserGrowthBookInstance,
 } from '../growthbook';
 import { subDays } from 'date-fns';
+import { remoteConfig } from '../remoteConfig';
 
 export const briefFeedClient = new FeedClient(process.env.BRIEFING_FEED, {
   garmr: new GarmrService({
@@ -80,7 +81,7 @@ const throwIfExceedDailyLimit = async (
   con: DataSource,
   userId: string,
 ): Promise<void> => {
-  const dailyLimit = 1;
+  const dailyLimit = remoteConfig.vars.dailyBriefLimit ?? 1;
 
   const now = new Date();
   const startDate = subDays(now, dailyLimit);

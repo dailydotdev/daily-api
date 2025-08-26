@@ -30,7 +30,6 @@ import {
   fetchLinkPreview,
   getDiscussionLink,
   getExistingPost,
-  isProd,
   isValidHttpUrl,
   mapCloudinaryUrl,
   notifyView,
@@ -53,7 +52,6 @@ import {
   getTranslationRecord,
   systemUser,
   parseBigInt,
-  triggerTypedEvent,
   ensurePostAnalyticsPermissions,
 } from '../common';
 import {
