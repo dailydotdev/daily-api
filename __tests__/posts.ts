@@ -8632,7 +8632,7 @@ describe('mutation generateBriefing', () => {
             },
           },
         ],
-      } as any)
+      } as never),
     );
 
     await testMutationErrorCode(
