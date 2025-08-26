@@ -761,7 +761,7 @@ describe('mutation startCampaign', () => {
           Array.isArray(body.creatives) &&
           body.creatives.length === 1 &&
           body.creatives[0].type === 'POST' &&
-          body.creatives[0].value === 'p1' &&
+          body.creatives[0].value.post.id === 'p1' &&
           Array.isArray(keywords) &&
           keywords.includes('javascript') &&
           keywords.includes('webdev')
@@ -807,7 +807,7 @@ describe('mutation startCampaign', () => {
           Array.isArray(body.creatives) &&
           body.creatives.length === 1 &&
           body.creatives[0].type === 'POST' &&
-          body.creatives[0].value === 'p1' &&
+          body.creatives[0].value.post.id === 'p1' &&
           Array.isArray(keywords) &&
           keywords.includes('javascript') &&
           keywords.includes('webdev')
@@ -845,7 +845,7 @@ describe('mutation startCampaign', () => {
           body.budget === 10 &&
           Array.isArray(body.creatives) &&
           body.creatives[0].type === 'POST' &&
-          body.creatives[0].value === 'p1' &&
+          body.creatives[0].value.post.id === 'p1' &&
           Array.isArray(keywords) &&
           keywords.includes('javascript') &&
           keywords.includes('webdev')
@@ -951,7 +951,7 @@ describe('mutation startCampaign', () => {
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'POST' &&
-            body.creatives[0].value === 'p1' &&
+            body.creatives[0].value.post.id === 'p1' &&
             Array.isArray(keywords) &&
             keywords.includes('javascript') &&
             keywords.includes('webdev')
@@ -1009,7 +1009,7 @@ describe('mutation startCampaign', () => {
             Array.isArray(body.creatives) &&
             body.creatives.length === 1 &&
             body.creatives[0].type === 'POST' &&
-            body.creatives[0].value === 'p1' &&
+            body.creatives[0].value.post.id === 'p1' &&
             Array.isArray(keywords) &&
             keywords.includes('javascript') &&
             keywords.includes('webdev')
@@ -1067,7 +1067,7 @@ describe('mutation startCampaign', () => {
             Array.isArray(body.creatives) &&
             body.creatives.length === 1 &&
             body.creatives[0].type === 'POST' &&
-            body.creatives[0].value === 'p1' &&
+            body.creatives[0].value.post.id === 'p1' &&
             Array.isArray(keywords) &&
             keywords.includes('javascript') &&
             keywords.includes('webdev')
@@ -1113,7 +1113,7 @@ describe('mutation startCampaign', () => {
             Array.isArray(body.creatives) &&
             body.creatives.length === 1 &&
             body.creatives[0].type === 'POST' &&
-            body.creatives[0].value === 'p1' &&
+            body.creatives[0].value.post.id === 'p1' &&
             Array.isArray(keywords) &&
             keywords.includes('javascript') &&
             keywords.includes('webdev')
@@ -1183,7 +1183,7 @@ describe('mutation startCampaign', () => {
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'SOURCE' &&
-            body.creatives[0].value === 'm' &&
+            body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'NONE'
           );
         })
@@ -1231,7 +1231,7 @@ describe('mutation startCampaign', () => {
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'SOURCE' &&
-            body.creatives[0].value === 'm' &&
+            body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'NONE'
           );
         })
@@ -1288,7 +1288,7 @@ describe('mutation startCampaign', () => {
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'SOURCE' &&
-            body.creatives[0].value === 'm' &&
+            body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'BOOST' &&
             Array.isArray(keywords) &&
             keywords.includes('squadtag1') &&
@@ -1356,7 +1356,7 @@ describe('mutation startCampaign', () => {
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'SOURCE' &&
-            body.creatives[0].value === 'm' &&
+            body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'NONE'
           );
         })

@@ -39,6 +39,17 @@ const generateTargeting = (
   };
 };
 
+const generateCreativeValue = (type: CampaignType, referenceId: string) => {
+  switch (type) {
+    case CampaignType.Post:
+      return { post: { id: referenceId } };
+    case CampaignType.Source:
+      return { squad: { id: referenceId } };
+    default:
+      throw new Error(`Unable to process campaign type: ${type}`);
+  }
+};
+
 export class SkadiApiClientV2 implements ISkadiApiClientV2 {
   private readonly fetchOptions: RequestInit;
   private readonly garmr: IGarmrService;
@@ -86,7 +97,13 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
           budget: coresToUsd(flags.budget!),
           start_time: createdAt.getTime(),
           end_time: endedAt.getTime(),
-          creatives: [{ id: creativeId, type, value: referenceId }],
+          creatives: [
+            {
+              id: creativeId,
+              type,
+              value: generateCreativeValue(type, referenceId),
+            },
+          ],
           targeting,
         }),
       });
