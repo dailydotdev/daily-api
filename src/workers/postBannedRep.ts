@@ -31,7 +31,6 @@ const worker: Worker = {
     if (deletedBy === DELETED_BY_WORKER) {
       return;
     }
-    console.log('data', data.post);
 
     try {
       await con.transaction(async (transaction) => {
