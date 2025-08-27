@@ -652,7 +652,7 @@ describe('mutation updateOrganization', () => {
     expect(errors[0].extensions?.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(errors[0].extensions?.issues?.[0].code).toEqual('invalid_type');
     expect(errors[0].extensions?.issues?.[0].message).toEqual(
-      'Expected string, received null',
+      'Invalid input: expected string, received null',
     );
   });
 
