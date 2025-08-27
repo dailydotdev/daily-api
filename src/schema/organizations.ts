@@ -460,7 +460,9 @@ const getOrganizationById = async (
   });
 
 export const updateOrganizationSchema = z.object({
-  id: z.string({ message: 'Organization ID is required' }),
+  id: z.string({
+    error: 'Organization ID is required',
+  }),
   name: z.string().trim().min(1, 'Organization name is required'),
   image: z.instanceof(Promise<FileHandle>).optional(),
 });

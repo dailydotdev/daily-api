@@ -367,7 +367,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
       }
 
-      const promptSchema = z.record(z.boolean());
+      const promptSchema = z.record(z.string(), z.boolean());
       const result = promptSchema.safeParse(data.flags?.prompt);
 
       if (!!data.flags?.prompt && !result.success) {

@@ -13,20 +13,24 @@ import { SubscriptionProvider, SubscriptionStatus } from '../common/plus';
 import type { ContentPreferenceOrganization } from './contentPreference/ContentPreferenceOrganization';
 
 export const organizationSubscriptionFlagsSchema = z.object({
-  subscriptionId: z.string({ message: 'Subscription ID is required' }),
-  priceId: z.string({ message: 'Price ID is required' }),
-  cycle: z.nativeEnum(SubscriptionCycles, {
-    message: 'Invalid subscription cycle',
+  subscriptionId: z.string({
+    error: 'Subscription ID is required',
+  }),
+  priceId: z.string({
+    error: 'Price ID is required',
+  }),
+  cycle: z.enum(SubscriptionCycles, {
+    error: 'Invalid subscription cycle',
   }),
   createdAt: z.preprocess(
     (value) => new Date(value as string),
     z.date().optional(),
   ),
-  provider: z.nativeEnum(SubscriptionProvider, {
-    message: 'Invalid subscription provider',
+  provider: z.enum(SubscriptionProvider, {
+    error: 'Invalid subscription provider',
   }),
-  status: z.nativeEnum(SubscriptionStatus, {
-    message: 'Invalid subscription status',
+  status: z.enum(SubscriptionStatus, {
+    error: 'Invalid subscription status',
   }),
 });
 
