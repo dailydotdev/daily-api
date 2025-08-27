@@ -125,7 +125,7 @@ it('should not create a reputation event for the author that shared the post', a
 it('should create a reputation event that decreases reputation', async () => {
   await con
     .getRepository(Post)
-    .update({ id: 'p1' }, { authorId: '1', scoutId: '2', banned: true });
+    .update({ id: 'p1' }, { authorId: '1', scoutId: '2' });
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
     post,
@@ -136,6 +136,21 @@ it('should create a reputation event that decreases reputation', async () => {
   expect(events.length).toEqual(2);
   expect(events[0].amount).toEqual(-100);
   expect(events[1].amount).toEqual(-100);
+});
+
+it('should not create a reputation event that decreases reputation if hard deletion', async () => {
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { authorId: '1', scoutId: '2' });
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  await expectSuccessfulBackground(worker, {
+    post,
+    method: 'hard',
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'p1', grantById: '', amount: LessThan(0) } });
+  expect(events.length).toEqual(0);
 });
 
 it('should not create a reputation event that decreases reputation if deleter is owner', async () => {
