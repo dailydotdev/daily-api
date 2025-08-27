@@ -1,5 +1,4 @@
 import {
-  CampaignPost,
   CampaignSource,
   CampaignState,
   CampaignType,
@@ -88,7 +87,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const userId = ctx.userId;
     const endedAt = addDays(new Date(), duration);
 
-    const campaign = await manager.getRepository(CampaignPost).save(
+    const campaign = await manager.getRepository(CampaignSource).save(
       manager.getRepository(CampaignSource).create({
         id,
         creativeId,
@@ -165,7 +164,7 @@ export const stopCampaignSource = async ({
     const toRefund = parseFloat(budget);
 
     await manager
-      .getRepository(CampaignPost)
+      .getRepository(CampaignSource)
       .update({ id: campaignId }, { state: CampaignState.Cancelled });
 
     await manager

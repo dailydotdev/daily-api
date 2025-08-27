@@ -33,7 +33,7 @@ const generateTargeting = (
     value: {
       boost: {
         post_id: type === CampaignType.Post ? referenceId : undefined,
-        keywords,
+        keywords: type === CampaignType.Post ? undefined : keywords,
       },
     },
   };
