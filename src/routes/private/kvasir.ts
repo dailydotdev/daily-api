@@ -41,7 +41,10 @@ export const kvasir = async (fastify: FastifyInstance): Promise<void> => {
       if (body.error) {
         request.log.error(body.error);
         return response.code(400).send({
-          error: body.error,
+          error: {
+            name: body.error.name,
+            issues: body.error.issues,
+          },
         });
       }
 
