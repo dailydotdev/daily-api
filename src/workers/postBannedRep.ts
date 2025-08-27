@@ -5,7 +5,7 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { PostReport } from '../entity/PostReport';
-import { Post, PostType } from '../entity';
+import { Post } from '../entity';
 import { ChangeObject } from '../types';
 import { DELETED_BY_WORKER } from '../common';
 
@@ -19,19 +19,15 @@ const worker: Worker = {
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
     const { method } = data;
-    const { id, authorId, scoutId, flags, type } = data.post;
+    const { id, authorId, scoutId, flags } = data.post;
     const parsedFlags =
       typeof flags === 'string' ? JSON.parse(flags as string) : flags;
     const { deletedBy } = parsedFlags;
 
     /**
-     * We don't deduct reputation on hard deletion or welcome post
+     * We don't deduct reputation on hard deletion or worker deletion
      */
-    if (
-      method === 'hard' ||
-      type === PostType.Welcome ||
-      deletedBy === DELETED_BY_WORKER
-    ) {
+    if (method === 'hard' || deletedBy === DELETED_BY_WORKER) {
       return;
     }
 

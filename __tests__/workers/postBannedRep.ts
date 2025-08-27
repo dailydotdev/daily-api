@@ -2,24 +2,18 @@ import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
 import {
   ArticlePost,
-  FreeformPost,
   Post,
   PostType,
   SharePost,
   Source,
   User,
-  WelcomePost,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
 import { DataSource, LessThan } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import {
-  createSquadWelcomePost,
-  DELETED_BY_WORKER,
-  updateFlagsStatement,
-} from '../../src/common';
+import { DELETED_BY_WORKER, updateFlagsStatement } from '../../src/common';
 import { ReportReason } from '../../src/entity/common';
 
 let con: DataSource;
