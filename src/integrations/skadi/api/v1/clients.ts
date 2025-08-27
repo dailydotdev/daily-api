@@ -193,8 +193,12 @@ export class SkadiApiClientV1 implements ISkadiApiClientV1 {
         },
       );
 
+      const posts = response.promoted_posts?.filter(
+        ({ post_id }) => !!post_id?.length,
+      );
+
       return {
-        promotedPosts: response.promoted_posts?.map(mapCampaign) ?? [],
+        promotedPosts: posts?.map(mapCampaign) ?? [],
         postIds: response.post_ids ?? [],
         totalSpend: response.total_spend,
         impressions: response.impressions,
