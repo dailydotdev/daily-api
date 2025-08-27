@@ -55,7 +55,10 @@ beforeEach(async () => {
 it('should create a reputation event that increases reputation', async () => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
-    post,
+    post: {
+      ...post,
+      banned: true,
+    },
   });
   const events = await con
     .getRepository(ReputationEvent)
@@ -149,7 +152,7 @@ it('should create a reputation decrease event for the author of the freeform pos
 it('should create a reputation event that decreases reputation', async () => {
   await con
     .getRepository(Post)
-    .update({ id: 'p1' }, { authorId: '1', scoutId: '2' });
+    .update({ id: 'p1' }, { authorId: '1', scoutId: '2', banned: true });
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
     post,

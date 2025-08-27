@@ -17,14 +17,21 @@ const worker: Worker = {
   subscription: 'post-banned-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { id, authorId, scoutId, flags } = data.post;
+    const { id, authorId, scoutId, flags, banned } = data.post;
     const parsedFlags =
       typeof flags === 'string' ? JSON.parse(flags as string) : flags;
     const { deletedBy } = parsedFlags;
 
+    /**
+     * We don't deduct reputation on hard deletion, only bans
+     */
+    if (!banned) {
+      return;
+    }
     if (deletedBy === DELETED_BY_WORKER) {
       return;
     }
+    console.log('data', data.post);
 
     try {
       await con.transaction(async (transaction) => {
