@@ -103,7 +103,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
         state: CampaignState.Active,
         endedAt,
         sourceId: source.id,
-        type: CampaignType.Source,
+        type: CampaignType.Squad,
       }),
     );
 

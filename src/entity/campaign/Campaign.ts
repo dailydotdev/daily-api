@@ -13,7 +13,7 @@ import type { User } from '../user';
 
 export enum CampaignType {
   Post = 'POST',
-  Source = 'SOURCE',
+  Squad = 'SQUAD',
 }
 
 export enum CampaignState {

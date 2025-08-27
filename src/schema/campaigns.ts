@@ -228,7 +228,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             await validatePostBoostPermissions(ctx, value),
           );
           break;
-        case CampaignType.Source:
+        case CampaignType.Squad:
           await validateSquadBoostPermissions(ctx, value);
           break;
         default:
@@ -267,7 +267,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       switch (type) {
         case CampaignType.Post:
           return startCampaignPost({ ctx, args });
-        case CampaignType.Source:
+        case CampaignType.Squad:
           return startCampaignSource({ ctx, args });
         default:
           throw new ValidationError('Unknown type to process');
@@ -289,7 +289,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       switch (campaign.type) {
         case CampaignType.Post:
           return stopCampaignPost({ ctx, campaign });
-        case CampaignType.Source:
+        case CampaignType.Squad:
           return stopCampaignSource({ ctx, campaign });
         default:
           throw new ValidationError('Unknown type to process');

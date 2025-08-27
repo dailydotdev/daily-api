@@ -268,7 +268,7 @@ describe('query campaignById', () => {
         id: CAMPAIGN_UUID_3,
         referenceId: 'ref3',
         userId: '1',
-        type: CampaignType.Source,
+        type: CampaignType.Squad,
         state: CampaignState.Active,
         createdAt: new Date('2023-03-01'),
         endedAt: new Date('2023-12-31'),
@@ -324,7 +324,7 @@ describe('query campaignById', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.campaignById).toEqual({
       id: CAMPAIGN_UUID_3,
-      type: 'SOURCE',
+      type: 'SQUAD',
       state: 'ACTIVE',
       createdAt: new Date('2023-03-01').toISOString(),
       endedAt: new Date('2023-12-31').toISOString(),
@@ -501,7 +501,7 @@ describe('query campaignsList', () => {
         id: CAMPAIGN_UUID_5,
         referenceId: 'ref5',
         userId: '1',
-        type: CampaignType.Source,
+        type: CampaignType.Squad,
         state: CampaignState.Pending,
         createdAt: new Date(now.getTime() - 4000), // Oldest
         endedAt: new Date('2023-12-31'),
@@ -1125,7 +1125,7 @@ describe('mutation startCampaign', () => {
         client,
         {
           mutation: MUTATION,
-          variables: { type: 'SOURCE', value: 'm', duration: 7, budget: 5000 },
+          variables: { type: 'SQUAD', value: 'm', duration: 7, budget: 5000 },
         },
         'FORBIDDEN',
       );
@@ -1144,7 +1144,7 @@ describe('mutation startCampaign', () => {
         client,
         {
           mutation: MUTATION,
-          variables: { type: 'SOURCE', value: 'm', duration: 7, budget: 5000 },
+          variables: { type: 'SQUAD', value: 'm', duration: 7, budget: 5000 },
         },
         'GRAPHQL_VALIDATION_FAILED',
       );
@@ -1161,7 +1161,7 @@ describe('mutation startCampaign', () => {
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
-            body.creatives[0].type === 'SOURCE' &&
+            body.creatives[0].type === 'SQUAD' &&
             body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'NONE'
           );
@@ -1184,7 +1184,7 @@ describe('mutation startCampaign', () => {
         .mockImplementation(() => testNjordClient);
 
       const res = await client.mutate(MUTATION, {
-        variables: { type: 'SOURCE', value: 'm', duration: 1, budget: 1000 },
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
       });
 
       expect(res.errors).toBeFalsy();
@@ -1209,7 +1209,7 @@ describe('mutation startCampaign', () => {
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
-            body.creatives[0].type === 'SOURCE' &&
+            body.creatives[0].type === 'SQUAD' &&
             body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'NONE'
           );
@@ -1221,7 +1221,7 @@ describe('mutation startCampaign', () => {
         .count({ where: { senderId: '3', referenceType: 'PostBoost' } });
 
       const res = await client.mutate(MUTATION, {
-        variables: { type: 'SOURCE', value: 'm', duration: 1, budget: 1000 },
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
       });
 
       expect(res.errors).toBeTruthy();
@@ -1266,7 +1266,7 @@ describe('mutation startCampaign', () => {
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
-            body.creatives[0].type === 'SOURCE' &&
+            body.creatives[0].type === 'SQUAD' &&
             body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'BOOST' &&
             Array.isArray(keywords) &&
@@ -1294,7 +1294,7 @@ describe('mutation startCampaign', () => {
         .mockImplementation(() => testNjordClient);
 
       const res = await client.mutate(MUTATION, {
-        variables: { type: 'SOURCE', value: 'm', duration: 1, budget: 1000 },
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
       });
 
       expect(res.errors).toBeFalsy();
@@ -1334,7 +1334,7 @@ describe('mutation startCampaign', () => {
             uuidRegex.test(body.campaign_id) &&
             body.budget === 10 &&
             Array.isArray(body.creatives) &&
-            body.creatives[0].type === 'SOURCE' &&
+            body.creatives[0].type === 'SQUAD' &&
             body.creatives[0].value.squad.id === 'm' &&
             body?.targeting?.type === 'NONE'
           );
@@ -1357,7 +1357,7 @@ describe('mutation startCampaign', () => {
         .mockImplementation(() => testNjordClient);
 
       const res = await client.mutate(MUTATION, {
-        variables: { type: 'SOURCE', value: 'm', duration: 1, budget: 1000 },
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
       });
 
       expect(res.errors).toBeFalsy();
@@ -1477,7 +1477,7 @@ describe('mutation stopCampaign', () => {
       id: CAMPAIGN_UUID_3,
       referenceId: 'm',
       userId: '3',
-      type: CampaignType.Source,
+      type: CampaignType.Squad,
       state: CampaignState.Active,
       createdAt: new Date(),
       endedAt: new Date(),
@@ -1664,7 +1664,7 @@ describe('query dailyCampaignReachEstimate', () => {
   `;
 
   const postParams = { type: 'POST', value: 'p1' };
-  const sourceParams = { type: 'SOURCE', value: 'm' };
+  const sourceParams = { type: 'SQUAD', value: 'm' };
 
   beforeEach(async () => {
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
@@ -1702,7 +1702,7 @@ describe('query dailyCampaignReachEstimate', () => {
       {
         query: QUERY,
         variables: {
-          type: 'SOURCE',
+          type: 'SQUAD',
           value: 'nonexistent',
           budget: 5000,
         },

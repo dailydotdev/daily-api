@@ -26,7 +26,7 @@ const generateTargeting = (
   referenceId: string,
   keywords: string[],
 ) => {
-  const isNone = type === CampaignType.Source && keywords.length === 0;
+  const isNone = type === CampaignType.Squad && keywords.length === 0;
 
   return {
     type: isNone ? TargetingType.None : TargetingType.Boost,
@@ -43,7 +43,7 @@ const generateCreativeValue = (type: CampaignType, referenceId: string) => {
   switch (type) {
     case CampaignType.Post:
       return { post: { id: referenceId } };
-    case CampaignType.Source:
+    case CampaignType.Squad:
       return { squad: { id: referenceId } };
     default:
       throw new Error(`Unable to process campaign type: ${type}`);
