@@ -144,12 +144,14 @@ export const isPurchaseType = (
 
 const paddleNotificationCustomDataSchema = z.object(
   {
-    user_id: z.string({ message: 'Transaction user id is required' }),
+    user_id: z.string({
+      error: 'Transaction user id is required',
+    }),
     gifter_id: z.string().optional(),
     organization_id: z.string().optional(),
   },
   {
-    message: 'Transaction custom data is required',
+    error: 'Transaction custom data is required',
   },
 );
 
@@ -157,32 +159,38 @@ export const coreProductCustomDataSchema = z.object(
   {
     cores: z.preprocess(
       (value) => +(value as string),
-      z.number().int({ message: 'Cores must be an integer' }),
+      z.int({
+        error: 'Cores must be an integer',
+      }),
     ),
   },
   {
-    message: 'Transaction product custom data is required',
+    error: 'Transaction product custom data is required',
   },
 );
 
 const paddleTransactionSchema = z.object({
-  id: z.string({ message: 'Transaction id is required' }),
+  id: z.string({
+    error: 'Transaction id is required',
+  }),
   updatedAt: z.preprocess(
     (value) => new Date(value as string),
-    z.date({ message: 'Transaction updated at is required' }),
+    z.date({
+      error: 'Transaction updated at is required',
+    }),
   ),
   items: z
     .array(
       z.object({
         price: z.object({
           productId: z.string({
-            message: 'Transaction product id is required',
+            error: 'Transaction product id is required',
           }),
           customData: coreProductCustomDataSchema,
         }),
       }),
       {
-        message: 'Transaction items are required',
+        error: 'Transaction items are required',
       },
     )
     .max(1, 'Multiple items in transaction not supported yet'),
@@ -203,7 +211,7 @@ export const getPaddleTransactionData = ({
   const transactionDataResult = paddleTransactionSchema.safeParse(event.data);
 
   if (transactionDataResult.error) {
-    throw new Error(transactionDataResult.error.errors[0].message);
+    throw new Error(transactionDataResult.error.issues[0].message);
   }
 
   const transactionData = transactionDataResult.data;
@@ -447,10 +455,14 @@ export interface PaddleCustomData {
 }
 
 export const paddleSubscriptionSchema = z.object({
-  id: z.string({ message: 'Subscription id is required' }),
+  id: z.string({
+    error: 'Subscription id is required',
+  }),
   updatedAt: z.preprocess(
     (value) => new Date(value as string),
-    z.date({ message: 'Subscription updated at is required' }),
+    z.date({
+      error: 'Subscription updated at is required',
+    }),
   ),
   startedAt: z.preprocess(
     (value) => new Date(value as string),
@@ -460,26 +472,28 @@ export const paddleSubscriptionSchema = z.object({
     .array(
       z.object({
         price: z.object({
-          id: z.string({ message: 'Subscription price id is required' }),
+          id: z.string({
+            error: 'Subscription price id is required',
+          }),
           productId: z.string({
-            message: 'Subscription product id is required',
+            error: 'Subscription product id is required',
           }),
           billingCycle: z.object({
             interval: z.enum(['month', 'year'], {
-              message: 'Subscription cycle is required',
+              error: 'Subscription cycle is required',
             }),
-            frequency: z.number().int(),
+            frequency: z.int(),
           }),
         }),
         quantity: z.number(),
       }),
       {
-        message: 'Subscription items are required',
+        error: 'Subscription items are required',
       },
     )
     .max(1, 'Multiple items in subscription not supported yet'),
   customerId: z.string({
-    message: 'Subscription customer id is required',
+    error: 'Subscription customer id is required',
   }),
   customData: paddleNotificationCustomDataSchema,
   discountId: z.string().optional().nullable(),
@@ -494,7 +508,7 @@ export const getPaddleSubscriptionData = ({
   const subscriptionDataResult = paddleSubscriptionSchema.safeParse(event.data);
 
   if (subscriptionDataResult.error) {
-    throw new Error(subscriptionDataResult.error.errors[0].message);
+    throw new Error(subscriptionDataResult.error.issues[0].message);
   }
 
   const subscriptionData = subscriptionDataResult.data;

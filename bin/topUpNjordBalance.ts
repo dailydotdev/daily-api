@@ -50,7 +50,7 @@ const main = async () => {
 
     if (dataResult.error) {
       throw new Error(
-        `Error '${dataResult.error.errors[0].path}': ${dataResult.error.errors[0].message}`,
+        `Error '${dataResult.error.issues[0].path}': ${dataResult.error.issues[0].message}`,
       );
     }
 

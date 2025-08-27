@@ -73,14 +73,14 @@ const main = async () => {
       origin: z.string().min(4),
 
       // delimiter used in the file
-      delimiter: z.string().nonempty().default(','),
+      delimiter: z.string().nonempty().prefault(','),
     });
 
     const dataResult = paramsSchema.safeParse(values);
 
     if (dataResult.error) {
       throw new Error(
-        `Error '${dataResult.error.errors[0].path}': ${dataResult.error.errors[0].message}`,
+        `Error '${dataResult.error.issues[0].path}': ${dataResult.error.issues[0].message}`,
       );
     }
 

@@ -58,13 +58,12 @@ const queryValidation = z.string().min(2).max(100);
 
 export const DEFAULT_AUTOCOMPLETE_LIMIT = 10;
 const limitValidation = z
-  .number()
   .int()
   .min(1)
   .max(100)
   .positive()
   .optional()
-  .default(DEFAULT_AUTOCOMPLETE_LIMIT);
+  .prefault(DEFAULT_AUTOCOMPLETE_LIMIT);
 
 // Schema for experienceHitAutocomplete
 const autocompleteBaseValidation = z.object({
@@ -76,18 +75,18 @@ export const autocomplete = {
   validation: {
     base: autocompleteBaseValidation,
     experience: autocompleteBaseValidation.extend({
-      type: z.nativeEnum(ExperienceAutocompleteType),
+      type: z.enum(ExperienceAutocompleteType),
     }),
     company: autocompleteBaseValidation.extend({
-      type: z.nativeEnum(CompanyType).optional().default(CompanyType.Business),
+      type: z.enum(CompanyType).optional().prefault(CompanyType.Business),
     }),
   },
   propertyByType: experiencePropertyByType,
   handleValidationError: <T extends AutocompleteInput>(
-    error: z.SafeParseError<T>['error'],
+    error: z.ZodSafeParseError<T>['error'],
     params: T,
   ) => {
-    if ('query' in error.formErrors.fieldErrors) {
+    if ('query' in z.flattenError(error).fieldErrors) {
       return {
         query: params.query ?? '',
         limit: params.limit ?? DEFAULT_AUTOCOMPLETE_LIMIT,
@@ -105,12 +104,12 @@ export const experiences = {
   validation: {
     queryAll: z.object({
       status: z
-        .array(z.nativeEnum(ExperienceStatus))
+        .array(z.enum(ExperienceStatus))
         .optional()
-        .default([ExperienceStatus.Published]),
+        .prefault([ExperienceStatus.Published]),
     }),
     remove: z.object({
-      id: z.string().uuid(),
+      id: z.uuid(),
     }),
     update: z.discriminatedUnion('type', [
       userAwardExperienceSchema
