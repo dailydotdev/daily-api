@@ -5,7 +5,7 @@ import {
 } from './../entity/ReputationEvent';
 import { messageToJson, Worker } from './worker';
 import { PostReport } from '../entity/PostReport';
-import { Post } from '../entity';
+import { Post, PostType } from '../entity';
 import { ChangeObject } from '../types';
 import { DELETED_BY_WORKER } from '../common';
 
@@ -17,21 +17,22 @@ const worker: Worker = {
   subscription: 'post-banned-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { id, authorId, scoutId, flags, banned } = data.post;
+    const { id, authorId, scoutId, flags, banned, type } = data.post;
     const parsedFlags =
       typeof flags === 'string' ? JSON.parse(flags as string) : flags;
     const { deletedBy } = parsedFlags;
 
     /**
-     * We don't deduct reputation on hard deletion, only bans
+     * We don't deduct reputation on hard deletion or welcome post, only bans
      */
-    if (!banned) {
+    if (
+      !banned ||
+      type === PostType.Welcome ||
+      deletedBy === DELETED_BY_WORKER
+    ) {
       return;
     }
-    if (deletedBy === DELETED_BY_WORKER) {
-      return;
-    }
-
+    
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction
