@@ -643,7 +643,7 @@ const onPostChange = async (
       });
     }
   } else if (data.payload.op === 'd') {
-    await notifyPostBannedOrRemoved(logger, data.payload.before!);
+    await notifyPostBannedOrRemoved(logger, data.payload.before!, 'hard');
   }
 };
 

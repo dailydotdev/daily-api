@@ -240,9 +240,11 @@ export const notifyView = (
 export const notifyPostBannedOrRemoved = async (
   log: EventLogger,
   post: ChangeObject<Post>,
+  method: 'hard' | 'soft' = 'soft',
 ): Promise<void> =>
   publishEvent(log, postBannedOrRemovedTopic, {
     post,
+    method,
   });
 
 export const notifySourceFeedAdded = async (

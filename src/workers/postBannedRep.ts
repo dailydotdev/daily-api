@@ -11,28 +11,30 @@ import { DELETED_BY_WORKER } from '../common';
 
 interface Data {
   post: ChangeObject<Post>;
+  method: 'hard' | 'soft';
 }
 
 const worker: Worker = {
   subscription: 'post-banned-rep',
   handler: async (message, con, logger): Promise<void> => {
     const data: Data = messageToJson(message);
-    const { id, authorId, scoutId, flags, banned, type } = data.post;
+    const { method } = data;
+    const { id, authorId, scoutId, flags, type } = data.post;
     const parsedFlags =
       typeof flags === 'string' ? JSON.parse(flags as string) : flags;
     const { deletedBy } = parsedFlags;
 
     /**
-     * We don't deduct reputation on hard deletion or welcome post, only bans
+     * We don't deduct reputation on hard deletion or welcome post
      */
     if (
-      !banned ||
+      method === 'hard' ||
       type === PostType.Welcome ||
       deletedBy === DELETED_BY_WORKER
     ) {
       return;
     }
-    
+
     try {
       await con.transaction(async (transaction) => {
         const reports = await transaction

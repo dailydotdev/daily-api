@@ -55,10 +55,8 @@ beforeEach(async () => {
 it('should create a reputation event that increases reputation', async () => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
-    post: {
-      ...post,
-      banned: true,
-    },
+    post,
+    method: 'soft',
   });
   const events = await con
     .getRepository(ReputationEvent)
@@ -68,10 +66,11 @@ it('should create a reputation event that increases reputation', async () => {
   expect(events[1].amount).toEqual(100);
 });
 
-it('should not create a reputation event if deleted but not banned', async () => {
+it('should not create a reputation event if hard deleted', async () => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
     post,
+    method: 'hard',
   });
   const events = await con
     .getRepository(ReputationEvent)
