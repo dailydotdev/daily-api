@@ -753,7 +753,6 @@ describe('mutation startCampaign', () => {
       .post('/api/campaign/create', (body) => {
         const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.advertiser_id === getAdvertiserId('1') &&
           uuidRegex.test(body.campaign_id) &&
@@ -762,9 +761,7 @@ describe('mutation startCampaign', () => {
           body.creatives.length === 1 &&
           body.creatives[0].type === 'POST' &&
           body.creatives[0].value.post.id === 'p1' &&
-          Array.isArray(keywords) &&
-          keywords.includes('javascript') &&
-          keywords.includes('webdev')
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .replyWithError('Skadi API is down');
@@ -799,7 +796,6 @@ describe('mutation startCampaign', () => {
       .post('/api/campaign/create', (body) => {
         const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.advertiser_id === getAdvertiserId('1') &&
           uuidRegex.test(body.campaign_id) &&
@@ -808,9 +804,7 @@ describe('mutation startCampaign', () => {
           body.creatives.length === 1 &&
           body.creatives[0].type === 'POST' &&
           body.creatives[0].value.post.id === 'p1' &&
-          Array.isArray(keywords) &&
-          keywords.includes('javascript') &&
-          keywords.includes('webdev')
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .reply(400, 'Invalid campaign parameters'); // 400 status with text response
@@ -838,7 +832,6 @@ describe('mutation startCampaign', () => {
       .post('/api/campaign/create', (body) => {
         const uuidRegex =
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.advertiser_id === getAdvertiserId('1') &&
           uuidRegex.test(body.campaign_id) &&
@@ -846,9 +839,7 @@ describe('mutation startCampaign', () => {
           Array.isArray(body.creatives) &&
           body.creatives[0].type === 'POST' &&
           body.creatives[0].value.post.id === 'p1' &&
-          Array.isArray(keywords) &&
-          keywords.includes('javascript') &&
-          keywords.includes('webdev')
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .reply(200, ''); // Successful response with empty string
@@ -944,7 +935,6 @@ describe('mutation startCampaign', () => {
         .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.advertiser_id === getAdvertiserId('1') &&
             uuidRegex.test(body.campaign_id) &&
@@ -952,9 +942,7 @@ describe('mutation startCampaign', () => {
             Array.isArray(body.creatives) &&
             body.creatives[0].type === 'POST' &&
             body.creatives[0].value.post.id === 'p1' &&
-            Array.isArray(keywords) &&
-            keywords.includes('javascript') &&
-            keywords.includes('webdev')
+            body.targeting?.value?.boost?.keywords === undefined
           );
         })
         .reply(200, ''); // Successful response with empty string (Skadi returns nothing on success)
@@ -1001,7 +989,6 @@ describe('mutation startCampaign', () => {
         .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.advertiser_id === getAdvertiserId('1') &&
             uuidRegex.test(body.campaign_id) &&
@@ -1010,9 +997,7 @@ describe('mutation startCampaign', () => {
             body.creatives.length === 1 &&
             body.creatives[0].type === 'POST' &&
             body.creatives[0].value.post.id === 'p1' &&
-            Array.isArray(keywords) &&
-            keywords.includes('javascript') &&
-            keywords.includes('webdev')
+            body.targeting?.value?.boost?.keywords === undefined
           );
         })
         .reply(200, { status: 'created' }); // 200 OK with JSON but no error field
@@ -1059,7 +1044,6 @@ describe('mutation startCampaign', () => {
         .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.advertiser_id === getAdvertiserId('1') &&
             uuidRegex.test(body.campaign_id) &&
@@ -1068,9 +1052,7 @@ describe('mutation startCampaign', () => {
             body.creatives.length === 1 &&
             body.creatives[0].type === 'POST' &&
             body.creatives[0].value.post.id === 'p1' &&
-            Array.isArray(keywords) &&
-            keywords.includes('javascript') &&
-            keywords.includes('webdev')
+            body.targeting?.value?.boost?.keywords === undefined
           );
         })
         .reply(200, { error: 'Campaign already exists' }); // 200 OK but with error field in JSON
@@ -1105,7 +1087,6 @@ describe('mutation startCampaign', () => {
         .post('/api/campaign/create', (body) => {
           const uuidRegex =
             /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.advertiser_id === getAdvertiserId('1') &&
             uuidRegex.test(body.campaign_id) &&
@@ -1114,9 +1095,7 @@ describe('mutation startCampaign', () => {
             body.creatives.length === 1 &&
             body.creatives[0].type === 'POST' &&
             body.creatives[0].value.post.id === 'p1' &&
-            Array.isArray(keywords) &&
-            keywords.includes('javascript') &&
-            keywords.includes('webdev')
+            body.targeting?.value?.boost?.keywords === undefined
           );
         })
         .reply(500, 'Internal Server Error'); // 500 status with text response
@@ -1846,14 +1825,11 @@ describe('query dailyCampaignReachEstimate', () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
-          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 20 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
-            Array.isArray(keywords) &&
-            keywords.includes('javascript') &&
-            keywords.includes('webdev')
+            body.targeting?.value?.boost?.keywords === undefined
           );
         })
         .reply(200, {
@@ -1881,14 +1857,11 @@ describe('query dailyCampaignReachEstimate', () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
-          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 10 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
-            Array.isArray(keywords) &&
-            keywords.includes('javascript') &&
-            keywords.includes('webdev')
+            body.targeting?.value?.boost?.keywords === undefined
           );
         })
         .reply(200, {
@@ -1916,14 +1889,11 @@ describe('query dailyCampaignReachEstimate', () => {
       // Mock the HTTP response using nock
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
-          const keywords = body?.targeting?.value?.boost?.keywords || [];
           return (
             body.budget === 1000 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
-            Array.isArray(keywords) &&
-            keywords.includes('javascript') &&
-            keywords.includes('webdev')
+            body.targeting?.value?.boost?.keywords === undefined
           );
         })
         .reply(200, {
@@ -1954,14 +1924,11 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response with error
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
-        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 20 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
-          Array.isArray(keywords) &&
-          keywords.includes('javascript') &&
-          keywords.includes('webdev')
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .reply(200, {
@@ -1982,14 +1949,11 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
-        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 100 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
-          Array.isArray(keywords) &&
-          keywords.includes('javascript') &&
-          keywords.includes('webdev')
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .reply(200, {
@@ -2028,14 +1992,11 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response using nock
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
-        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 30 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
-          Array.isArray(keywords) &&
-          keywords.includes('javascript') &&
-          keywords.includes('webdev')
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .reply(200, {
@@ -2101,14 +2062,11 @@ describe('query dailyCampaignReachEstimate', () => {
     // Mock the HTTP response where min and max impressions are the same
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
-        const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
           body.budget === 40 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
-          Array.isArray(keywords) &&
-          keywords.includes('javascript') &&
-          keywords.includes('webdev')
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .reply(200, {
@@ -2142,7 +2100,8 @@ describe('query dailyCampaignReachEstimate', () => {
         return (
           body.budget === 30 &&
           body.targeting?.type === 'BOOST' &&
-          body.targeting?.value?.boost?.post_id === 'p1'
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          body.targeting?.value?.boost?.keywords === undefined
         );
       })
       .reply(200, {
