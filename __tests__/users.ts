@@ -3625,6 +3625,36 @@ describe('mutation updateUserProfile', () => {
     });
   });
 
+  it('should update marketing notification flags', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+
+    const res1 = await client.mutate(MUTATION, {
+      variables: { data: { acceptedMarketing: false } },
+    });
+
+    expect(res1.errors?.length).toBeFalsy();
+    const updatedUser1 = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser1?.notificationFlags.marketing.email).toEqual('muted');
+    expect(updatedUser1?.notificationFlags.marketing.inApp).toEqual('muted');
+
+    loggedUser = '2';
+
+    const res2 = await client.mutate(MUTATION, {
+      variables: { data: { acceptedMarketing: true } },
+    });
+
+    expect(res2.errors?.length).toBeFalsy();
+    const updatedUser2 = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser2?.notificationFlags.marketing.email).toEqual(
+      'subscribed',
+    );
+    expect(updatedUser2?.notificationFlags.marketing.inApp).toEqual(
+      'subscribed',
+    );
+  });
+
   it('should update user profile and set info confirmed', async () => {
     loggedUser = '1';
 
@@ -6551,6 +6581,160 @@ describe('coresRole field on User', () => {
   });
 });
 
+describe('query checkLocation', () => {
+  const QUERY = /* GraphQL */ `
+    query checkLocation {
+      checkLocation {
+        _
+      }
+    }
+  `;
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return false when user already has lastStored location flag set', async () => {
+    loggedUser = '1';
+
+    // Set up user with existing country flag
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { flags: { country: 'US', location: { lastStored: new Date() } } },
+      );
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(false);
+  });
+
+  it('should return false when user does not exist', async () => {
+    loggedUser = 'nonexistent';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(false);
+  });
+
+  it('should throw error when geo cannot be extracted', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    (getGeo as jest.Mock).mockImplementation(() => null);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toBe('GRAPHQL_VALIDATION_FAILED');
+    expect(res.errors[0].message).toBe('Geo could not be extracted');
+  });
+
+  it('should throw error when geo has no country', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    (getGeo as jest.Mock).mockImplementation(() => ({
+      city: 'New York',
+    }));
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toBe('GRAPHQL_VALIDATION_FAILED');
+    expect(res.errors[0].message).toBe('Geo could not be extracted');
+  });
+
+  it('should return true and set flags when geo is successfully extracted', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    const mockGeo = {
+      country: 'US',
+      city: 'New York',
+      continent: 'North America',
+      subdivision: 'NY',
+      location: {
+        accuracyRadius: 50,
+        lat: 40.7128,
+        lng: -74.006,
+      },
+    };
+
+    (getGeo as jest.Mock).mockImplementation(() => mockGeo);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(true);
+
+    // Verify flags were updated
+    const updatedUser = await con.getRepository(User).findOne({
+      where: { id: '1' },
+      select: ['flags'],
+    });
+
+    expect(updatedUser.flags).toEqual({
+      country: 'US',
+      city: 'New York',
+      continent: 'North America',
+      subdivision: 'NY',
+      location: {
+        lastStored: expect.any(String),
+        accuracyRadius: 50,
+        lat: 40.7128,
+        lng: -74.006,
+      },
+    });
+  });
+
+  it('should return true and set partial flags when geo has minimal data', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    const mockGeo = {
+      country: 'CA',
+    };
+
+    (getGeo as jest.Mock).mockImplementation(() => mockGeo);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(true);
+
+    // Verify flags were updated with available data
+    const updatedUser = await con.getRepository(User).findOne({
+      where: { id: '1' },
+      select: ['flags'],
+    });
+
+    expect(updatedUser.flags).toEqual({
+      country: 'CA',
+      city: undefined,
+      continent: undefined,
+      subdivision: undefined,
+      location: {
+        lastStored: expect.any(String),
+        accuracyRadius: undefined,
+        lat: undefined,
+        lng: undefined,
+      },
+    });
+  });
+});
+
 describe('query checkCoresRole', () => {
   const QUERY = /* GraphQL */ `
     query checkCoresRole {
@@ -6991,6 +7175,32 @@ describe('mutation updateNotificationSettings', () => {
 
     const user = await con.getRepository(User).findOneBy({ id: loggedUser });
     expect(user?.notificationFlags).toEqual(updatedFlags);
+  });
+
+  it('should update acceptedMarketing flag', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(User)
+      .update({ id: loggedUser }, { acceptedMarketing: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        notificationFlags: {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          marketing: {
+            email: 'muted',
+            inApp: 'muted',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateNotificationSettings._).toBeTruthy();
+
+    const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(user?.acceptedMarketing).toBeFalsy();
   });
 
   it('should throw error because of invalid notification flags', async () => {

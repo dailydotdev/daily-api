@@ -19,6 +19,7 @@ import {
   validateCommentary,
   WelcomePost,
   type PostTranslation,
+  ArticlePost,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
@@ -52,6 +53,7 @@ import graphorm from '../graphorm';
 import type { GraphQLResolveInfo } from 'graphql';
 import { offsetPageGenerator } from '../schema/common';
 import { SourceMemberRoles } from '../roles';
+import { queryReadReplica } from './queryReadReplica';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -508,6 +510,59 @@ export const getExistingPost = async (
     .where([{ canonicalUrl: canonicalUrl }, { url: url }])
     .getOne();
 
+const extractPostIdOrSlugFromUrl = (url: string): string | undefined => {
+  // Escape special regex characters in the prefixes
+  const escapedUrlPrefix = process.env.URL_PREFIX.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    '\\$&',
+  );
+  const escapedCommentsPrefix = process.env.COMMENTS_PREFIX.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    '\\$&',
+  );
+
+  const regex = new RegExp(
+    `^(?:${escapedUrlPrefix}/r/([^/?#]+)|${escapedCommentsPrefix}/posts/([^/?#]+))`,
+  );
+
+  const match = url.match(regex);
+  return match ? match[1] || match[2] : undefined;
+};
+
+export const findPostByUrl = async <T extends keyof ArticlePost>(
+  url: string,
+  select: T[],
+  con: ConnectionManager,
+  returnDeleted = false,
+): Promise<Pick<ArticlePost, T> | undefined> => {
+  const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
+  const idOrSlug = extractPostIdOrSlugFromUrl(cleanUrl);
+
+  let queryBuilder = con
+    .getRepository(Post)
+    .createQueryBuilder()
+    .select(select)
+    .orderBy('"createdAt"', 'ASC');
+
+  if (!returnDeleted) {
+    queryBuilder = queryBuilder.andWhere({ deleted: false });
+  }
+
+  if (idOrSlug) {
+    queryBuilder = queryBuilder.andWhere([
+      { id: idOrSlug },
+      { slug: idOrSlug },
+    ]);
+  } else {
+    queryBuilder = queryBuilder.andWhere([
+      { canonicalUrl: canonicalUrl },
+      { url: cleanUrl },
+    ]);
+  }
+
+  return queryBuilder.getRawOne();
+};
+
 export const processApprovedModeratedPost = async (
   con: ConnectionManager,
   moderated: ModeratedPostCdc,
@@ -895,4 +950,36 @@ export const getTranslationRecord = ({
     },
     {},
   );
+};
+
+export const ensurePostAnalyticsPermissions = async ({
+  ctx,
+  postId,
+}: {
+  ctx: AuthContext;
+  postId: string;
+}): Promise<void> => {
+  const { userId, isTeamMember } = ctx;
+
+  // for now allow team members to view
+  if (isTeamMember) {
+    return;
+  }
+
+  if (!userId) {
+    throw new ForbiddenError('Auth is required');
+  }
+
+  const post = await queryReadReplica(ctx.con, ({ queryRunner }) => {
+    return queryRunner.manager.getRepository(Post).findOneOrFail({
+      select: ['id', 'authorId'],
+      where: { id: postId || '' },
+    });
+  });
+
+  if (post.authorId !== userId) {
+    throw new ForbiddenError(
+      'You do not have permission to view post analytics',
+    );
+  }
 };

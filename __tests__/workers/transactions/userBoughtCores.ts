@@ -16,6 +16,11 @@ import {
   sendEmail,
 } from '../../../src/common';
 import type { ChangeObject } from '../../../src/types';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../../../src/notifications/common';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -113,6 +118,41 @@ describe('userBoughtCores worker', () => {
       fee: 0,
       request: {},
       flags: { emailSent: true },
+      productId: null,
+    });
+    const transaction = await con.getRepository(UserTransaction).save(tx);
+
+    await expectSuccessfulTypedBackground(worker, {
+      transaction: transaction as unknown as ChangeObject<UserTransaction>,
+    });
+
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it('should not send email if user is not subscribed to notification type', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        notificationFlags: {
+          ...DEFAULT_NOTIFICATION_SETTINGS,
+          [NotificationType.InAppPurchases]: {
+            email: NotificationPreferenceStatus.Muted,
+            inApp: NotificationPreferenceStatus.Subscribed,
+          },
+        },
+      },
+    );
+    const tx = con.getRepository(UserTransaction).create({
+      processor: UserTransactionProcessor.Paddle,
+      receiverId: '1',
+      status: UserTransactionStatus.Success,
+      value: 100,
+      valueIncFees: 100,
+      fee: 0,
+      request: {},
+      flags: {
+        emailSent: false,
+      },
       productId: null,
     });
     const transaction = await con.getRepository(UserTransaction).save(tx);

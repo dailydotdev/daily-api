@@ -58,7 +58,10 @@ import createOrGetConnection from '../../src/db';
 import { DataSource, In } from 'typeorm';
 import { sourcesFixture } from '../fixture/source';
 import { SourceMemberRoles } from '../../src/roles';
-import { NotificationType } from '../../src/notifications/common';
+import {
+  NotificationChannel,
+  NotificationType,
+} from '../../src/notifications/common';
 import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
 import {
@@ -956,8 +959,8 @@ describe('generateNotification', () => {
     expect(actual.notification.type).toEqual(type);
     expect(actual.userIds).toEqual([userId]);
     expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual(post.id);
-    expect(actual.notification.referenceType).toEqual('post');
+    expect(actual.notification.referenceId).toEqual(source.id);
+    expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.uniqueKey).toEqual('2');
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21',
@@ -1590,6 +1593,44 @@ describe('storeNotificationBundle', () => {
       },
     ]);
     expect(actual.attachments!.length).toEqual(0);
+  });
+
+  it('should adjust public state based on inApp notificationFlags', async () => {
+    const ctx: NotificationPostContext & NotificationUpvotersContext = {
+      userIds: [userId],
+      source: sourcesFixture[0] as Reference<Source>,
+      post: postsFixture[0] as Reference<Post>,
+      upvotes: 50,
+      upvoters: [usersFixture[1], usersFixture[2]] as Reference<User>[],
+    };
+
+    const notificationType = NotificationType.ArticleUpvoteMilestone;
+
+    await con.getRepository(User).update(userId, {
+      notificationFlags: () => `jsonb_set(
+          jsonb_set("notificationFlags", '{${notificationType}}', coalesce("notificationFlags"->'${notificationType}', '{}'::jsonb)),
+          '{${notificationType},${NotificationChannel.InApp}}',
+          '"muted"'
+        )`,
+    });
+
+    await con.transaction((manager) =>
+      storeNotificationBundleV2(
+        manager,
+        generateNotificationV2(NotificationType.ArticleUpvoteMilestone, ctx),
+      ),
+    );
+    const notifications = await con.getRepository(NotificationV2).find();
+    expect(notifications.length).toEqual(1);
+
+    const userNotification = await con.getRepository(UserNotification).findOne({
+      where: {
+        userId: userId,
+        notificationId: notifications[0].id,
+      },
+    });
+    expect(userNotification).toBeTruthy();
+    expect(userNotification!.public).toBe(false);
   });
 });
 

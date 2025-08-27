@@ -64,7 +64,7 @@ describe('query whoami', () => {
 
     const res = await client.query(QUERY);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { email, ...user } = usersFixture[0];
+    const { email, notificationFlags, ...user } = usersFixture[0];
     expect(res.data.whoami).toEqual({
       ...user,
       timezone: DEFAULT_TIMEZONE,
@@ -80,16 +80,16 @@ describe('dedicated api routes', () => {
       const res = await authorizeRequest(
         request(app.server).get('/whoami'),
       ).expect(200);
-
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { notificationFlags, ...user } = usersFixture[0];
       expect(res.body).toEqual({
-        ...usersFixture[0],
+        ...user,
         company: null,
         portfolio: null,
         title: null,
         timezone: DEFAULT_TIMEZONE,
         createdAt: userCreatedDate,
         reputation: 10,
-        acceptedMarketing: false,
         roadmap: null,
         threads: null,
         codepen: null,

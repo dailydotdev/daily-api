@@ -257,6 +257,8 @@ export interface ExternalLinkPreview {
   id?: string;
   title: string;
   image: string;
+  url?: string;
+  relatedPublicPosts?: SharePost[];
 }
 
 export interface ExternalLink extends Partial<ExternalLinkPreview> {

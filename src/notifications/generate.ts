@@ -184,6 +184,10 @@ export const notificationTitleMap: Record<
   user_follow: (ctx: NotificationUserContext) => {
     return `<strong>${ctx.user.name || ctx.user.username}</strong> started following you.`;
   },
+  marketing: systemTitle,
+  new_user_welcome: systemTitle,
+  announcements: systemTitle,
+  in_app_purchases: systemTitle,
 };
 
 export const generateNotificationMap: Record<
@@ -338,7 +342,7 @@ export const generateNotificationMap: Record<
   ) =>
     builder
       .icon(NotificationIcon.Bell)
-      .referencePost(ctx.post)
+      .referenceSource(ctx.source)
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
@@ -535,4 +539,8 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.user)
       .targetUser(ctx.user);
   },
+  marketing: (builder) => builder.systemNotification(),
+  new_user_welcome: (builder) => builder.systemNotification(),
+  announcements: (builder) => builder.systemNotification(),
+  in_app_purchases: (builder) => builder.systemNotification(),
 };

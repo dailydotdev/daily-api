@@ -38,7 +38,6 @@ export interface User {
   permalink: string;
   username?: string;
   timezone?: string;
-  acceptedMarketing?: boolean;
   experienceLevel: string | null;
   language: ContentLanguage | null;
 }
