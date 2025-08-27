@@ -2997,7 +2997,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const validate = notificationFlagsSchema.safeParse(notificationFlags);
 
       if (validate.error) {
-        throw new ValidationError(validate.error.errors[0].message);
+        throw new ValidationError(validate.error.issues[0].message);
       }
 
       const acceptedMarketing =

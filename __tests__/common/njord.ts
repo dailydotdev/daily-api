@@ -121,7 +121,7 @@ describe('transferCores', () => {
       id: expect.any(String),
       processor: UserTransactionProcessor.Njord,
       receiverId: 't-tc-2',
-      status: UserTransactionStatus.Success,
+      status: UserTransactionStatus.Processing,
       productId: 'dd65570f-86c0-40a0-b8a0-3fdbd0d3945d',
       senderId: 't-tc-1',
       value: 42,
@@ -141,6 +141,7 @@ describe('transferCores', () => {
     expect(transactionAfter.id).toBe(transaction.id);
     expect(transactionAfter).toMatchObject({
       ...transaction,
+      status: UserTransactionStatus.Success,
       valueIncFees: 42,
       updatedAt: expect.any(Date),
     });

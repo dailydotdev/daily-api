@@ -133,7 +133,7 @@ describe('POST /p/kvasir/posts', () => {
     expect(res.body.error.issues[0]).toMatchObject({
       code: 'too_big',
       maximum: 100,
-      type: 'array',
+      origin: 'array',
     });
   });
 

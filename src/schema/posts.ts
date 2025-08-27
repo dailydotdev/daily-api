@@ -37,7 +37,6 @@ import {
   validatePost,
   ONE_MINUTE_IN_SECONDS,
   toGQLEnum,
-  getExistingPost,
   createSourcePostModeration,
   CreateSourcePostModerationArgs,
   mapCloudinaryUrl,
@@ -53,10 +52,10 @@ import {
   systemUser,
   parseBigInt,
   triggerTypedEvent,
-  isProd,
+  findPostByUrl,
+  ensurePostAnalyticsPermissions,
 } from '../common';
 import {
-  ArticlePost,
   createExternalLink,
   createSharePost,
   ExternalLinkPreview,
@@ -830,6 +829,7 @@ export const typeDefs = /* GraphQL */ `
     id: String
     title: String!
     image: String!
+    url: String
     relatedPublicPosts: [Post!]
   }
 
@@ -2376,13 +2376,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: {
         id: string;
       },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<GQLPostAnalytics> => {
-      // for now allow only for team members
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('not allowed for you yet');
-      }
+      await ensurePostAnalyticsPermissions({ ctx, postId: args.id });
 
       return graphorm.queryOneOrFail<GQLPostAnalytics>(
         ctx,
@@ -2403,13 +2400,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments & {
         id: string;
       },
-      ctx: Context,
+      ctx: AuthContext,
       info,
     ): Promise<ConnectionRelay<GQLPostAnalyticsHistory>> => {
-      // for now allow only for team members
-      if (isProd && !ctx.isTeamMember) {
-        throw new ForbiddenError('not allowed for you yet');
-      }
+      await ensurePostAnalyticsPermissions({ ctx, postId: args.id });
 
       return queryPaginatedByDate(
         ctx,
@@ -2427,7 +2421,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             return builder;
           },
-          orderByKey: 'ASC',
+          orderByKey: 'DESC',
           readReplica: true,
         },
       );
@@ -3018,18 +3012,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Invalid URL provided');
       }
 
-      const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
-      const post = await ctx.con
-        .getRepository(ArticlePost)
-        .createQueryBuilder()
-        .select('id, title, image')
-        .where([{ canonicalUrl: canonicalUrl }, { url: cleanUrl }])
-        .andWhere({ deleted: false })
-        .orderBy('"createdAt"', 'ASC')
-        .getRawOne();
+      let post = await findPostByUrl(url, ['id', 'title', 'image'], ctx.con);
 
       if (!post) {
-        return fetchLinkPreview(cleanUrl);
+        const preview = await fetchLinkPreview(url);
+        // Check again if post exists after following redirects
+        if (url !== preview.url && preview.url) {
+          post = await findPostByUrl(
+            preview.url,
+            ['id', 'title', 'image'],
+            ctx.con,
+          );
+        }
+        if (!post) {
+          return preview;
+        }
       }
 
       const relatedPublicPosts = await ctx.con.getRepository(SharePost).find({
@@ -3043,7 +3040,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         order: { createdAt: 'DESC' },
       });
 
-      return { ...post, relatedPublicPosts };
+      return {
+        id: post.id,
+        image: post.image!,
+        title: post.title!,
+        url,
+        relatedPublicPosts,
+      };
     },
     submitExternalLink: async (
       _,
@@ -3063,12 +3066,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
       await ctx.con.transaction(async (manager) => {
-        const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
-
-        const existingPost = await getExistingPost(manager, {
-          url: cleanUrl,
-          canonicalUrl,
-        });
+        const existingPost = await findPostByUrl(
+          url,
+          ['id', 'visible', 'deleted'],
+          ctx.con,
+          true,
+        );
 
         if (existingPost) {
           if (existingPost.deleted) {
@@ -3089,6 +3092,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return { _: true };
         }
 
+        const { url: cleanUrl, canonicalUrl } = standardizeURL(url);
         await createExternalLink({
           con: manager,
           ctx,

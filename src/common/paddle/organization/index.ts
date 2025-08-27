@@ -17,12 +17,13 @@ export type FetchSubscriptionUpdatePreview = {
 };
 
 export const subscriptionUpdateSchema = z.object({
-  id: z.string({ message: 'Subscription ID is required' }),
+  id: z.string({
+    error: 'Subscription ID is required',
+  }),
   locale: z.string().trim().optional(),
-  quantity: z
-    .number()
-    .int()
-    .positive({ message: 'Quantity must be a positive integer' }),
+  quantity: z.int().positive({
+    error: 'Quantity must be a positive integer',
+  }),
 });
 
 const generateKey = ({

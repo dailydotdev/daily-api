@@ -479,7 +479,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
       const validationSchema = z.object({
-        productId: z.string().uuid('Invalid product id provided'),
+        productId: z.uuid('Invalid product id provided'),
         note: z.preprocess(
           (value) => (value as string)?.replace(/[‎\s]+/g, ' '),
           z
@@ -492,7 +492,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const result = validationSchema.safeParse(props);
 
       if (result.error) {
-        throw new ValidationError(result.error.errors[0].message);
+        throw new ValidationError(result.error.issues[0].message);
       }
 
       if (

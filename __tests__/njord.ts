@@ -31,6 +31,7 @@ import {
   UserTransaction,
   UserTransactionProcessor,
   UserTransactionStatus,
+  UserTransactionType,
 } from '../src/entity/user/UserTransaction';
 import { ghostUser } from '../src/common';
 import { UserComment } from '../src/entity/user/UserComment';
@@ -589,6 +590,9 @@ describe('award post mutation', () => {
     });
 
     expect(post.awards).toBe(1);
+
+    expect(transaction.referenceId).toEqual(post.id);
+    expect(transaction.referenceType).toEqual(UserTransactionType.Post);
   });
 
   it('should not award when user does not have access to cores', async () => {
@@ -1092,6 +1096,9 @@ describe('award comment mutation', () => {
     });
 
     expect(comment.awards).toBe(1);
+
+    expect(transaction.referenceId).toEqual(comment.id);
+    expect(transaction.referenceType).toEqual(UserTransactionType.Comment);
   });
 
   it('should award nested comment', async () => {
