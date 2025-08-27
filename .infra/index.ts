@@ -486,16 +486,22 @@ const [apps] = deployApplicationSuite(
     imageTag,
     serviceAccount,
     secrets: envVars,
-    migration: {
-      args: isAdhocEnv
-        ? ['npm', 'run', 'db:migrate:latest']
-        : [
-            'node',
-            './node_modules/typeorm/cli.js',
-            'migration:run',
-            '-d',
-            'src/data-source.js',
-          ],
+    migrations: {
+      db: {
+        args: isAdhocEnv
+          ? ['npm', 'run', 'db:migrate:latest']
+          : [
+              'node',
+              './node_modules/typeorm/cli.js',
+              'migration:run',
+              '-d',
+              'src/data-source.js',
+            ],
+      },
+      clickhouse: {
+        args: ['node', './bin/runClickhouseMigrations.js'],
+        toleratesSpot: false // due to clickhosue not having transactions support
+      },
     },
     debezium: {
       version: '3.0.5.Final',
