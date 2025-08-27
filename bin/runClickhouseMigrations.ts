@@ -10,12 +10,15 @@
 //
 
 import '../src/config';
-import fs from 'fs';
-import path from 'path';
-import process from 'process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { getClickHouseClient } from '../src/common/clickhouse';
 import z from 'zod';
 import { logger } from '../src/logger';
+import {
+  clickhouseMigrationFilenameMatch,
+  clickhouseMigrationsDir,
+} from '../src/types';
 
 type Migration = {
   id: number;
@@ -33,9 +36,6 @@ const migrationRowSchema = z.object({
   timestamp: z.string(),
 });
 
-const migrationsDir = path.resolve(process.cwd(), 'clickhouse', 'migrations');
-const filenameMatch = /^(\d+)_([a-z_]+)\.(up|down)\.sql$/i;
-
 const main = async () => {
   const client = getClickHouseClient();
 
@@ -45,7 +45,7 @@ const main = async () => {
     const applied = await getAppliedMigrations(client);
     const appliedIds = new Set(applied.map((m) => m.id.toString()));
 
-    const migrations = discoverMigrations(migrationsDir).sort(
+    const migrations = discoverMigrations(clickhouseMigrationsDir).sort(
       (a, b) => a.id - b.id,
     );
 
@@ -159,7 +159,7 @@ const discoverMigrations = (dir: string): Migration[] => {
 
   for (const item of entries) {
     if (!item.isFile()) continue;
-    const fileMatch = item.name.match(filenameMatch);
+    const fileMatch = item.name.match(clickhouseMigrationFilenameMatch);
 
     if (!fileMatch) {
       continue;
