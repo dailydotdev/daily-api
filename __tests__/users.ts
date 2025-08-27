@@ -2077,6 +2077,20 @@ describe('user company', () => {
       );
     });
 
+    it('should create user company record without linked company if domain partially matches ignored domain', async () => {
+      loggedUser = '1';
+      const res = await client.query(QUERY, {
+        variables: { email: 'u1@extraigored.com' },
+      });
+      expect(res.errors).toBeFalsy();
+      const row = await con.getRepository(UserCompany).findOneByOrFail({
+        email: 'u1@extraigored.com',
+      });
+      expect(row.verified).toBeFalsy();
+      expect(row.code.length).toEqual(6);
+      expect(row.companyId).toEqual(null);
+    });
+
     it('should create user company record without linked company', async () => {
       loggedUser = '1';
       const res = await client.query(QUERY, {
