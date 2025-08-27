@@ -1,8 +1,8 @@
 //
 // Runs ClickHouse migrations from clickhouse/migrations.
-// - Discovers migrations named: {id}_{snake_case_name}_{up|down}.sql
+// - Discovers migrations named: {id}_{snake_case_name}.{up|down}.sql
 // - Creates api.migrations table if missing
-// - Executes pending *_up.sql in ascending id order
+// - Executes pending *.up.sql in ascending id order
 // - If any up fails: run its down (if present), then run down for all
 //   migrations applied earlier in THIS run (reverse order) and
 //   remove their records from api.migrations.
