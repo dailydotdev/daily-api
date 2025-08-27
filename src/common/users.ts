@@ -676,7 +676,7 @@ export const isProfileCompleteById = async (
 };
 
 const jobPreferenceUpdateValidation = z.object({
-  openToOpportunities: z.boolean().optional().default(false),
+  openToOpportunities: z.boolean().optional().prefault(false),
   preferredRoles: z
     .array(
       z
@@ -686,16 +686,16 @@ const jobPreferenceUpdateValidation = z.object({
     )
     .max(5, 'Preferred roles can have a maximum of 5 items')
     .optional()
-    .default([]),
-  preferredLocationType: z.nativeEnum(WorkLocationType).optional(),
-  openToRelocation: z.boolean().optional().default(false),
+    .prefault([]),
+  preferredLocationType: z.enum(WorkLocationType).optional(),
+  openToRelocation: z.boolean().optional().prefault(false),
   currentTotalComp: z
     .object({
       currency: z.string().length(3),
-      amount: z.number().int().positive(),
+      amount: z.int().positive(),
     })
     .partial()
-    .default({}),
+    .prefault({}),
 });
 export const checkJobPreferenceParamsValidity = (params: unknown) => {
   const result = jobPreferenceUpdateValidation.safeParse(params);
