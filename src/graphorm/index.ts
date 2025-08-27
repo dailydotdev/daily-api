@@ -651,6 +651,7 @@ const obj = new GraphORM({
             totalMembers: value?.totalMembers ?? totalMembers,
             featured: value?.featured ?? featured,
             totalAwards: value?.totalAwards ?? totalAwards,
+            campaignId: value?.campaignId,
           };
         },
       },
