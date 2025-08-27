@@ -2,7 +2,7 @@ import { TypedWorker } from './worker';
 import { Post } from '../entity';
 import type { DataSource } from 'typeorm';
 import { notifyNewPostBoostedSlack, type PubSubSchema } from '../common';
-import { skadiApiClient } from '../integrations/skadi/api/clients';
+import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
 
 const worker: TypedWorker<'skadi.v1.campaign-updated'> = {
   subscription: 'api.campaign-updated-slack',
@@ -32,7 +32,10 @@ const handlePostBoostStarted = async (
     return;
   }
 
-  const campaign = await skadiApiClient.getCampaignById({ campaignId, userId });
+  const campaign = await skadiApiClientV1.getCampaignById({
+    campaignId,
+    userId,
+  });
 
   if (!campaign) {
     return;

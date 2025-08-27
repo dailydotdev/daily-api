@@ -153,6 +153,7 @@ export const typeDefs = /* GraphQL */ `
     totalUpvotes: Int
     totalMembers: Int
     totalAwards: Int
+    campaignId: String
   }
 
   type SourceCategory {

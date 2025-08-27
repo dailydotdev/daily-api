@@ -85,7 +85,7 @@ import {
 import { env } from 'node:process';
 import { Product, ProductType } from '../../src/entity/Product';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
-import { skadiApiClient } from '../../src/integrations/skadi/api/clients';
+import { skadiApiClientV1 } from '../../src/integrations/skadi/api/v1/clients';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -95,9 +95,9 @@ jest.mock('../../src/common/mailing', () => ({
   sendEmail: jest.fn(),
 }));
 
-// Mock the skadiApiClient
-jest.mock('../../src/integrations/skadi/api/clients', () => ({
-  skadiApiClient: {
+// Mock the skadiApiClientV1
+jest.mock('../../src/integrations/skadi/api/v1/clients', () => ({
+  skadiApiClientV1: {
     getCampaignById: jest.fn(),
   },
 }));
@@ -2101,7 +2101,7 @@ describe('post_boost_completed notification', () => {
       clicks: 250,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2175,7 +2175,7 @@ describe('post_boost_completed notification', () => {
       clicks: 500,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2221,7 +2221,7 @@ describe('post_boost_completed notification', () => {
   it('should not send email when campaign is not found', async () => {
     const campaignId = 'non-existent-campaign';
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(null);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(null);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2261,7 +2261,7 @@ describe('post_boost_completed notification', () => {
       clicks: 150,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2321,7 +2321,7 @@ describe('post_boost_completed notification', () => {
       clicks: 400,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2394,7 +2394,7 @@ describe('post_boost_first_milestone notification', () => {
       clicks: 250,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2468,7 +2468,7 @@ describe('post_boost_first_milestone notification', () => {
       clicks: 500,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2514,7 +2514,7 @@ describe('post_boost_first_milestone notification', () => {
   it('should not send email when campaign is not found', async () => {
     const campaignId = 'non-existent-campaign';
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(null);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(null);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2554,7 +2554,7 @@ describe('post_boost_first_milestone notification', () => {
       clicks: 150,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],
@@ -2614,7 +2614,7 @@ describe('post_boost_first_milestone notification', () => {
       clicks: 400,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(campaign);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(campaign);
 
     const ctx: NotificationBoostContext = {
       userIds: ['1'],

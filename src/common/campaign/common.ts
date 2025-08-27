@@ -125,7 +125,7 @@ export const getReferenceTags = (
   switch (type) {
     case CampaignType.Post:
       return getPostTags(con, referenceId);
-    case CampaignType.Source:
+    case CampaignType.Squad:
       return getSourceTags(con, referenceId);
     default:
       throw new ValidationError('Unknown campaign type to estimate reach');

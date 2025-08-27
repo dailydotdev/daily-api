@@ -6,14 +6,14 @@ import { postsFixture } from '../fixture/post';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
-import { CampaignUpdateAction } from '../../src/integrations/skadi/api/types';
+import { CampaignUpdateAction } from '../../src/integrations/skadi/api/v1/types';
 import { webhooks } from '../../src/common/slack';
-import { skadiApiClient } from '../../src/integrations/skadi/api/clients';
+import { skadiApiClientV1 } from '../../src/integrations/skadi/api/v1/clients';
 import { addDays } from 'date-fns';
 
 // Mock the skadi API client
-jest.mock('../../src/integrations/skadi/api/clients', () => ({
-  skadiApiClient: {
+jest.mock('../../src/integrations/skadi/api/v1/clients', () => ({
+  skadiApiClientV1: {
     getCampaignById: jest.fn(),
   },
 }));
@@ -52,7 +52,7 @@ describe('postBoostActionSlack worker', () => {
       clicks: 0,
     };
 
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(
       mockCampaign,
     );
 
@@ -63,7 +63,7 @@ describe('postBoostActionSlack worker', () => {
       action: CampaignUpdateAction.Started,
     });
 
-    expect(skadiApiClient.getCampaignById).toHaveBeenCalledWith({
+    expect(skadiApiClientV1.getCampaignById).toHaveBeenCalledWith({
       campaignId: 'campaign123',
       userId: '1',
     });
@@ -124,7 +124,7 @@ describe('postBoostActionSlack worker', () => {
       action: CampaignUpdateAction.Completed,
     });
 
-    expect(skadiApiClient.getCampaignById).not.toHaveBeenCalled();
+    expect(skadiApiClientV1.getCampaignById).not.toHaveBeenCalled();
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
 
@@ -136,7 +136,7 @@ describe('postBoostActionSlack worker', () => {
       action: CampaignUpdateAction.FirstMilestone,
     });
 
-    expect(skadiApiClient.getCampaignById).not.toHaveBeenCalled();
+    expect(skadiApiClientV1.getCampaignById).not.toHaveBeenCalled();
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
 
@@ -148,12 +148,12 @@ describe('postBoostActionSlack worker', () => {
       action: CampaignUpdateAction.Started,
     });
 
-    expect(skadiApiClient.getCampaignById).not.toHaveBeenCalled();
+    expect(skadiApiClientV1.getCampaignById).not.toHaveBeenCalled();
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
 
   it('should handle when campaign is not found', async () => {
-    (skadiApiClient.getCampaignById as jest.Mock).mockResolvedValue(null);
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockResolvedValue(null);
 
     await expectSuccessfulTypedBackground(worker, {
       postId: 'p1',
@@ -162,7 +162,7 @@ describe('postBoostActionSlack worker', () => {
       action: CampaignUpdateAction.Started,
     });
 
-    expect(skadiApiClient.getCampaignById).toHaveBeenCalledWith({
+    expect(skadiApiClientV1.getCampaignById).toHaveBeenCalledWith({
       campaignId: 'nonexistent',
       userId: '1',
     });
@@ -171,7 +171,7 @@ describe('postBoostActionSlack worker', () => {
   });
 
   it('should handle API errors gracefully', async () => {
-    (skadiApiClient.getCampaignById as jest.Mock).mockRejectedValue(
+    (skadiApiClientV1.getCampaignById as jest.Mock).mockRejectedValue(
       new Error('API Error'),
     );
 
@@ -184,7 +184,7 @@ describe('postBoostActionSlack worker', () => {
       }),
     ).rejects.toThrow('API Error');
 
-    expect(skadiApiClient.getCampaignById).toHaveBeenCalledWith({
+    expect(skadiApiClientV1.getCampaignById).toHaveBeenCalledWith({
       campaignId: 'campaign123',
       userId: '1',
     });

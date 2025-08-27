@@ -1,5 +1,4 @@
 import {
-  CampaignPost,
   CampaignSource,
   CampaignState,
   CampaignType,
@@ -28,9 +27,9 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../../entity/user/UserTransaction';
-import { skadiApiClient } from '../../integrations/skadi/api/clients';
 import { usdToCores } from '../number';
 import { systemUser, updateFlagsStatement } from '../utils';
+import { skadiApiClientV2 } from '../../integrations/skadi/api/v2/clients';
 
 export const validateSquadBoostPermissions = async (
   ctx: AuthContext,
@@ -88,7 +87,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const userId = ctx.userId;
     const endedAt = addDays(new Date(), duration);
 
-    const campaign = await manager.getRepository(CampaignPost).save(
+    const campaign = await manager.getRepository(CampaignSource).save(
       manager.getRepository(CampaignSource).create({
         id,
         creativeId,
@@ -104,7 +103,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
         state: CampaignState.Active,
         endedAt,
         sourceId: source.id,
-        type: CampaignType.Source,
+        type: CampaignType.Squad,
       }),
     );
 
@@ -112,7 +111,7 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const last30tags = await getSourceTags(manager, source.id);
     const finalTags = last30tags.length > 3 ? last30tags : []; // when it is 3 or below, we set global targeting
 
-    await skadiApiClient.startCampaign(campaign, finalTags);
+    await skadiApiClientV2.startCampaign(campaign, finalTags);
 
     await manager
       .getRepository(Source)
@@ -156,13 +155,17 @@ export const stopCampaignSource = async ({
 }: StopCampaignProps) => {
   const { id: campaignId, userId, referenceId } = campaign;
 
-  const { budget } = await skadiApiClient.cancelCampaign({
+  const { budget } = await skadiApiClientV2.cancelCampaign({
     campaignId,
     userId,
   });
 
   const result = await ctx.con.transaction(async (manager) => {
     const toRefund = parseFloat(budget);
+
+    await manager
+      .getRepository(CampaignSource)
+      .update({ id: campaignId }, { state: CampaignState.Cancelled });
 
     await manager
       .getRepository(Source)
