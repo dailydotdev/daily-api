@@ -1,5 +1,5 @@
 import { ValidationError } from 'apollo-server-errors';
-import { Campaign } from '../../entity';
+import { Campaign, CampaignType, type ConnectionManager } from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
 import { TransferError } from '../../errors';
@@ -7,6 +7,8 @@ import { transferCores, throwUserTransactionError } from '../njord';
 import type { AuthContext } from '../../Context';
 import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
+import { getSourceTags } from './source';
+import { getPostTags } from './post';
 
 export interface StartCampaignArgs {
   value: string;
@@ -25,7 +27,7 @@ export const validateCampaignArgs = (
   const result = CAMPAIGN_VALIDATION_SCHEMA.safeParse(args);
 
   if (result.error) {
-    throw new ValidationError(result.error.errors[0].message);
+    throw new ValidationError(result.error.issues[0].message);
   }
 };
 
@@ -114,3 +116,18 @@ export interface StopCampaignProps {
   campaign: Campaign;
   ctx: AuthContext;
 }
+
+export const getReferenceTags = (
+  con: ConnectionManager,
+  type: CampaignType,
+  referenceId: string,
+) => {
+  switch (type) {
+    case CampaignType.Post:
+      return getPostTags(con, referenceId);
+    case CampaignType.Source:
+      return getSourceTags(con, referenceId);
+    default:
+      throw new ValidationError('Unknown campaign type to estimate reach');
+  }
+};

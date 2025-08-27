@@ -481,7 +481,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
       con
         .getRepository(WelcomePost)
-        .findOneByOrFail({ id: notification.referenceId }),
+        .findOneByOrFail({ sourceId: notification.referenceId }),
     ]);
     const source = await post.source;
     if (!joinedUser || !source) {

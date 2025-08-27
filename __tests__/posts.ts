@@ -3099,6 +3099,40 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.visible).toEqual(true);
   });
 
+  it('should share existing post by redirector link', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: `${process.env.URL_PREFIX}/r/p6?key=value`,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p6' });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should share existing post by post page link', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        ...variables,
+        url: `${process.env.COMMENTS_PREFIX}/posts/p6?key=value`,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p6' });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
+    expect(sharedPost.visible).toEqual(true);
+  });
+
   it('should share existing post to squad when URL has allowed search params', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
@@ -3753,6 +3787,37 @@ describe('mutation checkLinkPreview', () => {
     const res = await client.mutate(MUTATION, { variables: { url } });
     expect(res.data.checkLinkPreview).toBeTruthy();
     expect(res.data.checkLinkPreview.id).toEqual(foundPost.id);
+  });
+
+  it('should return post by redirector link', async () => {
+    loggedUser = '1';
+    const url = `${process.env.URL_PREFIX}/r/p1?key=value`;
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual('p1');
+  });
+
+  it('should return post by post page link', async () => {
+    loggedUser = '1';
+    const url = `${process.env.COMMENTS_PREFIX}/posts/p1?key=value`;
+    const res = await client.mutate(MUTATION, { variables: { url } });
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual('p1');
+  });
+
+  it('should check for existing posts based on the scraper url', async () => {
+    loggedUser = '1';
+
+    const sampleResponse = { url: `${process.env.COMMENTS_PREFIX}/posts/p1` };
+
+    nock(postScraperOrigin)
+      .post('/preview', { url: variables.url })
+      .reply(200, sampleResponse);
+
+    const res = await client.mutate(MUTATION, { variables });
+
+    expect(res.data.checkLinkPreview).toBeTruthy();
+    expect(res.data.checkLinkPreview.id).toEqual('p1');
   });
 
   it('should return related public posts', async () => {
@@ -8552,6 +8617,17 @@ describe('query post analytics', () => {
   beforeEach(async () => {
     await saveFixtures(
       con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-paq`,
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
       Post,
       postsFixture.map((item) => {
         return {
@@ -8561,6 +8637,7 @@ describe('query post analytics', () => {
           url: `https://example.com/posts/${item.id}-paq`,
           canonicalUrl: `https://example.com/posts/${item.id}-paq`,
           yggdrasilId: randomUUID(),
+          authorId: '1-paq',
         };
       }),
     );
@@ -8602,7 +8679,7 @@ describe('query post analytics', () => {
   });
 
   it('should return post analytics data', async () => {
-    loggedUser = '1';
+    loggedUser = '1-paq';
 
     const res = await client.query(QUERY, {
       variables: {
@@ -8632,7 +8709,7 @@ describe('query post analytics', () => {
   });
 
   it('should not return negative reputation', async () => {
-    loggedUser = '1';
+    loggedUser = '1-paq';
 
     await con
       .getRepository(PostAnalytics)
@@ -8650,6 +8727,16 @@ describe('query post analytics', () => {
       id: 'p1-paq',
       reputation: 0,
     });
+  });
+
+  it('should throw when user is not author', async () => {
+    loggedUser = '2-paq';
+
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1-paq' } },
+      'FORBIDDEN',
+    );
   });
 });
 
@@ -8672,6 +8759,17 @@ describe('query history for post analytics', () => {
   beforeEach(async () => {
     await saveFixtures(
       con,
+      User,
+      usersFixture.map((item) => {
+        return {
+          ...item,
+          id: `${item.id}-paqh`,
+        };
+      }),
+    );
+
+    await saveFixtures(
+      con,
       Post,
       postsFixture.map((item) => {
         return {
@@ -8681,6 +8779,7 @@ describe('query history for post analytics', () => {
           url: `https://example.com/posts/${item.id}-paqh`,
           canonicalUrl: `https://example.com/posts/${item.id}-paqh`,
           yggdrasilId: randomUUID(),
+          authorId: '1-paqh',
         };
       }),
     );
@@ -8718,7 +8817,7 @@ describe('query history for post analytics', () => {
   });
 
   it('should return post analytics data', async () => {
-    loggedUser = '1';
+    loggedUser = '1-paqh';
 
     const res = await client.query(QUERY, {
       variables: {
@@ -8735,7 +8834,7 @@ describe('query history for post analytics', () => {
       if (index > 0) {
         const previousEdge = res.data.postAnalyticsHistory.edges[index - 1];
 
-        expect(new Date(edge.node.date).getTime()).toBeGreaterThan(
+        expect(new Date(edge.node.date).getTime()).toBeLessThan(
           new Date(previousEdge.node.date).getTime(),
         );
       }
@@ -8746,5 +8845,15 @@ describe('query history for post analytics', () => {
         impressions: 10,
       });
     });
+  });
+
+  it('should throw when user is not author', async () => {
+    loggedUser = '2-paqh';
+
+    await testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { id: 'p1-paqh', first: 45 } },
+      'FORBIDDEN',
+    );
   });
 });

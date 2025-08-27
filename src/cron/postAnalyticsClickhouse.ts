@@ -67,7 +67,7 @@ export const postAnalyticsClickhouseCron: Cron = {
     if (!result.success) {
       logger.error(
         {
-          schemaError: result.error.errors[0],
+          schemaError: result.error.issues[0],
         },
         'Invalid post analytics data',
       );
