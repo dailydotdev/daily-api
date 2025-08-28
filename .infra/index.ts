@@ -25,6 +25,7 @@ import {
   Stream,
   ClickHouseSync,
   ClickHouseSyncConfig,
+  type MigrationArgs,
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
@@ -179,7 +180,7 @@ const temporalCert = config.requireObject<Record<string, string>>('temporal');
 type VolsType = {
   volumes: k8s.types.input.core.v1.Volume[];
   volumeMounts: k8s.types.input.core.v1.VolumeMount[];
-}
+};
 
 const podAnnotations: ApplicationArgs['podAnnotations'] = {};
 
@@ -214,7 +215,7 @@ if (!isAdhocEnv) {
         mountOptions: 'implicit-dirs',
       },
     },
-  })
+  });
 
   vols.volumeMounts.push({
     name: 'geoip-data',
@@ -233,9 +234,7 @@ const jwtEnv = [
   { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
 ];
 
-const commonEnv = [
-  { name: 'SERVICE_VERSION', value: imageTag },
-]
+const commonEnv = [{ name: 'SERVICE_VERSION', value: imageTag }];
 
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
@@ -298,10 +297,10 @@ if (isAdhocEnv) {
       env: [
         {
           name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`
+          value: `${envVars.serviceName as string}-bg`,
         },
         ...commonEnv,
-        ...jwtEnv
+        ...jwtEnv,
       ],
       ...vols,
     },
@@ -367,7 +366,7 @@ if (isAdhocEnv) {
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
         {
           name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`
+          value: `${envVars.serviceName as string}-bg`,
         },
         ...commonEnv,
         ...jwtEnv,
@@ -425,7 +424,11 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...commonEnv, ...jwtEnv],
+      env: [
+        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
+        ...commonEnv,
+        ...jwtEnv,
+      ],
       minReplicas: 2,
       maxReplicas: 2,
       requests: {
@@ -478,6 +481,32 @@ if (isAdhocEnv) {
 
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();
 const cert = config.requireObject<Record<string, string>>('cert');
+
+const migrations: {
+  db: MigrationArgs;
+  clickhouse?: MigrationArgs;
+} = {
+  db: {
+    args: isAdhocEnv
+      ? ['npm', 'run', 'db:migrate:latest']
+      : [
+          'node',
+          './node_modules/typeorm/cli.js',
+          'migration:run',
+          '-d',
+          'src/data-source.js',
+        ],
+  },
+};
+
+if (!isAdhocEnv) {
+  // for now we run clickhouse migrations manually in adhoc
+  migrations.clickhouse = {
+    args: ['node', './bin/runClickhouseMigrations.js'],
+    toleratesSpot: false, // due to clickhouse not having transactions support
+  };
+}
+
 const [apps] = deployApplicationSuite(
   {
     name,
@@ -486,23 +515,7 @@ const [apps] = deployApplicationSuite(
     imageTag,
     serviceAccount,
     secrets: envVars,
-    migrations: {
-      db: {
-        args: isAdhocEnv
-          ? ['npm', 'run', 'db:migrate:latest']
-          : [
-              'node',
-              './node_modules/typeorm/cli.js',
-              'migration:run',
-              '-d',
-              'src/data-source.js',
-            ],
-      },
-      clickhouse: {
-        args: ['node', './bin/runClickhouseMigrations.js'],
-        toleratesSpot: false // due to clickhosue not having transactions support
-      },
-    },
+    migrations,
     debezium: {
       version: '3.0.5.Final',
       topicName: debeziumTopicName,
