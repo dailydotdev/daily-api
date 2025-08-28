@@ -32,7 +32,6 @@ export type RemoteConfigValue = {
     web_funnel_id: string;
     onboarding_funnel_id: string;
   }>;
-  dailyBriefLimit: number;
 };
 
 class RemoteConfig {
