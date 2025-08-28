@@ -16,6 +16,7 @@ import {
   OpportunityMetaSchema,
 } from './types';
 import type { OpportunityUser } from './user';
+import type { OpportunityKeyword } from '../OpportunityKeyword';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -54,4 +55,11 @@ export class Opportunity {
     lazy: true,
   })
   users: Promise<OpportunityUser[]>;
+
+  @OneToMany(
+    'OpportunityKeyword',
+    (keyword: OpportunityKeyword) => keyword.opportunity,
+    { lazy: true },
+  )
+  keywords: Promise<OpportunityKeyword[]>;
 }
