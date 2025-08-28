@@ -25,7 +25,7 @@ import {
   Stream,
   ClickHouseSync,
   ClickHouseSyncConfig,
-  type MigrationArgs,
+  MigrationArgs,
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
