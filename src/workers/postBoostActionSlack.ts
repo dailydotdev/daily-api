@@ -1,8 +1,14 @@
 import { TypedWorker } from './worker';
-import { Post } from '../entity';
+import { CampaignType, Post } from '../entity';
 import type { DataSource } from 'typeorm';
-import { notifyNewPostBoostedSlack, type PubSubSchema } from '../common';
+import {
+  debeziumTimeToDate,
+  getDiscussionLink,
+  notifyNewPostBoostedSlack,
+  type PubSubSchema,
+} from '../common';
 import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
+import { usdToCores } from '../common/number';
 
 const worker: TypedWorker<'skadi.v1.campaign-updated'> = {
   subscription: 'api.campaign-updated-slack',
@@ -42,8 +48,14 @@ const handlePostBoostStarted = async (
   }
 
   await notifyNewPostBoostedSlack({
-    post,
-    campaign,
-    userId,
+    campaign: {
+      id: campaign.campaignId,
+      createdAt: debeziumTimeToDate(campaign.startedAt),
+      endedAt: debeziumTimeToDate(campaign.endedAt),
+      type: CampaignType.Post,
+      flags: { budget: usdToCores(parseFloat(campaign.budget)) },
+      userId,
+    },
+    mdLink: `<${getDiscussionLink(post.id)}|${post.id}>`,
   });
 };

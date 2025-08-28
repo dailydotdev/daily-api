@@ -131,3 +131,33 @@ export const getReferenceTags = (
       throw new ValidationError('Unknown campaign type to estimate reach');
   }
 };
+
+export enum CampaignUpdateEvent {
+  Started = 'CAMPAIGN_STARTED',
+  Completed = 'CAMPAIGN_COMPLETED',
+  StatsUpdated = 'STATS_UPDATED',
+  StateUpdated = 'STATE_UPDATED',
+}
+
+export interface CampaignCompleted {
+  budget: string;
+}
+
+export interface CampaignStatsUpdate {
+  impressions: number;
+  clicks: number;
+  unique_users: number;
+}
+
+export interface CampaignStateUpdate {
+  budget: string;
+  spend: string;
+}
+
+export interface CampaignStatsUpdateEvent {
+  campaignId: string;
+  event: CampaignUpdateEvent;
+  unique_users: number;
+  data: CampaignCompleted | CampaignStatsUpdate | CampaignStateUpdate;
+  d_update: number;
+}

@@ -1,0 +1,255 @@
+import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
+import worker from '../../src/workers/campaignUpdatedAction';
+import { Campaign, Post, Source, User } from '../../src/entity';
+import { sourcesFixture } from '../fixture/source';
+import { postsFixture } from '../fixture/post';
+import { usersFixture } from '../fixture/user';
+import { campaignsFixture } from '../fixture/campaign';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
+import {
+  CampaignUpdateEvent,
+  type CampaignStatsUpdateEvent,
+} from '../../src/common/campaign/common';
+import { CampaignState } from '../../src/entity/campaign/Campaign';
+
+let con: DataSource;
+
+beforeAll(async () => {
+  jest.clearAllMocks();
+  con = await createOrGetConnection();
+});
+
+beforeEach(async () => {
+  jest.resetAllMocks();
+  await saveFixtures(con, Source, sourcesFixture);
+  await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, Post, postsFixture);
+  await saveFixtures(con, Campaign, campaignsFixture);
+});
+
+describe('campaignUpdatedAction worker', () => {
+  it('should update campaign stats when StatsUpdated event is received', async () => {
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.StatsUpdated,
+      unique_users: 150,
+      data: {
+        impressions: 1000,
+        clicks: 50,
+        unique_users: 150,
+      },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign flags were updated
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 1000,
+      spend: 100,
+      impressions: 1000,
+      clicks: 50,
+      users: 150,
+      lastUpdatedAt: expect.any(Date),
+    });
+  });
+
+  it('should handle campaign completion for Post campaigns', async () => {
+    // First, set a campaignId on a post to simulate an active campaign
+    await con
+      .getRepository(Post)
+      .update(
+        { id: 'p1' },
+        { flags: { campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' } },
+      );
+
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.Completed,
+      unique_users: 200,
+      data: {
+        budget: '10.00',
+      },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign state was updated to Completed
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.state).toBe(CampaignState.Completed);
+    expect(updatedCampaign.flags.lastUpdatedAt).toBeInstanceOf(Date);
+
+    // Verify post campaignId was cleared
+    const updatedPost = await con
+      .getRepository(Post)
+      .findOneByOrFail({ id: 'p1' });
+
+    expect(updatedPost.flags?.campaignId).toBeNull();
+  });
+
+  it('should handle campaign completion for Squad campaigns', async () => {
+    // First, set a campaignId on a source to simulate an active campaign
+    await con
+      .getRepository(Source)
+      .update(
+        { id: 'squad' },
+        { flags: { campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481' } },
+      );
+
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+      event: CampaignUpdateEvent.Completed,
+      unique_users: 75,
+      data: {
+        budget: '5.00',
+      },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign state was updated to Completed
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d481' });
+
+    expect(updatedCampaign.state).toBe(CampaignState.Completed);
+    expect(updatedCampaign.flags.lastUpdatedAt).toBeInstanceOf(Date);
+
+    // Verify source campaignId was cleared
+    const updatedSource = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: 'squad' });
+
+    expect(updatedSource.flags?.campaignId).toBeNull();
+  });
+
+  it('should not process non-handled events', async () => {
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.Started,
+      unique_users: 100,
+      data: { budget: '10.00', spend: '0.00' },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign was not modified
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(campaign.state).toBe(CampaignState.Active); // Should remain unchanged
+    expect(campaign.flags.lastUpdatedAt).toBeUndefined();
+  });
+
+  it('should not process StateUpdated events', async () => {
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.StateUpdated,
+      unique_users: 100,
+      data: { budget: '15.00', spend: '5.00' },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign was not modified
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(campaign.state).toBe(CampaignState.Active); // Should remain unchanged
+    expect(campaign.flags.lastUpdatedAt).toBeUndefined();
+  });
+
+  it('should handle when campaign is not found for stats update', async () => {
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
+      event: CampaignUpdateEvent.StatsUpdated,
+      unique_users: 100,
+      data: {
+        impressions: 500,
+        clicks: 25,
+        unique_users: 100,
+      },
+      d_update: Date.now(),
+    };
+
+    // This should not throw an error since we're using update() which doesn't fail on missing records
+    await expectSuccessfulTypedBackground(worker, eventData);
+  });
+
+  it('should throw when campaign is not found for completion', async () => {
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
+      event: CampaignUpdateEvent.Completed,
+      unique_users: 100,
+      data: {
+        budget: '10.00',
+      },
+      d_update: Date.now(),
+    };
+
+    // This should throw because we're using findOneByOrFail()
+    await expect(
+      expectSuccessfulTypedBackground(worker, eventData),
+    ).rejects.toThrow();
+  });
+
+  it('should update multiple campaign stats correctly', async () => {
+    // First stats update
+    const firstUpdate: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.StatsUpdated,
+      unique_users: 100,
+      data: {
+        impressions: 500,
+        clicks: 25,
+        unique_users: 100,
+      },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, firstUpdate);
+
+    // Second stats update
+    const secondUpdate: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.StatsUpdated,
+      unique_users: 250,
+      data: {
+        impressions: 1500,
+        clicks: 75,
+        unique_users: 250,
+      },
+      d_update: Date.now() + 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, secondUpdate);
+
+    // Verify final stats reflect the latest update
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 1000,
+      spend: 100,
+      impressions: 1500,
+      clicks: 75,
+      users: 250,
+      lastUpdatedAt: expect.any(Date),
+    });
+  });
+});
