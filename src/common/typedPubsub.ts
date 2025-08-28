@@ -33,7 +33,7 @@ import type { ContentPreferenceUser } from '../entity/contentPreference/ContentP
 import type { CampaignUpdateAction } from '../integrations/skadi';
 import { z } from 'zod';
 import type { postMetricsUpdatedTopic } from './schema/topics';
-import type { CampaignStatsUpdateEvent } from './campaign/common';
+import type { CampaignUpdateEventArgs } from './campaign/common';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -167,7 +167,7 @@ export type PubSubSchema = {
     campaignId: string;
     action: CampaignUpdateAction;
   };
-  'skadi.v2.campaign-updated': CampaignStatsUpdateEvent;
+  'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];

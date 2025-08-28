@@ -6,7 +6,7 @@ import {
   CampaignUpdateEvent,
   type CampaignStateUpdate,
   type CampaignStatsUpdate,
-  type CampaignStatsUpdateEvent,
+  type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
 import { logger } from '../logger';
 import { usdToCores } from '../common/number';
@@ -16,20 +16,11 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   handler: async (message, con): Promise<void> => {
     switch (message.data.event) {
       case CampaignUpdateEvent.StatsUpdated:
-        return handleCampaignStatsUpdate(
-          con,
-          message.data as CampaignStatsUpdateEvent,
-        );
+        return handleCampaignStatsUpdate(con, message.data);
       case CampaignUpdateEvent.StateUpdated:
-        return handleCampaignStateUpdate(
-          con,
-          message.data as CampaignStatsUpdateEvent,
-        );
+        return handleCampaignStateUpdate(con, message.data);
       case CampaignUpdateEvent.Completed:
-        return handleCampaignCompleted(
-          con,
-          message.data as CampaignStatsUpdateEvent,
-        );
+        return handleCampaignCompleted(con, message.data);
       default:
         return;
     }
@@ -40,7 +31,7 @@ export default worker;
 
 const handleCampaignStateUpdate = async (
   con: DataSource,
-  { data, campaignId, d_update }: CampaignStatsUpdateEvent,
+  { data, campaignId, d_update }: CampaignUpdateEventArgs,
 ) => {
   const { spend, budget } = data as CampaignStateUpdate;
 
@@ -58,7 +49,7 @@ const handleCampaignStateUpdate = async (
 
 const handleCampaignStatsUpdate = async (
   con: DataSource,
-  { data, campaignId, d_update }: CampaignStatsUpdateEvent,
+  { data, campaignId, d_update }: CampaignUpdateEventArgs,
 ) => {
   const { impressions, clicks, unique_users } = data as CampaignStatsUpdate;
 
@@ -77,7 +68,7 @@ const handleCampaignStatsUpdate = async (
 
 const handleCampaignCompleted = async (
   con: DataSource,
-  data: CampaignStatsUpdateEvent,
+  data: CampaignUpdateEventArgs,
 ) => {
   const { campaignId, d_update } = data;
   const campaign = await con

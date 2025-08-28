@@ -5,7 +5,7 @@ import { type NotificationCampaignContext } from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import {
   CampaignUpdateEvent,
-  type CampaignStatsUpdateEvent,
+  type CampaignUpdateEventArgs,
 } from '../../common/campaign/common';
 import { CampaignType } from '../../entity/campaign/Campaign';
 import type { DataSource } from 'typeorm';
@@ -26,7 +26,7 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
 
 const handleCampaignCompleted = async (
   con: DataSource,
-  params: CampaignStatsUpdateEvent,
+  params: CampaignUpdateEventArgs,
 ) => {
   const { campaignId, event } = params;
 

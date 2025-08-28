@@ -13,7 +13,7 @@ import {
 } from '../common';
 import {
   CampaignUpdateEvent,
-  type CampaignStatsUpdateEvent,
+  type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
 import { logger } from '../logger';
 
@@ -51,7 +51,7 @@ const getMdLink = async (con: ConnectionManager, campaign: Campaign) => {
 
 const handleCampaignStarted = async (
   con: DataSource,
-  data: CampaignStatsUpdateEvent,
+  data: CampaignUpdateEventArgs,
 ) => {
   const campaign = await con
     .getRepository(Campaign)

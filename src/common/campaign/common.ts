@@ -158,7 +158,7 @@ export interface CampaignStateUpdate {
   spend: string;
 }
 
-export interface CampaignStatsUpdateEvent {
+export interface CampaignUpdateEventArgs {
   campaignId: string;
   event: CampaignUpdateEvent;
   unique_users: number;
