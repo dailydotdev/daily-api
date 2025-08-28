@@ -36,3 +36,7 @@ export const OpportunityMetaSchema = z.object({
   seniorityLevel: z.string(),
   roleType: z.string(),
 });
+
+export enum OpportunityUserType {
+  Recruiter = 'recruiter',
+}

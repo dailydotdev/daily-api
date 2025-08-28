@@ -4,6 +4,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  OneToMany,
   PrimaryGeneratedColumn,
   TableInheritance,
   UpdateDateColumn,
@@ -14,6 +15,7 @@ import {
   OpportunityContentSchema,
   OpportunityMetaSchema,
 } from './types';
+import type { OpportunityUser } from './user';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -47,4 +49,9 @@ export class Opportunity {
 
   @Column({ type: 'jsonb', default: {} })
   meta: z.infer<typeof OpportunityMetaSchema>;
+
+  @OneToMany('OpportunityUser', (user: OpportunityUser) => user.opportunity, {
+    lazy: true,
+  })
+  users: Promise<OpportunityUser[]>;
 }
