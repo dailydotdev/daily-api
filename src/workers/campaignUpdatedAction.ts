@@ -4,10 +4,12 @@ import type { DataSource } from 'typeorm';
 import { debeziumTimeToDate, updateFlagsStatement } from '../common';
 import {
   CampaignUpdateEvent,
+  type CampaignStateUpdate,
   type CampaignStatsUpdate,
   type CampaignStatsUpdateEvent,
 } from '../common/campaign/common';
 import { logger } from '../logger';
+import { usdToCores } from '../common/number';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-action',
@@ -15,6 +17,11 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
     switch (message.data.event) {
       case CampaignUpdateEvent.StatsUpdated:
         return handleCampaignStatsUpdate(
+          con,
+          message.data as CampaignStatsUpdateEvent,
+        );
+      case CampaignUpdateEvent.StateUpdated:
+        return handleCampaignStateUpdate(
           con,
           message.data as CampaignStatsUpdateEvent,
         );
@@ -30,6 +37,24 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
 };
 
 export default worker;
+
+const handleCampaignStateUpdate = async (
+  con: DataSource,
+  { data, campaignId, d_update }: CampaignStatsUpdateEvent,
+) => {
+  const { spend, budget } = data as CampaignStateUpdate;
+
+  await con.getRepository(Campaign).update(
+    { id: campaignId },
+    {
+      flags: updateFlagsStatement<Campaign>({
+        spend: usdToCores(parseFloat(spend)),
+        budget: usdToCores(parseFloat(budget)),
+        lastUpdatedAt: debeziumTimeToDate(d_update),
+      }),
+    },
+  );
+};
 
 const handleCampaignStatsUpdate = async (
   con: DataSource,

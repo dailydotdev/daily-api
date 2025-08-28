@@ -153,7 +153,7 @@ describe('campaignUpdatedAction worker', () => {
     expect(campaign.flags.lastUpdatedAt).toBeUndefined();
   });
 
-  it('should not process StateUpdated events', async () => {
+  it('should update campaign state when StateUpdated event is received', async () => {
     const eventData: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.StateUpdated,
@@ -164,13 +164,78 @@ describe('campaignUpdatedAction worker', () => {
 
     await expectSuccessfulTypedBackground(worker, eventData);
 
-    // Verify campaign was not modified
-    const campaign = await con
+    // Verify campaign flags were updated with new budget and spend
+    const updatedCampaign = await con
       .getRepository(Campaign)
       .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
 
-    expect(campaign.state).toBe(CampaignState.Active); // Should remain unchanged
-    expect(campaign.flags.lastUpdatedAt).toBeUndefined();
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 1500, // $15.00 converted to cores
+      spend: 500, // $5.00 converted to cores
+      lastUpdatedAt: expect.any(Date),
+    });
+
+    // Original budget was 1000, spend was 100 - should be overwritten
+    expect(updatedCampaign.flags.budget).not.toBe(1000);
+    expect(updatedCampaign.flags.spend).not.toBe(100);
+  });
+
+  it('should handle state update with zero values', async () => {
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.StateUpdated,
+      unique_users: 0,
+      data: { budget: '0.00', spend: '0.00' },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign flags were updated
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 0,
+      spend: 0,
+      lastUpdatedAt: expect.any(Date),
+    });
+  });
+
+  it('should handle multiple sequential state updates', async () => {
+    // First state update
+    const firstUpdate: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.StateUpdated,
+      unique_users: 100,
+      data: { budget: '10.00', spend: '2.50' },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, firstUpdate);
+
+    // Second state update
+    const secondUpdate: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.StateUpdated,
+      unique_users: 200,
+      data: { budget: '20.00', spend: '7.50' },
+      d_update: Date.now() + 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, secondUpdate);
+
+    // Verify final state reflects the latest update
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 2000, // $20.00 converted to cores
+      spend: 750, // $7.50 converted to cores
+      lastUpdatedAt: expect.any(Date),
+    });
   });
 
   it('should handle when campaign is not found for stats update', async () => {
@@ -183,6 +248,19 @@ describe('campaignUpdatedAction worker', () => {
         clicks: 25,
         unique_users: 100,
       },
+      d_update: Date.now(),
+    };
+
+    // This should not throw an error since we're using update() which doesn't fail on missing records
+    await expectSuccessfulTypedBackground(worker, eventData);
+  });
+
+  it('should handle when campaign is not found for state update', async () => {
+    const eventData: CampaignStatsUpdateEvent = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
+      event: CampaignUpdateEvent.StateUpdated,
+      unique_users: 100,
+      data: { budget: '10.00', spend: '5.00' },
       d_update: Date.now(),
     };
 
