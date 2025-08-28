@@ -18,6 +18,7 @@ import {
 import type { OpportunityUser } from './user';
 import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
+import type { QuestionScreening } from '../questions/QuestionScreening';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -70,4 +71,11 @@ export class Opportunity {
     { lazy: true },
   )
   matches: Promise<OpportunityMatch[]>;
+
+  @OneToMany(
+    'QuestionScreening',
+    (question: QuestionScreening) => question.opportunity,
+    { lazy: true },
+  )
+  questions: Promise<QuestionScreening[]>;
 }
