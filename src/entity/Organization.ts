@@ -77,11 +77,6 @@ export enum CompanySize {
   SIZE_5000_PLUS = '5000+',
 }
 
-export enum CompanyCategory {
-  Software = 'Software',
-  // TBD more complete list
-}
-
 export enum CompanyStage {
   PreSeed = 'pre_seed',
   Seed = 'seed',
@@ -144,7 +139,7 @@ export class Organization {
   size: CompanySize;
 
   @Column({ type: 'text', default: null })
-  category: CompanyCategory;
+  category: string;
 
   @Column({ type: 'text', default: null })
   stage: CompanyStage;
