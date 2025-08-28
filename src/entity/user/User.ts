@@ -27,6 +27,7 @@ import type { UserJobPreferences } from './UserJobPreferences';
 import type { UserExperience } from './experiences/UserExperience';
 import type { NotificationPreferenceStatus } from '../../notifications/common';
 import type { UserCandidatePreference } from './UserCandidatePreference';
+import type { UserCandidateKeyword } from './UserCandidateKeyword';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -333,4 +334,11 @@ export class User {
     { lazy: true },
   )
   candidatePreference: Promise<UserCandidatePreference>;
+
+  @OneToMany(
+    'UserCandidateKeyword',
+    (keyword: UserCandidateKeyword) => keyword.user,
+    { lazy: true },
+  )
+  candidateKeywords: Promise<UserCandidateKeyword[]>;
 }
