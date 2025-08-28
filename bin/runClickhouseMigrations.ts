@@ -79,7 +79,7 @@ const main = async () => {
           `Failed migration ${migration.id}_${migration.name}: ${error.message} ❌`,
         );
 
-        throw new Error('Some migrations failed ❌');
+        throw originalError;
       }
     }
 
@@ -94,8 +94,7 @@ const main = async () => {
     }
   } finally {
     await client.close();
-
-    process.exit(1);
+    await con.destroy();
   }
 };
 
