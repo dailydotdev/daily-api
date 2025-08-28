@@ -363,7 +363,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'skadi.v2.campaign-updated',
-    subscription: 'api.campaign-updated-slack',
+    subscription: 'api.campaign-updated-slack-v2',
   },
   {
     topic: 'skadi.v2.campaign-updated',
