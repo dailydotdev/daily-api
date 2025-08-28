@@ -1,13 +1,13 @@
-//
-// Runs ClickHouse migrations from clickhouse/migrations.
-// - Discovers migrations named: {id}_{snake_case_name}.{up|down}.sql
-// - Creates migrations_ch table if missing
-// - Executes pending *.up.sql in ascending id order
-// - If any up fails: run its down (if present), then run down for all
-//   migrations applied earlier in THIS run (reverse order) and
-//   remove their records from migrations_ch.
-// - Records each applied up into migrations_ch (id, name, timestamp)
-//
+/*
+
+Runs ClickHouse migrations from clickhouse/migrations.
+- Discovers migrations named: {id}_{snake_case_name}.{up|down}.sql
+- Records migration as dirty in the migrations_ch table on API
+- Executes pending *.up.sql in ascending id order
+- If any up fails blocks further execution
+- Records each applied up into migrations_ch table (id, name, timestamp, dirty)
+
+*/
 
 import '../src/config';
 import fs from 'node:fs';

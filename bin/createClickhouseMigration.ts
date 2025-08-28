@@ -3,6 +3,7 @@ import z from 'zod';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { clickhouseMigrationsDir } from '../src/types';
+import { logger } from '../src/logger';
 
 const main = async () => {
   try {
@@ -32,7 +33,7 @@ const main = async () => {
 
     const migrationName = `${Date.now()}_${dataResult.data.name}`;
 
-    console.log(`Created migration ${migrationName} files 🎉`);
+    logger.info(`Created migration ${migrationName} files 🎉`);
 
     await Promise.all([
       fs.writeFile(
@@ -49,7 +50,7 @@ const main = async () => {
   } catch (originalError) {
     const error = originalError as Error;
 
-    console.error(error.message);
+    logger.error(error.message);
   }
 };
 
