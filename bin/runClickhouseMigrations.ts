@@ -1,12 +1,12 @@
 //
 // Runs ClickHouse migrations from clickhouse/migrations.
 // - Discovers migrations named: {id}_{snake_case_name}.{up|down}.sql
-// - Creates ch_migration table if missing
+// - Creates migrations_ch table if missing
 // - Executes pending *.up.sql in ascending id order
 // - If any up fails: run its down (if present), then run down for all
 //   migrations applied earlier in THIS run (reverse order) and
-//   remove their records from ch_migration.
-// - Records each applied up into ch_migration (id, name, timestamp)
+//   remove their records from migrations_ch.
+// - Records each applied up into migrations_ch (id, name, timestamp)
 //
 
 import '../src/config';
@@ -48,7 +48,7 @@ const main = async () => {
 
     if (hasDirtyMigrations) {
       throw new Error(
-        'Some migrations are marked as dirty. Please resolve manually and update their state in ch_migration table',
+        'Some migrations are marked as dirty. Please resolve manually and update their state in migrations_ch table',
       );
     }
 

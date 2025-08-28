@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
-@Entity()
+@Entity({ name: 'migrations_ch' })
 export class ChMigration {
   @PrimaryColumn({ type: 'bigint' })
   id: string;
