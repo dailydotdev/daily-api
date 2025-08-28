@@ -3441,16 +3441,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               });
               return { transfer };
             } catch (error) {
-              // log error with details
-              logger.warn(
-                {
-                  userId,
-                  briefType: type,
-                  briefCost,
-                },
-                'User attempted to generate brief but failed',
-              );
-
               if (error instanceof TransferError) {
                 await throwUserTransactionError({
                   ctx,
