@@ -23,7 +23,7 @@ export class Opportunity1756293417739 implements MigrationInterface {
           REFERENCES "organization"("id")
           ON DELETE CASCADE
           ON UPDATE NO ACTION
-      )
+      ) WITH (REPLICA IDENTITY FULL)
     `);
     await queryRunner.query(/* sql */`
       CREATE INDEX IF NOT EXISTS "IDX_opportunity_type" ON "opportunity" ("type")
