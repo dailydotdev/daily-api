@@ -11,16 +11,6 @@ export enum OpportunityType {
   Job = 'job',
 }
 
-export enum CompanySize {
-  SIZE_1_10 = '1-10',
-  SIZE_11_50 = '11-50',
-  SIZE_51_200 = '51-200',
-  SIZE_201_500 = '201-500',
-  SIZE_501_1000 = '501-1000',
-  SIZE_1001_5000 = '1001-5000',
-  SIZE_5000_PLUS = '5000+',
-}
-
 export const OpportunityContentSchema = z.object({
   title: z.string(),
   content: z.string(),
