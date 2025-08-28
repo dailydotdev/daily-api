@@ -199,7 +199,7 @@ export class SkadiApiClientV1 implements ISkadiApiClientV1 {
 
       return {
         promotedPosts: posts?.map(mapCampaign) ?? [],
-        postIds: response.post_ids ?? [],
+        postIds: response.post_ids?.filter(Boolean) ?? [],
         totalSpend: response.total_spend,
         impressions: response.impressions,
         clicks: response.clicks,
