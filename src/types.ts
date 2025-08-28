@@ -1,7 +1,6 @@
 import type { Roles } from './roles';
 import type { AccessToken } from './auth';
 import type { opentelemetry } from './telemetry';
-import path from 'node:path';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -267,11 +266,7 @@ export const acceptedResumeExtensions = [
   'docx',
 ] as const satisfies Array<(typeof acceptedResumeFileTypes)[number]['ext']>;
 
-export const clickhouseMigrationsDir = path.resolve(
-  process.cwd(),
-  'clickhouse',
-  'migrations',
-);
+export const clickhouseMigrationsDir = 'clickhouse/migrations';
 
 export const clickhouseMigrationFilenameMatch =
   /^(\d+)_([a-zA-Z_]+)\.(up|down)\.sql$/i;
