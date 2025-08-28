@@ -26,10 +26,7 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
 
     switch (message.data.event) {
       case CampaignUpdateEvent.Started:
-        return handleCampaignStarted(
-          con,
-          message.data as CampaignStatsUpdateEvent,
-        );
+        return handleCampaignStarted(con, message.data);
       default:
         return;
     }
