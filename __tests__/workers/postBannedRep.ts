@@ -2,24 +2,18 @@ import { expectSuccessfulBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/postBannedRep';
 import {
   ArticlePost,
-  FreeformPost,
   Post,
   PostType,
   SharePost,
   Source,
   User,
-  WelcomePost,
 } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { postsFixture } from '../fixture/post';
 import { PostReport, ReputationEvent } from '../../src/entity';
 import { DataSource, LessThan } from 'typeorm';
 import createOrGetConnection from '../../src/db';
-import {
-  createSquadWelcomePost,
-  DELETED_BY_WORKER,
-  updateFlagsStatement,
-} from '../../src/common';
+import { DELETED_BY_WORKER, updateFlagsStatement } from '../../src/common';
 import { ReportReason } from '../../src/entity/common';
 
 let con: DataSource;
@@ -56,6 +50,7 @@ it('should create a reputation event that increases reputation', async () => {
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
   await expectSuccessfulBackground(worker, {
     post,
+    method: 'soft',
   });
   const events = await con
     .getRepository(ReputationEvent)
@@ -63,6 +58,18 @@ it('should create a reputation event that increases reputation', async () => {
   expect(events.length).toEqual(2);
   expect(events[0].amount).toEqual(100);
   expect(events[1].amount).toEqual(100);
+});
+
+it('should not create a reputation event if hard deleted', async () => {
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  await expectSuccessfulBackground(worker, {
+    post,
+    method: 'hard',
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'p1', grantById: '' } });
+  expect(events.length).toEqual(0);
 });
 
 it('should not create a reputation event if deleted by worker', async () => {
@@ -109,43 +116,6 @@ it('should not create a reputation event for the author that shared the post', a
   expect(events.length).toEqual(0);
 });
 
-it('should create a reputation decrease event for the author of the welcome post', async () => {
-  const source = await con.getRepository(Source).findOneBy({ id: 'b' });
-  const post = await createSquadWelcomePost(con, source, '2');
-  const welcome = await con
-    .getRepository(WelcomePost)
-    .findOneBy({ id: post.id });
-  expect(welcome).toBeTruthy();
-  await expectSuccessfulBackground(worker, {
-    post,
-  });
-  const events = await con
-    .getRepository(ReputationEvent)
-    .find({ where: { targetId: post.id, grantById: '' } });
-  expect(events.length).toEqual(1);
-  expect(events[0].amount).toEqual(-100);
-});
-
-it('should create a reputation decrease event for the author of the freeform post', async () => {
-  const source = await con.getRepository(Source).findOneBy({ id: 'b' });
-  const post = await createSquadWelcomePost(con, source, '2');
-  await con
-    .getRepository(Post)
-    .update({ id: post.id }, { type: PostType.Freeform });
-  const welcome = await con
-    .getRepository(FreeformPost)
-    .findOneBy({ id: post.id });
-  expect(welcome).toBeTruthy();
-  await expectSuccessfulBackground(worker, {
-    post,
-  });
-  const events = await con
-    .getRepository(ReputationEvent)
-    .find({ where: { targetId: post.id, grantById: '' } });
-  expect(events.length).toEqual(1);
-  expect(events[0].amount).toEqual(-100);
-});
-
 it('should create a reputation event that decreases reputation', async () => {
   await con
     .getRepository(Post)
@@ -160,6 +130,21 @@ it('should create a reputation event that decreases reputation', async () => {
   expect(events.length).toEqual(2);
   expect(events[0].amount).toEqual(-100);
   expect(events[1].amount).toEqual(-100);
+});
+
+it('should not create a reputation event that decreases reputation if hard deletion', async () => {
+  await con
+    .getRepository(Post)
+    .update({ id: 'p1' }, { authorId: '1', scoutId: '2' });
+  const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
+  await expectSuccessfulBackground(worker, {
+    post,
+    method: 'hard',
+  });
+  const events = await con
+    .getRepository(ReputationEvent)
+    .find({ where: { targetId: 'p1', grantById: '', amount: LessThan(0) } });
+  expect(events.length).toEqual(0);
 });
 
 it('should not create a reputation event that decreases reputation if deleter is owner', async () => {
