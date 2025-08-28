@@ -17,6 +17,7 @@ import {
 } from './types';
 import type { OpportunityUser } from './user';
 import type { OpportunityKeyword } from '../OpportunityKeyword';
+import type { OpportunityMatch } from '../OpportunityMatch';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -62,4 +63,11 @@ export class Opportunity {
     { lazy: true },
   )
   keywords: Promise<OpportunityKeyword[]>;
+
+  @OneToMany(
+    'OpportunityMatch',
+    (match: OpportunityMatch) => match.opportunity,
+    { lazy: true },
+  )
+  matches: Promise<OpportunityMatch[]>;
 }
