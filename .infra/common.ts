@@ -367,7 +367,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'skadi.v2.campaign-updated',
-    subscription: 'api.campaign-updated-action',
+    subscription: 'api.campaign-updated-v2-action',
   },
   {
     topic: 'skadi.v2.campaign-updated',
