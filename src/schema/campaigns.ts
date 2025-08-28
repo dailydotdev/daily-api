@@ -32,8 +32,7 @@ import {
   validateSquadBoostPermissions,
 } from '../common/campaign/source';
 import { coresToUsd } from '../common/number';
-import type { CampaignReach } from '../integrations/skadi';
-import { skadiApiClient } from '../integrations/skadi/api/clients';
+import { skadiApiClientV2 } from '../integrations/skadi/api/v2/clients';
 
 interface GQLCampaign
   extends Pick<
@@ -57,11 +56,13 @@ export const typeDefs = /* GraphQL */ `
 
   type Campaign {
     id: String!
+    referenceId: String!
     type: String!
     state: String!
     createdAt: DateTime!
     endedAt: DateTime!
     flags: CampaignFlags!
+    user: User
     post: Post
     source: Source
   }
@@ -216,7 +217,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: StartCampaignMutationArgs,
       ctx: AuthContext,
-    ): Promise<CampaignReach> => {
+    ): Promise<{ min: number; max: number }> => {
       const { value, budget, type } = args;
 
       validateCampaignArgs({ budget, duration: 1 });
@@ -227,7 +228,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             await validatePostBoostPermissions(ctx, value),
           );
           break;
-        case CampaignType.Source:
+        case CampaignType.Squad:
           await validateSquadBoostPermissions(ctx, value);
           break;
         default:
@@ -236,7 +237,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const tags = await getReferenceTags(ctx.con, type, value);
       const { minImpressions, maxImpressions } =
-        await skadiApiClient.estimateBoostReachDaily({
+        await skadiApiClientV2.estimateBoostReachDaily({
           type,
           value,
           keywords: tags,
@@ -266,7 +267,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       switch (type) {
         case CampaignType.Post:
           return startCampaignPost({ ctx, args });
-        case CampaignType.Source:
+        case CampaignType.Squad:
           return startCampaignSource({ ctx, args });
         default:
           throw new ValidationError('Unknown type to process');
@@ -288,7 +289,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       switch (campaign.type) {
         case CampaignType.Post:
           return stopCampaignPost({ ctx, campaign });
-        case CampaignType.Source:
+        case CampaignType.Squad:
           return stopCampaignSource({ ctx, campaign });
         default:
           throw new ValidationError('Unknown type to process');
