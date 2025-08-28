@@ -9,6 +9,12 @@ import {
 import type { User } from './User';
 import z from 'zod';
 import type { CompanySize, CompanyStage } from '../Organization';
+import type {
+  locationSchema,
+  locationTypeSchema,
+  salaryExpectationSchema,
+  userCandidateCVSchema,
+} from '../../common/schema/userCandidate';
 
 export enum CandidateStatus {
   Disabled = 'disabled',
@@ -22,32 +28,6 @@ export enum EmploymentType {
   Contract = 'contract',
   Internship = 'internship',
 }
-
-export enum SalaryDuration {
-  Monthly = 'monthly',
-  Annualy = 'annualy',
-}
-
-export const userCandidateCVSchema = z.object({
-  bucket: z.string(),
-  blob: z.string(),
-  lastModified: z.date(),
-});
-
-export const salaryExpectationSchema = z.object({
-  min: z.number().min(0).nullable(),
-  max: z.number().min(0).nullable(),
-  currency: z.string().default('USD'),
-  period: z.enum(SalaryDuration, {
-    error: 'Invalid salary duration',
-  }),
-});
-
-export const locationTypeSchema = z.object({
-  remote: z.boolean(),
-  office: z.boolean(),
-  onSite: z.boolean(),
-});
 
 @Entity()
 export class UserCandidatePreference {
@@ -81,23 +61,8 @@ export class UserCandidatePreference {
   @Column({ type: 'jsonb', default: '{}' })
   salaryExpectation: z.infer<typeof salaryExpectationSchema>;
 
-  @Column({ type: 'text', default: null })
-  locationCountry: string;
-
-  @Column({ type: 'text', default: null })
-  locationCity: string;
-
-  @Column({ type: 'text', default: null })
-  locationContinent: string;
-
-  @Column({ type: 'text', default: null })
-  locationSubdivision: string;
-
-  @Column({ type: 'float8', default: null })
-  locationLatitude: number;
-
-  @Column({ type: 'float8', default: null })
-  locationLongitude: number;
+  @Column({ type: 'jsonb', default: '[]' })
+  location: z.infer<typeof locationSchema>[];
 
   @Column({ type: 'jsonb', default: '{}' })
   locationType: z.infer<typeof locationTypeSchema>;
