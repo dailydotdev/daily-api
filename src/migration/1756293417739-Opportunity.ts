@@ -16,6 +16,7 @@ export class Opportunity1756293417739 implements MigrationInterface {
         "content" jsonb NOT NULL DEFAULT '{}',
         "meta" jsonb NOT NULL DEFAULT '{}',
         "organizationId" text,
+        "location" jsonb DEFAULT '[]',
         CONSTRAINT "PK_Opportunity_Id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_opportunity_organization_id"
           FOREIGN KEY ("organizationId")
