@@ -25,7 +25,7 @@ import {
   Stream,
   ClickHouseSync,
   ClickHouseSyncConfig,
-  MigrationArgs,
+  ApplicationSuiteArgs,
 } from '@dailydotdev/pulumi-common';
 
 const isAdhocEnv = detectIsAdhocEnv();
@@ -482,10 +482,7 @@ if (isAdhocEnv) {
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();
 const cert = config.requireObject<Record<string, string>>('cert');
 
-const migrations: {
-  db: MigrationArgs;
-  clickhouse?: MigrationArgs;
-} = {
+const migrations: ApplicationSuiteArgs['migrations'] = {
   db: {
     args: isAdhocEnv
       ? ['npm', 'run', 'db:migrate:latest']
