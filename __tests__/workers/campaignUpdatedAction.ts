@@ -39,7 +39,7 @@ describe('campaignUpdatedAction worker', () => {
         clicks: 50,
         unique_users: 150,
       },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, eventData);
@@ -75,7 +75,7 @@ describe('campaignUpdatedAction worker', () => {
       data: {
         budget: '10.00',
       },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, eventData);
@@ -112,7 +112,7 @@ describe('campaignUpdatedAction worker', () => {
       data: {
         budget: '5.00',
       },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, eventData);
@@ -139,7 +139,7 @@ describe('campaignUpdatedAction worker', () => {
       event: CampaignUpdateEvent.Started,
       unique_users: 100,
       data: { budget: '10.00', spend: '0.00' },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, eventData);
@@ -159,7 +159,7 @@ describe('campaignUpdatedAction worker', () => {
       event: CampaignUpdateEvent.StateUpdated,
       unique_users: 100,
       data: { budget: '15.00', spend: '5.00' },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, eventData);
@@ -186,7 +186,7 @@ describe('campaignUpdatedAction worker', () => {
       event: CampaignUpdateEvent.StateUpdated,
       unique_users: 0,
       data: { budget: '0.00', spend: '0.00' },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, eventData);
@@ -210,7 +210,7 @@ describe('campaignUpdatedAction worker', () => {
       event: CampaignUpdateEvent.StateUpdated,
       unique_users: 100,
       data: { budget: '10.00', spend: '2.50' },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, firstUpdate);
@@ -221,7 +221,7 @@ describe('campaignUpdatedAction worker', () => {
       event: CampaignUpdateEvent.StateUpdated,
       unique_users: 200,
       data: { budget: '20.00', spend: '7.50' },
-      d_update: Date.now() + 1000,
+      d_update: (Date.now() + 1000) * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, secondUpdate);
@@ -248,7 +248,7 @@ describe('campaignUpdatedAction worker', () => {
         clicks: 25,
         unique_users: 100,
       },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     // This should not throw an error since we're using update() which doesn't fail on missing records
@@ -261,7 +261,7 @@ describe('campaignUpdatedAction worker', () => {
       event: CampaignUpdateEvent.StateUpdated,
       unique_users: 100,
       data: { budget: '10.00', spend: '5.00' },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     // This should not throw an error since we're using update() which doesn't fail on missing records
@@ -276,7 +276,7 @@ describe('campaignUpdatedAction worker', () => {
       data: {
         budget: '10.00',
       },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     // This should throw because we're using findOneByOrFail()
@@ -296,7 +296,7 @@ describe('campaignUpdatedAction worker', () => {
         clicks: 25,
         unique_users: 100,
       },
-      d_update: Date.now(),
+      d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, firstUpdate);
@@ -311,7 +311,7 @@ describe('campaignUpdatedAction worker', () => {
         clicks: 75,
         unique_users: 250,
       },
-      d_update: Date.now() + 1000,
+      d_update: (Date.now() + 1000) * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, secondUpdate);
