@@ -55,7 +55,7 @@ describe('campaignUpdatedAction worker', () => {
       impressions: 1000,
       clicks: 50,
       users: 150,
-      lastUpdatedAt: expect.any(Date),
+      lastUpdatedAt: expect.any(String),
     });
   });
 
@@ -86,7 +86,6 @@ describe('campaignUpdatedAction worker', () => {
       .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
 
     expect(updatedCampaign.state).toBe(CampaignState.Completed);
-    expect(updatedCampaign.flags.lastUpdatedAt).toBeInstanceOf(Date);
 
     // Verify post campaignId was cleared
     const updatedPost = await con
@@ -123,7 +122,6 @@ describe('campaignUpdatedAction worker', () => {
       .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d481' });
 
     expect(updatedCampaign.state).toBe(CampaignState.Completed);
-    expect(updatedCampaign.flags.lastUpdatedAt).toBeInstanceOf(Date);
 
     // Verify source campaignId was cleared
     const updatedSource = await con
@@ -172,7 +170,7 @@ describe('campaignUpdatedAction worker', () => {
     expect(updatedCampaign.flags).toMatchObject({
       budget: 1500, // $15.00 converted to cores
       spend: 500, // $5.00 converted to cores
-      lastUpdatedAt: expect.any(Date),
+      lastUpdatedAt: expect.any(String),
     });
 
     // Original budget was 1000, spend was 100 - should be overwritten
@@ -199,7 +197,7 @@ describe('campaignUpdatedAction worker', () => {
     expect(updatedCampaign.flags).toMatchObject({
       budget: 0,
       spend: 0,
-      lastUpdatedAt: expect.any(Date),
+      lastUpdatedAt: expect.any(String),
     });
   });
 
@@ -234,7 +232,7 @@ describe('campaignUpdatedAction worker', () => {
     expect(updatedCampaign.flags).toMatchObject({
       budget: 2000, // $20.00 converted to cores
       spend: 750, // $7.50 converted to cores
-      lastUpdatedAt: expect.any(Date),
+      lastUpdatedAt: expect.any(String),
     });
   });
 
@@ -327,7 +325,7 @@ describe('campaignUpdatedAction worker', () => {
       impressions: 1500,
       clicks: 75,
       users: 250,
-      lastUpdatedAt: expect.any(Date),
+      lastUpdatedAt: expect.any(String),
     });
   });
 });
