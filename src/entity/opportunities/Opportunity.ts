@@ -9,16 +9,15 @@ import {
   TableInheritance,
   UpdateDateColumn,
 } from 'typeorm';
-import {
-  OpportunityState,
-  OpportunityType,
-  OpportunityContentSchema,
-  OpportunityMetaSchema,
-} from './types';
+import { OpportunityState, OpportunityType } from './types';
 import type { OpportunityUser } from './user';
 import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
+import type {
+  OpportunityContentSchema,
+  OpportunityMetaSchema,
+} from '../../common/schema/opporunities';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })

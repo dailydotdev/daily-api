@@ -10,12 +10,12 @@ import {
 } from 'typeorm';
 import type { Opportunity } from './opportunities/Opportunity';
 import type { User } from './user';
-import {
-  OpportunityMatchStatus,
-  type OpportunityMatchDescriptionSchema,
-  type OpportunityMatchScreeningSchema,
-} from './opportunities/types';
+import { OpportunityMatchStatus } from './opportunities/types';
 import type z from 'zod';
+import type {
+  OpportunityMatchDescriptionSchema,
+  OpportunityMatchScreeningSchema,
+} from '../common/schema/opporunities';
 
 @Entity()
 export class OpportunityMatch {
