@@ -17,7 +17,7 @@ import type { QuestionScreening } from '../questions/QuestionScreening';
 import type {
   OpportunityContentSchema,
   OpportunityMetaSchema,
-} from '../../common/schema/opporunities';
+} from '../../common/schema/opportunities';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })

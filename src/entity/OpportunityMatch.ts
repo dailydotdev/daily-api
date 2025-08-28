@@ -15,7 +15,7 @@ import type z from 'zod';
 import type {
   OpportunityMatchDescriptionSchema,
   OpportunityMatchScreeningSchema,
-} from '../common/schema/opporunities';
+} from '../common/schema/opportunities';
 
 @Entity()
 export class OpportunityMatch {
