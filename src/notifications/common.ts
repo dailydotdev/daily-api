@@ -64,6 +64,7 @@ export enum NotificationType {
   UserGiftedPlus = 'user_gifted_plus',
   UserReceivedAward = 'user_received_award',
   OrganizationMemberJoined = 'organization_member_joined',
+  CampaignCompleted = 'campaign_completed',
   PostBoostCompleted = 'post_boost_completed',
   PostBoostFirstMilestone = 'post_boost_first_milestone',
   BriefingReady = 'briefing_ready',

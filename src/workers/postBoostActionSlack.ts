@@ -11,7 +11,7 @@ import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
 import { usdToCores } from '../common/number';
 
 const worker: TypedWorker<'skadi.v1.campaign-updated'> = {
-  subscription: 'api.campaign-updated-slack-v2',
+  subscription: 'api.campaign-updated-slack',
   handler: async (message, con): Promise<void> => {
     switch (message.data.action) {
       case 'started':

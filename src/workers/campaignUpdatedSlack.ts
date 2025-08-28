@@ -18,7 +18,7 @@ import {
 import { logger } from '../logger';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
-  subscription: 'api.campaign-updated-slack',
+  subscription: 'api.campaign-updated-v2-slack',
   handler: async (message, con): Promise<void> => {
     if (process.env.NODE_ENV === 'development') {
       return;

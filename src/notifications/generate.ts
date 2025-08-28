@@ -38,6 +38,7 @@ import { NotificationType } from './common';
 import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency } from '../common/number';
+import { generateCampaignCompletedNotification } from '../common/campaign/common';
 
 const systemTitle = () => undefined;
 
@@ -179,6 +180,8 @@ export const notificationTitleMap: Record<
     `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
   post_boost_first_milestone: () =>
     `Your boosted post is performing well! You're getting traction, check it out!`,
+  campaign_completed: () =>
+    `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
   briefing_ready: () =>
     `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
   user_follow: (ctx: NotificationUserContext) => {
@@ -508,6 +511,7 @@ export const generateNotificationMap: Record<
       .uniqueKey(
         `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
       ),
+  campaign_completed: generateCampaignCompletedNotification,
   post_boost_first_milestone: (builder, ctx: NotificationBoostContext) =>
     builder
       .icon(NotificationIcon.DailyDev)

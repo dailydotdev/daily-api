@@ -12,7 +12,7 @@ import { logger } from '../logger';
 import { usdToCores } from '../common/number';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
-  subscription: 'api.campaign-updated-action',
+  subscription: 'api.campaign-updated-v2-action',
   handler: async (message, con): Promise<void> => {
     switch (message.data.event) {
       case CampaignUpdateEvent.StatsUpdated:
