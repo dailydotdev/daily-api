@@ -10,10 +10,10 @@ const postsSchema = z.object({
   postIds: z
     .array(z.string())
     .min(1, {
-      message: 'No posts provided',
+      error: 'No posts provided',
     })
     .max(100, {
-      message: 'Too many posts to translate',
+      error: 'Too many posts to translate',
     }),
 });
 
@@ -41,7 +41,10 @@ export const kvasir = async (fastify: FastifyInstance): Promise<void> => {
       if (body.error) {
         request.log.error(body.error);
         return response.code(400).send({
-          error: body.error,
+          error: {
+            name: body.error.name,
+            issues: body.error.issues,
+          },
         });
       }
 

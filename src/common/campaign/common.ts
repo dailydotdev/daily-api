@@ -27,7 +27,7 @@ export const validateCampaignArgs = (
   const result = CAMPAIGN_VALIDATION_SCHEMA.safeParse(args);
 
   if (result.error) {
-    throw new ValidationError(result.error.errors[0].message);
+    throw new ValidationError(result.error.issues[0].message);
   }
 };
 

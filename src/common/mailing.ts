@@ -160,7 +160,7 @@ export const syncSubscription = async function (
           logger.error(
             {
               userId: customer.id,
-              errors: validation.error.errors,
+              errors: validation.error.issues,
               flags: mergedNotificationFlags,
             },
             'Failed to validate merged notification flags from CIO sync, skipping notification flags update',
