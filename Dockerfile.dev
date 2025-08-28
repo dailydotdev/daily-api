@@ -23,6 +23,7 @@ COPY pnpm-lock.yaml .
 COPY patches patches
 COPY queries queries
 COPY geoip geoip
+COPY clickhouse/migrations/*.sql clickhouse/migrations/
 
 RUN npm i -g nodemon
 

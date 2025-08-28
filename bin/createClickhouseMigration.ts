@@ -37,12 +37,20 @@ const main = async () => {
 
     await Promise.all([
       fs.writeFile(
-        path.join(clickhouseMigrationsDir, `${migrationName}.up.sql`),
+        path.join(
+          process.cwd(),
+          clickhouseMigrationsDir,
+          `${migrationName}.up.sql`,
+        ),
         '-- up\n\n',
         'utf-8',
       ),
       fs.writeFile(
-        path.join(clickhouseMigrationsDir, `${migrationName}.down.sql`),
+        path.join(
+          process.cwd(),
+          clickhouseMigrationsDir,
+          `${migrationName}.down.sql`,
+        ),
         '-- down\n\n',
         'utf-8',
       ),

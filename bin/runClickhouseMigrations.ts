@@ -21,6 +21,7 @@ import {
 import createOrGetConnection from '../src/db';
 import type { DataSource } from 'typeorm';
 import { ChMigration } from '../src/entity/ChMigration';
+import { isProd } from '../src/common';
 
 type Migration = {
   id: number;
@@ -40,9 +41,9 @@ const main = async () => {
     const applied = await getAppliedMigrations(con);
     const appliedIds = new Set(applied.map((m) => m.id.toString()));
 
-    const migrations = discoverMigrations(clickhouseMigrationsDir).sort(
-      (a, b) => a.id - b.id,
-    );
+    const migrations = discoverMigrations(
+      path.join(isProd ? '/opt/app' : process.cwd(), clickhouseMigrationsDir),
+    ).sort((a, b) => a.id - b.id);
 
     const hasDirtyMigrations = applied.some((m) => m.dirty);
 
@@ -78,7 +79,7 @@ const main = async () => {
           `Failed migration ${migration.id}_${migration.name}: ${error.message} ❌`,
         );
 
-        throw new Error('Some migrations failed ❌');
+        throw originalError;
       }
     }
 
@@ -93,8 +94,7 @@ const main = async () => {
     }
   } finally {
     await client.close();
-
-    process.exit(1);
+    await con.destroy();
   }
 };
 
