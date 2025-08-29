@@ -188,7 +188,7 @@ export const generateCampaignCompletedNotification = (
           `Can't generate Squad Campaign Notification without the Squad`,
         );
       }
-      return nb.referenceSource(source);
+      return nb.avatarSource(source);
     default:
       throw new Error(
         `Unable to generate notification for unknown type: ${campaign.type}`,
