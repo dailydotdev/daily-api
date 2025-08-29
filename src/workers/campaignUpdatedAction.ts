@@ -19,6 +19,14 @@ import { usdToCores } from '../common/number';
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-action',
   handler: async (message, con): Promise<void> => {
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: message.data.campaignId });
+
+    if (!campaign) {
+      throw new Error(`Campaign not found! ${message.data.campaignId}`);
+    }
+
     await con.transaction(async (manager) => {
       switch (message.data.event) {
         case CampaignUpdateEvent.StatsUpdated:
