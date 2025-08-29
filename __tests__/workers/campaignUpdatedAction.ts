@@ -194,7 +194,7 @@ describe('campaignUpdatedAction worker', () => {
       .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
 
     expect(updatedCampaign.flags).toMatchObject({
-      budget: 0,
+      budget: 1000,
       spend: 0,
       lastUpdatedAt: expect.any(String),
     });
