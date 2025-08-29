@@ -1368,7 +1368,6 @@ const obj = new GraphORM({
         },
       },
       createdAt: {
-        rawSelect: true,
         transform: (value, ctx, parent) => {
           const campaign = parent as Campaign;
           return nullIfNotSameUser(value, ctx, { id: campaign.userId });
