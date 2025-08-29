@@ -13,3 +13,11 @@ export const getClickHouseClient = () => {
 
   return client;
 };
+
+export const closeClickHouseClient = async () => {
+  if (client) {
+    await client.close();
+
+    client = null;
+  }
+};
