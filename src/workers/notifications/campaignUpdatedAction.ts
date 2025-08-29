@@ -1,4 +1,4 @@
-import { Campaign, Source, User } from '../../entity';
+import { Campaign, Source } from '../../entity';
 import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
 import { type NotificationCampaignContext } from '../../notifications';
@@ -30,18 +30,12 @@ const handleCampaignCompleted = async (
 ) => {
   const { campaignId, event } = params;
 
-  const [campaign, user] = await queryReadReplica(con, ({ queryRunner }) => {
-    const promises: Promise<[Campaign, User]> = Promise.all([
-      queryRunner.manager
-        .getRepository(Campaign)
-        .findOneByOrFail({ id: campaignId }),
-      queryRunner.manager
-        .getRepository(User)
-        .findOneByOrFail({ id: campaign.userId }),
-    ]);
-
-    return promises;
-  });
+  const campaign = await queryReadReplica(con, async ({ queryRunner }) =>
+    queryRunner.manager
+      .getRepository(Campaign)
+      .findOneOrFail({ where: { id: campaignId }, relations: ['user'] }),
+  );
+  const user = await campaign.user;
 
   const ctx: NotificationCampaignContext = {
     user,
