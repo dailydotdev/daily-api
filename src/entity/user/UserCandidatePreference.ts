@@ -1,6 +1,7 @@
 import {
   Column,
   Entity,
+  Index,
   JoinColumn,
   OneToOne,
   PrimaryColumn,
@@ -38,6 +39,7 @@ export class UserCandidatePreference {
   userId: string;
 
   @Column({ type: 'text', default: CandidateStatus.Disabled })
+  @Index('IDX_user_candidate_preference_status')
   status: CandidateStatus = CandidateStatus.Disabled;
 
   @UpdateDateColumn()

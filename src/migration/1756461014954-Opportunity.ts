@@ -155,6 +155,10 @@ export class Opportunity1756461014954 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */`
+      CREATE INDEX IF NOT EXISTS "IDX_user_candidate_preference_status" ON "user_candidate_preference" ("status")
+    `);
+
+    await queryRunner.query(/* sql */`
       CREATE TABLE "user_candidate_keyword"(
         "userId" character varying NOT NULL,
         "keyword" text NOT NULL,
