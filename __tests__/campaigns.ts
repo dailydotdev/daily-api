@@ -344,21 +344,8 @@ describe('query campaignById', () => {
     });
   });
 
-  it('should throw error when campaign not found', async () => {
-    loggedUser = '1';
-
-    return testQueryErrorCode(
-      client,
-      {
-        query: CAMPAIGN_BY_ID_QUERY,
-        variables: { id: '550e8400-e29b-41d4-a716-446655440011' },
-      },
-      'NOT_FOUND',
-    );
-  });
-
-  it('should allow any user to access any campaign', async () => {
-    loggedUser = '2'; // User 2 accessing User 1's campaign
+  it('should return full flags data for campaign owners', async () => {
+    loggedUser = '1'; // User 1 accessing their own campaign
 
     const res = await client.query(CAMPAIGN_BY_ID_QUERY, {
       variables: { id: CAMPAIGN_UUID_1 }, // This campaign belongs to user '1'
@@ -377,7 +364,7 @@ describe('query campaignById', () => {
         users: 50,
         clicks: 100,
         impressions: 5000,
-      },
+      }, // Full sensitive data for owners
       post: {
         id: 'p1',
         title: 'P1',
@@ -387,7 +374,44 @@ describe('query campaignById', () => {
     });
   });
 
-  it('should allow unauthenticated users to access post campaigns', async () => {
+  it('should throw error when campaign not found', async () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      {
+        query: CAMPAIGN_BY_ID_QUERY,
+        variables: { id: '550e8400-e29b-41d4-a716-446655440011' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should allow non-owners to access campaign but without sensitive flags data', async () => {
+    loggedUser = '2'; // User 2 accessing User 1's campaign
+
+    const res = await client.query(CAMPAIGN_BY_ID_QUERY, {
+      variables: { id: CAMPAIGN_UUID_1 }, // This campaign belongs to user '1'
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignById).toEqual({
+      id: CAMPAIGN_UUID_1,
+      type: 'POST',
+      state: 'ACTIVE',
+      createdAt: new Date('2023-01-01').toISOString(),
+      endedAt: new Date('2023-12-31').toISOString(),
+      flags: null, // No sensitive data for non-owners
+      post: {
+        id: 'p1',
+        title: 'P1',
+        url: 'http://p1.com',
+      },
+      source: null,
+    });
+  });
+
+  it('should allow unauthenticated users to access campaigns but without sensitive flags data', async () => {
     loggedUser = null;
 
     const res = await client.query(CAMPAIGN_BY_ID_QUERY, {
@@ -401,49 +425,13 @@ describe('query campaignById', () => {
       state: 'ACTIVE',
       createdAt: new Date('2023-01-01').toISOString(),
       endedAt: new Date('2023-12-31').toISOString(),
-      flags: {
-        budget: 1000,
-        spend: 250,
-        users: 50,
-        clicks: 100,
-        impressions: 5000,
-      },
+      flags: null, // No sensitive data for unauthenticated users
       post: {
         id: 'p1',
         title: 'P1',
         url: 'http://p1.com',
       },
       source: null,
-    });
-  });
-
-  it('should allow unauthenticated users to access source campaigns', async () => {
-    loggedUser = null;
-
-    const res = await client.query(CAMPAIGN_BY_ID_QUERY, {
-      variables: { id: CAMPAIGN_UUID_3 },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.campaignById).toEqual({
-      id: CAMPAIGN_UUID_3,
-      type: 'SQUAD',
-      state: 'ACTIVE',
-      createdAt: new Date('2023-03-01').toISOString(),
-      endedAt: new Date('2023-12-31').toISOString(),
-      flags: {
-        budget: 2000,
-        spend: 750,
-        users: 100,
-        clicks: 200,
-        impressions: 10000,
-      },
-      post: null,
-      source: {
-        id: 'a',
-        name: 'A',
-        handle: 'a',
-      },
     });
   });
 });

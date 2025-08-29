@@ -61,7 +61,7 @@ export const typeDefs = /* GraphQL */ `
     state: String!
     createdAt: DateTime!
     endedAt: DateTime!
-    flags: CampaignFlags!
+    flags: CampaignFlags
     user: User
     post: Post
     source: Source
