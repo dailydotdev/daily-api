@@ -1355,7 +1355,7 @@ const obj = new GraphORM({
     },
   },
   Campaign: {
-    requiredColumns: ['id', 'userId', 'createdAt'],
+    requiredColumns: ['id', 'userId'],
     fields: {
       flags: {
         jsonType: true,
@@ -1365,6 +1365,19 @@ const obj = new GraphORM({
           }
 
           return null;
+        },
+      },
+      createdAt: {
+        rawSelect: true,
+        transform: (value, ctx, parent) => {
+          const campaign = parent as Campaign;
+          return nullIfNotSameUser(value, ctx, { id: campaign.userId });
+        },
+      },
+      state: {
+        transform: (value: string, ctx: Context, parent) => {
+          const campaign = parent as Campaign;
+          return nullIfNotSameUser(value, ctx, { id: campaign.userId });
         },
       },
     },

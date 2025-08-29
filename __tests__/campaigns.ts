@@ -398,8 +398,8 @@ describe('query campaignById', () => {
     expect(res.data.campaignById).toEqual({
       id: CAMPAIGN_UUID_1,
       type: 'POST',
-      state: 'ACTIVE',
-      createdAt: new Date('2023-01-01').toISOString(),
+      state: null,
+      createdAt: null,
       endedAt: new Date('2023-12-31').toISOString(),
       flags: null, // No sensitive data for non-owners
       post: {
@@ -422,8 +422,8 @@ describe('query campaignById', () => {
     expect(res.data.campaignById).toEqual({
       id: CAMPAIGN_UUID_1,
       type: 'POST',
-      state: 'ACTIVE',
-      createdAt: new Date('2023-01-01').toISOString(),
+      state: null,
+      createdAt: null,
       endedAt: new Date('2023-12-31').toISOString(),
       flags: null, // No sensitive data for unauthenticated users
       post: {
