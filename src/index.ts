@@ -36,6 +36,7 @@ import { getTemporalClient } from './temporal/client';
 import { BrokenCircuitError } from 'cockatiel';
 import { remoteConfig } from './remoteConfig';
 import { ZodError } from 'zod';
+import { closeClickHouseClient } from './common/clickhouse';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -88,6 +89,7 @@ export default async function app(
       if (client) {
         await client.connection.close();
       }
+      await closeClickHouseClient();
       process.exit();
     }, GRACEFUL_DELAY);
   };
