@@ -140,7 +140,7 @@ export enum CampaignUpdateEvent {
   Started = 'CAMPAIGN_STARTED',
   Completed = 'CAMPAIGN_COMPLETED',
   StatsUpdated = 'STATS_UPDATED',
-  StateUpdated = 'STATE_UPDATED',
+  BudgetUpdated = 'BUDGET_UPDATED',
 }
 
 export interface CampaignCompleted {

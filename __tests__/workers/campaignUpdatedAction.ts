@@ -151,10 +151,10 @@ describe('campaignUpdatedAction worker', () => {
     expect(campaign.flags.lastUpdatedAt).toBeUndefined();
   });
 
-  it('should update campaign state when StateUpdated event is received', async () => {
+  it('should update campaign state when BudgetUpdated event is received', async () => {
     const eventData: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      event: CampaignUpdateEvent.StateUpdated,
+      event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
       data: { budget: '15.00', spend: '5.00' },
       d_update: Date.now() * 1000,
@@ -181,7 +181,7 @@ describe('campaignUpdatedAction worker', () => {
   it('should handle state update with zero values', async () => {
     const eventData: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      event: CampaignUpdateEvent.StateUpdated,
+      event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 0,
       data: { budget: '0.00', spend: '0.00' },
       d_update: Date.now() * 1000,
@@ -205,7 +205,7 @@ describe('campaignUpdatedAction worker', () => {
     // First state update
     const firstUpdate: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      event: CampaignUpdateEvent.StateUpdated,
+      event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
       data: { budget: '10.00', spend: '2.50' },
       d_update: Date.now() * 1000,
@@ -216,7 +216,7 @@ describe('campaignUpdatedAction worker', () => {
     // Second state update
     const secondUpdate: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      event: CampaignUpdateEvent.StateUpdated,
+      event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 200,
       data: { budget: '20.00', spend: '7.50' },
       d_update: (Date.now() + 1000) * 1000,
@@ -256,7 +256,7 @@ describe('campaignUpdatedAction worker', () => {
   it('should handle when campaign is not found for state update', async () => {
     const eventData: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
-      event: CampaignUpdateEvent.StateUpdated,
+      event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
       data: { budget: '10.00', spend: '5.00' },
       d_update: Date.now() * 1000,
