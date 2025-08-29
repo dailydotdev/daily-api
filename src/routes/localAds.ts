@@ -1,4 +1,5 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, type FastifyReply } from 'fastify';
+import { randomUUID } from 'node:crypto';
 
 const ads = [
   {
@@ -61,12 +62,25 @@ const ads = [
   },
 ];
 
+const skadiGenerationIdHeader = 'x-generation-id';
+
+const addSkadiGenerationHeaders = (reply: FastifyReply) => {
+  return reply.headers({
+    [skadiGenerationIdHeader]: randomUUID(),
+    'access-control-expose-headers': skadiGenerationIdHeader,
+  });
+};
+
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/v1/a', (req, res) => {
-    return res.status(200).send([ads[Math.floor(Math.random() * ads.length)]]);
+    return addSkadiGenerationHeaders(res)
+      .status(200)
+      .send([ads[Math.floor(Math.random() * ads.length)]]);
   });
 
   fastify.get('/v1/a/post', (req, res) => {
-    return res.status(200).send([ads[Math.floor(Math.random() * ads.length)]]);
+    return addSkadiGenerationHeaders(res)
+      .status(200)
+      .send([ads[Math.floor(Math.random() * ads.length)]]);
   });
 }
