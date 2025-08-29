@@ -101,14 +101,14 @@ const handleCampaignCompleted = async (
 
   switch (campaign.type) {
     case CampaignType.Post:
-      await con
+      return await con
         .getRepository(Post)
         .update(
           { id: campaign.referenceId },
           { flags: updateFlagsStatement<Post>({ campaignId: null }) },
         );
     case CampaignType.Squad:
-      await con
+      return await con
         .getRepository(Source)
         .update(
           { id: campaign.referenceId },
