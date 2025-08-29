@@ -14,7 +14,6 @@ import {
   type CampaignStatsUpdate,
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
-import { logger } from '../logger';
 import { usdToCores } from '../common/number';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
@@ -108,6 +107,6 @@ const handleCampaignCompleted = async (
           { flags: updateFlagsStatement<Source>({ campaignId: null }) },
         );
     default:
-      logger.warn({ data, campaign }, `Completed campaign with unkonwn type`);
+      throw new Error(`Completed campaign with unkonwn type: ${campaign.id}`);
   }
 };
