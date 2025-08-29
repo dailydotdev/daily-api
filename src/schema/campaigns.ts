@@ -91,7 +91,7 @@ export const typeDefs = /* GraphQL */ `
       ID of the campaign to fetch
       """
       id: ID!
-    ): Campaign! @auth
+    ): Campaign!
 
     campaignsList(
       """
@@ -172,7 +172,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLCampaign> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id }).andWhere({ userId: ctx.userId });
+        builder.queryBuilder.where({ id });
 
         return builder;
       }),

@@ -357,28 +357,94 @@ describe('query campaignById', () => {
     );
   });
 
-  it("should throw error when user tries to access another user's campaign", async () => {
-    loggedUser = '2'; // User 2 trying to access User 1's campaign
+  it('should allow any user to access any campaign', async () => {
+    loggedUser = '2'; // User 2 accessing User 1's campaign
 
-    return testQueryErrorCode(
-      client,
-      {
-        query: CAMPAIGN_BY_ID_QUERY,
-        variables: { id: CAMPAIGN_UUID_1 }, // This campaign belongs to user '1'
+    const res = await client.query(CAMPAIGN_BY_ID_QUERY, {
+      variables: { id: CAMPAIGN_UUID_1 }, // This campaign belongs to user '1'
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignById).toEqual({
+      id: CAMPAIGN_UUID_1,
+      type: 'POST',
+      state: 'ACTIVE',
+      createdAt: new Date('2023-01-01').toISOString(),
+      endedAt: new Date('2023-12-31').toISOString(),
+      flags: {
+        budget: 1000,
+        spend: 250,
+        users: 50,
+        clicks: 100,
+        impressions: 5000,
       },
-      'NOT_FOUND',
-    );
+      post: {
+        id: 'p1',
+        title: 'P1',
+        url: 'http://p1.com',
+      },
+      source: null,
+    });
   });
 
-  it('should throw error when user is not authenticated', async () => {
+  it('should allow unauthenticated users to access post campaigns', async () => {
     loggedUser = null;
 
     const res = await client.query(CAMPAIGN_BY_ID_QUERY, {
       variables: { id: CAMPAIGN_UUID_1 },
     });
 
-    expect(res.errors).toBeTruthy();
-    expect(res.errors[0].extensions.code).toBe('UNAUTHENTICATED');
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignById).toEqual({
+      id: CAMPAIGN_UUID_1,
+      type: 'POST',
+      state: 'ACTIVE',
+      createdAt: new Date('2023-01-01').toISOString(),
+      endedAt: new Date('2023-12-31').toISOString(),
+      flags: {
+        budget: 1000,
+        spend: 250,
+        users: 50,
+        clicks: 100,
+        impressions: 5000,
+      },
+      post: {
+        id: 'p1',
+        title: 'P1',
+        url: 'http://p1.com',
+      },
+      source: null,
+    });
+  });
+
+  it('should allow unauthenticated users to access source campaigns', async () => {
+    loggedUser = null;
+
+    const res = await client.query(CAMPAIGN_BY_ID_QUERY, {
+      variables: { id: CAMPAIGN_UUID_3 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignById).toEqual({
+      id: CAMPAIGN_UUID_3,
+      type: 'SQUAD',
+      state: 'ACTIVE',
+      createdAt: new Date('2023-03-01').toISOString(),
+      endedAt: new Date('2023-12-31').toISOString(),
+      flags: {
+        budget: 2000,
+        spend: 750,
+        users: 100,
+        clicks: 200,
+        impressions: 10000,
+      },
+      post: null,
+      source: {
+        id: 'a',
+        name: 'A',
+        handle: 'a',
+      },
+    });
   });
 });
 
