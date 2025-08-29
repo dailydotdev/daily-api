@@ -43,21 +43,19 @@ const handleCampaignCompleted = async (
     return promises;
   });
 
-  let source = undefined;
-  if (campaign.type === CampaignType.Squad) {
-    source = await queryReadReplica(con, ({ queryRunner }) => {
-      return queryRunner.manager
-        .getRepository(Source)
-        .findOneByOrFail({ id: campaign.referenceId });
-    });
-  }
-
   const ctx: NotificationCampaignContext = {
     user,
     campaign,
-    source,
     event,
     userIds: [campaign.userId],
+    source:
+      campaign.type === CampaignType.Squad
+        ? await queryReadReplica(con, ({ queryRunner }) => {
+            return queryRunner.manager
+              .getRepository(Source)
+              .findOneByOrFail({ id: campaign.referenceId });
+          })
+        : undefined,
   };
 
   return [{ type: NotificationType.CampaignCompleted, ctx }];
