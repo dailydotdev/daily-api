@@ -151,39 +151,38 @@ describe('campaignUpdatedAction worker', () => {
     expect(campaign.flags.lastUpdatedAt).toBeUndefined();
   });
 
-  it('should update campaign state when BudgetUpdated event is received', async () => {
+  it('should update campaign spend when BudgetUpdated event is received', async () => {
     const eventData: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
-      data: { budget: '15.00', spend: '5.00' },
+      data: { budget: '5.00' }, // Used budget in USD
       d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, eventData);
 
-    // Verify campaign flags were updated with new budget and spend
+    // Verify campaign spend was updated with used budget
     const updatedCampaign = await con
       .getRepository(Campaign)
       .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
 
     expect(updatedCampaign.flags).toMatchObject({
-      budget: 1500, // $15.00 converted to cores
+      budget: 1000, // Original budget should remain unchanged
       spend: 500, // $5.00 converted to cores
       lastUpdatedAt: expect.any(String),
     });
 
-    // Original budget was 1000, spend was 100 - should be overwritten
-    expect(updatedCampaign.flags.budget).not.toBe(1000);
+    // Original spend was 100 - should be overwritten with new used budget
     expect(updatedCampaign.flags.spend).not.toBe(100);
   });
 
-  it('should handle state update with zero values', async () => {
+  it('should handle budget update with zero values', async () => {
     const eventData: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 0,
-      data: { budget: '0.00', spend: '0.00' },
+      data: { budget: '0.00' }, // Zero used budget
       d_update: Date.now() * 1000,
     };
 
@@ -201,24 +200,24 @@ describe('campaignUpdatedAction worker', () => {
     });
   });
 
-  it('should handle multiple sequential state updates', async () => {
-    // First state update
+  it('should handle multiple sequential budget updates', async () => {
+    // First budget update
     const firstUpdate: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
-      data: { budget: '10.00', spend: '2.50' },
+      data: { budget: '2.50' }, // First used budget
       d_update: Date.now() * 1000,
     };
 
     await expectSuccessfulTypedBackground(worker, firstUpdate);
 
-    // Second state update
+    // Second budget update
     const secondUpdate: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 200,
-      data: { budget: '20.00', spend: '7.50' },
+      data: { budget: '7.50' }, // Updated used budget
       d_update: (Date.now() + 1000) * 1000,
     };
 
@@ -230,8 +229,8 @@ describe('campaignUpdatedAction worker', () => {
       .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
 
     expect(updatedCampaign.flags).toMatchObject({
-      budget: 2000, // $20.00 converted to cores
-      spend: 750, // $7.50 converted to cores
+      budget: 1000, // Original budget remains unchanged
+      spend: 750, // $7.50 converted to cores (latest update)
       lastUpdatedAt: expect.any(String),
     });
   });
@@ -253,12 +252,12 @@ describe('campaignUpdatedAction worker', () => {
     await expectSuccessfulTypedBackground(worker, eventData);
   });
 
-  it('should handle when campaign is not found for state update', async () => {
+  it('should handle when campaign is not found for budget update', async () => {
     const eventData: CampaignStatsUpdateEvent = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
-      data: { budget: '10.00', spend: '5.00' },
+      data: { budget: '5.00' }, // Used budget in USD
       d_update: Date.now() * 1000,
     };
 

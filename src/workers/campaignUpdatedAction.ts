@@ -18,7 +18,7 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
       case CampaignUpdateEvent.StatsUpdated:
         return handleCampaignStatsUpdate(con, message.data);
       case CampaignUpdateEvent.BudgetUpdated:
-        return handleCampaignStateUpdate(con, message.data);
+        return handleCampaignBudgetUpdate(con, message.data);
       case CampaignUpdateEvent.Completed:
         return handleCampaignCompleted(con, message.data);
       default:
@@ -29,18 +29,17 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
 
 export default worker;
 
-const handleCampaignStateUpdate = async (
+const handleCampaignBudgetUpdate = async (
   con: DataSource,
   { data, campaignId, d_update }: CampaignUpdateEventArgs,
 ) => {
-  const { spend, budget } = data as CampaignStateUpdate;
+  const { budget: usedBudget } = data as CampaignStateUpdate;
 
   await con.getRepository(Campaign).update(
     { id: campaignId },
     {
       flags: updateFlagsStatement<Campaign>({
-        spend: usdToCores(parseFloat(spend)),
-        budget: usdToCores(parseFloat(budget)),
+        spend: usdToCores(parseFloat(usedBudget)),
         lastUpdatedAt: debeziumTimeToDate(d_update),
       }),
     },

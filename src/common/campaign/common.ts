@@ -155,8 +155,7 @@ export interface CampaignStatsUpdate {
 }
 
 export interface CampaignStateUpdate {
-  budget: string;
-  spend: string;
+  budget: string; // used budget
 }
 
 export interface CampaignUpdateEventArgs {
