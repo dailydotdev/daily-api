@@ -5,7 +5,7 @@ let client: ReturnType<typeof createClient> | null = null;
 export const getClickHouseClient = () => {
   if (!client) {
     client = createClient({
-      url: 'http://localhost:18123',
+      url: process.env.CLICKHOUSE_URL,
       username: process.env.CLICKHOUSE_USER,
       password: process.env.CLICKHOUSE_PASSWORD,
     });
