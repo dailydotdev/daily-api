@@ -27,9 +27,3 @@ export interface ISkadiApiClientV2 {
     params: EstimatedDailyReachParams,
   ): Promise<EstimatedReachResponse>;
 }
-
-export enum CampaignUpdateActionV2 {
-  Completed = 'completed',
-  FirstMilestone = 'first_milestone',
-  Started = 'started',
-}

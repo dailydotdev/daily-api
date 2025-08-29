@@ -15,12 +15,14 @@ import {
   type UserTopReader,
   SquadSource,
   type Organization,
+  type Campaign,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
 import { SourceMemberRoles } from '../roles';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
+import type { CampaignUpdateEvent } from '../common/campaign/common';
 
 export type Reference<T> = ChangeObject<T> | T;
 
@@ -132,6 +134,12 @@ export type NotificationOrganizationContext = NotificationUserContext & {
 
 export type NotificationBoostContext = NotificationUserContext & {
   campaignId: string;
+};
+
+export type NotificationCampaignContext = NotificationUserContext & {
+  campaign: Reference<Campaign>;
+  source?: Reference<Source>;
+  event: CampaignUpdateEvent;
 };
 
 declare module 'fs' {

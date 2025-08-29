@@ -64,6 +64,8 @@ import { userGenerateBriefWorker } from './brief/userGenerateBrief';
 import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
 import postBoostActionSlack from './postBoostActionSlack';
+import campaignUpdatedAction from './campaignUpdatedAction';
+import campaignUpdatedSlack from './campaignUpdatedSlack';
 import { postAddedSquadUnreadPostsWorker } from './postAddedSquadUnreadPosts';
 import { postAnalyticsUpdate } from './postAnalytics/postAnalyticsUpdate';
 import { postAuthorReputationEvent } from './postAnalytics/postAuthorReputationEvent';
@@ -139,6 +141,8 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postAnalyticsUpdate,
   postAuthorReputationEvent,
   postAuthorCoresEarned,
+  campaignUpdatedAction,
+  campaignUpdatedSlack,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -31,6 +31,7 @@ import {
   NotificationStreakContext,
   Reference,
   type NotificationBoostContext,
+  type NotificationCampaignContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
 } from './types';
@@ -201,6 +202,13 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: ctx.campaignId,
       referenceType: 'boost',
+    });
+  }
+
+  referenceCampaign(ctx: NotificationCampaignContext): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: ctx.campaign.id,
+      referenceType: 'campaign',
     });
   }
 

@@ -29,6 +29,7 @@ export interface CampaignFlags {
   impressions: number;
   clicks: number;
   users: number;
+  lastUpdatedAt?: Date;
 }
 
 @Entity()
