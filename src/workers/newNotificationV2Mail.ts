@@ -116,6 +116,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   new_user_welcome: '',
   announcements: '',
   in_app_purchases: '',
+  campaign_completed: '', // TODO: MI-1007 - wait for design's template id
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -132,6 +133,7 @@ export type TemplateDataFunc = (
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   post_boost_completed: generateBoostEmailUpdate,
   post_boost_first_milestone: generateBoostEmailUpdate,
+  campaign_completed: async () => null,
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },
