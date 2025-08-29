@@ -265,3 +265,8 @@ export const acceptedResumeExtensions = [
   'pdf',
   'docx',
 ] as const satisfies Array<(typeof acceptedResumeFileTypes)[number]['ext']>;
+
+export const clickhouseMigrationsDir = 'clickhouse/migrations';
+
+export const clickhouseMigrationFilenameMatch =
+  /^(\d+)_([a-zA-Z_]+)\.(up|down)\.sql$/i;

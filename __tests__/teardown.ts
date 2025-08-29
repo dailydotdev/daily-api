@@ -1,3 +1,4 @@
+import { closeClickHouseClient } from '../src/common/clickhouse';
 import '../src/config';
 import createOrGetConnection from '../src/db';
 import { ioRedisPool, redisPubSub, singleRedisClient } from '../src/redis';
@@ -10,6 +11,7 @@ async function teardown() {
   redisPubSub.getSubscriber().disconnect();
   await redisPubSub.close();
   await ioRedisPool.end();
+  await closeClickHouseClient();
 }
 
 module.exports = teardown;
