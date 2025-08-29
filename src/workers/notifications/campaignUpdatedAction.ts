@@ -48,15 +48,15 @@ const handleCampaignCompleted = async (
     campaign,
     event,
     userIds: [campaign.userId],
-    source:
-      campaign.type === CampaignType.Squad
-        ? await queryReadReplica(con, ({ queryRunner }) => {
-            return queryRunner.manager
-              .getRepository(Source)
-              .findOneByOrFail({ id: campaign.referenceId });
-          })
-        : undefined,
   };
+
+  if (campaign.type === CampaignType.Squad) {
+    ctx.source = await queryReadReplica(con, ({ queryRunner }) => {
+      return queryRunner.manager
+        .getRepository(Source)
+        .findOneByOrFail({ id: campaign.referenceId });
+    });
+  }
 
   return [{ type: NotificationType.CampaignCompleted, ctx }];
 };
