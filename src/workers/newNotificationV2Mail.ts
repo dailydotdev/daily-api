@@ -61,6 +61,7 @@ import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { generateBoostEmailUpdate } from '../common/campaign/post';
 import { isNullOrUndefined } from '../common/object';
+import { generateCampaignCompletedEmail } from '../common/campaign/common';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -133,7 +134,7 @@ export type TemplateDataFunc = (
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   post_boost_completed: generateBoostEmailUpdate,
   post_boost_first_milestone: generateBoostEmailUpdate,
-  campaign_completed: async () => null,
+  campaign_completed: generateCampaignCompletedEmail,
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },
