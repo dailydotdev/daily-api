@@ -163,7 +163,6 @@ import {
   WorkLocationType,
 } from '../entity/user/UserJobPreferences';
 import { completeVerificationForExperienceByUserCompany } from '../common/userExperience';
-import { escapeRegExp } from 'lodash';
 
 export interface GQLUpdateUserInput {
   name: string;
