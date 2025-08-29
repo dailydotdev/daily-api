@@ -23,6 +23,7 @@ COPY package.json .
 COPY pnpm-lock.yaml .
 COPY patches patches
 COPY queries queries
+COPY clickhouse/migrations/*.sql clickhouse/migrations/
 
 RUN pnpm install --frozen-lockfile
 
