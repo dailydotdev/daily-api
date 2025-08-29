@@ -26,6 +26,9 @@ import type {
 import type { UserJobPreferences } from './UserJobPreferences';
 import type { UserExperience } from './experiences/UserExperience';
 import type { NotificationPreferenceStatus } from '../../notifications/common';
+import type { UserCandidatePreference } from './UserCandidatePreference';
+import type { UserCandidateKeyword } from './UserCandidateKeyword';
+import type { UserCandidateAnswer } from './UserCandidateAnswer';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -325,4 +328,25 @@ export class User {
 
   @Column({ type: 'jsonb', default: {} })
   notificationFlags: UserNotificationFlags;
+
+  @OneToOne(
+    'UserCandidatePreference',
+    (pref: UserCandidatePreference) => pref.user,
+    { lazy: true },
+  )
+  candidatePreference: Promise<UserCandidatePreference>;
+
+  @OneToMany(
+    'UserCandidateKeyword',
+    (keyword: UserCandidateKeyword) => keyword.user,
+    { lazy: true },
+  )
+  candidateKeywords: Promise<UserCandidateKeyword[]>;
+
+  @OneToMany(
+    'UserCandidateAnswer',
+    (answer: UserCandidateAnswer) => answer.user,
+    { lazy: true },
+  )
+  candidateAnswers: Promise<UserCandidateAnswer[]>;
 }
