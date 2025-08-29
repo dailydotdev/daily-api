@@ -44,6 +44,10 @@ export const startCampaignTransferCores = async ({
   userTransaction,
   manager,
 }: StartCampaignTransferCoresProps) => {
+  if (ctx.isTeamMember) {
+    return;
+  }
+
   try {
     const transfer = await transferCores({
       ctx,
@@ -81,6 +85,10 @@ export const stopCampaignTransferCores = async ({
   userTransaction,
   manager,
 }: StartCampaignTransferCoresProps) => {
+  if (ctx.isTeamMember) {
+    return;
+  }
+
   try {
     const transfer = await transferCores({
       ctx,
