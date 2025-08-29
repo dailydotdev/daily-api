@@ -23,6 +23,10 @@ import {
   WelcomePost,
   CollectionPost,
   PostType,
+  Campaign,
+  CampaignPost,
+  CampaignState,
+  CampaignType,
 } from '../../../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../../../src/roles';
 import { sourcesFixture } from '../../fixture/source';
@@ -51,6 +55,8 @@ import { Credits, EntityType } from '@dailydotdev/schema';
 import * as njordCommon from '../../../src/common/njord';
 import { fetchParse } from '../../../src/integrations/retry';
 import { ONE_DAY_IN_SECONDS } from '../../../src/common';
+import nock from 'nock';
+import { getAdvertiserId } from '../../../src/integrations/skadi/api/v2/clients';
 
 jest.mock('../../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../../src/common/pubsub') as Record<
@@ -1929,9 +1935,10 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock skadi client to throw an error
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+    // Mock Skadi API v2 call to fail
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/create')
+      .replyWithError('Skadi service unavailable');
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -1975,11 +1982,22 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock HTTP response from Skadi API to succeed but transfer to fail
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      campaign_id: 'mock-campaign-id',
-    });
+    // Mock Skadi API v2 call to succeed but transfer will fail
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/create', (body) => {
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+        return (
+          body.advertiser_id === getAdvertiserId('1') &&
+          uuidRegex.test(body.campaign_id) &&
+          body.budget === 10 &&
+          Array.isArray(body.creatives) &&
+          body.creatives.length === 1 &&
+          body.creatives[0].type === 'POST' &&
+          body.creatives[0].value.post.id === 'p1'
+        );
+      })
+      .reply(200, '');
 
     // Use error transport to simulate transfer failure
     const errorTransport = createMockNjordErrorTransport({
@@ -2032,23 +2050,8 @@ describe('mutation startPostBoost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/create`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 1 * ONE_DAY_IN_SECONDS,
-          budget: 10, // 1000 cores = 10 USD
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // The HTTP call to Skadi API v2 was made but failed during transfer
+    // No need to verify the call since nock handles that automatically
   });
 
   it('should verify no transactions are created when validation fails', async () => {
@@ -2210,11 +2213,22 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock HTTP response from Skadi API to succeed
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      campaign_id: 'mock-campaign-id',
-    });
+    // Mock Skadi API v2 call to succeed
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/create', (body) => {
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+        return (
+          body.advertiser_id === getAdvertiserId('1') &&
+          uuidRegex.test(body.campaign_id) &&
+          body.budget === 10 && // 1000 cores = 10 USD
+          Array.isArray(body.creatives) &&
+          body.creatives.length === 1 &&
+          body.creatives[0].type === 'POST' &&
+          body.creatives[0].value.post.id === 'p1'
+        );
+      })
+      .reply(200, '');
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2239,30 +2253,23 @@ describe('mutation startPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.startPostBoost.transactionId).toBeDefined();
-    expect(res.data.startPostBoost.referenceId).toBe('mock-campaign-id');
     expect(res.data.startPostBoost.balance.amount).toBe(9000);
+
+    // Get the campaign ID from the database
+    const campaign = await con.getRepository(Campaign).findOneOrFail({
+      where: { referenceId: 'p1', userId: '1', state: CampaignState.Active },
+    });
+    expect(res.data.startPostBoost.referenceId).toBe(campaign.id);
 
     // Verify the boosted flag is now set
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-campaign-id');
+    expect(post?.flags?.campaignId).toBe(campaign.id);
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/create`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 1 * ONE_DAY_IN_SECONDS,
-          budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign was created in database
+    expect(campaign.type).toBe(CampaignType.Post);
+    expect(campaign.referenceId).toBe('p1');
+    expect(campaign.userId).toBe('1');
+    expect(campaign.state).toBe(CampaignState.Active);
   });
 });
 
@@ -2281,12 +2288,38 @@ describe('mutation cancelPostBoost', () => {
 
   const params = { postId: 'p1' };
 
+  let testCampaignId: string;
+
   beforeEach(async () => {
+    // Create a campaign entity in the database for testing
+    const campaignId = randomUUID();
+    testCampaignId = campaignId;
+
+    await con.getRepository(CampaignPost).save(
+      con.getRepository(CampaignPost).create({
+        id: campaignId,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 450, // Spent 450 cores so far
+          users: 100,
+          clicks: 10,
+          impressions: 500,
+        },
+        userId: '1',
+        referenceId: 'p1',
+        state: CampaignState.Active,
+        endedAt: new Date('2024-12-31'),
+        postId: 'p1',
+        type: CampaignType.Post,
+      }),
+    );
+
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
         authorId: '1',
-        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+        flags: updateFlagsStatement<Post>({ campaignId }),
       },
     );
   });
@@ -2321,6 +2354,7 @@ describe('mutation cancelPostBoost', () => {
   it('should return an error if post is not currently boosted', async () => {
     loggedUser = '1';
     // Ensure the post is not boosted
+    await con.getRepository(Campaign).delete({ referenceId: 'p1' });
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -2331,18 +2365,17 @@ describe('mutation cancelPostBoost', () => {
     return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: params },
-      'GRAPHQL_VALIDATION_FAILED',
+      'NOT_FOUND',
     );
   });
 
   it('should successfully cancel post boost when post is boosted', async () => {
     loggedUser = '1';
 
-    // Mock HTTP response from Skadi API to succeed and return current budget
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '5.5', // 5.5 USD = 550 cores
-    });
+    // Mock Skadi API v2 call to succeed and return current budget
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '5.5' }); // 5.5 USD = 550 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2367,36 +2400,27 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10550); // 10000 + 550 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/cancel`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should handle skadi integration failure gracefully', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to throw an error
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+    // Mock Skadi API v2 call to fail
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .replyWithError('Skadi service unavailable');
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -2422,17 +2446,22 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
+
+    // Verify campaign state remains active
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Active);
   });
 
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
 
-    // Mock HTTP response from Skadi API to succeed but transfer to fail
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '5.5',
-    });
+    // Mock Skadi API v2 call to succeed and return current budget
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '5.5' }); // 5.5 USD = 550 cores
 
     // Use error transport to simulate transfer failure
     const errorTransport = createMockNjordErrorTransport({
@@ -2468,23 +2497,13 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/cancel`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state remains active
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Active);
   });
 
   it('should verify no transactions are created when validation fails', async () => {
@@ -2554,7 +2573,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the original post's boosted flag is unchanged
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
   });
 
   it('should verify no transactions are created when user is not authorized', async () => {
@@ -2585,7 +2604,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
   });
 
   it('should work for post scout as well as author', async () => {
@@ -2600,11 +2619,10 @@ describe('mutation cancelPostBoost', () => {
       },
     );
 
-    // Mock HTTP response from Skadi API to succeed and return current budget
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '3.25', // 3.25 USD = 325 cores
-    });
+    // Mock Skadi API v2 call to succeed and return current budget
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '3.25' }); // 3.25 USD = 325 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2629,38 +2647,27 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10325); // 10000 + 325 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the skadi client was called with correct parameters
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should handle decimal USD amounts correctly', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to return decimal USD amount
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '7.875', // 3.25 USD = 325 cores
-    });
+    // Mock Skadi API v2 call to succeed and return decimal USD amount
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '7.875' }); // 7.875 USD = 787.5 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2685,38 +2692,27 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10787); // 10000 + 787 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the skadi client was called with correct parameters
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should handle zero USD refund amount', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to return zero USD amount
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '0.0', // 3.25 USD = 325 cores
-    });
+    // Mock Skadi API v2 call to succeed and return zero USD amount
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '0.0' }); // 0 USD = 0 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2741,28 +2737,18 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10000); // 10000 + 0 refund = 10000
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the skadi client was called with correct parameters
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 });
 

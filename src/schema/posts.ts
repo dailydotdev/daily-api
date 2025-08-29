@@ -55,6 +55,8 @@ import {
   ensurePostAnalyticsPermissions,
 } from '../common';
 import {
+  Campaign,
+  CampaignState,
   ContentImage,
   createExternalLink,
   createSharePost,
@@ -137,6 +139,8 @@ import {
   getFormattedBoostedPost,
   getFormattedCampaign,
   getTotalEngagements,
+  startCampaignPost,
+  stopCampaignPost,
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
@@ -2842,166 +2846,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: Pick<StartCampaignArgs, 'budget' | 'duration'> & { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      const { postId, duration, budget } = args;
       validateCampaignArgs(args);
-      const post = await validatePostBoostPermissions(ctx, postId);
-      checkPostAlreadyBoosted(post);
 
-      const { userId } = ctx;
-      const total = budget * duration;
-
-      const request = await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } = await skadiApiClientV1.startPostCampaign({
-          postId,
-          durationInDays: duration,
-          budget: coresToUsd(budget),
-          userId,
-        });
-
-        const userTransaction = await entityManager
-          .getRepository(UserTransaction)
-          .save(
-            entityManager.getRepository(UserTransaction).create({
-              id: randomUUID(),
-              processor: UserTransactionProcessor.Njord,
-              receiverId: systemUser.id,
-              status: UserTransactionStatus.Success,
-              productId: null,
-              senderId: userId,
-              value: total,
-              valueIncFees: 0,
-              fee: 0,
-              request: ctx.requestMeta,
-              flags: { note: 'Post Boost started' },
-              referenceId: campaignId,
-              referenceType: UserTransactionType.PostBoost,
-            }),
-          );
-
-        await entityManager
-          .getRepository(Post)
-          .update(
-            { id: postId },
-            { flags: updateFlagsStatement<Post>({ campaignId }) },
-          );
-
-        try {
-          const transfer = await transferCores({
-            ctx,
-            transaction: userTransaction,
-            entityManager,
-          });
-
-          return {
-            transfer,
-            transaction: {
-              referenceId: campaignId,
-              transactionId: userTransaction.id,
-              balance: {
-                amount: parseBigInt(transfer.senderBalance?.newBalance),
-              },
-            },
-          };
-        } catch (error) {
-          if (error instanceof TransferError) {
-            await throwUserTransactionError({
-              ctx,
-              entityManager,
-              error,
-              transaction: userTransaction,
-            });
-          }
-
-          throw error;
-        }
+      return startCampaignPost({
+        ctx,
+        args: {
+          value: args.postId,
+          budget: args.budget,
+          duration: args.duration,
+        },
       });
-
-      return request.transaction;
     },
     cancelPostBoost: async (
       _,
       { postId }: { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      const { userId } = ctx;
-      const post = await validatePostBoostPermissions(ctx, postId);
-      const campaignId = post?.flags?.campaignId;
-
-      if (!campaignId) {
-        throw new ValidationError('Post is not currently boosted');
-      }
-
-      const result = await ctx.con.transaction(async (entityManager) => {
-        const { currentBudget } = await skadiApiClientV1.cancelPostCampaign({
-          campaignId,
+      const campaign = await ctx.con.getRepository(Campaign).findOneOrFail({
+        where: {
+          referenceId: postId,
           userId: ctx.userId,
-        });
-
-        await entityManager
-          .getRepository(Post)
-          .update(
-            { id: postId },
-            { flags: updateFlagsStatement<Post>({ campaignId: null }) },
-          );
-
-        const toRefund = parseFloat(currentBudget);
-
-        const userTransaction = await entityManager
-          .getRepository(UserTransaction)
-          .save(
-            entityManager.getRepository(UserTransaction).create({
-              id: randomUUID(),
-              processor: UserTransactionProcessor.Njord,
-              receiverId: userId,
-              status: UserTransactionStatus.Success,
-              productId: null,
-              senderId: systemUser.id,
-              value: usdToCores(toRefund),
-              valueIncFees: 0,
-              fee: 0,
-              flags: { note: 'Post Boost refund' },
-              referenceId: campaignId,
-              referenceType: UserTransactionType.PostBoost,
-            }),
-          );
-
-        try {
-          const transfer = await transferCores({
-            ctx: { userId },
-            transaction: userTransaction,
-            entityManager,
-          });
-
-          return {
-            transfer,
-            transaction: {
-              referenceId: campaignId,
-              transactionId: userTransaction.id,
-              balance: {
-                amount: parseBigInt(transfer.receiverBalance?.newBalance),
-              },
-            },
-          };
-        } catch (error) {
-          if (error instanceof TransferError) {
-            await throwUserTransactionError({
-              ctx,
-              entityManager,
-              error,
-              transaction: userTransaction,
-            });
-          } else {
-            logger.error(
-              { campaignId, userId, postId: post.id },
-              'Error cancelling post boost',
-            );
-          }
-
-          throw error;
-        }
+          state: CampaignState.Active,
+        },
       });
 
-      return result.transaction;
+      return stopCampaignPost({ campaign, ctx });
     },
     checkLinkPreview: async (
       _,
