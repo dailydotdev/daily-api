@@ -61,6 +61,7 @@ describe('query userAlerts', () => {
       lastBootPopup
       lastFeedSettingsFeedback
       showTopReader
+      briefBannerLastSeen
     }
   }`;
 
