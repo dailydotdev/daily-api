@@ -2195,7 +2195,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {
           flags: updateFlagsStatement<User>({
             country: geo?.country,
-            city: geo?.city.replace(/'/g, "''"),
+            city: geo?.city?.replace(/'/g, "''"),
             continent: geo?.continent,
             subdivision: geo?.subdivision,
             location: {
