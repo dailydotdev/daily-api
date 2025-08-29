@@ -3,7 +3,7 @@ import { Campaign, CampaignType, type ConnectionManager } from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
 import { TransferError } from '../../errors';
-import { transferCores, throwUserTransactionError } from '../njord';
+import { transferCores, throwUserTransactionError, getBalance } from '../njord';
 import type { AuthContext } from '../../Context';
 import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
@@ -44,6 +44,16 @@ export const startCampaignTransferCores = async ({
   userTransaction,
   manager,
 }: StartCampaignTransferCoresProps) => {
+  if (ctx.isTeamMember) {
+    return {
+      transaction: {
+        referenceId: campaignId,
+        transactionId: userTransaction.id,
+        balance: { amount: (await getBalance({ userId: ctx.userId })).amount },
+      },
+    };
+  }
+
   try {
     const transfer = await transferCores({
       ctx,
@@ -81,6 +91,16 @@ export const stopCampaignTransferCores = async ({
   userTransaction,
   manager,
 }: StartCampaignTransferCoresProps) => {
+  if (ctx.isTeamMember) {
+    return {
+      transaction: {
+        referenceId: campaignId,
+        transactionId: userTransaction.id,
+        balance: { amount: (await getBalance({ userId: ctx.userId })).amount },
+      },
+    };
+  }
+
   try {
     const transfer = await transferCores({
       ctx,
