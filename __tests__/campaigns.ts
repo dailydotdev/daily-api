@@ -1416,6 +1416,73 @@ describe('mutation startCampaign', () => {
 
       expect(res.errors).toBeFalsy();
     });
+
+    it('should limit keywords to maximum of 30 tags for source campaign', async () => {
+      loggedUser = '3'; // moderator in 'm'
+
+      // Insert a recent post in squad 'm' with many tags
+      await con.getRepository(Post).save({
+        id: 'mp3',
+        shortId: 'mp3',
+        title: 'M Post 3',
+        url: 'http://mp3.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        visible: true,
+      });
+
+      // Add more than 30 keywords to PostKeyword table (35 tags)
+      const keywords = Array.from({ length: 35 }, (_, i) => ({
+        postId: 'mp3',
+        keyword: `tag${i + 1}`,
+      }));
+      await con.getRepository(PostKeyword).save(keywords);
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'SQUAD' &&
+            body.creatives[0].value.squad.id === 'm' &&
+            body?.targeting?.type === 'BOOST' &&
+            Array.isArray(requestKeywords) &&
+            requestKeywords.length === 30 // Should be limited to 30
+          );
+        })
+        .reply(200, ''); // Successful response with empty string
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-source-campaign-with-max-tags',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const source = await con.getRepository(Source).findOneBy({ id: 'm' });
+      expect(source?.flags?.campaignId).toEqual(
+        res.data.startCampaign.referenceId,
+      );
+    });
   });
 });
 
@@ -2209,6 +2276,61 @@ describe('query dailyCampaignReachEstimate', () => {
     expect(sourceRes.data.dailyCampaignReachEstimate).toEqual({
       min: 92,
       max: 108,
+    });
+  });
+
+  it('should limit keywords to maximum of 30 tags for reach estimate', async () => {
+    loggedUser = '3'; // moderator in 'm'
+
+    // Insert a recent post in squad 'm' with many tags
+    await con.getRepository(Post).save({
+      id: 'mp4',
+      shortId: 'mp4',
+      title: 'M Post 4',
+      url: 'http://mp4.com',
+      createdAt: new Date(),
+      sourceId: 'm',
+      type: PostType.Article,
+      visible: true,
+    });
+
+    // Add more than 30 keywords to PostKeyword table (40 tags)
+    const keywords = Array.from({ length: 40 }, (_, i) => ({
+      postId: 'mp4',
+      keyword: `reachtag${i + 1}`,
+    }));
+    await con.getRepository(PostKeyword).save(keywords);
+
+    // Mock the HTTP response using nock
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/reach', (body) => {
+        const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+        return (
+          body.budget === 30 &&
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(requestKeywords) &&
+          requestKeywords.length === 30 // Should be limited to 30
+        );
+      })
+      .reply(200, {
+        reach: {
+          impressions: 180,
+          clicks: 12,
+          users: 85,
+          min_impressions: 78,
+          max_impressions: 92,
+        },
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...sourceParams, budget: 3000 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 78,
+      max: 92,
     });
   });
 });
