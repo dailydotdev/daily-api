@@ -163,6 +163,7 @@ import {
   WorkLocationType,
 } from '../entity/user/UserJobPreferences';
 import { completeVerificationForExperienceByUserCompany } from '../common/userExperience';
+import { escapeRegExp } from 'lodash';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2195,7 +2196,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {
           flags: updateFlagsStatement<User>({
             country: geo?.country,
-            city: geo?.city,
+            city: geo?.city.replace(/'/g, "''"),
             continent: geo?.continent,
             subdivision: geo?.subdivision,
             location: {
