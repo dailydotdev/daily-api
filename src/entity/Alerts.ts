@@ -47,6 +47,9 @@ export class Alerts {
   @Column({ type: 'bool', default: false })
   showRecoverStreak: boolean;
 
+  @Column({ type: 'timestamp without time zone', default: null })
+  briefBannerLastSeen: Date | null;
+
   @Column({ type: 'timestamptz', default: () => 'now()' })
   lastFeedSettingsFeedback: Date;
 
@@ -87,4 +90,5 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
   bootPopup: false,
   showRecoverStreak: false,
   showTopReader: false,
+  briefBannerLastSeen: null,
 };

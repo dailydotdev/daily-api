@@ -14,6 +14,7 @@ interface GQLUpdateAlertsInput extends Partial<GQLAlerts> {
   filter?: boolean;
   myFeed?: string;
   lastBootPopup?: Date;
+  briefBannerLastSeen?: Date;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -90,6 +91,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the top reader badge
     """
     showTopReader: Boolean
+
+    """
+    Date of the last time user saw the brief banner
+    """
+    briefBannerLastSeen: DateTime
   }
 
   input UpdateAlertsInput {
@@ -147,6 +153,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the top reader badge
     """
     showTopReader: Boolean
+
+    """
+    Date of the last time user saw the brief banner
+    """
+    briefBannerLastSeen: DateTime
   }
 
   extend type Mutation {
