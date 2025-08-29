@@ -1,11 +1,11 @@
 import { crons } from '../../src/cron/index';
 import { postAnalyticsClickhouseCron as cron } from '../../src/cron/postAnalyticsClickhouse';
-import { expectSuccessfulCron } from '../helpers';
-import { postAnalyticsFixture } from '../fixture/postAnalytics';
 import {
+  expectSuccessfulCron,
   mockClickhouseClientOnce,
   mockClickhouseQueryJSONOnce,
-} from '../common/clickhouse';
+} from '../helpers';
+import { postAnalyticsFixture } from '../fixture/postAnalytics';
 import createOrGetConnection from '../../src/db';
 import type { DataSource } from 'typeorm';
 import { PostAnalytics } from '../../src/entity/posts/PostAnalytics';

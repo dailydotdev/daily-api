@@ -1,12 +1,12 @@
 import { crons } from '../../src/cron/index';
 import { postAnalyticsHistoryDayClickhouseCron as cron } from '../../src/cron/postAnalyticsHistoryDayClickhouse';
 
-import { expectSuccessfulCron } from '../helpers';
-import { postAnalyticsFixture } from '../fixture/postAnalytics';
 import {
+  expectSuccessfulCron,
   mockClickhouseClientOnce,
   mockClickhouseQueryJSONOnce,
-} from '../common/clickhouse';
+} from '../helpers';
+import { postAnalyticsFixture } from '../fixture/postAnalytics';
 import createOrGetConnection from '../../src/db';
 import type { DataSource } from 'typeorm';
 import { deleteRedisKey, getRedisHash } from '../../src/redis';
