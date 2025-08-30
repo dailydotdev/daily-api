@@ -6,7 +6,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, In, MoreThan } from 'typeorm';
+import { DataSource, In, MoreThan, type QueryBuilder } from 'typeorm';
 import {
   canModeratePosts,
   ensureSourcePermissions,
@@ -137,9 +137,7 @@ import type {
 import {
   checkPostAlreadyBoosted,
   getAdjustedReach,
-  getBoostedPost,
   getFormattedBoostedPost,
-  getFormattedCampaign,
   startCampaignPost,
   stopCampaignPost,
   validatePostBoostPermissions,
@@ -300,6 +298,49 @@ export type GQLPostAnalyticsHistory = Omit<
   PostAnalyticsHistory,
   'post' | 'createdAt'
 >;
+
+const formatCampaignV2toV1 = (campaign: CampaignForV1) => ({
+  post: getFormattedBoostedPost(campaign.post),
+  campaign: {
+    budget: campaign.flags.budget ?? 0,
+    clicks: campaign.flags.clicks ?? 0,
+    users: campaign.flags.users ?? 0,
+    spend: campaign.flags.spend ?? 0,
+    impressions: campaign.flags.impressions ?? 0,
+    campaignId: campaign.id,
+    postId: campaign.referenceId,
+    endedAt: campaign.endedAt,
+    startedAt: campaign.createdAt,
+    status: campaign.state,
+  },
+});
+
+const builderForCampaignV1 = (builder: QueryBuilder<CampaignPost>) =>
+  builder
+    .select('c.id', 'id')
+    .addSelect('c.referenceId', 'referenceId')
+    .addSelect('c.createdAt', 'createdAt')
+    .addSelect('c.endedAt', 'endedAt')
+    .addSelect('c.state', 'state')
+    .addSelect('c.flags', 'flags')
+    .addSelect(
+      `(
+        SELECT json_build_object(
+          'id', p1.id,
+          'shortId', p1."shortId",
+          'slug', p1.slug,
+          'image', p1.image,
+          'title', p1.title,
+          'type', p1.type,
+          'sharedTitle', p2.title,
+          'sharedImage', p2.image
+        )
+        FROM post p1
+        LEFT JOIN post p2 ON p1."sharedPostId" = p2.id
+        WHERE p1.id = c."postId"
+      )`,
+      'post',
+    );
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(BriefingType, 'BriefingType')}
@@ -2274,21 +2315,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLBoostedPost> => {
-      const campaign = await skadiApiClientV1.getCampaignById({
-        campaignId: id,
-        userId: ctx.userId!,
-      });
+      const campaign = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        builderForCampaignV1(
+          queryRunner.manager
+            .getRepository(CampaignPost)
+            .createQueryBuilder('c'),
+        )
+          .where('c.id = :id', { id })
+          .andWhere('c."userId" = :user', { user: ctx.userId })
+          .getRawOne<CampaignForV1>(),
+      );
 
       if (!campaign) {
         throw new NotFoundError('Campaign does not exist!');
       }
 
-      const post = await getBoostedPost(ctx.con, campaign.postId);
-
-      return {
-        campaign: getFormattedCampaign(campaign),
-        post: getFormattedBoostedPost(post),
-      };
+      return formatCampaignV2toV1(campaign);
     },
     postCampaigns: async (
       _,
@@ -2315,34 +2357,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           const campaigns = await queryReadReplica(
             ctx.con,
             ({ queryRunner }) => {
-              const builder = queryRunner.manager
-                .getRepository(CampaignPost)
-                .createQueryBuilder('c')
-                .select('c.id', 'id')
-                .addSelect('c.referenceId', 'referenceId')
-                .addSelect('c.createdAt', 'createdAt')
-                .addSelect('c.endedAt', 'endedAt')
-                .addSelect('c.state', 'state')
-                .addSelect('c.flags', 'flags')
-                // Add post data as a subquery - only fetches for matching campaigns
-                .addSelect(
-                  `(
-                    SELECT json_build_object(
-                      'id', p1.id,
-                      'shortId', p1."shortId",
-                      'slug', p1.slug,
-                      'image', p1.image,
-                      'title', p1.title,
-                      'type', p1.type,
-                      'sharedTitle', p2.title,
-                      'sharedImage', p2.image
-                    )
-                    FROM post p1
-                    LEFT JOIN post p2 ON p1."sharedPostId" = p2.id
-                    WHERE p1.id = c."postId"
-                  )`,
-                  'post',
-                )
+              const builder = builderForCampaignV1(
+                queryRunner.manager
+                  .getRepository(CampaignPost)
+                  .createQueryBuilder('c'),
+              );
+
+              builder
                 .orderBy(`CASE WHEN c."state" = :active THEN 0 ELSE 1 END`)
                 .addOrderBy('c."createdAt"', 'DESC')
                 .limit(getLimit({ limit: first ?? 20 }))
@@ -2360,21 +2381,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             return [];
           }
 
-          return campaigns.map((campaign) => ({
-            post: getFormattedBoostedPost(campaign.post),
-            campaign: {
-              budget: campaign.flags.budget ?? 0,
-              clicks: campaign.flags.clicks ?? 0,
-              users: campaign.flags.users ?? 0,
-              spend: campaign.flags.spend ?? 0,
-              impressions: campaign.flags.impressions ?? 0,
-              campaignId: campaign.id,
-              postId: campaign.referenceId,
-              endedAt: campaign.endedAt,
-              startedAt: campaign.createdAt,
-              status: campaign.state,
-            },
-          }));
+          return campaigns.map(formatCampaignV2toV1);
         },
       );
 
