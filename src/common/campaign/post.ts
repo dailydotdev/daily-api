@@ -84,8 +84,8 @@ interface CampaignBoostedPost
   extends Pick<Post, 'id' | 'shortId' | 'title' | 'slug'> {
   image: string;
   permalink: string;
-  engagements: number;
   commentsPermalink?: string;
+  engagements: number;
 }
 
 export interface GQLBoostedPost {
@@ -97,12 +97,9 @@ interface GetBoostedPost extends CampaignBoostedPost {
   type: PostType;
   sharedTitle?: string;
   sharedImage?: string;
-  views: number;
-  upvotes: number;
-  comments: number;
 }
 
-const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
+export const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
   con
     .getRepository(Post)
     .createQueryBuilder(alias)
@@ -112,9 +109,6 @@ const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
     .addSelect(`"${alias}".image`, 'image')
     .addSelect(`"${alias}".title`, 'title')
     .addSelect(`"${alias}".type`, 'type')
-    .addSelect(`"${alias}".upvotes::int`, 'upvotes')
-    .addSelect(`"${alias}".comments::int`, 'comments')
-    .addSelect(`"${alias}".views::int`, 'views')
     .addSelect('p2.title', 'sharedTitle')
     .addSelect('p2.image', 'sharedImage')
     .leftJoin(Post, 'p2', `"${alias}"."sharedPostId" = p2.id`);
@@ -152,7 +146,7 @@ export const getFormattedBoostedPost = (
     image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
     commentsPermalink: post.slug ? getDiscussionLink(post.slug) : undefined,
-    engagements: post.comments + post.upvotes + post.views,
+    engagements: 0, // for backwards compat - we don't really use this property anymore
   };
 };
 
@@ -311,6 +305,14 @@ export const getAdjustedReach = (value: number) => {
 
   return estimatedReach;
 };
+
+export interface CampaignForV1
+  extends Pick<
+    CampaignPost,
+    'id' | 'referenceId' | 'createdAt' | 'endedAt' | 'state' | 'flags'
+  > {
+  post: GetBoostedPost;
+}
 
 export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;
