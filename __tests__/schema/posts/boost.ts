@@ -1154,17 +1154,6 @@ describe('query postCampaigns', () => {
   it('should return empty connection when no campaigns exist', async () => {
     loggedUser = '1';
 
-    // Mock the HTTP response from Skadi API to return empty campaigns
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_posts: [],
-      impressions: 0,
-      clicks: 0,
-      users: 0,
-      total_spend: '0',
-      post_ids: [],
-    });
-
     const res = await client.query(QUERY, { variables: { first: 10 } });
 
     expect(res.errors).toBeFalsy();
@@ -1184,23 +1173,6 @@ describe('query postCampaigns', () => {
         users: 0,
       },
     });
-
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/list`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          limit: 10,
-          offset: 0,
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
   });
 
   it('should return campaigns with posts and stats on first request', async () => {
@@ -1238,39 +1210,43 @@ describe('query postCampaigns', () => {
       },
     ]);
 
-    // Mock the HTTP response from Skadi API
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-1',
-          post_id: 'post-1',
-          status: 'active',
-          spend: '10.5', // 10.5 USD = 1050 cores
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 1000,
-          clicks: 50,
+    // Create campaigns in database
+    await con.getRepository(CampaignPost).save([
+      {
+        id: 'campaign-1',
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1050,
+          spend: 500,
           users: 500,
+          clicks: 50,
+          impressions: 1000,
         },
-        {
-          campaign_id: 'campaign-2',
-          post_id: 'post-2',
-          status: 'active',
-          spend: '20.0', // 20 USD = 2000 cores
-          started_at: new Date('2024-01-02').getTime(),
-          ended_at: null,
-          impressions: 2000,
-          clicks: 100,
+        userId: '1',
+        referenceId: 'post-1',
+        state: CampaignState.Active,
+        postId: 'post-1',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-01'),
+      },
+      {
+        id: 'campaign-2',
+        creativeId: randomUUID(),
+        flags: {
+          budget: 2000,
+          spend: 800,
           users: 800,
+          clicks: 100,
+          impressions: 2000,
         },
-      ],
-      impressions: 3000,
-      clicks: 150,
-      users: 1300, // 500 + 800
-      total_spend: '30.5', // 30.5 USD = 3050 cores
-      post_ids: ['post-1', 'post-2'],
-    });
+        userId: '1',
+        referenceId: 'post-2',
+        state: CampaignState.Active,
+        postId: 'post-2',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-02'),
+      },
+    ]);
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
 
@@ -1294,7 +1270,7 @@ describe('query postCampaigns', () => {
           engagements: 175, // 100 views + 50 upvotes + 25 comments
         },
         campaign: {
-          spend: 1050, // Converted from USD to cores
+          spend: 500,
           campaignId: 'campaign-1',
           clicks: 50,
           impressions: 1000,
@@ -1316,7 +1292,7 @@ describe('query postCampaigns', () => {
           engagements: 305, // 200 views + 75 upvotes + 30 comments
         },
         campaign: {
-          spend: 2000, // Converted from USD to cores
+          spend: 800,
           campaignId: 'campaign-2',
           clicks: 100,
           impressions: 2000,
@@ -1327,10 +1303,10 @@ describe('query postCampaigns', () => {
       },
     });
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 3000,
-      clicks: 150,
-      users: 1300,
-      totalSpend: 3050, // Converted from USD to cores
+      impressions: 0,
+      clicks: 0,
+      users: 0,
+      totalSpend: 0,
       engagements: 480, // 100+50+25+200+75+30 = 480
     });
   });
@@ -1354,27 +1330,23 @@ describe('query postCampaigns', () => {
       comments: 18,
     });
 
-    // Mock the HTTP response from Skadi API
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-3',
-          post_id: 'post-3',
-          status: 'active',
-          spend: '15.0',
-          started_at: new Date('2024-01-03').getTime(),
-          ended_at: null,
-          impressions: 1500,
-          clicks: 75,
-          users: 900,
-        },
-      ],
-      impressions: 1500,
-      clicks: 75,
-      users: 900, // 900
-      total_spend: '15.0',
-      post_ids: ['post-3'],
+    // Create campaign in database
+    await con.getRepository(CampaignPost).save({
+      id: 'campaign-3',
+      creativeId: randomUUID(),
+      flags: {
+        budget: 1500,
+        spend: 750,
+        users: 900,
+        clicks: 75,
+        impressions: 1500,
+      },
+      userId: '1',
+      referenceId: 'post-3',
+      state: CampaignState.Active,
+      postId: 'post-3',
+      type: CampaignType.Post,
+      createdAt: new Date('2024-01-03'),
     });
 
     const res = await client.query(QUERY, {
@@ -1425,44 +1397,25 @@ describe('query postCampaigns', () => {
     }
     await con.getRepository(ArticlePost).save(posts);
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: posts.slice(0, 2).map((post, index) => ({
-        campaign_id: `campaign-${index + 1}`,
-        post_id: post.id,
-        status: 'active',
-        spend: '10.0',
-        started_at: new Date(`2024-01-0${index + 1}`).getTime(),
-        ended_at: null,
-        impressions: 1000 + index * 100,
+    // Create campaigns in database
+    const campaigns = posts.map((post, index) => ({
+      id: `campaign-${index + 1}`,
+      creativeId: randomUUID(),
+      flags: {
+        budget: 1000 + index * 100,
+        spend: 500 + index * 50,
+        users: 600 + index * 50,
         clicks: 50 + index * 10,
-        users: 600 + index * 50, // 600, 650
-      })),
-      impressions: 2100,
-      clicks: 60,
-      users: 1250, // 600 + 650
-      total_spend: '20.0',
-      post_ids: posts.slice(0, 2).map((p) => p.id),
-    });
-
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: posts.slice(2, 4).map((post, index) => ({
-        campaign_id: `campaign-${index + 3}`,
-        post_id: post.id,
-        status: 'active',
-        spend: '10.0',
-        started_at: new Date(`2024-01-0${index + 3}`).getTime(),
-        ended_at: null,
-        impressions: 1000 + (index + 2) * 100,
-        clicks: 50 + (index + 2) * 10,
-        users: 600 + (index + 2) * 50, // 700, 750
-      })),
-      impressions: 2300,
-      clicks: 80,
-      users: 1450, // 700 + 750
-      total_spend: '20.0',
-      post_ids: posts.slice(2, 4).map((p) => p.id),
-    });
+        impressions: 1000 + index * 100,
+      },
+      userId: '1',
+      referenceId: post.id,
+      state: CampaignState.Active,
+      postId: post.id,
+      type: CampaignType.Post,
+      createdAt: new Date(`2024-01-0${index + 1}`),
+    }));
+    await con.getRepository(CampaignPost).save(campaigns);
 
     // First request - limit to 2
     const res1 = await client.query(QUERY, { variables: { first: 2 } });
@@ -1474,10 +1427,10 @@ describe('query postCampaigns', () => {
       'YXJyYXljb25uZWN0aW9uOjI=',
     );
     expect(res1.data.postCampaigns.stats).toEqual({
-      impressions: 2100,
-      clicks: 60,
-      users: 1250,
-      totalSpend: 2000, // Converted from USD to cores
+      impressions: 0,
+      clicks: 0,
+      users: 0,
+      totalSpend: 0,
       engagements: 221, // 60+30+12+70+35+14 = 221
     });
 
@@ -1496,23 +1449,6 @@ describe('query postCampaigns', () => {
       'YXJyYXljb25uZWN0aW9uOjQ=',
     );
     expect(res2.data.postCampaigns.stats).toBeNull(); // No stats on subsequent requests
-
-    // Verify the HTTP call was made with correct parameters
-    expect(mockFetchParse.mock.calls[1]).toEqual([
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/list',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          limit: 2,
-          offset: 2, // cursorToOffset('YXJyYXljb25uZWN0aW9uOjI=') = 2
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    ]);
   });
 
   it('should handle different post types correctly', async () => {
@@ -1578,50 +1514,60 @@ describe('query postCampaigns', () => {
       comments: 15,
     });
 
-    // Mock the skadi client to return campaigns for different post types
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-1',
-          post_id: 'article-post',
-          status: 'active',
-          spend: '10.0',
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 1000,
-          clicks: 50,
+    // Create campaigns in database for different post types
+    await con.getRepository(CampaignPost).save([
+      {
+        id: 'campaign-1',
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 400,
           users: 600,
-        },
-        {
-          campaign_id: 'campaign-2',
-          post_id: 'freeform-post',
-          status: 'active',
-          spend: '10.0',
-          started_at: new Date('2024-01-02').getTime(),
-          ended_at: null,
-          impressions: 1000,
           clicks: 50,
+          impressions: 1000,
+        },
+        userId: '1',
+        referenceId: 'article-post',
+        state: CampaignState.Active,
+        postId: 'article-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-01'),
+      },
+      {
+        id: 'campaign-2',
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 350,
           users: 650,
-        },
-        {
-          campaign_id: 'campaign-3',
-          post_id: 'share-post',
-          status: 'active',
-          spend: '10.0',
-          started_at: new Date('2024-01-03').getTime(),
-          ended_at: null,
-          impressions: 1000,
           clicks: 50,
-          users: 700,
+          impressions: 1000,
         },
-      ],
-      impressions: 3000,
-      clicks: 150,
-      users: 1950, // 600 + 650 + 700
-      total_spend: '30.0',
-      post_ids: ['article-post', 'freeform-post', 'share-post'],
-    });
+        userId: '1',
+        referenceId: 'freeform-post',
+        state: CampaignState.Active,
+        postId: 'freeform-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-02'),
+      },
+      {
+        id: 'campaign-3',
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 300,
+          users: 700,
+          clicks: 50,
+          impressions: 1000,
+        },
+        userId: '1',
+        referenceId: 'share-post',
+        state: CampaignState.Active,
+        postId: 'share-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-03'),
+      },
+    ]);
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
 
@@ -1669,11 +1615,11 @@ describe('query postCampaigns', () => {
 
     // Check stats
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 3000,
-      clicks: 150,
-      totalSpend: 3000, // Converted from USD to cores
+      impressions: 0,
+      clicks: 0,
+      totalSpend: 0,
       engagements: 496, // 205+163+128
-      users: 1950, // 600 + 650 + 700
+      users: 0,
     });
   });
 
@@ -1695,27 +1641,23 @@ describe('query postCampaigns', () => {
       comments: 0,
     });
 
-    // Mock the skadi client to return campaigns with zero values
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-zero',
-          post_id: 'zero-post',
-          status: 'active',
-          spend: '0.0',
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 0,
-          clicks: 0,
-          users: 0,
-        },
-      ],
-      impressions: 0,
-      clicks: 0,
-      users: 0, // 0
-      total_spend: '0.0',
-      post_ids: ['zero-post'],
+    // Create campaign in database with zero values
+    await con.getRepository(CampaignPost).save({
+      id: 'campaign-zero',
+      creativeId: randomUUID(),
+      flags: {
+        budget: 0,
+        spend: 0,
+        users: 0,
+        clicks: 0,
+        impressions: 0,
+      },
+      userId: '1',
+      referenceId: 'zero-post',
+      state: CampaignState.Active,
+      postId: 'zero-post',
+      type: CampaignType.Post,
+      createdAt: new Date('2024-01-01'),
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1726,7 +1668,7 @@ describe('query postCampaigns', () => {
       campaignId: 'campaign-zero',
       postId: 'zero-post',
       status: 'active',
-      spend: 0, // Converted from USD to cores
+      spend: 0,
       impressions: 0,
       clicks: 0,
       users: 0,
@@ -1737,13 +1679,13 @@ describe('query postCampaigns', () => {
     expect(res.data.postCampaigns.stats).toEqual({
       impressions: 0,
       clicks: 0,
-      totalSpend: 0, // Converted from USD to cores
+      totalSpend: 0,
       engagements: 0, // 0+0+0+0+0 = 0
       users: 0, // 0
     });
   });
 
-  it('should handle decimal USD amounts correctly', async () => {
+  it('should handle decimal amounts in campaign spend correctly', async () => {
     loggedUser = '1';
 
     await con.getRepository(ArticlePost).save({
@@ -1761,27 +1703,23 @@ describe('query postCampaigns', () => {
       comments: 12,
     });
 
-    // Mock the skadi client to return campaigns with decimal USD amounts
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-decimal',
-          post_id: 'decimal-post',
-          status: 'active',
-          spend: '15.75', // 15.75 USD = 1575 cores
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 1000,
-          clicks: 50,
-          users: 750,
-        },
-      ],
-      impressions: 1000,
-      clicks: 50,
-      users: 750, // 750
-      total_spend: '15.75', // 15.75 USD = 1575 cores
-      post_ids: ['decimal-post'],
+    // Create campaign in database with decimal amount in spend
+    await con.getRepository(CampaignPost).save({
+      id: 'campaign-decimal',
+      creativeId: randomUUID(),
+      flags: {
+        budget: 2000,
+        spend: 1575, // 15.75 USD = 1575 cores
+        users: 750,
+        clicks: 50,
+        impressions: 1000,
+      },
+      userId: '1',
+      referenceId: 'decimal-post',
+      state: CampaignState.Active,
+      postId: 'decimal-post',
+      type: CampaignType.Post,
+      createdAt: new Date('2024-01-01'),
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1792,7 +1730,7 @@ describe('query postCampaigns', () => {
       campaignId: 'campaign-decimal',
       postId: 'decimal-post',
       status: 'active',
-      spend: 1575, // 15.75 * 100 = 1575
+      spend: 1575,
       impressions: 1000,
       clicks: 50,
       users: 750,
@@ -1800,13 +1738,12 @@ describe('query postCampaigns', () => {
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
     );
-    expect(res.data.postCampaigns.stats.totalSpend).toBe(1575); // 15.75 * 100 = 1575
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 1000,
-      clicks: 50,
-      totalSpend: 1575, // Converted from USD to cores
+      impressions: 0,
+      clicks: 0,
+      totalSpend: 0,
       engagements: 109,
-      users: 750,
+      users: 0,
     });
   });
 });

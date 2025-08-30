@@ -53,9 +53,11 @@ import {
   parseBigInt,
   findPostByUrl,
   ensurePostAnalyticsPermissions,
+  getLimit,
 } from '../common';
 import {
   Campaign,
+  CampaignPost,
   CampaignState,
   ContentImage,
   createExternalLink,
@@ -129,16 +131,15 @@ import { whereNotUserBlocked } from '../common/contentPreference';
 import type {
   BoostedPostConnection,
   BoostedPostStats,
+  CampaignForV1,
   GQLBoostedPost,
 } from '../common/campaign/post';
 import {
   checkPostAlreadyBoosted,
-  consolidateCampaignsWithPosts,
   getAdjustedReach,
   getBoostedPost,
   getFormattedBoostedPost,
   getFormattedCampaign,
-  getTotalEngagements,
   startCampaignPost,
   stopCampaignPost,
   validatePostBoostPermissions,
@@ -160,7 +161,7 @@ import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
 import type { CampaignReach } from '../integrations/skadi/api/common';
 import graphorm from '../graphorm';
 import { BriefingType } from '../integrations/feed';
-import { coresToUsd, usdToCores } from '../common/number';
+import { coresToUsd } from '../common/number';
 import {
   type StartCampaignArgs,
   validateCampaignArgs,
@@ -2294,7 +2295,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments,
       ctx: AuthContext,
     ): Promise<BoostedPostConnection> => {
-      const { userId } = ctx;
       const { first, after } = args;
       const isFirstRequest = !after;
       const stats: BoostedPostStats | undefined = isFirstRequest
@@ -2312,36 +2312,94 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         (nodeSize) => nodeSize === first,
         (_, i) => offsetToCursor(offset + i + 1),
         async () => {
-          const campaigns = await skadiApiClientV1.getCampaigns({
-            userId,
-            offset,
-            limit: first!,
-          });
+          const campaigns = await queryReadReplica(
+            ctx.con,
+            ({ queryRunner }) => {
+              const builder = queryRunner.manager
+                .getRepository(CampaignPost)
+                .createQueryBuilder('c')
+                .select([
+                  'c.id',
+                  'c.referenceId',
+                  'c.createdAt',
+                  'c.endedAt',
+                  'c.state',
+                  'c.flags',
+                ])
+                // Add post data as a subquery - only fetches for matching campaigns
+                .addSelect(
+                  `(
+                    SELECT json_build_object(
+                      'id', p1.id,
+                      'shortId', p1."shortId",
+                      'slug', p1.slug,
+                      'image', p1.image,
+                      'title', p1.title,
+                      'type', p1.type,
+                      'sharedTitle', p2.title,
+                      'sharedImage', p2.image
+                    )
+                    FROM post p1
+                    LEFT JOIN post p2 ON p1."sharedPostId" = p2.id
+                    WHERE p1.id = c."postId"
+                  )`,
+                  'post',
+                )
+                .orderBy(`CASE WHEN c."state" = :active THEN 0 ELSE 1 END`)
+                .addOrderBy('c."createdAt"', 'DESC')
+                .limit(getLimit({ limit: first ?? 20 }))
+                .setParameter('active', CampaignState.Active);
 
-          if (!campaigns?.promotedPosts?.length) {
+              if (offset) {
+                builder.offset(offset);
+              }
+
+              return builder.getRawMany<CampaignForV1>();
+            },
+          );
+
+          if (!campaigns.length) {
             return [];
           }
 
-          if (isFirstRequest && stats) {
-            stats.clicks = campaigns.clicks;
-            stats.impressions = campaigns.impressions;
-            stats.users = campaigns.users;
-            stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
-            stats.engagements = await queryReadReplica(
-              ctx.con,
-              ({ queryRunner }) =>
-                getTotalEngagements(queryRunner.manager, campaigns.postIds),
-            );
-          }
-
-          return queryReadReplica(ctx.con, ({ queryRunner }) =>
-            consolidateCampaignsWithPosts(
-              campaigns.promotedPosts,
-              queryRunner.manager,
-            ),
-          );
+          return campaigns.map((campaign) => ({
+            post: getFormattedBoostedPost(campaign.post),
+            campaign: {
+              budget: campaign.flags.budget ?? 0,
+              clicks: campaign.flags.clicks ?? 0,
+              users: campaign.flags.users ?? 0,
+              spend: campaign.flags.spend ?? 0,
+              impressions: campaign.flags.impressions ?? 0,
+              campaignId: campaign.id,
+              postId: campaign.referenceId,
+              endedAt: campaign.endedAt,
+              startedAt: campaign.createdAt,
+              status: campaign.state,
+            },
+          }));
         },
       );
+
+      if (paginated.edges?.length && isFirstRequest && stats) {
+        const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager
+            .getRepository(CampaignPost)
+            .createQueryBuilder('c')
+            .select(
+              `SUM(COALESCE((c.flags->>'impressions')::int, 0))`,
+              'impressions',
+            )
+            .addSelect(`SUM(COALESCE((c.flags->>'users')::int, 0))`, 'users')
+            .addSelect(`SUM(COALESCE((c.flags->>'clicks')::int, 0))`, 'clicks')
+            .addSelect(`SUM(COALESCE((c.flags->>'spend')::int, 0))`, 'spend')
+            .where(`c."userId" = :user`, { user: ctx.userId })
+            .getRawOne(),
+        );
+        stats.clicks = result.clicks;
+        stats.impressions = result.impressions;
+        stats.users = result.users;
+        stats.totalSpend = result.spend;
+      }
 
       return {
         ...paginated,
