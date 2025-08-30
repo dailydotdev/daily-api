@@ -6711,6 +6711,43 @@ describe('query checkLocation', () => {
     });
   });
 
+  it('should return true and set JSON parsed flags when geo is successfully extracted', async () => {
+    loggedUser = '1';
+
+    // Clear any existing flags
+    await con.getRepository(User).update({ id: '1' }, { flags: {} });
+
+    const mockGeo = {
+      country: 'RE',
+      city: "L'Étang-Salé",
+      continent: 'AF',
+      location: { lastStored: '2025-08-29T11:35:06.392Z', accuracyRadius: 50 },
+    };
+
+    (getGeo as jest.Mock).mockImplementation(() => mockGeo);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.checkLocation._).toBe(true);
+
+    // Verify flags were updated
+    const updatedUser = await con.getRepository(User).findOne({
+      where: { id: '1' },
+      select: ['flags'],
+    });
+
+    expect(updatedUser.flags).toEqual({
+      city: "L'Étang-Salé",
+      continent: 'AF',
+      country: 'RE',
+      location: {
+        accuracyRadius: 50,
+        lastStored: expect.any(String),
+      },
+    });
+  });
+
   it('should return true and set partial flags when geo has minimal data', async () => {
     loggedUser = '1';
 

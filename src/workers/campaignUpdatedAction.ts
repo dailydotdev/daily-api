@@ -1,6 +1,12 @@
 import { TypedWorker } from './worker';
-import { Campaign, CampaignState, CampaignType, Post, Source } from '../entity';
-import type { DataSource } from 'typeorm';
+import {
+  Campaign,
+  CampaignState,
+  CampaignType,
+  Post,
+  Source,
+  type ConnectionManager,
+} from '../entity';
 import { debeziumTimeToDate, updateFlagsStatement } from '../common';
 import {
   CampaignUpdateEvent,
@@ -8,29 +14,38 @@ import {
   type CampaignStatsUpdate,
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
-import { logger } from '../logger';
 import { usdToCores } from '../common/number';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-action',
   handler: async (message, con): Promise<void> => {
-    switch (message.data.event) {
-      case CampaignUpdateEvent.StatsUpdated:
-        return handleCampaignStatsUpdate(con, message.data);
-      case CampaignUpdateEvent.BudgetUpdated:
-        return handleCampaignBudgetUpdate(con, message.data);
-      case CampaignUpdateEvent.Completed:
-        return handleCampaignCompleted(con, message.data);
-      default:
-        return;
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: message.data.campaignId });
+
+    if (!campaign) {
+      throw new Error(`Campaign not found! ${message.data.campaignId}`);
     }
+
+    await con.transaction(async (manager) => {
+      switch (message.data.event) {
+        case CampaignUpdateEvent.StatsUpdated:
+          return handleCampaignStatsUpdate(manager, message.data);
+        case CampaignUpdateEvent.BudgetUpdated:
+          return handleCampaignBudgetUpdate(manager, message.data);
+        case CampaignUpdateEvent.Completed:
+          return handleCampaignCompleted(manager, message.data);
+        default:
+          return Promise.resolve();
+      }
+    });
   },
 };
 
 export default worker;
 
 const handleCampaignBudgetUpdate = async (
-  con: DataSource,
+  con: ConnectionManager,
   { data, campaignId, d_update }: CampaignUpdateEventArgs,
 ) => {
   const { budget: usedBudget } = data as CampaignStateUpdate;
@@ -47,7 +62,7 @@ const handleCampaignBudgetUpdate = async (
 };
 
 const handleCampaignStatsUpdate = async (
-  con: DataSource,
+  con: ConnectionManager,
   { data, campaignId, d_update }: CampaignUpdateEventArgs,
 ) => {
   const { impressions, clicks, unique_users } = data as CampaignStatsUpdate;
@@ -66,7 +81,7 @@ const handleCampaignStatsUpdate = async (
 };
 
 const handleCampaignCompleted = async (
-  con: DataSource,
+  con: ConnectionManager,
   data: CampaignUpdateEventArgs,
 ) => {
   const { campaignId, d_update } = data;
@@ -86,20 +101,20 @@ const handleCampaignCompleted = async (
 
   switch (campaign.type) {
     case CampaignType.Post:
-      await con
+      return await con
         .getRepository(Post)
         .update(
           { id: campaign.referenceId },
           { flags: updateFlagsStatement<Post>({ campaignId: null }) },
         );
     case CampaignType.Squad:
-      await con
+      return await con
         .getRepository(Source)
         .update(
           { id: campaign.referenceId },
           { flags: updateFlagsStatement<Source>({ campaignId: null }) },
         );
     default:
-      logger.warn({ data, campaign }, `Completed campaign with unkonwn type`);
+      throw new Error(`Completed campaign with unkonwn type: ${campaign.id}`);
   }
 };
