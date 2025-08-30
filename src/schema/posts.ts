@@ -2318,14 +2318,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               const builder = queryRunner.manager
                 .getRepository(CampaignPost)
                 .createQueryBuilder('c')
-                .select([
-                  'c.id',
-                  'c.referenceId',
-                  'c.createdAt',
-                  'c.endedAt',
-                  'c.state',
-                  'c.flags',
-                ])
+                .select('c.id', 'id')
+                .addSelect('c.referenceId', 'referenceId')
+                .addSelect('c.createdAt', 'createdAt')
+                .addSelect('c.endedAt', 'endedAt')
+                .addSelect('c.state', 'state')
+                .addSelect('c.flags', 'flags')
                 // Add post data as a subquery - only fetches for matching campaigns
                 .addSelect(
                   `(

@@ -254,7 +254,7 @@ describe('query postCampaignById', () => {
       promoted_post: {
         campaign_id: 'mock-campaign-id',
         post_id: 'p1',
-        status: 'active',
+        status: 'ACTIVE',
         spend: '1000',
         started_at: new Date().getTime(),
         ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -279,7 +279,7 @@ describe('query postCampaignById', () => {
       promoted_post: {
         campaign_id: 'mock-campaign-id',
         post_id: 'p1',
-        status: 'active',
+        status: 'ACTIVE',
         spend: '1000',
         started_at: new Date().getTime(),
         ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -299,7 +299,7 @@ describe('query postCampaignById', () => {
         clicks: 10,
         impressions: 50,
         postId: 'p1',
-        status: 'active',
+        status: 'ACTIVE',
         users: 25,
       },
       post: {
@@ -308,7 +308,7 @@ describe('query postCampaignById', () => {
         title: 'P1',
         shortId: 'sp1',
         permalink: 'http://localhost:4000/r/sp1',
-        engagements: 250, // 150 views + 75 upvotes + 25 comments
+        engagements: 0, // Not used anymore
       },
     });
 
@@ -373,7 +373,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'share-campaign-id',
             post_id: 'share-post-1',
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -393,7 +393,7 @@ describe('query postCampaignById', () => {
           title: 'Shared Post Title', // From shared post
           shortId: 'share1',
           permalink: 'http://localhost:4000/r/share1',
-          engagements: 135, // 80 views + 40 upvotes + 15 comments
+          engagements: 0, // Not used anymore
         });
 
         // Verify the HTTP call was made correctly
@@ -450,7 +450,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'share-campaign-id-2',
             post_id: 'share-post-2',
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -470,7 +470,7 @@ describe('query postCampaignById', () => {
           title: 'Share Post Custom Title', // From share post (not shared post)
           shortId: 'share2',
           permalink: 'http://localhost:4000/r/share2',
-          engagements: 153, // 90 views + 45 upvotes + 18 comments
+          engagements: 0, // Not used anymore
         });
 
         // Verify the HTTP call was made correctly
@@ -527,7 +527,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'share-campaign-id-3',
             post_id: 'share-post-3',
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -547,7 +547,7 @@ describe('query postCampaignById', () => {
           title: 'Shared Post Title for Empty', // From shared post (empty string is falsy)
           shortId: 'share3',
           permalink: 'http://localhost:4000/r/share3',
-          engagements: 117, // 70 views + 35 upvotes + 12 comments
+          engagements: 0, // Not used anymore
         });
 
         // Verify the HTTP call was made correctly
@@ -592,7 +592,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'freeform-campaign-id',
             post_id: freeformPost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -612,7 +612,7 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post Title',
           shortId: 'freeform1',
           permalink: 'http://localhost:4000/r/freeform1',
-          engagements: 420, // 250 views + 125 upvotes + 45 comments
+          engagements: 0, // Not used anymore
         });
       });
 
@@ -640,7 +640,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'freeform-campaign-id-2',
             post_id: freeformPost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -663,7 +663,7 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post No Image',
           shortId: 'freeform2',
           permalink: 'http://localhost:4000/r/freeform2',
-          engagements: 165, // 95 views + 48 upvotes + 22 comments
+          engagements: 0, // Not used anymore
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -698,7 +698,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'article-campaign-id',
             post_id: articlePost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: new Date('2024-12-31').getTime(), // Future date
@@ -718,7 +718,7 @@ describe('query postCampaignById', () => {
           title: 'Article Post Title',
           shortId: 'article1',
           permalink: 'http://localhost:4000/r/article1',
-          engagements: 510, // 300 views + 150 upvotes + 60 comments
+          engagements: 0, // Not used anymore
         });
       });
 
@@ -746,7 +746,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'article-campaign-id-2',
             post_id: articlePost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: null,
@@ -769,7 +769,7 @@ describe('query postCampaignById', () => {
           title: 'Article Post No Image',
           shortId: 'article2',
           permalink: 'http://localhost:4000/r/article2',
-          engagements: 193, // 110 views + 55 upvotes + 28 comments
+          engagements: 0, // Not used anymore
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -804,7 +804,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'welcome-campaign-id',
             post_id: welcomePost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: null,
@@ -824,7 +824,7 @@ describe('query postCampaignById', () => {
           title: 'Welcome Post Title',
           shortId: 'welcome1',
           permalink: 'http://localhost:4000/r/welcome1',
-          engagements: 145, // 85 views + 42 upvotes + 18 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -853,7 +853,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'collection-campaign-id',
             post_id: collectionPost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: null,
@@ -873,7 +873,7 @@ describe('query postCampaignById', () => {
           title: 'Collection Post Title',
           shortId: 'collect1',
           permalink: 'http://localhost:4000/r/collect1',
-          engagements: 272, // 160 views + 80 upvotes + 32 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -903,7 +903,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'youtube-campaign-id',
             post_id: youtubePost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: null,
@@ -923,7 +923,7 @@ describe('query postCampaignById', () => {
           title: 'YouTube Post Title',
           shortId: 'youtube1',
           permalink: 'http://localhost:4000/r/youtube1',
-          engagements: 368, // 220 views + 110 upvotes + 38 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -967,7 +967,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'share-campaign-no-image',
             post_id: sharePost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: null,
@@ -990,7 +990,7 @@ describe('query postCampaignById', () => {
           title: 'Share Post with Shared Post No Image', // Uses share post title
           shortId: 'sharenoimg',
           permalink: 'http://localhost:4000/r/sharenoimg',
-          engagements: 111, // 65 views + 32 upvotes + 14 comments
+          engagements: 0, // Not used anymore
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -1023,7 +1023,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'null-title-campaign',
             post_id: nullTitlePost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: null,
@@ -1043,7 +1043,7 @@ describe('query postCampaignById', () => {
           title: null, // Preserves null title
           shortId: 'nulltitle',
           permalink: 'http://localhost:4000/r/nulltitle',
-          engagements: 75, // 45 views + 22 upvotes + 8 comments
+          engagements: 0, // Not used anymore
         });
       });
 
@@ -1070,7 +1070,7 @@ describe('query postCampaignById', () => {
           promoted_post: {
             campaign_id: 'undefined-title-campaign',
             post_id: undefinedTitlePost.id,
-            status: 'active',
+            status: 'ACTIVE',
             spend: '1000',
             started_at: new Date().getTime(),
             ended_at: null,
@@ -1090,7 +1090,7 @@ describe('query postCampaignById', () => {
           title: null, // Preserves undefined title
           shortId: 'undeftitle',
           permalink: 'http://localhost:4000/r/undeftitle',
-          engagements: 95, // 55 views + 28 upvotes + 12 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -1211,9 +1211,11 @@ describe('query postCampaigns', () => {
     ]);
 
     // Create campaigns in database
+    const campaign1Id = randomUUID();
+    const campaign2Id = randomUUID();
     await con.getRepository(CampaignPost).save([
       {
-        id: 'campaign-1',
+        id: campaign1Id,
         creativeId: randomUUID(),
         flags: {
           budget: 1050,
@@ -1228,9 +1230,10 @@ describe('query postCampaigns', () => {
         postId: 'post-1',
         type: CampaignType.Post,
         createdAt: new Date('2024-01-01'),
+        endedAt: new Date('2024-01-08'),
       },
       {
-        id: 'campaign-2',
+        id: campaign2Id,
         creativeId: randomUUID(),
         flags: {
           budget: 2000,
@@ -1245,6 +1248,7 @@ describe('query postCampaigns', () => {
         postId: 'post-2',
         type: CampaignType.Post,
         createdAt: new Date('2024-01-02'),
+        endedAt: new Date('2024-01-09'),
       },
     ]);
 
@@ -1258,30 +1262,9 @@ describe('query postCampaigns', () => {
       endCursor: 'YXJyYXljb25uZWN0aW9uOjI=',
     });
     expect(res.data.postCampaigns.edges).toHaveLength(2);
+    // Campaign2 comes first (newer: 2024-01-02)
     expect(res.data.postCampaigns.edges[0]).toEqual({
       cursor: 'YXJyYXljb25uZWN0aW9uOjE=',
-      node: {
-        post: {
-          id: 'post-1',
-          title: 'Test Post 1',
-          image: 'https://test-post-1.jpg',
-          shortId: 'p1',
-          permalink: 'http://localhost:4000/r/p1',
-          engagements: 175, // 100 views + 50 upvotes + 25 comments
-        },
-        campaign: {
-          spend: 500,
-          campaignId: 'campaign-1',
-          clicks: 50,
-          impressions: 1000,
-          postId: 'post-1',
-          status: 'active',
-          users: 500,
-        },
-      },
-    });
-    expect(res.data.postCampaigns.edges[1]).toEqual({
-      cursor: 'YXJyYXljb25uZWN0aW9uOjI=',
       node: {
         post: {
           id: 'post-2',
@@ -1289,25 +1272,48 @@ describe('query postCampaigns', () => {
           image: 'https://test-post-2.jpg',
           shortId: 'p2',
           permalink: 'http://localhost:4000/r/p2',
-          engagements: 305, // 200 views + 75 upvotes + 30 comments
+          engagements: 0, // Not used anymore
         },
         campaign: {
           spend: 800,
-          campaignId: 'campaign-2',
+          campaignId: campaign2Id,
           clicks: 100,
           impressions: 2000,
           postId: 'post-2',
-          status: 'active',
+          status: 'ACTIVE',
           users: 800,
         },
       },
     });
+    // Campaign1 comes second (older: 2024-01-01)
+    expect(res.data.postCampaigns.edges[1]).toEqual({
+      cursor: 'YXJyYXljb25uZWN0aW9uOjI=',
+      node: {
+        post: {
+          id: 'post-1',
+          title: 'Test Post 1',
+          image: 'https://test-post-1.jpg',
+          shortId: 'p1',
+          permalink: 'http://localhost:4000/r/p1',
+          engagements: 0, // Not used anymore
+        },
+        campaign: {
+          spend: 500,
+          campaignId: campaign1Id,
+          clicks: 50,
+          impressions: 1000,
+          postId: 'post-1',
+          status: 'ACTIVE',
+          users: 500,
+        },
+      },
+    });
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 0,
-      clicks: 0,
-      users: 0,
-      totalSpend: 0,
-      engagements: 480, // 100+50+25+200+75+30 = 480
+      impressions: 3000, // 1000 + 2000
+      clicks: 150, // 50 + 100
+      users: 1300, // 500 + 800
+      totalSpend: 1300, // 500 + 800
+      engagements: 0, // Not used anymore
     });
   });
 
@@ -1320,7 +1326,7 @@ describe('query postCampaigns', () => {
       shortId: 'p3',
       title: 'Test Post 3',
       image: 'https://test-post-3.jpg',
-      url: 'http://test-post-3.com',
+      url: 'http://test-postm,kl.-3.com',
       sourceId: 'a',
       type: PostType.Article,
       createdAt: new Date(),
@@ -1331,8 +1337,9 @@ describe('query postCampaigns', () => {
     });
 
     // Create campaign in database
+    const campaign3Id = randomUUID();
     await con.getRepository(CampaignPost).save({
-      id: 'campaign-3',
+      id: campaign3Id,
       creativeId: randomUUID(),
       flags: {
         budget: 1500,
@@ -1347,6 +1354,7 @@ describe('query postCampaigns', () => {
       postId: 'post-3',
       type: CampaignType.Post,
       createdAt: new Date('2024-01-03'),
+      endedAt: new Date('2024-01-10'),
     });
 
     const res = await client.query(QUERY, {
@@ -1399,7 +1407,7 @@ describe('query postCampaigns', () => {
 
     // Create campaigns in database
     const campaigns = posts.map((post, index) => ({
-      id: `campaign-${index + 1}`,
+      id: randomUUID(),
       creativeId: randomUUID(),
       flags: {
         budget: 1000 + index * 100,
@@ -1414,6 +1422,7 @@ describe('query postCampaigns', () => {
       postId: post.id,
       type: CampaignType.Post,
       createdAt: new Date(`2024-01-0${index + 1}`),
+      endedAt: new Date(`2024-01-${10 + index}`),
     }));
     await con.getRepository(CampaignPost).save(campaigns);
 
@@ -1427,11 +1436,11 @@ describe('query postCampaigns', () => {
       'YXJyYXljb25uZWN0aW9uOjI=',
     );
     expect(res1.data.postCampaigns.stats).toEqual({
-      impressions: 0,
-      clicks: 0,
-      users: 0,
-      totalSpend: 0,
-      engagements: 221, // 60+30+12+70+35+14 = 221
+      impressions: 6000, // 1000+1100+1200+1300+1400
+      clicks: 350, // 50+60+70+80+90
+      users: 3500, // 600+650+700+750+800
+      totalSpend: 3000, // 500+550+600+650+700
+      engagements: 0, // Not used anymore
     });
 
     // Second request - get next 2 (offset 2)
@@ -1517,7 +1526,7 @@ describe('query postCampaigns', () => {
     // Create campaigns in database for different post types
     await con.getRepository(CampaignPost).save([
       {
-        id: 'campaign-1',
+        id: randomUUID(),
         creativeId: randomUUID(),
         flags: {
           budget: 1000,
@@ -1532,9 +1541,10 @@ describe('query postCampaigns', () => {
         postId: 'article-post',
         type: CampaignType.Post,
         createdAt: new Date('2024-01-01'),
+        endedAt: new Date('2024-01-08'),
       },
       {
-        id: 'campaign-2',
+        id: randomUUID(),
         creativeId: randomUUID(),
         flags: {
           budget: 1000,
@@ -1549,9 +1559,10 @@ describe('query postCampaigns', () => {
         postId: 'freeform-post',
         type: CampaignType.Post,
         createdAt: new Date('2024-01-02'),
+        endedAt: new Date('2024-01-09'),
       },
       {
-        id: 'campaign-3',
+        id: randomUUID(),
         creativeId: randomUUID(),
         flags: {
           budget: 1000,
@@ -1566,6 +1577,7 @@ describe('query postCampaigns', () => {
         postId: 'share-post',
         type: CampaignType.Post,
         createdAt: new Date('2024-01-03'),
+        endedAt: new Date('2024-01-10'),
       },
     ]);
 
@@ -1574,40 +1586,40 @@ describe('query postCampaigns', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaigns.edges).toHaveLength(3);
 
-    // Check article post
+    // Check share post (newest: 2024-01-03) - comes first
     expect(res.data.postCampaigns.edges[0].node.post).toEqual({
-      id: 'article-post',
-      title: 'Article Post',
-      image: 'https://article-post.jpg',
-      shortId: 'ap',
-      permalink: 'http://localhost:4000/r/ap',
-      engagements: 205, // 120 views + 60 upvotes + 25 comments
+      id: 'share-post',
+      title: 'Share Post Title',
+      image: 'https://shared-post.jpg', // From shared post
+      shortId: 'share',
+      permalink: 'http://localhost:4000/r/share',
+      engagements: 0, // Not used anymore
     });
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
     );
 
-    // Check freeform post
+    // Check freeform post (middle: 2024-01-02) - comes second
     expect(res.data.postCampaigns.edges[1].node.post).toEqual({
       id: 'freeform-post',
       title: 'Freeform Post',
       image: 'https://freeform-post.jpg',
       shortId: 'fp',
       permalink: 'http://localhost:4000/r/fp',
-      engagements: 163, // 95 views + 48 upvotes + 20 comments
+      engagements: 0, // Not used anymore
     });
     expect(res.data.postCampaigns.edges[1].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjI=',
     );
 
-    // Check share post (should use shared post image)
+    // Check article post (oldest: 2024-01-01) - comes third
     expect(res.data.postCampaigns.edges[2].node.post).toEqual({
-      id: 'share-post',
-      title: 'Share Post Title',
-      image: 'https://shared-post.jpg', // From shared post
-      shortId: 'share',
-      permalink: 'http://localhost:4000/r/share',
-      engagements: 128, // 75 views + 38 upvotes + 15 comments
+      id: 'article-post',
+      title: 'Article Post',
+      image: 'https://article-post.jpg',
+      shortId: 'ap',
+      permalink: 'http://localhost:4000/r/ap',
+      engagements: 0, // Not used anymore
     });
     expect(res.data.postCampaigns.edges[2].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjM=',
@@ -1615,11 +1627,11 @@ describe('query postCampaigns', () => {
 
     // Check stats
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 0,
-      clicks: 0,
-      totalSpend: 0,
-      engagements: 496, // 205+163+128
-      users: 0,
+      impressions: 3000, // 1000 + 1000 + 1000
+      clicks: 150, // 50 + 50 + 50
+      totalSpend: 1050, // 400 + 350 + 300
+      engagements: 0, // Not used anymore
+      users: 1950, // 600 + 650 + 700
     });
   });
 
@@ -1642,8 +1654,9 @@ describe('query postCampaigns', () => {
     });
 
     // Create campaign in database with zero values
+    const campaignZeroId = randomUUID();
     await con.getRepository(CampaignPost).save({
-      id: 'campaign-zero',
+      id: campaignZeroId,
       creativeId: randomUUID(),
       flags: {
         budget: 0,
@@ -1658,6 +1671,7 @@ describe('query postCampaigns', () => {
       postId: 'zero-post',
       type: CampaignType.Post,
       createdAt: new Date('2024-01-01'),
+      endedAt: new Date('2024-01-08'),
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1665,9 +1679,9 @@ describe('query postCampaigns', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaigns.edges).toHaveLength(1);
     expect(res.data.postCampaigns.edges[0].node.campaign).toEqual({
-      campaignId: 'campaign-zero',
+      campaignId: campaignZeroId,
       postId: 'zero-post',
-      status: 'active',
+      status: 'ACTIVE',
       spend: 0,
       impressions: 0,
       clicks: 0,
@@ -1704,8 +1718,9 @@ describe('query postCampaigns', () => {
     });
 
     // Create campaign in database with decimal amount in spend
+    const campaignDecimalId = randomUUID();
     await con.getRepository(CampaignPost).save({
-      id: 'campaign-decimal',
+      id: campaignDecimalId,
       creativeId: randomUUID(),
       flags: {
         budget: 2000,
@@ -1720,6 +1735,7 @@ describe('query postCampaigns', () => {
       postId: 'decimal-post',
       type: CampaignType.Post,
       createdAt: new Date('2024-01-01'),
+      endedAt: new Date('2024-01-08'),
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1727,9 +1743,9 @@ describe('query postCampaigns', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaigns.edges).toHaveLength(1);
     expect(res.data.postCampaigns.edges[0].node.campaign).toEqual({
-      campaignId: 'campaign-decimal',
+      campaignId: campaignDecimalId,
       postId: 'decimal-post',
-      status: 'active',
+      status: 'ACTIVE',
       spend: 1575,
       impressions: 1000,
       clicks: 50,
@@ -1739,11 +1755,11 @@ describe('query postCampaigns', () => {
       'YXJyYXljb25uZWN0aW9uOjE=',
     );
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 0,
-      clicks: 0,
-      totalSpend: 0,
-      engagements: 109,
-      users: 0,
+      impressions: 1000, // Single campaign value
+      clicks: 50, // Single campaign value
+      totalSpend: 1575, // Single campaign value
+      engagements: 0, // Not used anymore
+      users: 750, // Single campaign value
     });
   });
 });
