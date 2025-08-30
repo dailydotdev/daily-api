@@ -1,5 +1,10 @@
 import { ValidationError } from 'apollo-server-errors';
-import { Campaign, CampaignType, type ConnectionManager } from '../../entity';
+import {
+  Campaign,
+  CampaignPost,
+  CampaignType,
+  type ConnectionManager,
+} from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
 import { TransferError } from '../../errors';
@@ -9,6 +14,7 @@ import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
 import { getSourceTags } from './source';
 import { getPostTags } from './post';
+import { queryReadReplica } from '../queryReadReplica';
 
 export interface StartCampaignArgs {
   value: string;
@@ -130,4 +136,34 @@ export const getReferenceTags = (
     default:
       throw new ValidationError('Unknown campaign type to estimate reach');
   }
+};
+
+export interface UserCampaignData {
+  impressions: number;
+  clicks: number;
+  spend: number;
+  users: number;
+}
+
+export const getUserCampaignData = async (
+  ctx: AuthContext,
+): Promise<UserCampaignData> => {
+  const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+    queryRunner.manager
+      .getRepository(CampaignPost)
+      .createQueryBuilder('c')
+      .select(`SUM(COALESCE((c.flags->>'impressions')::int, 0))`, 'impressions')
+      .addSelect(`SUM(COALESCE((c.flags->>'users')::int, 0))`, 'users')
+      .addSelect(`SUM(COALESCE((c.flags->>'clicks')::int, 0))`, 'clicks')
+      .addSelect(`SUM(COALESCE((c.flags->>'spend')::int, 0))`, 'spend')
+      .where(`c."userId" = :user`, { user: ctx.userId })
+      .getRawOne(),
+  );
+
+  return {
+    clicks: result.clicks ?? 0,
+    impressions: result.impressions ?? 0,
+    users: result.users ?? 0,
+    spend: result.spend ?? 0,
+  };
 };

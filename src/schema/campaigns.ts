@@ -22,8 +22,10 @@ import {
 } from '../common/campaign/post';
 import {
   getReferenceTags,
+  getUserCampaignData,
   StartCampaignArgs,
   validateCampaignArgs,
+  type UserCampaignData,
 } from '../common/campaign/common';
 import { ValidationError } from 'apollo-server-errors';
 import {
@@ -85,6 +87,13 @@ export const typeDefs = /* GraphQL */ `
     max: Int!
   }
 
+  type UserCampaignData {
+    impressions: Int!
+    clicks: Int!
+    users: Int!
+    spend: Int!
+  }
+
   extend type Query {
     campaignById(
       """
@@ -103,6 +112,11 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): CampaignConnection! @auth
+
+    """
+    Get aggregated campaign statistics for the authenticated user
+    """
+    userCampaignData: UserCampaignData! @auth
 
     dailyCampaignReachEstimate(
       """
@@ -165,6 +179,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    userCampaignData: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<UserCampaignData> => getUserCampaignData(ctx),
     campaignById: async (
       _,
       { id }: { id: string },
