@@ -19,10 +19,9 @@ import {
   type GetCampaignResponse,
 } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
-import { In, type DataSource } from 'typeorm';
+import { type DataSource } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
-import { NotFoundError } from '../../errors';
 import { debeziumTimeToDate, systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
 import { skadiApiClientV1 } from '../../integrations/skadi/api/v1/clients';
@@ -99,33 +98,6 @@ interface GetBoostedPost extends CampaignBoostedPost {
   sharedImage?: string;
 }
 
-export const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
-  con
-    .getRepository(Post)
-    .createQueryBuilder(alias)
-    .select(`"${alias}".id`, 'id')
-    .addSelect(`"${alias}"."shortId"`, 'shortId')
-    .addSelect(`"${alias}".slug`, 'slug')
-    .addSelect(`"${alias}".image`, 'image')
-    .addSelect(`"${alias}".title`, 'title')
-    .addSelect(`"${alias}".type`, 'type')
-    .addSelect('p2.title', 'sharedTitle')
-    .addSelect('p2.image', 'sharedImage')
-    .leftJoin(Post, 'p2', `"${alias}"."sharedPostId" = p2.id`);
-
-export const getBoostedPost = async (
-  con: ConnectionManager,
-  id: string,
-): Promise<GetBoostedPost> => {
-  const result = await getBoostedPostBuilder(con).where({ id }).getRawOne();
-
-  if (!result) {
-    throw new NotFoundError('Post does not exist');
-  }
-
-  return result;
-};
-
 export const getFormattedBoostedPost = (
   post: GetBoostedPost,
 ): GQLBoostedPost['post'] => {
@@ -150,20 +122,6 @@ export const getFormattedBoostedPost = (
   };
 };
 
-export const getFormattedCampaign = ({
-  spend,
-  budget,
-  startedAt,
-  endedAt,
-  ...campaign
-}: GetCampaignResponse): GQLPromotedPost => ({
-  ...campaign,
-  spend: usdToCores(parseFloat(spend)),
-  budget: usdToCores(parseFloat(budget)),
-  startedAt: debeziumTimeToDate(startedAt),
-  endedAt: debeziumTimeToDate(endedAt),
-});
-
 export interface BoostedPostStats
   extends Pick<GetCampaignListResponse, 'clicks' | 'impressions' | 'users'> {
   engagements: number;
@@ -173,51 +131,6 @@ export interface BoostedPostStats
 export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
   stats?: BoostedPostStats;
 }
-
-export const consolidateCampaignsWithPosts = async (
-  campaigns: GetCampaignResponse[],
-  con: ConnectionManager,
-): Promise<GQLBoostedPost[]> => {
-  const ids = campaigns.map(({ postId }) => postId);
-  const builder = getBoostedPostBuilder(con);
-  const postAlias = 'p1';
-  const posts = await builder
-    .where(`"${postAlias}".id IN (:...ids)`, { ids })
-    .getRawMany<GetBoostedPost>();
-  const mapped = posts.reduce(
-    (map, post) => ({ ...map, [post.id]: post }),
-    {} as Record<string, GetBoostedPost>,
-  );
-
-  return campaigns.map((campaign) => ({
-    campaign: getFormattedCampaign(campaign),
-    post: getFormattedBoostedPost(mapped[campaign.postId]),
-  }));
-};
-
-interface TotalEngagements
-  extends Pick<Post, 'views' | 'comments' | 'upvotes'> {}
-
-export const getTotalEngagements = async (
-  con: ConnectionManager,
-  postIds: string[],
-): Promise<number> => {
-  const builder = con.getRepository(Post).createQueryBuilder();
-
-  const engagements = await builder
-    .select('SUM(upvotes)::int', 'upvotes')
-    .addSelect('SUM(comments)::int', 'comments')
-    .addSelect('SUM(views)::int', 'views')
-    .where({ id: In(postIds) })
-    .getRawOne<TotalEngagements>();
-
-  return (
-    (engagements?.upvotes || 0) +
-    (engagements?.comments || 0) +
-    (engagements?.views || 0)
-  );
-};
-
 interface GeneratePostBoostEmailProps {
   con: DataSource;
   postId: string;

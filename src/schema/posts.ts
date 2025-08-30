@@ -130,7 +130,6 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type {
   BoostedPostConnection,
-  BoostedPostStats,
   CampaignForV1,
   GQLBoostedPost,
 } from '../common/campaign/post';
@@ -161,6 +160,7 @@ import graphorm from '../graphorm';
 import { BriefingType } from '../integrations/feed';
 import { coresToUsd } from '../common/number';
 import {
+  getUserCampaignStats,
   type StartCampaignArgs,
   validateCampaignArgs,
 } from '../common/campaign/common';
@@ -2339,15 +2339,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<BoostedPostConnection> => {
       const { first, after } = args;
       const isFirstRequest = !after;
-      const stats: BoostedPostStats | undefined = isFirstRequest
-        ? {
-            impressions: 0,
-            clicks: 0,
-            totalSpend: 0,
-            engagements: 0,
-            users: 0,
-          }
-        : undefined;
       const offset = after ? cursorToOffset(after) : 0;
       const paginated = await graphorm.queryPaginatedIntegration(
         () => !!after,
@@ -2377,38 +2368,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             },
           );
 
-          if (!campaigns.length) {
-            return [];
-          }
-
           return campaigns.map(formatCampaignV2toV1);
         },
       );
 
-      if (paginated.edges?.length && isFirstRequest && stats) {
-        const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-          queryRunner.manager
-            .getRepository(CampaignPost)
-            .createQueryBuilder('c')
-            .select(
-              `SUM(COALESCE((c.flags->>'impressions')::int, 0))`,
-              'impressions',
-            )
-            .addSelect(`SUM(COALESCE((c.flags->>'users')::int, 0))`, 'users')
-            .addSelect(`SUM(COALESCE((c.flags->>'clicks')::int, 0))`, 'clicks')
-            .addSelect(`SUM(COALESCE((c.flags->>'spend')::int, 0))`, 'spend')
-            .where(`c."userId" = :user`, { user: ctx.userId })
-            .getRawOne(),
-        );
-        stats.clicks = result.clicks;
-        stats.impressions = result.impressions;
-        stats.users = result.users;
-        stats.totalSpend = result.spend;
-      }
-
       return {
         ...paginated,
-        stats,
+        stats: await (isFirstRequest
+          ? getUserCampaignStats(ctx)
+          : Promise.resolve(undefined)),
       };
     },
     briefingPosts: async (

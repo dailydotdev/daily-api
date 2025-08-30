@@ -1,5 +1,10 @@
 import { ValidationError } from 'apollo-server-errors';
-import { Campaign, CampaignType, type ConnectionManager } from '../../entity';
+import {
+  Campaign,
+  CampaignPost,
+  CampaignType,
+  type ConnectionManager,
+} from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
 import { TransferError } from '../../errors';
@@ -8,12 +13,17 @@ import type { AuthContext } from '../../Context';
 import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
 import { getSourceTags } from './source';
-import { generatePostBoostEmail, getPostTags } from './post';
+import {
+  generatePostBoostEmail,
+  getPostTags,
+  type BoostedPostStats,
+} from './post';
 import type { NotificationBuilder } from '../../notifications/builder';
 import { NotificationIcon } from '../../notifications/icons';
 import { notificationsLink } from '../links';
 import type { NotificationCampaignContext } from '../../notifications';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
+import { queryReadReplica } from '../queryReadReplica';
 
 export interface StartCampaignArgs {
   value: string;
@@ -221,4 +231,28 @@ export const generateCampaignCompletedEmail: TemplateDataFunc = async (
     default:
       return null;
   }
+};
+
+export const getUserCampaignStats = async (
+  ctx: AuthContext,
+): Promise<BoostedPostStats> => {
+  const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+    queryRunner.manager
+      .getRepository(CampaignPost)
+      .createQueryBuilder('c')
+      .select(`SUM(COALESCE((c.flags->>'impressions')::int, 0))`, 'impressions')
+      .addSelect(`SUM(COALESCE((c.flags->>'users')::int, 0))`, 'users')
+      .addSelect(`SUM(COALESCE((c.flags->>'clicks')::int, 0))`, 'clicks')
+      .addSelect(`SUM(COALESCE((c.flags->>'spend')::int, 0))`, 'spend')
+      .where(`c."userId" = :user`, { user: ctx.userId })
+      .getRawOne(),
+  );
+
+  return {
+    clicks: result.clicks ?? 0,
+    impressions: result.impressions ?? 0,
+    users: result.users ?? 0,
+    totalSpend: result.spend ?? 0,
+    engagements: 0, // this was never used but keeping to avoid breaking requests
+  };
 };
