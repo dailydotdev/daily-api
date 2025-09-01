@@ -3,7 +3,7 @@ import { z } from 'zod';
 import createOrGetConnection from '../src/db';
 import { logger } from '../src/logger';
 import { getClickHouseClient } from '../src/common/clickhouse';
-import { Campaign, CampaignState, CampaignType } from '../src/entity';
+import { CampaignPost, CampaignState, CampaignType } from '../src/entity';
 import { usdToCores } from '../src/common/number';
 
 const skadiCampaignClickhouseSchema = z.object({
@@ -44,6 +44,8 @@ const campaignStateFromSkadi = ({
  * Load all campaigns from skadi, no filters because it had small amount of rows < 1000
  *
  * If any campaign exists in db already, skip it
+ *
+ * All rows are imported as CampaignPost
  *
  */
 const main = async () => {
@@ -140,7 +142,7 @@ const main = async () => {
 
   const { data } = result;
 
-  const chunks: Campaign[][] = [];
+  const chunks: CampaignPost[][] = [];
   const chunkSize = 500;
 
   data.forEach((item) => {
@@ -163,7 +165,8 @@ const main = async () => {
         users: item.unique_users,
         __imported: true,
       },
-    } as Campaign);
+      postId: item.post_id,
+    } as CampaignPost);
   });
 
   const con = await createOrGetConnection();
@@ -177,7 +180,7 @@ const main = async () => {
       await entityManager
         .createQueryBuilder()
         .insert()
-        .into(Campaign)
+        .into(CampaignPost)
         .values(chunk)
         .orIgnore()
         .execute();
