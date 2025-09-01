@@ -24,7 +24,7 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
       .findOneBy({ id: message.data.campaignId });
 
     if (!campaign) {
-      throw new Error(`Campaign not found! ${message.data.campaignId}`);
+      return;
     }
 
     await con.transaction(async (manager) => {
