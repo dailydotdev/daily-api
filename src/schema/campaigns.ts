@@ -49,11 +49,11 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(CampaignType, 'CampaignType')}
 
   type CampaignFlags {
-    budget: Int!
-    spend: Int!
-    users: Int!
-    clicks: Int!
-    impressions: Int!
+    budget: Int
+    spend: Int
+    users: Int
+    clicks: Int
+    impressions: Int
     members: Int
   }
 
