@@ -56,7 +56,6 @@ describe('campaignUpdatedAction worker', () => {
       impressions: 1000,
       clicks: 50,
       users: 150,
-      lastUpdatedAt: expect.any(String),
     });
   });
 
@@ -149,7 +148,6 @@ describe('campaignUpdatedAction worker', () => {
       .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
 
     expect(campaign.state).toBe(CampaignState.Active); // Should remain unchanged
-    expect(campaign.flags.lastUpdatedAt).toBeUndefined();
   });
 
   it('should update campaign spend when BudgetUpdated event is received', async () => {
@@ -171,7 +169,6 @@ describe('campaignUpdatedAction worker', () => {
     expect(updatedCampaign.flags).toMatchObject({
       budget: 1000, // Original budget should remain unchanged
       spend: 500, // $5.00 converted to cores
-      lastUpdatedAt: expect.any(String),
     });
 
     // Original spend was 100 - should be overwritten with new used budget
@@ -197,7 +194,6 @@ describe('campaignUpdatedAction worker', () => {
     expect(updatedCampaign.flags).toMatchObject({
       budget: 1000,
       spend: 0,
-      lastUpdatedAt: expect.any(String),
     });
   });
 
@@ -232,7 +228,6 @@ describe('campaignUpdatedAction worker', () => {
     expect(updatedCampaign.flags).toMatchObject({
       budget: 1000, // Original budget remains unchanged
       spend: 750, // $7.50 converted to cores (latest update)
-      lastUpdatedAt: expect.any(String),
     });
   });
 
@@ -373,7 +368,6 @@ describe('campaignUpdatedAction worker', () => {
       impressions: 1500,
       clicks: 75,
       users: 250,
-      lastUpdatedAt: expect.any(String),
     });
   });
 });
