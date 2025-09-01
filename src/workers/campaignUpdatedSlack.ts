@@ -5,7 +5,7 @@ import {
   Source,
   type ConnectionManager,
 } from '../entity';
-import type { DataSource } from 'typeorm';
+import { EntityNotFoundError, type DataSource } from 'typeorm';
 import {
   getDiscussionLink,
   getSourceLink,
@@ -19,24 +19,30 @@ import { logger } from '../logger';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-slack',
-  handler: async (message, con): Promise<void> => {
+  handler: async (params, con): Promise<void> => {
     if (process.env.NODE_ENV === 'development') {
       return;
     }
 
-    const campaign = await con
-      .getRepository(Campaign)
-      .findOneByOrFail({ id: message.data.campaignId });
+    try {
+      const campaign = await con
+        .getRepository(Campaign)
+        .findOneByOrFail({ id: params.data.campaignId });
 
-    if (!campaign) {
-      return;
-    }
+      switch (params.data.event) {
+        case CampaignUpdateEvent.Started:
+          return handleCampaignStarted({ con, data: params.data, campaign });
+        default:
+          return;
+      }
+    } catch (err) {
+      if (err instanceof EntityNotFoundError) {
+        logger.error({ err, params }, 'could not find campaign');
 
-    switch (message.data.event) {
-      case CampaignUpdateEvent.Started:
-        return handleCampaignStarted(con, message.data, campaign);
-      default:
         return;
+      }
+
+      throw err;
     }
   },
 };
@@ -57,11 +63,14 @@ const getMdLink = async (con: ConnectionManager, campaign: Campaign) => {
   }
 };
 
-const handleCampaignStarted = async (
-  con: DataSource,
-  data: CampaignUpdateEventArgs,
-  campaign: Campaign,
-) => {
+const handleCampaignStarted = async ({
+  con,
+  campaign,
+}: {
+  con: DataSource;
+  data: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}) => {
   const mdLink = await getMdLink(con, campaign);
 
   if (!mdLink) {

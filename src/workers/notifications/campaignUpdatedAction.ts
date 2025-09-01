@@ -8,41 +8,48 @@ import {
   type CampaignUpdateEventArgs,
 } from '../../common/campaign/common';
 import { CampaignType } from '../../entity/campaign/Campaign';
-import type { DataSource } from 'typeorm';
+import { EntityNotFoundError, type DataSource } from 'typeorm';
+import { logger } from '../../logger';
 
 const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
   subscription: 'api.campaign-updated-v2-notification',
   handler: async (params, con) => {
     const { event } = params;
-    const campaign = await queryReadReplica(con, async ({ queryRunner }) =>
-      queryRunner.manager
-        .getRepository(Campaign)
-        .findOne({ where: { id: params.campaignId }, relations: ['user'] }),
-    );
 
-    if (!campaign) {
-      return;
-    }
+    try {
+      const campaign = await con.getRepository(Campaign).findOneOrFail({
+        where: { id: params.campaignId },
+        relations: ['user'],
+      });
 
-    switch (event) {
-      case CampaignUpdateEvent.Completed:
-        return handleCampaignCompleted(con, params, campaign);
-      default:
+      switch (event) {
+        case CampaignUpdateEvent.Completed:
+          return handleCampaignCompleted({ con, params, campaign });
+        default:
+          return;
+      }
+    } catch (err) {
+      if (err instanceof EntityNotFoundError) {
+        logger.error({ err, params }, 'could not find campaign');
+
         return;
+      }
+
+      throw err;
     }
   },
 });
 
-const handleCampaignCompleted = async (
-  con: DataSource,
-  params: CampaignUpdateEventArgs,
-  campaign: Campaign,
-) => {
+const handleCampaignCompleted = async ({
+  con,
+  params,
+  campaign,
+}: {
+  con: DataSource;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}) => {
   const { event } = params;
-
-  if (!campaign) {
-    return;
-  }
 
   const user = await campaign.user;
 

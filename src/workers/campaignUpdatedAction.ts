@@ -15,39 +15,64 @@ import {
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
 import { usdToCores } from '../common/number';
+import { logger } from '../logger';
+import { EntityNotFoundError } from 'typeorm';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-action',
-  handler: async (message, con): Promise<void> => {
-    const campaign = await con
-      .getRepository(Campaign)
-      .findOneBy({ id: message.data.campaignId });
+  handler: async (params, con): Promise<void> => {
+    try {
+      const campaign = await con.getRepository(Campaign).findOneOrFail({
+        where: { id: params.data.campaignId },
+        relations: ['user'],
+      });
 
-    if (!campaign) {
-      return;
-    }
+      await con.transaction(async (manager) => {
+        switch (params.data.event) {
+          case CampaignUpdateEvent.StatsUpdated:
+            return handleCampaignStatsUpdate({
+              con: manager,
+              params: params.data,
+              campaign,
+            });
+          case CampaignUpdateEvent.BudgetUpdated:
+            return handleCampaignBudgetUpdate({
+              con: manager,
+              params: params.data,
+              campaign,
+            });
+          case CampaignUpdateEvent.Completed:
+            return handleCampaignCompleted({
+              con: manager,
+              params: params.data,
+              campaign,
+            });
+          default:
+            return Promise.resolve();
+        }
+      });
+    } catch (err) {
+      if (err instanceof EntityNotFoundError) {
+        logger.error({ err, params }, 'could not find campaign');
 
-    await con.transaction(async (manager) => {
-      switch (message.data.event) {
-        case CampaignUpdateEvent.StatsUpdated:
-          return handleCampaignStatsUpdate(manager, message.data);
-        case CampaignUpdateEvent.BudgetUpdated:
-          return handleCampaignBudgetUpdate(manager, message.data);
-        case CampaignUpdateEvent.Completed:
-          return handleCampaignCompleted(manager, message.data);
-        default:
-          return Promise.resolve();
+        return;
       }
-    });
+
+      throw err;
+    }
   },
 };
 
 export default worker;
 
-const handleCampaignBudgetUpdate = async (
-  con: ConnectionManager,
-  { data, campaignId }: CampaignUpdateEventArgs,
-) => {
+const handleCampaignBudgetUpdate = async ({
+  con,
+  params: { data, campaignId },
+}: {
+  con: ConnectionManager;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}) => {
   const { budget: usedBudget } = data as CampaignStateUpdate;
 
   await con.getRepository(Campaign).update(
@@ -60,10 +85,14 @@ const handleCampaignBudgetUpdate = async (
   );
 };
 
-const handleCampaignStatsUpdate = async (
-  con: ConnectionManager,
-  { data, campaignId }: CampaignUpdateEventArgs,
-) => {
+const handleCampaignStatsUpdate = async ({
+  con,
+  params: { data, campaignId },
+}: {
+  con: ConnectionManager;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}) => {
   const { impressions, clicks, unique_users } = data as CampaignStatsUpdate;
 
   await con.getRepository(Campaign).update(
@@ -78,14 +107,16 @@ const handleCampaignStatsUpdate = async (
   );
 };
 
-const handleCampaignCompleted = async (
-  con: ConnectionManager,
-  data: CampaignUpdateEventArgs,
-) => {
-  const { campaignId } = data;
-  const campaign = await con
-    .getRepository(Campaign)
-    .findOneByOrFail({ id: campaignId });
+const handleCampaignCompleted = async ({
+  con,
+  params,
+  campaign,
+}: {
+  con: ConnectionManager;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}) => {
+  const { campaignId } = params;
 
   await con
     .getRepository(Campaign)
