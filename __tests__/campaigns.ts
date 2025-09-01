@@ -1766,10 +1766,10 @@ describe('mutation stopCampaign', () => {
   });
 });
 
-describe('query userCampaignData', () => {
+describe('query userCampaignStats', () => {
   const USER_CAMPAIGN_STATS_QUERY = /* GraphQL */ `
-    query UserCampaignData {
-      userCampaignData {
+    query UserCampaignStats {
+      userCampaignStats {
         impressions
         clicks
         users
@@ -1858,7 +1858,7 @@ describe('query userCampaignData', () => {
     const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userCampaignData).toEqual({
+    expect(res.data.userCampaignStats).toEqual({
       clicks: 235, // 100 + 75 + 60
       impressions: 10500, // 5000 + 2500 + 3000
       users: 105, // 50 + 25 + 30
@@ -1872,7 +1872,7 @@ describe('query userCampaignData', () => {
     const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userCampaignData).toEqual({
+    expect(res.data.userCampaignStats).toEqual({
       clicks: 0,
       impressions: 0,
       users: 0,
@@ -1886,7 +1886,7 @@ describe('query userCampaignData', () => {
     const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userCampaignData).toEqual({
+    expect(res.data.userCampaignStats).toEqual({
       clicks: 150,
       impressions: 7500,
       users: 75,
@@ -1901,7 +1901,7 @@ describe('query userCampaignData', () => {
 
     expect(res.errors).toBeFalsy();
     // Should include Active, Completed, and Cancelled campaigns
-    expect(res.data.userCampaignData.clicks).toBe(235); // All campaigns counted
+    expect(res.data.userCampaignStats.clicks).toBe(235); // All campaigns counted
   });
 
   it('should handle null flags gracefully', async () => {
@@ -1924,7 +1924,7 @@ describe('query userCampaignData', () => {
 
     expect(res.errors).toBeFalsy();
     // Should still return the aggregated stats, treating null flags as 0
-    expect(res.data.userCampaignData).toEqual({
+    expect(res.data.userCampaignStats).toEqual({
       clicks: 235, // Same as before, null flags contribute 0
       impressions: 10500,
       users: 105,
@@ -1956,7 +1956,7 @@ describe('query userCampaignData', () => {
 
     expect(res.errors).toBeFalsy();
     // Should handle missing fields gracefully
-    expect(res.data.userCampaignData).toEqual({
+    expect(res.data.userCampaignStats).toEqual({
       clicks: 235, // Same as before, missing fields contribute 0
       impressions: 10500,
       users: 105,

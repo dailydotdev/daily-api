@@ -138,16 +138,16 @@ export const getReferenceTags = (
   }
 };
 
-export interface UserCampaignData {
+export interface UserCampaignStats {
   impressions: number;
   clicks: number;
   spend: number;
   users: number;
 }
 
-export const getUserCampaignData = async (
+export const getUserCampaignStats = async (
   ctx: AuthContext,
-): Promise<UserCampaignData> => {
+): Promise<UserCampaignStats> => {
   const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
     queryRunner.manager
       .getRepository(CampaignPost)
