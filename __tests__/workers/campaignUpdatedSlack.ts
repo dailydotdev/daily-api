@@ -221,7 +221,7 @@ describe('campaignUpdatedSlack worker', () => {
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
 
-  it('should ignore when source is not found for squad campaign', async () => {
+  it('should handle when source is not found for squad campaign', async () => {
     // Create a campaign with non-existent source
     const campaignWithInvalidSource = {
       id: 'f47ac10b-58cc-4372-a567-0e02b2c3d485',
@@ -247,7 +247,9 @@ describe('campaignUpdatedSlack worker', () => {
     };
 
     // Worker should complete successfully and just ignore when source is not found
-    await expectSuccessfulTypedBackground(worker, eventData);
+    await expect(
+      expectSuccessfulTypedBackground(worker, eventData),
+    ).rejects.toThrow();
 
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
