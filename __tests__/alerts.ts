@@ -75,6 +75,7 @@ describe('query userAlerts', () => {
       lastBanner: res.data.userAlerts.lastBanner,
       lastChangelog: res.data.userAlerts.lastChangelog,
       lastFeedSettingsFeedback: res.data.userAlerts.lastFeedSettingsFeedback,
+      briefBannerLastSeen: null, // Should be null for anonymous users
     });
   });
 
@@ -101,6 +102,39 @@ describe('query userAlerts', () => {
       lastChangelog: expected.lastChangelog.toISOString(),
       lastFeedSettingsFeedback: expected.lastFeedSettingsFeedback.toISOString(),
     });
+  });
+
+  it('should return briefBannerLastSeen when set', async () => {
+    loggedUser = '1';
+
+    const briefBannerLastSeen = new Date('2023-03-15 10:30:00');
+    const repo = con.getRepository(Alerts);
+    const alerts = repo.create({
+      userId: '1',
+      briefBannerLastSeen,
+    });
+    await repo.save(alerts);
+
+    const res = await client.query(QUERY);
+
+    expect(res.data.userAlerts.briefBannerLastSeen).toEqual(
+      briefBannerLastSeen.toISOString(),
+    );
+  });
+
+  it('should return null for briefBannerLastSeen when not set', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Alerts);
+    const alerts = repo.create({
+      userId: '1',
+      filter: true,
+    });
+    await repo.save(alerts);
+
+    const res = await client.query(QUERY);
+
+    expect(res.data.userAlerts.briefBannerLastSeen).toBeNull();
   });
 });
 
@@ -192,6 +226,34 @@ describe('mutation updateUserAlerts', () => {
     expect(res.errors).toBeTruthy();
     expect(res.errors[0].message).toEqual('Unexpected error');
   });
+
+  it('should update briefBannerLastSeen alert of user', async () => {
+    loggedUser = '1';
+
+    const briefBannerLastSeen = new Date('2023-03-15 14:30:00');
+    const res = await client.mutate(MUTATION('briefBannerLastSeen'), {
+      variables: {
+        data: {
+          briefBannerLastSeen: briefBannerLastSeen.toISOString(),
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts?.briefBannerLastSeen).toEqual(briefBannerLastSeen);
+
+    // Verify the response includes the updated value
+    const queryRes = await client.query(`{
+      userAlerts {
+        briefBannerLastSeen
+      }
+    }`);
+    expect(queryRes.data.userAlerts.briefBannerLastSeen).toEqual(
+      briefBannerLastSeen.toISOString(),
+    );
+  });
 });
 
 describe('dedicated api routes', () => {
@@ -219,6 +281,25 @@ describe('dedicated api routes', () => {
         lastFeedSettingsFeedback:
           expected['lastFeedSettingsFeedback'].toISOString(),
       });
+    });
+
+    it('should return briefBannerLastSeen in REST API', async () => {
+      const briefBannerLastSeen = new Date('2023-03-15 16:45:00');
+      const repo = con.getRepository(Alerts);
+      const alerts = repo.create({
+        userId: '1',
+        briefBannerLastSeen,
+      });
+      await repo.save(alerts);
+
+      loggedUser = '1';
+      const res = await authorizeRequest(
+        request(app.server).get('/alerts'),
+      ).expect(200);
+
+      expect(res.body.briefBannerLastSeen).toEqual(
+        briefBannerLastSeen.toISOString(),
+      );
     });
   });
 });
