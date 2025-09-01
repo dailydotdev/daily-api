@@ -1007,6 +1007,22 @@ describe('post boost action', () => {
     const updatedPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(updatedPost?.flags?.campaignId).toEqual('tmp-campaign');
   });
+
+  it('should ignore when userId is missing', async () => {
+    const worker = await import(
+      '../../src/workers/notifications/postBoostAction'
+    );
+
+    const actual = await invokeNotificationWorker(worker.default, {
+      userId: undefined, // Missing userId
+      postId: 'p1',
+      campaignId: 'tmp-campaign',
+      action: 'first_milestone',
+    });
+
+    // Should not return any notifications when userId is missing
+    expect(actual).toBeFalsy();
+  });
 });
 
 describe('post bookmark reminder', () => {

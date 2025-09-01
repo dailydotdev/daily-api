@@ -8,7 +8,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   CampaignUpdateEvent,
-  type CampaignStatsUpdateEvent,
+  type CampaignUpdateEventArgs,
 } from '../../src/common/campaign/common';
 import { webhooks } from '../../src/common/slack';
 import {
@@ -37,11 +37,11 @@ beforeEach(async () => {
 
 describe('campaignUpdatedSlack worker', () => {
   it('should send a slack notification when a post campaign starts', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.Started,
       unique_users: 100,
-      data: { budget: '10.00', spend: '1.00' },
+      data: { budget: '10.00' },
       d_update: Date.now(),
     };
 
@@ -101,11 +101,11 @@ describe('campaignUpdatedSlack worker', () => {
   });
 
   it('should send a slack notification when a squad campaign starts', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481',
       event: CampaignUpdateEvent.Started,
       unique_users: 50,
-      data: { budget: '5.00', spend: '0.00' },
+      data: { budget: '5.00' },
       d_update: Date.now(),
     };
 
@@ -165,7 +165,7 @@ describe('campaignUpdatedSlack worker', () => {
   });
 
   it('should not send notification for non-started events', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.Completed,
       unique_users: 200,
@@ -179,7 +179,7 @@ describe('campaignUpdatedSlack worker', () => {
   });
 
   it('should not send notification for stats updated events', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.StatsUpdated,
       unique_users: 150,
@@ -193,11 +193,11 @@ describe('campaignUpdatedSlack worker', () => {
   });
 
   it('should not send notification for state updated events', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      event: CampaignUpdateEvent.StateUpdated,
+      event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
-      data: { budget: '15.00', spend: '5.00' },
+      data: { budget: '15.00' },
       d_update: Date.now(),
     };
 
@@ -206,18 +206,17 @@ describe('campaignUpdatedSlack worker', () => {
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
 
-  it('should handle when campaign is not found', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+  it('should ignore when campaign is not found', async () => {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999',
       event: CampaignUpdateEvent.Started,
       unique_users: 100,
-      data: { budget: '10.00', spend: '0.00' },
+      data: { budget: '10.00' },
       d_update: Date.now(),
     };
 
-    await expect(
-      expectSuccessfulTypedBackground(worker, eventData),
-    ).rejects.toThrow();
+    // Worker should complete successfully and just ignore non-existent campaign
+    await expectSuccessfulTypedBackground(worker, eventData);
 
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
@@ -239,14 +238,15 @@ describe('campaignUpdatedSlack worker', () => {
 
     await saveFixtures(con, Campaign, [campaignWithInvalidSource]);
 
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d485',
       event: CampaignUpdateEvent.Started,
       unique_users: 100,
-      data: { budget: '10.00', spend: '0.00' },
+      data: { budget: '10.00' },
       d_update: Date.now(),
     };
 
+    // Worker should complete successfully and just ignore when source is not found
     await expect(
       expectSuccessfulTypedBackground(worker, eventData),
     ).rejects.toThrow();
@@ -258,11 +258,11 @@ describe('campaignUpdatedSlack worker', () => {
     const originalEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
 
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.Started,
       unique_users: 100,
-      data: { budget: '10.00', spend: '0.00' },
+      data: { budget: '10.00' },
       d_update: Date.now(),
     };
 

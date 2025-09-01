@@ -10,6 +10,10 @@ const worker = generateTypedNotificationWorker<'skadi.v1.campaign-updated'>({
   handler: async (params, con) => {
     const { userId, postId, campaignId, action } = params;
 
+    if (!userId) {
+      return;
+    }
+
     const user = await queryReadReplica(con, ({ queryRunner }) => {
       return queryRunner.manager
         .getRepository(User)
