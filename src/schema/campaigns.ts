@@ -89,10 +89,10 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type UserCampaignStats {
-    impressions: Int!
-    clicks: Int!
-    users: Int!
-    spend: Int!
+    impressions: Int
+    clicks: Int
+    users: Int
+    spend: Int
     newMembers: Int
   }
 
