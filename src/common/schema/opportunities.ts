@@ -1,12 +1,12 @@
 import z from 'zod';
 
-export const OpportunityContentSchema = z.object({
+export const opportunityContentSchema = z.object({
   title: z.string(),
   content: z.string(),
   html: z.string().optional(),
 });
 
-export const OpportunityMetaSchema = z.object({
+export const opportunityMetaSchema = z.object({
   location: z.string(),
   workSite: z.string(),
   employmentType: z.string(),
@@ -16,12 +16,12 @@ export const OpportunityMetaSchema = z.object({
   roleType: z.string(),
 });
 
-export const OpportunityMatchDescriptionSchema = z.object({
+export const opportunityMatchDescriptionSchema = z.object({
   description: z.string(),
   rank: z.number(),
 });
 
-export const OpportunityMatchScreeningSchema = z.object({
+export const opportunityMatchScreeningSchema = z.object({
   screening: z.string(),
   answer: z.string(),
 });
