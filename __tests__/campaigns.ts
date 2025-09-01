@@ -1766,6 +1766,214 @@ describe('mutation stopCampaign', () => {
   });
 });
 
+describe('query userCampaignStats', () => {
+  const USER_CAMPAIGN_STATS_QUERY = /* GraphQL */ `
+    query UserCampaignStats {
+      userCampaignStats {
+        impressions
+        clicks
+        users
+        spend
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // Create multiple campaigns with different stats for user 1
+    await con.getRepository(CampaignPost).save([
+      {
+        id: CAMPAIGN_UUID_1,
+        referenceId: 'ref1',
+        userId: '1',
+        type: CampaignType.Post,
+        state: CampaignState.Active,
+        createdAt: new Date('2023-01-01'),
+        endedAt: new Date('2023-12-31'),
+        flags: {
+          budget: 1000,
+          spend: 250,
+          users: 50,
+          clicks: 100,
+          impressions: 5000,
+        },
+        postId: 'p1',
+      },
+      {
+        id: CAMPAIGN_UUID_2,
+        referenceId: 'ref2',
+        userId: '1',
+        type: CampaignType.Post,
+        state: CampaignState.Completed,
+        createdAt: new Date('2023-02-01'),
+        endedAt: new Date('2023-11-30'),
+        flags: {
+          budget: 500,
+          spend: 500,
+          users: 25,
+          clicks: 75,
+          impressions: 2500,
+        },
+        postId: 'p2',
+      },
+      {
+        id: CAMPAIGN_UUID_3,
+        referenceId: 'ref3',
+        userId: '1',
+        type: CampaignType.Post,
+        state: CampaignState.Cancelled,
+        createdAt: new Date('2023-03-01'),
+        endedAt: new Date('2023-12-31'),
+        flags: {
+          budget: 2000,
+          spend: 150,
+          users: 30,
+          clicks: 60,
+          impressions: 3000,
+        },
+        postId: 'p3',
+      },
+      {
+        id: CAMPAIGN_UUID_4,
+        referenceId: 'ref4',
+        userId: '2', // Different user
+        type: CampaignType.Post,
+        state: CampaignState.Active,
+        createdAt: new Date('2023-04-01'),
+        endedAt: new Date('2023-12-31'),
+        flags: {
+          budget: 1500,
+          spend: 300,
+          users: 75,
+          clicks: 150,
+          impressions: 7500,
+        },
+        postId: 'p4',
+      },
+    ]);
+  });
+
+  it('should return aggregated campaign statistics for authenticated user', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 235, // 100 + 75 + 60
+      impressions: 10500, // 5000 + 2500 + 3000
+      users: 105, // 50 + 25 + 30
+      spend: 900, // 250 + 500 + 150
+    });
+  });
+
+  it('should return zero stats when user has no campaigns', async () => {
+    loggedUser = '3'; // User with no campaigns
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 0,
+      impressions: 0,
+      users: 0,
+      spend: 0,
+    });
+  });
+
+  it('should only return stats for the authenticated user', async () => {
+    loggedUser = '2'; // User 2 has only one campaign
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 150,
+      impressions: 7500,
+      users: 75,
+      spend: 300,
+    });
+  });
+
+  it('should include campaigns in all states', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    // Should include Active, Completed, and Cancelled campaigns
+    expect(res.data.userCampaignStats.clicks).toBe(235); // All campaigns counted
+  });
+
+  it('should handle null flags gracefully', async () => {
+    loggedUser = '1';
+
+    // Add a campaign with null flags
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_5,
+      referenceId: 'ref5',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date('2023-05-01'),
+      endedAt: new Date('2023-12-31'),
+      flags: undefined, // Undefined flags
+      postId: 'p1',
+    });
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    // Should still return the aggregated stats, treating null flags as 0
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 235, // Same as before, null flags contribute 0
+      impressions: 10500,
+      users: 105,
+      spend: 900,
+    });
+  });
+
+  it('should handle missing flag fields gracefully', async () => {
+    loggedUser = '1';
+
+    // Add a campaign with incomplete flags
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_5,
+      referenceId: 'ref5',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date('2023-05-01'),
+      endedAt: new Date('2023-12-31'),
+      flags: {
+        budget: 1000,
+        spend: 100,
+        // Missing clicks, impressions, users
+      },
+      postId: 'p1',
+    });
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    // Should handle missing fields gracefully
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 235, // Same as before, missing fields contribute 0
+      impressions: 10500,
+      users: 105,
+      spend: 1000, // 900 + 100
+    });
+  });
+
+  it('should throw error when user is not authenticated', async () => {
+    loggedUser = null;
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors?.[0].extensions.code).toBe('UNAUTHENTICATED');
+  });
+});
+
 describe('query dailyCampaignReachEstimate', () => {
   const QUERY = `
     query DailyCampaignReachEstimate(
