@@ -14,10 +14,19 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
   subscription: 'api.campaign-updated-v2-notification',
   handler: async (params, con) => {
     const { event } = params;
+    const campaign = await queryReadReplica(con, async ({ queryRunner }) =>
+      queryRunner.manager
+        .getRepository(Campaign)
+        .findOne({ where: { id: params.campaignId }, relations: ['user'] }),
+    );
+
+    if (!campaign) {
+      return;
+    }
 
     switch (event) {
       case CampaignUpdateEvent.Completed:
-        return handleCampaignCompleted(con, params);
+        return handleCampaignCompleted(con, params, campaign);
       default:
         return;
     }
@@ -27,14 +36,9 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
 const handleCampaignCompleted = async (
   con: DataSource,
   params: CampaignUpdateEventArgs,
+  campaign: Campaign,
 ) => {
-  const { campaignId, event } = params;
-
-  const campaign = await queryReadReplica(con, async ({ queryRunner }) =>
-    queryRunner.manager
-      .getRepository(Campaign)
-      .findOneOrFail({ where: { id: campaignId }, relations: ['user'] }),
-  );
+  const { event } = params;
 
   if (!campaign) {
     return;
