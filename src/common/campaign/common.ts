@@ -3,6 +3,7 @@ import {
   Campaign,
   CampaignPost,
   CampaignType,
+  type CampaignFlags,
   type ConnectionManager,
 } from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
@@ -249,13 +250,12 @@ export const generateCampaignCompletedEmail: TemplateDataFunc = async (
   }
 };
 
-export interface UserCampaignStats {
-  impressions: number;
-  clicks: number;
-  spend: number;
-  users: number;
-  newMembers: number;
-}
+export type UserCampaignStats = Partial<
+  Pick<
+    CampaignFlags,
+    'impressions' | 'clicks' | 'spend' | 'users' | 'newMembers'
+  >
+>;
 
 export const getUserCampaignStats = async (
   ctx: AuthContext,
