@@ -54,6 +54,7 @@ export const typeDefs = /* GraphQL */ `
     users: Int!
     clicks: Int!
     impressions: Int!
+    members: Int
   }
 
   type Campaign {
@@ -92,6 +93,7 @@ export const typeDefs = /* GraphQL */ `
     clicks: Int!
     users: Int!
     spend: Int!
+    members: Int
   }
 
   extend type Query {
