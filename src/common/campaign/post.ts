@@ -7,8 +7,10 @@ import {
   CampaignType,
   Post,
   PostType,
+  type Campaign,
   type ConnectionManager,
   type FreeformPost,
+  type NotificationV2,
   type SharePost,
 } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
@@ -17,7 +19,7 @@ import {
   type GetCampaignResponse,
 } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
-import { In } from 'typeorm';
+import { In, type DataSource } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { NotFoundError } from '../../errors';
@@ -222,22 +224,21 @@ export const getTotalEngagements = async (
   );
 };
 
-export const generateBoostEmailUpdate: TemplateDataFunc = async (
+interface GeneratePostBoostEmailProps {
+  con: DataSource;
+  postId: string;
+  notification: NotificationV2;
+  campaign: Pick<Campaign, 'createdAt' | 'endedAt' | 'flags'>;
+}
+
+export const generatePostBoostEmail = async ({
   con,
-  user,
+  postId,
   notification,
-) => {
-  const campaign = await skadiApiClientV1.getCampaignById({
-    campaignId: notification.referenceId!,
-    userId: user.id,
-  });
-
-  if (!campaign) {
-    return null;
-  }
-
+  campaign,
+}: GeneratePostBoostEmailProps) => {
   const post = await con.getRepository(Post).findOne({
-    where: { id: campaign.postId },
+    where: { id: postId },
   });
 
   if (!post) {
@@ -255,10 +256,10 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
   const engagement = post.views + post.upvotes + post.comments;
 
   return {
-    start_date: formatMailDate(debeziumTimeToDate(campaign.startedAt)),
-    end_date: formatMailDate(debeziumTimeToDate(campaign.endedAt)),
-    impressions: largeNumberFormat(campaign.impressions),
-    clicks: largeNumberFormat(campaign.clicks),
+    start_date: formatMailDate(campaign.createdAt),
+    end_date: formatMailDate(campaign.endedAt),
+    impressions: largeNumberFormat(campaign.flags.impressions ?? 0),
+    clicks: largeNumberFormat(campaign.flags.clicks ?? 0),
     engagement: largeNumberFormat(engagement),
     post_link: getDiscussionLink(post.slug),
     analytics_link: addNotificationEmailUtm(
@@ -268,6 +269,35 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
     post_image: sharedPost?.image || (post as FreeformPost).image,
     post_title: title,
   };
+};
+
+export const generateBoostEmailUpdate: TemplateDataFunc = async (
+  con,
+  user,
+  notification,
+) => {
+  const campaign = await skadiApiClientV1.getCampaignById({
+    campaignId: notification.referenceId!,
+    userId: user.id,
+  });
+
+  if (!campaign) {
+    return null;
+  }
+
+  return generatePostBoostEmail({
+    con,
+    postId: campaign.postId,
+    notification,
+    campaign: {
+      createdAt: debeziumTimeToDate(campaign.startedAt),
+      endedAt: debeziumTimeToDate(campaign.endedAt),
+      flags: {
+        impressions: campaign.impressions,
+        clicks: campaign.clicks,
+      },
+    },
+  });
 };
 
 export const getAdjustedReach = (value: number) => {

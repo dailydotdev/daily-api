@@ -362,6 +362,18 @@ export const workers: Worker[] = [
     subscription: 'api.campaign-updated-slack',
   },
   {
+    topic: 'skadi.v2.campaign-updated',
+    subscription: 'api.campaign-updated-v2-slack',
+  },
+  {
+    topic: 'skadi.v2.campaign-updated',
+    subscription: 'api.campaign-updated-v2-action',
+  },
+  {
+    topic: 'skadi.v2.campaign-updated',
+    subscription: 'api.campaign-updated-v2-notification',
+  },
+  {
     topic: 'api.v1.brief-generate',
     subscription: 'api.user-generate-brief',
   },

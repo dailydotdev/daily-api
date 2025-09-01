@@ -7,8 +7,8 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { usersFixture } from '../fixture/user';
 import { CampaignUpdateAction } from '../../src/integrations/skadi/api/v1/types';
-import { webhooks } from '../../src/common/slack';
 import { skadiApiClientV1 } from '../../src/integrations/skadi/api/v1/clients';
+import { webhooks } from '../../src/common/slack';
 import { addDays } from 'date-fns';
 
 // Mock the skadi API client
@@ -68,14 +68,13 @@ describe('postBoostActionSlack worker', () => {
       userId: '1',
     });
 
-    expect(mockAdsSend).toHaveBeenCalled();
     expect(mockAdsSend).toHaveBeenCalledWith({
       blocks: [
         {
           type: 'header',
           text: {
             type: 'plain_text',
-            text: ':boost: New post boosted',
+            text: ':boost: New boost has started',
             emoji: true,
           },
         },
@@ -107,10 +106,16 @@ describe('postBoostActionSlack worker', () => {
         },
         {
           type: 'section',
-          text: {
-            type: 'mrkdwn',
-            text: '*Campaign:*\ncampaign123',
-          },
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: '*Campaign:*\ncampaign123',
+            },
+            {
+              type: 'mrkdwn',
+              text: '*Type:*\nPost',
+            },
+          ],
         },
       ],
     });

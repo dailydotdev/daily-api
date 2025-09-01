@@ -15,6 +15,7 @@ export type NotificationReferenceType =
   | 'system'
   | 'organization'
   | 'boost'
+  | 'campaign'
   | 'user';
 
 @Entity()

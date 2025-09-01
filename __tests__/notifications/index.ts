@@ -5,6 +5,7 @@ import {
   NotificationBookmarkContext,
   type NotificationBoostContext,
   NotificationBundleV2,
+  type NotificationCampaignContext,
   NotificationCommentContext,
   NotificationCommenterContext,
   NotificationDoneByContext,
@@ -23,8 +24,10 @@ import {
   storeNotificationBundleV2,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
+import { campaignsFixture } from '../fixture/campaign';
 import {
   Bookmark,
+  Campaign,
   Comment,
   FreeformPost,
   Keyword,
@@ -46,6 +49,7 @@ import {
   UserTopReader,
   WelcomePost,
 } from '../../src/entity';
+import { CampaignUpdateEvent } from '../../src/common/campaign/common';
 import {
   createSquadWelcomePost,
   emptyImage,
@@ -350,6 +354,82 @@ describe('generateNotification', () => {
         referenceId: '1',
         targetUrl: 'http://localhost:5002/idoshamun',
         type: 'user',
+      },
+    ]);
+    expect(actual.attachments).toEqual([]);
+  });
+
+  it('should generate campaign_completed notification for Post campaigns', () => {
+    const type = NotificationType.CampaignCompleted;
+    const ctx: NotificationCampaignContext = {
+      user: usersFixture[0],
+      campaign: campaignsFixture[0] as Reference<Campaign>,
+      source: undefined,
+      event: CampaignUpdateEvent.Completed,
+      userIds: ['1'],
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    );
+    expect(actual.notification.referenceType).toEqual('campaign');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?c_id=f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    );
+    expect(
+      actual.notification.uniqueKey?.startsWith(
+        'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      ),
+    ).toBeTruthy();
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments).toEqual([]);
+  });
+
+  it('should generate campaign_completed notification for Squad campaigns', () => {
+    const type = NotificationType.CampaignCompleted;
+    const ctx: NotificationCampaignContext = {
+      user: usersFixture[0],
+      campaign: campaignsFixture[1] as Reference<Campaign>,
+      source: sourcesFixture[0] as Reference<Source>,
+      event: CampaignUpdateEvent.Completed,
+      userIds: ['1'],
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+    );
+    expect(actual.notification.referenceType).toEqual('campaign');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?c_id=f47ac10b-58cc-4372-a567-0e02b2c3d481',
+    );
+    expect(
+      actual.notification.uniqueKey?.startsWith(
+        'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+      ),
+    ).toBeTruthy();
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
       },
     ]);
     expect(actual.attachments).toEqual([]);
