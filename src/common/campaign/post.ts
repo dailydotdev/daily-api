@@ -320,7 +320,6 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
 
   const request = await ctx.con.transaction(async (manager) => {
     const id = randomUUID();
-    const creativeId = randomUUID();
     const { budget, duration } = args;
     const total = budget * duration;
     const userId = ctx.userId;
@@ -329,7 +328,6 @@ export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
     const campaign = await manager.getRepository(CampaignPost).save(
       manager.getRepository(CampaignPost).create({
         id,
-        creativeId,
         flags: {
           budget: total,
           spend: 0,

@@ -81,7 +81,6 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
 
   const request = await ctx.con.transaction(async (manager) => {
     const id = randomUUID();
-    const creativeId = randomUUID();
     const { budget, duration } = args;
     const total = budget * duration;
     const userId = ctx.userId;
@@ -90,7 +89,6 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const campaign = await manager.getRepository(CampaignSource).save(
       manager.getRepository(CampaignSource).create({
         id,
-        creativeId,
         flags: {
           budget: total,
           spend: 0,

@@ -225,7 +225,6 @@ describe('campaignUpdatedSlack worker', () => {
     // Create a campaign with non-existent source
     const campaignWithInvalidSource = {
       id: 'f47ac10b-58cc-4372-a567-0e02b2c3d485',
-      creativeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d486',
       referenceId: 'nonexistent-source',
       userId: '1',
       type: CampaignType.Squad,
