@@ -93,7 +93,7 @@ export const typeDefs = /* GraphQL */ `
     clicks: Int!
     users: Int!
     spend: Int!
-    members: Int
+    newMembers: Int
   }
 
   extend type Query {
