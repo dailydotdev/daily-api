@@ -24,7 +24,6 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
     try {
       const campaign = await con.getRepository(Campaign).findOneOrFail({
         where: { id: params.data.campaignId },
-        relations: ['user'],
       });
 
       await con.transaction(async (manager) => {
