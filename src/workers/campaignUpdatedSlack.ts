@@ -24,9 +24,17 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
       return;
     }
 
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: message.data.campaignId });
+
+    if (!campaign) {
+      return;
+    }
+
     switch (message.data.event) {
       case CampaignUpdateEvent.Started:
-        return handleCampaignStarted(con, message.data);
+        return handleCampaignStarted(con, message.data, campaign);
       default:
         return;
     }
@@ -52,15 +60,8 @@ const getMdLink = async (con: ConnectionManager, campaign: Campaign) => {
 const handleCampaignStarted = async (
   con: DataSource,
   data: CampaignUpdateEventArgs,
+  campaign: Campaign,
 ) => {
-  const campaign = await con
-    .getRepository(Campaign)
-    .findOneByOrFail({ id: data.campaignId });
-
-  if (!campaign) {
-    return;
-  }
-
   const mdLink = await getMdLink(con, campaign);
 
   if (!mdLink) {
