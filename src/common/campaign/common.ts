@@ -250,11 +250,9 @@ export const generateCampaignCompletedEmail: TemplateDataFunc = async (
   }
 };
 
-export type UserCampaignStats = Partial<
-  Pick<
-    CampaignFlags,
-    'impressions' | 'clicks' | 'spend' | 'users' | 'newMembers'
-  >
+export type UserCampaignStats = Pick<
+  CampaignFlags,
+  'impressions' | 'clicks' | 'spend' | 'users' | 'newMembers'
 >;
 
 export const getUserCampaignStats = async (

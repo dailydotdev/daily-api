@@ -22,14 +22,14 @@ export enum CampaignState {
   Cancelled = 'CANCELLED',
 }
 
-export interface CampaignFlags {
+export type CampaignFlags = Partial<{
   budget: number;
   spend: number;
   impressions: number;
   clicks: number;
   users: number;
   newMembers: number;
-}
+}>;
 
 @Entity()
 @Index('IDX_campaign_state_created_at_sort', { synchronize: false })
@@ -67,5 +67,5 @@ export class Campaign {
   state: CampaignState;
 
   @Column({ type: 'jsonb', default: {} })
-  flags: Partial<CampaignFlags>;
+  flags: CampaignFlags;
 }
