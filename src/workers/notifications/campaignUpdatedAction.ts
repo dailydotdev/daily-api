@@ -8,8 +8,9 @@ import {
   type CampaignUpdateEventArgs,
 } from '../../common/campaign/common';
 import { CampaignType } from '../../entity/campaign/Campaign';
-import { EntityNotFoundError, type DataSource } from 'typeorm';
+import { type DataSource } from 'typeorm';
 import { logger } from '../../logger';
+import type { TypeORMQueryFailedError } from '../../errors';
 
 const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
   subscription: 'api.campaign-updated-v2-notification',
@@ -28,8 +29,10 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
         default:
           return;
       }
-    } catch (err) {
-      if (err instanceof EntityNotFoundError) {
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+
+      if (err?.name === 'EntityNotFoundError') {
         logger.error({ err, params }, 'could not find campaign');
 
         return;

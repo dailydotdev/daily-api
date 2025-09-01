@@ -16,7 +16,7 @@ import {
 } from '../common/campaign/common';
 import { usdToCores } from '../common/number';
 import { logger } from '../logger';
-import { EntityNotFoundError } from 'typeorm';
+import type { TypeORMQueryFailedError } from '../errors';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-action',
@@ -50,8 +50,10 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
             return Promise.resolve();
         }
       });
-    } catch (err) {
-      if (err instanceof EntityNotFoundError) {
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+
+      if (err?.name === 'EntityNotFoundError') {
         logger.error({ err, params }, 'could not find campaign');
 
         return;
@@ -137,6 +139,6 @@ const handleCampaignCompleted = async ({
           { flags: updateFlagsStatement<Source>({ campaignId: null }) },
         );
     default:
-      throw new Error(`Completed campaign with unkonwn type: ${campaign.id}`);
+      throw new Error(`Completed campaign with unknown type: ${campaign.id}`);
   }
 };
