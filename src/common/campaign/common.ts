@@ -8,16 +8,12 @@ import {
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
 import { TransferError } from '../../errors';
-import { transferCores, throwUserTransactionError } from '../njord';
+import { transferCores, throwUserTransactionError, getBalance } from '../njord';
 import type { AuthContext } from '../../Context';
 import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
 import { getSourceTags } from './source';
-import {
-  generatePostBoostEmail,
-  getPostTags,
-  type BoostedPostStats,
-} from './post';
+import { generatePostBoostEmail, getPostTags } from './post';
 import type { NotificationBuilder } from '../../notifications/builder';
 import { NotificationIcon } from '../../notifications/icons';
 import { notificationsLink } from '../links';
@@ -59,6 +55,16 @@ export const startCampaignTransferCores = async ({
   userTransaction,
   manager,
 }: StartCampaignTransferCoresProps) => {
+  if (ctx.isTeamMember) {
+    return {
+      transaction: {
+        referenceId: campaignId,
+        transactionId: userTransaction.id,
+        balance: { amount: (await getBalance({ userId: ctx.userId })).amount },
+      },
+    };
+  }
+
   try {
     const transfer = await transferCores({
       ctx,
@@ -96,6 +102,16 @@ export const stopCampaignTransferCores = async ({
   userTransaction,
   manager,
 }: StartCampaignTransferCoresProps) => {
+  if (ctx.isTeamMember) {
+    return {
+      transaction: {
+        referenceId: campaignId,
+        transactionId: userTransaction.id,
+        balance: { amount: (await getBalance({ userId: ctx.userId })).amount },
+      },
+    };
+  }
+
   try {
     const transfer = await transferCores({
       ctx,
@@ -233,9 +249,16 @@ export const generateCampaignCompletedEmail: TemplateDataFunc = async (
   }
 };
 
+export interface UserCampaignStats {
+  impressions: number;
+  clicks: number;
+  spend: number;
+  users: number;
+}
+
 export const getUserCampaignStats = async (
   ctx: AuthContext,
-): Promise<BoostedPostStats> => {
+): Promise<UserCampaignStats> => {
   const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
     queryRunner.manager
       .getRepository(CampaignPost)
@@ -252,7 +275,6 @@ export const getUserCampaignStats = async (
     clicks: result.clicks ?? 0,
     impressions: result.impressions ?? 0,
     users: result.users ?? 0,
-    totalSpend: result.spend ?? 0,
-    engagements: 0, // this was never used but keeping to avoid breaking requests
+    spend: result.spend ?? 0,
   };
 };

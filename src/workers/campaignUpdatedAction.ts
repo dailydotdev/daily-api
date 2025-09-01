@@ -7,7 +7,7 @@ import {
   Source,
   type ConnectionManager,
 } from '../entity';
-import { debeziumTimeToDate, updateFlagsStatement } from '../common';
+import { updateFlagsStatement } from '../common';
 import {
   CampaignUpdateEvent,
   type CampaignStateUpdate,
@@ -46,7 +46,7 @@ export default worker;
 
 const handleCampaignBudgetUpdate = async (
   con: ConnectionManager,
-  { data, campaignId, d_update }: CampaignUpdateEventArgs,
+  { data, campaignId }: CampaignUpdateEventArgs,
 ) => {
   const { budget: usedBudget } = data as CampaignStateUpdate;
 
@@ -55,7 +55,6 @@ const handleCampaignBudgetUpdate = async (
     {
       flags: updateFlagsStatement<Campaign>({
         spend: usdToCores(parseFloat(usedBudget)),
-        lastUpdatedAt: debeziumTimeToDate(d_update),
       }),
     },
   );
@@ -63,7 +62,7 @@ const handleCampaignBudgetUpdate = async (
 
 const handleCampaignStatsUpdate = async (
   con: ConnectionManager,
-  { data, campaignId, d_update }: CampaignUpdateEventArgs,
+  { data, campaignId }: CampaignUpdateEventArgs,
 ) => {
   const { impressions, clicks, unique_users } = data as CampaignStatsUpdate;
 
@@ -74,7 +73,6 @@ const handleCampaignStatsUpdate = async (
         impressions,
         clicks,
         users: unique_users,
-        lastUpdatedAt: debeziumTimeToDate(d_update),
       }),
     },
   );
@@ -84,20 +82,14 @@ const handleCampaignCompleted = async (
   con: ConnectionManager,
   data: CampaignUpdateEventArgs,
 ) => {
-  const { campaignId, d_update } = data;
+  const { campaignId } = data;
   const campaign = await con
     .getRepository(Campaign)
     .findOneByOrFail({ id: campaignId });
 
-  await con.getRepository(Campaign).update(
-    { id: campaignId },
-    {
-      state: CampaignState.Completed,
-      flags: updateFlagsStatement<Campaign>({
-        lastUpdatedAt: debeziumTimeToDate(d_update),
-      }),
-    },
-  );
+  await con
+    .getRepository(Campaign)
+    .update({ id: campaignId }, { state: CampaignState.Completed });
 
   switch (campaign.type) {
     case CampaignType.Post:
