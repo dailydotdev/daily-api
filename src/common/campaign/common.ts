@@ -254,7 +254,7 @@ export interface UserCampaignStats {
   clicks: number;
   spend: number;
   users: number;
-  members: number;
+  newMembers: number;
 }
 
 export const getUserCampaignStats = async (
@@ -268,7 +268,7 @@ export const getUserCampaignStats = async (
       .addSelect(`SUM(COALESCE((c.flags->>'users')::int, 0))`, 'users')
       .addSelect(`SUM(COALESCE((c.flags->>'clicks')::int, 0))`, 'clicks')
       .addSelect(`SUM(COALESCE((c.flags->>'spend')::int, 0))`, 'spend')
-      .addSelect(`SUM(COALESCE((c.flags->>'members')::int, 0))`, 'members')
+      .addSelect(`SUM(COALESCE((c.flags->>'newMembers')::int, 0))`, 'members')
       .where(`c."userId" = :user`, { user: ctx.userId })
       .getRawOne(),
   );
@@ -278,6 +278,6 @@ export const getUserCampaignStats = async (
     impressions: result.impressions ?? 0,
     users: result.users ?? 0,
     spend: result.spend ?? 0,
-    members: result.members ?? 0,
+    newMembers: result.members ?? 0,
   };
 };

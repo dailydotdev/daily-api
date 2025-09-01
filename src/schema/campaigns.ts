@@ -54,7 +54,7 @@ export const typeDefs = /* GraphQL */ `
     users: Int
     clicks: Int
     impressions: Int
-    members: Int
+    newMembers: Int
   }
 
   type Campaign {
