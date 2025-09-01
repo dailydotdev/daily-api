@@ -1416,6 +1416,73 @@ describe('mutation startCampaign', () => {
 
       expect(res.errors).toBeFalsy();
     });
+
+    it('should limit keywords to maximum of 30 tags for source campaign', async () => {
+      loggedUser = '3'; // moderator in 'm'
+
+      // Insert a recent post in squad 'm' with many tags
+      await con.getRepository(Post).save({
+        id: 'mp3',
+        shortId: 'mp3',
+        title: 'M Post 3',
+        url: 'http://mp3.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        visible: true,
+      });
+
+      // Add more than 30 keywords to PostKeyword table (35 tags)
+      const keywords = Array.from({ length: 35 }, (_, i) => ({
+        postId: 'mp3',
+        keyword: `tag${i + 1}`,
+      }));
+      await con.getRepository(PostKeyword).save(keywords);
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'SQUAD' &&
+            body.creatives[0].value.squad.id === 'm' &&
+            body?.targeting?.type === 'BOOST' &&
+            Array.isArray(requestKeywords) &&
+            requestKeywords.length === 30 // Should be limited to 30
+          );
+        })
+        .reply(200, ''); // Successful response with empty string
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-source-campaign-with-max-tags',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      const source = await con.getRepository(Source).findOneBy({ id: 'm' });
+      expect(source?.flags?.campaignId).toEqual(
+        res.data.startCampaign.referenceId,
+      );
+    });
   });
 });
 
@@ -1696,6 +1763,214 @@ describe('mutation stopCampaign', () => {
       .getRepository(CampaignPost)
       .findOneBy({ id: CAMPAIGN_UUID_5 });
     expect(campaign?.state).toBe(CampaignState.Active);
+  });
+});
+
+describe('query userCampaignStats', () => {
+  const USER_CAMPAIGN_STATS_QUERY = /* GraphQL */ `
+    query UserCampaignStats {
+      userCampaignStats {
+        impressions
+        clicks
+        users
+        spend
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // Create multiple campaigns with different stats for user 1
+    await con.getRepository(CampaignPost).save([
+      {
+        id: CAMPAIGN_UUID_1,
+        referenceId: 'ref1',
+        userId: '1',
+        type: CampaignType.Post,
+        state: CampaignState.Active,
+        createdAt: new Date('2023-01-01'),
+        endedAt: new Date('2023-12-31'),
+        flags: {
+          budget: 1000,
+          spend: 250,
+          users: 50,
+          clicks: 100,
+          impressions: 5000,
+        },
+        postId: 'p1',
+      },
+      {
+        id: CAMPAIGN_UUID_2,
+        referenceId: 'ref2',
+        userId: '1',
+        type: CampaignType.Post,
+        state: CampaignState.Completed,
+        createdAt: new Date('2023-02-01'),
+        endedAt: new Date('2023-11-30'),
+        flags: {
+          budget: 500,
+          spend: 500,
+          users: 25,
+          clicks: 75,
+          impressions: 2500,
+        },
+        postId: 'p2',
+      },
+      {
+        id: CAMPAIGN_UUID_3,
+        referenceId: 'ref3',
+        userId: '1',
+        type: CampaignType.Post,
+        state: CampaignState.Cancelled,
+        createdAt: new Date('2023-03-01'),
+        endedAt: new Date('2023-12-31'),
+        flags: {
+          budget: 2000,
+          spend: 150,
+          users: 30,
+          clicks: 60,
+          impressions: 3000,
+        },
+        postId: 'p3',
+      },
+      {
+        id: CAMPAIGN_UUID_4,
+        referenceId: 'ref4',
+        userId: '2', // Different user
+        type: CampaignType.Post,
+        state: CampaignState.Active,
+        createdAt: new Date('2023-04-01'),
+        endedAt: new Date('2023-12-31'),
+        flags: {
+          budget: 1500,
+          spend: 300,
+          users: 75,
+          clicks: 150,
+          impressions: 7500,
+        },
+        postId: 'p4',
+      },
+    ]);
+  });
+
+  it('should return aggregated campaign statistics for authenticated user', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 235, // 100 + 75 + 60
+      impressions: 10500, // 5000 + 2500 + 3000
+      users: 105, // 50 + 25 + 30
+      spend: 900, // 250 + 500 + 150
+    });
+  });
+
+  it('should return zero stats when user has no campaigns', async () => {
+    loggedUser = '3'; // User with no campaigns
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 0,
+      impressions: 0,
+      users: 0,
+      spend: 0,
+    });
+  });
+
+  it('should only return stats for the authenticated user', async () => {
+    loggedUser = '2'; // User 2 has only one campaign
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 150,
+      impressions: 7500,
+      users: 75,
+      spend: 300,
+    });
+  });
+
+  it('should include campaigns in all states', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    // Should include Active, Completed, and Cancelled campaigns
+    expect(res.data.userCampaignStats.clicks).toBe(235); // All campaigns counted
+  });
+
+  it('should handle null flags gracefully', async () => {
+    loggedUser = '1';
+
+    // Add a campaign with null flags
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_5,
+      referenceId: 'ref5',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date('2023-05-01'),
+      endedAt: new Date('2023-12-31'),
+      flags: undefined, // Undefined flags
+      postId: 'p1',
+    });
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    // Should still return the aggregated stats, treating null flags as 0
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 235, // Same as before, null flags contribute 0
+      impressions: 10500,
+      users: 105,
+      spend: 900,
+    });
+  });
+
+  it('should handle missing flag fields gracefully', async () => {
+    loggedUser = '1';
+
+    // Add a campaign with incomplete flags
+    await con.getRepository(CampaignPost).save({
+      id: CAMPAIGN_UUID_5,
+      referenceId: 'ref5',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date('2023-05-01'),
+      endedAt: new Date('2023-12-31'),
+      flags: {
+        budget: 1000,
+        spend: 100,
+        // Missing clicks, impressions, users
+      },
+      postId: 'p1',
+    });
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    // Should handle missing fields gracefully
+    expect(res.data.userCampaignStats).toEqual({
+      clicks: 235, // Same as before, missing fields contribute 0
+      impressions: 10500,
+      users: 105,
+      spend: 1000, // 900 + 100
+    });
+  });
+
+  it('should throw error when user is not authenticated', async () => {
+    loggedUser = null;
+
+    const res = await client.query(USER_CAMPAIGN_STATS_QUERY);
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors?.[0].extensions.code).toBe('UNAUTHENTICATED');
   });
 });
 
@@ -2209,6 +2484,61 @@ describe('query dailyCampaignReachEstimate', () => {
     expect(sourceRes.data.dailyCampaignReachEstimate).toEqual({
       min: 92,
       max: 108,
+    });
+  });
+
+  it('should limit keywords to maximum of 30 tags for reach estimate', async () => {
+    loggedUser = '3'; // moderator in 'm'
+
+    // Insert a recent post in squad 'm' with many tags
+    await con.getRepository(Post).save({
+      id: 'mp4',
+      shortId: 'mp4',
+      title: 'M Post 4',
+      url: 'http://mp4.com',
+      createdAt: new Date(),
+      sourceId: 'm',
+      type: PostType.Article,
+      visible: true,
+    });
+
+    // Add more than 30 keywords to PostKeyword table (40 tags)
+    const keywords = Array.from({ length: 40 }, (_, i) => ({
+      postId: 'mp4',
+      keyword: `reachtag${i + 1}`,
+    }));
+    await con.getRepository(PostKeyword).save(keywords);
+
+    // Mock the HTTP response using nock
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/reach', (body) => {
+        const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+        return (
+          body.budget === 30 &&
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(requestKeywords) &&
+          requestKeywords.length === 30 // Should be limited to 30
+        );
+      })
+      .reply(200, {
+        reach: {
+          impressions: 180,
+          clicks: 12,
+          users: 85,
+          min_impressions: 78,
+          max_impressions: 92,
+        },
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...sourceParams, budget: 3000 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 78,
+      max: 92,
     });
   });
 });

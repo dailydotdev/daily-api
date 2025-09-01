@@ -1,5 +1,5 @@
 import { IncomingWebhook } from '@slack/webhook';
-import { Post, Comment, User, Source } from '../entity';
+import { Post, Comment, User, Source, type Campaign } from '../entity';
 import { getDiscussionLink, getSourceLink } from './links';
 import { NotFoundError } from '../errors';
 import { DataSource } from 'typeorm';
@@ -7,10 +7,9 @@ import { UserIntegrationSlack } from '../entity/UserIntegration';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { FastifyRequest } from 'fastify';
 import { PropsParameters } from '../types';
-import type { GetCampaignResponse } from '../integrations/skadi';
 import { getAbsoluteDifferenceInDays } from './users';
-import { usdToCores } from './number';
-import { concatTextToNewline, debeziumTimeToDate } from './utils';
+import { concatTextToNewline } from './utils';
+import { capitalize } from 'lodash';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -31,21 +30,20 @@ export const webhooks = Object.freeze({
     : nullWebhook,
 });
 
-interface NotifyBoostedPostProps {
-  post: Post;
-  campaign: GetCampaignResponse;
-  userId: string;
+interface NotifyBoostedProps {
+  mdLink: string;
+  campaign: Pick<
+    Campaign,
+    'createdAt' | 'endedAt' | 'type' | 'flags' | 'id' | 'userId'
+  >;
 }
 
 export const notifyNewPostBoostedSlack = async ({
-  post,
+  mdLink,
   campaign,
-  userId,
-}: NotifyBoostedPostProps): Promise<void> => {
-  const difference = getAbsoluteDifferenceInDays(
-    debeziumTimeToDate(campaign.endedAt),
-    debeziumTimeToDate(campaign.startedAt),
-  );
+}: NotifyBoostedProps): Promise<void> => {
+  const { createdAt, endedAt, userId, flags, type, id } = campaign;
+  const difference = getAbsoluteDifferenceInDays(endedAt, createdAt);
 
   await webhooks.ads.send({
     blocks: [
@@ -53,7 +51,7 @@ export const notifyNewPostBoostedSlack = async ({
         type: 'header',
         text: {
           type: 'plain_text',
-          text: ':boost: New post boosted',
+          text: ':boost: New boost has started',
           emoji: true,
         },
       },
@@ -63,8 +61,8 @@ export const notifyNewPostBoostedSlack = async ({
           {
             type: 'mrkdwn',
             text: concatTextToNewline(
-              '*Post:*',
-              `<${getDiscussionLink(post.id)}|${post.id}>`,
+              `*${capitalize(type.toLowerCase())}:*`,
+              mdLink,
             ),
           },
           {
@@ -81,10 +79,7 @@ export const notifyNewPostBoostedSlack = async ({
         fields: [
           {
             type: 'mrkdwn',
-            text: concatTextToNewline(
-              '*Budget:*',
-              `${usdToCores(parseFloat(campaign.budget))} :cores:`,
-            ),
+            text: concatTextToNewline('*Budget:*', `${flags.budget} :cores:`),
           },
           {
             type: 'mrkdwn',
@@ -97,10 +92,19 @@ export const notifyNewPostBoostedSlack = async ({
       },
       {
         type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: concatTextToNewline('*Campaign:*', campaign.campaignId),
-        },
+        fields: [
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline('*Campaign:*', id),
+          },
+          {
+            type: 'mrkdwn',
+            text: concatTextToNewline(
+              '*Type:*',
+              capitalize(campaign.type.toLowerCase()),
+            ),
+          },
+        ],
       },
     ],
   });
