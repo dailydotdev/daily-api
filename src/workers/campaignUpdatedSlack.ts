@@ -57,6 +57,10 @@ const handleCampaignStarted = async (
     .getRepository(Campaign)
     .findOneByOrFail({ id: data.campaignId });
 
+  if (!campaign) {
+    return;
+  }
+
   const mdLink = await getMdLink(con, campaign);
 
   if (!mdLink) {

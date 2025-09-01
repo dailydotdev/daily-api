@@ -35,6 +35,11 @@ const handleCampaignCompleted = async (
       .getRepository(Campaign)
       .findOneOrFail({ where: { id: campaignId }, relations: ['user'] }),
   );
+
+  if (!campaign) {
+    return;
+  }
+
   const user = await campaign.user;
 
   const ctx: NotificationCampaignContext = {
