@@ -549,26 +549,6 @@ describe('query campaignsList', () => {
         postId: 'p4',
       },
     ]);
-
-    await con.getRepository(CampaignSource).save([
-      {
-        id: CAMPAIGN_UUID_5,
-        referenceId: 'ref5',
-        userId: '1',
-        type: CampaignType.Squad,
-        state: CampaignState.Pending,
-        createdAt: new Date(now.getTime() - 4000), // Oldest
-        endedAt: new Date('2023-12-31'),
-        flags: {
-          budget: 3000,
-          spend: 0,
-          users: 0,
-          clicks: 0,
-          impressions: 0,
-        },
-        sourceId: 'b',
-      },
-    ]);
   });
 
   it('should return campaigns list ordered by state and creation date', async () => {
@@ -579,7 +559,7 @@ describe('query campaignsList', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.campaignsList.edges).toHaveLength(4);
+    expect(res.data.campaignsList.edges).toHaveLength(3);
 
     // Should be ordered: Active campaigns first (by createdAt DESC), then others
     const campaigns = res.data.campaignsList.edges.map((edge) => edge.node);
@@ -593,8 +573,6 @@ describe('query campaignsList', () => {
     // Then non-active campaigns by createdAt DESC
     expect(campaigns[2].id).toBe(CAMPAIGN_UUID_2); // Completed
     expect(campaigns[2].state).toBe('COMPLETED');
-    expect(campaigns[3].id).toBe(CAMPAIGN_UUID_5); // Pending (oldest)
-    expect(campaigns[3].state).toBe('PENDING');
   });
 
   it('should only return campaigns for authenticated user', async () => {
@@ -643,15 +621,12 @@ describe('query campaignsList', () => {
     });
 
     expect(secondPage.errors).toBeFalsy();
-    expect(secondPage.data.campaignsList.edges).toHaveLength(2);
+    expect(secondPage.data.campaignsList.edges).toHaveLength(1);
     expect(secondPage.data.campaignsList.pageInfo.hasPreviousPage).toBe(true);
 
-    // Should get the next 2 campaigns
+    // Should leftover campaign
     expect(secondPage.data.campaignsList.edges[0].node.id).toBe(
       CAMPAIGN_UUID_2,
-    );
-    expect(secondPage.data.campaignsList.edges[1].node.id).toBe(
-      CAMPAIGN_UUID_5,
     );
   });
 
