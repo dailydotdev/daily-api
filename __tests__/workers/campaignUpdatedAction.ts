@@ -280,7 +280,7 @@ describe('campaignUpdatedAction worker', () => {
     // Create a campaign with an unknown type by directly inserting into database
     const unknownCampaignId = 'f47ac10b-58cc-4372-a567-0e02b2c3d999';
     await con.query(
-      `INSERT INTO campaign (id, "creativeId", "referenceId", "userId", type, state, "createdAt", "updatedAt", "endedAt", flags) 
+      `INSERT INTO campaign (id, "creativeId", "referenceId", "userId", type, state, "createdAt", "updatedAt", "endedAt", flags)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
       [
         unknownCampaignId,
@@ -310,7 +310,7 @@ describe('campaignUpdatedAction worker', () => {
     await expect(
       expectSuccessfulTypedBackground(worker, eventData),
     ).rejects.toThrow(
-      `Completed campaign with unkonwn type: ${unknownCampaignId}`,
+      `Completed campaign with unknown type: ${unknownCampaignId}`,
     );
   });
 
