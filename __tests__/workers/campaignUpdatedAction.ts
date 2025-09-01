@@ -9,7 +9,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   CampaignUpdateEvent,
-  type CampaignStatsUpdateEvent,
+  type CampaignUpdateEventArgs,
 } from '../../src/common/campaign/common';
 import { CampaignState } from '../../src/entity/campaign/Campaign';
 import { randomUUID } from 'crypto';
@@ -31,7 +31,7 @@ beforeEach(async () => {
 
 describe('campaignUpdatedAction worker', () => {
   it('should update campaign stats when StatsUpdated event is received', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.StatsUpdated,
       unique_users: 150,
@@ -68,7 +68,7 @@ describe('campaignUpdatedAction worker', () => {
         { flags: { campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' } },
       );
 
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.Completed,
       unique_users: 200,
@@ -104,7 +104,7 @@ describe('campaignUpdatedAction worker', () => {
         { flags: { campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481' } },
       );
 
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481',
       event: CampaignUpdateEvent.Completed,
       unique_users: 75,
@@ -132,11 +132,11 @@ describe('campaignUpdatedAction worker', () => {
   });
 
   it('should not process non-handled events', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.Started,
       unique_users: 100,
-      data: { budget: '10.00', spend: '0.00' },
+      data: { budget: '10.00' },
       d_update: Date.now() * 1000,
     };
 
@@ -151,7 +151,7 @@ describe('campaignUpdatedAction worker', () => {
   });
 
   it('should update campaign spend when BudgetUpdated event is received', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
@@ -176,7 +176,7 @@ describe('campaignUpdatedAction worker', () => {
   });
 
   it('should handle budget update with zero values', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 0,
@@ -199,7 +199,7 @@ describe('campaignUpdatedAction worker', () => {
 
   it('should handle multiple sequential budget updates', async () => {
     // First budget update
-    const firstUpdate: CampaignStatsUpdateEvent = {
+    const firstUpdate: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
@@ -210,7 +210,7 @@ describe('campaignUpdatedAction worker', () => {
     await expectSuccessfulTypedBackground(worker, firstUpdate);
 
     // Second budget update
-    const secondUpdate: CampaignStatsUpdateEvent = {
+    const secondUpdate: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 200,
@@ -231,8 +231,8 @@ describe('campaignUpdatedAction worker', () => {
     });
   });
 
-  it('should throw when campaign is not found for stats update', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+  it('should handle when campaign is not found for stats update', async () => {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
       event: CampaignUpdateEvent.StatsUpdated,
       unique_users: 100,
@@ -252,8 +252,8 @@ describe('campaignUpdatedAction worker', () => {
     );
   });
 
-  it('should throw when campaign is not found for budget update', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+  it('should handle when campaign is not found for budget update', async () => {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 100,
@@ -270,7 +270,7 @@ describe('campaignUpdatedAction worker', () => {
   });
 
   it('should throw when campaign is not found for completion', async () => {
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
       event: CampaignUpdateEvent.Completed,
       unique_users: 100,
@@ -308,7 +308,7 @@ describe('campaignUpdatedAction worker', () => {
       ],
     );
 
-    const eventData: CampaignStatsUpdateEvent = {
+    const eventData: CampaignUpdateEventArgs = {
       campaignId: unknownCampaignId,
       event: CampaignUpdateEvent.Completed,
       unique_users: 100,
@@ -328,7 +328,7 @@ describe('campaignUpdatedAction worker', () => {
 
   it('should update multiple campaign stats correctly', async () => {
     // First stats update
-    const firstUpdate: CampaignStatsUpdateEvent = {
+    const firstUpdate: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.StatsUpdated,
       unique_users: 100,
@@ -343,7 +343,7 @@ describe('campaignUpdatedAction worker', () => {
     await expectSuccessfulTypedBackground(worker, firstUpdate);
 
     // Second stats update
-    const secondUpdate: CampaignStatsUpdateEvent = {
+    const secondUpdate: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.StatsUpdated,
       unique_users: 250,

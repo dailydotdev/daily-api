@@ -2372,11 +2372,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
+      const stats = await getUserCampaignStats(ctx);
+
       return {
         ...paginated,
-        stats: await (isFirstRequest
-          ? getUserCampaignStats(ctx)
-          : Promise.resolve(undefined)),
+        stats: isFirstRequest
+          ? { ...stats, totalSpend: stats.spend, engagements: 0 }
+          : undefined,
       };
     },
     briefingPosts: async (
