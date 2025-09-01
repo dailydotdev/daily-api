@@ -4,10 +4,7 @@ import { z } from 'zod';
 import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
-import {
-  Organization,
-  organizationSubscriptionFlagsSchema,
-} from '../entity/Organization';
+import { Organization } from '../entity/Organization';
 import {
   isRoleAtLeast,
   OrganizationMemberRole,
@@ -49,6 +46,7 @@ import {
 } from '../common/paddle/organization';
 import { parsePaddlePriceInCents } from '../common/paddle';
 import { SubscriptionStatus } from '../common/plus';
+import { organizationSubscriptionFlagsSchema } from '../common/schema/organizations';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;

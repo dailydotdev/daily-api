@@ -19,6 +19,7 @@ import {
   type PostTranslation,
   PostType,
   type PostFlagsPublic,
+  type Campaign,
 } from '../entity';
 import {
   OrganizationMemberRole,
@@ -1354,10 +1355,29 @@ const obj = new GraphORM({
     },
   },
   Campaign: {
-    requiredColumns: ['id', 'createdAt'],
+    requiredColumns: ['id', 'userId'],
     fields: {
       flags: {
         jsonType: true,
+        transform: (flag, ctx, parent) => {
+          if (ctx.userId === (parent as Campaign).userId) {
+            return flag;
+          }
+
+          return null;
+        },
+      },
+      createdAt: {
+        transform: (value, ctx, parent) => {
+          const campaign = parent as Campaign;
+          return nullIfNotSameUser(value, ctx, { id: campaign.userId });
+        },
+      },
+      state: {
+        transform: (value: string, ctx: Context, parent) => {
+          const campaign = parent as Campaign;
+          return nullIfNotSameUser(value, ctx, { id: campaign.userId });
+        },
       },
     },
   },
