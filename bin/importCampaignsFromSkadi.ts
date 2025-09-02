@@ -166,6 +166,7 @@ const main = async () => {
         __imported: true,
       },
       postId: item.post_id,
+      createdAt: item.start_date,
     } as CampaignPost);
   });
 
