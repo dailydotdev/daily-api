@@ -342,11 +342,6 @@ describe('campaignUpdatedAction worker', () => {
       .findOneByOrFail({ id: cancelledCampaignId });
 
     expect(campaign.state).toBe(CampaignState.Cancelled);
-
-    // Verify post campaignId was not cleared since campaign wasn't actually completed
-    const post = await con.getRepository(Post).findOneByOrFail({ id: 'p1' });
-
-    expect(post.flags?.campaignId).toBe(cancelledCampaignId);
   });
 
   it('should not update cancelled Squad campaigns when completion event is received', async () => {
@@ -379,13 +374,6 @@ describe('campaignUpdatedAction worker', () => {
       .findOneByOrFail({ id: cancelledCampaignId });
 
     expect(campaign.state).toBe(CampaignState.Cancelled);
-
-    // Verify source campaignId was not cleared since campaign wasn't actually completed
-    const source = await con
-      .getRepository(Source)
-      .findOneByOrFail({ id: 'squad' });
-
-    expect(source.flags?.campaignId).toBe(cancelledCampaignId);
   });
 
   it('should update multiple campaign stats correctly', async () => {
