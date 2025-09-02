@@ -187,8 +187,8 @@ export interface CampaignBudgetUpdate {
 }
 
 type ExtraStats = Partial<{
-  events_count: number | string;
-  unique_events_count: number | string;
+  events_count: string;
+  unique_events_count: string;
 }>;
 
 export type CampaignExtraStatsUpdate = Partial<{
