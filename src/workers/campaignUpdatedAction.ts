@@ -1,3 +1,4 @@
+import z from 'zod';
 import { TypedWorker } from './worker';
 import {
   Campaign,
