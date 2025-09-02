@@ -18,6 +18,12 @@ import { usdToCores } from '../common/number';
 import { logger } from '../logger';
 import type { TypeORMQueryFailedError } from '../errors';
 
+interface HandlerEventArgs {
+  con: ConnectionManager;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}
+
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-action',
   handler: async (params, con): Promise<void> => {
@@ -69,11 +75,7 @@ export default worker;
 const handleCampaignBudgetUpdate = async ({
   con,
   params: { data, campaignId },
-}: {
-  con: ConnectionManager;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
+}: HandlerEventArgs) => {
   const { budget: usedBudget } = data as CampaignStateUpdate;
 
   await con.getRepository(Campaign).update(
@@ -89,11 +91,7 @@ const handleCampaignBudgetUpdate = async ({
 const handleCampaignStatsUpdate = async ({
   con,
   params: { data, campaignId },
-}: {
-  con: ConnectionManager;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
+}: HandlerEventArgs) => {
   const { impressions, clicks, unique_users } = data as CampaignStatsUpdate;
 
   await con.getRepository(Campaign).update(
@@ -112,11 +110,7 @@ const handleCampaignCompleted = async ({
   con,
   params,
   campaign,
-}: {
-  con: ConnectionManager;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
+}: HandlerEventArgs) => {
   const { campaignId } = params;
 
   await con.getRepository(Campaign).update(
