@@ -203,7 +203,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const users = await ctx.con.getRepository(UserStreak).find({
         where: {
           user: {
-            id: Not(In([ghostUser.id])),
+            id: Not(In(excludedUsers)),
           },
         },
         order: { totalStreak: 'DESC' },
