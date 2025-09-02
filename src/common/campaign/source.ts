@@ -66,6 +66,7 @@ export const getSourceTags = async (
       INNER JOIN recent_posts rp
         ON ps."postId" = rp.id
         OR ps."postId" = rp."sharedPostId"
+      WHERE ps.status = 'active'
       LIMIT 30;
     `,
     [sourceId],

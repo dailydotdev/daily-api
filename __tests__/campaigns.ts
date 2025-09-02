@@ -1302,12 +1302,12 @@ describe('mutation startCampaign', () => {
         visible: true,
       });
 
-      // Add keywords to PostKeyword table
+      // Add keywords to PostKeyword table - all active
       await con.getRepository(PostKeyword).save([
-        { postId: 'mp1', keyword: 'squadtag1' },
-        { postId: 'mp1', keyword: 'squadtag2' },
-        { postId: 'mp1', keyword: 'squadtag3' },
-        { postId: 'mp1', keyword: 'squadtag4' },
+        { postId: 'mp1', keyword: 'squadtag1', status: 'active' },
+        { postId: 'mp1', keyword: 'squadtag2', status: 'active' },
+        { postId: 'mp1', keyword: 'squadtag3', status: 'active' },
+        { postId: 'mp1', keyword: 'squadtag4', status: 'active' },
       ]);
 
       nock(process.env.SKADI_API_ORIGIN_V2)
@@ -1372,11 +1372,11 @@ describe('mutation startCampaign', () => {
         visible: true,
       });
 
-      // Add keywords to PostKeyword table (3 or fewer tags)
+      // Add keywords to PostKeyword table (3 or fewer tags) - all active
       await con.getRepository(PostKeyword).save([
-        { postId: 'mp2', keyword: 'one' },
-        { postId: 'mp2', keyword: 'two' },
-        { postId: 'mp2', keyword: 'three' },
+        { postId: 'mp2', keyword: 'one', status: 'active' },
+        { postId: 'mp2', keyword: 'two', status: 'active' },
+        { postId: 'mp2', keyword: 'three', status: 'active' },
       ]);
 
       nock(process.env.SKADI_API_ORIGIN_V2)
@@ -1432,10 +1432,11 @@ describe('mutation startCampaign', () => {
         visible: true,
       });
 
-      // Add more than 30 keywords to PostKeyword table (35 tags)
+      // Add more than 30 keywords to PostKeyword table (35 tags) - all active
       const keywords = Array.from({ length: 35 }, (_, i) => ({
         postId: 'mp3',
         keyword: `tag${i + 1}`,
+        status: 'active',
       }));
       await con.getRepository(PostKeyword).save(keywords);
 
@@ -1482,6 +1483,92 @@ describe('mutation startCampaign', () => {
       expect(source?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
       );
+    });
+
+    it('should only send active keywords to skadi client v2', async () => {
+      loggedUser = '3'; // moderator in 'm'
+
+      // Insert a recent post in squad 'm'
+      await con.getRepository(Post).save({
+        id: 'mp5',
+        shortId: 'mp5',
+        title: 'M Post 5',
+        url: 'http://mp5.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        visible: true,
+      });
+
+      // Add mix of active and inactive keywords
+      const activeKeywords = Array.from({ length: 5 }, (_, i) => ({
+        postId: 'mp5',
+        keyword: `active_tag${i + 1}`,
+        status: 'active',
+      }));
+      const inactiveKeywords = Array.from({ length: 3 }, (_, i) => ({
+        postId: 'mp5',
+        keyword: `inactive_tag${i + 1}`,
+        status: 'inactive',
+      }));
+
+      await con
+        .getRepository(PostKeyword)
+        .save([...activeKeywords, ...inactiveKeywords]);
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+
+          // Verify that only active keywords are sent
+          const expectedActiveKeywords = [
+            'active_tag1',
+            'active_tag2',
+            'active_tag3',
+            'active_tag4',
+            'active_tag5',
+          ];
+          const keywordsMatch =
+            requestKeywords.every((keyword: string) =>
+              expectedActiveKeywords.includes(keyword),
+            ) && requestKeywords.length === expectedActiveKeywords.length;
+
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'SQUAD' &&
+            body.creatives[0].value.squad.id === 'm' &&
+            body?.targeting?.type === 'BOOST' &&
+            keywordsMatch
+          );
+        })
+        .reply(200, ''); // Successful response
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-campaign-active-keywords',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.startCampaign.transactionId).toBeDefined();
     });
   });
 });
@@ -2502,10 +2589,11 @@ describe('query dailyCampaignReachEstimate', () => {
       visible: true,
     });
 
-    // Add more than 30 keywords to PostKeyword table (40 tags)
+    // Add more than 30 keywords to PostKeyword table (40 tags) - all active
     const keywords = Array.from({ length: 40 }, (_, i) => ({
       postId: 'mp4',
       keyword: `reachtag${i + 1}`,
+      status: 'active',
     }));
     await con.getRepository(PostKeyword).save(keywords);
 
@@ -2539,6 +2627,86 @@ describe('query dailyCampaignReachEstimate', () => {
     expect(res.data.dailyCampaignReachEstimate).toEqual({
       min: 78,
       max: 92,
+    });
+  });
+
+  it('should only use active keywords for reach estimation', async () => {
+    loggedUser = '3'; // moderator in 'm'
+
+    // Insert a recent post in squad 'm'
+    await con.getRepository(Post).save({
+      id: 'mp6',
+      shortId: 'mp6',
+      title: 'M Post 6',
+      url: 'http://mp6.com',
+      createdAt: new Date(),
+      sourceId: 'm',
+      type: PostType.Article,
+      visible: true,
+    });
+
+    // Add mix of active and inactive keywords (6 active, 4 inactive)
+    const activeKeywords = Array.from({ length: 6 }, (_, i) => ({
+      postId: 'mp6',
+      keyword: `reach_active_tag${i + 1}`,
+      status: 'active',
+    }));
+    const inactiveKeywords = Array.from({ length: 4 }, (_, i) => ({
+      postId: 'mp6',
+      keyword: `reach_inactive_tag${i + 1}`,
+      status: 'inactive',
+    }));
+
+    await con
+      .getRepository(PostKeyword)
+      .save([...activeKeywords, ...inactiveKeywords]);
+
+    // Mock the HTTP response using nock - verify only active keywords are sent
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/reach', (body) => {
+        const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+
+        // Should only include the 6 active keywords
+        const expectedActiveKeywords = [
+          'reach_active_tag1',
+          'reach_active_tag2',
+          'reach_active_tag3',
+          'reach_active_tag4',
+          'reach_active_tag5',
+          'reach_active_tag6',
+        ];
+
+        const keywordsMatch =
+          requestKeywords.every((keyword: string) =>
+            expectedActiveKeywords.includes(keyword),
+          ) && requestKeywords.length === expectedActiveKeywords.length;
+
+        return (
+          body.daily_budget === 30 &&
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(requestKeywords) &&
+          keywordsMatch
+        );
+      })
+      .reply(200, {
+        reach: {
+          impressions: 160,
+          clicks: 10,
+          users: 80,
+          min_impressions: 74,
+          max_impressions: 86,
+        },
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...sourceParams, budget: 3000 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 74,
+      max: 86,
     });
   });
 });
