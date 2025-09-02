@@ -60,3 +60,10 @@ export const FEED_SURVEY_INTERVAL = 30;
 export const WEBAPP_MAGIC_IMAGE_PREFIX = `/image-generator`;
 
 export const SQL_QUERIES_PATH = '/opt/app/queries';
+
+export const MODERATORS = [
+  '1d339aa5b85c4e0ba85fdedb523c48d4',
+  '28849d86070e4c099c877ab6837c61f0',
+  '5e0af68445e04c02b0656c3530664aff',
+  'a491ef61599a4b3e84b6dfa602e6bdfe',
+];
