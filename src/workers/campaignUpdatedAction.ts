@@ -15,7 +15,7 @@ import {
   type CampaignStatsUpdate,
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
-import { usdToCores } from '../common/number';
+import { formatNumber, usdToCores } from '../common/number';
 import { logger } from '../logger';
 import type { TypeORMQueryFailedError } from '../errors';
 
@@ -118,14 +118,16 @@ const handleExtraCampaignStatsUpdate = async ({
   params: { data, campaignId },
 }: HandlerEventArgs) => {
   const update = data as CampaignExtraStatsUpdate;
-  const newMembers = update['complete joining squad']?.unique_events_count;
+  const newMembers = update?.['complete joining squad']?.unique_events_count;
 
-  await con
-    .getRepository(Campaign)
-    .update(
-      { id: campaignId },
-      { flags: updateFlagsStatement<Campaign>({ newMembers }) },
-    );
+  await con.getRepository(Campaign).update(
+    { id: campaignId },
+    {
+      flags: updateFlagsStatement<Campaign>({
+        newMembers: formatNumber(newMembers),
+      }),
+    },
+  );
 };
 
 const handleCampaignCompleted = async ({
