@@ -15,7 +15,7 @@ import {
   type CampaignStatsUpdate,
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
-import { formatNumber, usdToCores } from '../common/number';
+import { usdToCores } from '../common/number';
 import { logger } from '../logger';
 import type { TypeORMQueryFailedError } from '../errors';
 
