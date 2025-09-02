@@ -9,7 +9,8 @@ import {
   TableInheritance,
   UpdateDateColumn,
 } from 'typeorm';
-import { OpportunityState, OpportunityType } from './types';
+import type { OpportunityState } from '@dailydotdev/schema';
+import type { OpportunityType } from './types';
 import type { OpportunityUser } from './user';
 import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';

@@ -1,19 +1,7 @@
 import z from 'zod';
 import { SubscriptionCycles } from '../../paddle';
 import { SubscriptionProvider, SubscriptionStatus } from '../plus';
-
-export enum OrganizationLinkType {
-  Custom = 'custom',
-  Social = 'social',
-  Press = 'press',
-}
-
-export enum SocialMediaType {
-  Facebook = 'facebook',
-  X = 'x',
-  GitHub = 'github',
-  Crunchbase = 'crunchbase',
-}
+import { OrganizationLinkType, SocialMediaType } from '@dailydotdev/schema';
 
 export const organizationSubscriptionFlagsSchema = z.object({
   subscriptionId: z.string({
@@ -39,19 +27,22 @@ export const organizationSubscriptionFlagsSchema = z.object({
 
 const linksSchemaBase = {
   title: z.string(),
-  link: z.string().url(),
+  link: z.url(),
 };
 
 export const organizationLinksSchema = z.discriminatedUnion('type', [
   z.object({
-    type: z.literal(OrganizationLinkType.Social),
+    type: z.literal(OrganizationLinkType.SOCIAL),
     socialType: z.enum(SocialMediaType, {
       error: 'Invalid social media type',
     }),
     ...linksSchemaBase,
   }),
   z.object({
-    type: z.enum([OrganizationLinkType.Custom, OrganizationLinkType.Press]),
+    type: z.union([
+      z.literal(OrganizationLinkType.CUSTOM),
+      z.literal(OrganizationLinkType.PRESS),
+    ]),
     socialType: z.null(),
     ...linksSchemaBase,
   }),
