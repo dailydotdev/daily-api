@@ -376,6 +376,60 @@ describe('campaignUpdatedAction worker', () => {
     expect(campaign.state).toBe(CampaignState.Cancelled);
   });
 
+  it('should update campaign extra stats when ExtraStatsUpdated event is received', async () => {
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.ExtraStatsUpdated,
+      unique_users: 100,
+      data: {
+        'complete joining squad': {
+          unique_events_count: 25,
+        },
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign newMembers flag was updated
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 1000,
+      spend: 100,
+      newMembers: 25,
+    });
+  });
+
+  it('should handle zero new members in ExtraStatsUpdated event', async () => {
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.ExtraStatsUpdated,
+      unique_users: 50,
+      data: {
+        'complete joining squad': {
+          unique_events_count: 0,
+        },
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign newMembers flag was updated with zero value
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 1000,
+      spend: 100,
+      newMembers: 0,
+    });
+  });
+
   it('should update multiple campaign stats correctly', async () => {
     // First stats update
     const firstUpdate: CampaignUpdateEventArgs = {
