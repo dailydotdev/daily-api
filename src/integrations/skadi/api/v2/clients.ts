@@ -16,6 +16,7 @@ import type {
   EstimatedReachResponse,
   EstimatedReach,
 } from '../common';
+import { randomUUID } from 'node:crypto';
 
 const skadiNamespace = '67fb92c7-8105-43a9-802a-07aac76493cc';
 
@@ -71,16 +72,8 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
   }
 
   startCampaign(campaign: Campaign, keywords: string[] = []) {
-    const {
-      userId,
-      type,
-      id,
-      creativeId,
-      createdAt,
-      endedAt,
-      flags,
-      referenceId,
-    } = campaign;
+    const { userId, type, id, createdAt, endedAt, flags, referenceId } =
+      campaign;
     const advertiser_id = getAdvertiserId(userId);
     const targeting = generateTargeting(type, referenceId, keywords);
 
@@ -99,7 +92,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
           end_time: endedAt.getTime(),
           creatives: [
             {
-              id: creativeId,
+              id: randomUUID(), // we just create it on API side but we don't store it per Viktor request
               type,
               value: generateCreativeValue(type, referenceId),
             },
@@ -178,7 +171,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          budget,
+          daily_budget: budget,
           targeting,
         }),
       });

@@ -12,7 +12,6 @@ import {
   type CampaignUpdateEventArgs,
 } from '../../src/common/campaign/common';
 import { CampaignState } from '../../src/entity/campaign/Campaign';
-import { randomUUID } from 'crypto';
 
 let con: DataSource;
 
@@ -231,7 +230,7 @@ describe('campaignUpdatedAction worker', () => {
     });
   });
 
-  it('should handle when campaign is not found for stats update', async () => {
+  it('should ignore when campaign is not found for stats update', async () => {
     const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
       event: CampaignUpdateEvent.StatsUpdated,
@@ -244,15 +243,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    // This should throw an error since worker now checks campaign existence first
-    await expect(
-      expectSuccessfulTypedBackground(worker, eventData),
-    ).rejects.toThrow(
-      'Campaign not found! f47ac10b-58cc-4372-a567-0e02b2c3d999',
-    );
+    // Worker should complete successfully and just ignore non-existent campaign
+    await expectSuccessfulTypedBackground(worker, eventData);
   });
 
-  it('should handle when campaign is not found for budget update', async () => {
+  it('should ignore when campaign is not found for budget update', async () => {
     const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
       event: CampaignUpdateEvent.BudgetUpdated,
@@ -261,15 +256,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    // This should throw an error since worker now checks campaign existence first
-    await expect(
-      expectSuccessfulTypedBackground(worker, eventData),
-    ).rejects.toThrow(
-      'Campaign not found! f47ac10b-58cc-4372-a567-0e02b2c3d999',
-    );
+    // Worker should complete successfully and just ignore non-existent campaign
+    await expectSuccessfulTypedBackground(worker, eventData);
   });
 
-  it('should throw when campaign is not found for completion', async () => {
+  it('should ignore when campaign is not found for completion', async () => {
     const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999', // Non-existent campaign
       event: CampaignUpdateEvent.Completed,
@@ -280,23 +271,18 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    // This should throw an error since worker now checks campaign existence first
-    await expect(
-      expectSuccessfulTypedBackground(worker, eventData),
-    ).rejects.toThrow(
-      'Campaign not found! f47ac10b-58cc-4372-a567-0e02b2c3d999',
-    );
+    // Worker should complete successfully and just ignore non-existent campaign
+    await expectSuccessfulTypedBackground(worker, eventData);
   });
 
   it('should throw error for unknown campaign type during completion', async () => {
     // Create a campaign with an unknown type by directly inserting into database
     const unknownCampaignId = 'f47ac10b-58cc-4372-a567-0e02b2c3d999';
     await con.query(
-      `INSERT INTO campaign (id, "creativeId", "referenceId", "userId", type, state, "createdAt", "updatedAt", "endedAt", flags) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      `INSERT INTO campaign (id, "referenceId", "userId", type, state, "createdAt", "updatedAt", "endedAt", flags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
         unknownCampaignId,
-        randomUUID(),
         'ref-id',
         '1',
         'UNKNOWN_TYPE', // Invalid type that's not in CampaignType enum
@@ -322,8 +308,126 @@ describe('campaignUpdatedAction worker', () => {
     await expect(
       expectSuccessfulTypedBackground(worker, eventData),
     ).rejects.toThrow(
-      `Completed campaign with unkonwn type: ${unknownCampaignId}`,
+      `Completed campaign with unknown type: ${unknownCampaignId}`,
     );
+  });
+
+  it('should not update cancelled Post campaigns when completion event is received', async () => {
+    // Set up a campaign in cancelled state
+    const cancelledCampaignId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
+    await con
+      .getRepository(Campaign)
+      .update({ id: cancelledCampaignId }, { state: CampaignState.Cancelled });
+
+    // Set a campaignId on a post to verify it's not cleared for cancelled campaigns
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { flags: { campaignId: cancelledCampaignId } });
+
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: cancelledCampaignId,
+      event: CampaignUpdateEvent.Completed,
+      unique_users: 100,
+      data: {
+        budget: '10.00',
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign remains in cancelled state (not updated to completed)
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: cancelledCampaignId });
+
+    expect(campaign.state).toBe(CampaignState.Cancelled);
+  });
+
+  it('should not update cancelled Squad campaigns when completion event is received', async () => {
+    // Set up a Squad campaign in cancelled state
+    const cancelledCampaignId = 'f47ac10b-58cc-4372-a567-0e02b2c3d481';
+    await con
+      .getRepository(Campaign)
+      .update({ id: cancelledCampaignId }, { state: CampaignState.Cancelled });
+
+    // Set a campaignId on a source to verify it's not cleared for cancelled campaigns
+    await con
+      .getRepository(Source)
+      .update({ id: 'squad' }, { flags: { campaignId: cancelledCampaignId } });
+
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: cancelledCampaignId,
+      event: CampaignUpdateEvent.Completed,
+      unique_users: 100,
+      data: {
+        budget: '5.00',
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign remains in cancelled state (not updated to completed)
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: cancelledCampaignId });
+
+    expect(campaign.state).toBe(CampaignState.Cancelled);
+  });
+
+  it('should update campaign extra stats when ExtraStatsUpdated event is received', async () => {
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.ExtraStatsUpdated,
+      unique_users: 100,
+      data: {
+        'complete joining squad': {
+          unique_events_count: 25,
+        },
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign newMembers flag was updated
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 1000,
+      spend: 100,
+      newMembers: 25,
+    });
+  });
+
+  it('should handle zero new members in ExtraStatsUpdated event', async () => {
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.ExtraStatsUpdated,
+      unique_users: 50,
+      data: {
+        'complete joining squad': {
+          unique_events_count: 0,
+        },
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign newMembers flag was updated with zero value
+    const updatedCampaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' });
+
+    expect(updatedCampaign.flags).toMatchObject({
+      budget: 1000,
+      spend: 100,
+      newMembers: 0,
+    });
   });
 
   it('should update multiple campaign stats correctly', async () => {

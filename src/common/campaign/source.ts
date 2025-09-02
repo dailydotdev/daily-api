@@ -66,6 +66,7 @@ export const getSourceTags = async (
       INNER JOIN recent_posts rp
         ON ps."postId" = rp.id
         OR ps."postId" = rp."sharedPostId"
+      WHERE ps.status = 'allow'
       LIMIT 30;
     `,
     [sourceId],
@@ -81,7 +82,6 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
 
   const request = await ctx.con.transaction(async (manager) => {
     const id = randomUUID();
-    const creativeId = randomUUID();
     const { budget, duration } = args;
     const total = budget * duration;
     const userId = ctx.userId;
@@ -90,7 +90,6 @@ export const startCampaignSource = async (props: StartCampaignMutationArgs) => {
     const campaign = await manager.getRepository(CampaignSource).save(
       manager.getRepository(CampaignSource).create({
         id,
-        creativeId,
         flags: {
           budget: total,
           spend: 0,

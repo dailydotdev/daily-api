@@ -6,7 +6,6 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   TableInheritance,
-  Generated,
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from '../user';
@@ -23,14 +22,14 @@ export enum CampaignState {
   Cancelled = 'CANCELLED',
 }
 
-export interface CampaignFlags {
+export type CampaignFlags = Partial<{
   budget: number;
   spend: number;
   impressions: number;
   clicks: number;
   users: number;
-  lastUpdatedAt?: Date;
-}
+  newMembers: number;
+}>;
 
 @Entity()
 @Index('IDX_campaign_state_created_at_sort', { synchronize: false })
@@ -38,10 +37,6 @@ export interface CampaignFlags {
 export class Campaign {
   @PrimaryGeneratedColumn('uuid')
   id: string;
-
-  @Generated('uuid')
-  @Column({ type: 'uuid' })
-  creativeId: string;
 
   @Column({ type: 'text' })
   referenceId: string;
@@ -72,5 +67,5 @@ export class Campaign {
   state: CampaignState;
 
   @Column({ type: 'jsonb', default: {} })
-  flags: Partial<CampaignFlags>;
+  flags: CampaignFlags;
 }

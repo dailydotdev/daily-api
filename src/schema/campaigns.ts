@@ -49,11 +49,12 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(CampaignType, 'CampaignType')}
 
   type CampaignFlags {
-    budget: Int!
-    spend: Int!
-    users: Int!
-    clicks: Int!
-    impressions: Int!
+    budget: Int
+    spend: Int
+    users: Int
+    clicks: Int
+    impressions: Int
+    newMembers: Int
   }
 
   type Campaign {
@@ -88,10 +89,11 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type UserCampaignStats {
-    impressions: Int!
-    clicks: Int!
-    users: Int!
-    spend: Int!
+    impressions: Int
+    clicks: Int
+    users: Int
+    spend: Int
+    newMembers: Int
   }
 
   extend type Query {

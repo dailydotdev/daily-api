@@ -206,7 +206,7 @@ describe('campaignUpdatedSlack worker', () => {
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
 
-  it('should handle when campaign is not found', async () => {
+  it('should ignore when campaign is not found', async () => {
     const eventData: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d999',
       event: CampaignUpdateEvent.Started,
@@ -215,9 +215,8 @@ describe('campaignUpdatedSlack worker', () => {
       d_update: Date.now(),
     };
 
-    await expect(
-      expectSuccessfulTypedBackground(worker, eventData),
-    ).rejects.toThrow();
+    // Worker should complete successfully and just ignore non-existent campaign
+    await expectSuccessfulTypedBackground(worker, eventData);
 
     expect(mockAdsSend).not.toHaveBeenCalled();
   });
@@ -226,7 +225,6 @@ describe('campaignUpdatedSlack worker', () => {
     // Create a campaign with non-existent source
     const campaignWithInvalidSource = {
       id: 'f47ac10b-58cc-4372-a567-0e02b2c3d485',
-      creativeId: 'f47ac10b-58cc-4372-a567-0e02b2c3d486',
       referenceId: 'nonexistent-source',
       userId: '1',
       type: CampaignType.Squad,
@@ -247,6 +245,7 @@ describe('campaignUpdatedSlack worker', () => {
       d_update: Date.now(),
     };
 
+    // Worker should complete successfully and just ignore when source is not found
     await expect(
       expectSuccessfulTypedBackground(worker, eventData),
     ).rejects.toThrow();

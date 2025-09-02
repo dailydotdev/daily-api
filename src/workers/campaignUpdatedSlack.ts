@@ -5,7 +5,7 @@ import {
   Source,
   type ConnectionManager,
 } from '../entity';
-import type { DataSource } from 'typeorm';
+import { type DataSource } from 'typeorm';
 import {
   getDiscussionLink,
   getSourceLink,
@@ -16,19 +16,36 @@ import {
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
 import { logger } from '../logger';
+import type { TypeORMQueryFailedError } from '../errors';
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-slack',
-  handler: async (message, con): Promise<void> => {
+  handler: async (params, con): Promise<void> => {
     if (process.env.NODE_ENV === 'development') {
       return;
     }
 
-    switch (message.data.event) {
-      case CampaignUpdateEvent.Started:
-        return handleCampaignStarted(con, message.data);
-      default:
+    try {
+      const campaign = await con
+        .getRepository(Campaign)
+        .findOneByOrFail({ id: params.data.campaignId });
+
+      switch (params.data.event) {
+        case CampaignUpdateEvent.Started:
+          return handleCampaignStarted({ con, data: params.data, campaign });
+        default:
+          return;
+      }
+    } catch (originalError) {
+      const err = originalError as TypeORMQueryFailedError;
+
+      if (err?.name === 'EntityNotFoundError') {
+        logger.error({ err, params }, 'could not find campaign');
+
         return;
+      }
+
+      throw err;
     }
   },
 };
@@ -45,18 +62,18 @@ const getMdLink = async (con: ConnectionManager, campaign: Campaign) => {
         .findOneByOrFail({ id: campaign.referenceId });
       return `<${getSourceLink(source)}|${source.handle}>`;
     default:
-      logger.warn({ campaign }, `Started campaign with unkonwn type`);
+      logger.warn({ campaign }, `Started campaign with unknown type`);
   }
 };
 
-const handleCampaignStarted = async (
-  con: DataSource,
-  data: CampaignUpdateEventArgs,
-) => {
-  const campaign = await con
-    .getRepository(Campaign)
-    .findOneByOrFail({ id: data.campaignId });
-
+const handleCampaignStarted = async ({
+  con,
+  campaign,
+}: {
+  con: DataSource;
+  data: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}) => {
   const mdLink = await getMdLink(con, campaign);
 
   if (!mdLink) {
