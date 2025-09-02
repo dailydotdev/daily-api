@@ -1,7 +1,12 @@
 import z from 'zod';
 import { SubscriptionCycles } from '../../paddle';
 import { SubscriptionProvider, SubscriptionStatus } from '../plus';
-import { OrganizationLinkType, SocialMediaType } from '@dailydotdev/schema';
+import {
+  CompanySize,
+  CompanyStage,
+  OrganizationLinkType,
+  SocialMediaType,
+} from '@dailydotdev/schema';
 
 export const organizationSubscriptionFlagsSchema = z.object({
   subscriptionId: z.string({
@@ -47,3 +52,26 @@ export const organizationLinksSchema = z.discriminatedUnion('type', [
     ...linksSchemaBase,
   }),
 ]);
+
+export const organizationSchema = z.object({
+  id: z.string(),
+  createdAt: z.string().transform((str) => new Date(str)),
+  updatedAt: z.string().transform((str) => new Date(str)),
+  name: z.string(),
+  image: z.string().nullable(),
+  seats: z.number().min(1),
+  subscriptionFlags: organizationSubscriptionFlagsSchema,
+  links: z.array(organizationLinksSchema),
+  website: z.url().nullable(),
+  description: z.string().nullable(),
+  perks: z.array(z.string()).nullable(),
+  founded: z.number().int().min(1000).max(new Date().getFullYear()).nullable(),
+  location: z.string().nullable(),
+  size: z.enum(CompanySize, { error: 'Invalid company size' }).nullable(),
+  category: z.string().nullable(),
+  stage: z
+    .enum(CompanyStage, {
+      error: 'Invalid company stage',
+    })
+    .nullable(),
+});
