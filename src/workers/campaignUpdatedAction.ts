@@ -120,9 +120,7 @@ const handleExtraCampaignStatsUpdate = async ({
 }: HandlerEventArgs) => {
   const update = data as CampaignExtraStatsUpdate;
   const newMembersCount = update['complete joining squad']?.unique_events_count;
-  const newMembers = z.coerce
-    .number(newMembersCount)
-    .safeParse(newMembersCount)?.data;
+  const newMembers = z.coerce.number().safeParse(newMembersCount)?.data;
 
   await con.getRepository(Campaign).update(
     { id: campaignId },
