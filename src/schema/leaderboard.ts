@@ -4,7 +4,8 @@ import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserCompany, UserStats, UserStreak } from '../entity';
 import { DataSource, In, Not } from 'typeorm';
-import { getLimit, ghostUser, GQLCompany } from '../common';
+import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
+import { MODERATORS } from '../config';
 
 export type GQLUserLeaderboard = {
   score: number;
@@ -100,6 +101,16 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const excludedUsers = [
+  ghostUser.id,
+  systemUser.id,
+  ...MODERATORS,
+  '6h7QO55AFClNmsV1zBaJt',
+  'rgFi4sbhpMZwIZZlSjl8d',
+  'QgTYreBqt',
+  'gfRfL51BYNK3XmCLVtA91',
+];
+
 const getUserLeaderboardForStat = async ({
   con,
   stat,
@@ -117,6 +128,7 @@ const getUserLeaderboardForStat = async ({
     .select('u.*')
     .addSelect(statSelect, 'score')
     .leftJoin(User, 'u', 'u.id = us.id')
+    .where({ id: Not(In(excludedUsers)) })
     .orderBy('score', 'DESC')
     .limit(limit)
     .getRawMany<
@@ -141,7 +153,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(User).find({
         where: {
-          id: Not(In([ghostUser.id])),
+          id: Not(In(excludedUsers)),
         },
         order: { reputation: 'DESC' },
         take: getLimit(args),
@@ -153,7 +165,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const users = await ctx.con.getRepository(UserStreak).find({
         where: {
           user: {
-            id: Not(In([ghostUser.id])),
+            id: Not(In(excludedUsers)),
           },
         },
         order: { currentStreak: 'DESC' },

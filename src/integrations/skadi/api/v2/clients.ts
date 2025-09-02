@@ -166,7 +166,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          budget,
+          daily_budget: budget,
           targeting,
         }),
       });
