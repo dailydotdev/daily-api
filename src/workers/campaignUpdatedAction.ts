@@ -117,15 +117,15 @@ const handleExtraCampaignStatsUpdate = async ({
   con,
   params: { data, campaignId },
 }: HandlerEventArgs) => {
-  await con.getRepository(Campaign).update(
-    { id: campaignId },
-    {
-      flags: updateFlagsStatement<Campaign>({
-        newMembers: (data as CampaignExtraStatsUpdate)['complete joining squad']
-          .unique_events_count,
-      }),
-    },
-  );
+  const update = data as CampaignExtraStatsUpdate;
+  const newMembers = update?.['complete joining squad']?.unique_events_count;
+
+  await con
+    .getRepository(Campaign)
+    .update(
+      { id: campaignId },
+      { flags: updateFlagsStatement<Campaign>({ newMembers }) },
+    );
 };
 
 const handleCampaignCompleted = async ({
