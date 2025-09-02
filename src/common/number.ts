@@ -1,3 +1,5 @@
+import { isNaN } from 'lodash';
+
 export function largeNumberFormat(value: number): string | null {
   if (typeof value !== 'number') {
     return null;
@@ -50,4 +52,14 @@ export const coresToUsd = (cores: number): number => {
 
 export const usdToCores = (usd: number): number => {
   return Math.floor(usd * 100); // 1 USD = 100 Cores
+};
+
+export const formatNumber = (
+  value: number | string | undefined,
+): number | undefined => {
+  if (isNaN(Number(value))) {
+    return undefined;
+  }
+
+  return Number(value);
 };
