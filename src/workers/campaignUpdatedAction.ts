@@ -1,3 +1,4 @@
+import z from 'zod';
 import { TypedWorker } from './worker';
 import {
   Campaign,
@@ -118,14 +119,17 @@ const handleExtraCampaignStatsUpdate = async ({
   params: { data, campaignId },
 }: HandlerEventArgs) => {
   const update = data as CampaignExtraStatsUpdate;
-  const newMembers = update['complete joining squad']?.unique_events_count;
+  const newMembersCount = update['complete joining squad']?.unique_events_count;
+  const newMembers = z.coerce.number().safeParse(newMembersCount)?.data;
 
-  await con
-    .getRepository(Campaign)
-    .update(
-      { id: campaignId },
-      { flags: updateFlagsStatement<Campaign>({ newMembers }) },
-    );
+  await con.getRepository(Campaign).update(
+    { id: campaignId },
+    {
+      flags: updateFlagsStatement<Campaign>({
+        newMembers,
+      }),
+    },
+  );
 };
 
 const handleCampaignCompleted = async ({
