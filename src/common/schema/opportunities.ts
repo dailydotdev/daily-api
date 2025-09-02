@@ -1,4 +1,5 @@
 import z from 'zod';
+import { locationSchema, locationTypeSchema } from './userCandidate';
 
 export const opportunityContentSchema = z.object({
   title: z.string(),
@@ -7,8 +8,8 @@ export const opportunityContentSchema = z.object({
 });
 
 export const opportunityMetaSchema = z.object({
-  location: z.string(),
-  workSite: z.string(),
+  location: locationSchema,
+  location_type: locationTypeSchema,
   employmentType: z.string(),
   teamSize: z.string(),
   salaryRange: z.string(),
