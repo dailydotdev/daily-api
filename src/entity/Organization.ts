@@ -43,7 +43,7 @@ export class Organization {
   subscriptionFlags: z.infer<typeof organizationSubscriptionFlagsSchema>;
 
   @Column({ type: 'jsonb', default: '[]' })
-  links: z.infer<typeof organizationLinksSchema>;
+  links: z.infer<typeof organizationLinksSchema>[];
 
   @Column({ type: 'text', default: null })
   website: string;
