@@ -1,5 +1,3 @@
-import { isNaN } from 'lodash';
-
 export function largeNumberFormat(value: number): string | null {
   if (typeof value !== 'number') {
     return null;
