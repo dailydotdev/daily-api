@@ -144,6 +144,7 @@ import { CampaignUpdateAction } from '../../integrations/skadi';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
+import { Opportunity } from '../../entity/opportunities/Opportunity';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1362,6 +1363,11 @@ const worker: Worker = {
           break;
         case getTableName(con, OpportunityMatch):
           await onOpportunityMatchChange(con, logger, data);
+        case getTableName(con, Opportunity):
+          logger.debug(
+            { data: JSON.stringify(data) },
+            'received opportunity change',
+          );
           break;
       }
     } catch (err) {
