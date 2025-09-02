@@ -23,6 +23,7 @@ import {
   pubsub,
 } from './pubsub';
 import {
+  CandidateAcceptedOpportunityMessage,
   ContentUpdatedMessage,
   type TransferResponse,
   type UserBriefingRequest,
@@ -173,6 +174,7 @@ export type PubSubSchema = {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
   };
+  'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
