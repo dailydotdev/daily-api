@@ -124,7 +124,7 @@ const handleExtraCampaignStatsUpdate = async ({
     { id: campaignId },
     {
       flags: updateFlagsStatement<Campaign>({
-        newMembers: formatNumber(newMembers),
+        newMembers
       }),
     },
   );
