@@ -186,12 +186,12 @@ export interface CampaignBudgetUpdate {
   budget: string; // used budget
 }
 
-export interface CampaignExtraStatsUpdate {
+export type CampaignExtraStatsUpdate = Partial<{
   'complete joining squad': {
     events_count: number;
     unique_events_count: number;
   };
-}
+}>;
 
 export interface CampaignUpdateEventArgs {
   campaignId: string;

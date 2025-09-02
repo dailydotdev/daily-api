@@ -118,7 +118,7 @@ const handleExtraCampaignStatsUpdate = async ({
   params: { data, campaignId },
 }: HandlerEventArgs) => {
   const update = data as CampaignExtraStatsUpdate;
-  const newMembers = update?.['complete joining squad']?.unique_events_count;
+  const newMembers = update['complete joining squad']?.unique_events_count;
 
   await con
     .getRepository(Campaign)
