@@ -186,11 +186,13 @@ export interface CampaignBudgetUpdate {
   budget: string; // used budget
 }
 
+type ExtraStats = Partial<{
+  events_count: string;
+  unique_events_count: string;
+}>;
+
 export type CampaignExtraStatsUpdate = Partial<{
-  'complete joining squad': {
-    events_count: number;
-    unique_events_count: number;
-  };
+  'complete joining squad': ExtraStats;
 }>;
 
 export interface CampaignUpdateEventArgs {
