@@ -119,9 +119,10 @@ const handleCampaignCompleted = async ({
 }) => {
   const { campaignId } = params;
 
-  await con
-    .getRepository(Campaign)
-    .update({ id: campaignId }, { state: CampaignState.Completed });
+  await con.getRepository(Campaign).update(
+    { id: campaignId, state: CampaignState.Active }, // only update if still active - for example if cancelled, do not update
+    { state: CampaignState.Completed },
+  );
 
   switch (campaign.type) {
     case CampaignType.Post:
