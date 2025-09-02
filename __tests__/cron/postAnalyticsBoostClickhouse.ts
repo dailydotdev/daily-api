@@ -1,5 +1,5 @@
 import { crons } from '../../src/cron/index';
-import { postAnalyticsClickhouseCron as cron } from '../../src/cron/postAnalyticsClickhouse';
+import { postAnalyticsBoostClickhouseCron as cron } from '../../src/cron/postAnalyticsBoostClickhouse';
 import {
   expectSuccessfulCron,
   mockClickhouseClientOnce,
@@ -30,7 +30,7 @@ beforeEach(async () => {
   await deleteRedisKey(cronConfigRedisKey);
 });
 
-describe('postAnalyticsClickhouse cron', () => {
+describe('postAnalyticsBoostClickhouse cron', () => {
   it('should be registered', () => {
     const registeredWorker = crons.find((item) => item.name === cron.name);
 
@@ -44,9 +44,10 @@ describe('postAnalyticsClickhouse cron', () => {
       clickhouseClientMock,
       postAnalyticsFixture.map((item, index) => {
         return {
-          ...item,
           updatedAt: new Date(Date.now() + index * 1000).toISOString(),
-          id: `pap-${index}`,
+          id: `pabp-${index}`,
+          boostImpressions: item.impressions,
+          boostReach: item.reach,
         };
       }),
     );
@@ -65,6 +66,13 @@ describe('postAnalyticsClickhouse cron', () => {
     });
 
     const postAnalytics = await con.getRepository(PostAnalytics).find({
+      select: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'boostImpressions',
+        'boostReach',
+      ],
       order: {
         updatedAt: 'ASC',
       },
@@ -74,18 +82,11 @@ describe('postAnalyticsClickhouse cron', () => {
 
     postAnalytics.forEach((item, index) => {
       expect(item).toEqual({
-        id: `pap-${index}`,
+        id: `pabp-${index}`,
         updatedAt: expect.any(Date),
         createdAt: expect.any(Date),
-        ...postAnalyticsFixture[index],
-        awards: 0,
-        comments: 0,
-        coresEarned: 0,
-        downvotes: 0,
-        reputation: 0,
-        upvotes: 0,
-        boostImpressions: 0,
-        boostReach: 0,
+        boostImpressions: postAnalyticsFixture[index].impressions,
+        boostReach: postAnalyticsFixture[index].reach,
       } as PostAnalytics);
     });
 
@@ -105,9 +106,10 @@ describe('postAnalyticsClickhouse cron', () => {
       clickhouseClientMock,
       postAnalyticsFixture.map((item, index) => {
         return {
-          ...item,
           updatedAt: new Date(Date.now() + index * 1000).toISOString(),
-          id: `pap-${index}`,
+          id: `pabp-${index}`,
+          boostImpressions: item.impressions,
+          boostReach: item.reach,
         };
       }),
     );
@@ -115,6 +117,13 @@ describe('postAnalyticsClickhouse cron', () => {
     await expectSuccessfulCron(cron);
 
     const postAnalytics = await con.getRepository(PostAnalytics).find({
+      select: [
+        'id',
+        'createdAt',
+        'updatedAt',
+        'boostImpressions',
+        'boostReach',
+      ],
       order: {
         updatedAt: 'ASC',
       },
@@ -124,18 +133,11 @@ describe('postAnalyticsClickhouse cron', () => {
 
     postAnalytics.forEach((item, index) => {
       expect(item).toEqual({
-        id: `pap-${index}`,
+        id: `pabp-${index}`,
         updatedAt: expect.any(Date),
         createdAt: expect.any(Date),
-        ...postAnalyticsFixture[index],
-        awards: 0,
-        comments: 0,
-        coresEarned: 0,
-        downvotes: 0,
-        reputation: 0,
-        upvotes: 0,
-        boostImpressions: 0,
-        boostReach: 0,
+        boostImpressions: postAnalyticsFixture[index].impressions,
+        boostReach: postAnalyticsFixture[index].reach,
       } as PostAnalytics);
     });
 
@@ -147,9 +149,10 @@ describe('postAnalyticsClickhouse cron', () => {
       clickhouseClientMock,
       postAnalyticsFixture.map((item, index) => {
         return {
-          ...item,
           updatedAt: new Date(Date.now() + index * 1000).toISOString(),
-          id: `pap-${index}`,
+          id: `pabp-${index}`,
+          boostImpressions: item.impressions,
+          boostReach: item.reach,
         };
       }),
     );
@@ -184,9 +187,10 @@ describe('postAnalyticsClickhouse cron', () => {
       clickhouseClientMock,
       postAnalyticsFixture.map((item, index) => {
         return {
-          ...item,
           updatedAt: new Date(Date.now() + index * 1000).toISOString(),
-          id: `pap-${index}`,
+          id: `pabp-${index}`,
+          boostImpressions: item.impressions,
+          boostReach: item.reach,
         };
       }),
     );
@@ -199,10 +203,10 @@ describe('postAnalyticsClickhouse cron', () => {
       clickhouseClientMock,
       postAnalyticsFixture.map((item, index) => {
         return {
-          ...item,
           updatedAt: new Date(Date.now() + index * 1000).toISOString(),
-          id: `pap-${index}`,
-          impressions: item.impressions + 10,
+          id: `pabp-${index}`,
+          boostImpressions: item.impressions + 10,
+          boostReach: item.reach + 10,
         };
       }),
     );
@@ -210,7 +214,7 @@ describe('postAnalyticsClickhouse cron', () => {
     await expectSuccessfulCron(cron);
 
     const postAnalytics = await con.getRepository(PostAnalytics).find({
-      select: ['id', 'impressions'],
+      select: ['id', 'boostImpressions', 'boostReach'],
       order: {
         updatedAt: 'ASC',
       },
@@ -220,8 +224,9 @@ describe('postAnalyticsClickhouse cron', () => {
 
     postAnalytics.forEach((item, index) => {
       expect(item).toEqual({
-        id: `pap-${index}`,
-        impressions: postAnalyticsFixture[index].impressions + 10,
+        id: `pabp-${index}`,
+        boostImpressions: postAnalyticsFixture[index].impressions + 10,
+        boostReach: postAnalyticsFixture[index].reach + 10,
       } as PostAnalytics);
     });
   });
