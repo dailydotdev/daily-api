@@ -10,7 +10,8 @@ import {
 import { updateFlagsStatement } from '../common';
 import {
   CampaignUpdateEvent,
-  type CampaignStateUpdate,
+  type CampaignBudgetUpdate,
+  type CampaignExtraStatsUpdate,
   type CampaignStatsUpdate,
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
@@ -36,6 +37,12 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
         switch (params.data.event) {
           case CampaignUpdateEvent.StatsUpdated:
             return handleCampaignStatsUpdate({
+              con: manager,
+              params: params.data,
+              campaign,
+            });
+          case CampaignUpdateEvent.ExtraStatsUpdated:
+            return handleExtraCampaignStatsUpdate({
               con: manager,
               params: params.data,
               campaign,
@@ -76,7 +83,7 @@ const handleCampaignBudgetUpdate = async ({
   con,
   params: { data, campaignId },
 }: HandlerEventArgs) => {
-  const { budget: usedBudget } = data as CampaignStateUpdate;
+  const { budget: usedBudget } = data as CampaignBudgetUpdate;
 
   await con.getRepository(Campaign).update(
     { id: campaignId },
@@ -101,6 +108,21 @@ const handleCampaignStatsUpdate = async ({
         impressions,
         clicks,
         users: unique_users,
+      }),
+    },
+  );
+};
+
+const handleExtraCampaignStatsUpdate = async ({
+  con,
+  params: { data, campaignId },
+}: HandlerEventArgs) => {
+  await con.getRepository(Campaign).update(
+    { id: campaignId },
+    {
+      flags: updateFlagsStatement<Campaign>({
+        newMembers: (data as CampaignExtraStatsUpdate)['complete joining squad']
+          .unique_events_count,
       }),
     },
   );
