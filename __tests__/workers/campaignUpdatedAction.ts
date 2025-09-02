@@ -312,6 +312,70 @@ describe('campaignUpdatedAction worker', () => {
     );
   });
 
+  it('should not update cancelled Post campaigns when completion event is received', async () => {
+    // Set up a campaign in cancelled state
+    const cancelledCampaignId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
+    await con
+      .getRepository(Campaign)
+      .update({ id: cancelledCampaignId }, { state: CampaignState.Cancelled });
+
+    // Set a campaignId on a post to verify it's not cleared for cancelled campaigns
+    await con
+      .getRepository(Post)
+      .update({ id: 'p1' }, { flags: { campaignId: cancelledCampaignId } });
+
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: cancelledCampaignId,
+      event: CampaignUpdateEvent.Completed,
+      unique_users: 100,
+      data: {
+        budget: '10.00',
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign remains in cancelled state (not updated to completed)
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: cancelledCampaignId });
+
+    expect(campaign.state).toBe(CampaignState.Cancelled);
+  });
+
+  it('should not update cancelled Squad campaigns when completion event is received', async () => {
+    // Set up a Squad campaign in cancelled state
+    const cancelledCampaignId = 'f47ac10b-58cc-4372-a567-0e02b2c3d481';
+    await con
+      .getRepository(Campaign)
+      .update({ id: cancelledCampaignId }, { state: CampaignState.Cancelled });
+
+    // Set a campaignId on a source to verify it's not cleared for cancelled campaigns
+    await con
+      .getRepository(Source)
+      .update({ id: 'squad' }, { flags: { campaignId: cancelledCampaignId } });
+
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: cancelledCampaignId,
+      event: CampaignUpdateEvent.Completed,
+      unique_users: 100,
+      data: {
+        budget: '5.00',
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    // Verify campaign remains in cancelled state (not updated to completed)
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneByOrFail({ id: cancelledCampaignId });
+
+    expect(campaign.state).toBe(CampaignState.Cancelled);
+  });
+
   it('should update multiple campaign stats correctly', async () => {
     // First stats update
     const firstUpdate: CampaignUpdateEventArgs = {
