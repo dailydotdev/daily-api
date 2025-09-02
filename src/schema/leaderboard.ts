@@ -4,7 +4,7 @@ import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserCompany, UserStats, UserStreak } from '../entity';
 import { DataSource, In, Not } from 'typeorm';
-import { getLimit, ghostUser, GQLCompany } from '../common';
+import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
 import { MODERATORS } from '../config';
 
 export type GQLUserLeaderboard = {
@@ -103,6 +103,7 @@ export const typeDefs = /* GraphQL */ `
 
 const excludedUsers = [
   ghostUser.id,
+  systemUser.id,
   ...MODERATORS,
   '6h7QO55AFClNmsV1zBaJt',
   'rgFi4sbhpMZwIZZlSjl8d',
