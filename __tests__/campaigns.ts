@@ -2155,7 +2155,7 @@ describe('query dailyCampaignReachEstimate', () => {
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
           return (
-            body.budget === 20 &&
+            body.daily_budget === 20 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             body.targeting?.value?.boost?.keywords === undefined
@@ -2187,7 +2187,7 @@ describe('query dailyCampaignReachEstimate', () => {
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
           return (
-            body.budget === 10 &&
+            body.daily_budget === 10 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             body.targeting?.value?.boost?.keywords === undefined
@@ -2219,7 +2219,7 @@ describe('query dailyCampaignReachEstimate', () => {
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
           return (
-            body.budget === 1000 &&
+            body.daily_budget === 1000 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             body.targeting?.value?.boost?.keywords === undefined
@@ -2254,7 +2254,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 20 &&
+          body.daily_budget === 20 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2279,7 +2279,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 100 &&
+          body.daily_budget === 100 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2322,7 +2322,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2357,7 +2357,7 @@ describe('query dailyCampaignReachEstimate', () => {
       .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'NONE' &&
           body.targeting?.value?.boost?.post_id === undefined &&
           Array.isArray(keywords) &&
@@ -2392,7 +2392,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 40 &&
+          body.daily_budget === 40 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2427,7 +2427,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2459,7 +2459,7 @@ describe('query dailyCampaignReachEstimate', () => {
       .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'NONE' &&
           body.targeting?.value?.boost?.post_id === undefined &&
           Array.isArray(keywords) &&
@@ -2514,7 +2514,7 @@ describe('query dailyCampaignReachEstimate', () => {
       .post('/api/reach', (body) => {
         const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === undefined &&
           Array.isArray(requestKeywords) &&
