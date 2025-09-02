@@ -1,3 +1,4 @@
+import z from 'zod';
 import {
   Column,
   Entity,
@@ -8,7 +9,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './User';
-import z from 'zod';
+import { CandidateStatus } from '@dailydotdev/schema';
+import type { EmploymentType } from '@dailydotdev/schema';
 import type { CompanySize, CompanyStage } from '../Organization';
 import type {
   locationSchema,
@@ -16,19 +18,6 @@ import type {
   salaryExpectationSchema,
   userCandidateCVSchema,
 } from '../../common/schema/userCandidate';
-
-export enum CandidateStatus {
-  Disabled = 'disabled',
-  ActivelyLooking = 'actively_looking',
-  OpenToOffers = 'open_to_offers',
-}
-
-export enum EmploymentType {
-  FullTime = 'full_time',
-  PartTime = 'part_time',
-  Contract = 'contract',
-  Internship = 'internship',
-}
 
 @Entity()
 export class UserCandidatePreference {
@@ -38,9 +27,9 @@ export class UserCandidatePreference {
   })
   userId: string;
 
-  @Column({ type: 'text', default: CandidateStatus.Disabled })
+  @Column({ type: 'text', default: CandidateStatus.DISABLED })
   @Index('IDX_user_candidate_preference_status')
-  status: CandidateStatus = CandidateStatus.Disabled;
+  status: CandidateStatus = CandidateStatus.DISABLED;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -58,7 +47,7 @@ export class UserCandidatePreference {
   roleType: number;
 
   @Column({ type: 'text', array: true, default: null })
-  employmentType: EmploymentType[];
+  employmentType: Set<EmploymentType>;
 
   @Column({ type: 'jsonb', default: '{}' })
   salaryExpectation: z.infer<typeof salaryExpectationSchema>;
@@ -70,10 +59,10 @@ export class UserCandidatePreference {
   locationType: z.infer<typeof locationTypeSchema>;
 
   @Column({ type: 'text', array: true, default: null })
-  companyStage: CompanyStage[];
+  companyStage: Set<CompanyStage>;
 
   @Column({ type: 'text', array: true, default: null })
-  companySize: CompanySize[];
+  companySize: Set<CompanySize>;
 
   @OneToOne('User', (user: User) => user.candidatePreference, {
     lazy: true,
