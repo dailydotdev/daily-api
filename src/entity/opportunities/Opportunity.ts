@@ -47,7 +47,7 @@ export class Opportunity {
   @Column({ type: 'text' })
   tldr: string;
 
-  @Column({ type: 'jsonb', default: {} })
+  @Column({ type: 'jsonb', default: [] })
   content: z.infer<typeof opportunityContentSchema>[];
 
   @Column({ type: 'jsonb', default: {} })
