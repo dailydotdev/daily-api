@@ -1,3 +1,4 @@
+import { OpportunityState } from '@dailydotdev/schema';
 import {
   Alerts,
   Banner,
@@ -145,14 +146,8 @@ import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
-import {
-  OpportunityMessage,
-  OpportunityState,
-  OpportunityType as OpportunityTypeSchema,
-} from '@dailydotdev/schema';
 import { OpportunityType } from '../../entity/opportunities/types';
-import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
-import { stringArrayToListValue } from '../../common/protobuf';
+import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1262,84 +1257,18 @@ const onOpportunityChange = async (
     return;
   }
 
-  if (data.payload.after?.type !== OpportunityType.Job) {
-    logger.debug('not a job opportunity, skipping');
-    return;
-  }
+  if (
+    data.payload.after?.type === OpportunityType.Job &&
+    data.payload.after?.state === OpportunityState.LIVE
+  ) {
+    const isUpdate = data.payload.op === 'u';
 
-  const state = parseInt(data.payload.after?.state as unknown as string, 10);
-  if (isNaN(state)) {
-    logger.debug('opportunity state is not a number, skipping');
-    return;
-  }
-
-  if (state !== OpportunityState.LIVE) {
-    logger.debug('opportunity not live, skipping');
-    return;
-  }
-
-  const isUpdate = data.payload.op === 'u';
-
-  const topicName = isUpdate
-    ? 'api.v1.opportunity-updated'
-    : 'api.v1.opportunity-added';
-
-  const opportunity = await con.getRepository(OpportunityJob).findOneOrFail({
-    where: { id: data.payload.after!.id },
-    relations: {
-      organization: true,
-      keywords: true,
-    },
-  });
-
-  const organization = await opportunity.organization;
-  const keywords = (await opportunity.keywords).map((k) => k.keyword);
-
-  if (!organization) {
-    logger.warn(
-      {
-        opportunityId: opportunity.id,
-        organizationId: opportunity.organizationId,
-      },
-      'opportunity has no organization, skipping',
-    );
-    return;
-  }
-
-  const perks = stringArrayToListValue(Array.from(organization.perks || []));
-
-  try {
-    await triggerTypedEvent(
+    await notifyJobOpportunity({
+      con,
       logger,
-      topicName,
-      new OpportunityMessage({
-        opportunity: {
-          id: opportunity.id,
-          type: OpportunityTypeSchema.JOB,
-          state: state,
-          title: opportunity.title,
-          tldr: opportunity.tldr,
-          content: opportunity.content,
-          meta: opportunity.meta,
-          keywords: keywords,
-        },
-        organization: {
-          id: organization.id,
-          name: organization.name,
-          description: organization.description,
-          perks: perks,
-          location: organization.location,
-          size: organization.size,
-          category: organization.category,
-          stage: organization.stage,
-        },
-      }),
-    );
-  } catch (error) {
-    logger.error(
-      { err: error, opportunityId: opportunity.id },
-      'failed to send opportunity event',
-    );
+      opportunityId: data.payload.after!.id,
+      isUpdate,
+    });
   }
 };
 
