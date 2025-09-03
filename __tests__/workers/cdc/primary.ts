@@ -155,12 +155,8 @@ import {
   ContentPreferenceType,
 } from '../../../src/entity/contentPreference/types';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
-import {
-  CandidateStatus,
-  UserCandidatePreference,
-} from '../../../src/entity/user/UserCandidatePreference';
+import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
 import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
-import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
