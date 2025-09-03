@@ -50,6 +50,7 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
       case 'createFreeformPost':
       case 'submitExternalLink':
       case 'sharePost':
+      case 'createSourcePostModeration':
         return `${context.userId ?? context.trackingId}:createPost`;
       case 'commentOnPost':
       case 'commentOnComment':
