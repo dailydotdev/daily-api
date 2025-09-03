@@ -30,7 +30,11 @@ export class UserCandidatePreference {
   })
   userId: string;
 
-  @Column({ type: 'text', default: CandidateStatus.DISABLED })
+  @Column({
+    type: 'integer',
+    default: CandidateStatus.DISABLED,
+    comment: 'CandidateStatus from protobuf schema',
+  })
   @Index('IDX_user_candidate_preference_status')
   status: CandidateStatus = CandidateStatus.DISABLED;
 
@@ -49,8 +53,13 @@ export class UserCandidatePreference {
   @Column({ type: 'float8', default: 0.5 })
   roleType: number;
 
-  @Column({ type: 'text', array: true, default: null })
-  employmentType: EmploymentType[];
+  @Column({
+    type: 'integer',
+    array: true,
+    default: null,
+    comment: 'EmploymentType from protobuf schema',
+  })
+  employmentType: Array<EmploymentType>;
 
   @Column({ type: 'jsonb', default: '{}' })
   salaryExpectation: z.infer<typeof salaryExpectationSchema>;
@@ -61,11 +70,21 @@ export class UserCandidatePreference {
   @Column({ type: 'jsonb', default: '{}' })
   locationType: z.infer<typeof locationTypeSchema>;
 
-  @Column({ type: 'text', array: true, default: null })
-  companyStage: CompanyStage[];
+  @Column({
+    type: 'integer',
+    array: true,
+    default: null,
+    comment: 'CompanyStage from protobuf schema',
+  })
+  companyStage: Array<CompanyStage>;
 
-  @Column({ type: 'text', array: true, default: null })
-  companySize: CompanySize[];
+  @Column({
+    type: 'integer',
+    array: true,
+    default: null,
+    comment: 'CompanySize from protobuf schema',
+  })
+  companySize: Array<CompanySize>;
 
   @OneToOne('User', (user: User) => user.candidatePreference, {
     lazy: true,

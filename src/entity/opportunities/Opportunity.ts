@@ -38,7 +38,7 @@ export class Opportunity {
   @Index('IDX_opportunity_type')
   type: OpportunityType;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'integer', comment: 'OpportunityState from protobuf schema' })
   state: OpportunityState;
 
   @Column({ type: 'text' })

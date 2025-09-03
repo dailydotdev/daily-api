@@ -36,11 +36,13 @@ interface NotifyBoostedProps {
     Campaign,
     'createdAt' | 'endedAt' | 'type' | 'flags' | 'id' | 'userId'
   >;
+  isTeamMember: boolean;
 }
 
 export const notifyNewPostBoostedSlack = async ({
   mdLink,
   campaign,
+  isTeamMember = false,
 }: NotifyBoostedProps): Promise<void> => {
   const { createdAt, endedAt, userId, flags, type, id } = campaign;
   const difference = getAbsoluteDifferenceInDays(endedAt, createdAt);
@@ -70,6 +72,7 @@ export const notifyNewPostBoostedSlack = async ({
             text: concatTextToNewline(
               '*Boosted by:*',
               `<https://app.daily.dev/${userId}|${userId}>`,
+              `${isTeamMember ? ' (team)' : ''}`,
             ),
           },
         ],

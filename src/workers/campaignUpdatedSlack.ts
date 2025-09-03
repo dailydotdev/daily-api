@@ -4,6 +4,8 @@ import {
   CampaignType,
   Source,
   type ConnectionManager,
+  Feature,
+  FeatureType,
 } from '../entity';
 import { type DataSource } from 'typeorm';
 import {
@@ -80,8 +82,17 @@ const handleCampaignStarted = async ({
     return;
   }
 
+  const isTeamMember = await con.getRepository(Feature).exists({
+    where: {
+      userId: campaign.userId,
+      feature: FeatureType.Team,
+      value: 1,
+    },
+  });
+
   await notifyNewPostBoostedSlack({
     mdLink,
     campaign,
+    isTeamMember,
   });
 };
