@@ -47,6 +47,7 @@ import {
   debeziumTimeToDate,
   decreaseReputation,
   DEFAULT_TIMEZONE,
+  getSecondsTimestamp,
   increaseReputation,
   isNumber,
   NotificationReason,
@@ -1261,7 +1262,7 @@ const onOpportunityMatchChange = async (
           screening: data.payload.after.screening,
           candidatePreference: {
             ...candidatePreference,
-            updatedAt: candidatePreference.updatedAt.getTime(),
+            updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
           },
         }),
       );
