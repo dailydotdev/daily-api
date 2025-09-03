@@ -22,7 +22,7 @@ export const salaryExpectationSchema = z.object({
 export const locationTypeSchema = z.object({
   remote: z.boolean(),
   office: z.boolean(),
-  onSite: z.boolean(),
+  hybrid: z.boolean(),
 });
 
 export const locationSchema = z.object({
