@@ -157,6 +157,7 @@ import {
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
 import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
+import { CandidateStatus } from '@dailydotdev/schema';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -5632,7 +5633,7 @@ describe('opportunity match', () => {
     await saveFixtures(con, User, usersFixture);
     await con.getRepository(UserCandidatePreference).save({
       userId: '1',
-      status: 'open_to_offers',
+      status: CandidateStatus.OPEN_TO_OFFERS,
     });
   });
 
