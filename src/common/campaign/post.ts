@@ -129,7 +129,7 @@ export interface BoostedPostStats
 }
 
 export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
-  stats?: BoostedPostStats;
+  stats?: Partial<BoostedPostStats>;
 }
 interface GeneratePostBoostEmailProps {
   con: DataSource;
