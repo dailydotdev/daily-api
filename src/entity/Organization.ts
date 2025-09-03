@@ -13,29 +13,7 @@ import type {
   organizationLinksSchema,
   organizationSubscriptionFlagsSchema,
 } from '../common/schema/organizations';
-
-export enum CompanySize {
-  SIZE_1_10 = '1-10',
-  SIZE_11_50 = '11-50',
-  SIZE_51_200 = '51-200',
-  SIZE_201_500 = '201-500',
-  SIZE_501_1000 = '501-1000',
-  SIZE_1001_5000 = '1001-5000',
-  SIZE_5000_PLUS = '5000+',
-}
-
-export enum CompanyStage {
-  PreSeed = 'pre_seed',
-  Seed = 'seed',
-  SeriesA = 'series_a',
-  SeriesB = 'series_b',
-  SeriesC = 'series_c',
-  SeriesD = 'series_d',
-  Public = 'public',
-  Bootstrapped = 'bootstrapped',
-  NonProfit = 'non_profit',
-  Government = 'government',
-}
+import type { CompanySize, CompanyStage } from '@dailydotdev/schema';
 
 @Entity()
 @Index('IDX_organization_subflags_subscriptionid', { synchronize: false })
@@ -74,7 +52,7 @@ export class Organization {
   description: string;
 
   @Column({ type: 'text', array: true, default: null })
-  perks: Set<string>;
+  perks: Array<string>;
 
   @Column({ type: 'numeric', default: null })
   founded: number;

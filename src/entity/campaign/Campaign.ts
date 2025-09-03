@@ -16,7 +16,6 @@ export enum CampaignType {
 }
 
 export enum CampaignState {
-  Pending = 'PENDING',
   Active = 'ACTIVE',
   Completed = 'COMPLETED',
   Cancelled = 'CANCELLED',
@@ -29,6 +28,7 @@ export type CampaignFlags = Partial<{
   clicks: number;
   users: number;
   newMembers: number;
+  __imported: true; // just to differentiate imported from test stuff for squad boost
 }>;
 
 @Entity()

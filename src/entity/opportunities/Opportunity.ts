@@ -16,8 +16,8 @@ import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
 import type {
-  OpportunityContentSchema,
-  OpportunityMetaSchema,
+  opportunityContentSchema,
+  opportunityMetaSchema,
 } from '../../common/schema/opportunities';
 
 @Entity()
@@ -38,7 +38,7 @@ export class Opportunity {
   @Index('IDX_opportunity_type')
   type: OpportunityType;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'integer', comment: 'OpportunityState from protobuf schema' })
   state: OpportunityState;
 
   @Column({ type: 'text' })
@@ -48,10 +48,10 @@ export class Opportunity {
   tldr: string;
 
   @Column({ type: 'jsonb', default: {} })
-  content: z.infer<typeof OpportunityContentSchema>[];
+  content: z.infer<typeof opportunityContentSchema>[];
 
   @Column({ type: 'jsonb', default: {} })
-  meta: z.infer<typeof OpportunityMetaSchema>;
+  meta: z.infer<typeof opportunityMetaSchema>;
 
   @OneToMany('OpportunityUser', (user: OpportunityUser) => user.opportunity, {
     lazy: true,
