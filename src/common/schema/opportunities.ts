@@ -1,14 +1,15 @@
 import z from 'zod';
+import { locationSchema, locationTypeSchema } from './userCandidate';
 
-export const OpportunityContentSchema = z.object({
+export const opportunityContentSchema = z.object({
   title: z.string(),
   content: z.string(),
   html: z.string().optional(),
 });
 
-export const OpportunityMetaSchema = z.object({
-  location: z.string(),
-  workSite: z.string(),
+export const opportunityMetaSchema = z.object({
+  location: locationSchema,
+  location_type: locationTypeSchema,
   employmentType: z.string(),
   teamSize: z.string(),
   salaryRange: z.string(),
@@ -16,12 +17,12 @@ export const OpportunityMetaSchema = z.object({
   roleType: z.string(),
 });
 
-export const OpportunityMatchDescriptionSchema = z.object({
+export const opportunityMatchDescriptionSchema = z.object({
   description: z.string(),
   rank: z.number(),
 });
 
-export const OpportunityMatchScreeningSchema = z.object({
+export const opportunityMatchScreeningSchema = z.object({
   screening: z.string(),
   answer: z.string(),
 });

@@ -10,8 +10,11 @@ import {
 } from 'typeorm';
 import type { User } from './User';
 import { CandidateStatus } from '@dailydotdev/schema';
-import type { EmploymentType } from '@dailydotdev/schema';
-import type { CompanySize, CompanyStage } from '../Organization';
+import type {
+  CompanySize,
+  CompanyStage,
+  EmploymentType,
+} from '@dailydotdev/schema';
 import type {
   locationSchema,
   locationTypeSchema,
