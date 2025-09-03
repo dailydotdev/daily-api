@@ -51,6 +51,7 @@ const handlePostBoostStarted = async (
     where: {
       userId,
       feature: FeatureType.Team,
+      value: 1,
     },
   });
 

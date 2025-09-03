@@ -86,6 +86,7 @@ const handleCampaignStarted = async ({
     where: {
       userId: campaign.userId,
       feature: FeatureType.Team,
+      value: 1,
     },
   });
 
