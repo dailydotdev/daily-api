@@ -1309,7 +1309,7 @@ export const typeDefs = /* GraphQL */ `
       ID of the exisiting post
       """
       postId: ID
-    ): SourcePostModeration! @auth
+    ): SourcePostModeration! @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Hide a post from all the user feeds
