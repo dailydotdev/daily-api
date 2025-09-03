@@ -113,6 +113,11 @@ export const typeDefs = /* GraphQL */ `
       Paginate first
       """
       first: Int
+
+      """
+      ID of the entity to fetch campaigns for
+      """
+      entityId: ID
     ): CampaignConnection! @auth
 
     """
@@ -199,7 +204,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }),
     campaignsList: async (
       _,
-      args: ConnectionArguments,
+      args: ConnectionArguments & {
+        entityId?: string;
+      },
       ctx: AuthContext,
       info,
     ): Promise<Connection<GQLCampaign>> => {
@@ -219,6 +226,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           builder.queryBuilder.andWhere(`"${alias}"."userId" = :userId`, {
             userId,
           });
+
+          if (args.entityId) {
+            builder.queryBuilder.andWhere(
+              `"${alias}"."referenceId" = :entityId`,
+              {
+                entityId: args.entityId,
+              },
+            );
+          }
 
           builder.queryBuilder.orderBy(
             `CASE WHEN "${alias}"."state" = '${CampaignState.Active}' THEN 0 ELSE 1 END`,
