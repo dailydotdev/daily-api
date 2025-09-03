@@ -168,6 +168,7 @@ export enum CampaignUpdateEvent {
   Started = 'CAMPAIGN_STARTED',
   Completed = 'CAMPAIGN_COMPLETED',
   StatsUpdated = 'STATS_UPDATED',
+  ExtraStatsUpdated = 'EXTRA_STATS_UPDATED',
   BudgetUpdated = 'BUDGET_UPDATED',
 }
 
@@ -181,15 +182,28 @@ export interface CampaignStatsUpdate {
   unique_users: number;
 }
 
-export interface CampaignStateUpdate {
+export interface CampaignBudgetUpdate {
   budget: string; // used budget
 }
+
+type ExtraStats = Partial<{
+  events_count: string;
+  unique_events_count: string;
+}>;
+
+export type CampaignExtraStatsUpdate = Partial<{
+  'complete joining squad': ExtraStats;
+}>;
 
 export interface CampaignUpdateEventArgs {
   campaignId: string;
   event: CampaignUpdateEvent;
   unique_users: number;
-  data: CampaignCompleted | CampaignStatsUpdate | CampaignStateUpdate;
+  data:
+    | CampaignCompleted
+    | CampaignStatsUpdate
+    | CampaignBudgetUpdate
+    | CampaignExtraStatsUpdate;
   d_update: number;
 }
 

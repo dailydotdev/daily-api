@@ -13,7 +13,6 @@ export const userCandidateCVSchema = z.object({
 
 export const salaryExpectationSchema = z.object({
   min: z.number().min(0).nullable(),
-  max: z.number().min(0).nullable(),
   currency: z.string().default('USD'),
   period: z.enum(SalaryDuration, {
     error: 'Invalid salary duration',
