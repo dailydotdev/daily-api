@@ -52,7 +52,7 @@ export class Organization {
   description: string;
 
   @Column({ type: 'text', array: true, default: null })
-  perks: Set<string>;
+  perks: Array<string>;
 
   @Column({ type: 'numeric', default: null })
   founded: number;
