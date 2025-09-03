@@ -1300,6 +1300,9 @@ const onOrganizationChange = async (
       .where('opportunity.organizationId = :organizationId', {
         organizationId: data.payload.after!.id,
       })
+      .andWhere('opportunity.state = :state', {
+        state: OpportunityState.LIVE,
+      })
       .getMany();
 
     if (!opportunities?.length) {

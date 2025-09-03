@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { CandidateStatus, OpportunityState } from '@dailydotdev/schema';
 import {
   Alerts,
   ArticlePost,
@@ -20,6 +21,7 @@ import {
   MarketingCta,
   MarketingCtaStatus,
   NotificationV2,
+  Organization,
   Post,
   PostKeyword,
   PostMention,
@@ -156,8 +158,12 @@ import {
 } from '../../../src/entity/contentPreference/types';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
-import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
-import { CandidateStatus } from '@dailydotdev/schema';
+import {
+  OpportunityMatchStatus,
+  OpportunityType,
+} from '../../../src/entity/opportunities/types';
+import { notifyJobOpportunity } from '../../../src/common/opportunity/pubsub';
+import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -200,6 +206,14 @@ jest.mock('../../../src/common', () => ({
   runReminderWorkflow: jest.fn(),
   cancelReminderWorkflow: jest.fn(),
   notifySquadFeaturedUpdated: jest.fn(),
+}));
+
+jest.mock('../../../src/common/opportunity/pubsub', () => ({
+  ...(jest.requireActual('../../../src/common/opportunity/pubsub') as Record<
+    string,
+    unknown
+  >),
+  notifyJobOpportunity: jest.fn(),
 }));
 
 jest.mock('../../../src/temporal/notifications/utils', () => ({
@@ -5710,5 +5724,291 @@ describe('opportunity match', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('opportunity', () => {
+  it('should trigger on new opportunity', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: '1-cusc',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(notifyJobOpportunity).mock.calls[0][0].isUpdate).toEqual(
+      false,
+    );
+    expect(
+      jest.mocked(notifyJobOpportunity).mock.calls[0][0].opportunityId,
+    ).toEqual('2eca06f7-dcaf-4681-8009-c1240c4dd278');
+  });
+
+  it('should not trigger on new opportunity when state is not live', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: '1-cusc',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger on new opportunity when state is job', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: 'not-job' as OpportunityType,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: '1-cusc',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+  });
+
+  it('should trigger on updated opportunity', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: '1-cusc',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(notifyJobOpportunity).mock.calls[0][0].isUpdate).toEqual(
+      true,
+    );
+    expect(
+      jest.mocked(notifyJobOpportunity).mock.calls[0][0].opportunityId,
+    ).toEqual('2eca06f7-dcaf-4681-8009-c1240c4dd278');
+  });
+
+  it('should not trigger on updated opportunity when state is not live', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: '1-cusc',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger on new opportunity when state is job', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: 'not-job' as OpportunityType,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: '1-cusc',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('organization', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Organization, [
+      {
+        id: 'org-1',
+        seats: 1,
+        name: 'Organization 1',
+      },
+      {
+        id: 'org-2',
+        seats: 2,
+        name: 'Organization 2',
+      },
+    ]);
+
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: '1330e80e-012d-4f5a-b540-67444a11aa49',
+        type: OpportunityType.Job,
+        title: 'Senior Backend Engineer',
+        tldr: 'We are looking for a Senior Backend Engineer...',
+        state: OpportunityState.LIVE,
+        organizationId: 'org-1',
+      },
+      {
+        id: '0c3f7d20-828e-4aea-b832-e204386c2904',
+        type: OpportunityType.Job,
+        title: 'Senior Backend Engineer',
+        tldr: 'We are looking for a 2nd Senior Backend Engineer...',
+        state: OpportunityState.LIVE,
+        organizationId: 'org-1',
+      },
+      {
+        id: '7f4e1b3c-2dcb-4f0a-8f3a-1c3e5e5f6a7b',
+        type: OpportunityType.Job,
+        title: 'Junior Backend Engineer',
+        tldr: 'We are looking for a Senior Backend Engineer...',
+        state: OpportunityState.DRAFT,
+        organizationId: 'org-1',
+      },
+      {
+        id: '9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d',
+        type: OpportunityType.Job,
+        title: 'Junior Backend Engineer',
+        tldr: 'We are also looking for a Senior Backend Engineer...',
+        state: OpportunityState.DRAFT,
+        organizationId: 'org-2',
+      },
+    ]);
+  });
+
+  it('should not  trigger opportunity job update on organization creation', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        after: {
+          id: 'org-1',
+          seats: 1,
+          name: 'Organization 1',
+          description: 'New description',
+        },
+        op: 'c',
+        table: 'organization',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+  });
+
+  it('should trigger opportunity job update for live opportunities when organization description is updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        before: {
+          id: 'org-1',
+          seats: 1,
+          name: 'Organization 1',
+        },
+        after: {
+          id: 'org-1',
+          seats: 1,
+          name: 'Organization 1',
+          description: 'New description',
+        },
+        op: 'u',
+        table: 'organization',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(notifyJobOpportunity).mock.calls[0][0].isUpdate).toEqual(
+      true,
+    );
+    expect(
+      jest.mocked(notifyJobOpportunity).mock.calls[0][0].opportunityId,
+    ).toEqual('1330e80e-012d-4f5a-b540-67444a11aa49');
+    expect(jest.mocked(notifyJobOpportunity).mock.calls[1][0].isUpdate).toEqual(
+      true,
+    );
+    expect(
+      jest.mocked(notifyJobOpportunity).mock.calls[1][0].opportunityId,
+    ).toEqual('0c3f7d20-828e-4aea-b832-e204386c2904');
+  });
+
+  it('should not trigger opportunity job update when organization has no live opportunities', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        before: {
+          id: 'org-2',
+          seats: 2,
+          name: 'Organization 2',
+        },
+        after: {
+          id: 'org-2',
+          seats: 2,
+          name: 'Organization 2',
+          description: 'New description',
+        },
+        op: 'u',
+        table: 'organization',
+      }),
+    );
+
+    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
   });
 });
