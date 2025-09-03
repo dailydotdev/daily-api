@@ -1,5 +1,5 @@
 import { TypedWorker } from './worker';
-import { CampaignType, Post } from '../entity';
+import { CampaignType, Feature, FeatureType, Post } from '../entity';
 import type { DataSource } from 'typeorm';
 import {
   debeziumTimeToDate,
@@ -47,6 +47,13 @@ const handlePostBoostStarted = async (
     return;
   }
 
+  const isTeamMember = await con.getRepository(Feature).exists({
+    where: {
+      userId,
+      feature: FeatureType.Team,
+    },
+  });
+
   await notifyNewPostBoostedSlack({
     campaign: {
       id: campaign.campaignId,
@@ -57,5 +64,6 @@ const handlePostBoostStarted = async (
       userId,
     },
     mdLink: `<${getDiscussionLink(post.id)}|${post.id}>`,
+    isTeamMember,
   });
 };

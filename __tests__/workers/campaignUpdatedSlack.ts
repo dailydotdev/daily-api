@@ -1,6 +1,6 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/campaignUpdatedSlack';
-import { Campaign, Source, User } from '../../src/entity';
+import { Campaign, Source, User, Feature } from '../../src/entity';
 import { sourcesFixture } from '../fixture/source';
 import { usersFixture } from '../fixture/user';
 import { campaignsFixture } from '../fixture/campaign';
@@ -15,6 +15,7 @@ import {
   CampaignState,
   CampaignType,
 } from '../../src/entity/campaign/Campaign';
+import { FeatureType } from '../../src/entity/Feature';
 
 // Spy on the webhooks.ads.send method
 const mockAdsSend = jest
@@ -271,5 +272,78 @@ describe('campaignUpdatedSlack worker', () => {
 
     // Restore original environment
     process.env.NODE_ENV = originalEnv;
+  });
+
+  it('should send notification when user is a team member', async () => {
+    // Add a team feature for user '1'
+    const teamFeature = {
+      feature: FeatureType.Team,
+      userId: '1',
+      createdAt: new Date(),
+    };
+
+    await saveFixtures(con, Feature, [teamFeature]);
+
+    const eventData: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.Started,
+      unique_users: 100,
+      data: { budget: '10.00' },
+      d_update: Date.now(),
+    };
+
+    await expectSuccessfulTypedBackground(worker, eventData);
+
+    expect(mockAdsSend).toHaveBeenCalledWith({
+      blocks: [
+        {
+          type: 'header',
+          text: {
+            type: 'plain_text',
+            text: ':boost: New boost has started',
+            emoji: true,
+          },
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: '*Post:*\n<http://localhost:5002/posts/p1|p1>',
+            },
+            {
+              type: 'mrkdwn',
+              text: '*Boosted by:*\n<https://app.daily.dev/1|1>\n (team)',
+            },
+          ],
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: '*Budget:*\n1000 :cores:',
+            },
+            {
+              type: 'mrkdwn',
+              text: '*Duration:*\n7 days',
+            },
+          ],
+        },
+        {
+          type: 'section',
+          fields: [
+            {
+              type: 'mrkdwn',
+              text: '*Campaign:*\nf47ac10b-58cc-4372-a567-0e02b2c3d479',
+            },
+            {
+              type: 'mrkdwn',
+              text: '*Type:*\nPost',
+            },
+          ],
+        },
+      ],
+    });
   });
 });
