@@ -1266,7 +1266,10 @@ const onOpportunityMatchChange = async (
           createdAt: data.payload.after.createdAt,
           updatedAt: data.payload.after.updatedAt,
           screening: data.payload.after.screening,
-          candidatePreference,
+          candidatePreference: {
+            ...candidatePreference,
+            updatedAt: candidatePreference.updatedAt.getTime(),
+          },
         }),
       );
     }

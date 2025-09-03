@@ -50,7 +50,7 @@ export class UserCandidatePreference {
   roleType: number;
 
   @Column({ type: 'text', array: true, default: null })
-  employmentType: Set<EmploymentType>;
+  employmentType: EmploymentType[];
 
   @Column({ type: 'jsonb', default: '{}' })
   salaryExpectation: z.infer<typeof salaryExpectationSchema>;
@@ -62,10 +62,10 @@ export class UserCandidatePreference {
   locationType: z.infer<typeof locationTypeSchema>;
 
   @Column({ type: 'text', array: true, default: null })
-  companyStage: Set<CompanyStage>;
+  companyStage: CompanyStage[];
 
   @Column({ type: 'text', array: true, default: null })
-  companySize: Set<CompanySize>;
+  companySize: CompanySize[];
 
   @OneToOne('User', (user: User) => user.candidatePreference, {
     lazy: true,
