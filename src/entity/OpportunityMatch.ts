@@ -13,8 +13,8 @@ import type { User } from './user';
 import { OpportunityMatchStatus } from './opportunities/types';
 import type z from 'zod';
 import type {
-  OpportunityMatchDescriptionSchema,
-  OpportunityMatchScreeningSchema,
+  opportunityMatchDescriptionSchema,
+  opportunityMatchScreeningSchema,
 } from '../common/schema/opportunities';
 
 @Entity()
@@ -42,10 +42,10 @@ export class OpportunityMatch {
   status: OpportunityMatchStatus;
 
   @Column({ type: 'jsonb', default: '{}' })
-  description: z.infer<typeof OpportunityMatchDescriptionSchema>;
+  description: z.infer<typeof opportunityMatchDescriptionSchema>;
 
   @Column({ type: 'jsonb', default: '[]' })
-  screening: z.infer<typeof OpportunityMatchScreeningSchema>[];
+  screening: z.infer<typeof opportunityMatchScreeningSchema>[];
 
   @Column({ type: 'jsonb', default: '{}' })
   applicationRank: unknown;
