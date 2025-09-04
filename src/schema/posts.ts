@@ -1311,7 +1311,7 @@ export const typeDefs = /* GraphQL */ `
       ID of the exisiting post
       """
       postId: ID
-    ): SourcePostModeration! @auth
+    ): SourcePostModeration! @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Hide a post from all the user feeds
@@ -2436,11 +2436,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      await ensureSourcePermissions(
-        ctx,
-        props.sourceId,
-        SourcePermissions.PostRequest,
-      );
+      await Promise.all([
+        ensureSourcePermissions(
+          ctx,
+          props.sourceId,
+          SourcePermissions.PostRequest,
+        ),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
 
       const pendingPost = await validateSourcePostModeration(ctx, props);
       const moderatedPost = await createSourcePostModeration({
