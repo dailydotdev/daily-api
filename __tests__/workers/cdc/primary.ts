@@ -1,5 +1,9 @@
 import nock from 'nock';
-import { CandidateStatus, OpportunityState } from '@dailydotdev/schema';
+import {
+  CandidateStatus,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
 import {
   Alerts,
   ArticlePost,
@@ -158,10 +162,7 @@ import {
 } from '../../../src/entity/contentPreference/types';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
-import {
-  OpportunityMatchStatus,
-  OpportunityType,
-} from '../../../src/entity/opportunities/types';
+import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import {
   opportunitiesFixture,
