@@ -314,6 +314,9 @@ describe('generateNotification', () => {
         'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       ),
     ).toBeTruthy();
+    expect(actual.notification.title).toEqual(
+      'Your boosted Post just wrapped up!',
+    );
     expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/ido.jpg',
@@ -352,6 +355,9 @@ describe('generateNotification', () => {
         'f47ac10b-58cc-4372-a567-0e02b2c3d481',
       ),
     ).toBeTruthy();
+    expect(actual.notification.title).toEqual(
+      'Your boosted Squad just wrapped up!',
+    );
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',

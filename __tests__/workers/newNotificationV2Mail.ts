@@ -16,6 +16,9 @@ import worker, {
 import {
   ArticlePost,
   BRIEFING_SOURCE,
+  Campaign,
+  CampaignType,
+  CampaignState,
   CollectionPost,
   Comment,
   FreeformPost,
@@ -39,10 +42,12 @@ import {
   WelcomePost,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
+import { campaignsFixture } from '../fixture/campaign';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
   NotificationBaseContext,
+  NotificationCampaignContext,
   NotificationCollectionContext,
   NotificationCommentContext,
   NotificationCommenterContext,
@@ -84,6 +89,7 @@ import {
 import { env } from 'node:process';
 import { Product, ProductType } from '../../src/entity/Product';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
+import { CampaignUpdateEvent } from '../../src/common/campaign/common';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -2374,5 +2380,103 @@ describe('briefing_ready notification', () => {
     const args = jest.mocked(sendEmail).mock
       .calls[0][0] as SendEmailRequestWithTemplate;
     expect(args.send_at).toBeUndefined();
+  });
+});
+
+describe('campaign_completed notifications', () => {
+  it('should set parameters for Post Campaign Completed email', async () => {
+    await con.getRepository(ArticlePost).save(postsFixture[0]);
+    const campaign = await con.getRepository(Campaign).save({
+      ...campaignsFixture[0],
+      id: 'campaign-post-test',
+      referenceId: 'p1',
+      type: CampaignType.Post,
+      state: CampaignState.Completed,
+      createdAt: new Date(2023, 0, 15, 10, 0),
+      endedAt: new Date(2023, 0, 22, 10, 0),
+    });
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+
+    const ctx: NotificationCampaignContext = {
+      userIds: ['1'],
+      user: user as Reference<User>,
+      campaign: campaign as Reference<Campaign>,
+      event: CampaignUpdateEvent.Completed,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.CampaignCompleted,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      start_date: 'Jan 15, 2023',
+      end_date: 'Jan 22, 2023',
+      analytics_link:
+        'http://localhost:5002/notifications?c_id=campaign-post-test&utm_source=notification&utm_medium=email&utm_campaign=campaign_completed',
+      post_link: 'http://localhost:5002/posts/p1',
+      post_image: 'https://daily.dev/image.jpg',
+      post_title: 'P1',
+    });
+    expect(args.transactional_message_id).toEqual('79');
+  });
+
+  it('should set parameters for Squad Campaign Completed email', async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    const campaign = await con.getRepository(Campaign).save({
+      ...campaignsFixture[1],
+      id: 'campaign-squad-test',
+      referenceId: 'a',
+      type: CampaignType.Squad,
+      state: CampaignState.Completed,
+      createdAt: new Date(2023, 1, 10, 9, 0),
+      endedAt: new Date(2023, 1, 17, 9, 0),
+    });
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+
+    const ctx: NotificationCampaignContext = {
+      userIds: ['1'],
+      user: user as Reference<User>,
+      campaign: campaign as Reference<Campaign>,
+      source: source as Reference<Source>,
+      event: CampaignUpdateEvent.Completed,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.CampaignCompleted,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      start_date: 'Feb 10, 2023',
+      end_date: 'Feb 17, 2023',
+      analytics_link:
+        'http://localhost:5002/notifications?c_id=campaign-squad-test&utm_source=notification&utm_medium=email&utm_campaign=campaign_completed',
+      source_image: 'http://image.com/a',
+      source_handle: 'a',
+      source_name: 'A',
+    });
+    expect(args.transactional_message_id).toEqual('83');
   });
 });
