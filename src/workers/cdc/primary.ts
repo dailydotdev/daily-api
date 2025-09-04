@@ -141,7 +141,6 @@ import {
   ContentPreferenceType,
 } from '../../entity/contentPreference/types';
 import type { ContentPreferenceUser } from '../../entity/contentPreference/ContentPreferenceUser';
-import { CampaignUpdateAction } from '../../integrations/skadi';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -601,23 +600,6 @@ const onPostChange = async (
           { id: data.payload.before!.id },
           { metadataChangedAt: new Date() },
         );
-    }
-
-    if (isChanged(data.payload.before!, data.payload.after!, 'flags')) {
-      const beforeFlags = data.payload.before!.flags as unknown as string;
-      const afterFlags = data.payload.after!.flags as unknown as string;
-      const before = JSON.parse(beforeFlags || '{}') as Post['flags'];
-      const after = JSON.parse(afterFlags || '{}') as Post['flags'];
-
-      if (!before.campaignId && !!after.campaignId) {
-        const post = data.payload.after!;
-        await triggerTypedEvent(logger, 'skadi.v1.campaign-updated', {
-          postId: post.id,
-          campaignId: after.campaignId,
-          userId: post.authorId!,
-          action: CampaignUpdateAction.Started,
-        });
-      }
     }
 
     if (isChanged(data.payload.before!, data.payload.after!, 'title')) {
