@@ -2,6 +2,8 @@ import { messageToJson, Worker } from './worker';
 import { ChangeObject } from '../types';
 import {
   ArticlePost,
+  Campaign,
+  CampaignType,
   CollectionPost,
   Comment,
   FreeformPost,
@@ -59,7 +61,6 @@ import { BriefPost } from '../entity/posts/BriefPost';
 import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
-import { generateBoostEmailUpdate } from '../common/campaign/post';
 import { isNullOrUndefined } from '../common/object';
 import { generateCampaignCompletedEmail } from '../common/campaign/common';
 
@@ -67,7 +68,14 @@ interface Data {
   notification: ChangeObject<NotificationV2>;
 }
 
-export const notificationToTemplateId: Record<NotificationType, string> = {
+type TemplateIdRecord =
+  | string
+  | ((con: DataSource, notification: NotificationV2) => Promise<string>);
+
+export const notificationToTemplateId: Record<
+  NotificationType,
+  TemplateIdRecord
+> = {
   source_post_approved: '62',
   source_post_submitted: '61',
   source_post_rejected: '', // we won't send an email on rejected ones
@@ -109,15 +117,26 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
-  post_boost_completed: '79',
-  post_boost_first_milestone: '80',
   briefing_ready: '81',
   user_follow: '',
   marketing: '',
   new_user_welcome: '',
   announcements: '',
   in_app_purchases: '',
-  campaign_completed: '', // TODO: MI-1007 - wait for design's template id
+  campaign_completed: async (con, notification) => {
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: notification.referenceId });
+
+    switch (campaign?.type) {
+      case CampaignType.Post:
+        return '79'; // Post Campaign Completed Email
+      case CampaignType.Squad:
+        return '83'; // Squad Campaign Completed Email
+      default:
+        return '';
+    }
+  },
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -132,8 +151,6 @@ export type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  post_boost_completed: generateBoostEmailUpdate,
-  post_boost_first_milestone: generateBoostEmailUpdate,
   campaign_completed: generateCampaignCompletedEmail,
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
@@ -1106,7 +1123,13 @@ const worker: Worker = {
                 return;
               }
               const formattedData = formatTemplateDate(templateData);
-              const templateId = notificationToTemplateId[notification.type];
+              const templateIdValue =
+                notificationToTemplateId[notification.type];
+              const templateId =
+                typeof templateIdValue === 'string'
+                  ? templateIdValue
+                  : await templateIdValue?.(con, notification);
+
               await sendEmail({
                 ...baseNotificationEmailData,
                 transactional_message_id: templateId,

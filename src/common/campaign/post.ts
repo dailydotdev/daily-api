@@ -7,10 +7,8 @@ import {
   CampaignType,
   Post,
   PostType,
-  type Campaign,
   type ConnectionManager,
   type FreeformPost,
-  type NotificationV2,
   type SharePost,
 } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
@@ -24,10 +22,7 @@ import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
-import { largeNumberFormat } from '../devcard';
-import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
-import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { usdToCores } from '../number';
 
 import {
@@ -132,24 +127,16 @@ export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
 }
 interface GeneratePostBoostEmailProps {
   con: DataSource;
-  postId: string;
-  notification: NotificationV2;
-  campaign: Pick<Campaign, 'createdAt' | 'endedAt' | 'flags'>;
+  referenceId: string;
 }
 
 export const generatePostBoostEmail = async ({
   con,
-  postId,
-  notification,
-  campaign,
+  referenceId,
 }: GeneratePostBoostEmailProps) => {
-  const post = await con.getRepository(Post).findOne({
-    where: { id: postId },
+  const post = await con.getRepository(Post).findOneOrFail({
+    where: { id: referenceId },
   });
-
-  if (!post) {
-    return null;
-  }
 
   const sharedPost = await (post.type === PostType.Share
     ? con.getRepository(ArticlePost).findOne({
@@ -159,50 +146,12 @@ export const generatePostBoostEmail = async ({
     : Promise.resolve(null));
 
   const title = truncatePostToTweet(post || sharedPost);
-  const engagement = post.views + post.upvotes + post.comments;
 
   return {
-    start_date: formatMailDate(campaign.createdAt),
-    end_date: formatMailDate(campaign.endedAt),
-    impressions: largeNumberFormat(campaign.flags.impressions ?? 0),
-    clicks: largeNumberFormat(campaign.flags.clicks ?? 0),
-    engagement: largeNumberFormat(engagement),
     post_link: getDiscussionLink(post.slug),
-    analytics_link: addNotificationEmailUtm(
-      notification.targetUrl,
-      notification.type,
-    ),
     post_image: sharedPost?.image || (post as FreeformPost).image,
     post_title: title,
   };
-};
-
-export const generateBoostEmailUpdate: TemplateDataFunc = async (
-  con,
-  user,
-  notification,
-) => {
-  const campaign = await con.getRepository(CampaignPost).findOneBy({
-    id: notification.referenceId,
-  });
-
-  if (!campaign) {
-    return null;
-  }
-
-  return generatePostBoostEmail({
-    con,
-    postId: campaign.postId,
-    notification,
-    campaign: {
-      createdAt: campaign.createdAt,
-      endedAt: campaign.endedAt,
-      flags: {
-        impressions: campaign.flags.impressions!,
-        clicks: campaign.flags.clicks!,
-      },
-    },
-  });
 };
 
 export const getAdjustedReach = (value: number) => {

@@ -5,6 +5,8 @@ import {
   CampaignType,
   type CampaignFlags,
   type ConnectionManager,
+  NotificationV2,
+  Source,
 } from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
@@ -21,6 +23,8 @@ import { notificationsLink } from '../links';
 import type { NotificationCampaignContext } from '../../notifications';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { queryReadReplica } from '../queryReadReplica';
+import { addNotificationEmailUtm, formatMailDate } from '../mailing';
+import { DataSource } from 'typeorm';
 
 export interface StartCampaignArgs {
   value: string;
@@ -237,6 +241,38 @@ export const generateCampaignCompletedNotification = (
   }
 };
 
+export const getCompleteNotificationProps = (
+  campaign: Campaign,
+  notification: NotificationV2,
+) => ({
+  start_date: formatMailDate(campaign.createdAt),
+  end_date: formatMailDate(campaign.endedAt),
+  analytics_link: addNotificationEmailUtm(
+    notification.targetUrl,
+    notification.type,
+  ),
+});
+
+type GetEmailProps<T extends object = object> = (props: {
+  referenceId: string;
+  con: DataSource;
+}) => Promise<T>;
+
+export const campaignTypeToEmailProps: Record<CampaignType, GetEmailProps> = {
+  [CampaignType.Post]: generatePostBoostEmail,
+  [CampaignType.Squad]: async ({ referenceId, con }) => {
+    const source = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: referenceId });
+
+    return {
+      source_image: source.image,
+      source_handle: source.handle,
+      source_name: source.name,
+    };
+  },
+};
+
 export const generateCampaignCompletedEmail: TemplateDataFunc = async (
   con,
   user,
@@ -250,18 +286,13 @@ export const generateCampaignCompletedEmail: TemplateDataFunc = async (
     return null;
   }
 
-  switch (campaign.type) {
-    case CampaignType.Post:
-      return generatePostBoostEmail({
-        con,
-        postId: campaign.referenceId,
-        notification,
-        campaign,
-      });
-    // TODO: MI-1007 - generate email once template id is provided
-    default:
-      return null;
-  }
+  const baseProps = getCompleteNotificationProps(campaign, notification);
+  const typeProps = await campaignTypeToEmailProps[campaign.type]({
+    con,
+    referenceId: campaign.referenceId,
+  });
+
+  return { ...baseProps, ...typeProps };
 };
 
 export type UserCampaignStats = Pick<

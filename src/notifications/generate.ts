@@ -28,9 +28,9 @@ import {
   NotificationUpvotersContext,
   NotificationUserContext,
   type NotificationAwardContext,
-  type NotificationBoostContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
+  NotificationCampaignContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -39,6 +39,7 @@ import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency } from '../common/number';
 import { generateCampaignCompletedNotification } from '../common/campaign/common';
+import { capitalize } from 'lodash';
 
 const systemTitle = () => undefined;
 
@@ -176,12 +177,8 @@ export const notificationTitleMap: Record<
   }: NotificationOrganizationContext) => {
     return `<strong>Your team is growing!</strong> ${user.name} just joined your organization ${organization.name}. They now have access to daily.dev Plus ✧`;
   },
-  post_boost_completed: () =>
-    `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
-  post_boost_first_milestone: () =>
-    `Your boosted post is performing well! You're getting traction, check it out!`,
-  campaign_completed: () =>
-    `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
+  campaign_completed: ({ campaign }: NotificationCampaignContext) =>
+    `Your boosted ${capitalize(campaign.type.toLowerCase())} just wrapped up!`,
   briefing_ready: () =>
     `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
   user_follow: (ctx: NotificationUserContext) => {
@@ -498,33 +495,7 @@ export const generateNotificationMap: Record<
       .targetUrl(getOrganizationPermalink(ctx.organization))
       .icon(NotificationIcon.Bell)
       .avatarOrganization(ctx.organization),
-  post_boost_completed: (builder, ctx: NotificationBoostContext) =>
-    builder
-      .icon(NotificationIcon.DailyDev)
-      .referenceBoost(ctx)
-      .avatarUser(ctx.user)
-      .targetUrl(notificationsLink)
-      .setTargetUrlParameter([
-        ['post_boost', 'true'],
-        ['c_id', ctx.campaignId],
-      ])
-      .uniqueKey(
-        `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
-      ),
   campaign_completed: generateCampaignCompletedNotification,
-  post_boost_first_milestone: (builder, ctx: NotificationBoostContext) =>
-    builder
-      .icon(NotificationIcon.DailyDev)
-      .referenceBoost(ctx)
-      .avatarUser(ctx.user)
-      .targetUrl(notificationsLink)
-      .setTargetUrlParameter([
-        ['post_boost', 'true'],
-        ['c_id', ctx.campaignId],
-      ])
-      .uniqueKey(
-        `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
-      ),
   briefing_ready: (
     builder: NotificationBuilder,
     ctx: NotificationPostContext,
