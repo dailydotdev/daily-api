@@ -146,6 +146,7 @@ import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
+import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1237,35 +1238,11 @@ const onOpportunityMatchChange = async (
       data.payload.after?.status === OpportunityMatchStatus.CandidateAccepted &&
       data?.payload.before?.status !== OpportunityMatchStatus.CandidateAccepted
     ) {
-      const candidatePreference = await con
-        .getRepository(UserCandidatePreference)
-        .findOneBy({
-          userId: data.payload.after.userId,
-        });
-
-      if (!candidatePreference) {
-        logger.warn(
-          { userId: data.payload.after.userId },
-          'Candidate preference not found for user accepting opportunity',
-        );
-        return;
-      }
-
-      await triggerTypedEvent(
+      await notifyOpportunityMatchAccepted({
+        con,
         logger,
-        'api.v1.candidate-accepted-opportunity',
-        new CandidateAcceptedOpportunityMessage({
-          opportunityId: data.payload.after.opportunityId,
-          userId: data.payload.after.userId,
-          createdAt: data.payload.after.createdAt,
-          updatedAt: data.payload.after.updatedAt,
-          screening: data.payload.after.screening,
-          candidatePreference: {
-            ...candidatePreference,
-            updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
-          },
-        }),
-      );
+        data: data.payload.after!,
+      });
     }
   }
 };
