@@ -1,5 +1,5 @@
 export enum OpportunityType {
-  Job = 'job',
+  Job = 'JOB',
 }
 
 export enum OpportunityUserType {
@@ -7,8 +7,8 @@ export enum OpportunityUserType {
 }
 
 export enum OpportunityMatchStatus {
-  Pending = 'pending',
-  CandidateAccepted = 'candidate_accepted',
+  Pending = 'PENDING',
+  CandidateAccepted = 'CANDIDATE_ACCEPTED',
   CandidateRejected = 'candidate_rejected',
   CandidateTimeOut = 'candidate_time_out',
   RecruiterAccepted = 'recruiter_accepted',

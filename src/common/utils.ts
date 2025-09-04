@@ -166,6 +166,14 @@ export const toGQLEnum = (value: Record<string, string>, name: string) => {
   return `enum ${name} { ${Object.values(value).join(' ')} }`;
 };
 
+export const protoToGQLEnum = <T>(value: T, name: string) => {
+  return `enum ${name} { ${Object.keys(
+    value as unknown as Record<string, number>,
+  )
+    .filter((key) => isNaN(Number(key)))
+    .join(' ')} }`;
+};
+
 export const toChangeObject = <T>(entity: T): ChangeObject<T> =>
   JSON.parse(Buffer.from(JSON.stringify(entity)).toString('utf-8').trim());
 
