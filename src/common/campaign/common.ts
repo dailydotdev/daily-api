@@ -7,6 +7,11 @@ import {
   type ConnectionManager,
   NotificationV2,
   Source,
+  Post,
+  PostType,
+  ArticlePost,
+  SharePost,
+  FreeformPost,
 } from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
@@ -16,15 +21,16 @@ import type { AuthContext } from '../../Context';
 import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
 import { getSourceTags } from './source';
-import { generatePostBoostEmail, getPostTags } from './post';
+import { getPostTags } from './post';
 import type { NotificationBuilder } from '../../notifications/builder';
 import { NotificationIcon } from '../../notifications/icons';
-import { notificationsLink } from '../links';
+import { getDiscussionLink, notificationsLink } from '../links';
 import type { NotificationCampaignContext } from '../../notifications';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { queryReadReplica } from '../queryReadReplica';
 import { addNotificationEmailUtm, formatMailDate } from '../mailing';
 import { DataSource } from 'typeorm';
+import { truncatePostToTweet } from '../twitter';
 
 export interface StartCampaignArgs {
   value: string;
@@ -259,7 +265,26 @@ type GetEmailProps<T extends object = object> = (props: {
 }) => Promise<T>;
 
 export const campaignTypeToEmailProps: Record<CampaignType, GetEmailProps> = {
-  [CampaignType.Post]: generatePostBoostEmail,
+  [CampaignType.Post]: async ({ con, referenceId }) => {
+    const post = await con.getRepository(Post).findOneOrFail({
+      where: { id: referenceId },
+    });
+
+    const sharedPost = await (post.type === PostType.Share
+      ? con.getRepository(ArticlePost).findOne({
+          where: { id: (post as SharePost).sharedPostId },
+          select: ['title', 'image', 'slug'],
+        })
+      : Promise.resolve(null));
+
+    const title = truncatePostToTweet(post || sharedPost);
+
+    return {
+      post_link: getDiscussionLink(post.slug),
+      post_image: sharedPost?.image || (post as FreeformPost).image,
+      post_title: title,
+    };
+  },
   [CampaignType.Squad]: async ({ referenceId, con }) => {
     const source = await con
       .getRepository(Source)

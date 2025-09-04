@@ -1,15 +1,12 @@
 import { ValidationError } from 'apollo-server-errors';
 import { AuthContext } from '../../Context';
 import {
-  ArticlePost,
   CampaignPost,
   CampaignState,
   CampaignType,
   Post,
   PostType,
   type ConnectionManager,
-  type FreeformPost,
-  type SharePost,
 } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
 import {
@@ -17,12 +14,10 @@ import {
   type GetCampaignResponse,
 } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
-import { type DataSource } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
-import { truncatePostToTweet } from '../twitter';
 import { usdToCores } from '../number';
 
 import {
@@ -125,34 +120,6 @@ export interface BoostedPostStats
 export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
   stats?: Partial<BoostedPostStats>;
 }
-interface GeneratePostBoostEmailProps {
-  con: DataSource;
-  referenceId: string;
-}
-
-export const generatePostBoostEmail = async ({
-  con,
-  referenceId,
-}: GeneratePostBoostEmailProps) => {
-  const post = await con.getRepository(Post).findOneOrFail({
-    where: { id: referenceId },
-  });
-
-  const sharedPost = await (post.type === PostType.Share
-    ? con.getRepository(ArticlePost).findOne({
-        where: { id: (post as SharePost).sharedPostId },
-        select: ['title', 'image', 'slug'],
-      })
-    : Promise.resolve(null));
-
-  const title = truncatePostToTweet(post || sharedPost);
-
-  return {
-    post_link: getDiscussionLink(post.slug),
-    post_image: sharedPost?.image || (post as FreeformPost).image,
-    post_title: title,
-  };
-};
 
 export const getAdjustedReach = (value: number) => {
   // We do plus-minus 8% of the generated value

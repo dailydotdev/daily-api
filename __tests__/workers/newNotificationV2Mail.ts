@@ -2423,7 +2423,7 @@ describe('campaign_completed notifications', () => {
       end_date: 'Jan 22, 2023',
       analytics_link:
         'http://localhost:5002/notifications?c_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890&utm_source=notification&utm_medium=email&utm_campaign=campaign_completed',
-      post_link: 'http://localhost:5002/posts/p1',
+      post_link: 'http://localhost:5002/posts/p1-p1',
       post_image: 'https://daily.dev/image.jpg',
       post_title: 'P1',
     });
@@ -2437,7 +2437,7 @@ describe('campaign_completed notifications', () => {
     const source = await con.getRepository(Source).findOneBy({ id: 'a' });
     const campaign = await con.getRepository(Campaign).save({
       ...campaignsFixture[1],
-      id: 'b2c3d4e5-f6g7-8901-bcde-f21234567891',
+      id: 'f68db959-3142-423d-8f8d-b294b5f49b97',
       referenceId: 'a',
       type: CampaignType.Squad,
       state: CampaignState.Completed,
@@ -2472,7 +2472,7 @@ describe('campaign_completed notifications', () => {
       start_date: 'Feb 10, 2023',
       end_date: 'Feb 17, 2023',
       analytics_link:
-        'http://localhost:5002/notifications?c_id=b2c3d4e5-f6g7-8901-bcde-f21234567891&utm_source=notification&utm_medium=email&utm_campaign=campaign_completed',
+        'http://localhost:5002/notifications?c_id=f68db959-3142-423d-8f8d-b294b5f49b97&utm_source=notification&utm_medium=email&utm_campaign=campaign_completed',
       source_image: 'http://image.com/a',
       source_handle: 'a',
       source_name: 'A',
