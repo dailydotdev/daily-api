@@ -1,3 +1,4 @@
+import { OpportunityState } from '@dailydotdev/schema';
 import {
   Alerts,
   Banner,
@@ -15,6 +16,7 @@ import {
   FreeformPost,
   MarketingCta,
   normalizeCollectionPostSources,
+  Organization,
   Post,
   PostMention,
   PostRelation,
@@ -144,6 +146,9 @@ import { CampaignUpdateAction } from '../../integrations/skadi';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
+import { Opportunity } from '../../entity/opportunities/Opportunity';
+import { OpportunityType } from '../../entity/opportunities/types';
+import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1244,6 +1249,79 @@ const onOpportunityMatchChange = async (
   }
 };
 
+const onOpportunityChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<Opportunity>,
+) => {
+  if (data.payload.op !== 'c' && data.payload.op !== 'u') {
+    return;
+  }
+
+  if (
+    data.payload.after?.type === OpportunityType.Job &&
+    data.payload.after?.state === OpportunityState.LIVE
+  ) {
+    const isUpdate = data.payload.op === 'u';
+
+    await notifyJobOpportunity({
+      con,
+      logger,
+      opportunityId: data.payload.after!.id,
+      isUpdate,
+    });
+  }
+};
+
+const onOrganizationChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<Organization>,
+) => {
+  if (data.payload.op !== 'u') {
+    return;
+  }
+
+  if (
+    isChanged(data.payload.before!, data.payload.after!, [
+      'description',
+      'perks',
+      'founded',
+      'location',
+      'size',
+      'category',
+      'stage',
+    ])
+  ) {
+    const opportunities = await con
+      .getRepository<Pick<Opportunity, 'id'>>(Opportunity)
+      .createQueryBuilder('opportunity')
+      .select('opportunity.id')
+      .where('opportunity.organizationId = :organizationId', {
+        organizationId: data.payload.after!.id,
+      })
+      .andWhere('opportunity.state = :state', {
+        state: OpportunityState.LIVE,
+      })
+      .getMany();
+
+    if (!opportunities?.length) {
+      return;
+    }
+
+    await Promise.all(
+      opportunities.map(async (opportunity) => {
+        await notifyJobOpportunity({
+          con,
+          logger,
+          opportunityId: opportunity.id,
+          isUpdate: true,
+        });
+      }),
+    );
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1362,6 +1440,11 @@ const worker: Worker = {
           break;
         case getTableName(con, OpportunityMatch):
           await onOpportunityMatchChange(con, logger, data);
+        case getTableName(con, Opportunity):
+          await onOpportunityChange(con, logger, data);
+          break;
+        case getTableName(con, Organization):
+          await onOrganizationChange(con, logger, data);
           break;
       }
     } catch (err) {

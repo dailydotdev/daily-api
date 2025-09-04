@@ -1,4 +1,5 @@
 import nock from 'nock';
+import { CandidateStatus, OpportunityState } from '@dailydotdev/schema';
 import {
   Alerts,
   ArticlePost,
@@ -20,6 +21,7 @@ import {
   MarketingCta,
   MarketingCtaStatus,
   NotificationV2,
+  Organization,
   Post,
   PostKeyword,
   PostMention,
@@ -156,8 +158,16 @@ import {
 } from '../../../src/entity/contentPreference/types';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
-import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
-import { CandidateStatus } from '@dailydotdev/schema';
+import {
+  OpportunityMatchStatus,
+  OpportunityType,
+} from '../../../src/entity/opportunities/types';
+import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
+import {
+  opportunitiesFixture,
+  organizationsFixture,
+} from '../../fixture/opportunity';
+import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -5709,6 +5719,240 @@ describe('opportunity match', () => {
         table: 'opportunity_match',
       }),
     );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('opportunity', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+  });
+
+  it('should trigger on new opportunity', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+  });
+
+  it('should not trigger on new opportunity when state is not live', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: 'org-1',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger on new opportunity when state is job', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: 'not-job' as OpportunityType,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should trigger on updated opportunity', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+  });
+
+  it('should not trigger on updated opportunity when state is not live', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.Job,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: 'org-1',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger on new opportunity when state is job', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: 'not-job' as OpportunityType,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('organization', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+  });
+
+  it('should not  trigger opportunity job update on organization creation', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          seats: 1,
+          name: 'Organization 1',
+          description: 'New description',
+        },
+        op: 'c',
+        table: 'organization',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should trigger opportunity job update for live opportunities when organization description is updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          seats: 1,
+          name: 'Organization 1',
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          seats: 1,
+          name: 'Organization 1',
+          description: 'New description',
+        },
+        op: 'u',
+        table: 'organization',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+  });
+
+  it('should not trigger opportunity job update when organization has no live opportunities', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        before: {
+          id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+          seats: 2,
+          name: 'Organization 2',
+        },
+        after: {
+          id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+          seats: 2,
+          name: 'Organization 2',
+          description: 'New description',
+        },
+        op: 'u',
+        table: 'organization',
+      }),
+    );
+
     expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });

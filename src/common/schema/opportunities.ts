@@ -1,4 +1,6 @@
 import z from 'zod';
+import { OpportunityState } from '@dailydotdev/schema';
+import { OpportunityType } from '../../entity/opportunities/types';
 import { locationSchema, locationTypeSchema } from './userCandidate';
 
 export const opportunityContentSchema = z.object({
@@ -25,4 +27,21 @@ export const opportunityMatchDescriptionSchema = z.object({
 export const opportunityMatchScreeningSchema = z.object({
   screening: z.string(),
   answer: z.string(),
+});
+
+export const opportunitySchema = z.object({
+  id: z.uuid(),
+  createdAt: z.string().transform((str) => new Date(str)),
+  updatedAt: z.string().transform((str) => new Date(str)),
+  type: z.enum(OpportunityType, {
+    error: 'Invalid opportunity type',
+  }),
+  state: z.enum(OpportunityState, {
+    error: 'Invalid opportunity state',
+  }),
+  title: z.string(),
+  tldr: z.string(),
+  content: z.array(opportunityContentSchema),
+  meta: opportunityMetaSchema,
+  keywords: z.array(z.string()).optional(),
 });

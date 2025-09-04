@@ -25,6 +25,7 @@ import {
 import {
   CandidateAcceptedOpportunityMessage,
   ContentUpdatedMessage,
+  type OpportunityMessage,
   type TransferResponse,
   type UserBriefingRequest,
 } from '@dailydotdev/schema';
@@ -175,6 +176,8 @@ export type PubSubSchema = {
     payload: ChangeObject<ReputationEvent>;
   };
   'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
+  'api.v1.opportunity-added': OpportunityMessage;
+  'api.v1.opportunity-updated': OpportunityMessage;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

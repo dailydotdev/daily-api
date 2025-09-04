@@ -18,6 +18,14 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     description: 'A platform for developers',
     location: 'San Francisco',
   },
+  {
+    id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+    name: 'Yearly Dev Inc',
+    image: 'https://example.com/logo.png',
+    website: 'https://yearly.dev',
+    description: 'A platform for others',
+    location: 'Skatval',
+  },
 ];
 
 export const opportunitiesFixture: DeepPartial<Opportunity>[] = [
@@ -62,6 +70,48 @@ export const opportunitiesFixture: DeepPartial<Opportunity>[] = [
     createdAt: new Date('2023-01-02'),
     updatedAt: new Date('2023-01-02'),
     organizationId: '550e8400-e29b-41d4-a716-446655440000',
+  },
+  {
+    id: '550e8400-e29b-41d4-a716-446655440003',
+    type: OpportunityType.Job,
+    state: OpportunityState.DRAFT,
+    title: 'Senior Full Stack Developer',
+    tldr: 'Join our team as a Senior Full Stack Developer',
+    content: [
+      {
+        title: 'Job Description',
+        content: 'We are looking for a Senior Full Stack Developer...',
+        html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+      },
+    ],
+    meta: {
+      title: 'Senior Full Stack Developer',
+      content: 'Join our engineering team',
+    },
+    createdAt: new Date('2023-01-01'),
+    updatedAt: new Date('2023-01-01'),
+    organizationId: '550e8400-e29b-41d4-a716-446655440000',
+  },
+  {
+    id: '550e8400-e29b-41d4-a716-446655440004',
+    type: OpportunityType.Job,
+    state: OpportunityState.DRAFT,
+    title: 'Frontend Developer',
+    tldr: 'Build amazing user interfaces',
+    content: [
+      {
+        title: 'Role Overview',
+        content: 'Frontend Developer position...',
+        html: '<p>Frontend Developer position...</p>',
+      },
+    ],
+    meta: {
+      title: 'Frontend Developer',
+      content: 'UI/UX focused role',
+    },
+    createdAt: new Date('2023-01-02'),
+    updatedAt: new Date('2023-01-02'),
+    organizationId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
   },
 ];
 
