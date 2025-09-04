@@ -2,9 +2,15 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
-import { Opportunity, OpportunityType } from '@dailydotdev/schema';
+import {
+  EmploymentType,
+  Opportunity,
+  OpportunityType,
+  SeniorityLevel,
+} from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { protoToGQLEnum } from '../common';
+import { protoToGQLEnum, toGQLEnum } from '../common';
+import { OpportunityMatchStatus } from '../entity/opportunities/types';
 
 export interface GQLOpportunity
   extends Pick<
@@ -20,44 +26,40 @@ export interface GQLOpportunityMatch
 
 export const typeDefs = /* GraphQL */ `
   ${protoToGQLEnum<typeof OpportunityType>(OpportunityType, 'OpportunityType')}
+  ${protoToGQLEnum<typeof SeniorityLevel>(SeniorityLevel, 'SeniorityLevel')}
+  ${protoToGQLEnum<typeof EmploymentType>(EmploymentType, 'EmploymentType')}
 
-  enum OpportunityMatchStatus {
-    PENDING
-    CANDIDATE_ACCEPTED
-    CANDIDATE_REJECTED
-    CANDIDATE_TIMEOUT
-    RECRUITER_ACCEPTED
-    RECRUITER_REJECTED
-  }
-  enum SocialMedia {
-    FACEBOOK
-    TWITTER
-    #etc etc
-  }
-  type OpportunityContent {
-    title: String!
-    content: String!
+  ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
+
+  type OpportunityContentBlock {
+    content: String
     html: String!
   }
+
+  type OpportunityContent {
+    overview: OpportunityContentBlock
+    responsibilities: OpportunityContentBlock
+    requirements: OpportunityContentBlock
+    whatYoullDo: OpportunityContentBlock
+    interviewProcess: OpportunityContentBlock
+  }
+
   type OpportunityMeta {
-    title: String!
-    content: String!
+    employmentType: EmploymentType
+    teamSize: Int
+    # salary: Salary # TODO: implement Salary type
+    seniorityLevel: SeniorityLevel
+    roleType: Float
   }
-  type SocialMediaLink {
-    type: SocialMedia! # facebook, twitter, etc.
-    link: String!
-  }
-  type CustomLink {
-    title: String!
-    link: String!
-  }
+
   type Opportunity {
     id: ID!
     type: OpportunityType!
     title: String!
     tldr: String
-    content: [OpportunityContent!]!
-    meta: [OpportunityMeta!]!
+    content: OpportunityContent!
+    meta: OpportunityMeta!
+    # location: [Location!]! # TODO: implement Location type
     organization: Organization!
     recruiters: [User!]!
     keywords: [Keyword!]!

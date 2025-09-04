@@ -20,3 +20,4 @@ export * from './vote';
 export * from './feed';
 export * from './constants';
 export * from './userIntegration';
+export * from './protobuf';

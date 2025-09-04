@@ -79,9 +79,16 @@ describe('opportunity queries', () => {
           title
           tldr
           content {
-            title
-            content
-            html
+            overview {
+              content
+              html
+            }
+          }
+          meta {
+            roleType
+            teamSize
+            seniorityLevel
+            employmentType
           }
           organization {
             id
@@ -112,13 +119,18 @@ describe('opportunity queries', () => {
         type: 'JOB',
         title: 'Senior Full Stack Developer',
         tldr: 'Join our team as a Senior Full Stack Developer',
-        content: [
-          {
-            title: 'Job Description',
+        content: {
+          overview: {
             content: 'We are looking for a Senior Full Stack Developer...',
             html: '<p>We are looking for a Senior Full Stack Developer...</p>',
           },
-        ],
+        },
+        meta: {
+          roleType: 0.0,
+          teamSize: 10,
+          seniorityLevel: 'SENIOR',
+          employmentType: 'FULL_TIME',
+        },
         organization: {
           id: '550e8400-e29b-41d4-a716-446655440000',
           name: 'Daily Dev Inc',
@@ -176,7 +188,7 @@ describe('opportunity queries', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.getOpportunityMatch).toEqual({
-        status: 'PENDING',
+        status: 'pending',
         description: {
           description: 'Interested candidate',
         },
@@ -192,7 +204,7 @@ describe('opportunity queries', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.getOpportunityMatch).toEqual({
-        status: 'CANDIDATE_ACCEPTED',
+        status: 'candidate_accepted',
         description: {
           description: 'Accepted candidate',
         },
