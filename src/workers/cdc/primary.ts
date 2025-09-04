@@ -47,7 +47,6 @@ import {
   debeziumTimeToDate,
   decreaseReputation,
   DEFAULT_TIMEZONE,
-  getSecondsTimestamp,
   increaseReputation,
   isNumber,
   NotificationReason,
@@ -144,8 +143,6 @@ import type { ContentPreferenceUser } from '../../entity/contentPreference/Conte
 import { CampaignUpdateAction } from '../../integrations/skadi';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
-import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
-import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
 
 const isFreeformPostLongEnough = (
