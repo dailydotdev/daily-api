@@ -162,8 +162,12 @@ import {
   OpportunityMatchStatus,
   OpportunityType,
 } from '../../../src/entity/opportunities/types';
-import { notifyJobOpportunity } from '../../../src/common/opportunity/pubsub';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
+import {
+  opportunitiesFixture,
+  organizationsFixture,
+} from '../../fixture/opportunity';
+import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -206,14 +210,6 @@ jest.mock('../../../src/common', () => ({
   runReminderWorkflow: jest.fn(),
   cancelReminderWorkflow: jest.fn(),
   notifySquadFeaturedUpdated: jest.fn(),
-}));
-
-jest.mock('../../../src/common/opportunity/pubsub', () => ({
-  ...(jest.requireActual('../../../src/common/opportunity/pubsub') as Record<
-    string,
-    unknown
-  >),
-  notifyJobOpportunity: jest.fn(),
 }));
 
 jest.mock('../../../src/temporal/notifications/utils', () => ({
@@ -5728,12 +5724,17 @@ describe('opportunity match', () => {
 });
 
 describe('opportunity', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+  });
+
   it('should trigger on new opportunity', async () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<OpportunityJob>({
         after: {
-          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
           type: OpportunityType.Job,
@@ -5742,20 +5743,17 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.LIVE,
-          organizationId: '1-cusc',
+          organizationId: 'org-1',
         },
         op: 'c',
         table: 'opportunity',
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyJobOpportunity).mock.calls[0][0].isUpdate).toEqual(
-      false,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-added',
     );
-    expect(
-      jest.mocked(notifyJobOpportunity).mock.calls[0][0].opportunityId,
-    ).toEqual('2eca06f7-dcaf-4681-8009-c1240c4dd278');
   });
 
   it('should not trigger on new opportunity when state is not live', async () => {
@@ -5763,7 +5761,7 @@ describe('opportunity', () => {
       worker,
       mockChangeMessage<OpportunityJob>({
         after: {
-          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
           type: OpportunityType.Job,
@@ -5772,14 +5770,14 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.DRAFT,
-          organizationId: '1-cusc',
+          organizationId: 'org-1',
         },
         op: 'c',
         table: 'opportunity',
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 
   it('should not trigger on new opportunity when state is job', async () => {
@@ -5787,7 +5785,7 @@ describe('opportunity', () => {
       worker,
       mockChangeMessage<OpportunityJob>({
         after: {
-          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
           type: 'not-job' as OpportunityType,
@@ -5796,14 +5794,14 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.LIVE,
-          organizationId: '1-cusc',
+          organizationId: 'org-1',
         },
         op: 'c',
         table: 'opportunity',
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 
   it('should trigger on updated opportunity', async () => {
@@ -5811,7 +5809,7 @@ describe('opportunity', () => {
       worker,
       mockChangeMessage<OpportunityJob>({
         after: {
-          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
           type: OpportunityType.Job,
@@ -5820,20 +5818,17 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.LIVE,
-          organizationId: '1-cusc',
+          organizationId: 'org-1',
         },
         op: 'u',
         table: 'opportunity',
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(notifyJobOpportunity).mock.calls[0][0].isUpdate).toEqual(
-      true,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-updated',
     );
-    expect(
-      jest.mocked(notifyJobOpportunity).mock.calls[0][0].opportunityId,
-    ).toEqual('2eca06f7-dcaf-4681-8009-c1240c4dd278');
   });
 
   it('should not trigger on updated opportunity when state is not live', async () => {
@@ -5841,7 +5836,7 @@ describe('opportunity', () => {
       worker,
       mockChangeMessage<OpportunityJob>({
         after: {
-          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
           type: OpportunityType.Job,
@@ -5850,14 +5845,14 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.DRAFT,
-          organizationId: '1-cusc',
+          organizationId: 'org-1',
         },
         op: 'u',
         table: 'opportunity',
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 
   it('should not trigger on new opportunity when state is job', async () => {
@@ -5865,7 +5860,7 @@ describe('opportunity', () => {
       worker,
       mockChangeMessage<OpportunityJob>({
         after: {
-          id: '2eca06f7-dcaf-4681-8009-c1240c4dd278',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
           type: 'not-job' as OpportunityType,
@@ -5874,66 +5869,21 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.LIVE,
-          organizationId: '1-cusc',
+          organizationId: 'org-1',
         },
         op: 'u',
         table: 'opportunity',
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
 
 describe('organization', () => {
   beforeEach(async () => {
-    await saveFixtures(con, Organization, [
-      {
-        id: 'org-1',
-        seats: 1,
-        name: 'Organization 1',
-      },
-      {
-        id: 'org-2',
-        seats: 2,
-        name: 'Organization 2',
-      },
-    ]);
-
-    await saveFixtures(con, OpportunityJob, [
-      {
-        id: '1330e80e-012d-4f5a-b540-67444a11aa49',
-        type: OpportunityType.Job,
-        title: 'Senior Backend Engineer',
-        tldr: 'We are looking for a Senior Backend Engineer...',
-        state: OpportunityState.LIVE,
-        organizationId: 'org-1',
-      },
-      {
-        id: '0c3f7d20-828e-4aea-b832-e204386c2904',
-        type: OpportunityType.Job,
-        title: 'Senior Backend Engineer',
-        tldr: 'We are looking for a 2nd Senior Backend Engineer...',
-        state: OpportunityState.LIVE,
-        organizationId: 'org-1',
-      },
-      {
-        id: '7f4e1b3c-2dcb-4f0a-8f3a-1c3e5e5f6a7b',
-        type: OpportunityType.Job,
-        title: 'Junior Backend Engineer',
-        tldr: 'We are looking for a Senior Backend Engineer...',
-        state: OpportunityState.DRAFT,
-        organizationId: 'org-1',
-      },
-      {
-        id: '9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d',
-        type: OpportunityType.Job,
-        title: 'Junior Backend Engineer',
-        tldr: 'We are also looking for a Senior Backend Engineer...',
-        state: OpportunityState.DRAFT,
-        organizationId: 'org-2',
-      },
-    ]);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
   });
 
   it('should not  trigger opportunity job update on organization creation', async () => {
@@ -5941,7 +5891,7 @@ describe('organization', () => {
       worker,
       mockChangeMessage<Organization>({
         after: {
-          id: 'org-1',
+          id: '550e8400-e29b-41d4-a716-446655440000',
           seats: 1,
           name: 'Organization 1',
           description: 'New description',
@@ -5951,7 +5901,7 @@ describe('organization', () => {
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 
   it('should trigger opportunity job update for live opportunities when organization description is updated', async () => {
@@ -5959,12 +5909,12 @@ describe('organization', () => {
       worker,
       mockChangeMessage<Organization>({
         before: {
-          id: 'org-1',
+          id: '550e8400-e29b-41d4-a716-446655440000',
           seats: 1,
           name: 'Organization 1',
         },
         after: {
-          id: 'org-1',
+          id: '550e8400-e29b-41d4-a716-446655440000',
           seats: 1,
           name: 'Organization 1',
           description: 'New description',
@@ -5974,19 +5924,13 @@ describe('organization', () => {
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(2);
-    expect(jest.mocked(notifyJobOpportunity).mock.calls[0][0].isUpdate).toEqual(
-      true,
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-updated',
     );
-    expect(
-      jest.mocked(notifyJobOpportunity).mock.calls[0][0].opportunityId,
-    ).toEqual('1330e80e-012d-4f5a-b540-67444a11aa49');
-    expect(jest.mocked(notifyJobOpportunity).mock.calls[1][0].isUpdate).toEqual(
-      true,
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'api.v1.opportunity-updated',
     );
-    expect(
-      jest.mocked(notifyJobOpportunity).mock.calls[1][0].opportunityId,
-    ).toEqual('0c3f7d20-828e-4aea-b832-e204386c2904');
   });
 
   it('should not trigger opportunity job update when organization has no live opportunities', async () => {
@@ -5994,12 +5938,12 @@ describe('organization', () => {
       worker,
       mockChangeMessage<Organization>({
         before: {
-          id: 'org-2',
+          id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
           seats: 2,
           name: 'Organization 2',
         },
         after: {
-          id: 'org-2',
+          id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
           seats: 2,
           name: 'Organization 2',
           description: 'New description',
@@ -6009,6 +5953,6 @@ describe('organization', () => {
       }),
     );
 
-    expect(notifyJobOpportunity).toHaveBeenCalledTimes(0);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
