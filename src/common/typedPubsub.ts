@@ -161,12 +161,6 @@ export type PubSubSchema = {
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
   };
-  'skadi.v1.campaign-updated': {
-    postId: Post['id'];
-    userId: User['id'];
-    campaignId: string;
-    action: CampaignUpdateAction;
-  };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
   'api.v1.reputation-event': {
