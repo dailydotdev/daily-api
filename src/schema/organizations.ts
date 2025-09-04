@@ -140,6 +140,46 @@ export const typeDefs = /* GraphQL */ `
     The subscription status of the organization
     """
     status: SubscriptionStatus!
+
+    """
+    The website URL of the organization
+    """
+    website: String
+
+    """
+    The description of the organization
+    """
+    description: String
+
+    """
+    The perks offered by the organization
+    """
+    perks: [String!]
+
+    """
+    The year the organization was founded
+    """
+    founded: Int
+
+    """
+    The location of the organization
+    """
+    location: String
+
+    """
+    The size of the organization
+    """
+    size: String
+
+    """
+    The category of the organization
+    """
+    category: String
+
+    """
+    The stage of the organization
+    """
+    stage: String
   }
 
   type ProratedPricePreview {

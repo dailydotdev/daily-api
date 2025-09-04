@@ -1254,8 +1254,20 @@ const obj = new GraphORM({
     },
   },
   Organization: {
-    requiredColumns: ['id'],
+    requiredColumns: ['id', 'name', 'createdAt', 'updatedAt'],
     fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      subscriptionFlags: {
+        jsonType: true,
+      },
+      links: {
+        jsonType: true,
+      },
       members: {
         customQuery: (ctx, alias, qb) =>
           qb
@@ -1381,6 +1393,7 @@ const obj = new GraphORM({
       },
     },
   },
+
   PostAnalytics: {
     requiredColumns: ['id', 'updatedAt'],
     fields: {
@@ -1422,6 +1435,88 @@ const obj = new GraphORM({
       },
       updatedAt: {
         transform: transformDate,
+      },
+    },
+  },
+  Opportunity: {
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      content: {
+        jsonType: true,
+      },
+      meta: {
+        jsonType: true,
+      },
+      organization: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'organizationId',
+        },
+      },
+      users: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                'OpportunityUser',
+                'ou',
+                `"${childAlias}"."id" = ou."userId"`,
+              )
+              .where(`ou."opportunityId" = "${parentAlias}".id`),
+        },
+      },
+      keywords: {
+        relation: {
+          isMany: true,
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                'OpportunityKeyword',
+                'ok',
+                `"${childAlias}"."value" = ok."keyword"`,
+              )
+              .where(`ok."opportunityId" = "${parentAlias}".id`),
+        },
+      },
+    },
+  },
+  OpportunityMatch: {
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      description: {
+        jsonType: true,
+      },
+      screening: {
+        jsonType: true,
+      },
+      applicationRank: {
+        jsonType: true,
+      },
+      opportunity: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'opportunityId',
+        },
+      },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
       },
     },
   },

@@ -63,9 +63,13 @@ export const typeDefs = /* GraphQL */ `
     keywords: [Keyword!]!
   }
 
+  type OpportunityMatchDescription {
+    description: String!
+  }
+
   type OpportunityMatch {
     status: OpportunityMatchStatus!
-    description: String!
+    description: OpportunityMatchDescription!
   }
 
   extend type Query {
@@ -112,7 +116,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLOpportunityMatch> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id }).andWhere({ userId: ctx.userId });
+        builder.queryBuilder
+          .where({ opportunityId: id })
+          .andWhere({ userId: ctx.userId });
         return builder;
       }),
   },
