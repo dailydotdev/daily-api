@@ -322,10 +322,6 @@ export const typeDefs = /* GraphQL */ `
     Whether the source pinned posts are collapsed or not
     """
     collapsePinnedPosts: Boolean
-    """
-    Whether the source has unread posts for member
-    """
-    hasUnreadPosts: Boolean
   }
 
   type SourceMember {
@@ -2651,14 +2647,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const source = await ensureSourcePermissions(ctx, sourceId);
 
-      const result = await ctx.con.getRepository(SourceMember).update(
-        { sourceId: source.id, userId: ctx.userId },
-        {
-          flags: updateFlagsStatement<SourceMember>({
-            hasUnreadPosts: false,
-          }),
-        },
-      );
+      const result = await ctx.con
+        .getRepository(SourceMember)
+        .update({ sourceId: source.id, userId: ctx.userId });
 
       return {
         _: !!result.affected,

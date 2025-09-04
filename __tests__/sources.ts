@@ -4489,14 +4489,9 @@ describe('mutation clearUnreadPosts', () => {
     }
   `;
   beforeEach(async () => {
-    await con.getRepository(SourceMember).update(
-      { userId: '1', sourceId: 'a' },
-      {
-        flags: updateFlagsStatement({
-          hasUnreadPosts: true,
-        }),
-      },
-    );
+    await con
+      .getRepository(SourceMember)
+      .update({ userId: '1', sourceId: 'a' });
   });
 
   it('should return error for annonymous users', async () => {
@@ -4560,7 +4555,7 @@ describe('mutation clearUnreadPosts', () => {
 
     expect(
       await con.getRepository(SourceMember).count({
-        where: { userId: '1', sourceId: 'a', flags: { hasUnreadPosts: true } },
+        where: { userId: '1', sourceId: 'a' },
       }),
     ).toEqual(1);
 
@@ -4570,7 +4565,7 @@ describe('mutation clearUnreadPosts', () => {
 
     expect(
       await con.getRepository(SourceMember).count({
-        where: { userId: '1', sourceId: 'a', flags: { hasUnreadPosts: true } },
+        where: { userId: '1', sourceId: 'a' },
       }),
     ).toEqual(0);
 
