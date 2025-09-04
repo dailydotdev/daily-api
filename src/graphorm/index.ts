@@ -63,6 +63,9 @@ import {
   UserCompensation,
   WorkLocationType,
 } from '../entity/user/UserJobPreferences';
+import { OpportunityUserRecruiter } from '../entity/opportunities/user';
+import { OpportunityUserType } from '../entity/opportunities/types';
+import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1459,26 +1462,29 @@ const obj = new GraphORM({
           parentColumn: 'organizationId',
         },
       },
-      users: {
+      recruiters: {
         relation: {
           isMany: true,
-          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                'OpportunityUser',
+                OpportunityUserRecruiter,
                 'ou',
                 `"${childAlias}"."id" = ou."userId"`,
               )
-              .where(`ou."opportunityId" = "${parentAlias}".id`),
+              .where(`ou."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`ou."type" = :type`, {
+                type: OpportunityUserType.Recruiter,
+              }),
         },
       },
       keywords: {
         relation: {
           isMany: true,
-          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .innerJoin(
-                'OpportunityKeyword',
+                OpportunityKeyword,
                 'ok',
                 `"${childAlias}"."value" = ok."keyword"`,
               )

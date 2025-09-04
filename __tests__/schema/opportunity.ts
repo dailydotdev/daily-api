@@ -22,6 +22,8 @@ import {
   opportunityMatchesFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
+import { OpportunityUser } from '../../src/entity/opportunities/user';
+import { OpportunityUserType } from '../../src/entity/opportunities/types';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -47,11 +49,29 @@ beforeEach(async () => {
   await saveFixtures(con, Opportunity, opportunitiesFixture);
   await saveFixtures(con, OpportunityKeyword, opportunityKeywordsFixture);
   await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
+  await saveFixtures(con, OpportunityUser, [
+    {
+      opportunityId: opportunitiesFixture[0].id,
+      userId: usersFixture[0].id,
+      type: OpportunityUserType.Recruiter,
+    },
+    {
+      opportunityId: opportunitiesFixture[0].id,
+      userId: usersFixture[1].id,
+      // @ts-expect-error no other type is defined but we're testing filtering
+      type: 'other',
+    },
+    {
+      opportunityId: opportunitiesFixture[1].id,
+      userId: usersFixture[1].id,
+      type: OpportunityUserType.Recruiter,
+    },
+  ]);
 });
 
 describe('opportunity queries', () => {
   describe('opportunityById', () => {
-    const OPPORTUNITY_BY_ID_QUERY = `
+    const OPPORTUNITY_BY_ID_QUERY = /* GraphQL */ `
       query OpportunityById($id: ID!) {
         opportunityById(id: $id) {
           id
@@ -71,7 +91,7 @@ describe('opportunity queries', () => {
             description
             location
           }
-          users {
+          recruiters {
             id
           }
           keywords {
@@ -107,7 +127,7 @@ describe('opportunity queries', () => {
           description: 'A platform for developers',
           location: 'San Francisco',
         },
-        users: [],
+        recruiters: [{ id: '1' }],
         keywords: expect.arrayContaining([
           { value: 'webdev' },
           { value: 'fullstack' },
@@ -136,7 +156,7 @@ describe('opportunity queries', () => {
   });
 
   describe('getOpportunityMatch', () => {
-    const GET_OPPORTUNITY_MATCH_QUERY = `
+    const GET_OPPORTUNITY_MATCH_QUERY = /* GraphQL */ `
       query GetOpportunityMatch($id: ID!) {
         getOpportunityMatch(id: $id) {
           status

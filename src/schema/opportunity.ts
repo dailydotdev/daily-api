@@ -59,7 +59,7 @@ export const typeDefs = /* GraphQL */ `
     content: [OpportunityContent!]!
     meta: [OpportunityMeta!]!
     organization: Organization!
-    users: [User!]!
+    recruiters: [User!]!
     keywords: [Keyword!]!
   }
 
