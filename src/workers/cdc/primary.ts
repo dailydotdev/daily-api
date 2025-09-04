@@ -1,108 +1,107 @@
 import {
-  UserState,
-  UserStateKey,
-  ReputationEvent,
-  CommentMention,
-  MarketingCta,
-  UserMarketingCta,
-  SquadPublicRequest,
-  UserStreak,
-  Bookmark,
   Alerts,
-  UserTopReader,
-  SquadSource,
+  Banner,
+  Bookmark,
   clearPostTranslations,
-  ReputationType,
-} from '../../entity';
-import { messageToJson, Worker } from '../worker';
-import {
+  CollectionPost,
   Comment,
+  CommentMention,
   COMMUNITY_PICKS_SOURCE,
+  ContentImage,
+  Feature,
   Feed,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
+  FreeformPost,
+  MarketingCta,
+  normalizeCollectionPostSources,
   Post,
+  PostMention,
+  PostRelation,
+  PostRelationType,
+  PostReport,
+  PostType,
+  ReputationEvent,
+  ReputationType,
   Settings,
+  Source,
   SourceFeed,
   SourceMember,
   SourceRequest,
+  SquadPublicRequest,
+  SquadSource,
   Submission,
   SubmissionStatus,
   User,
-  Feature,
-  Source,
-  PostMention,
-  FreeformPost,
-  Banner,
-  PostType,
-  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
-  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
-  UserPost,
-  PostRelation,
-  PostRelationType,
-  normalizeCollectionPostSources,
-  CollectionPost,
   UserCompany,
+  UserMarketingCta,
+  UserPost,
+  UserState,
+  UserStateKey,
+  UserStreak,
+  UserTopReader,
 } from '../../entity';
+import { messageToJson, Worker } from '../worker';
 import {
-  notifyCommentCommented,
-  notifyPostBannedOrRemoved,
-  notifyPostCommented,
-  notifyPostReport,
-  notifyCommentReport,
-  notifySendAnalyticsReport,
-  notifySourceFeedAdded,
-  notifySourceFeedRemoved,
-  notifySettingsUpdated,
-  increaseReputation,
+  DayOfWeek,
+  debeziumTimeToDate,
   decreaseReputation,
-  notifySubmissionRejected,
-  notifySubmissionGrantedAccess,
+  DEFAULT_TIMEZONE,
+  increaseReputation,
+  isNumber,
   NotificationReason,
-  notifyUsernameChanged,
-  notifyNewCommentMention,
-  notifyMemberJoinedSource,
-  notifyFeatureAccess,
-  notifySourcePrivacyUpdated,
-  notifyPostVisible,
-  notifySourceMemberRoleChanged,
-  notifyNewPostMention,
-  notifyContentRequested,
-  notifyContentImageDeleted,
-  notifyPostContentEdited,
-  notifyCommentEdited,
-  notifyCommentDeleted,
   notifyBannerCreated,
   notifyBannerRemoved,
+  notifyCommentCommented,
+  notifyCommentDeleted,
+  notifyCommentEdited,
+  notifyCommentReport,
+  notifyContentImageDeleted,
+  notifyContentRequested,
+  notifyFeatureAccess,
   notifyFreeformContentRequested,
-  notifySourceCreated,
-  notifyPostYggdrasilIdSet,
+  notifyMemberJoinedSource,
+  notifyNewCommentMention,
+  notifyNewPostMention,
+  notifyPostBannedOrRemoved,
   notifyPostCollectionUpdated,
-  notifyUserReadmeUpdated,
-  triggerTypedEvent,
-  notifyReputationIncrease,
-  PubSubSchema,
-  debeziumTimeToDate,
-  shouldAllowRestore,
-  isNumber,
-  notifySquadFeaturedUpdated,
-  DEFAULT_TIMEZONE,
-  notifySourceReport,
-  DayOfWeek,
-  processApprovedModeratedPost,
+  notifyPostCommented,
+  notifyPostContentEdited,
+  notifyPostReport,
+  notifyPostVisible,
+  notifyPostYggdrasilIdSet,
   notifyReportUser,
+  notifyReputationIncrease,
+  notifySendAnalyticsReport,
+  notifySettingsUpdated,
+  notifySourceCreated,
+  notifySourceFeedAdded,
+  notifySourceFeedRemoved,
+  notifySourceMemberRoleChanged,
+  notifySourcePrivacyUpdated,
+  notifySourceReport,
+  notifySquadFeaturedUpdated,
+  notifySubmissionGrantedAccess,
+  notifySubmissionRejected,
+  notifyUsernameChanged,
+  notifyUserReadmeUpdated,
+  processApprovedModeratedPost,
+  PubSubSchema,
+  shouldAllowRestore,
+  triggerTypedEvent,
 } from '../../common';
 import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import { PostReport, ContentImage } from '../../entity';
 import { updateAlerts } from '../../schema/alerts';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
 import {
+  generateStorageKey,
   StorageKey,
   StorageTopic,
-  generateStorageKey,
   submissionAccessThreshold,
 } from '../../config';
 import {
@@ -142,6 +141,9 @@ import {
 } from '../../entity/contentPreference/types';
 import type { ContentPreferenceUser } from '../../entity/contentPreference/ContentPreferenceUser';
 import { CampaignUpdateAction } from '../../integrations/skadi';
+import { OpportunityMatch } from '../../entity/OpportunityMatch';
+import { OpportunityMatchStatus } from '../../entity/opportunities/types';
+import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1223,6 +1225,25 @@ const onContentPreferenceChange = async (
   }
 };
 
+const onOpportunityMatchChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<OpportunityMatch>,
+) => {
+  if (data.payload.op === 'u') {
+    if (
+      data.payload.after?.status === OpportunityMatchStatus.CandidateAccepted &&
+      data?.payload.before?.status !== OpportunityMatchStatus.CandidateAccepted
+    ) {
+      await notifyOpportunityMatchAccepted({
+        con,
+        logger,
+        data: data.payload.after!,
+      });
+    }
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1338,6 +1359,9 @@ const worker: Worker = {
           break;
         case getTableName(con, ContentPreference):
           await onContentPreferenceChange(con, logger, data);
+          break;
+        case getTableName(con, OpportunityMatch):
+          await onOpportunityMatchChange(con, logger, data);
           break;
       }
     } catch (err) {

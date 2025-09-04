@@ -26,10 +26,10 @@ export const locationTypeSchema = z.object({
 });
 
 export const locationSchema = z.object({
-  city: z.string().nullable(),
-  country: z.string().nullable(),
-  subdivision: z.string().nullable(),
-  continent: z.string().nullable(),
-  latitude: z.number().nullable(),
-  longitude: z.number().nullable(),
+  city: z.string().optional(),
+  country: z.string().optional(),
+  subdivision: z.string().optional(),
+  continent: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
 });
