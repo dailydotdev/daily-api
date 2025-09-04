@@ -2357,6 +2357,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               );
 
               builder
+                .andWhere(`c."userId" = :campaignUserId`, {
+                  campaignUserId: ctx.userId,
+                })
                 .orderBy(`CASE WHEN c."state" = :active THEN 0 ELSE 1 END`)
                 .addOrderBy('c."createdAt"', 'DESC')
                 .limit(getLimit({ limit: first ?? 20 }))

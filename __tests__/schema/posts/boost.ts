@@ -1784,6 +1784,103 @@ describe('query postCampaigns', () => {
       users: 750, // Single campaign value
     });
   });
+
+  it('should only return campaigns belonging to the logged user', async () => {
+    loggedUser = '1';
+
+    // Create posts for different users
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'user1-post',
+        shortId: 'u1p',
+        title: 'User 1 Post',
+        image: 'https://user1-post.jpg',
+        url: 'http://user1-post.com',
+        sourceId: 'a',
+        type: PostType.Article,
+        createdAt: new Date(),
+        authorId: '1',
+        views: 100,
+        upvotes: 50,
+        comments: 25,
+      },
+      {
+        id: 'user2-post',
+        shortId: 'u2p',
+        title: 'User 2 Post',
+        image: 'https://user2-post.jpg',
+        url: 'http://user2-post.com',
+        sourceId: 'a',
+        type: PostType.Article,
+        createdAt: new Date(),
+        authorId: '2',
+        views: 120,
+        upvotes: 60,
+        comments: 30,
+      },
+    ]);
+
+    // Create campaigns for different users
+    const user1CampaignId = randomUUID();
+    const user2CampaignId = randomUUID();
+    await con.getRepository(CampaignPost).save([
+      {
+        id: user1CampaignId,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 2000,
+          spend: 800,
+          users: 400,
+          clicks: 40,
+          impressions: 800,
+        },
+        userId: '1', // User 1's campaign
+        referenceId: 'user1-post',
+        state: CampaignState.Active,
+        postId: 'user1-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-01'),
+        endedAt: new Date('2024-01-08'),
+      },
+      {
+        id: user2CampaignId,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 3000,
+          spend: 1200,
+          users: 600,
+          clicks: 60,
+          impressions: 1200,
+        },
+        userId: '2', // User 2's campaign
+        referenceId: 'user2-post',
+        state: CampaignState.Active,
+        postId: 'user2-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-02'),
+        endedAt: new Date('2024-01-09'),
+      },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    // Should only return user 1's campaign (since loggedUser = '1')
+    expect(res.data.postCampaigns.edges).toHaveLength(1);
+    expect(res.data.postCampaigns.edges[0].node.campaign.campaignId).toBe(
+      user1CampaignId,
+    );
+    expect(res.data.postCampaigns.edges[0].node.post.id).toBe('user1-post');
+
+    // Stats should only include user 1's campaign data
+    expect(res.data.postCampaigns.stats).toEqual({
+      impressions: 800, // Only user 1's campaign
+      clicks: 40, // Only user 1's campaign
+      totalSpend: 800, // Only user 1's campaign
+      users: 400, // Only user 1's campaign
+      engagements: 0, // Not used anymore
+    });
+  });
 });
 
 describe('mutation startPostBoost', () => {
