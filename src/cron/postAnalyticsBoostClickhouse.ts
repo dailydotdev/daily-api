@@ -45,16 +45,14 @@ export const postAnalyticsBoostClickhouseCron: Cron = {
     const response = await clickhouseClient.query({
       query: /* sql */ `
         SELECT
-          "postId" as id,
+          "postId" AS id,
           sum(impressions) AS "boostImpressions",
           uniqIfMerge(unique_users) AS "boostReach",
           max(ad_impressions_totals.updated_at) AS "updatedAt"
         FROM
-          skadi.ad_impressions_totals FINAL
-        LEFT JOIN skadi.ad_clicks_totals FINAL ON
-          ad_impressions_totals.campaign_id = ad_clicks_totals.campaign_id
-        LEFT JOIN api.campaign FINAL ON
-          ad_impressions_totals.campaign_id = toString(campaign.id)
+          api.campaign campaign FINAL
+        LEFT JOIN skadi.ad_impressions_totals FINAL ON
+          skadi.ad_impressions_totals.campaign_id = toString(campaign.id)
         WHERE
           "postId" != ''
           AND "postId" IS NOT NULL
