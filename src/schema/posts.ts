@@ -2436,11 +2436,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      await ensureSourcePermissions(
-        ctx,
-        props.sourceId,
-        SourcePermissions.PostRequest,
-      );
+      await Promise.all([
+        ensureSourcePermissions(
+          ctx,
+          props.sourceId,
+          SourcePermissions.PostRequest,
+        ),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
 
       const pendingPost = await validateSourcePostModeration(ctx, props);
       const moderatedPost = await createSourcePostModeration({
