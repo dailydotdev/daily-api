@@ -109,8 +109,6 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
-  const perks = stringArrayToListValue(organization.perks);
-
   const message = new OpportunityMessage({
     opportunity: {
       id: opportunity.id,
@@ -126,7 +124,7 @@ export const notifyJobOpportunity = async ({
       id: organization.id,
       name: organization.name,
       description: organization.description,
-      perks: perks,
+      perks: organization.perks,
       location: organization.location,
       size: organization.size,
       category: organization.category,
