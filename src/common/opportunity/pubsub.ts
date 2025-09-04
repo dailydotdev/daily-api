@@ -10,7 +10,6 @@ import { UserCandidatePreference } from '../../entity/user/UserCandidatePreferen
 import { ChangeObject } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
-import { stringArrayToListValue } from '../protobuf';
 
 export const notifyOpportunityMatchAccepted = async ({
   con,
@@ -110,24 +109,15 @@ export const notifyJobOpportunity = async ({
 
   const message = new OpportunityMessage({
     opportunity: {
-      id: opportunity.id,
-      type: opportunity.type,
-      state: opportunity.state,
-      title: opportunity.title,
-      tldr: opportunity.tldr,
-      content: opportunity.content,
-      meta: opportunity.meta,
+      ...opportunity,
+      createdAt: getSecondsTimestamp(opportunity.createdAt),
+      updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords,
     },
     organization: {
-      id: organization.id,
-      name: organization.name,
-      description: organization.description,
-      perks: organization.perks,
-      location: organization.location,
-      size: organization.size,
-      category: organization.category,
-      stage: organization.stage,
+      ...organization,
+      createdAt: getSecondsTimestamp(organization.createdAt),
+      updatedAt: getSecondsTimestamp(organization.updatedAt),
     },
   });
 

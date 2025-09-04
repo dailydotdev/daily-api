@@ -1,9 +1,7 @@
-import type z from 'zod';
 import { ChildEntity, Column, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { OpportunityType } from '@dailydotdev/schema';
+import { OpportunityType, type Location } from '@dailydotdev/schema';
 import { Opportunity } from './Opportunity';
 import type { Organization } from '../Organization';
-import type { locationSchema } from '../../common/schema/userCandidate';
 
 @ChildEntity(OpportunityType.JOB)
 export class OpportunityJob extends Opportunity {
@@ -11,8 +9,12 @@ export class OpportunityJob extends Opportunity {
   @Index('IDX_opportunity_organization_id')
   organizationId: string;
 
-  @Column({ type: 'jsonb', default: '[]' })
-  location: z.infer<typeof locationSchema>[];
+  @Column({
+    type: 'jsonb',
+    default: [],
+    comment: 'Location from protobuf schema',
+  })
+  location: Location[];
 
   @ManyToOne('Organization', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({
