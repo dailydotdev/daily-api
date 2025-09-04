@@ -1254,7 +1254,7 @@ const obj = new GraphORM({
     },
   },
   Organization: {
-    requiredColumns: ['id', 'name', 'createdAt', 'updatedAt'],
+    requiredColumns: ['id'],
     fields: {
       createdAt: {
         transform: transformDate,
