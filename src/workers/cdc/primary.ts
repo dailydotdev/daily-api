@@ -141,7 +141,6 @@ import {
   ContentPreferenceType,
 } from '../../entity/contentPreference/types';
 import type { ContentPreferenceUser } from '../../entity/contentPreference/ContentPreferenceUser';
-import { CampaignUpdateAction } from '../../integrations/skadi';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,

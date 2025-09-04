@@ -42,7 +42,6 @@ import {
   NotificationStreakContext,
   NotificationUpvotersContext,
   NotificationUserContext,
-  type NotificationBoostContext,
 } from '../../src/notifications';
 import {
   NotificationPreferenceStatus,

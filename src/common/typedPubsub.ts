@@ -30,7 +30,6 @@ import {
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import type { CampaignUpdateAction } from '../integrations/skadi';
 import { z } from 'zod';
 import type { postMetricsUpdatedTopic } from './schema/topics';
 import type { CampaignUpdateEventArgs } from './campaign/common';

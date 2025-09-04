@@ -3,7 +3,6 @@ import {
   type NotificationAwardContext,
   NotificationBaseContext,
   NotificationBookmarkContext,
-  type NotificationBoostContext,
   NotificationBundleV2,
   type NotificationCampaignContext,
   NotificationCommentContext,

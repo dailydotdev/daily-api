@@ -58,7 +58,6 @@ import {
   NotificationUserContext,
   Reference,
   type NotificationAwardContext,
-  NotificationBoostContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
@@ -85,7 +84,6 @@ import {
 import { env } from 'node:process';
 import { Product, ProductType } from '../../src/entity/Product';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
-import { skadiApiClientV1 } from '../../src/integrations/skadi/api/v1/clients';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
