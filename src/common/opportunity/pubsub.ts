@@ -48,6 +48,10 @@ export const notifyOpportunityMatchAccepted = async ({
     screening: data.screening,
     candidatePreference: {
       ...candidatePreference,
+      cv: {
+        ...candidatePreference.cv,
+        lastModified: getSecondsTimestamp(candidatePreference.cv.lastModified),
+      },
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
     },
   });
