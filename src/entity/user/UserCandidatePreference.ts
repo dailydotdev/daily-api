@@ -79,6 +79,7 @@ export class UserCandidatePreference {
     type: 'integer',
     array: true,
     comment: 'LocationType from protobuf schema',
+    default: null,
   })
   locationType: LocationType[];
 
