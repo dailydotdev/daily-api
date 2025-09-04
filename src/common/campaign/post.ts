@@ -183,9 +183,8 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
   user,
   notification,
 ) => {
-  const campaign = await skadiApiClientV1.getCampaignById({
-    campaignId: notification.referenceId!,
-    userId: user.id,
+  const campaign = await con.getRepository(CampaignPost).findOneBy({
+    id: notification.referenceId,
   });
 
   if (!campaign) {
@@ -197,11 +196,11 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
     postId: campaign.postId,
     notification,
     campaign: {
-      createdAt: debeziumTimeToDate(campaign.startedAt),
-      endedAt: debeziumTimeToDate(campaign.endedAt),
+      createdAt: campaign.createdAt,
+      endedAt: campaign.endedAt,
       flags: {
-        impressions: campaign.impressions,
-        clicks: campaign.clicks,
+        impressions: campaign.flags.impressions!,
+        clicks: campaign.flags.clicks!,
       },
     },
   });
