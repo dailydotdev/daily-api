@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import { triggerTypedEvent } from '../typedPubsub';
 import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
+import { triggerTypedEvent } from '../typedPubsub';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { ChangeObject } from '../../types';
