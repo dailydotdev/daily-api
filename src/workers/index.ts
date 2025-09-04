@@ -63,7 +63,6 @@ import { organizationUserRemoved } from './organization/organizationUserRemoved'
 import { userGenerateBriefWorker } from './brief/userGenerateBrief';
 import { userUpdatedPlusSubscriptionBriefWorker } from './userUpdatedPlusSubscriptionBrief';
 import { postAddedSlackChannelSendBriefWorker } from './postAddedSlackChannelSendBrief';
-import postBoostActionSlack from './postBoostActionSlack';
 import campaignUpdatedAction from './campaignUpdatedAction';
 import campaignUpdatedSlack from './campaignUpdatedSlack';
 import { postAddedSquadUnreadPostsWorker } from './postAddedSquadUnreadPosts';
@@ -136,7 +135,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userGenerateBriefWorker,
   userUpdatedPlusSubscriptionBriefWorker,
   postAddedSlackChannelSendBriefWorker,
-  postBoostActionSlack,
   postAddedSquadUnreadPostsWorker,
   postAnalyticsUpdate,
   postAuthorReputationEvent,
