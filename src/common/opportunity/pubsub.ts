@@ -3,7 +3,6 @@ import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
   OpportunityMessage,
-  OpportunityType,
 } from '@dailydotdev/schema';
 import { triggerTypedEvent } from '../../common';
 import { getSecondsTimestamp } from '../date';
@@ -112,7 +111,7 @@ export const notifyJobOpportunity = async ({
   const message = new OpportunityMessage({
     opportunity: {
       id: opportunity.id,
-      type: OpportunityType.JOB,
+      type: opportunity.type,
       state: opportunity.state,
       title: opportunity.title,
       tldr: opportunity.tldr,
@@ -138,9 +137,4 @@ export const notifyJobOpportunity = async ({
     const err = _err as Error;
     logger.error({ err, message }, 'failed to send opportunity event');
   }
-
-  logger.info(
-    { opportunityId: opportunity.id, topicName },
-    'sent opportunity event',
-  );
 };

@@ -1,4 +1,4 @@
-import { OpportunityState } from '@dailydotdev/schema';
+import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
 import {
   Alerts,
   Banner,
@@ -147,7 +147,6 @@ import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
-import { OpportunityType } from '../../entity/opportunities/types';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 
 const isFreeformPostLongEnough = (
@@ -1259,7 +1258,7 @@ const onOpportunityChange = async (
   }
 
   if (
-    data.payload.after?.type === OpportunityType.Job &&
+    data.payload.after?.type === OpportunityType.JOB &&
     data.payload.after?.state === OpportunityState.LIVE
   ) {
     const isUpdate = data.payload.op === 'u';

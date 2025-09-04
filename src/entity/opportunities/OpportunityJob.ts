@@ -1,11 +1,11 @@
 import type z from 'zod';
 import { ChildEntity, Column, Index, JoinColumn, ManyToOne } from 'typeorm';
-import { OpportunityType } from './types';
+import { OpportunityType } from '@dailydotdev/schema';
 import { Opportunity } from './Opportunity';
 import type { Organization } from '../Organization';
 import type { locationSchema } from '../../common/schema/userCandidate';
 
-@ChildEntity(OpportunityType.Job)
+@ChildEntity(OpportunityType.JOB)
 export class OpportunityJob extends Opportunity {
   @Column({ type: 'text' })
   @Index('IDX_opportunity_organization_id')

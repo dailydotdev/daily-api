@@ -9,8 +9,7 @@ import {
   TableInheritance,
   UpdateDateColumn,
 } from 'typeorm';
-import type { OpportunityState } from '@dailydotdev/schema';
-import type { OpportunityType } from './types';
+import type { OpportunityState, OpportunityType } from '@dailydotdev/schema';
 import type { OpportunityUser } from './user';
 import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
@@ -34,7 +33,7 @@ export class Opportunity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'integer', comment: 'OpportunityType from protobuf schema' })
   @Index('IDX_opportunity_type')
   type: OpportunityType;
 
