@@ -3,11 +3,8 @@ import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { Organization } from '../../src/entity/Organization';
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
-import { OpportunityState } from '@dailydotdev/schema';
-import {
-  OpportunityMatchStatus,
-  OpportunityType,
-} from '../../src/entity/opportunities/types';
+import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
+import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -31,7 +28,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
 export const opportunitiesFixture: DeepPartial<Opportunity>[] = [
   {
     id: '550e8400-e29b-41d4-a716-446655440001',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.LIVE,
     title: 'Senior Full Stack Developer',
     tldr: 'Join our team as a Senior Full Stack Developer',
@@ -52,7 +49,7 @@ export const opportunitiesFixture: DeepPartial<Opportunity>[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.LIVE,
     title: 'Frontend Developer',
     tldr: 'Build amazing user interfaces',
@@ -73,7 +70,7 @@ export const opportunitiesFixture: DeepPartial<Opportunity>[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440003',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.DRAFT,
     title: 'Senior Full Stack Developer',
     tldr: 'Join our team as a Senior Full Stack Developer',
@@ -94,7 +91,7 @@ export const opportunitiesFixture: DeepPartial<Opportunity>[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440004',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.DRAFT,
     title: 'Frontend Developer',
     tldr: 'Build amazing user interfaces',
