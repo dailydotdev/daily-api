@@ -1,8 +1,8 @@
 import z from 'zod';
 
 export const opportunityMatchDescriptionSchema = z.object({
-  description: z.string(),
-  rank: z.number(),
+  reasoning: z.string(),
+  matchScore: z.number(),
 });
 
 export const opportunityMatchScreeningSchema = z.object({

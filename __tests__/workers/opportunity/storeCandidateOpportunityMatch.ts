@@ -53,10 +53,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
     });
 
     expect(savedMatch).toBeDefined();
-    expect(savedMatch!.description.description).toBe(
+    expect(savedMatch!.description.reasoning).toBe(
       'Strong technical background and relevant experience',
     );
-    expect(savedMatch!.description.rank).toBe(85);
+    expect(savedMatch!.description.matchScore).toBe(85);
   });
 
   it('should log warning when userId is missing', async () => {

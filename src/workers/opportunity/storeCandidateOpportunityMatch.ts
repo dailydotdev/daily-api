@@ -19,8 +19,8 @@ const worker: TypedWorker<'gondul.v1.candidate-opportunity-match'> = {
       }
 
       const description = opportunityMatchDescriptionSchema.parse({
-        description: reasoning,
-        rank: matchScore,
+        reasoning,
+        matchScore,
       });
 
       await con.getRepository(OpportunityMatch).insert({

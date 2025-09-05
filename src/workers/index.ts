@@ -69,7 +69,7 @@ import { postAddedSquadUnreadPostsWorker } from './postAddedSquadUnreadPosts';
 import { postAnalyticsUpdate } from './postAnalytics/postAnalyticsUpdate';
 import { postAuthorReputationEvent } from './postAnalytics/postAuthorReputationEvent';
 import { postAuthorCoresEarned } from './postAnalytics/postAuthorCoresEarned';
-import storeCandidateOpportunityMatchBatch from './opportunity/storeCandidateOpportunityMatch';
+import storeCandidateOpportunityMatch from './opportunity/storeCandidateOpportunityMatch';
 
 export { Worker } from './worker';
 
@@ -142,7 +142,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   postAuthorCoresEarned,
   campaignUpdatedAction,
   campaignUpdatedSlack,
-  storeCandidateOpportunityMatchBatch,
+  storeCandidateOpportunityMatch,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
