@@ -4,7 +4,7 @@ import { addNewSourceMember, removeSourceMember } from '../schema/sources';
 import { SourceMemberRoles } from '../roles';
 import { SourceMember, User } from '../entity';
 import { queryReadReplica } from '../common/queryReadReplica';
-import { isPlusMember } from '../paddle';
+import { hasPlusStatusChanged } from '../paddle';
 
 export const PLUS_MEMBER_SQUAD_ID = '05862288-bace-4723-9218-d30fab6ae96d';
 const worker: TypedWorker<'user-updated'> = {
@@ -25,9 +25,11 @@ const worker: TypedWorker<'user-updated'> = {
       return;
     }
 
-    const isPlus = isPlusMember(afterFlags?.cycle);
-    const wasPlus = isPlusMember(beforeFlags?.cycle);
-    if (isPlus === wasPlus) {
+    const { isPlus, statusChanged } = hasPlusStatusChanged(
+      afterFlags,
+      beforeFlags,
+    );
+    if (!statusChanged) {
       return;
     }
 

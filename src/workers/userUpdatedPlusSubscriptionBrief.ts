@@ -5,7 +5,7 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
 } from '../entity';
-import { isPlusMember } from '../paddle';
+import { hasPlusStatusChanged } from '../paddle';
 
 export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'> =
   {
@@ -26,9 +26,11 @@ export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'>
         return;
       }
 
-      const isPlus = isPlusMember(afterFlags?.cycle);
-      const wasPlus = isPlusMember(beforeFlags?.cycle);
-      if (isPlus === wasPlus) {
+      const { isPlus, statusChanged } = hasPlusStatusChanged(
+        afterFlags,
+        beforeFlags,
+      );
+      if (!statusChanged) {
         return;
       }
 
