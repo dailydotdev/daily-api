@@ -20,7 +20,7 @@ const worker: TypedWorker<'gondul.v1.candidate-opportunity-match'> = {
 
       const description = opportunityMatchDescriptionSchema.parse({
         description: reasoning,
-        score: matchScore,
+        rank: matchScore,
       });
 
       await con.getRepository(OpportunityMatch).insert({
@@ -30,9 +30,8 @@ const worker: TypedWorker<'gondul.v1.candidate-opportunity-match'> = {
       });
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
-
-      if (err?.name === 'EntityNotFoundError') {
-        logger.error({ err, data }, 'could not find opportunity');
+      if (err?.name === 'QueryFailedError') {
+        logger.error({ err, data }, 'could not find opportunity or user');
 
         return;
       }

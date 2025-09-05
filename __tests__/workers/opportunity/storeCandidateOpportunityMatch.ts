@@ -1,4 +1,8 @@
-import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
+import {
+  expectSuccessfulBackground,
+  expectSuccessfulTypedBackground,
+  saveFixtures,
+} from '../../helpers';
 import worker from '../../../src/workers/opportunity/storeCandidateOpportunityMatch';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
@@ -35,7 +39,7 @@ describe('storeCandidateOpportunityMatch worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should fail due to schema mismatch (score vs rank)', async () => {
+  it('should handle the correct schema format', async () => {
     const matchData = new MatchedCandidate({
       userId: '1',
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -43,37 +47,9 @@ describe('storeCandidateOpportunityMatch worker', () => {
       reasoning: 'Strong technical background and relevant experience',
     });
 
-    // Note: This test will currently fail due to schema mismatch (score vs rank)
-    // The worker uses 'score: matchScore' but schema expects 'rank'
-    await expect(
-      expectSuccessfulTypedBackground(worker, matchData),
-    ).rejects.toThrow();
+    await expectSuccessfulTypedBackground(worker, matchData);
 
-    // Verify no match was inserted due to validation error
-    const matches = await con.getRepository(OpportunityMatch).find({
-      where: {
-        userId: '1',
-        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      },
-    });
-    expect(matches).toHaveLength(0);
-  });
-
-  it('should handle the correct schema format', async () => {
-    // Manually create the match to test the expected format
-    const repo = con.getRepository(OpportunityMatch);
-    const match = repo.create({
-      userId: '1',
-      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      description: {
-        description: 'Strong technical background and relevant experience',
-        rank: 85, // Note: schema expects 'rank', not 'score'
-      },
-    });
-
-    await repo.save(match);
-
-    const savedMatch = await repo.findOne({
+    const savedMatch = await con.getRepository(OpportunityMatch).findOne({
       where: {
         userId: '1',
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -148,18 +124,18 @@ describe('storeCandidateOpportunityMatch worker', () => {
     consoleSpy.mockRestore();
   });
 
-  it('should handle EntityNotFoundError and log error', async () => {
+  it('should handle FK_opportunity_match_opportunity_id and log error', async () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
     // Use non-existent opportunity ID
     const matchData = new MatchedCandidate({
       userId: '1',
-      opportunityId: 'non-existent-opportunity-id',
+      opportunityId: '660e8400-e29b-41d4-a716-446655440001',
       matchScore: 85,
       reasoning: 'Strong technical background',
     });
 
-    // This should not throw due to the EntityNotFoundError handling
+    // This should not throw due to the FK_opportunity_match_opportunity_id handling
     await expectSuccessfulTypedBackground(worker, matchData);
 
     consoleSpy.mockRestore();
@@ -189,20 +165,6 @@ describe('storeCandidateOpportunityMatch worker', () => {
 
   it('should have correct subscription name', () => {
     expect(worker.subscription).toBe('api.store-candidate-opportunity-match');
-  });
-
-  it('should handle schema validation errors', async () => {
-    const matchData = new MatchedCandidate({
-      userId: '1',
-      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      matchScore: 85,
-      reasoning: 'Strong technical background',
-    });
-
-    // The worker will fail due to ZodError because it uses 'score' instead of 'rank'
-    await expect(
-      expectSuccessfulTypedBackground(worker, matchData),
-    ).rejects.toThrow();
   });
 
   it('should re-throw non-EntityNotFoundError errors', async () => {
