@@ -6,12 +6,6 @@ import {
   type CampaignFlags,
   type ConnectionManager,
   NotificationV2,
-  Source,
-  Post,
-  PostType,
-  ArticlePost,
-  SharePost,
-  FreeformPost,
 } from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
@@ -24,13 +18,10 @@ import { getSourceTags } from './source';
 import { getPostTags } from './post';
 import type { NotificationBuilder } from '../../notifications/builder';
 import { NotificationIcon } from '../../notifications/icons';
-import { getDiscussionLink, notificationsLink } from '../links';
+import { notificationsLink } from '../links';
 import type { NotificationCampaignContext } from '../../notifications';
-import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { queryReadReplica } from '../queryReadReplica';
 import { addNotificationEmailUtm, formatMailDate } from '../mailing';
-import { DataSource } from 'typeorm';
-import { truncatePostToTweet } from '../twitter';
 
 export interface StartCampaignArgs {
   value: string;
@@ -258,67 +249,6 @@ export const getCompleteNotificationProps = (
     notification.type,
   ),
 });
-
-type GetEmailProps<T extends object = object> = (props: {
-  referenceId: string;
-  con: DataSource;
-}) => Promise<T>;
-
-export const campaignTypeToEmailProps: Record<CampaignType, GetEmailProps> = {
-  [CampaignType.Post]: async ({ con, referenceId }) => {
-    const post = await con.getRepository(Post).findOneOrFail({
-      where: { id: referenceId },
-    });
-
-    const sharedPost = await (post.type === PostType.Share
-      ? con.getRepository(ArticlePost).findOne({
-          where: { id: (post as SharePost).sharedPostId },
-          select: ['title', 'image', 'slug'],
-        })
-      : Promise.resolve(null));
-
-    const title = truncatePostToTweet(post || sharedPost);
-
-    return {
-      post_link: getDiscussionLink(post.slug),
-      post_image: sharedPost?.image || (post as FreeformPost).image,
-      post_title: title,
-    };
-  },
-  [CampaignType.Squad]: async ({ referenceId, con }) => {
-    const source = await con
-      .getRepository(Source)
-      .findOneByOrFail({ id: referenceId });
-
-    return {
-      source_image: source.image,
-      source_handle: source.handle,
-      source_name: source.name,
-    };
-  },
-};
-
-export const generateCampaignCompletedEmail: TemplateDataFunc = async (
-  con,
-  user,
-  notification,
-) => {
-  const campaign = await con
-    .getRepository(Campaign)
-    .findOneBy({ id: notification.referenceId });
-
-  if (!campaign) {
-    return null;
-  }
-
-  const baseProps = getCompleteNotificationProps(campaign, notification);
-  const typeProps = await campaignTypeToEmailProps[campaign.type]({
-    con,
-    referenceId: campaign.referenceId,
-  });
-
-  return { ...baseProps, ...typeProps };
-};
 
 export type UserCampaignStats = Pick<
   CampaignFlags,
