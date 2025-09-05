@@ -1,5 +1,4 @@
-import type { User } from '../../../../entity';
-import type { CancelCampaignArgs, EstimatedReachResponse } from '../common';
+import type { EstimatedReachResponse } from '../common';
 
 export type LegacyPostEstimatedReach = Pick<
   EstimatedReachResponse,
@@ -26,17 +25,6 @@ export interface PromotedPostList {
   users: number;
   total_spend: string;
   post_ids: string[];
-}
-
-export interface GetCampaignByIdProps {
-  campaignId: PromotedPost['campaign_id'];
-  userId: User['id'];
-}
-
-export interface GetCampaignsProps {
-  userId: User['id'];
-  offset: number;
-  limit: number;
 }
 
 export interface GetCampaignResponse
@@ -67,22 +55,12 @@ export interface StartPostCampaignParams {
 }
 
 export interface ISkadiApiClientV1 {
-  startPostCampaign(
-    params: StartPostCampaignParams,
-  ): Promise<{ campaignId: string }>;
-  cancelPostCampaign(
-    params: CancelCampaignArgs,
-  ): Promise<{ currentBudget: string }>;
   estimatePostBoostReach(
     params: Pick<EstimatedPostBoostReachParams, 'userId' | 'postId'>,
   ): Promise<LegacyPostEstimatedReach>;
   estimatePostBoostReachDaily(
     params: StartPostCampaignParams,
   ): Promise<EstimatedReachResponse>;
-  getCampaignById: (
-    params: GetCampaignByIdProps,
-  ) => Promise<GetCampaignResponse>;
-  getCampaigns: (params: GetCampaignsProps) => Promise<GetCampaignListResponse>;
 }
 
 export enum CampaignUpdateAction {

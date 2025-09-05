@@ -42,7 +42,6 @@ import {
   NotificationStreakContext,
   NotificationUpvotersContext,
   NotificationUserContext,
-  type NotificationBoostContext,
 } from '../../src/notifications';
 import {
   NotificationPreferenceStatus,
@@ -908,120 +907,6 @@ describe('post added notifications', () => {
     expect((bundle.ctx as NotificationPostContext).post.id).toEqual('p1');
     expect((bundle.ctx as NotificationPostContext).source.id).toEqual('a');
     expect(bundle.ctx.userIds).toEqual(['3']);
-  });
-});
-
-describe('post boost action', () => {
-  it('should be registered', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBoostAction'
-    );
-
-    const registeredWorker = workers.find(
-      (item) => item.subscription === worker.default.subscription,
-    );
-
-    expect(registeredWorker).toBeDefined();
-  });
-
-  it('should add first milestone notification for the user sent to the worker and not clear campaignId', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBoostAction'
-    );
-
-    // Set up post with campaignId in flags
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { flags: { campaignId: 'tmp-campaign' } });
-
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      campaignId: 'tmp-campaign',
-      action: 'first_milestone',
-    });
-
-    expect(actual).toBeDefined();
-    expect(actual!.length).toEqual(1);
-    const bundle = actual![0];
-    const ctx = bundle.ctx as NotificationBoostContext;
-    expect(bundle.type).toEqual('post_boost_first_milestone');
-    expect(ctx.campaignId).toEqual('tmp-campaign');
-    expect(ctx.user.id).toEqual('1');
-
-    // Verify that campaignId is NOT cleared from the database
-    const updatedPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(updatedPost?.flags?.campaignId).toEqual('tmp-campaign');
-  });
-
-  it('should add completed notification for the user sent to the worker and clear campaignId', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBoostAction'
-    );
-
-    // Set up post with campaignId in flags
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { flags: { campaignId: 'tmp-campaign' } });
-
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      campaignId: 'tmp-campaign',
-      action: 'completed',
-    });
-
-    expect(actual).toBeDefined();
-    expect(actual!.length).toEqual(1);
-    const bundle = actual![0];
-    const ctx = bundle.ctx as NotificationBoostContext;
-    expect(bundle.type).toEqual('post_boost_completed');
-    expect(ctx.campaignId).toEqual('tmp-campaign');
-    expect(ctx.user.id).toEqual('1');
-
-    // Verify that campaignId IS cleared from the database
-    const updatedPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(updatedPost?.flags?.campaignId).toBeNull();
-  });
-
-  it('should not add notification for cancelled action and not clear campaignId', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBoostAction'
-    );
-
-    // Set up post with campaignId in flags
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { flags: { campaignId: 'tmp-campaign' } });
-
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      campaignId: 'tmp-campaign',
-      action: 'cancelled',
-    });
-
-    expect(actual).toBeFalsy();
-
-    // Verify that campaignId is NOT cleared from the database for cancelled actions
-    const updatedPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(updatedPost?.flags?.campaignId).toEqual('tmp-campaign');
-  });
-
-  it('should ignore when userId is missing', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBoostAction'
-    );
-
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: undefined, // Missing userId
-      postId: 'p1',
-      campaignId: 'tmp-campaign',
-      action: 'first_milestone',
-    });
-
-    // Should not return any notifications when userId is missing
-    expect(actual).toBeFalsy();
   });
 });
 

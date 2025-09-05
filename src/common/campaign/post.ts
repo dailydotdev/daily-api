@@ -22,9 +22,8 @@ import type { Connection } from 'graphql-relay';
 import { type DataSource } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
-import { debeziumTimeToDate, systemUser, updateFlagsStatement } from '../utils';
+import { systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
-import { skadiApiClientV1 } from '../../integrations/skadi/api/v1/clients';
 import { largeNumberFormat } from '../devcard';
 import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
@@ -183,9 +182,8 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
   user,
   notification,
 ) => {
-  const campaign = await skadiApiClientV1.getCampaignById({
-    campaignId: notification.referenceId!,
-    userId: user.id,
+  const campaign = await con.getRepository(CampaignPost).findOneBy({
+    id: notification.referenceId,
   });
 
   if (!campaign) {
@@ -197,11 +195,11 @@ export const generateBoostEmailUpdate: TemplateDataFunc = async (
     postId: campaign.postId,
     notification,
     campaign: {
-      createdAt: debeziumTimeToDate(campaign.startedAt),
-      endedAt: debeziumTimeToDate(campaign.endedAt),
+      createdAt: campaign.createdAt,
+      endedAt: campaign.endedAt,
       flags: {
-        impressions: campaign.impressions,
-        clicks: campaign.clicks,
+        impressions: campaign.flags.impressions!,
+        clicks: campaign.flags.clicks!,
       },
     },
   });
