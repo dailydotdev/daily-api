@@ -154,7 +154,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.type,
       ),
       post_link: getDiscussionLink(post.slug),
-      post_image: sharedPost?.image || (post as FreeformPost).image,
+      post_image: ((sharedPost || post) as FreeformPost)?.image,
       post_title: title,
     };
   },
