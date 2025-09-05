@@ -25,6 +25,7 @@ import {
 import {
   CandidateAcceptedOpportunityMessage,
   ContentUpdatedMessage,
+  MatchedCandidate,
   type OpportunityMessage,
   type TransferResponse,
   type UserBriefingRequest,
@@ -178,6 +179,7 @@ export type PubSubSchema = {
   'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
   'api.v1.opportunity-added': OpportunityMessage;
   'api.v1.opportunity-updated': OpportunityMessage;
+  'gondul.v1.candidate-opportunity-match': MatchedCandidate;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

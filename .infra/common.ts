@@ -409,6 +409,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.user-transaction',
     subscription: 'api.post-author-cores-earned',
   },
+  {
+    topic: 'gondul.v1.candidate-opportunity-match',
+    subscription: 'gondul.v1.candidate-opportunity-match',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
