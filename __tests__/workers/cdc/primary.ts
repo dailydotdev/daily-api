@@ -5767,6 +5767,343 @@ describe('opportunity', () => {
   });
 });
 
+describe('user_candidate_preference', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should trigger candidate preference change event on creation', async () => {
+    const candidatePreferenceData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      cvParsed: {},
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    // First, create the UserCandidatePreference record
+    await con
+      .getRepository(UserCandidatePreference)
+      .save(candidatePreferenceData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'c',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+  });
+
+  it('should trigger candidate preference change event on update', async () => {
+    const originalData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    const updatedData = {
+      ...originalData,
+      role: 'Senior Backend Engineer',
+      salaryExpectation: {
+        min: 90000,
+        currency: 'USD',
+      },
+      updatedAt: new Date('2023-01-02'),
+    };
+
+    // Create the UserCandidatePreference record
+    await con.getRepository(UserCandidatePreference).save(updatedData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        before: originalData,
+        after: updatedData,
+        op: 'u',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+  });
+
+  it('should not trigger event on delete operation', async () => {
+    const candidatePreferenceData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        before: candidatePreferenceData,
+        op: 'd',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger event on read operation', async () => {
+    const candidatePreferenceData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01').getTime(),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'r',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should handle disabled candidate status', async () => {
+    const candidatePreferenceData = {
+      userId: '2',
+      status: CandidateStatus.DISABLED,
+      cv: {
+        url: '',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: '',
+      roleType: 0.5,
+      employmentType: [],
+      salaryExpectation: {},
+      location: [],
+      locationType: [],
+      companyStage: [],
+      companySize: [],
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    // Create the UserCandidatePreference record
+    await con
+      .getRepository(UserCandidatePreference)
+      .save(candidatePreferenceData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'c',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+  });
+
+  it('should handle missing candidate preference gracefully', async () => {
+    // Don't create any UserCandidatePreference record
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: {
+          userId: 'non-existent-user',
+          status: CandidateStatus.OPEN_TO_OFFERS,
+          cvParsed: {},
+          cv: {
+            url: 'https://example.com/cv.pdf',
+            lastModified: new Date('2023-01-01'),
+          },
+          role: 'Senior Developer',
+          roleType: 0.8,
+          employmentType: [0],
+          salaryExpectation: {
+            min: 80000,
+            currency: 'USD',
+          },
+          location: [],
+          locationType: [],
+          companyStage: [],
+          companySize: [],
+          updatedAt: new Date('2023-01-01'),
+        },
+        op: 'c',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    // Should not trigger event when candidate preference is not found
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should handle complex employment types and locations', async () => {
+    const candidatePreferenceData = {
+      userId: '3',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Full Stack Engineer',
+      roleType: 0.9,
+      employmentType: [0, 1, 2], // Multiple employment types
+      salaryExpectation: {
+        min: 100000,
+        currency: 'EUR',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'Germany',
+        },
+        {
+          type: 2, // LocationType.HYBRID
+          country: 'Netherlands',
+          city: 'Amsterdam',
+        },
+      ],
+      locationType: [1, 2], // Multiple location types
+      companyStage: [1, 2, 3], // Multiple company stages
+      companySize: [2, 3, 4], // Multiple company sizes
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    // Create the UserCandidatePreference record
+    await con
+      .getRepository(UserCandidatePreference)
+      .save(candidatePreferenceData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'u',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+
+    // Verify the message contains the complex data
+    const eventCall = jest.mocked(triggerTypedEvent).mock.calls[0];
+    expect(eventCall[2]).toMatchObject({
+      payload: expect.objectContaining({
+        userId: '3',
+        employmentType: [0, 1, 2],
+        location: expect.arrayContaining([
+          expect.objectContaining({ country: 'Germany' }),
+          expect.objectContaining({
+            country: 'Netherlands',
+            city: 'Amsterdam',
+          }),
+        ]),
+        locationType: [1, 2],
+        companyStage: [1, 2, 3],
+        companySize: [2, 3, 4],
+      }),
+    });
+  });
+});
+
 describe('organization', () => {
   beforeEach(async () => {
     await saveFixtures(con, Organization, organizationsFixture);

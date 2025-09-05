@@ -144,9 +144,13 @@ import {
 import type { ContentPreferenceUser } from '../../entity/contentPreference/ContentPreferenceUser';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
-import { notifyOpportunityMatchAccepted } from '../../common/opportunity/pubsub';
+import {
+  notifyCandidatePreferenceChange,
+  notifyOpportunityMatchAccepted,
+} from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
+import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1230,6 +1234,22 @@ const onOpportunityMatchChange = async (
   }
 };
 
+const onUserCandidatePreferenceChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserCandidatePreference>,
+) => {
+  if (data.payload.op !== 'c' && data.payload.op !== 'u') {
+    return;
+  }
+
+  await notifyCandidatePreferenceChange({
+    con,
+    logger,
+    userId: data.payload.after!.userId,
+  });
+};
+
 const onOpportunityChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1426,6 +1446,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Organization):
           await onOrganizationChange(con, logger, data);
+          break;
+        case getTableName(con, UserCandidatePreference):
+          await onUserCandidatePreferenceChange(con, logger, data);
           break;
       }
     } catch (err) {
