@@ -117,7 +117,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   announcements: '',
   in_app_purchases: '',
   campaign_post_completed: '79',
-  campaign_squad_completed: '93',
+  campaign_squad_completed: '83',
 };
 
 type TemplateData = Record<string, unknown> & {

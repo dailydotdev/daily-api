@@ -2479,6 +2479,6 @@ describe('campaign_squad_completed notifications', () => {
       source_handle: 'a',
       source_name: 'A',
     });
-    expect(args.transactional_message_id).toEqual('93');
+    expect(args.transactional_message_id).toEqual('83');
   });
 });
