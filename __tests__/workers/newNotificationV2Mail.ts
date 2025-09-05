@@ -44,7 +44,6 @@ import {
   WelcomePost,
 } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
-import { campaignsFixture } from '../fixture/campaign';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
