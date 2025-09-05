@@ -1,7 +1,3 @@
-export enum OpportunityType {
-  Job = 'job',
-}
-
 export enum OpportunityUserType {
   Recruiter = 'recruiter',
 }

@@ -23,7 +23,11 @@ import {
   pubsub,
 } from './pubsub';
 import {
+  CandidateAcceptedOpportunityMessage,
+  CandidatePreferenceUpdated,
   ContentUpdatedMessage,
+  MatchedCandidate,
+  type OpportunityMessage,
   type TransferResponse,
   type UserBriefingRequest,
 } from '@dailydotdev/schema';
@@ -166,6 +170,11 @@ export type PubSubSchema = {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
   };
+  'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
+  'api.v1.opportunity-added': OpportunityMessage;
+  'api.v1.opportunity-updated': OpportunityMessage;
+  'gondul.v1.candidate-opportunity-match': MatchedCandidate;
+  'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

@@ -63,6 +63,17 @@ import {
   UserCompensation,
   WorkLocationType,
 } from '../entity/user/UserJobPreferences';
+import { OpportunityUserRecruiter } from '../entity/opportunities/user';
+import { OpportunityUserType } from '../entity/opportunities/types';
+import { OpportunityKeyword } from '../entity/OpportunityKeyword';
+import {
+  CompanySize,
+  CompanyStage,
+  EmploymentType,
+  OpportunityType,
+  SeniorityLevel,
+  type OpportunityMeta,
+} from '@dailydotdev/schema';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1256,6 +1267,18 @@ const obj = new GraphORM({
   Organization: {
     requiredColumns: ['id'],
     fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      subscriptionFlags: {
+        jsonType: true,
+      },
+      links: {
+        jsonType: true,
+      },
       members: {
         customQuery: (ctx, alias, qb) =>
           qb
@@ -1276,6 +1299,12 @@ const obj = new GraphORM({
       status: {
         rawSelect: true,
         select: (_, alias) => `${alias}."subscriptionFlags"->>'status'`,
+      },
+      size: {
+        transform: (value) => CompanySize[value as keyof typeof CompanySize],
+      },
+      stage: {
+        transform: (value) => CompanyStage[value as keyof typeof CompanyStage],
       },
       activeSeats: {
         rawSelect: true,
@@ -1381,6 +1410,7 @@ const obj = new GraphORM({
       },
     },
   },
+
   PostAnalytics: {
     requiredColumns: ['id', 'updatedAt'],
     fields: {
@@ -1422,6 +1452,106 @@ const obj = new GraphORM({
       },
       updatedAt: {
         transform: transformDate,
+      },
+    },
+  },
+  Opportunity: {
+    fields: {
+      type: {
+        transform: (value) =>
+          OpportunityType[value as keyof typeof OpportunityType],
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      content: {
+        jsonType: true,
+      },
+      organization: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'organizationId',
+        },
+      },
+      meta: {
+        jsonType: true,
+        transform: (value: OpportunityMeta) => ({
+          ...value,
+          seniorityLevel:
+            SeniorityLevel[
+              value.seniorityLevel as unknown as keyof typeof SeniorityLevel
+            ],
+          employmentType:
+            EmploymentType[
+              value.employmentType as unknown as keyof typeof EmploymentType
+            ],
+        }),
+      },
+      recruiters: {
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                OpportunityUserRecruiter,
+                'ou',
+                `"${childAlias}"."id" = ou."userId"`,
+              )
+              .where(`ou."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`ou."type" = :type`, {
+                type: OpportunityUserType.Recruiter,
+              }),
+        },
+      },
+      keywords: {
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                OpportunityKeyword,
+                'ok',
+                `"${childAlias}"."value" = ok."keyword"`,
+              )
+              .where(`ok."opportunityId" = "${parentAlias}".id`),
+        },
+      },
+    },
+  },
+  OpportunityMatch: {
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+      description: {
+        jsonType: true,
+      },
+      screening: {
+        jsonType: true,
+      },
+      applicationRank: {
+        jsonType: true,
+      },
+      opportunity: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'opportunityId',
+        },
+      },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
       },
     },
   },

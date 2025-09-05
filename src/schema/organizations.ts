@@ -15,6 +15,7 @@ import {
   notifyOrganizationUserJoined,
   notifyOrganizationUserLeft,
   notifyOrganizationUserRemoved,
+  protoToGQLEnum,
   toGQLEnum,
   updateFlagsStatement,
   updateSubscriptionFlags,
@@ -47,6 +48,7 @@ import {
 import { parsePaddlePriceInCents } from '../common/paddle';
 import { SubscriptionStatus } from '../common/plus';
 import { organizationSubscriptionFlagsSchema } from '../common/schema/organizations';
+import { CompanySize, CompanyStage } from '@dailydotdev/schema';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -77,6 +79,9 @@ export const typeDefs = /* GraphQL */ `
     ContentPreferenceOrganizationStatus,
     'OrganizationMemberSeatType',
   )}
+
+  ${protoToGQLEnum<typeof CompanyStage>(CompanyStage, 'CompanyStage')}
+  ${protoToGQLEnum<typeof CompanySize>(CompanySize, 'CompanySize')}
 
   type OrganizationMember {
     """
@@ -140,6 +145,46 @@ export const typeDefs = /* GraphQL */ `
     The subscription status of the organization
     """
     status: SubscriptionStatus!
+
+    """
+    The website URL of the organization
+    """
+    website: String
+
+    """
+    The description of the organization
+    """
+    description: String
+
+    """
+    The perks offered by the organization
+    """
+    perks: [String!]
+
+    """
+    The year the organization was founded
+    """
+    founded: Int
+
+    """
+    The location of the organization
+    """
+    location: String
+
+    """
+    The category of the organization
+    """
+    category: String
+
+    """
+    The size of the organization
+    """
+    size: CompanySize
+
+    """
+    The stage of the organization
+    """
+    stage: CompanyStage
   }
 
   type ProratedPricePreview {
