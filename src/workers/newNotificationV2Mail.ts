@@ -1089,6 +1089,12 @@ const worker: Worker = {
     if (!notification) {
       return;
     }
+
+    const templateIdValue = notificationToTemplateId[notification.type];
+    const templateId =
+      typeof templateIdValue === 'string'
+        ? templateIdValue
+        : await templateIdValue?.(con, notification);
     const stream = await streamNotificationUsers(
       con,
       notification.id,
@@ -1123,12 +1129,6 @@ const worker: Worker = {
                 return;
               }
               const formattedData = formatTemplateDate(templateData);
-              const templateIdValue =
-                notificationToTemplateId[notification.type];
-              const templateId =
-                typeof templateIdValue === 'string'
-                  ? templateIdValue
-                  : await templateIdValue?.(con, notification);
 
               await sendEmail({
                 ...baseNotificationEmailData,
