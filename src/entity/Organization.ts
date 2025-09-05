@@ -43,7 +43,7 @@ export class Organization {
   subscriptionFlags: z.infer<typeof organizationSubscriptionFlagsSchema>;
 
   @Column({ type: 'jsonb', default: '[]' })
-  links: z.infer<typeof organizationLinksSchema>;
+  links: z.infer<typeof organizationLinksSchema>[];
 
   @Column({ type: 'text', default: null })
   website: string;
@@ -61,12 +61,20 @@ export class Organization {
   location: string;
 
   @Column({ type: 'text', default: null })
-  size: CompanySize;
-
-  @Column({ type: 'text', default: null })
   category: string;
 
-  @Column({ type: 'text', default: null })
+  @Column({
+    type: 'integer',
+    default: null,
+    comment: 'CompanySize from protobuf schema',
+  })
+  size: CompanySize;
+
+  @Column({
+    type: 'integer',
+    default: null,
+    comment: 'CompanyStage from protobuf schema',
+  })
   stage: CompanyStage;
 
   @OneToMany(

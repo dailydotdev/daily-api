@@ -35,8 +35,8 @@ importers:
         specifier: ^2.4.3
         version: 2.4.3(graphql-subscriptions@3.0.0(graphql@16.11.0))
       '@dailydotdev/schema':
-        specifier: 0.2.23
-        version: 0.2.23(@bufbuild/protobuf@1.10.0)
+        specifier: 0.2.29
+        version: 0.2.29(@bufbuild/protobuf@1.10.0)
       '@dailydotdev/ts-ioredis-pool':
         specifier: ^1.0.2
         version: 1.0.2
@@ -696,8 +696,8 @@ packages:
     peerDependencies:
       graphql-subscriptions: ^1.0.0 || ^2.0.0
 
-  '@dailydotdev/schema@0.2.23':
-    resolution: {integrity: sha512-cteNtHbeBMloutPZXdKF0UNm0xqy8Vy+VfHRn5HOyFQnsdNQTHif6mE3T8EafrbddpnPn2LnXoSkd7tq65xe8w==}
+  '@dailydotdev/schema@0.2.29':
+    resolution: {integrity: sha512-TLVVKIlzAvjwGkwS0ybLqwXdlL4DNC+y7KmLe8KlT3Ja9xYm3C10mlCHB3yUJqejqRcvKu15CBAY/YCHltuo8w==}
     peerDependencies:
       '@bufbuild/protobuf': 1.x
 
@@ -5167,7 +5167,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@dailydotdev/schema@0.2.23(@bufbuild/protobuf@1.10.0)':
+  '@dailydotdev/schema@0.2.29(@bufbuild/protobuf@1.10.0)':
     dependencies:
       '@bufbuild/protobuf': 1.10.0
 

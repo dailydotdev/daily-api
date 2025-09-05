@@ -14,13 +14,13 @@ import type {
   CompanySize,
   CompanyStage,
   EmploymentType,
+  Location,
+  LocationType,
+  Salary,
 } from '@dailydotdev/schema';
-import type {
-  locationSchema,
-  locationTypeSchema,
-  salaryExpectationSchema,
-  userCandidateCVSchema,
-} from '../../common/schema/userCandidate';
+import type { userCandidateCVSchema } from '../../common/schema/userCandidate';
+
+export type SalaryExpectation = Omit<Salary, 'max'>;
 
 @Entity()
 export class UserCandidatePreference {
@@ -61,14 +61,27 @@ export class UserCandidatePreference {
   })
   employmentType: Array<EmploymentType>;
 
-  @Column({ type: 'jsonb', default: '{}' })
-  salaryExpectation: z.infer<typeof salaryExpectationSchema>;
+  @Column({
+    type: 'jsonb',
+    default: {},
+    comment: 'Salary from protobuf schema',
+  })
+  salaryExpectation: SalaryExpectation;
 
-  @Column({ type: 'jsonb', default: '[]' })
-  location: z.infer<typeof locationSchema>[];
+  @Column({
+    type: 'jsonb',
+    default: [],
+    comment: 'Location from protobuf schema',
+  })
+  location: Location[];
 
-  @Column({ type: 'jsonb', default: '{}' })
-  locationType: z.infer<typeof locationTypeSchema>;
+  @Column({
+    type: 'integer',
+    array: true,
+    comment: 'LocationType from protobuf schema',
+    default: null,
+  })
+  locationType: LocationType[];
 
   @Column({
     type: 'integer',
