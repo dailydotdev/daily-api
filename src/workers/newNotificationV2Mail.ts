@@ -1128,8 +1128,6 @@ const worker: Worker = {
     if (!notification) {
       return;
     }
-
-    const templateId = notificationToTemplateId[notification.type];
     const stream = await streamNotificationUsers(
       con,
       notification.id,
@@ -1164,7 +1162,7 @@ const worker: Worker = {
                 return;
               }
               const formattedData = formatTemplateDate(templateData);
-
+              const templateId = notificationToTemplateId[notification.type];
               await sendEmail({
                 ...baseNotificationEmailData,
                 transactional_message_id: templateId,
