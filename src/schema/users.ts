@@ -67,6 +67,7 @@ import {
   isProfileCompleteById,
   mapCloudinaryUrl,
   parseBigInt,
+  playwrightUser,
   resubscribeUser,
   sendEmail,
   StreakRecoverQueryResult,
@@ -1439,6 +1440,10 @@ export const getMarketingCta = async (
 ) => {
   if (!userId) {
     log.info('no userId provided when fetching marketing cta');
+    return null;
+  }
+
+  if (userId === playwrightUser.id) {
     return null;
   }
 

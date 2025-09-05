@@ -1,4 +1,3 @@
-import z from 'zod';
 import {
   Column,
   CreateDateColumn,
@@ -9,16 +8,16 @@ import {
   TableInheritance,
   UpdateDateColumn,
 } from 'typeorm';
-import type { OpportunityState } from '@dailydotdev/schema';
-import type { OpportunityType } from './types';
+import type {
+  OpportunityContent,
+  OpportunityMeta,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
 import type { OpportunityUser } from './user';
 import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
-import type {
-  OpportunityContentSchema,
-  OpportunityMetaSchema,
-} from '../../common/schema/opportunities';
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -34,11 +33,11 @@ export class Opportunity {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'integer', comment: 'OpportunityType from protobuf schema' })
   @Index('IDX_opportunity_type')
   type: OpportunityType;
 
-  @Column({ type: 'text' })
+  @Column({ type: 'integer', comment: 'OpportunityState from protobuf schema' })
   state: OpportunityState;
 
   @Column({ type: 'text' })
@@ -47,11 +46,19 @@ export class Opportunity {
   @Column({ type: 'text' })
   tldr: string;
 
-  @Column({ type: 'jsonb', default: {} })
-  content: z.infer<typeof OpportunityContentSchema>[];
+  @Column({
+    type: 'jsonb',
+    default: {},
+    comment: 'OpportunityContent from protobuf schema',
+  })
+  content: OpportunityContent;
 
-  @Column({ type: 'jsonb', default: {} })
-  meta: z.infer<typeof OpportunityMetaSchema>;
+  @Column({
+    type: 'jsonb',
+    default: {},
+    comment: 'OpportunityMeta from protobuf schema',
+  })
+  meta: OpportunityMeta;
 
   @OneToMany('OpportunityUser', (user: OpportunityUser) => user.opportunity, {
     lazy: true,

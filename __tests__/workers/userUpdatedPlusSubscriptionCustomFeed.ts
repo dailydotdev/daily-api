@@ -64,7 +64,10 @@ describe('userUpdatedPlusSubscriptionCustomFeed', () => {
   it('should create custom feed for user', async () => {
     const newBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({
+        subscriptionId: '1234',
+        cycle: 'monthly',
+      }),
     };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: newBase,

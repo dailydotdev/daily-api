@@ -439,8 +439,8 @@ describe('query campaignById', () => {
 
 describe('query campaignsList', () => {
   const CAMPAIGNS_LIST_QUERY = /* GraphQL */ `
-    query CampaignsList($first: Int, $after: String) {
-      campaignsList(first: $first, after: $after) {
+    query CampaignsList($first: Int, $after: String, $entityId: ID) {
+      campaignsList(first: $first, after: $after, entityId: $entityId) {
         pageInfo {
           hasNextPage
           hasPreviousPage
@@ -483,7 +483,7 @@ describe('query campaignsList', () => {
     await con.getRepository(CampaignPost).save([
       {
         id: CAMPAIGN_UUID_1,
-        referenceId: 'ref1',
+        referenceId: 'p1',
         userId: '1',
         type: CampaignType.Post,
         state: CampaignState.Active,
@@ -500,7 +500,7 @@ describe('query campaignsList', () => {
       },
       {
         id: CAMPAIGN_UUID_2,
-        referenceId: 'ref2',
+        referenceId: 'p2',
         userId: '1',
         type: CampaignType.Post,
         state: CampaignState.Completed,
@@ -517,7 +517,7 @@ describe('query campaignsList', () => {
       },
       {
         id: CAMPAIGN_UUID_3,
-        referenceId: 'ref3',
+        referenceId: 'p3',
         userId: '1',
         type: CampaignType.Post,
         state: CampaignState.Active,
@@ -534,7 +534,7 @@ describe('query campaignsList', () => {
       },
       {
         id: CAMPAIGN_UUID_4,
-        referenceId: 'ref4',
+        referenceId: 'p4',
         userId: '2', // Different user
         type: CampaignType.Post,
         state: CampaignState.Active,
@@ -550,26 +550,6 @@ describe('query campaignsList', () => {
         postId: 'p4',
       },
     ]);
-
-    await con.getRepository(CampaignSource).save([
-      {
-        id: CAMPAIGN_UUID_5,
-        referenceId: 'ref5',
-        userId: '1',
-        type: CampaignType.Squad,
-        state: CampaignState.Pending,
-        createdAt: new Date(now.getTime() - 4000), // Oldest
-        endedAt: new Date('2023-12-31'),
-        flags: {
-          budget: 3000,
-          spend: 0,
-          users: 0,
-          clicks: 0,
-          impressions: 0,
-        },
-        sourceId: 'b',
-      },
-    ]);
   });
 
   it('should return campaigns list ordered by state and creation date', async () => {
@@ -580,7 +560,7 @@ describe('query campaignsList', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.campaignsList.edges).toHaveLength(4);
+    expect(res.data.campaignsList.edges).toHaveLength(3);
 
     // Should be ordered: Active campaigns first (by createdAt DESC), then others
     const campaigns = res.data.campaignsList.edges.map((edge) => edge.node);
@@ -594,8 +574,6 @@ describe('query campaignsList', () => {
     // Then non-active campaigns by createdAt DESC
     expect(campaigns[2].id).toBe(CAMPAIGN_UUID_2); // Completed
     expect(campaigns[2].state).toBe('COMPLETED');
-    expect(campaigns[3].id).toBe(CAMPAIGN_UUID_5); // Pending (oldest)
-    expect(campaigns[3].state).toBe('PENDING');
   });
 
   it('should only return campaigns for authenticated user', async () => {
@@ -644,15 +622,12 @@ describe('query campaignsList', () => {
     });
 
     expect(secondPage.errors).toBeFalsy();
-    expect(secondPage.data.campaignsList.edges).toHaveLength(2);
+    expect(secondPage.data.campaignsList.edges).toHaveLength(1);
     expect(secondPage.data.campaignsList.pageInfo.hasPreviousPage).toBe(true);
 
-    // Should get the next 2 campaigns
+    // Should leftover campaign
     expect(secondPage.data.campaignsList.edges[0].node.id).toBe(
       CAMPAIGN_UUID_2,
-    );
-    expect(secondPage.data.campaignsList.edges[1].node.id).toBe(
-      CAMPAIGN_UUID_5,
     );
   });
 
@@ -695,6 +670,30 @@ describe('query campaignsList', () => {
     expect(res.data.campaignsList.edges).toHaveLength(0);
     expect(res.data.campaignsList.pageInfo.hasNextPage).toBe(false);
     expect(res.data.campaignsList.pageInfo.hasPreviousPage).toBe(false);
+  });
+
+  it('should return campaigns for entity', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(CAMPAIGNS_LIST_QUERY, {
+      variables: { first: 10, entityId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignsList.edges).toHaveLength(1);
+
+    expect(res.data.campaignsList.edges[0].node.id).toBe(CAMPAIGN_UUID_1);
+  });
+
+  it('should return campaigns for entity from other user', async () => {
+    loggedUser = '2';
+
+    const res = await client.query(CAMPAIGNS_LIST_QUERY, {
+      variables: { first: 10, entityId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignsList.edges).toHaveLength(0);
   });
 });
 

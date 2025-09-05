@@ -23,6 +23,10 @@ import {
   WelcomePost,
   CollectionPost,
   PostType,
+  Campaign,
+  CampaignPost,
+  CampaignState,
+  CampaignType,
 } from '../../../src/entity';
 import { SourceMemberRoles, sourceRoleRank } from '../../../src/roles';
 import { sourcesFixture } from '../../fixture/source';
@@ -51,6 +55,8 @@ import { Credits, EntityType } from '@dailydotdev/schema';
 import * as njordCommon from '../../../src/common/njord';
 import { fetchParse } from '../../../src/integrations/retry';
 import { ONE_DAY_IN_SECONDS } from '../../../src/common';
+import nock from 'nock';
+import { getAdvertiserId } from '../../../src/integrations/skadi/api/v2/clients';
 
 jest.mock('../../../src/common/pubsub', () => ({
   ...(jest.requireActual('../../../src/common/pubsub') as Record<
@@ -218,8 +224,6 @@ describe('query postCampaignById', () => {
     }
   `;
 
-  const params = { id: 'mock-campaign-id' };
-
   beforeEach(async () => {
     await con.getRepository(Post).update(
       { id: 'p1' },
@@ -235,65 +239,58 @@ describe('query postCampaignById', () => {
   it('should not authorize when not logged in', () =>
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: params },
+      { query: QUERY, variables: { id: randomUUID() } },
       'UNAUTHENTICATED',
     ));
 
-  it('should return an error if post is not found', async () => {
+  it('should return an error if campaign is not found', async () => {
     loggedUser = '1';
-    await con.getRepository(Post).delete({ id: 'p1' });
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_post: {
-        campaign_id: 'mock-campaign-id',
-        post_id: 'p1',
-        status: 'active',
-        spend: '1000',
-        started_at: new Date().getTime(),
-        ended_at: new Date('2024-12-31').getTime(), // Future date
-        impressions: 50,
-        clicks: 10,
-      },
-    });
+    // Use a non-existent campaign ID
+    const nonExistentCampaignId = randomUUID();
 
     return testQueryErrorCode(
       client,
-      { query: QUERY, variables: params },
+      { query: QUERY, variables: { id: nonExistentCampaignId } },
       'NOT_FOUND',
     );
   });
 
-  it('should the response returned by skadi client', async () => {
+  it('should the response returned by database', async () => {
     loggedUser = '1';
 
-    // Mock the HTTP response from Skadi API
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_post: {
-        campaign_id: 'mock-campaign-id',
-        post_id: 'p1',
-        status: 'active',
-        spend: '1000',
-        started_at: new Date().getTime(),
-        ended_at: new Date('2024-12-31').getTime(), // Future date
-        impressions: 50,
-        clicks: 10,
+    // Create campaign in database
+    const campaignId = randomUUID();
+    await con.getRepository(CampaignPost).save({
+      id: campaignId,
+      creativeId: randomUUID(),
+      flags: {
+        budget: 2000,
+        spend: 1000,
         users: 25,
+        clicks: 10,
+        impressions: 50,
       },
+      userId: '1',
+      referenceId: 'p1',
+      state: CampaignState.Active,
+      postId: 'p1',
+      type: CampaignType.Post,
+      createdAt: new Date('2024-01-01'),
+      endedAt: new Date('2024-01-08'),
     });
 
-    const res = await client.query(QUERY, { variables: params });
+    const res = await client.query(QUERY, { variables: { id: campaignId } });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaignById).toEqual({
       campaign: {
-        spend: 100000,
-        campaignId: 'mock-campaign-id',
+        spend: 1000,
+        campaignId: campaignId,
         clicks: 10,
         impressions: 50,
         postId: 'p1',
-        status: 'active',
+        status: 'ACTIVE',
         users: 25,
       },
       post: {
@@ -302,25 +299,9 @@ describe('query postCampaignById', () => {
         title: 'P1',
         shortId: 'sp1',
         permalink: 'http://localhost:4000/r/sp1',
-        engagements: 250, // 150 views + 75 upvotes + 25 comments
+        engagements: 0, // Not used anymore
       },
     });
-
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-campaign-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
   });
 
   describe('post type handling in getFormattedBoostedPost', () => {
@@ -332,8 +313,9 @@ describe('query postCampaignById', () => {
     describe('Share posts', () => {
       it('should use shared post image and title when share post has no title', async () => {
         // Create a shared post (p1) that will be referenced - using existing fixture post
+        const sharedPostId1 = randomUUID();
         await con.getRepository(ArticlePost).save({
-          id: 'shared-post-1',
+          id: sharedPostId1,
           shortId: 'shared1',
           title: 'Shared Post Title',
           image: 'https://shared-post-image.jpg',
@@ -347,11 +329,12 @@ describe('query postCampaignById', () => {
         });
 
         // Create a share post that references the shared post
+        const sharePostId1 = randomUUID();
         await con.getRepository(SharePost).save({
-          id: 'share-post-1',
+          id: sharePostId1,
           shortId: 'share1',
           title: null, // No title on share post
-          sharedPostId: 'shared-post-1',
+          sharedPostId: sharedPostId1,
           sourceId: 'a',
           type: PostType.Share,
           createdAt: new Date(),
@@ -361,56 +344,47 @@ describe('query postCampaignById', () => {
           comments: 15,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'share-campaign-id',
-            post_id: 'share-post-1',
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: new Date('2024-12-31').getTime(), // Future date
-            impressions: 50,
+        // Create campaign in database
+        const shareCampaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: shareCampaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: sharePostId1,
+          state: CampaignState.Active,
+          postId: sharePostId1,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'share-campaign-id' },
+          variables: { id: shareCampaignId },
         });
 
         expect(res.errors).toBeFalsy();
         expect(res.data.postCampaignById.post).toEqual({
-          id: 'share-post-1',
+          id: sharePostId1,
           image: 'https://shared-post-image.jpg', // From shared post
           title: 'Shared Post Title', // From shared post
           shortId: 'share1',
           permalink: 'http://localhost:4000/r/share1',
-          engagements: 135, // 80 views + 40 upvotes + 15 comments
+          engagements: 0, // Not used anymore
         });
-
-        // Verify the HTTP call was made correctly
-        expect(mockFetchParse).toHaveBeenCalledWith(
-          `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              campaign_id: 'share-campaign-id',
-              user_id: '1',
-            }),
-            agent: expect.any(Function),
-          },
-        );
       });
 
       it('should use share post title when available, fallback to shared post title', async () => {
         // Create a shared post
+        const sharedPostId = randomUUID();
         await con.getRepository(ArticlePost).save({
-          id: 'shared-post-2',
+          id: sharedPostId,
           shortId: 'shared2',
           title: 'Original Shared Post Title',
           image: 'https://shared-post-2-image.jpg',
@@ -424,11 +398,12 @@ describe('query postCampaignById', () => {
         });
 
         // Create a share post with its own title
+        const sharePostId = randomUUID();
         await con.getRepository(SharePost).save({
-          id: 'share-post-2',
+          id: sharePostId,
           shortId: 'share2',
           title: 'Share Post Custom Title', // Has its own title
-          sharedPostId: 'shared-post-2',
+          sharedPostId: sharedPostId,
           sourceId: 'a',
           type: PostType.Share,
           createdAt: new Date(),
@@ -438,56 +413,47 @@ describe('query postCampaignById', () => {
           comments: 18,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'share-campaign-id-2',
-            post_id: 'share-post-2',
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: new Date('2024-12-31').getTime(), // Future date
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: sharePostId,
+          state: CampaignState.Active,
+          postId: sharePostId,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'share-campaign-id-2' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
         expect(res.data.postCampaignById.post).toEqual({
-          id: 'share-post-2',
+          id: sharePostId,
           image: 'https://shared-post-2-image.jpg', // From shared post
           title: 'Share Post Custom Title', // From share post (not shared post)
           shortId: 'share2',
           permalink: 'http://localhost:4000/r/share2',
-          engagements: 153, // 90 views + 45 upvotes + 18 comments
+          engagements: 0, // Not used anymore
         });
-
-        // Verify the HTTP call was made correctly
-        expect(mockFetchParse).toHaveBeenCalledWith(
-          `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              campaign_id: 'share-campaign-id-2',
-              user_id: '1',
-            }),
-            agent: expect.any(Function),
-          },
-        );
       });
 
       it('should handle share post with empty title string', async () => {
         // Create a shared post
+        const sharedPostId = randomUUID();
         await con.getRepository(ArticlePost).save({
-          id: 'shared-post-3',
+          id: sharedPostId,
           shortId: 'shared3',
           title: 'Shared Post Title for Empty',
           image: 'https://shared-post-3-image.jpg',
@@ -501,11 +467,12 @@ describe('query postCampaignById', () => {
         });
 
         // Create a share post with empty title
+        const sharePostId = randomUUID();
         await con.getRepository(SharePost).save({
-          id: 'share-post-3',
+          id: sharePostId,
           shortId: 'share3',
           title: '', // Empty string title
-          sharedPostId: 'shared-post-3',
+          sharedPostId: sharedPostId,
           sourceId: 'a',
           type: PostType.Share,
           createdAt: new Date(),
@@ -515,58 +482,49 @@ describe('query postCampaignById', () => {
           comments: 12,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'share-campaign-id-3',
-            post_id: 'share-post-3',
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: new Date('2024-12-31').getTime(), // Future date
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: sharePostId,
+          state: CampaignState.Active,
+          postId: sharePostId,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'share-campaign-id-3' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
         expect(res.data.postCampaignById.post).toEqual({
-          id: 'share-post-3',
+          id: sharePostId,
           image: 'https://shared-post-3-image.jpg', // From shared post
           title: 'Shared Post Title for Empty', // From shared post (empty string is falsy)
           shortId: 'share3',
           permalink: 'http://localhost:4000/r/share3',
-          engagements: 117, // 70 views + 35 upvotes + 12 comments
+          engagements: 0, // Not used anymore
         });
-
-        // Verify the HTTP call was made correctly
-        expect(mockFetchParse).toHaveBeenCalledWith(
-          `${process.env.SKADI_API_ORIGIN}/promote/post/get`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              campaign_id: 'share-campaign-id-3',
-              user_id: '1',
-            }),
-            agent: expect.any(Function),
-          },
-        );
       });
     });
 
     describe('Freeform posts', () => {
       it('should use freeform post image directly', async () => {
         // Create a freeform post
+        const freeformPostId = randomUUID();
         const freeformPost = await con.getRepository(FreeformPost).save({
-          id: 'freeform-post-1',
+          id: freeformPostId,
           shortId: 'freeform1',
           title: 'Freeform Post Title',
           image: 'https://freeform-post-image.jpg',
@@ -580,23 +538,29 @@ describe('query postCampaignById', () => {
           comments: 45,
         } as unknown as Partial<FreeformPost>);
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'freeform-campaign-id',
-            post_id: freeformPost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: new Date('2024-12-31').getTime(), // Future date
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: freeformPost.id,
+          state: CampaignState.Active,
+          postId: freeformPost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'freeform-campaign-id' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -606,15 +570,16 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post Title',
           shortId: 'freeform1',
           permalink: 'http://localhost:4000/r/freeform1',
-          engagements: 420, // 250 views + 125 upvotes + 45 comments
+          engagements: 0, // Not used anymore
         });
       });
 
       it('should handle freeform post with no image', async () => {
         // Create a freeform post without image
         const createdAt = new Date();
+        const freeformPostId = randomUUID();
         const freeformPost = await con.getRepository(FreeformPost).save({
-          id: 'freeform-post-2',
+          id: freeformPostId,
           shortId: 'freeform2',
           title: 'Freeform Post No Image',
           image: null, // No image
@@ -628,23 +593,29 @@ describe('query postCampaignById', () => {
           comments: 22,
         } as unknown as Partial<FreeformPost>);
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'freeform-campaign-id-2',
-            post_id: freeformPost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: new Date('2024-12-31').getTime(), // Future date
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: freeformPost.id,
+          state: CampaignState.Active,
+          postId: freeformPost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'freeform-campaign-id-2' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -657,7 +628,7 @@ describe('query postCampaignById', () => {
           title: 'Freeform Post No Image',
           shortId: 'freeform2',
           permalink: 'http://localhost:4000/r/freeform2',
-          engagements: 165, // 95 views + 48 upvotes + 22 comments
+          engagements: 0, // Not used anymore
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -671,8 +642,9 @@ describe('query postCampaignById', () => {
     describe('Article posts', () => {
       it('should use article post image directly', async () => {
         // Create an article post
+        const articlePostId = randomUUID();
         const articlePost = await con.getRepository(ArticlePost).save({
-          id: 'article-post-1',
+          id: articlePostId,
           shortId: 'article1',
           title: 'Article Post Title',
           image: 'https://article-post-image.jpg',
@@ -686,23 +658,29 @@ describe('query postCampaignById', () => {
           comments: 60,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'article-campaign-id',
-            post_id: articlePost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: new Date('2024-12-31').getTime(), // Future date
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: articlePost.id,
+          state: CampaignState.Active,
+          postId: articlePost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'article-campaign-id' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -712,15 +690,16 @@ describe('query postCampaignById', () => {
           title: 'Article Post Title',
           shortId: 'article1',
           permalink: 'http://localhost:4000/r/article1',
-          engagements: 510, // 300 views + 150 upvotes + 60 comments
+          engagements: 0, // Not used anymore
         });
       });
 
       it('should handle article post with no image', async () => {
         // Create an article post without image
         const createdAt = new Date();
+        const articlePostId = randomUUID();
         const articlePost = await con.getRepository(ArticlePost).save({
-          id: 'article-post-2',
+          id: articlePostId,
           shortId: 'article2',
           title: 'Article Post No Image',
           image: null, // No image
@@ -734,23 +713,29 @@ describe('query postCampaignById', () => {
           comments: 28,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'article-campaign-id-2',
-            post_id: articlePost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: null,
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: articlePost.id,
+          state: CampaignState.Active,
+          postId: articlePost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'article-campaign-id-2' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -763,7 +748,7 @@ describe('query postCampaignById', () => {
           title: 'Article Post No Image',
           shortId: 'article2',
           permalink: 'http://localhost:4000/r/article2',
-          engagements: 193, // 110 views + 55 upvotes + 28 comments
+          engagements: 0, // Not used anymore
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -777,8 +762,9 @@ describe('query postCampaignById', () => {
     describe('Welcome posts', () => {
       it('should use welcome post image directly', async () => {
         // Create a welcome post
+        const welcomePostId = randomUUID();
         const welcomePost = await con.getRepository(WelcomePost).save({
-          id: 'welcome-post-1',
+          id: welcomePostId,
           shortId: 'welcome1',
           title: 'Welcome Post Title',
           image: 'https://welcome-post-image.jpg',
@@ -792,23 +778,29 @@ describe('query postCampaignById', () => {
           comments: 18,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'welcome-campaign-id',
-            post_id: welcomePost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: null,
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: welcomePost.id,
+          state: CampaignState.Active,
+          postId: welcomePost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'welcome-campaign-id' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -818,7 +810,7 @@ describe('query postCampaignById', () => {
           title: 'Welcome Post Title',
           shortId: 'welcome1',
           permalink: 'http://localhost:4000/r/welcome1',
-          engagements: 145, // 85 views + 42 upvotes + 18 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -826,8 +818,9 @@ describe('query postCampaignById', () => {
     describe('Collection posts', () => {
       it('should use collection post image directly', async () => {
         // Create a collection post
+        const collectionPostId = randomUUID();
         const collectionPost = await con.getRepository(CollectionPost).save({
-          id: 'collection-post-1',
+          id: collectionPostId,
           shortId: 'collect1',
           title: 'Collection Post Title',
           image: 'https://collection-post-image.jpg',
@@ -841,23 +834,29 @@ describe('query postCampaignById', () => {
           comments: 32,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'collection-campaign-id',
-            post_id: collectionPost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: null,
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: collectionPost.id,
+          state: CampaignState.Active,
+          postId: collectionPost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'collection-campaign-id' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -867,7 +866,7 @@ describe('query postCampaignById', () => {
           title: 'Collection Post Title',
           shortId: 'collect1',
           permalink: 'http://localhost:4000/r/collect1',
-          engagements: 272, // 160 views + 80 upvotes + 32 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -875,8 +874,9 @@ describe('query postCampaignById', () => {
     describe('YouTube video posts', () => {
       it('should use YouTube post image directly', async () => {
         // Create a YouTube post
+        const youtubePostId = randomUUID();
         const youtubePost = await con.getRepository(YouTubePost).save({
-          id: 'youtube-post-1',
+          id: youtubePostId,
           shortId: 'youtube1',
           title: 'YouTube Post Title',
           image: 'https://youtube-post-image.jpg',
@@ -891,23 +891,29 @@ describe('query postCampaignById', () => {
           comments: 38,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'youtube-campaign-id',
-            post_id: youtubePost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: null,
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: youtubePost.id,
+          state: CampaignState.Active,
+          postId: youtubePost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'youtube-campaign-id' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -917,7 +923,7 @@ describe('query postCampaignById', () => {
           title: 'YouTube Post Title',
           shortId: 'youtube1',
           permalink: 'http://localhost:4000/r/youtube1',
-          engagements: 368, // 220 views + 110 upvotes + 38 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -926,8 +932,9 @@ describe('query postCampaignById', () => {
       it('should handle share post with shared post that has no image', async () => {
         // Create a shared post with no image
         const createdAt = new Date();
+        const sharedPostNoImageId = randomUUID();
         await con.getRepository(ArticlePost).save({
-          id: 'shared-post-no-image',
+          id: sharedPostNoImageId,
           shortId: 'sharednoimg',
           title: 'Shared Post No Image',
           image: null, // No image
@@ -941,11 +948,12 @@ describe('query postCampaignById', () => {
         });
 
         // Create a share post that references the shared post
+        const sharePostId = randomUUID();
         const sharePost = await con.getRepository(SharePost).save({
-          id: 'share-post-no-image',
+          id: sharePostId,
           shortId: 'sharenoimg',
           title: 'Share Post with Shared Post No Image',
-          sharedPostId: 'shared-post-no-image',
+          sharedPostId: sharedPostNoImageId,
           sourceId: 'a',
           type: PostType.Share,
           createdAt: new Date(),
@@ -955,23 +963,29 @@ describe('query postCampaignById', () => {
           comments: 14,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'share-campaign-no-image',
-            post_id: sharePost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: null,
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: sharePost.id,
+          state: CampaignState.Active,
+          postId: sharePost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'share-campaign-no-image' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -984,7 +998,7 @@ describe('query postCampaignById', () => {
           title: 'Share Post with Shared Post No Image', // Uses share post title
           shortId: 'sharenoimg',
           permalink: 'http://localhost:4000/r/sharenoimg',
-          engagements: 111, // 65 views + 32 upvotes + 14 comments
+          engagements: 0, // Not used anymore
         });
         const image = res.data.postCampaignById.post.image;
         const fallback = pickImageUrl({ createdAt });
@@ -996,8 +1010,9 @@ describe('query postCampaignById', () => {
 
       it('should handle post with null title', async () => {
         // Create a post with null title
+        const nullTitlePostId = randomUUID();
         const nullTitlePost = await con.getRepository(ArticlePost).save({
-          id: 'null-title-post',
+          id: nullTitlePostId,
           shortId: 'nulltitle',
           title: null, // Null title
           image: 'https://null-title-image.jpg',
@@ -1011,23 +1026,29 @@ describe('query postCampaignById', () => {
           comments: 8,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'null-title-campaign',
-            post_id: nullTitlePost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: null,
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: nullTitlePost.id,
+          state: CampaignState.Active,
+          postId: nullTitlePost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'null-title-campaign' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -1037,14 +1058,15 @@ describe('query postCampaignById', () => {
           title: null, // Preserves null title
           shortId: 'nulltitle',
           permalink: 'http://localhost:4000/r/nulltitle',
-          engagements: 75, // 45 views + 22 upvotes + 8 comments
+          engagements: 0, // Not used anymore
         });
       });
 
       it('should handle post with undefined title', async () => {
         // Create a post with undefined title
+        const undefinedTitlePostId = randomUUID();
         const undefinedTitlePost = await con.getRepository(ArticlePost).save({
-          id: 'undefined-title-post',
+          id: undefinedTitlePostId,
           shortId: 'undeftitle',
           title: undefined, // Undefined title
           image: 'https://undefined-title-image.jpg',
@@ -1058,23 +1080,29 @@ describe('query postCampaignById', () => {
           comments: 12,
         });
 
-        // Mock the HTTP response from Skadi API
-        const mockFetchParse = fetchParse as jest.Mock;
-        mockFetchParse.mockResolvedValue({
-          promoted_post: {
-            campaign_id: 'undefined-title-campaign',
-            post_id: undefinedTitlePost.id,
-            status: 'active',
-            spend: '1000',
-            started_at: new Date().getTime(),
-            ended_at: null,
-            impressions: 50,
+        // Create campaign in database
+        const campaignId = randomUUID();
+        await con.getRepository(CampaignPost).save({
+          id: campaignId,
+          creativeId: randomUUID(),
+          flags: {
+            budget: 2000,
+            spend: 1000,
+            users: 25,
             clicks: 10,
+            impressions: 50,
           },
+          userId: '1',
+          referenceId: undefinedTitlePost.id,
+          state: CampaignState.Active,
+          postId: undefinedTitlePost.id,
+          type: CampaignType.Post,
+          createdAt: new Date('2024-01-01'),
+          endedAt: new Date('2024-01-08'),
         });
 
         const res = await client.query(QUERY, {
-          variables: { id: 'undefined-title-campaign' },
+          variables: { id: campaignId },
         });
 
         expect(res.errors).toBeFalsy();
@@ -1084,7 +1112,7 @@ describe('query postCampaignById', () => {
           title: null, // Preserves undefined title
           shortId: 'undeftitle',
           permalink: 'http://localhost:4000/r/undeftitle',
-          engagements: 95, // 55 views + 28 upvotes + 12 comments
+          engagements: 0, // Not used anymore
         });
       });
     });
@@ -1148,17 +1176,6 @@ describe('query postCampaigns', () => {
   it('should return empty connection when no campaigns exist', async () => {
     loggedUser = '1';
 
-    // Mock the HTTP response from Skadi API to return empty campaigns
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_posts: [],
-      impressions: 0,
-      clicks: 0,
-      users: 0,
-      total_spend: '0',
-      post_ids: [],
-    });
-
     const res = await client.query(QUERY, { variables: { first: 10 } });
 
     expect(res.errors).toBeFalsy();
@@ -1178,23 +1195,6 @@ describe('query postCampaigns', () => {
         users: 0,
       },
     });
-
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/list`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          limit: 10,
-          offset: 0,
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
   });
 
   it('should return campaigns with posts and stats on first request', async () => {
@@ -1232,39 +1232,47 @@ describe('query postCampaigns', () => {
       },
     ]);
 
-    // Mock the HTTP response from Skadi API
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-1',
-          post_id: 'post-1',
-          status: 'active',
-          spend: '10.5', // 10.5 USD = 1050 cores
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 1000,
-          clicks: 50,
+    // Create campaigns in database
+    const campaign1Id = randomUUID();
+    const campaign2Id = randomUUID();
+    await con.getRepository(CampaignPost).save([
+      {
+        id: campaign1Id,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1050,
+          spend: 500,
           users: 500,
+          clicks: 50,
+          impressions: 1000,
         },
-        {
-          campaign_id: 'campaign-2',
-          post_id: 'post-2',
-          status: 'active',
-          spend: '20.0', // 20 USD = 2000 cores
-          started_at: new Date('2024-01-02').getTime(),
-          ended_at: null,
-          impressions: 2000,
-          clicks: 100,
+        userId: '1',
+        referenceId: 'post-1',
+        state: CampaignState.Active,
+        postId: 'post-1',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-01'),
+        endedAt: new Date('2024-01-08'),
+      },
+      {
+        id: campaign2Id,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 2000,
+          spend: 800,
           users: 800,
+          clicks: 100,
+          impressions: 2000,
         },
-      ],
-      impressions: 3000,
-      clicks: 150,
-      users: 1300, // 500 + 800
-      total_spend: '30.5', // 30.5 USD = 3050 cores
-      post_ids: ['post-1', 'post-2'],
-    });
+        userId: '1',
+        referenceId: 'post-2',
+        state: CampaignState.Active,
+        postId: 'post-2',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-02'),
+        endedAt: new Date('2024-01-09'),
+      },
+    ]);
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
 
@@ -1276,30 +1284,9 @@ describe('query postCampaigns', () => {
       endCursor: 'YXJyYXljb25uZWN0aW9uOjI=',
     });
     expect(res.data.postCampaigns.edges).toHaveLength(2);
+    // Campaign2 comes first (newer: 2024-01-02)
     expect(res.data.postCampaigns.edges[0]).toEqual({
       cursor: 'YXJyYXljb25uZWN0aW9uOjE=',
-      node: {
-        post: {
-          id: 'post-1',
-          title: 'Test Post 1',
-          image: 'https://test-post-1.jpg',
-          shortId: 'p1',
-          permalink: 'http://localhost:4000/r/p1',
-          engagements: 175, // 100 views + 50 upvotes + 25 comments
-        },
-        campaign: {
-          spend: 1050, // Converted from USD to cores
-          campaignId: 'campaign-1',
-          clicks: 50,
-          impressions: 1000,
-          postId: 'post-1',
-          status: 'active',
-          users: 500,
-        },
-      },
-    });
-    expect(res.data.postCampaigns.edges[1]).toEqual({
-      cursor: 'YXJyYXljb25uZWN0aW9uOjI=',
       node: {
         post: {
           id: 'post-2',
@@ -1307,25 +1294,48 @@ describe('query postCampaigns', () => {
           image: 'https://test-post-2.jpg',
           shortId: 'p2',
           permalink: 'http://localhost:4000/r/p2',
-          engagements: 305, // 200 views + 75 upvotes + 30 comments
+          engagements: 0, // Not used anymore
         },
         campaign: {
-          spend: 2000, // Converted from USD to cores
-          campaignId: 'campaign-2',
+          spend: 800,
+          campaignId: campaign2Id,
           clicks: 100,
           impressions: 2000,
           postId: 'post-2',
-          status: 'active',
+          status: 'ACTIVE',
           users: 800,
         },
       },
     });
+    // Campaign1 comes second (older: 2024-01-01)
+    expect(res.data.postCampaigns.edges[1]).toEqual({
+      cursor: 'YXJyYXljb25uZWN0aW9uOjI=',
+      node: {
+        post: {
+          id: 'post-1',
+          title: 'Test Post 1',
+          image: 'https://test-post-1.jpg',
+          shortId: 'p1',
+          permalink: 'http://localhost:4000/r/p1',
+          engagements: 0, // Not used anymore
+        },
+        campaign: {
+          spend: 500,
+          campaignId: campaign1Id,
+          clicks: 50,
+          impressions: 1000,
+          postId: 'post-1',
+          status: 'ACTIVE',
+          users: 500,
+        },
+      },
+    });
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 3000,
-      clicks: 150,
-      users: 1300,
-      totalSpend: 3050, // Converted from USD to cores
-      engagements: 480, // 100+50+25+200+75+30 = 480
+      impressions: 3000, // 1000 + 2000
+      clicks: 150, // 50 + 100
+      users: 1300, // 500 + 800
+      totalSpend: 1300, // 500 + 800
+      engagements: 0, // Not used anymore
     });
   });
 
@@ -1338,7 +1348,7 @@ describe('query postCampaigns', () => {
       shortId: 'p3',
       title: 'Test Post 3',
       image: 'https://test-post-3.jpg',
-      url: 'http://test-post-3.com',
+      url: 'http://test-postm,kl.-3.com',
       sourceId: 'a',
       type: PostType.Article,
       createdAt: new Date(),
@@ -1348,27 +1358,25 @@ describe('query postCampaigns', () => {
       comments: 18,
     });
 
-    // Mock the HTTP response from Skadi API
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-3',
-          post_id: 'post-3',
-          status: 'active',
-          spend: '15.0',
-          started_at: new Date('2024-01-03').getTime(),
-          ended_at: null,
-          impressions: 1500,
-          clicks: 75,
-          users: 900,
-        },
-      ],
-      impressions: 1500,
-      clicks: 75,
-      users: 900, // 900
-      total_spend: '15.0',
-      post_ids: ['post-3'],
+    // Create campaign in database
+    const campaign3Id = randomUUID();
+    await con.getRepository(CampaignPost).save({
+      id: campaign3Id,
+      creativeId: randomUUID(),
+      flags: {
+        budget: 1500,
+        spend: 750,
+        users: 900,
+        clicks: 75,
+        impressions: 1500,
+      },
+      userId: '1',
+      referenceId: 'post-3',
+      state: CampaignState.Active,
+      postId: 'post-3',
+      type: CampaignType.Post,
+      createdAt: new Date('2024-01-03'),
+      endedAt: new Date('2024-01-10'),
     });
 
     const res = await client.query(QUERY, {
@@ -1419,44 +1427,26 @@ describe('query postCampaigns', () => {
     }
     await con.getRepository(ArticlePost).save(posts);
 
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: posts.slice(0, 2).map((post, index) => ({
-        campaign_id: `campaign-${index + 1}`,
-        post_id: post.id,
-        status: 'active',
-        spend: '10.0',
-        started_at: new Date(`2024-01-0${index + 1}`).getTime(),
-        ended_at: null,
-        impressions: 1000 + index * 100,
+    // Create campaigns in database
+    const campaigns = posts.map((post, index) => ({
+      id: randomUUID(),
+      creativeId: randomUUID(),
+      flags: {
+        budget: 1000 + index * 100,
+        spend: 500 + index * 50,
+        users: 600 + index * 50,
         clicks: 50 + index * 10,
-        users: 600 + index * 50, // 600, 650
-      })),
-      impressions: 2100,
-      clicks: 60,
-      users: 1250, // 600 + 650
-      total_spend: '20.0',
-      post_ids: posts.slice(0, 2).map((p) => p.id),
-    });
-
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: posts.slice(2, 4).map((post, index) => ({
-        campaign_id: `campaign-${index + 3}`,
-        post_id: post.id,
-        status: 'active',
-        spend: '10.0',
-        started_at: new Date(`2024-01-0${index + 3}`).getTime(),
-        ended_at: null,
-        impressions: 1000 + (index + 2) * 100,
-        clicks: 50 + (index + 2) * 10,
-        users: 600 + (index + 2) * 50, // 700, 750
-      })),
-      impressions: 2300,
-      clicks: 80,
-      users: 1450, // 700 + 750
-      total_spend: '20.0',
-      post_ids: posts.slice(2, 4).map((p) => p.id),
-    });
+        impressions: 1000 + index * 100,
+      },
+      userId: '1',
+      referenceId: post.id,
+      state: CampaignState.Active,
+      postId: post.id,
+      type: CampaignType.Post,
+      createdAt: new Date(`2024-01-0${index + 1}`),
+      endedAt: new Date(`2024-01-${10 + index}`),
+    }));
+    await con.getRepository(CampaignPost).save(campaigns);
 
     // First request - limit to 2
     const res1 = await client.query(QUERY, { variables: { first: 2 } });
@@ -1468,11 +1458,11 @@ describe('query postCampaigns', () => {
       'YXJyYXljb25uZWN0aW9uOjI=',
     );
     expect(res1.data.postCampaigns.stats).toEqual({
-      impressions: 2100,
-      clicks: 60,
-      users: 1250,
-      totalSpend: 2000, // Converted from USD to cores
-      engagements: 221, // 60+30+12+70+35+14 = 221
+      impressions: 6000, // 1000+1100+1200+1300+1400
+      clicks: 350, // 50+60+70+80+90
+      users: 3500, // 600+650+700+750+800
+      totalSpend: 3000, // 500+550+600+650+700
+      engagements: 0, // Not used anymore
     });
 
     // Second request - get next 2 (offset 2)
@@ -1490,23 +1480,6 @@ describe('query postCampaigns', () => {
       'YXJyYXljb25uZWN0aW9uOjQ=',
     );
     expect(res2.data.postCampaigns.stats).toBeNull(); // No stats on subsequent requests
-
-    // Verify the HTTP call was made with correct parameters
-    expect(mockFetchParse.mock.calls[1]).toEqual([
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/list',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          limit: 2,
-          offset: 2, // cursorToOffset('YXJyYXljb25uZWN0aW9uOjI=') = 2
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    ]);
   });
 
   it('should handle different post types correctly', async () => {
@@ -1572,90 +1545,103 @@ describe('query postCampaigns', () => {
       comments: 15,
     });
 
-    // Mock the skadi client to return campaigns for different post types
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-1',
-          post_id: 'article-post',
-          status: 'active',
-          spend: '10.0',
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 1000,
-          clicks: 50,
+    // Create campaigns in database for different post types
+    await con.getRepository(CampaignPost).save([
+      {
+        id: randomUUID(),
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 400,
           users: 600,
-        },
-        {
-          campaign_id: 'campaign-2',
-          post_id: 'freeform-post',
-          status: 'active',
-          spend: '10.0',
-          started_at: new Date('2024-01-02').getTime(),
-          ended_at: null,
-          impressions: 1000,
           clicks: 50,
+          impressions: 1000,
+        },
+        userId: '1',
+        referenceId: 'article-post',
+        state: CampaignState.Active,
+        postId: 'article-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-01'),
+        endedAt: new Date('2024-01-08'),
+      },
+      {
+        id: randomUUID(),
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 350,
           users: 650,
-        },
-        {
-          campaign_id: 'campaign-3',
-          post_id: 'share-post',
-          status: 'active',
-          spend: '10.0',
-          started_at: new Date('2024-01-03').getTime(),
-          ended_at: null,
-          impressions: 1000,
           clicks: 50,
-          users: 700,
+          impressions: 1000,
         },
-      ],
-      impressions: 3000,
-      clicks: 150,
-      users: 1950, // 600 + 650 + 700
-      total_spend: '30.0',
-      post_ids: ['article-post', 'freeform-post', 'share-post'],
-    });
+        userId: '1',
+        referenceId: 'freeform-post',
+        state: CampaignState.Active,
+        postId: 'freeform-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-02'),
+        endedAt: new Date('2024-01-09'),
+      },
+      {
+        id: randomUUID(),
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 300,
+          users: 700,
+          clicks: 50,
+          impressions: 1000,
+        },
+        userId: '1',
+        referenceId: 'share-post',
+        state: CampaignState.Active,
+        postId: 'share-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-03'),
+        endedAt: new Date('2024-01-10'),
+      },
+    ]);
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaigns.edges).toHaveLength(3);
 
-    // Check article post
+    // Check share post (newest: 2024-01-03) - comes first
     expect(res.data.postCampaigns.edges[0].node.post).toEqual({
-      id: 'article-post',
-      title: 'Article Post',
-      image: 'https://article-post.jpg',
-      shortId: 'ap',
-      permalink: 'http://localhost:4000/r/ap',
-      engagements: 205, // 120 views + 60 upvotes + 25 comments
+      id: 'share-post',
+      title: 'Share Post Title',
+      image: 'https://shared-post.jpg', // From shared post
+      shortId: 'share',
+      permalink: 'http://localhost:4000/r/share',
+      engagements: 0, // Not used anymore
     });
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
     );
 
-    // Check freeform post
+    // Check freeform post (middle: 2024-01-02) - comes second
     expect(res.data.postCampaigns.edges[1].node.post).toEqual({
       id: 'freeform-post',
       title: 'Freeform Post',
       image: 'https://freeform-post.jpg',
       shortId: 'fp',
       permalink: 'http://localhost:4000/r/fp',
-      engagements: 163, // 95 views + 48 upvotes + 20 comments
+      engagements: 0, // Not used anymore
     });
     expect(res.data.postCampaigns.edges[1].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjI=',
     );
 
-    // Check share post (should use shared post image)
+    // Check article post (oldest: 2024-01-01) - comes third
     expect(res.data.postCampaigns.edges[2].node.post).toEqual({
-      id: 'share-post',
-      title: 'Share Post Title',
-      image: 'https://shared-post.jpg', // From shared post
-      shortId: 'share',
-      permalink: 'http://localhost:4000/r/share',
-      engagements: 128, // 75 views + 38 upvotes + 15 comments
+      id: 'article-post',
+      title: 'Article Post',
+      image: 'https://article-post.jpg',
+      shortId: 'ap',
+      permalink: 'http://localhost:4000/r/ap',
+      engagements: 0, // Not used anymore
     });
     expect(res.data.postCampaigns.edges[2].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjM=',
@@ -1663,10 +1649,10 @@ describe('query postCampaigns', () => {
 
     // Check stats
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 3000,
-      clicks: 150,
-      totalSpend: 3000, // Converted from USD to cores
-      engagements: 496, // 205+163+128
+      impressions: 3000, // 1000 + 1000 + 1000
+      clicks: 150, // 50 + 50 + 50
+      totalSpend: 1050, // 400 + 350 + 300
+      engagements: 0, // Not used anymore
       users: 1950, // 600 + 650 + 700
     });
   });
@@ -1689,27 +1675,25 @@ describe('query postCampaigns', () => {
       comments: 0,
     });
 
-    // Mock the skadi client to return campaigns with zero values
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-zero',
-          post_id: 'zero-post',
-          status: 'active',
-          spend: '0.0',
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 0,
-          clicks: 0,
-          users: 0,
-        },
-      ],
-      impressions: 0,
-      clicks: 0,
-      users: 0, // 0
-      total_spend: '0.0',
-      post_ids: ['zero-post'],
+    // Create campaign in database with zero values
+    const campaignZeroId = randomUUID();
+    await con.getRepository(CampaignPost).save({
+      id: campaignZeroId,
+      creativeId: randomUUID(),
+      flags: {
+        budget: 0,
+        spend: 0,
+        users: 0,
+        clicks: 0,
+        impressions: 0,
+      },
+      userId: '1',
+      referenceId: 'zero-post',
+      state: CampaignState.Active,
+      postId: 'zero-post',
+      type: CampaignType.Post,
+      createdAt: new Date('2024-01-01'),
+      endedAt: new Date('2024-01-08'),
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1717,10 +1701,10 @@ describe('query postCampaigns', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaigns.edges).toHaveLength(1);
     expect(res.data.postCampaigns.edges[0].node.campaign).toEqual({
-      campaignId: 'campaign-zero',
+      campaignId: campaignZeroId,
       postId: 'zero-post',
-      status: 'active',
-      spend: 0, // Converted from USD to cores
+      status: 'ACTIVE',
+      spend: 0,
       impressions: 0,
       clicks: 0,
       users: 0,
@@ -1731,13 +1715,13 @@ describe('query postCampaigns', () => {
     expect(res.data.postCampaigns.stats).toEqual({
       impressions: 0,
       clicks: 0,
-      totalSpend: 0, // Converted from USD to cores
+      totalSpend: 0,
       engagements: 0, // 0+0+0+0+0 = 0
       users: 0, // 0
     });
   });
 
-  it('should handle decimal USD amounts correctly', async () => {
+  it('should handle decimal amounts in campaign spend correctly', async () => {
     loggedUser = '1';
 
     await con.getRepository(ArticlePost).save({
@@ -1755,27 +1739,25 @@ describe('query postCampaigns', () => {
       comments: 12,
     });
 
-    // Mock the skadi client to return campaigns with decimal USD amounts
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValueOnce({
-      promoted_posts: [
-        {
-          campaign_id: 'campaign-decimal',
-          post_id: 'decimal-post',
-          status: 'active',
-          spend: '15.75', // 15.75 USD = 1575 cores
-          started_at: new Date('2024-01-01').getTime(),
-          ended_at: null,
-          impressions: 1000,
-          clicks: 50,
-          users: 750,
-        },
-      ],
-      impressions: 1000,
-      clicks: 50,
-      users: 750, // 750
-      total_spend: '15.75', // 15.75 USD = 1575 cores
-      post_ids: ['decimal-post'],
+    // Create campaign in database with decimal amount in spend
+    const campaignDecimalId = randomUUID();
+    await con.getRepository(CampaignPost).save({
+      id: campaignDecimalId,
+      creativeId: randomUUID(),
+      flags: {
+        budget: 2000,
+        spend: 1575, // 15.75 USD = 1575 cores
+        users: 750,
+        clicks: 50,
+        impressions: 1000,
+      },
+      userId: '1',
+      referenceId: 'decimal-post',
+      state: CampaignState.Active,
+      postId: 'decimal-post',
+      type: CampaignType.Post,
+      createdAt: new Date('2024-01-01'),
+      endedAt: new Date('2024-01-08'),
     });
 
     const res = await client.query(QUERY, { variables: { first: 10 } });
@@ -1783,10 +1765,10 @@ describe('query postCampaigns', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.postCampaigns.edges).toHaveLength(1);
     expect(res.data.postCampaigns.edges[0].node.campaign).toEqual({
-      campaignId: 'campaign-decimal',
+      campaignId: campaignDecimalId,
       postId: 'decimal-post',
-      status: 'active',
-      spend: 1575, // 15.75 * 100 = 1575
+      status: 'ACTIVE',
+      spend: 1575,
       impressions: 1000,
       clicks: 50,
       users: 750,
@@ -1794,13 +1776,109 @@ describe('query postCampaigns', () => {
     expect(res.data.postCampaigns.edges[0].cursor).toBe(
       'YXJyYXljb25uZWN0aW9uOjE=',
     );
-    expect(res.data.postCampaigns.stats.totalSpend).toBe(1575); // 15.75 * 100 = 1575
     expect(res.data.postCampaigns.stats).toEqual({
-      impressions: 1000,
-      clicks: 50,
-      totalSpend: 1575, // Converted from USD to cores
-      engagements: 109,
-      users: 750,
+      impressions: 1000, // Single campaign value
+      clicks: 50, // Single campaign value
+      totalSpend: 1575, // Single campaign value
+      engagements: 0, // Not used anymore
+      users: 750, // Single campaign value
+    });
+  });
+
+  it('should only return campaigns belonging to the logged user', async () => {
+    loggedUser = '1';
+
+    // Create posts for different users
+    await con.getRepository(ArticlePost).save([
+      {
+        id: 'user1-post',
+        shortId: 'u1p',
+        title: 'User 1 Post',
+        image: 'https://user1-post.jpg',
+        url: 'http://user1-post.com',
+        sourceId: 'a',
+        type: PostType.Article,
+        createdAt: new Date(),
+        authorId: '1',
+        views: 100,
+        upvotes: 50,
+        comments: 25,
+      },
+      {
+        id: 'user2-post',
+        shortId: 'u2p',
+        title: 'User 2 Post',
+        image: 'https://user2-post.jpg',
+        url: 'http://user2-post.com',
+        sourceId: 'a',
+        type: PostType.Article,
+        createdAt: new Date(),
+        authorId: '2',
+        views: 120,
+        upvotes: 60,
+        comments: 30,
+      },
+    ]);
+
+    // Create campaigns for different users
+    const user1CampaignId = randomUUID();
+    const user2CampaignId = randomUUID();
+    await con.getRepository(CampaignPost).save([
+      {
+        id: user1CampaignId,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 2000,
+          spend: 800,
+          users: 400,
+          clicks: 40,
+          impressions: 800,
+        },
+        userId: '1', // User 1's campaign
+        referenceId: 'user1-post',
+        state: CampaignState.Active,
+        postId: 'user1-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-01'),
+        endedAt: new Date('2024-01-08'),
+      },
+      {
+        id: user2CampaignId,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 3000,
+          spend: 1200,
+          users: 600,
+          clicks: 60,
+          impressions: 1200,
+        },
+        userId: '2', // User 2's campaign
+        referenceId: 'user2-post',
+        state: CampaignState.Active,
+        postId: 'user2-post',
+        type: CampaignType.Post,
+        createdAt: new Date('2024-01-02'),
+        endedAt: new Date('2024-01-09'),
+      },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    // Should only return user 1's campaign (since loggedUser = '1')
+    expect(res.data.postCampaigns.edges).toHaveLength(1);
+    expect(res.data.postCampaigns.edges[0].node.campaign.campaignId).toBe(
+      user1CampaignId,
+    );
+    expect(res.data.postCampaigns.edges[0].node.post.id).toBe('user1-post');
+
+    // Stats should only include user 1's campaign data
+    expect(res.data.postCampaigns.stats).toEqual({
+      impressions: 800, // Only user 1's campaign
+      clicks: 40, // Only user 1's campaign
+      totalSpend: 800, // Only user 1's campaign
+      users: 400, // Only user 1's campaign
+      engagements: 0, // Not used anymore
     });
   });
 });
@@ -1929,9 +2007,10 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock skadi client to throw an error
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+    // Mock Skadi API v2 call to fail
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/create')
+      .replyWithError('Skadi service unavailable');
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -1975,11 +2054,22 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock HTTP response from Skadi API to succeed but transfer to fail
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      campaign_id: 'mock-campaign-id',
-    });
+    // Mock Skadi API v2 call to succeed but transfer will fail
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/create', (body) => {
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+        return (
+          body.advertiser_id === getAdvertiserId('1') &&
+          uuidRegex.test(body.campaign_id) &&
+          body.budget === 10 &&
+          Array.isArray(body.creatives) &&
+          body.creatives.length === 1 &&
+          body.creatives[0].type === 'POST' &&
+          body.creatives[0].value.post.id === 'p1'
+        );
+      })
+      .reply(200, '');
 
     // Use error transport to simulate transfer failure
     const errorTransport = createMockNjordErrorTransport({
@@ -2032,23 +2122,8 @@ describe('mutation startPostBoost', () => {
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/create`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 1 * ONE_DAY_IN_SECONDS,
-          budget: 10, // 1000 cores = 10 USD
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // The HTTP call to Skadi API v2 was made but failed during transfer
+    // No need to verify the call since nock handles that automatically
   });
 
   it('should verify no transactions are created when validation fails', async () => {
@@ -2210,11 +2285,22 @@ describe('mutation startPostBoost', () => {
       },
     );
 
-    // Mock HTTP response from Skadi API to succeed
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      campaign_id: 'mock-campaign-id',
-    });
+    // Mock Skadi API v2 call to succeed
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/create', (body) => {
+        const uuidRegex =
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+        return (
+          body.advertiser_id === getAdvertiserId('1') &&
+          uuidRegex.test(body.campaign_id) &&
+          body.budget === 10 && // 1000 cores = 10 USD
+          Array.isArray(body.creatives) &&
+          body.creatives.length === 1 &&
+          body.creatives[0].type === 'POST' &&
+          body.creatives[0].value.post.id === 'p1'
+        );
+      })
+      .reply(200, '');
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2239,30 +2325,23 @@ describe('mutation startPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.startPostBoost.transactionId).toBeDefined();
-    expect(res.data.startPostBoost.referenceId).toBe('mock-campaign-id');
     expect(res.data.startPostBoost.balance.amount).toBe(9000);
+
+    // Get the campaign ID from the database
+    const campaign = await con.getRepository(Campaign).findOneOrFail({
+      where: { referenceId: 'p1', userId: '1', state: CampaignState.Active },
+    });
+    expect(res.data.startPostBoost.referenceId).toBe(campaign.id);
 
     // Verify the boosted flag is now set
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-campaign-id');
+    expect(post?.flags?.campaignId).toBe(campaign.id);
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/create`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          post_id: 'p1',
-          user_id: '1',
-          duration: 1 * ONE_DAY_IN_SECONDS,
-          budget: 10, // Converted from cores to USD (1000 cores = 10 USD)
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign was created in database
+    expect(campaign.type).toBe(CampaignType.Post);
+    expect(campaign.referenceId).toBe('p1');
+    expect(campaign.userId).toBe('1');
+    expect(campaign.state).toBe(CampaignState.Active);
   });
 });
 
@@ -2281,12 +2360,38 @@ describe('mutation cancelPostBoost', () => {
 
   const params = { postId: 'p1' };
 
+  let testCampaignId: string;
+
   beforeEach(async () => {
+    // Create a campaign entity in the database for testing
+    const campaignId = randomUUID();
+    testCampaignId = campaignId;
+
+    await con.getRepository(CampaignPost).save(
+      con.getRepository(CampaignPost).create({
+        id: campaignId,
+        creativeId: randomUUID(),
+        flags: {
+          budget: 1000,
+          spend: 450, // Spent 450 cores so far
+          users: 100,
+          clicks: 10,
+          impressions: 500,
+        },
+        userId: '1',
+        referenceId: 'p1',
+        state: CampaignState.Active,
+        endedAt: new Date('2024-12-31'),
+        postId: 'p1',
+        type: CampaignType.Post,
+      }),
+    );
+
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
         authorId: '1',
-        flags: updateFlagsStatement<Post>({ campaignId: 'mock-id' }),
+        flags: updateFlagsStatement<Post>({ campaignId }),
       },
     );
   });
@@ -2321,6 +2426,7 @@ describe('mutation cancelPostBoost', () => {
   it('should return an error if post is not currently boosted', async () => {
     loggedUser = '1';
     // Ensure the post is not boosted
+    await con.getRepository(Campaign).delete({ referenceId: 'p1' });
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -2331,18 +2437,17 @@ describe('mutation cancelPostBoost', () => {
     return testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: params },
-      'GRAPHQL_VALIDATION_FAILED',
+      'NOT_FOUND',
     );
   });
 
   it('should successfully cancel post boost when post is boosted', async () => {
     loggedUser = '1';
 
-    // Mock HTTP response from Skadi API to succeed and return current budget
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '5.5', // 5.5 USD = 550 cores
-    });
+    // Mock Skadi API v2 call to succeed and return current budget
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '5.5' }); // 5.5 USD = 550 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2367,36 +2472,27 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10550); // 10000 + 550 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/cancel`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should handle skadi integration failure gracefully', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to throw an error
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockRejectedValue(new Error('Skadi service unavailable'));
+    // Mock Skadi API v2 call to fail
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .replyWithError('Skadi service unavailable');
 
     // Get initial transaction count
     const initialTransactionCount = await con
@@ -2422,17 +2518,22 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
+
+    // Verify campaign state remains active
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Active);
   });
 
   it('should handle transfer failure gracefully', async () => {
     loggedUser = '1';
 
-    // Mock HTTP response from Skadi API to succeed but transfer to fail
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '5.5',
-    });
+    // Mock Skadi API v2 call to succeed and return current budget
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '5.5' }); // 5.5 USD = 550 cores
 
     // Use error transport to simulate transfer failure
     const errorTransport = createMockNjordErrorTransport({
@@ -2468,23 +2569,13 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
 
-    // Verify the HTTP call was made correctly
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      `${process.env.SKADI_API_ORIGIN}/promote/post/cancel`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state remains active
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Active);
   });
 
   it('should verify no transactions are created when validation fails', async () => {
@@ -2554,7 +2645,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the original post's boosted flag is unchanged
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
   });
 
   it('should verify no transactions are created when user is not authorized', async () => {
@@ -2585,7 +2676,7 @@ describe('mutation cancelPostBoost', () => {
 
     // Verify the boosted flag remains true (unchanged)
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    expect(post?.flags?.campaignId).toBe('mock-id');
+    expect(post?.flags?.campaignId).toBe(testCampaignId);
   });
 
   it('should work for post scout as well as author', async () => {
@@ -2600,11 +2691,10 @@ describe('mutation cancelPostBoost', () => {
       },
     );
 
-    // Mock HTTP response from Skadi API to succeed and return current budget
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '3.25', // 3.25 USD = 325 cores
-    });
+    // Mock Skadi API v2 call to succeed and return current budget
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '3.25' }); // 3.25 USD = 325 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2629,38 +2719,27 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10325); // 10000 + 325 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the skadi client was called with correct parameters
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should handle decimal USD amounts correctly', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to return decimal USD amount
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '7.875', // 3.25 USD = 325 cores
-    });
+    // Mock Skadi API v2 call to succeed and return decimal USD amount
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '7.875' }); // 7.875 USD = 787.5 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2685,38 +2764,27 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10787); // 10000 + 787 refund
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the skadi client was called with correct parameters
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 
   it('should handle zero USD refund amount', async () => {
     loggedUser = '1';
 
-    // Mock skadi client to return zero USD amount
-    const mockFetchParse = fetchParse as jest.Mock;
-    mockFetchParse.mockResolvedValue({
-      current_budget: '0.0', // 3.25 USD = 325 cores
-    });
+    // Mock Skadi API v2 call to succeed and return zero USD amount
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/campaign/cancel')
+      .reply(200, { budget: '0.0' }); // 0 USD = 0 cores
 
     // Set up initial balance for user '1' in the mock transport
     const testNjordClient = njordCommon.getNjordClient();
@@ -2741,28 +2809,18 @@ describe('mutation cancelPostBoost', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.cancelPostBoost.transactionId).toBeDefined();
-    expect(res.data.cancelPostBoost.referenceId).toBe('mock-id');
+    expect(res.data.cancelPostBoost.referenceId).toBe(testCampaignId);
     expect(res.data.cancelPostBoost.balance.amount).toBe(10000); // 10000 + 0 refund = 10000
 
     // Verify the boosted flag is now false
     const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
     expect(post?.flags?.campaignId).toBeFalsy();
 
-    // Verify the skadi client was called with correct parameters
-    expect(mockFetchParse).toHaveBeenCalledWith(
-      'http://skadi-post-boost-api.local.svc.cluster.local/promote/post/cancel',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          campaign_id: 'mock-id',
-          user_id: '1',
-        }),
-        agent: expect.any(Function),
-      },
-    );
+    // Verify campaign state is now cancelled
+    const campaign = await con
+      .getRepository(Campaign)
+      .findOneBy({ id: testCampaignId });
+    expect(campaign?.state).toBe(CampaignState.Cancelled);
   });
 });
 

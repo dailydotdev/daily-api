@@ -33,7 +33,8 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
       const err = originalError as TypeORMQueryFailedError;
 
       if (err?.name === 'EntityNotFoundError') {
-        logger.error({ err, params }, 'could not find campaign');
+        // some campaigns do not exist on API so just warn in case we need to check later
+        logger.warn({ err, params }, 'could not find campaign');
 
         return;
       }
@@ -42,6 +43,11 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
     }
   },
 });
+
+const campaignTypeToNotification: Record<CampaignType, NotificationType> = {
+  [CampaignType.Post]: NotificationType.CampaignPostCompleted,
+  [CampaignType.Squad]: NotificationType.CampaignSquadCompleted,
+};
 
 const handleCampaignCompleted = async ({
   con,
@@ -53,9 +59,7 @@ const handleCampaignCompleted = async ({
   campaign: Campaign;
 }) => {
   const { event } = params;
-
   const user = await campaign.user;
-
   const ctx: NotificationCampaignContext = {
     user,
     campaign,
@@ -71,7 +75,7 @@ const handleCampaignCompleted = async ({
     });
   }
 
-  return [{ type: NotificationType.CampaignCompleted, ctx }];
+  return [{ type: campaignTypeToNotification[campaign.type], ctx }];
 };
 
 export default worker;

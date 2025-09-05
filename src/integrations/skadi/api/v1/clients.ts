@@ -2,35 +2,13 @@ import { RequestInit } from 'node-fetch';
 import {
   ISkadiApiClientV1,
   type EstimatedPostBoostReachParams,
-  type GetCampaignByIdProps,
-  type GetCampaignResponse,
-  type GetCampaignsProps,
-  type PromotedPost,
-  type PromotedPostList,
   type StartPostCampaignParams,
 } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../../../garmr';
 import { fetchOptions as globalFetchOptions } from '../../../../http';
 import { fetchParse } from '../../../retry';
 import { ONE_DAY_IN_SECONDS } from '../../../../common';
-import type {
-  CancelCampaignArgs,
-  EstimatedReachResponse,
-  EstimatedReach,
-} from '../common';
-
-const mapCampaign = (campaign: PromotedPost): GetCampaignResponse => ({
-  campaignId: campaign.campaign_id,
-  postId: campaign.post_id,
-  status: campaign.status,
-  spend: campaign.spend,
-  budget: campaign.budget,
-  startedAt: campaign.started_at,
-  endedAt: campaign.ended_at,
-  impressions: campaign.impressions,
-  clicks: campaign.clicks,
-  users: campaign.users,
-});
+import type { EstimatedReachResponse, EstimatedReach } from '../common';
 
 export class SkadiApiClientV1 implements ISkadiApiClientV1 {
   private readonly fetchOptions: RequestInit;
@@ -50,55 +28,6 @@ export class SkadiApiClientV1 implements ISkadiApiClientV1 {
 
     this.fetchOptions = fetchOptions;
     this.garmr = garmr;
-  }
-
-  startPostCampaign({
-    postId,
-    userId,
-    durationInDays,
-    budget,
-  }: StartPostCampaignParams): Promise<{ campaignId: string }> {
-    return this.garmr.execute(async () => {
-      const response = await fetchParse<{ campaign_id: string }>(
-        `${this.url}/promote/post/create`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            post_id: postId,
-            user_id: userId,
-            duration: durationInDays * ONE_DAY_IN_SECONDS,
-            budget,
-          }),
-        },
-      );
-
-      return { campaignId: response.campaign_id };
-    });
-  }
-
-  cancelPostCampaign({
-    campaignId,
-    userId,
-  }: CancelCampaignArgs): Promise<{ currentBudget: string }> {
-    return this.garmr.execute(async () => {
-      const response = await fetchParse<{ current_budget: string }>(
-        `${this.url}/promote/post/cancel`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ campaign_id: campaignId, user_id: userId }),
-        },
-      );
-
-      return { currentBudget: response.current_budget };
-    });
   }
 
   private fetchBoostReach(params: {
@@ -156,56 +85,6 @@ export class SkadiApiClientV1 implements ISkadiApiClientV1 {
     };
 
     return this.fetchBoostReach(params);
-  }
-
-  getCampaignById({
-    campaignId,
-    userId,
-  }: GetCampaignByIdProps): Promise<GetCampaignResponse> {
-    return this.garmr.execute(async () => {
-      const response = await fetchParse<{ promoted_post: PromotedPost }>(
-        `${this.url}/promote/post/get`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ campaign_id: campaignId, user_id: userId }),
-        },
-      );
-
-      return mapCampaign(response.promoted_post);
-    });
-  }
-
-  getCampaigns({ limit, offset, userId }: GetCampaignsProps) {
-    return this.garmr.execute(async () => {
-      const response = await fetchParse<PromotedPostList>(
-        `${this.url}/promote/post/list`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ limit, offset, user_id: userId }),
-        },
-      );
-
-      const posts = response.promoted_posts?.filter(
-        ({ post_id }) => !!post_id?.length,
-      );
-
-      return {
-        promotedPosts: posts?.map(mapCampaign) ?? [],
-        postIds: response.post_ids?.filter(Boolean) ?? [],
-        totalSpend: response.total_spend,
-        impressions: response.impressions,
-        clicks: response.clicks,
-        users: response.users,
-      };
-    });
   }
 }
 

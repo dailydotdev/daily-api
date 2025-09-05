@@ -22,6 +22,19 @@ export const plusGiftDuration = 31557600000;
 export const isPlusMember = (cycle: SubscriptionCycles | undefined): boolean =>
   !!cycle?.length || false;
 
+export const hasPlusStatusChanged = (
+  afterFlags?: UserSubscriptionFlags,
+  beforeFlags?: UserSubscriptionFlags,
+): { isPlus: boolean; wasPlus: boolean; statusChanged: boolean } => {
+  const isPlus = isPlusMember(afterFlags?.cycle);
+  const wasPlus = isPlusMember(beforeFlags?.cycle);
+  return {
+    isPlus,
+    wasPlus,
+    statusChanged: isPlus !== wasPlus,
+  };
+};
+
 export const isGiftedPlus = (
   subscriptionFlags: UserSubscriptionFlags,
 ): subscriptionFlags is UserSubscriptionFlags &
