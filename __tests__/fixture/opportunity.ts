@@ -1,13 +1,16 @@
 import { DeepPartial } from 'typeorm';
-import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { Organization } from '../../src/entity/Organization';
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
-import { OpportunityState } from '@dailydotdev/schema';
 import {
-  OpportunityMatchStatus,
+  EmploymentType,
+  LocationType,
+  OpportunityState,
   OpportunityType,
-} from '../../src/entity/opportunities/types';
+  SeniorityLevel,
+} from '@dailydotdev/schema';
+import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
+import type { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -28,90 +31,118 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
   },
 ];
 
-export const opportunitiesFixture: DeepPartial<Opportunity>[] = [
+export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
   {
     id: '550e8400-e29b-41d4-a716-446655440001',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.LIVE,
     title: 'Senior Full Stack Developer',
     tldr: 'Join our team as a Senior Full Stack Developer',
-    content: [
-      {
-        title: 'Job Description',
+    content: {
+      overview: {
         content: 'We are looking for a Senior Full Stack Developer...',
         html: '<p>We are looking for a Senior Full Stack Developer...</p>',
       },
-    ],
+    },
     meta: {
-      title: 'Senior Full Stack Developer',
-      content: 'Join our engineering team',
+      roleType: 0.0,
+      teamSize: 10,
+      seniorityLevel: SeniorityLevel.SENIOR,
+      employmentType: EmploymentType.FULL_TIME,
     },
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
     organizationId: '550e8400-e29b-41d4-a716-446655440000',
+    location: [
+      {
+        type: LocationType.REMOTE,
+        country: 'Norway',
+      },
+    ],
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.LIVE,
     title: 'Frontend Developer',
     tldr: 'Build amazing user interfaces',
-    content: [
-      {
-        title: 'Role Overview',
+    content: {
+      overview: {
         content: 'Frontend Developer position...',
         html: '<p>Frontend Developer position...</p>',
       },
-    ],
+    },
     meta: {
-      title: 'Frontend Developer',
-      content: 'UI/UX focused role',
+      roleType: 0.0,
+      teamSize: 10,
+      seniorityLevel: SeniorityLevel.JUNIOR,
+      employmentType: EmploymentType.INTERNSHIP,
     },
     createdAt: new Date('2023-01-02'),
     updatedAt: new Date('2023-01-02'),
     organizationId: '550e8400-e29b-41d4-a716-446655440000',
+    location: [
+      {
+        type: LocationType.HYBRID,
+        country: 'USA',
+      },
+    ],
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440003',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.DRAFT,
     title: 'Senior Full Stack Developer',
     tldr: 'Join our team as a Senior Full Stack Developer',
-    content: [
-      {
-        title: 'Job Description',
+    content: {
+      overview: {
         content: 'We are looking for a Senior Full Stack Developer...',
         html: '<p>We are looking for a Senior Full Stack Developer...</p>',
       },
-    ],
+    },
     meta: {
-      title: 'Senior Full Stack Developer',
-      content: 'Join our engineering team',
+      roleType: 0.0,
+      teamSize: 10,
+      seniorityLevel: SeniorityLevel.SENIOR,
+      employmentType: EmploymentType.FULL_TIME,
     },
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
     organizationId: '550e8400-e29b-41d4-a716-446655440000',
+    location: [
+      {
+        type: LocationType.REMOTE,
+        country: 'Norway',
+      },
+    ],
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440004',
-    type: OpportunityType.Job,
+    type: OpportunityType.JOB,
     state: OpportunityState.DRAFT,
     title: 'Frontend Developer',
     tldr: 'Build amazing user interfaces',
-    content: [
-      {
-        title: 'Role Overview',
+    content: {
+      overview: {
         content: 'Frontend Developer position...',
         html: '<p>Frontend Developer position...</p>',
       },
-    ],
+    },
     meta: {
-      title: 'Frontend Developer',
-      content: 'UI/UX focused role',
+      roleType: 0.0,
+      teamSize: 10,
+      seniorityLevel: SeniorityLevel.JUNIOR,
+      employmentType: EmploymentType.INTERNSHIP,
     },
     createdAt: new Date('2023-01-02'),
     updatedAt: new Date('2023-01-02'),
     organizationId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+    location: [
+      {
+        type: LocationType.HYBRID,
+        country: 'USA',
+      },
+    ],
   },
 ];
 

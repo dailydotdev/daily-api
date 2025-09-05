@@ -1,5 +1,9 @@
 import nock from 'nock';
-import { CandidateStatus, OpportunityState } from '@dailydotdev/schema';
+import {
+  CandidateStatus,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
 import {
   Alerts,
   ArticlePost,
@@ -158,10 +162,7 @@ import {
 } from '../../../src/entity/contentPreference/types';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
-import {
-  OpportunityMatchStatus,
-  OpportunityType,
-} from '../../../src/entity/opportunities/types';
+import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import {
   opportunitiesFixture,
@@ -5737,7 +5738,7 @@ describe('opportunity', () => {
           id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
-          type: OpportunityType.Job,
+          type: OpportunityType.JOB,
           title: 'Senior Backend Engineer',
           tldr: 'We are looking for a Senior Backend Engineer...',
           content: [],
@@ -5764,7 +5765,7 @@ describe('opportunity', () => {
           id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
-          type: OpportunityType.Job,
+          type: OpportunityType.JOB,
           title: 'Senior Backend Engineer',
           tldr: 'We are looking for a Senior Backend Engineer...',
           content: [],
@@ -5812,7 +5813,7 @@ describe('opportunity', () => {
           id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
-          type: OpportunityType.Job,
+          type: OpportunityType.JOB,
           title: 'Senior Backend Engineer',
           tldr: 'We are looking for a Senior Backend Engineer...',
           content: [],
@@ -5839,7 +5840,7 @@ describe('opportunity', () => {
           id: '550e8400-e29b-41d4-a716-446655440001',
           createdAt: new Date().getTime(),
           updatedAt: new Date().getTime(),
-          type: OpportunityType.Job,
+          type: OpportunityType.JOB,
           title: 'Senior Backend Engineer',
           tldr: 'We are looking for a Senior Backend Engineer...',
           content: [],

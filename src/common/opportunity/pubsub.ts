@@ -3,7 +3,6 @@ import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
   OpportunityMessage,
-  OpportunityType,
 } from '@dailydotdev/schema';
 import { triggerTypedEvent } from '../../common';
 import { getSecondsTimestamp } from '../date';
@@ -11,7 +10,6 @@ import { UserCandidatePreference } from '../../entity/user/UserCandidatePreferen
 import { ChangeObject } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
-import { stringArrayToListValue } from '../protobuf';
 
 export const notifyOpportunityMatchAccepted = async ({
   con,
@@ -48,6 +46,10 @@ export const notifyOpportunityMatchAccepted = async ({
     screening: data.screening,
     candidatePreference: {
       ...candidatePreference,
+      cv: {
+        ...candidatePreference.cv,
+        lastModified: getSecondsTimestamp(candidatePreference.cv.lastModified),
+      },
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
     },
   });
@@ -105,28 +107,17 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
-  const perks = stringArrayToListValue(organization.perks);
-
   const message = new OpportunityMessage({
     opportunity: {
-      id: opportunity.id,
-      type: OpportunityType.JOB,
-      state: opportunity.state,
-      title: opportunity.title,
-      tldr: opportunity.tldr,
-      content: opportunity.content,
-      meta: opportunity.meta,
+      ...opportunity,
+      createdAt: getSecondsTimestamp(opportunity.createdAt),
+      updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords,
     },
     organization: {
-      id: organization.id,
-      name: organization.name,
-      description: organization.description,
-      perks: perks,
-      location: organization.location,
-      size: organization.size,
-      category: organization.category,
-      stage: organization.stage,
+      ...organization,
+      createdAt: getSecondsTimestamp(organization.createdAt),
+      updatedAt: getSecondsTimestamp(organization.updatedAt),
     },
   });
 
@@ -136,9 +127,4 @@ export const notifyJobOpportunity = async ({
     const err = _err as Error;
     logger.error({ err, message }, 'failed to send opportunity event');
   }
-
-  logger.info(
-    { opportunityId: opportunity.id, topicName },
-    'sent opportunity event',
-  );
 };
