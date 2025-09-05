@@ -133,25 +133,17 @@ export type TemplateDataFunc = (
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   campaign_post_completed: async (con, user, notification) => {
-    const campaign = await con
-      .getRepository(CampaignPost)
-      .findOneBy({ id: notification.referenceId });
+    const campaign = await con.getRepository(CampaignPost).findOne({
+      where: { id: notification.referenceId },
+      relations: ['post', 'post.sharedPost'],
+    });
 
     if (!campaign) {
       return null;
     }
 
-    const post = await con.getRepository(Post).findOneOrFail({
-      where: { id: campaign.postId },
-    });
-
-    const sharedPost = await (post.type === PostType.Share
-      ? con.getRepository(ArticlePost).findOne({
-          where: { id: (post as SharePost).sharedPostId },
-          select: ['title', 'image', 'slug'],
-        })
-      : Promise.resolve(null));
-
+    const post = await campaign.post;
+    const sharedPost = await (post as SharePost).sharedPost;
     const title = truncatePostToTweet(post || sharedPost);
 
     return {
