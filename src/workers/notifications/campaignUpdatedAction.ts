@@ -44,8 +44,8 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
 });
 
 const campaignTypeToNotification: Record<CampaignType, NotificationType> = {
-  [CampaignType.Squad]: NotificationType.CampaignPostCompleted,
-  [CampaignType.Post]: NotificationType.CampaignSquadCompleted,
+  [CampaignType.Post]: NotificationType.CampaignPostCompleted,
+  [CampaignType.Squad]: NotificationType.CampaignSquadCompleted,
 };
 
 const handleCampaignCompleted = async ({
