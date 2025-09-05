@@ -403,7 +403,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'gondul.v1.candidate-opportunity-match',
-    subscription: 'gondul.v1.candidate-opportunity-match',
+    subscription: 'api.store-candidate-opportunity-match',
   },
 ];
 

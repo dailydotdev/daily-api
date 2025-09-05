@@ -1,8 +1,4 @@
-import {
-  expectSuccessfulBackground,
-  expectSuccessfulTypedBackground,
-  saveFixtures,
-} from '../../helpers';
+import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
 import worker from '../../../src/workers/opportunity/storeCandidateOpportunityMatch';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
@@ -64,8 +60,6 @@ describe('storeCandidateOpportunityMatch worker', () => {
   });
 
   it('should log warning when userId is missing', async () => {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
     const matchData = new MatchedCandidate({
       userId: '',
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -80,13 +74,9 @@ describe('storeCandidateOpportunityMatch worker', () => {
       where: { opportunityId: '550e8400-e29b-41d4-a716-446655440001' },
     });
     expect(matches).toHaveLength(0);
-
-    consoleSpy.mockRestore();
   });
 
   it('should log warning when opportunityId is missing', async () => {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
     const matchData = new MatchedCandidate({
       userId: '1',
       opportunityId: '',
@@ -101,13 +91,9 @@ describe('storeCandidateOpportunityMatch worker', () => {
       where: { userId: '1' },
     });
     expect(matches).toHaveLength(0);
-
-    consoleSpy.mockRestore();
   });
 
   it('should log warning when both userId and opportunityId are missing', async () => {
-    const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-
     const matchData = new MatchedCandidate({
       userId: '',
       opportunityId: '',
@@ -120,8 +106,6 @@ describe('storeCandidateOpportunityMatch worker', () => {
     // Verify no match was inserted
     const matches = await con.getRepository(OpportunityMatch).find();
     expect(matches).toHaveLength(0);
-
-    consoleSpy.mockRestore();
   });
 
   it('should handle FK_opportunity_match_opportunity_id and log error', async () => {

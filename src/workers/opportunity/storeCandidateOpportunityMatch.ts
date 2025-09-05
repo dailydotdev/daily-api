@@ -31,7 +31,7 @@ const worker: TypedWorker<'gondul.v1.candidate-opportunity-match'> = {
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
       if (err?.name === 'QueryFailedError') {
-        logger.error({ err, data }, 'could not find opportunity or user');
+        logger.error({ err, data }, 'could not store opportunity match');
 
         return;
       }
