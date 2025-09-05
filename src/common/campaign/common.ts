@@ -5,7 +5,6 @@ import {
   CampaignType,
   type CampaignFlags,
   type ConnectionManager,
-  NotificationV2,
 } from '../../entity';
 import { UserTransaction } from '../../entity/user/UserTransaction';
 import { parseBigInt } from '../utils';
@@ -21,7 +20,6 @@ import { NotificationIcon } from '../../notifications/icons';
 import { notificationsLink } from '../links';
 import type { NotificationCampaignContext } from '../../notifications';
 import { queryReadReplica } from '../queryReadReplica';
-import { addNotificationEmailUtm, formatMailDate } from '../mailing';
 
 export interface StartCampaignArgs {
   value: string;
