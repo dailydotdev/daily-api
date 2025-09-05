@@ -81,7 +81,7 @@ export class UserCandidatePreference {
     comment: 'LocationType from protobuf schema',
     default: null,
   })
-  locationType: LocationType[];
+  locationType: Array<LocationType>;
 
   @Column({
     type: 'integer',

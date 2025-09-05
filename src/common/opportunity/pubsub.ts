@@ -2,7 +2,9 @@ import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
+  CandidatePreferenceUpdated,
   OpportunityMessage,
+  UserCV,
 } from '@dailydotdev/schema';
 import { triggerTypedEvent } from '../../common';
 import { getSecondsTimestamp } from '../date';
@@ -127,5 +129,52 @@ export const notifyJobOpportunity = async ({
   } catch (_err) {
     const err = _err as Error;
     logger.error({ err, message }, 'failed to send opportunity event');
+  }
+};
+
+export const notifyCandidatePreferenceChange = async ({
+  con,
+  logger,
+  userId,
+}: {
+  con: DataSource;
+  logger: FastifyBaseLogger;
+  userId: string;
+}) => {
+  const data = await con
+    .getRepository(UserCandidatePreference)
+    .findOneBy({ userId });
+
+  if (!data) {
+    logger.warn(
+      { userId },
+      'Candidate preference not found for user, skipping notification',
+    );
+    return;
+  }
+
+  const message = new CandidatePreferenceUpdated({
+    payload: {
+      ...data,
+      cv: new UserCV({
+        ...data?.cv,
+        lastModified: getSecondsTimestamp(data?.cv?.lastModified),
+      }),
+      updatedAt: getSecondsTimestamp(data?.updatedAt),
+    },
+  });
+
+  try {
+    await triggerTypedEvent(
+      logger,
+      'api.v1.candidate-preference-updated',
+      message,
+    );
+  } catch (_err) {
+    const err = _err as Error;
+    logger.error(
+      { err, message },
+      'failed to send candidate preference updated event',
+    );
   }
 };
