@@ -44,6 +44,11 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
   },
 });
 
+const campaignTypeToNotification: Record<CampaignType, NotificationType> = {
+  [CampaignType.Post]: NotificationType.CampaignPostCompleted,
+  [CampaignType.Squad]: NotificationType.CampaignSquadCompleted,
+};
+
 const handleCampaignCompleted = async ({
   con,
   params,
@@ -54,9 +59,7 @@ const handleCampaignCompleted = async ({
   campaign: Campaign;
 }) => {
   const { event } = params;
-
   const user = await campaign.user;
-
   const ctx: NotificationCampaignContext = {
     user,
     campaign,
@@ -72,7 +75,7 @@ const handleCampaignCompleted = async ({
     });
   }
 
-  return [{ type: NotificationType.CampaignCompleted, ctx }];
+  return [{ type: campaignTypeToNotification[campaign.type], ctx }];
 };
 
 export default worker;

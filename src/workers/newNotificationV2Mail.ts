@@ -2,6 +2,8 @@ import { messageToJson, Worker } from './worker';
 import { ChangeObject } from '../types';
 import {
   ArticlePost,
+  CampaignPost,
+  CampaignSource,
   CollectionPost,
   Comment,
   FreeformPost,
@@ -31,6 +33,7 @@ import {
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
   formatMailDate,
+  getDiscussionLink,
   getOrganizationPermalink,
   getSourceLink,
   liveTimerDateFormat,
@@ -59,9 +62,7 @@ import { BriefPost } from '../entity/posts/BriefPost';
 import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
-import { generateBoostEmailUpdate } from '../common/campaign/post';
 import { isNullOrUndefined } from '../common/object';
-import { generateCampaignCompletedEmail } from '../common/campaign/common';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -109,15 +110,14 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   user_received_award: CioTransactionalMessageTemplateId.UserReceivedAward,
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
-  post_boost_completed: '79',
-  post_boost_first_milestone: '80',
   briefing_ready: '81',
   user_follow: '',
   marketing: '',
   new_user_welcome: '',
   announcements: '',
   in_app_purchases: '',
-  campaign_completed: '', // TODO: MI-1007 - wait for design's template id
+  campaign_post_completed: '79',
+  campaign_squad_completed: '83',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -132,9 +132,57 @@ export type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  post_boost_completed: generateBoostEmailUpdate,
-  post_boost_first_milestone: generateBoostEmailUpdate,
-  campaign_completed: generateCampaignCompletedEmail,
+  campaign_post_completed: async (con, user, notification) => {
+    const campaign = await con.getRepository(CampaignPost).findOne({
+      where: { id: notification.referenceId },
+      relations: ['post', 'post.sharedPost'],
+    });
+
+    if (!campaign) {
+      return null;
+    }
+
+    const post = await campaign.post;
+    const sharedPost = await (post as SharePost).sharedPost;
+    const title = truncatePostToTweet(post || sharedPost);
+
+    return {
+      start_date: formatMailDate(campaign.createdAt),
+      end_date: formatMailDate(campaign.endedAt),
+      analytics_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      post_link: getDiscussionLink(post.slug),
+      post_image: ((sharedPost || post) as FreeformPost)?.image,
+      post_title: title,
+    };
+  },
+  campaign_squad_completed: async (con, user, notification) => {
+    const campaign = await con
+      .getRepository(CampaignSource)
+      .findOneBy({ id: notification.referenceId });
+
+    if (!campaign) {
+      return null;
+    }
+
+    const source = await con
+      .getRepository(Source)
+      .findOneByOrFail({ id: campaign.sourceId });
+
+    return {
+      start_date: formatMailDate(campaign.createdAt),
+      end_date: formatMailDate(campaign.endedAt),
+      analytics_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
+      source_image: source.image,
+      source_handle: source.handle,
+      source_name: source.name,
+    };
+  },
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },

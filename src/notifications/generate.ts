@@ -28,9 +28,9 @@ import {
   NotificationUpvotersContext,
   NotificationUserContext,
   type NotificationAwardContext,
-  type NotificationBoostContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
+  NotificationCampaignContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -38,7 +38,6 @@ import { NotificationType } from './common';
 import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency } from '../common/number';
-import { generateCampaignCompletedNotification } from '../common/campaign/common';
 
 const systemTitle = () => undefined;
 
@@ -176,12 +175,8 @@ export const notificationTitleMap: Record<
   }: NotificationOrganizationContext) => {
     return `<strong>Your team is growing!</strong> ${user.name} just joined your organization ${organization.name}. They now have access to daily.dev Plus ✧`;
   },
-  post_boost_completed: () =>
-    `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
-  post_boost_first_milestone: () =>
-    `Your boosted post is performing well! You're getting traction, check it out!`,
-  campaign_completed: () =>
-    `Your boost just wrapped up! Dive into the ads dashboard to see how it performed!`,
+  campaign_post_completed: () => `Your boosted post just wrapped up!`,
+  campaign_squad_completed: () => `Your boosted Squad just wrapped up!`,
   briefing_ready: () =>
     `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
   user_follow: (ctx: NotificationUserContext) => {
@@ -498,33 +493,34 @@ export const generateNotificationMap: Record<
       .targetUrl(getOrganizationPermalink(ctx.organization))
       .icon(NotificationIcon.Bell)
       .avatarOrganization(ctx.organization),
-  post_boost_completed: (builder, ctx: NotificationBoostContext) =>
-    builder
+  campaign_post_completed: (builder, ctx: NotificationCampaignContext) => {
+    const { campaign, event, user } = ctx;
+
+    return builder
       .icon(NotificationIcon.DailyDev)
-      .referenceBoost(ctx)
-      .avatarUser(ctx.user)
+      .referenceCampaign(ctx)
       .targetUrl(notificationsLink)
-      .setTargetUrlParameter([
-        ['post_boost', 'true'],
-        ['c_id', ctx.campaignId],
-      ])
-      .uniqueKey(
-        `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
-      ),
-  campaign_completed: generateCampaignCompletedNotification,
-  post_boost_first_milestone: (builder, ctx: NotificationBoostContext) =>
-    builder
+      .setTargetUrlParameter([['c_id', campaign.id]])
+      .uniqueKey(`${campaign.id}-${user.id}-${event}`)
+      .avatarUser(user);
+  },
+  campaign_squad_completed: (builder, ctx: NotificationCampaignContext) => {
+    const { campaign, source, event, user } = ctx;
+
+    if (!source) {
+      throw new Error(
+        `Can't generate Squad Campaign Notification without the Squad`,
+      );
+    }
+
+    return builder
       .icon(NotificationIcon.DailyDev)
-      .referenceBoost(ctx)
-      .avatarUser(ctx.user)
+      .referenceCampaign(ctx)
       .targetUrl(notificationsLink)
-      .setTargetUrlParameter([
-        ['post_boost', 'true'],
-        ['c_id', ctx.campaignId],
-      ])
-      .uniqueKey(
-        `${ctx.campaignId}-${ctx.user.id}-${new Date().toISOString()}`,
-      ),
+      .setTargetUrlParameter([['c_id', campaign.id]])
+      .uniqueKey(`${campaign.id}-${user.id}-${event}`)
+      .avatarSource(source);
+  },
   briefing_ready: (
     builder: NotificationBuilder,
     ctx: NotificationPostContext,
