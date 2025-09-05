@@ -1,5 +1,5 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
-import worker from '../../../src/workers/opportunity/storeCandidateOpportunityMatch';
+import { storeCandidateOpportunityMatch as worker } from '../../../src/workers/opportunity/storeCandidateOpportunityMatch';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { typedWorkers } from '../../../src/workers';
