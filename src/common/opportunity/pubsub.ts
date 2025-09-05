@@ -92,9 +92,10 @@ export const notifyJobOpportunity = async ({
     },
   });
 
-  const organization = await opportunity.organization;
-
-  const keywords = (await opportunity.keywords).map((k) => k.keyword);
+  const [organization, keywords] = await Promise.all([
+    opportunity.organization,
+    opportunity.keywords,
+  ]);
 
   if (!organization) {
     logger.warn(
@@ -112,7 +113,7 @@ export const notifyJobOpportunity = async ({
       ...opportunity,
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
-      keywords: keywords,
+      keywords: keywords.map((k) => k.keyword),
     },
     organization: {
       ...organization,
