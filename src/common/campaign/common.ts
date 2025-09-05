@@ -238,18 +238,6 @@ export const generateCampaignCompletedNotification = (
   }
 };
 
-export const getCompleteNotificationProps = (
-  campaign: Campaign,
-  notification: NotificationV2,
-) => ({
-  start_date: formatMailDate(campaign.createdAt),
-  end_date: formatMailDate(campaign.endedAt),
-  analytics_link: addNotificationEmailUtm(
-    notification.targetUrl,
-    notification.type,
-  ),
-});
-
 export type UserCampaignStats = Pick<
   CampaignFlags,
   'impressions' | 'clicks' | 'spend' | 'users' | 'newMembers'
