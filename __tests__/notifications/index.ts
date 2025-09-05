@@ -288,8 +288,8 @@ describe('generateNotification', () => {
     expect(actual.attachments.length).toEqual(0);
   });
 
-  it('should generate campaign_completed notification for Post campaigns', () => {
-    const type = NotificationType.CampaignCompleted;
+  it('should generate campaign_post_completed notification', () => {
+    const type = NotificationType.CampaignPostCompleted;
     const ctx: NotificationCampaignContext = {
       user: usersFixture[0],
       campaign: campaignsFixture[0] as Reference<Campaign>,
@@ -315,7 +315,7 @@ describe('generateNotification', () => {
       ),
     ).toBeTruthy();
     expect(actual.notification.title).toEqual(
-      'Your boosted Post just wrapped up!',
+      'Your boosted post just wrapped up!',
     );
     expect(actual.avatars).toEqual([
       {
@@ -329,8 +329,8 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([]);
   });
 
-  it('should generate campaign_completed notification for Squad campaigns', () => {
-    const type = NotificationType.CampaignCompleted;
+  it('should generate campaign_squad_completed notification', () => {
+    const type = NotificationType.CampaignSquadCompleted;
     const ctx: NotificationCampaignContext = {
       user: usersFixture[0],
       campaign: campaignsFixture[1] as Reference<Campaign>,

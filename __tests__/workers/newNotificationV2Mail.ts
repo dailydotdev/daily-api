@@ -2383,7 +2383,7 @@ describe('briefing_ready notification', () => {
   });
 });
 
-describe('campaign_completed notifications', () => {
+describe('campaign_post_completed notifications', () => {
   it('should set parameters for Post Campaign Completed email', async () => {
     await con.getRepository(ArticlePost).save(postsFixture[0]);
     const campaign = await con.getRepository(Campaign).save({
@@ -2406,7 +2406,7 @@ describe('campaign_completed notifications', () => {
 
     const notificationId = await saveNotificationV2Fixture(
       con,
-      NotificationType.CampaignCompleted,
+      NotificationType.CampaignPostCompleted,
       ctx,
     );
     await expectSuccessfulBackground(worker, {
@@ -2422,14 +2422,16 @@ describe('campaign_completed notifications', () => {
       start_date: 'Jan 15, 2023',
       end_date: 'Jan 22, 2023',
       analytics_link:
-        'http://localhost:5002/notifications?c_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890&utm_source=notification&utm_medium=email&utm_campaign=campaign_completed',
+        'http://localhost:5002/notifications?c_id=a1b2c3d4-e5f6-7890-abcd-ef1234567890&utm_source=notification&utm_medium=email&utm_campaign=campaign_post_completed',
       post_link: 'http://localhost:5002/posts/p1-p1',
       post_image: 'https://daily.dev/image.jpg',
       post_title: 'P1',
     });
     expect(args.transactional_message_id).toEqual('79');
   });
+});
 
+describe('campaign_squad_completed notifications', () => {
   it('should set parameters for Squad Campaign Completed email', async () => {
     await con
       .getRepository(Source)
@@ -2456,7 +2458,7 @@ describe('campaign_completed notifications', () => {
 
     const notificationId = await saveNotificationV2Fixture(
       con,
-      NotificationType.CampaignCompleted,
+      NotificationType.CampaignSquadCompleted,
       ctx,
     );
     await expectSuccessfulBackground(worker, {
@@ -2472,11 +2474,11 @@ describe('campaign_completed notifications', () => {
       start_date: 'Feb 10, 2023',
       end_date: 'Feb 17, 2023',
       analytics_link:
-        'http://localhost:5002/notifications?c_id=f68db959-3142-423d-8f8d-b294b5f49b97&utm_source=notification&utm_medium=email&utm_campaign=campaign_completed',
+        'http://localhost:5002/notifications?c_id=f68db959-3142-423d-8f8d-b294b5f49b97&utm_source=notification&utm_medium=email&utm_campaign=campaign_squad_completed',
       source_image: 'http://image.com/a',
       source_handle: 'a',
       source_name: 'A',
     });
-    expect(args.transactional_message_id).toEqual('83');
+    expect(args.transactional_message_id).toEqual('93');
   });
 });
