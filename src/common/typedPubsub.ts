@@ -33,7 +33,6 @@ import {
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import type { CampaignUpdateAction } from '../integrations/skadi';
 import { z } from 'zod';
 import type { postMetricsUpdatedTopic } from './schema/topics';
 import type { CampaignUpdateEventArgs } from './campaign/common';
@@ -163,12 +162,6 @@ export type PubSubSchema = {
   };
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
-  };
-  'skadi.v1.campaign-updated': {
-    postId: Post['id'];
-    userId: User['id'];
-    campaignId: string;
-    action: CampaignUpdateAction;
   };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
