@@ -96,4 +96,3 @@ config:
   api:temporal:
     chain: ''
     key: ''
-  api:image: api-image:tilt-3b4c15e7097cbf72
