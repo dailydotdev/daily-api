@@ -17,6 +17,8 @@ import {
   ArticlePost,
   BRIEFING_SOURCE,
   Campaign,
+  CampaignPost,
+  CampaignSource,
   CampaignType,
   CampaignState,
   CollectionPost,
@@ -2386,21 +2388,25 @@ describe('briefing_ready notification', () => {
 describe('campaign_post_completed notifications', () => {
   it('should set parameters for Post Campaign Completed email', async () => {
     await con.getRepository(ArticlePost).save(postsFixture[0]);
-    const campaign = await con.getRepository(Campaign).save({
-      ...campaignsFixture[0],
+
+    // Create a CampaignPost (not just Campaign) with postId pointing to the post
+    const campaignPost = await con.getRepository(CampaignPost).save({
       id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       referenceId: 'p1',
+      userId: '1',
       type: CampaignType.Post,
       state: CampaignState.Completed,
       createdAt: new Date(2023, 0, 15, 10, 0),
       endedAt: new Date(2023, 0, 22, 10, 0),
+      postId: 'p1', // This is the key field that was missing
+      flags: {},
     });
     const user = await con.getRepository(User).findOneBy({ id: '1' });
 
     const ctx: NotificationCampaignContext = {
       userIds: ['1'],
       user: user as Reference<User>,
-      campaign: campaign as Reference<Campaign>,
+      campaign: campaignPost as Reference<Campaign>,
       event: CampaignUpdateEvent.Completed,
     };
 
@@ -2437,21 +2443,24 @@ describe('campaign_squad_completed notifications', () => {
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
     const source = await con.getRepository(Source).findOneBy({ id: 'a' });
-    const campaign = await con.getRepository(Campaign).save({
-      ...campaignsFixture[1],
+    // Create a CampaignSource (not just Campaign) with sourceId pointing to the source
+    const campaignSource = await con.getRepository(CampaignSource).save({
       id: 'f68db959-3142-423d-8f8d-b294b5f49b97',
       referenceId: 'a',
+      userId: '1',
       type: CampaignType.Squad,
       state: CampaignState.Completed,
       createdAt: new Date(2023, 1, 10, 9, 0),
       endedAt: new Date(2023, 1, 17, 9, 0),
+      sourceId: 'a', // This is the key field that was missing
+      flags: {},
     });
     const user = await con.getRepository(User).findOneBy({ id: '1' });
 
     const ctx: NotificationCampaignContext = {
       userIds: ['1'],
       user: user as Reference<User>,
-      campaign: campaign as Reference<Campaign>,
+      campaign: campaignSource as Reference<Campaign>,
       source: source as Reference<Source>,
       event: CampaignUpdateEvent.Completed,
     };
