@@ -74,7 +74,10 @@ describe('userUpdatedPlusSubscriptionSquad', () => {
   it('should add user to squad', async () => {
     const newBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({
+        subscriptionId: '1234',
+        cycle: 'monthly',
+      }),
     };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: newBase,
@@ -153,7 +156,10 @@ describe('userUpdatedPlusSubscriptionSquad', () => {
     });
     const oldBase = {
       ...base,
-      subscriptionFlags: JSON.stringify({ subscriptionId: '1234' }),
+      subscriptionFlags: JSON.stringify({
+        subscriptionId: '1234',
+        cycle: 'monthly',
+      }),
     };
     await expectSuccessfulTypedBackground(worker, {
       newProfile: base,

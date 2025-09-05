@@ -26,11 +26,13 @@ export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'>
         return;
       }
 
-      if (beforeFlags?.cycle === afterFlags?.cycle) {
+      const isPlus = isPlusMember(afterFlags?.cycle);
+      const wasPlus = isPlusMember(beforeFlags?.cycle);
+      if (isPlus === wasPlus) {
         return;
       }
 
-      if (!isPlusMember(afterFlags?.cycle)) {
+      if (!isPlus) {
         await con.transaction(async (entityManager) => {
           await entityManager.delete(UserPersonalizedDigest, {
             userId: user.id,

@@ -3,6 +3,7 @@ import { TypedWorker } from './worker';
 import { Feed, User } from '../entity';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
+import { isPlusMember } from '../paddle';
 
 const worker: TypedWorker<'user-updated'> = {
   subscription: 'api.user-updated-plus-subscribed-custom-feed',
@@ -26,11 +27,9 @@ const worker: TypedWorker<'user-updated'> = {
       return;
     }
 
-    if (afterFlags?.subscriptionId === beforeFlags?.subscriptionId) {
-      return;
-    }
-
-    if (afterFlags?.subscriptionId === '' || !afterFlags?.subscriptionId) {
+    const isPlus = isPlusMember(afterFlags?.cycle);
+    const wasPlus = isPlusMember(beforeFlags?.cycle);
+    if (isPlus === wasPlus || !isPlus) {
       return;
     }
 
