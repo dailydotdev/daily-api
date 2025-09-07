@@ -1,77 +1,104 @@
 import nock from 'nock';
 import {
+  CandidateStatus,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
+import {
+  Alerts,
+  ArticlePost,
   Banner,
+  Bookmark,
+  CampaignCtaPlacement,
+  ChecklistViewState,
+  CollectionPost,
+  Comment,
+  CommentMention,
+  COMMUNITY_PICKS_SOURCE,
+  ContentImage,
+  Feature,
+  FeatureType,
+  Feed,
+  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
+  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
   FreeformPost,
+  MarketingCta,
+  MarketingCtaStatus,
+  NotificationV2,
+  Organization,
+  Post,
+  PostKeyword,
   PostMention,
+  PostRelation,
+  PostRelationType,
+  PostReport,
+  PostType,
   ReputationEvent,
   ReputationReason,
   ReputationType,
-  PostType,
-  UserPost,
-  CampaignCtaPlacement,
-  CollectionPost,
-  PostRelation,
-  PostRelationType,
-  FREEFORM_POST_MINIMUM_CONTENT_LENGTH,
-  FREEFORM_POST_MINIMUM_CHANGE_LENGTH,
-  MarketingCta,
-  MarketingCtaStatus,
-  UserMarketingCta,
+  Settings,
+  SharePost,
+  Source,
+  SourceFeed,
+  SourceMember,
+  SourceRequest,
+  SourceType,
   SquadPublicRequest,
   SquadPublicRequestStatus,
-  PostKeyword,
-  SourceType,
-  YouTubePost,
-  ChecklistViewState,
+  SquadSource,
+  Submission,
+  SubmissionStatus,
+  UNKNOWN_SOURCE,
+  User,
+  UserCompany,
+  UserMarketingCta,
+  UserNotification,
+  UserPost,
+  UserState,
+  UserStateKey,
   UserStreak,
-  Bookmark,
   UserStreakAction,
   UserStreakActionType,
-  SquadSource,
-  UserCompany,
-  SharePost,
-  UNKNOWN_SOURCE,
-  NotificationV2,
-  UserNotification,
+  YouTubePost,
 } from '../../../src/entity';
 import {
+  DayOfWeek,
+  debeziumTimeToDate,
+  notifyBannerCreated,
+  notifyBannerRemoved,
   notifyCommentCommented,
-  notifyFeatureAccess,
-  notifyMemberJoinedSource,
-  notifyNewPostMention,
-  notifyNewCommentMention,
-  notifyPostBannedOrRemoved,
-  notifyPostCommented,
-  notifyPostReport,
-  notifySourceReport,
+  notifyCommentDeleted,
+  notifyCommentEdited,
   notifyCommentReport,
+  notifyContentImageDeleted,
+  notifyContentRequested,
+  notifyFeatureAccess,
+  notifyFreeformContentRequested,
+  notifyMemberJoinedSource,
+  notifyNewCommentMention,
+  notifyNewPostMention,
+  notifyPostBannedOrRemoved,
+  notifyPostCollectionUpdated,
+  notifyPostCommented,
+  notifyPostContentEdited,
+  notifyPostReport,
+  notifyPostVisible,
+  notifyPostYggdrasilIdSet,
+  notifyReputationIncrease,
   notifySendAnalyticsReport,
   notifySettingsUpdated,
   notifySourceFeedAdded,
   notifySourceFeedRemoved,
+  notifySourceMemberRoleChanged,
   notifySourcePrivacyUpdated,
+  notifySourceReport,
+  notifySquadFeaturedUpdated,
   notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUsernameChanged,
-  notifyPostVisible,
-  notifySourceMemberRoleChanged,
-  notifyContentRequested,
-  notifyContentImageDeleted,
-  notifyPostContentEdited,
-  notifyCommentEdited,
-  notifyCommentDeleted,
-  notifyFreeformContentRequested,
-  notifyBannerCreated,
-  notifyBannerRemoved,
-  notifyPostYggdrasilIdSet,
-  notifyPostCollectionUpdated,
   notifyUserReadmeUpdated,
-  triggerTypedEvent,
-  notifyReputationIncrease,
   PubSubSchema,
-  debeziumTimeToDate,
-  notifySquadFeaturedUpdated,
-  DayOfWeek,
+  triggerTypedEvent,
 } from '../../../src/common';
 import worker, {
   getRestoreStreakCache,
@@ -83,29 +110,6 @@ import {
   mockChangeMessage,
   saveFixtures,
 } from '../../helpers';
-import {
-  Alerts,
-  ArticlePost,
-  Comment,
-  CommentMention,
-  COMMUNITY_PICKS_SOURCE,
-  Feature,
-  FeatureType,
-  Feed,
-  Post,
-  PostReport,
-  Settings,
-  Source,
-  SourceFeed,
-  SourceMember,
-  SourceRequest,
-  Submission,
-  SubmissionStatus,
-  User,
-  UserState,
-  UserStateKey,
-  ContentImage,
-} from '../../../src/entity';
 import { ChangeObject, CoresRole, UserVote } from '../../../src/types';
 import { sourcesFixture } from '../../fixture/source';
 import {
@@ -123,17 +127,17 @@ import { CommentReport } from '../../../src/entity/CommentReport';
 import { badUsersFixture, usersFixture } from '../../fixture/user';
 import { DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD } from '../../../src/workers/notifications/devCardUnlocked';
 import { UserComment } from '../../../src/entity/user/UserComment';
+import * as redisFile from '../../../src/redis';
 import {
   getRedisKeysByPattern,
   getRedisObject,
   ioRedisPool,
   setRedisObject,
 } from '../../../src/redis';
-import * as redisFile from '../../../src/redis';
 import {
+  generateStorageKey,
   StorageKey,
   StorageTopic,
-  generateStorageKey,
   submissionAccessThreshold,
 } from '../../../src/config';
 import { generateUUID } from '../../../src/ids';
@@ -156,6 +160,15 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../../../src/entity/contentPreference/types';
+import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
+import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
+import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
+import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
+import {
+  opportunitiesFixture,
+  organizationsFixture,
+} from '../../fixture/opportunity';
+import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -1266,120 +1279,6 @@ describe('post', () => {
     expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
       oldPost.metadataChangedAt.getTime(),
     );
-  });
-
-  it('should send a message when campaign id becomes present', async () => {
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, ArticlePost, postsFixture);
-    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    const localBase: ChangeObject<ArticlePost> = {
-      ...(oldPost as ArticlePost),
-      createdAt: 0,
-      metadataChangedAt: 0,
-      publishedAt: 0,
-      lastTrending: 0,
-      visible: true,
-      visibleAt: 0,
-      pinnedAt: null,
-      statsUpdatedAt: 0,
-      authorId: '1',
-      flags: '{}',
-    };
-    const after: ChangeObject<ObjectType> = {
-      ...localBase,
-      flags: JSON.stringify({
-        campaignId: 'test-campaign-id',
-      }),
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after: after,
-        before: localBase,
-        op: 'u',
-        table: 'post',
-      }),
-    );
-    expect(triggerTypedEvent).toHaveBeenCalled();
-    expect(jest.mocked(triggerTypedEvent).mock.calls[1].slice(1)).toEqual([
-      'skadi.v1.campaign-updated',
-      {
-        postId: 'p1',
-        userId: '1',
-        campaignId: 'test-campaign-id',
-        action: 'started',
-      },
-    ]);
-  });
-
-  it('should NOT send a message when campaign id did not change', async () => {
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, ArticlePost, postsFixture);
-    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    const localBase: ChangeObject<ArticlePost> = {
-      ...(oldPost as ArticlePost),
-      createdAt: 0,
-      metadataChangedAt: 0,
-      publishedAt: 0,
-      lastTrending: 0,
-      visible: true,
-      visibleAt: 0,
-      pinnedAt: null,
-      statsUpdatedAt: 0,
-      flags: JSON.stringify({
-        campaignId: 'test-campaign-id',
-      }),
-    };
-    const after: ChangeObject<ObjectType> = {
-      ...localBase,
-      flags: JSON.stringify({
-        campaignId: 'test-campaign-id',
-      }),
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after: after,
-        before: localBase,
-        op: 'u',
-        table: 'post',
-      }),
-    );
-    expect(jest.mocked(triggerTypedEvent).mock.calls[1]).toBeFalsy();
-  });
-
-  it('should NOT send a message when campaign id was removed', async () => {
-    await saveFixtures(con, Source, sourcesFixture);
-    await saveFixtures(con, ArticlePost, postsFixture);
-    const oldPost = await con.getRepository(Post).findOneBy({ id: 'p1' });
-    const localBase: ChangeObject<ArticlePost> = {
-      ...(oldPost as ArticlePost),
-      createdAt: 0,
-      metadataChangedAt: 0,
-      publishedAt: 0,
-      lastTrending: 0,
-      visible: true,
-      visibleAt: 0,
-      pinnedAt: null,
-      statsUpdatedAt: 0,
-      flags: JSON.stringify({
-        campaignId: 'test-campaign-id',
-      }),
-    };
-    const after: ChangeObject<ObjectType> = {
-      ...localBase,
-      flags: '{}',
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after: after,
-        before: localBase,
-        op: 'u',
-        table: 'post',
-      }),
-    );
-    expect(jest.mocked(triggerTypedEvent).mock.calls[1]).toBeFalsy();
   });
 
   it('should notify for new freeform post greater than the required amount characters', async () => {
@@ -5611,5 +5510,673 @@ describe('content_preference', () => {
 
       expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
     });
+  });
+});
+
+describe('opportunity match', () => {
+  type ObjectType = OpportunityMatch;
+  const base: ChangeObject<ObjectType> = {
+    opportunityId: 'opportunity1',
+    userId: '1',
+    status: OpportunityMatchStatus.Pending,
+    createdAt: new Date().getTime(),
+    updatedAt: new Date().getTime(),
+    description: '',
+    screening: [],
+    applicationRank: {},
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+    await con.getRepository(UserCandidatePreference).save({
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+    });
+  });
+
+  it('should notify on candidate accepted opportunity', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.CandidateAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not notify when status changes from candidate accepted to something else', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.RecruiterAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: {
+          ...base,
+          status: OpportunityMatchStatus.CandidateAccepted,
+        },
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not notify when status stays the same', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.CandidateAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: {
+          ...base,
+          status: OpportunityMatchStatus.CandidateAccepted,
+        },
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not notify when candidate preference is not found', async () => {
+    await con.getRepository(UserCandidatePreference).delete({ userId: '1' });
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.CandidateAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('opportunity', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+  });
+
+  it('should trigger on new opportunity', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+  });
+
+  it('should not trigger on new opportunity when state is not live', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: 'org-1',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger on new opportunity when state is job', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: 'not-job' as OpportunityType,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should trigger on updated opportunity', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+  });
+
+  it('should not trigger on updated opportunity when state is not live', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: 'org-1',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger on new opportunity when state is job', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: 'not-job' as OpportunityType,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: 'org-1',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('user_candidate_preference', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should trigger candidate preference change event on creation', async () => {
+    const candidatePreferenceData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      cvParsed: {},
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    // First, create the UserCandidatePreference record
+    await con
+      .getRepository(UserCandidatePreference)
+      .save(candidatePreferenceData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'c',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+  });
+
+  it('should trigger candidate preference change event on update', async () => {
+    const originalData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    const updatedData = {
+      ...originalData,
+      role: 'Senior Backend Engineer',
+      salaryExpectation: {
+        min: 90000,
+        currency: 'USD',
+      },
+      updatedAt: new Date('2023-01-02'),
+    };
+
+    // Create the UserCandidatePreference record
+    await con.getRepository(UserCandidatePreference).save(updatedData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        before: originalData,
+        after: updatedData,
+        op: 'u',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+  });
+
+  it('should not trigger event on delete operation', async () => {
+    const candidatePreferenceData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        before: candidatePreferenceData,
+        op: 'd',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not trigger event on read operation', async () => {
+    const candidatePreferenceData = {
+      userId: '1',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Senior Full Stack Developer',
+      roleType: 0.8,
+      employmentType: [0], // EmploymentType.FULL_TIME
+      salaryExpectation: {
+        min: 80000,
+        currency: 'USD',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'USA',
+        },
+      ],
+      locationType: [1], // LocationType.REMOTE
+      companyStage: [2], // CompanyStage.GROWTH
+      companySize: [3], // CompanySize.MEDIUM
+      updatedAt: new Date('2023-01-01').getTime(),
+    };
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'r',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should handle disabled candidate status', async () => {
+    const candidatePreferenceData = {
+      userId: '2',
+      status: CandidateStatus.DISABLED,
+      cv: {
+        url: '',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: '',
+      roleType: 0.5,
+      employmentType: [],
+      salaryExpectation: {},
+      location: [],
+      locationType: [],
+      companyStage: [],
+      companySize: [],
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    // Create the UserCandidatePreference record
+    await con
+      .getRepository(UserCandidatePreference)
+      .save(candidatePreferenceData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'c',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+  });
+
+  it('should handle missing candidate preference gracefully', async () => {
+    // Don't create any UserCandidatePreference record
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: {
+          userId: 'non-existent-user',
+          status: CandidateStatus.OPEN_TO_OFFERS,
+          cvParsed: {},
+          cv: {
+            url: 'https://example.com/cv.pdf',
+            lastModified: new Date('2023-01-01'),
+          },
+          role: 'Senior Developer',
+          roleType: 0.8,
+          employmentType: [0],
+          salaryExpectation: {
+            min: 80000,
+            currency: 'USD',
+          },
+          location: [],
+          locationType: [],
+          companyStage: [],
+          companySize: [],
+          updatedAt: new Date('2023-01-01'),
+        },
+        op: 'c',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    // Should not trigger event when candidate preference is not found
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should handle complex employment types and locations', async () => {
+    const candidatePreferenceData = {
+      userId: '3',
+      status: CandidateStatus.OPEN_TO_OFFERS,
+      cvParsed: {},
+      cv: {
+        url: 'https://example.com/cv.pdf',
+        lastModified: new Date('2023-01-01'),
+      },
+      role: 'Full Stack Engineer',
+      roleType: 0.9,
+      employmentType: [0, 1, 2], // Multiple employment types
+      salaryExpectation: {
+        min: 100000,
+        currency: 'EUR',
+      },
+      location: [
+        {
+          type: 1, // LocationType.REMOTE
+          country: 'Germany',
+        },
+        {
+          type: 2, // LocationType.HYBRID
+          country: 'Netherlands',
+          city: 'Amsterdam',
+        },
+      ],
+      locationType: [1, 2], // Multiple location types
+      companyStage: [1, 2, 3], // Multiple company stages
+      companySize: [2, 3, 4], // Multiple company sizes
+      updatedAt: new Date('2023-01-01'),
+    };
+
+    // Create the UserCandidatePreference record
+    await con
+      .getRepository(UserCandidatePreference)
+      .save(candidatePreferenceData);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<UserCandidatePreference>({
+        after: candidatePreferenceData,
+        op: 'u',
+        table: 'user_candidate_preference',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.candidate-preference-updated',
+    );
+
+    // Verify the message contains the complex data
+    const eventCall = jest.mocked(triggerTypedEvent).mock.calls[0];
+    expect(eventCall[2]).toMatchObject({
+      payload: expect.objectContaining({
+        userId: '3',
+        employmentType: [0, 1, 2],
+        location: expect.arrayContaining([
+          expect.objectContaining({ country: 'Germany' }),
+          expect.objectContaining({
+            country: 'Netherlands',
+            city: 'Amsterdam',
+          }),
+        ]),
+        locationType: [1, 2],
+        companyStage: [1, 2, 3],
+        companySize: [2, 3, 4],
+      }),
+    });
+  });
+});
+
+describe('organization', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+  });
+
+  it('should not  trigger opportunity job update on organization creation', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          seats: 1,
+          name: 'Organization 1',
+          description: 'New description',
+        },
+        op: 'c',
+        table: 'organization',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should trigger opportunity job update for live opportunities when organization description is updated', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          seats: 1,
+          name: 'Organization 1',
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+          seats: 1,
+          name: 'Organization 1',
+          description: 'New description',
+        },
+        op: 'u',
+        table: 'organization',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+  });
+
+  it('should not trigger opportunity job update when organization has no live opportunities', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<Organization>({
+        before: {
+          id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+          seats: 2,
+          name: 'Organization 2',
+        },
+        after: {
+          id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+          seats: 2,
+          name: 'Organization 2',
+          description: 'New description',
+        },
+        op: 'u',
+        table: 'organization',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });

@@ -5,7 +5,7 @@ import {
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
 } from '../entity';
-import { isPlusMember } from '../paddle';
+import { hasPlusStatusChanged } from '../paddle';
 
 export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'> =
   {
@@ -26,11 +26,15 @@ export const userUpdatedPlusSubscriptionBriefWorker: TypedWorker<'user-updated'>
         return;
       }
 
-      if (beforeFlags?.cycle === afterFlags?.cycle) {
+      const { isPlus, statusChanged } = hasPlusStatusChanged(
+        afterFlags,
+        beforeFlags,
+      );
+      if (!statusChanged) {
         return;
       }
 
-      if (!isPlusMember(afterFlags?.cycle)) {
+      if (!isPlus) {
         await con.transaction(async (entityManager) => {
           await entityManager.delete(UserPersonalizedDigest, {
             userId: user.id,
