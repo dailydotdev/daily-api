@@ -48,6 +48,7 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
   {
     switch (info.fieldName) {
       case 'createFreeformPost':
+      case 'createPollPost':
       case 'submitExternalLink':
       case 'sharePost':
       case 'createSourcePostModeration':

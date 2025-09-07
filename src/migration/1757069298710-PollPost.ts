@@ -15,7 +15,7 @@ export class PollPost1757069298710 implements MigrationInterface {
       `ALTER TABLE "post" ADD "endsAt" TIMESTAMP DEFAULT NULL`,
     );
     await queryRunner.query(
-      `ALTER TABLE "post" ADD "numPolLVotes" integer DEFAULT '0'`,
+      `ALTER TABLE "post" ADD "numPollVotes" integer DEFAULT '0'`,
     );
 
     await queryRunner.query(
@@ -42,7 +42,7 @@ export class PollPost1757069298710 implements MigrationInterface {
       `ALTER TABLE "user_post" DROP COLUMN "pollVoteOptionId"`,
     );
 
-    await queryRunner.query(`ALTER TABLE "post" DROP COLUMN "numPolLVotes"`);
+    await queryRunner.query(`ALTER TABLE "post" DROP COLUMN "numPollVotes"`);
     await queryRunner.query(`ALTER TABLE "post" DROP COLUMN "endsAt"`);
 
     await queryRunner.query(`DROP INDEX "public"."poll_option_post_id_index"`);

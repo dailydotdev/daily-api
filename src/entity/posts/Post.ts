@@ -330,5 +330,5 @@ export class PollPost extends Post {
   endsAt?: Date;
 
   @Column({ type: 'integer', default: 0 })
-  numPolLVotes: number;
+  numPollVotes: number;
 }
