@@ -11,6 +11,7 @@ import type { Post } from '../posts';
 import type { User } from './User';
 import { UserVote } from '../../types';
 import type { UserTransaction } from './UserTransaction';
+import type { PollOption } from '../polls/PollOption';
 
 export type UserPostFlags = Partial<{
   feedbackDismiss: boolean;
@@ -74,4 +75,13 @@ export class UserPost {
     onDelete: 'SET NULL',
   })
   awardTransaction: Promise<UserTransaction>;
+
+  @Column({ type: 'uuid', nullable: true })
+  pollVoteOptionId: string | null;
+
+  @ManyToOne('PollOption', {
+    lazy: true,
+    onDelete: 'SET NULL',
+  })
+  pollVoteOption: Promise<PollOption>;
 }

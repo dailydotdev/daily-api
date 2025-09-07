@@ -115,6 +115,7 @@ import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
 import * as njordCommon from '../src/common/njord';
 import { BriefPost } from '../src/entity/posts/BriefPost';
 import { createClient } from '@connectrpc/connect';
+import isSameDay from 'date-fns/isSameDay';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -9065,5 +9066,112 @@ describe('query history for post analytics', () => {
       { query: QUERY, variables: { id: 'p1-paqh', first: 45 } },
       'FORBIDDEN',
     );
+  });
+});
+describe('mutate polls', () => {
+  beforeEach(async () => {
+    await saveSquadFixtures();
+  });
+
+  const MUTATION = `
+    mutation CreatePollPost($sourceId: ID!, $title: String!, $options: [PollOptionInput!]!, $duration: Int) {
+      createPollPost(sourceId: $sourceId, title: $title, options: $options, duration: $duration) {
+        id
+        title
+        endsAt
+        pollOptions {
+          id
+          text
+          numVotes
+          order
+        }
+      }
+    }
+`;
+
+  const defaultOptions = [
+    { text: 'Option 1', order: 0 },
+    { text: 'Option 2', order: 1 },
+    { text: 'Option 3', order: 2 },
+  ];
+
+  const defaultPoll = {
+    sourceId: 'a',
+    title: 'My poll',
+  };
+
+  it('should create a poll post', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      options: defaultOptions,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.id).toBeTruthy();
+    expect(res.data.createPollPost.title).toEqual('My poll');
+    expect(res.data.createPollPost.pollOptions.length).toEqual(3);
+  });
+
+  it('should fail to create a poll without at least two options', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      options: defaultOptions.slice(0, 1),
+    };
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: poll,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create a poll that ends in 7 days', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      duration: 7,
+      options: defaultOptions,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.endsAt).toBeTruthy();
+    expect(
+      isSameDay(
+        new Date(res.data.createPollPost.endsAt),
+        addDays(new Date(), 7),
+      ),
+    ).toBeTruthy();
+  });
+
+  it('should create a poll without an end date', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      options: defaultOptions,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.endsAt).toBeFalsy();
   });
 });

@@ -12,6 +12,7 @@ import {
   getPostVisible,
   mergeKeywords,
   parseReadTime,
+  PollPost,
   Post,
   PostContentQuality,
   PostOrigin,
@@ -355,6 +356,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Collection]: CollectionPost,
   [PostType.VideoYouTube]: YouTubePost,
   [PostType.Brief]: BriefPost,
+  [PostType.Poll]: PollPost,
 };
 
 type UpdatePostProps = {

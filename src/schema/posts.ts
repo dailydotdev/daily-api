@@ -20,6 +20,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
   createFreeformPost,
+  createPollPost,
   CreatePost,
   CreatePostArgs,
   createSourcePostModeration,
@@ -54,6 +55,7 @@ import {
   findPostByUrl,
   ensurePostAnalyticsPermissions,
   getLimit,
+  type CreatePollPostArgs,
 } from '../common';
 import {
   Campaign,
@@ -86,6 +88,7 @@ import {
   View,
   WelcomePost,
 } from '../entity';
+import { PollOption } from '../entity/polls/PollOption';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
   NotFoundError,
@@ -170,6 +173,14 @@ import {
   getBriefGenerationCost,
   requestBriefGeneration,
 } from '../common/brief';
+import { pollCreationSchema } from '../common/schema/polls';
+
+export interface GQLPollOption {
+  id: string;
+  text: string;
+  numVotes: number;
+  order: number;
+}
 
 export interface GQLPost {
   id: string;
@@ -217,6 +228,9 @@ export interface GQLPost {
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
   permalink?: string;
+  endsAt?: Date;
+  pollOptions?: GQLPollOption[];
+  totalPollVotes?: number;
 }
 
 interface PinPostArgs {
@@ -814,6 +828,14 @@ export const typeDefs = /* GraphQL */ `
     The amount of total engagements for the post
     """
     engagements: Int
+    """
+    Poll options
+    """
+    pollOptions: [PollOption]
+    """
+    Date the poll ends
+    """
+    endsAt: DateTime
   }
 
   type PostConnection {
@@ -882,6 +904,18 @@ export const typeDefs = /* GraphQL */ `
     id: String!
     post: Post!
     question: String!
+  }
+
+  type PollOption {
+    id: String!
+    numVotes: Int!
+    text: String!
+    order: Int!
+  }
+
+  input PollOptionInput {
+    text: String!
+    order: Int!
   }
 
   ${toGQLEnum(PostCodeSnippetLanguage, 'PostCodeSnippetLanguage')}
@@ -1735,6 +1769,27 @@ export const typeDefs = /* GraphQL */ `
     Generate new briefing for the user
     """
     generateBriefing(type: BriefingType!): GenerateBriefingResponse! @auth
+    """
+    Create a new poll post
+    """
+    createPollPost(
+      """
+      ID of the source to post to
+      """
+      sourceId: ID!
+      """
+      Poll question
+      """
+      title: String!
+      """
+      Poll options
+      """
+      options: [PollOptionInput!]!
+      """
+      Duration in days
+      """
+      duration: Int
+    ): Post! @auth @rateLimit(limit: 1, duration: 30)
   }
 
   extend type Subscription {
@@ -3376,6 +3431,52 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { ...result, balance };
+    },
+    createPollPost: async (
+      _,
+      args: CreatePollPostArgs,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLPost> => {
+      const sourceCheck =
+        args.sourceId === ctx.userId
+          ? ensureUserSourceExists(ctx.userId, ctx.con)
+          : ensureSourcePermissions(ctx, args.sourceId, SourcePermissions.Post);
+
+      const [parsedArgs] = await Promise.all([
+        pollCreationSchema.safeParseAsync(args),
+        sourceCheck,
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
+
+      if (!parsedArgs.success) {
+        throw new ValidationError(parsedArgs.error.message);
+      }
+
+      const id = await generateShortId();
+
+      const savedPost = await createPollPost({
+        con: ctx.con,
+        ctx,
+        args: {
+          id: id!,
+          title: args.title!,
+          sourceId: args.sourceId,
+          duration: args.duration,
+          authorId: ctx.userId,
+          type: PostType.Poll,
+          pollOptions: args.options.map((option) =>
+            ctx.con.getRepository(PollOption).create({
+              text: option.text,
+              numVotes: 0,
+              order: option.order,
+              postId: id!,
+            }),
+          ),
+        },
+      });
+
+      return getPostById(ctx, info, savedPost.id);
     },
   },
   Subscription: {

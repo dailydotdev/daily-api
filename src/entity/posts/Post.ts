@@ -1,4 +1,5 @@
 import {
+  ChildEntity,
   Column,
   Entity,
   Index,
@@ -14,6 +15,7 @@ import { User } from '../user';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
 import type { ContentLanguage } from '../../types';
+import type { PollOption } from '../polls/PollOption';
 
 export enum PostType {
   Article = 'article',
@@ -23,6 +25,7 @@ export enum PostType {
   Collection = 'collection',
   VideoYouTube = 'video:youtube',
   Brief = 'brief',
+  Poll = 'poll',
 }
 
 export const postTypes: string[] = Object.values(PostType);
@@ -313,4 +316,19 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_awards')
   awards: number;
+}
+
+@ChildEntity(PostType.Poll)
+export class PollPost extends Post {
+  @OneToMany('PollOption', (option: PollOption) => option.post, {
+    lazy: true,
+    cascade: ['insert'],
+  })
+  pollOptions: Promise<PollOption[]>;
+
+  @Column({ type: 'timestamp' })
+  endsAt?: Date;
+
+  @Column({ type: 'integer', default: 0 })
+  numPolLVotes: number;
 }
