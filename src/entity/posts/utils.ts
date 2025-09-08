@@ -349,7 +349,7 @@ export const preparePostForUpdate = async <T extends DeepPartial<Post>>(
   }
 
   // Check content with existing checkWithVordr if we have userId
-  const updatesContent = (updates as DeepPartial<FreeformPost>).content; // Some post types have content; // Some post types have content
+  const updatesContent = (updates as DeepPartial<FreeformPost>).content; // Some post types have content
   const shouldVordr = await checkWithVordr(
     {
       id: existingPost.id,
