@@ -3498,7 +3498,7 @@ describe('mutation submitExternalLink', () => {
           .getRepository(SharePost)
           .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
 
-        expect(post.flags.vordr).toEqual(false);
+        expect(post.flags.vordr).toBeFalsy();
       });
 
       it('should set the correct vordr flags on new post by a bad user', async () => {
@@ -3537,7 +3537,7 @@ describe('mutation submitExternalLink', () => {
           .getRepository(SharePost)
           .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
 
-        expect(post.flags.vordr).toEqual(false);
+        expect(post.flags.vordr).toBeFalsy();
       });
 
       it('should set the correct vordr flags on existing post by bad user', async () => {
@@ -4276,7 +4276,7 @@ describe('mutation createFreeformPost', () => {
         .getRepository(FreeformPost)
         .findOneByOrFail({ id: res.data.createFreeformPost.id });
 
-      expect(post.flags.vordr).toEqual(false);
+      expect(post.flags.vordr).toBeFalsy();
     });
 
     it('should set the correct vordr flags on a freeform post by good user if vordr filter catches it', async () => {

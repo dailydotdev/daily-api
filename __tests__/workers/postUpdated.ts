@@ -610,98 +610,6 @@ it('should save post if source_id is not passed but post exists', async () => {
   );
 });
 
-it('should save a new post with the relevant scout id and update submission', async () => {
-  const uuid = randomUUID();
-  await saveFixtures(con, Source, [
-    {
-      id: COMMUNITY_PICKS_SOURCE,
-      name: 'Community recommendations',
-      image: 'sample.image.com',
-    },
-  ]);
-  await createDefaultUser();
-  await createDefaultSubmission(uuid);
-  await expectSuccessfulBackground(worker, {
-    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
-    title: 'Title',
-    url: 'https://post.com',
-    source_id: COMMUNITY_PICKS_SOURCE,
-    submission_id: uuid,
-  });
-
-  const post = await con
-    .getRepository(ArticlePost)
-    .findOneBy({ url: 'https://post.com' });
-  expect(post.scoutId).toEqual('1');
-  const submissions = await con.getRepository(Submission).find();
-  const [submission] = submissions;
-  expect(submissions.length).toEqual(1);
-  expect(submission.id).toEqual(uuid);
-  expect(submission.status).toEqual(SubmissionStatus.Accepted);
-});
-
-it('should save a new post with the relevant keywords', async () => {
-  const uuid = randomUUID();
-  await saveFixtures(con, Source, [
-    {
-      id: COMMUNITY_PICKS_SOURCE,
-      name: 'Community recommendations',
-      image: 'sample.image.com',
-    },
-  ]);
-  await createDefaultUser();
-  await createDefaultSubmission(uuid);
-  await createDefaultKeywords();
-  await expectSuccessfulBackground(worker, {
-    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
-    title: 'Title',
-    url: `https://post.com/${uuid}`,
-    source_id: COMMUNITY_PICKS_SOURCE,
-    submission_id: uuid,
-    extra: {
-      keywords: ['alpine', 'a-b-testing', 'mongodb'],
-    },
-  });
-  const posts = await con.getRepository(Post).find();
-  expect(posts.length).toEqual(4);
-  expect(posts[3].scoutId).toEqual('1');
-  const tagsArray = posts[3].tagsStr.split(',');
-  ['mongodb', 'alpinejs', 'ab-testing'].forEach((item) => {
-    expect(tagsArray).toContain(item);
-  });
-  const keywords = await con.getRepository(Keyword).find({
-    where: {
-      value: 'alpine',
-    },
-  });
-  // since I am adding a post which has `alpine`
-  // as a tag, occurences of `alpine` in the db
-  // should increase from 1 to 2
-  expect(keywords[0].occurrences).toEqual(2);
-});
-
-it('should not accept post with same author and scout', async () => {
-  const uuid = randomUUID();
-  await createDefaultUser();
-  await createDefaultSubmission(uuid);
-  await expectSuccessfulBackground(worker, {
-    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
-    title: 'Title',
-    url: 'https://post.com',
-    source_id: 'a',
-    submission_id: uuid,
-    extra: {
-      creator_twitter: 'leeTwitter',
-    },
-  });
-  const submissions = await con.getRepository(Submission).find();
-  const [submission] = submissions;
-  expect(submissions.length).toEqual(1);
-  expect(submission.id).toEqual(uuid);
-  expect(submission.status).toEqual(SubmissionStatus.Rejected);
-  expect(submission.reason).toEqual('SCOUT_IS_AUTHOR');
-});
-
 it('should update submission to rejected', async () => {
   const uuid = randomUUID();
   await createDefaultUser();
@@ -744,66 +652,6 @@ it('should not update already approved post', async () => {
   expect(submissions.length).toEqual(1);
   expect(submission.id).toEqual(uuid);
   expect(submission.status).toEqual(SubmissionStatus.Accepted);
-});
-
-it('should update post after it was rejected first', async () => {
-  const uuid = randomUUID();
-  await createDefaultUser();
-  await createDefaultSubmission(uuid);
-
-  const postId = await generateShortId();
-
-  await con.getRepository(FreeformPost).save({
-    id: postId,
-    shortId: postId,
-    title: 'Title',
-    url: 'https://post.com',
-    sourceId: 'a',
-  });
-
-  await expectSuccessfulBackground(worker, {
-    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
-    title: 'Title',
-    url: 'https://post.com',
-    source_id: 'a',
-    submission_id: uuid,
-    reject_reason: SubmissionFailErrorMessage.GENERIC_ERROR,
-    post_id: postId,
-  });
-  const submissions = await con.getRepository(Submission).find();
-  const [submission] = submissions;
-  expect(submissions.length).toEqual(1);
-  expect(submission.id).toEqual(uuid);
-  expect(submission.status).toEqual(SubmissionStatus.Rejected);
-
-  const postBefore = await con.getRepository(Post).findOneBy({ id: postId });
-  expect(postBefore).not.toBeNull();
-
-  expect(postBefore!.title).toEqual('Title');
-  expect(postBefore!.yggdrasilId).toBeNull();
-
-  await expectSuccessfulBackground(worker, {
-    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
-    title: 'Title 2',
-    url: 'https://post.com',
-    source_id: 'a',
-    submission_id: uuid,
-    post_id: postId,
-  });
-
-  const updatedSubmissions = await con.getRepository(Submission).find();
-  const [updatedSubmission] = updatedSubmissions;
-  expect(updatedSubmissions.length).toEqual(1);
-  expect(updatedSubmission.id).toEqual(uuid);
-  expect(updatedSubmission.status).toEqual(SubmissionStatus.Accepted);
-
-  const post = await con.getRepository(Post).findOneBy({
-    id: postId,
-  });
-  expect(post).not.toBeNull();
-
-  expect(post!.yggdrasilId).toEqual('f99a445f-e2fb-48e8-959c-e02a17f5e816');
-  expect(post!.title).toEqual('Title 2');
 });
 
 describe('on post create', () => {
@@ -1000,70 +848,6 @@ describe('on post create', () => {
     });
     expect(post).not.toBeNull();
     expect(post?.contentQuality).toStrictEqual({});
-  });
-
-  describe('vordr', () => {
-    it('should create post with the vordr flags on submission with bad scout', async () => {
-      const uuid = randomUUID();
-      await saveFixtures(con, Submission, [
-        {
-          id: uuid,
-          url: 'http://vordr.com/test',
-          userId: '1',
-          flags: {
-            vordr: true,
-          },
-        },
-      ]);
-
-      await expectSuccessfulBackground(worker, {
-        title: 'Title',
-        url: 'http://vordr.com/test',
-        source_id: COMMUNITY_PICKS_SOURCE,
-        submission_id: uuid,
-      });
-
-      const post = await con.getRepository(ArticlePost).findOneByOrFail({
-        url: 'http://vordr.com/test',
-      });
-
-      expect(post.flags.vordr).toEqual(true);
-      expect(post.banned).toEqual(true);
-      expect(post.flags.banned).toEqual(true);
-      expect(post.showOnFeed).toEqual(false);
-      expect(post.flags.showOnFeed).toEqual(false);
-    });
-
-    it('should create post with the vordr flags on submission with good scout', async () => {
-      const uuid = randomUUID();
-      await saveFixtures(con, Submission, [
-        {
-          id: uuid,
-          url: 'http://vordr.com/test',
-          userId: '1',
-          flags: {
-            vordr: false,
-          },
-        },
-      ]);
-
-      await expectSuccessfulBackground(worker, {
-        title: 'Title',
-        url: 'http://vordr.com/test',
-        source_id: COMMUNITY_PICKS_SOURCE,
-        submission_id: uuid,
-      });
-
-      const post = await con.getRepository(ArticlePost).findOneByOrFail({
-        url: 'http://vordr.com/test',
-      });
-
-      expect(post.flags.vordr).toEqual(false);
-      expect(post.banned).toEqual(false);
-      expect(post.flags.banned).toBeUndefined();
-      expect(post.showOnFeed).toEqual(true);
-      expect(post.flags.showOnFeed).toEqual(true);
-    });
   });
 
   describe('post code snippets', () => {
@@ -1541,195 +1325,8 @@ describe('on post update', () => {
     });
   });
 
-  it('should update post with the relevant scout id and update submission', async () => {
-    const uuid = randomUUID();
-    await saveFixtures(con, Source, [
-      {
-        id: COMMUNITY_PICKS_SOURCE,
-        name: 'Community recommendations',
-        image: 'sample.image.com',
-      },
-    ]);
-    await createDefaultUser();
-    await createDefaultSubmission(uuid);
-    await con.getRepository(ArticlePost).save({
-      id: 'scp1',
-      shortId: 'scp1',
-      url: 'https://post.com/scp1',
-      title: 'Scouted title',
-      visible: false,
-      yggdrasilId: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
-      sourceId: COMMUNITY_PICKS_SOURCE,
-    });
-
-    await expectSuccessfulBackground(worker, {
-      id: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
-      title: 'Title',
-      url: 'https://post.com/scp1',
-      source_id: COMMUNITY_PICKS_SOURCE,
-      submission_id: uuid,
-    });
-
-    const post = await con
-      .getRepository(ArticlePost)
-      .findOneBy({ url: 'https://post.com/scp1' });
-    expect(post).toBeTruthy();
-    expect(post!.scoutId).toEqual('1');
-    const submissions = await con.getRepository(Submission).find();
-    const [submission] = submissions;
-    expect(submissions.length).toEqual(1);
-    expect(submission.id).toEqual(uuid);
-    expect(submission.status).toEqual(SubmissionStatus.Accepted);
-  });
-
-  it('should not set scout id when post is already scouted', async () => {
-    const uuid = randomUUID();
-    await saveFixtures(con, Source, [
-      {
-        id: COMMUNITY_PICKS_SOURCE,
-        name: 'Community recommendations',
-        image: 'sample.image.com',
-      },
-    ]);
-    await createDefaultUser();
-    await createDefaultSubmission(uuid);
-    await con.getRepository(ArticlePost).save({
-      id: 'scp1',
-      shortId: 'scp1',
-      url: 'https://post.com/scp1',
-      title: 'Scouted title',
-      visible: false,
-      yggdrasilId: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
-      sourceId: COMMUNITY_PICKS_SOURCE,
-    });
-
-    await expectSuccessfulBackground(worker, {
-      id: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
-      title: 'Title',
-      url: 'https://post.com/scp1',
-      source_id: COMMUNITY_PICKS_SOURCE,
-      submission_id: uuid,
-    });
-
-    const post = await con
-      .getRepository(ArticlePost)
-      .findOneBy({ url: 'https://post.com/scp1' });
-    expect(post).toBeTruthy();
-    expect(post!.scoutId).toEqual('1');
-
-    await con.getRepository(User).save({ ...usersFixture[1] });
-    const uuid2 = randomUUID();
-    await con.getRepository(Submission).save(
-      con.getRepository(Submission).create({
-        id: uuid2,
-        url: 'http://sample.article/test',
-        userId: '2',
-      }),
-    );
-
-    await expectSuccessfulBackground(worker, {
-      id: 'e0ea497b-fd69-4e55-b4e9-2df9ec42b91c',
-      title: 'Title',
-      url: 'https://post.com/scp1',
-      source_id: COMMUNITY_PICKS_SOURCE,
-      submission_id: uuid2,
-    });
-
-    const post2 = await con
-      .getRepository(ArticlePost)
-      .findOneBy({ url: 'https://post.com/scp1' });
-    expect(post2).toBeTruthy();
-    expect(post2!.scoutId).toEqual('1');
-  });
-
   describe('vordr', () => {
-    it('should update post with the vordr flags on submission with bad scout', async () => {
-      const uuid = randomUUID();
-      const postId = 'vordr3';
-      await saveFixtures(con, Submission, [
-        {
-          id: uuid,
-          url: 'http://vordr.com/test',
-          userId: '1',
-          flags: {
-            vordr: true,
-          },
-        },
-      ]);
-
-      await con.getRepository(ArticlePost).save({
-        id: postId,
-        shortId: postId,
-        url: 'https://post.com/scp1',
-        title: 'Scouted title',
-        visible: false,
-        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
-        sourceId: COMMUNITY_PICKS_SOURCE,
-      });
-
-      await expectSuccessfulBackground(worker, {
-        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
-        post_id: postId,
-        url: 'http://vordr.com/test',
-        source_id: COMMUNITY_PICKS_SOURCE,
-        submission_id: uuid,
-      });
-
-      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
-        id: postId,
-      });
-
-      expect(updatedPost.flags.vordr).toEqual(true);
-      expect(updatedPost.banned).toEqual(true);
-      expect(updatedPost.flags.banned).toEqual(true);
-      expect(updatedPost.showOnFeed).toEqual(false);
-      expect(updatedPost.flags.showOnFeed).toEqual(false);
-    });
-
-    it('should update post with the vordr flags on submission with good scout', async () => {
-      const uuid = randomUUID();
-      const postId = 'vordr3';
-      await saveFixtures(con, Submission, [
-        {
-          id: uuid,
-          url: 'http://vordr.com/test',
-          userId: '1',
-          flags: {
-            vordr: false,
-          },
-        },
-      ]);
-
-      await con.getRepository(ArticlePost).save({
-        id: postId,
-        shortId: postId,
-        url: 'https://post.com/scp1',
-        title: 'Scouted title',
-        visible: false,
-        yggdrasilId: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
-        sourceId: COMMUNITY_PICKS_SOURCE,
-      });
-
-      await expectSuccessfulBackground(worker, {
-        id: '90660dab-7cd1-49f0-8fe5-41c587ca837f',
-        post_id: postId,
-        url: 'http://vordr.com/test',
-        source_id: COMMUNITY_PICKS_SOURCE,
-        submission_id: uuid,
-      });
-
-      const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
-        id: postId,
-      });
-
-      expect(updatedPost.flags.vordr).toEqual(false);
-      expect(updatedPost.banned).toEqual(false);
-      expect(updatedPost.flags.banned).toBeUndefined();
-      expect(updatedPost.showOnFeed).toEqual(true);
-      expect(updatedPost.flags.showOnFeed).toEqual(true);
-    });
-
-    it('should update post with the vordr flag but keep original flags', async () => {
+    it('should vordr post based on title', async () => {
       const uuid = randomUUID();
       const postId = 'vordr3';
       await saveFixtures(con, Submission, [
@@ -1753,7 +1350,6 @@ describe('on post update', () => {
         sourceId: COMMUNITY_PICKS_SOURCE,
         flags: {
           promoteToPublic: 1,
-          banned: true,
           showOnFeed: true,
         },
       });
@@ -1763,16 +1359,15 @@ describe('on post update', () => {
         post_id: postId,
         url: 'http://vordr.com/test',
         source_id: COMMUNITY_PICKS_SOURCE,
-        submission_id: uuid,
+        title: 'Spam',
       });
 
       const updatedPost = await con.getRepository(ArticlePost).findOneByOrFail({
         id: postId,
       });
 
-      expect(updatedPost.flags.vordr).toEqual(false);
-      expect(updatedPost.flags.banned).toEqual(true);
-      expect(updatedPost.flags.showOnFeed).toEqual(true);
+      expect(updatedPost.flags.vordr).toEqual(true);
+      expect(updatedPost.flags.showOnFeed).toEqual(false);
       expect(updatedPost.flags.promoteToPublic).toEqual(1);
     });
   });

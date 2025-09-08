@@ -66,14 +66,6 @@ import {
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
-import {
-  CompanySize,
-  CompanyStage,
-  EmploymentType,
-  OpportunityType,
-  SeniorityLevel,
-  type OpportunityMeta,
-} from '@dailydotdev/schema';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1300,12 +1292,6 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) => `${alias}."subscriptionFlags"->>'status'`,
       },
-      size: {
-        transform: (value) => CompanySize[value as keyof typeof CompanySize],
-      },
-      stage: {
-        transform: (value) => CompanyStage[value as keyof typeof CompanyStage],
-      },
       activeSeats: {
         rawSelect: true,
         select: (_, alias, qb) =>
@@ -1481,10 +1467,6 @@ const obj = new GraphORM({
   },
   Opportunity: {
     fields: {
-      type: {
-        transform: (value) =>
-          OpportunityType[value as keyof typeof OpportunityType],
-      },
       createdAt: {
         transform: transformDate,
       },
@@ -1503,17 +1485,6 @@ const obj = new GraphORM({
       },
       meta: {
         jsonType: true,
-        transform: (value: OpportunityMeta) => ({
-          ...value,
-          seniorityLevel:
-            SeniorityLevel[
-              value.seniorityLevel as unknown as keyof typeof SeniorityLevel
-            ],
-          employmentType:
-            EmploymentType[
-              value.employmentType as unknown as keyof typeof EmploymentType
-            ],
-        }),
       },
       recruiters: {
         relation: {
