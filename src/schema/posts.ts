@@ -1035,8 +1035,8 @@ export const typeDefs = /* GraphQL */ `
     awards: Int!
     upvotesRatio: Int!
     shares: Int!
-    boostReach: Int!
-    boostImpressions: Int!
+    reachAds: Int!
+    impressionsAds: Int!
   }
 
   type PostAnalyticsHistory {

@@ -49,7 +49,10 @@ export const postAnalyticsClickhouseCron: Cron = {
             uniqMerge(followers) AS followers,
             uniqMerge(squad_joins) AS "squadJoins",
             sum(shares_external) AS "sharesExternal",
-            sum(shares_internal) AS "sharesInternal"
+            sum(shares_internal) AS "sharesInternal",
+            sum(impressions_ads) AS "impressionsAds",
+            uniqMerge(reach_ads) AS "reachAds",
+            uniqMerge(reach_all) AS "reachAll"
         FROM api.post_analytics
         FINAL
         GROUP BY id

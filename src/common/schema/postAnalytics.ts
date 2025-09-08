@@ -12,6 +12,9 @@ export const postAnalyticsClickhouseSchema = z.strictObject({
   squadJoins: z.coerce.number().nonnegative(),
   sharesExternal: z.coerce.number().nonnegative(),
   sharesInternal: z.coerce.number().nonnegative(),
+  impressionsAds: z.coerce.number().nonnegative(),
+  reachAds: z.coerce.number().nonnegative(),
+  reachAll: z.coerce.number().nonnegative(),
 });
 
 export const postAnalyticsHistoryClickhouseSchema = z.strictObject({
@@ -19,11 +22,5 @@ export const postAnalyticsHistoryClickhouseSchema = z.strictObject({
   updatedAt: z.coerce.date(),
   impressions: z.coerce.number().nonnegative(),
   date: z.coerce.date().transform((date) => format(date, 'yyyy-MM-dd')),
-});
-
-export const postAnalyticsBoostClickhouseSchema = z.strictObject({
-  id: z.string(),
-  updatedAt: z.coerce.date(),
-  boostImpressions: z.coerce.number().nonnegative(),
-  boostReach: z.coerce.number().nonnegative(),
+  impressionsAds: z.coerce.number().nonnegative(),
 });

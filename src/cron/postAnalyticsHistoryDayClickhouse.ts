@@ -44,7 +44,8 @@ export const postAnalyticsHistoryDayClickhouseCron: Cron = {
           post_id AS id,
           date,
           max(created_at) AS "updatedAt",
-          sum(impressions) AS impressions
+          sum(impressions) AS impressions,
+          sum(impressions_ads) AS "impressionsAds"
         FROM api.post_analytics_history
         FINAL
         WHERE date = {date: Date}
