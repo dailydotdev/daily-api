@@ -3,7 +3,15 @@ import z from 'zod';
 export const pollCreationSchema = z.object({
   title: z.string().max(250),
   sourceId: z.string(),
-  duration: z.number().min(0).max(30).optional(),
+  duration: z
+    .union([
+      z.literal(1),
+      z.literal(3),
+      z.literal(7),
+      z.literal(14),
+      z.literal(30),
+    ])
+    .optional(),
   options: z
     .array(
       z.object({

@@ -9189,6 +9189,25 @@ describe('mutate polls', () => {
     ).toBeTruthy();
   });
 
+  it('should faill to create a poll with a duration other than specified numbers in the zod schema', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      duration: 2,
+      options: defaultOptions,
+    };
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: poll,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should create a poll without an end date', async () => {
     loggedUser = '1';
 
