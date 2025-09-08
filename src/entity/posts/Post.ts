@@ -322,7 +322,6 @@ export class Post {
 export class PollPost extends Post {
   @OneToMany('PollOption', (option: PollOption) => option.post, {
     lazy: true,
-    cascade: ['insert'],
   })
   pollOptions: Promise<PollOption[]>;
 
