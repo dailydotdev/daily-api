@@ -1,4 +1,4 @@
-import { ChildEntity, Column, Index, OneToOne } from 'typeorm';
+import { ChildEntity, Column, Index, ManyToOne } from 'typeorm';
 import { Post, PostType } from './Post';
 
 @ChildEntity(PostType.Share)
@@ -7,7 +7,7 @@ export class SharePost extends Post {
   @Index('IDX_sharedPostId')
   sharedPostId: string;
 
-  @OneToOne(() => Post, { lazy: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => Post, { lazy: true, onDelete: 'SET NULL' })
   sharedPost: Promise<Post>;
 }
 

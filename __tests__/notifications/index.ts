@@ -288,8 +288,8 @@ describe('generateNotification', () => {
     expect(actual.attachments.length).toEqual(0);
   });
 
-  it('should generate campaign_completed notification for Post campaigns', () => {
-    const type = NotificationType.CampaignCompleted;
+  it('should generate campaign_post_completed notification', () => {
+    const type = NotificationType.CampaignPostCompleted;
     const ctx: NotificationCampaignContext = {
       user: usersFixture[0],
       campaign: campaignsFixture[0] as Reference<Campaign>,
@@ -314,6 +314,9 @@ describe('generateNotification', () => {
         'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       ),
     ).toBeTruthy();
+    expect(actual.notification.title).toEqual(
+      'Your boosted post just wrapped up!',
+    );
     expect(actual.avatars).toEqual([
       {
         image: 'https://daily.dev/ido.jpg',
@@ -326,8 +329,8 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([]);
   });
 
-  it('should generate campaign_completed notification for Squad campaigns', () => {
-    const type = NotificationType.CampaignCompleted;
+  it('should generate campaign_squad_completed notification', () => {
+    const type = NotificationType.CampaignSquadCompleted;
     const ctx: NotificationCampaignContext = {
       user: usersFixture[0],
       campaign: campaignsFixture[1] as Reference<Campaign>,
@@ -352,6 +355,9 @@ describe('generateNotification', () => {
         'f47ac10b-58cc-4372-a567-0e02b2c3d481',
       ),
     ).toBeTruthy();
+    expect(actual.notification.title).toEqual(
+      'Your boosted Squad just wrapped up!',
+    );
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
