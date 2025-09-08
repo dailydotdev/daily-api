@@ -6,7 +6,12 @@ import {
   getOffsetWithDefault,
   offsetToCursor,
 } from 'graphql-relay';
-import { GraphQLResolveInfo } from 'graphql';
+import {
+  GraphQLResolveInfo,
+  GraphQLScalarType,
+  Kind,
+  ValueNode,
+} from 'graphql';
 // @ts-expect-error - no types
 import GraphQLUpload from 'graphql-upload/GraphQLUpload.js';
 import {
@@ -42,6 +47,8 @@ export const typeDefs = /* GraphQL */ `
   scalar JSONObject
 
   scalar JSON
+
+  scalar ProtoEnumValue
 
   input ConnectionArgs {
     """
@@ -96,11 +103,38 @@ export const typeDefs = /* GraphQL */ `
   scalar Upload
 `;
 
+function toPositiveInt(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+    throw new TypeError('ProtoEnumValue must be a positive integer (>= 0)');
+  }
+
+  if (!Number.isSafeInteger(n)) {
+    throw new TypeError('ProtoEnumValue must be a safe integer');
+  }
+  return n;
+}
+
+const ProtoEnumValue = new GraphQLScalarType({
+  name: 'ProtoEnumValue',
+  description:
+    'A positive integer (> 0), intended for numeric protobuf enum codes.',
+  serialize: (value: unknown): number => toPositiveInt(value),
+  parseValue: (value: unknown): number => toPositiveInt(value),
+  parseLiteral(ast: ValueNode): number {
+    if (ast.kind !== Kind.INT) {
+      throw new TypeError('ProtoEnumValue must be provided as an int literal');
+    }
+    return toPositiveInt(Number(ast.value));
+  },
+});
+
 export const resolvers: IResolvers<unknown, BaseContext> = {
   DateTime: GraphQLDateTime,
   JSONObject: GraphQLJSONObject,
   JSON: GraphQLJSON,
   Upload: GraphQLUpload,
+  ProtoEnumValue: ProtoEnumValue,
 };
 
 export interface PaginationResponse<TReturn, TExtra = undefined> {

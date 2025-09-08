@@ -36,16 +36,16 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type OpportunityMeta {
-    employmentType: Int
+    employmentType: ProtoEnumValue
     teamSize: Int
     # salary: Salary # TODO: implement Salary type
-    seniorityLevel: Int
+    seniorityLevel: ProtoEnumValue
     roleType: Float
   }
 
   type Opportunity {
     id: ID!
-    type: Int!
+    type: ProtoEnumValue!
     title: String!
     tldr: String
     content: OpportunityContent!

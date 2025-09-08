@@ -174,12 +174,12 @@ export const typeDefs = /* GraphQL */ `
     """
     The size of the organization
     """
-    size: Int
+    size: ProtoEnumValue
 
     """
     The stage of the organization
     """
-    stage: Int
+    stage: ProtoEnumValue
   }
 
   type ProratedPricePreview {
