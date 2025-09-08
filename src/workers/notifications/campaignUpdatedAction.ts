@@ -26,6 +26,8 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
       switch (event) {
         case CampaignUpdateEvent.Completed:
           return handleCampaignCompleted({ con, params, campaign });
+        case CampaignUpdateEvent.FirstMilestone:
+          return handleCampaignFirstMilestone({ con, params, campaign });
         default:
           return;
       }
@@ -76,6 +78,41 @@ const handleCampaignCompleted = async ({
   }
 
   return [{ type: campaignTypeToNotification[campaign.type], ctx }];
+};
+
+const campaignMilestoneToNotification: Record<CampaignType, NotificationType> =
+  {
+    [CampaignType.Post]: NotificationType.CampaignPostFirstMilestone,
+    [CampaignType.Squad]: NotificationType.CampaignSquadFirstMilestone,
+  };
+
+const handleCampaignFirstMilestone = async ({
+  con,
+  params,
+  campaign,
+}: {
+  con: DataSource;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}) => {
+  const { event } = params;
+  const user = await campaign.user;
+  const ctx: NotificationCampaignContext = {
+    user,
+    campaign,
+    event,
+    userIds: [campaign.userId],
+  };
+
+  if (campaign.type === CampaignType.Squad) {
+    ctx.source = await queryReadReplica(con, ({ queryRunner }) => {
+      return queryRunner.manager
+        .getRepository(Source)
+        .findOneByOrFail({ id: campaign.referenceId });
+    });
+  }
+
+  return [{ type: campaignMilestoneToNotification[campaign.type], ctx }];
 };
 
 export default worker;

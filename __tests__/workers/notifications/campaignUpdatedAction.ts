@@ -155,4 +155,66 @@ describe('campaignUpdatedAction worker', () => {
 
     expect(result).toBeUndefined();
   });
+
+  it('should handle Post campaign first milestone', async () => {
+    const eventArgs: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: 'CAMPAIGN_FIRST_MILESTONE' as CampaignUpdateEvent,
+      unique_users: 50,
+      data: {
+        budget: '10.00',
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    const result = await invokeNotificationWorker(worker, eventArgs);
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(
+      NotificationType.CampaignPostFirstMilestone,
+    );
+
+    const campaignContext = result![0].ctx as NotificationCampaignContext;
+    expect(campaignContext.userIds).toEqual(['1']);
+    expect(campaignContext.campaign.id).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    );
+    expect(campaignContext.campaign.type).toEqual(CampaignType.Post);
+    expect(campaignContext.event).toEqual('CAMPAIGN_FIRST_MILESTONE');
+    expect(campaignContext.source).toBeUndefined();
+  });
+
+  it('should handle Squad campaign first milestone', async () => {
+    // Update the source to be a squad for the test
+    await con
+      .getRepository(Source)
+      .update({ id: 'squad' }, { type: SourceType.Squad });
+
+    const eventArgs: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+      event: 'CAMPAIGN_FIRST_MILESTONE' as CampaignUpdateEvent,
+      unique_users: 25,
+      data: {
+        budget: '5.00',
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    const result = await invokeNotificationWorker(worker, eventArgs);
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(
+      NotificationType.CampaignSquadFirstMilestone,
+    );
+
+    const campaignContext = result![0].ctx as NotificationCampaignContext;
+    expect(campaignContext.userIds).toEqual(['1']);
+    expect(campaignContext.campaign.id).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+    );
+    expect(campaignContext.campaign.type).toEqual(CampaignType.Squad);
+    expect(campaignContext.event).toEqual('CAMPAIGN_FIRST_MILESTONE');
+    expect(campaignContext.source).toBeDefined();
+    expect(campaignContext.source!.id).toEqual('squad');
+  });
 });

@@ -166,6 +166,7 @@ export const getReferenceTags = (
 export enum CampaignUpdateEvent {
   Started = 'CAMPAIGN_STARTED',
   Completed = 'CAMPAIGN_COMPLETED',
+  FirstMilestone = 'CAMPAIGN_FIRST_MILESTONE',
   StatsUpdated = 'STATS_UPDATED',
   ExtraStatsUpdated = 'EXTRA_STATS_UPDATED',
   BudgetUpdated = 'BUDGET_UPDATED',
