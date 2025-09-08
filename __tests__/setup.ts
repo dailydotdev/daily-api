@@ -19,6 +19,7 @@ jest.mock('../src/remoteConfig', () => ({
   remoteConfig: {
     init: jest.fn(),
     vars: {
+      vordrWordsPostTitle: ['spam', 'banned', 'forbidden'],
       vordrWords: [
         'vordrwillcatchyou',
         'andvordrwillhavefun',
