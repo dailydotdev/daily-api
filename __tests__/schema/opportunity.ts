@@ -24,6 +24,7 @@ import {
 } from '../fixture/opportunity';
 import { OpportunityUser } from '../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../src/entity/opportunities/types';
+import { OpportunityState } from '@dailydotdev/schema';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -89,6 +90,16 @@ describe('opportunity queries', () => {
             teamSize
             seniorityLevel
             employmentType
+            salary {
+              min
+              max
+              period
+            }
+          }
+          location {
+            city
+            country
+            type
           }
           organization {
             id
@@ -116,7 +127,7 @@ describe('opportunity queries', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.opportunityById).toEqual({
         id: '550e8400-e29b-41d4-a716-446655440001',
-        type: 'JOB',
+        type: 1,
         title: 'Senior Full Stack Developer',
         tldr: 'Join our team as a Senior Full Stack Developer',
         content: {
@@ -128,9 +139,21 @@ describe('opportunity queries', () => {
         meta: {
           roleType: 0.0,
           teamSize: 10,
-          seniorityLevel: 'SENIOR',
-          employmentType: 'FULL_TIME',
+          seniorityLevel: 4,
+          employmentType: 1,
+          salary: {
+            min: 60000,
+            max: 120000,
+            period: 1,
+          },
         },
+        location: [
+          {
+            city: null,
+            country: 'Norway',
+            type: 1,
+          },
+        ],
         organization: {
           id: '550e8400-e29b-41d4-a716-446655440000',
           name: 'Daily Dev Inc',
@@ -152,6 +175,24 @@ describe('opportunity queries', () => {
         client,
         { query: OPPORTUNITY_BY_ID_QUERY, variables: { id: 'non-existing' } },
         'UNEXPECTED',
+      );
+    });
+
+    it('should return null for non-live opportunity', async () => {
+      await con
+        .getRepository(Opportunity)
+        .update(
+          { id: '550e8400-e29b-41d4-a716-446655440001' },
+          { state: OpportunityState.DRAFT },
+        );
+
+      await testQueryErrorCode(
+        client,
+        {
+          query: OPPORTUNITY_BY_ID_QUERY,
+          variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        },
+        'NOT_FOUND',
       );
     });
 
