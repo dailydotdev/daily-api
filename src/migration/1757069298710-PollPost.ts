@@ -8,7 +8,7 @@ export class PollPost1757069298710 implements MigrationInterface {
       `CREATE TABLE "poll_option" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "text" text NOT NULL, "order" integer NOT NULL, "postId" text NOT NULL, "numVotes" integer NOT NULL DEFAULT '0', CONSTRAINT "PK_poll_option_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE INDEX "IDX_poll_option_post_id_index" ON "poll_option" ("postId") `,
+      `CREATE INDEX IF NOT EXISTS "IDX_poll_option_post_id_index" ON "poll_option" ("postId") `,
     );
 
     await queryRunner.query(
@@ -34,9 +34,6 @@ export class PollPost1757069298710 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "user_post" DROP CONSTRAINT "FK_user_post_poll_vote_option_id"`,
     );
-    await queryRunner.query(
-      `ALTER TABLE "poll_option" DROP CONSTRAINT "FK_poll_option_post_id"`,
-    );
 
     await queryRunner.query(
       `ALTER TABLE "user_post" DROP COLUMN "pollVoteOptionId"`,
@@ -45,7 +42,6 @@ export class PollPost1757069298710 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "post" DROP COLUMN "numPollVotes"`);
     await queryRunner.query(`ALTER TABLE "post" DROP COLUMN "endsAt"`);
 
-    await queryRunner.query(`DROP INDEX "public"."poll_option_post_id_index"`);
     await queryRunner.query(`DROP TABLE "poll_option"`);
   }
 }
