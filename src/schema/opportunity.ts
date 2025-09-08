@@ -2,7 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
-import { Opportunity } from '@dailydotdev/schema';
+import { Opportunity, OpportunityState } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
@@ -99,7 +99,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLOpportunity> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+        builder.queryBuilder
+          .where({ id })
+          .andWhere({ state: OpportunityState.LIVE });
         return builder;
       }),
     getOpportunityMatch: async (
