@@ -5,7 +5,7 @@ export class PollPost1757069298710 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "poll_option" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "text" text NOT NULL, "order" integer NOT NULL, "postId" text NOT NULL, "numVotes" integer NOT NULL DEFAULT '0', CONSTRAINT "PK_Poll_Option_Id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "poll_option" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "text" text NOT NULL, "order" integer NOT NULL, "postId" text NOT NULL, "numVotes" integer NOT NULL DEFAULT '0', CONSTRAINT "PK_poll_option_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE INDEX "IDX_poll_option_post_id_index" ON "poll_option" ("postId") `,
@@ -23,19 +23,19 @@ export class PollPost1757069298710 implements MigrationInterface {
     );
 
     await queryRunner.query(
-      `ALTER TABLE "poll_option" ADD CONSTRAINT "FK_Poll_Option_Post_Id" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
+      `ALTER TABLE "poll_option" ADD CONSTRAINT "FK_poll_option_post_id" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
     await queryRunner.query(
-      `ALTER TABLE "user_post" ADD CONSTRAINT "FK_User_Post_Poll_Vote_Option_Id" FOREIGN KEY ("pollVoteOptionId") REFERENCES "poll_option"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
+      `ALTER TABLE "user_post" ADD CONSTRAINT "FK_user_post_poll_vote_option_id" FOREIGN KEY ("pollVoteOptionId") REFERENCES "poll_option"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "user_post" DROP CONSTRAINT "FK_User_Post_Poll_Vote_Option_Id"`,
+      `ALTER TABLE "user_post" DROP CONSTRAINT "FK_user_post_poll_vote_option_id"`,
     );
     await queryRunner.query(
-      `ALTER TABLE "poll_option" DROP CONSTRAINT "FK_Poll_Option_Post_Id"`,
+      `ALTER TABLE "poll_option" DROP CONSTRAINT "FK_poll_option_post_id"`,
     );
 
     await queryRunner.query(

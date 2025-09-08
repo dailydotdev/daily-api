@@ -86,7 +86,7 @@ export class UserPost {
   })
   @JoinColumn({
     name: 'pollVoteOptionId',
-    foreignKeyConstraintName: 'FK_User_Post_Poll_Vote_Option_Id',
+    foreignKeyConstraintName: 'FK_user_post_poll_vote_option_id',
   })
   pollVoteOption: Promise<PollOption>;
 }

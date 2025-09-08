@@ -13,7 +13,7 @@ import type { UserPost } from '../user';
 @Entity()
 export class PollOption {
   @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_Poll_Option_Id',
+    primaryKeyConstraintName: 'PK_poll_option_id',
   })
   id: string;
 
@@ -33,7 +33,7 @@ export class PollOption {
   })
   @JoinColumn({
     name: 'postId',
-    foreignKeyConstraintName: 'FK_Poll_Option_Post_Id',
+    foreignKeyConstraintName: 'FK_poll_option_post_id',
   })
   post: Promise<Post>;
 
