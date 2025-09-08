@@ -2586,7 +2586,7 @@ describe('campaign_squad_first_milestone notifications', () => {
     const args = jest.mocked(sendEmail).mock
       .calls[0][0] as SendEmailRequestWithTemplate;
     expect(args.message_data).toEqual({
-      start_date: 'Apr 5, 2023',
+      start_date: 'Apr 05, 2023',
       end_date: 'Apr 12, 2023',
       analytics_link:
         'http://localhost:5002/notifications?c_id=c3d4e5f6-a7b8-9012-cdef-345678901234&utm_source=notification&utm_medium=email&utm_campaign=campaign_squad_first_milestone',
