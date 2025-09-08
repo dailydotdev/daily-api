@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryColumn,
   UpdateDateColumn,
@@ -82,6 +83,10 @@ export class UserPost {
   @ManyToOne('PollOption', {
     lazy: true,
     onDelete: 'SET NULL',
+  })
+  @JoinColumn({
+    name: 'pollVoteOptionId',
+    foreignKeyConstraintName: 'FK_User_Post_Poll_Vote_Option_Id',
   })
   pollVoteOption: Promise<PollOption>;
 }

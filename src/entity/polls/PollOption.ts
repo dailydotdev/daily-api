@@ -2,6 +2,7 @@ import {
   Column,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -11,7 +12,9 @@ import type { UserPost } from '../user';
 
 @Entity()
 export class PollOption {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_Poll_Option_Id',
+  })
   id: string;
 
   @Column({ type: 'text' })
@@ -20,13 +23,17 @@ export class PollOption {
   @Column({ type: 'integer' })
   order: number;
 
-  @Index('poll_option_post_id_index')
+  @Index('IDX_poll_option_post_id_index')
   @Column({ type: 'uuid' })
   postId: string;
 
   @ManyToOne('Post', {
     lazy: true,
     onDelete: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'postId',
+    foreignKeyConstraintName: 'FK_Poll_Option_Post_Id',
   })
   post: Promise<Post>;
 
