@@ -1,4 +1,5 @@
 import { isInSubnet, isIP } from 'is-in-subnet';
+import emojiRegex from 'emoji-regex';
 import { User } from '../entity';
 import { logger } from '../logger';
 import { counters } from '../telemetry';
@@ -21,6 +22,25 @@ export const validateVordrWords = (content?: string): boolean => {
   );
 };
 
+export const validatePostTitle = (title?: string): boolean => {
+  if (!title) {
+    return false;
+  }
+
+  // Check for vordr words in title
+  const vordrWordsTitle = remoteConfig.vars.vordrWordsPostTitle;
+  if (vordrWordsTitle && vordrWordsTitle.length > 0) {
+    const lowerCaseTitle = title.toLowerCase();
+    if (vordrWordsTitle.some((word) => lowerCaseTitle.includes(word))) {
+      return true;
+    }
+  }
+
+  // Check for emojis in title
+  const regex = emojiRegex();
+  return regex.test(title);
+};
+
 export enum VordrFilterType {
   Comment = 'comment',
   Post = 'post',
@@ -32,16 +52,17 @@ type CheckWithVordrInput = {
   id: string;
   type: VordrFilterType;
   content?: string;
+  title?: string;
 };
 
 type CheckWithVordrContext = {
-  userId: string;
+  userId?: string;
   con: DataSource | EntityManager;
   req?: Pick<FastifyRequest, 'ip'>;
 };
 
 export const checkWithVordr = async (
-  { id, type, content }: CheckWithVordrInput,
+  { id, type, content, title }: CheckWithVordrInput,
   { userId, con, req }: CheckWithVordrContext,
 ): Promise<boolean> => {
   if (req && validateVordrIPs(req.ip)) {
@@ -60,6 +81,16 @@ export const checkWithVordr = async (
     );
     counters?.api?.vordr?.add(1, { reason: 'vordr_word', type: type });
     return true;
+  }
+
+  // Check post title for vordr conditions
+  if (title && validatePostTitle(title)) {
+    counters?.api?.vordr?.add(1, { reason: 'vordr_title', type: type });
+    return true;
+  }
+
+  if (!userId) {
+    return false;
   }
 
   const user: Pick<User, 'flags' | 'reputation'> | null = await con

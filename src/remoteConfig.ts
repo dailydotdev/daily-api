@@ -7,6 +7,8 @@ import type { PurchaseType } from './common/plus';
 export type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
+  vordrWordsPost: string[];
+  vordrWordsPostTitle: string[];
   vordrIps: string[];
   blockedCountries: string[];
   ignoredWorkEmailDomains: string[];
