@@ -35,10 +35,25 @@ export const typeDefs = /* GraphQL */ `
     interviewProcess: OpportunityContentBlock
   }
 
+  type Salary {
+    min: Float
+    max: Float
+    currency: String
+    period: ProtoEnumValue
+  }
+
+  type Location {
+    city: String
+    country: String
+    subdivision: String
+    continent: String
+    type: ProtoEnumValue
+  }
+
   type OpportunityMeta {
     employmentType: ProtoEnumValue
     teamSize: Int
-    # salary: Salary # TODO: implement Salary type
+    salary: Salary
     seniorityLevel: ProtoEnumValue
     roleType: Float
   }
@@ -50,7 +65,7 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     content: OpportunityContent!
     meta: OpportunityMeta!
-    # location: [Location!]! # TODO: implement Location type
+    location: [Location]!
     organization: Organization!
     recruiters: [User!]!
     keywords: [Keyword!]!
