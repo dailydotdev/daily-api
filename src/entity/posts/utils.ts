@@ -315,8 +315,6 @@ export const preparePostForInsert = async <T extends DeepPartial<Post>>(
   );
 
   if (shouldVordr) {
-    logger.info({ postId: post.id }, 'Post will be vordr on insert');
-
     return {
       ...post,
       banned: true,

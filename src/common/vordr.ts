@@ -85,10 +85,6 @@ export const checkWithVordr = async (
 
   // Check post title for vordr conditions
   if (title && validatePostTitle(title)) {
-    logger.info(
-      { id, type, userId },
-      `Prevented ${type} because title contains banned content`,
-    );
     counters?.api?.vordr?.add(1, { reason: 'vordr_title', type: type });
     return true;
   }
