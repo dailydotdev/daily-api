@@ -24,6 +24,7 @@ import {
 } from '../fixture/opportunity';
 import { OpportunityUser } from '../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../src/entity/opportunities/types';
+import { OpportunityState } from '@dailydotdev/schema';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -174,6 +175,24 @@ describe('opportunity queries', () => {
         client,
         { query: OPPORTUNITY_BY_ID_QUERY, variables: { id: 'non-existing' } },
         'UNEXPECTED',
+      );
+    });
+
+    it('should return null for non-live opportunity', async () => {
+      await con
+        .getRepository(Opportunity)
+        .update(
+          { id: '550e8400-e29b-41d4-a716-446655440001' },
+          { state: OpportunityState.DRAFT },
+        );
+
+      await testQueryErrorCode(
+        client,
+        {
+          query: OPPORTUNITY_BY_ID_QUERY,
+          variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        },
+        'NOT_FOUND',
       );
     });
 
