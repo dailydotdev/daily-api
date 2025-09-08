@@ -250,7 +250,6 @@ interface CreatePollPostArgs {
     title: string;
     sourceId: string;
     authorId: string;
-    type: PostType;
     duration?: number;
     pollOptions: PollOption[];
   };

@@ -9083,6 +9083,7 @@ describe('mutate polls', () => {
         id
         title
         endsAt
+        type
         source {
           id
         }
@@ -9125,6 +9126,7 @@ describe('mutate polls', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.createPollPost.id).toBeTruthy();
     expect(res.data.createPollPost.title).toEqual('My poll');
+    expect(res.data.createPollPost.type).toEqual(PostType.Poll);
     expect(res.data.createPollPost.pollOptions.length).toEqual(3);
   });
 

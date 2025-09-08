@@ -3464,7 +3464,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           sourceId: args.sourceId,
           duration: args.duration,
           authorId: ctx.userId,
-          type: PostType.Poll,
           pollOptions: args.options.map((option) =>
             ctx.con.getRepository(PollOption).create({
               text: option.text,
