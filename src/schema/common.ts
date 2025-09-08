@@ -123,7 +123,7 @@ const ProtoEnumValue = new GraphQLScalarType({
     if (ast.kind !== Kind.INT) {
       throw new TypeError('ProtoEnumValue must be provided as an int literal');
     }
-    return toPositiveInt(Number(ast.value));
+    return toPositiveInt(ast.value);
   },
 });
 
