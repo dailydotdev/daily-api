@@ -9071,6 +9071,10 @@ describe('query history for post analytics', () => {
 describe('mutate polls', () => {
   beforeEach(async () => {
     await saveSquadFixtures();
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
   });
 
   const MUTATION = `
@@ -9079,6 +9083,12 @@ describe('mutate polls', () => {
         id
         title
         endsAt
+        source {
+          id
+        }
+        author {
+          id
+        }
         pollOptions {
           id
           text
@@ -9222,5 +9232,17 @@ describe('mutate polls', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.createPollPost.endsAt).toBeFalsy();
+  });
+
+  it('should allow the user to post a poll to his his userId as source', async () => {
+    loggedUser = '1';
+    const poll = { ...defaultPoll, sourceId: '1', options: defaultOptions };
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.source.id).toBe('1');
+    expect(res.data.createPollPost.author.id).toBe('1');
   });
 });
