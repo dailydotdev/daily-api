@@ -15,7 +15,6 @@ import {
   notifyOrganizationUserJoined,
   notifyOrganizationUserLeft,
   notifyOrganizationUserRemoved,
-  protoToGQLEnum,
   toGQLEnum,
   updateFlagsStatement,
   updateSubscriptionFlags,
@@ -48,7 +47,6 @@ import {
 import { parsePaddlePriceInCents } from '../common/paddle';
 import { SubscriptionStatus } from '../common/plus';
 import { organizationSubscriptionFlagsSchema } from '../common/schema/organizations';
-import { CompanySize, CompanyStage } from '@dailydotdev/schema';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -79,9 +77,6 @@ export const typeDefs = /* GraphQL */ `
     ContentPreferenceOrganizationStatus,
     'OrganizationMemberSeatType',
   )}
-
-  ${protoToGQLEnum<typeof CompanyStage>(CompanyStage, 'CompanyStage')}
-  ${protoToGQLEnum<typeof CompanySize>(CompanySize, 'CompanySize')}
 
   type OrganizationMember {
     """
@@ -179,12 +174,12 @@ export const typeDefs = /* GraphQL */ `
     """
     The size of the organization
     """
-    size: CompanySize
+    size: ProtoEnumValue
 
     """
     The stage of the organization
     """
-    stage: CompanyStage
+    stage: ProtoEnumValue
   }
 
   type ProratedPricePreview {
