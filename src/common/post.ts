@@ -7,7 +7,6 @@ import {
   ExternalLinkPreview,
   FreeformPost,
   generateTitleHtml,
-  PollPost,
   Post,
   PostOrigin,
   PostType,
@@ -57,6 +56,7 @@ import { SourceMemberRoles } from '../roles';
 import { queryReadReplica } from './queryReadReplica';
 import { PollOption } from '../entity/polls/PollOption';
 import addDays from 'date-fns/addDays';
+import { PollPost } from '../entity/posts/PollPost';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;

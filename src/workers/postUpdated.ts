@@ -12,7 +12,6 @@ import {
   getPostVisible,
   mergeKeywords,
   parseReadTime,
-  PollPost,
   Post,
   PostContentQuality,
   PostOrigin,
@@ -44,6 +43,7 @@ import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
 import { insertCodeSnippetsFromUrl } from '../common/post';
 import { BriefPost } from '../entity/posts/BriefPost';
+import { PollPost } from '../entity/posts/PollPost';
 
 interface Data {
   id: string;

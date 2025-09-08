@@ -1,5 +1,4 @@
 import {
-  ChildEntity,
   Column,
   Entity,
   Index,
@@ -15,7 +14,6 @@ import { User } from '../user';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
 import type { ContentLanguage } from '../../types';
-import type { PollOption } from '../polls/PollOption';
 
 export enum PostType {
   Article = 'article',
@@ -316,18 +314,4 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_awards')
   awards: number;
-}
-
-@ChildEntity(PostType.Poll)
-export class PollPost extends Post {
-  @OneToMany('PollOption', (option: PollOption) => option.post, {
-    lazy: true,
-  })
-  pollOptions: Promise<PollOption[]>;
-
-  @Column({ type: 'timestamp' })
-  endsAt?: Date;
-
-  @Column({ type: 'integer', default: 0 })
-  numPollVotes: number;
 }
