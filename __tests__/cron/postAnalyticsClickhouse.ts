@@ -84,8 +84,6 @@ describe('postAnalyticsClickhouse cron', () => {
         downvotes: 0,
         reputation: 0,
         upvotes: 0,
-        impressionsAds: 0,
-        reachAds: 0,
       } as PostAnalytics);
     });
 
@@ -134,8 +132,6 @@ describe('postAnalyticsClickhouse cron', () => {
         downvotes: 0,
         reputation: 0,
         upvotes: 0,
-        impressionsAds: 0,
-        reachAds: 0,
       } as PostAnalytics);
     });
 

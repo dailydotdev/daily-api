@@ -50,6 +50,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
           id: `pap-${index}`,
           date,
           impressions: item.impressions,
+          impressionsAds: item.impressionsAds,
         };
       }),
     );
@@ -82,6 +83,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
         updatedAt: expect.any(Date),
         createdAt: expect.any(Date),
         impressions: postAnalyticsFixture[index].impressions,
+        impressionsAds: postAnalyticsFixture[index].impressionsAds,
         date,
       } as PostAnalyticsHistory);
     });
@@ -107,6 +109,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
           id: `pap-${index}`,
           date,
           impressions: item.impressions,
+          impressionsAds: item.impressionsAds,
         };
       }),
     );
@@ -127,6 +130,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
         updatedAt: expect.any(Date),
         createdAt: expect.any(Date),
         impressions: postAnalyticsFixture[index].impressions,
+        impressionsAds: postAnalyticsFixture[index].impressionsAds,
         date,
       } as PostAnalyticsHistory);
     });
@@ -143,6 +147,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
           id: `pap-${index}`,
           date,
           impressions: item.impressions,
+          impressionsAds: item.impressionsAds,
         };
       }),
     );
@@ -183,6 +188,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
           id: `pap-${index}`,
           date,
           impressions: item.impressions,
+          impressionsAds: item.impressionsAds,
         };
       }),
     );
@@ -199,6 +205,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
           id: `pap-${index}`,
           date,
           impressions: item.impressions + 10,
+          impressionsAds: item.impressionsAds + 5,
         };
       }),
     );
@@ -206,7 +213,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
     await expectSuccessfulCron(cron);
 
     const postAnalytics = await con.getRepository(PostAnalyticsHistory).find({
-      select: ['id', 'impressions', 'date'],
+      select: ['id', 'impressions', 'date', 'impressionsAds'],
       order: {
         updatedAt: 'ASC',
       },
@@ -219,6 +226,7 @@ describe('postAnalyticsHistoryDayClickhouse cron', () => {
         id: `pap-${index}`,
         date,
         impressions: postAnalyticsFixture[index].impressions + 10,
+        impressionsAds: postAnalyticsFixture[index].impressionsAds + 5,
       } as PostAnalyticsHistory);
     });
   });
