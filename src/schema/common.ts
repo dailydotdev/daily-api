@@ -1,3 +1,4 @@
+import z from 'zod';
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import {
   Connection,
@@ -104,15 +105,12 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 function toPositiveInt(value: unknown): number {
-  const n = Number(value);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+  const res = z.coerce.number().int().nonnegative().safeParse(value);
+  if (!res.success) {
     throw new TypeError('ProtoEnumValue must be a positive integer (>= 0)');
   }
 
-  if (!Number.isSafeInteger(n)) {
-    throw new TypeError('ProtoEnumValue must be a safe integer');
-  }
-  return n;
+  return res.data;
 }
 
 const ProtoEnumValue = new GraphQLScalarType({
