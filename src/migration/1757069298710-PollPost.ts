@@ -5,7 +5,19 @@ export class PollPost1757069298710 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE "poll_option" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "text" text NOT NULL, "order" integer NOT NULL, "postId" text NOT NULL, "numVotes" integer NOT NULL DEFAULT '0', CONSTRAINT "PK_poll_option_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "poll_option" (
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "text" text NOT NULL,
+        "order" integer NOT NULL,
+        "postId" text NOT NULL,
+        "numVotes" integer NOT NULL DEFAULT '0',
+        CONSTRAINT "PK_poll_option_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_poll_option_post_id"
+          FOREIGN KEY ("postId")
+          REFERENCES "post"("id")
+          ON DELETE CASCADE
+          ON UPDATE NO ACTION
+      )`,
     );
     await queryRunner.query(
       `CREATE INDEX IF NOT EXISTS "IDX_poll_option_post_id_index" ON "poll_option" ("postId") `,
@@ -22,9 +34,6 @@ export class PollPost1757069298710 implements MigrationInterface {
       `ALTER TABLE "user_post" ADD "pollVoteOptionId" uuid`,
     );
 
-    await queryRunner.query(
-      `ALTER TABLE "poll_option" ADD CONSTRAINT "FK_poll_option_post_id" FOREIGN KEY ("postId") REFERENCES "post"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
-    );
     await queryRunner.query(
       `ALTER TABLE "user_post" ADD CONSTRAINT "FK_user_post_poll_vote_option_id" FOREIGN KEY ("pollVoteOptionId") REFERENCES "poll_option"("id") ON DELETE SET NULL ON UPDATE NO ACTION`,
     );
