@@ -1283,6 +1283,10 @@ const onOrganizationChange = async (
     return;
   }
 
+  if (!data.payload.before) {
+    return;
+  }
+
   if (
     isChanged(data.payload.before!, data.payload.after!, [
       'description',
