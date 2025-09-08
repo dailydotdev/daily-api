@@ -2,14 +2,9 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
-import {
-  EmploymentType,
-  Opportunity,
-  OpportunityType,
-  SeniorityLevel,
-} from '@dailydotdev/schema';
+import { Opportunity } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { protoToGQLEnum, toGQLEnum } from '../common';
+import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 
 export interface GQLOpportunity
@@ -25,10 +20,6 @@ export interface GQLOpportunityMatch
   extends Pick<OpportunityMatch, 'status' | 'description'> {}
 
 export const typeDefs = /* GraphQL */ `
-  ${protoToGQLEnum<typeof OpportunityType>(OpportunityType, 'OpportunityType')}
-  ${protoToGQLEnum<typeof SeniorityLevel>(SeniorityLevel, 'SeniorityLevel')}
-  ${protoToGQLEnum<typeof EmploymentType>(EmploymentType, 'EmploymentType')}
-
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
 
   type OpportunityContentBlock {
@@ -45,16 +36,16 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type OpportunityMeta {
-    employmentType: EmploymentType
+    employmentType: Int
     teamSize: Int
     # salary: Salary # TODO: implement Salary type
-    seniorityLevel: SeniorityLevel
+    seniorityLevel: Int
     roleType: Float
   }
 
   type Opportunity {
     id: ID!
-    type: OpportunityType!
+    type: Int!
     title: String!
     tldr: String
     content: OpportunityContent!

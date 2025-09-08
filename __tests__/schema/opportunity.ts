@@ -116,7 +116,7 @@ describe('opportunity queries', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.opportunityById).toEqual({
         id: '550e8400-e29b-41d4-a716-446655440001',
-        type: 'JOB',
+        type: 1,
         title: 'Senior Full Stack Developer',
         tldr: 'Join our team as a Senior Full Stack Developer',
         content: {
@@ -128,8 +128,8 @@ describe('opportunity queries', () => {
         meta: {
           roleType: 0.0,
           teamSize: 10,
-          seniorityLevel: 'SENIOR',
-          employmentType: 'FULL_TIME',
+          seniorityLevel: 4,
+          employmentType: 1,
         },
         organization: {
           id: '550e8400-e29b-41d4-a716-446655440000',
