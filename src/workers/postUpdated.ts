@@ -17,6 +17,8 @@ import {
   PostOrigin,
   PostRelationType,
   PostType,
+  preparePostForInsert,
+  preparePostForUpdate,
   relatePosts,
   removeKeywords,
   SharePost,
@@ -129,7 +131,6 @@ type CreatePostProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
-  submissionId?: string;
   mergedKeywords: string[];
   questions: string[];
   smartTitle?: string;
@@ -160,52 +161,6 @@ const handleCollectionRelations = async ({
       relationType: PostRelationType.Collection,
     });
   }
-};
-
-const assignScoutToPostAndVordrFlags = async ({
-  entityManager,
-  submissionId,
-  data,
-}: Pick<CreatePostProps, 'entityManager' | 'submissionId' | 'data'>): Promise<
-  Partial<Pick<Post, 'scoutId'> & { vordr: boolean }>
-> => {
-  const submission = await entityManager
-    .getRepository(Submission)
-    .findOneBy({ id: submissionId });
-
-  if (!submission) {
-    return {
-      scoutId: undefined,
-      vordr: undefined,
-    };
-  }
-
-  if (data.authorId === submission.userId) {
-    await entityManager.getRepository(Submission).update(
-      { id: submissionId },
-      {
-        status: SubmissionStatus.Rejected,
-        reason: SubmissionFailErrorKeys.ScoutIsAuthor,
-      },
-    );
-
-    return {
-      scoutId: undefined,
-      vordr: submission.flags?.vordr,
-    };
-  }
-
-  await entityManager.getRepository(Submission).update(
-    { id: submissionId },
-    {
-      status: SubmissionStatus.Accepted,
-    },
-  );
-
-  return {
-    scoutId: submission.userId,
-    vordr: submission.flags?.vordr,
-  };
 };
 
 type CheckExistingPostProps = {
@@ -259,7 +214,6 @@ const createPost = async ({
   logger,
   entityManager,
   data,
-  submissionId,
   mergedKeywords,
   questions,
   smartTitle,
@@ -275,30 +229,11 @@ const createPost = async ({
     return null;
   }
 
-  if (submissionId) {
-    const { scoutId, vordr } = await assignScoutToPostAndVordrFlags({
-      entityManager,
-      submissionId,
-      data,
-    });
-
-    data.scoutId = scoutId;
-    if (vordr === true) {
-      data.banned = true;
-      data.showOnFeed = false;
-
-      data.flags = {
-        ...data.flags,
-        banned: true,
-        showOnFeed: false,
-      };
-    }
-
-    data.flags = {
-      ...data.flags,
-      vordr: vordr,
-    };
-  }
+  // Apply vordr checks before creating the post
+  data = await preparePostForInsert(data, {
+    con: entityManager,
+    userId: data.authorId || undefined,
+  });
 
   const postId = await generateShortId();
   const postCreatedAt = new Date();
@@ -306,9 +241,7 @@ const createPost = async ({
   data.shortId = postId;
   data.createdAt = postCreatedAt;
   data.score = Math.floor(postCreatedAt.getTime() / (1000 * 60));
-  data.origin = data?.scoutId
-    ? PostOrigin.CommunityPicks
-    : (data.origin ?? PostOrigin.Crawler);
+  data.origin = data.origin ?? PostOrigin.Crawler;
   data.visible = getPostVisible({ post: data });
   data.visibleAt = data.visible ? postCreatedAt : null;
   data.flags = {
@@ -365,7 +298,6 @@ type UpdatePostProps = {
   mergedKeywords: string[];
   questions: string[];
   content_type: PostType;
-  submissionId?: string;
   smartTitle?: string;
 };
 const updatePost = async ({
@@ -376,7 +308,6 @@ const updatePost = async ({
   mergedKeywords,
   questions,
   content_type = PostType.Article,
-  submissionId,
   smartTitle,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
@@ -429,35 +360,16 @@ const updatePost = async ({
     return null;
   }
 
-  if (submissionId && !databasePost.scoutId) {
-    const { scoutId, vordr } = await assignScoutToPostAndVordrFlags({
-      entityManager,
-      submissionId,
-      data,
-    });
-
-    data.scoutId = scoutId;
-    if (vordr === true) {
-      data.banned = true;
-      data.showOnFeed = false;
-
-      data.flags = {
-        ...data.flags,
-        banned: true,
-        showOnFeed: false,
-      };
-    }
-
-    data.flags = {
-      ...data.flags,
-      vordr: vordr,
-    };
-  }
-
   const title = data?.title || databasePost.title;
+  data.title = title;
+
+  // Apply vordr checks before updating the post
+  data = await preparePostForUpdate(data, databasePost, {
+    con: entityManager,
+    userId: data.authorId || undefined,
+  });
 
   data.id = databasePost.id;
-  data.title = title;
   data.sourceId = data.sourceId || databasePost.sourceId;
 
   let updateBecameVisible = false;
@@ -766,7 +678,6 @@ const worker: Worker = {
             logger,
             entityManager,
             data: fixedData,
-            submissionId: data?.submission_id,
             mergedKeywords,
             questions,
             smartTitle,
@@ -783,7 +694,6 @@ const worker: Worker = {
             mergedKeywords,
             questions,
             content_type,
-            submissionId: data?.submission_id,
             smartTitle,
           });
         }
