@@ -242,7 +242,7 @@ interface CreateFreeformPostArgs {
   args: CreatePost;
 }
 
-interface CreatePollPostProps {
+interface CreatePollPostArgs {
   con: DataSource | EntityManager;
   ctx: AuthContext;
   args: {
@@ -260,20 +260,17 @@ export const createPollPost = async ({
   con,
   ctx,
   args,
-}: CreatePollPostProps) => {
+}: CreatePollPostArgs) => {
+  const { pollOptions, ...restArgs } = args;
   const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
-    id: args.sourceId,
+    id: restArgs.sourceId,
     type: In([SourceType.Squad, SourceType.User]),
   });
 
   const createdPost = con.getRepository(PollPost).create({
-    id: args.id,
-    shortId: args.id,
-    title: args.title,
-    sourceId: args.sourceId,
-    authorId: args.authorId,
-    type: args.type,
-    endsAt: args?.duration && addDays(new Date(), args.duration),
+    ...restArgs,
+    shortId: restArgs.id,
+    endsAt: restArgs?.duration && addDays(new Date(), restArgs.duration),
     visible: true,
     private: privacy,
     visibleAt: new Date(),
@@ -310,7 +307,7 @@ export const createPollPost = async ({
     const savedPost = await entityManager
       .getRepository(PollPost)
       .save(createdPost);
-    await entityManager.getRepository(PollOption).save(args.pollOptions);
+    await entityManager.getRepository(PollOption).save(pollOptions);
     return savedPost;
   });
 };
@@ -446,7 +443,7 @@ export interface PollOptionInput {
   order: number;
 }
 
-export interface CreatePollPostArgs
+export interface CreatePollPostProps
   extends Pick<CreatePostArgs, 'title' | 'sourceId'> {
   options: PollOptionInput[];
   duration: number;

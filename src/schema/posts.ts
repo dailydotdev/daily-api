@@ -55,7 +55,7 @@ import {
   findPostByUrl,
   ensurePostAnalyticsPermissions,
   getLimit,
-  type CreatePollPostArgs,
+  type CreatePollPostProps,
 } from '../common';
 import {
   Campaign,
@@ -3434,7 +3434,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     createPollPost: async (
       _,
-      args: CreatePollPostArgs,
+      args: CreatePollPostProps,
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
@@ -3459,7 +3459,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         con: ctx.con,
         ctx,
         args: {
-          id: id!,
+          id,
           title: args.title!,
           sourceId: args.sourceId,
           duration: args.duration,

@@ -9136,6 +9136,36 @@ describe('mutate polls', () => {
     );
   });
 
+  it('should fail to create a poll with more than 4 options', async () => {
+    loggedUser = '1';
+
+    const options = [
+      ...defaultOptions,
+      {
+        text: 'Option 4',
+        order: 3,
+      },
+      {
+        text: 'Option 5',
+        order: 4,
+      },
+    ];
+
+    const poll = {
+      ...defaultPoll,
+      options,
+    };
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: poll,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
   it('should create a poll that ends in 7 days', async () => {
     loggedUser = '1';
 
