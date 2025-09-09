@@ -208,6 +208,10 @@ export const opportunityKeywordsFixture: DeepPartial<OpportunityKeyword>[] = [
     keyword: 'fullstack',
   },
   {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+    keyword: 'Fortune 500',
+  },
+  {
     opportunityId: '550e8400-e29b-41d4-a716-446655440002',
     keyword: 'webdev',
   },

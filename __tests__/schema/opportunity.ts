@@ -122,7 +122,7 @@ describe('opportunity queries', () => {
             id
           }
           keywords {
-            value
+            keyword
           }
         }
       }
@@ -210,8 +210,9 @@ describe('opportunity queries', () => {
         },
         recruiters: [{ id: '1' }],
         keywords: expect.arrayContaining([
-          { value: 'webdev' },
-          { value: 'fullstack' },
+          { keyword: 'webdev' },
+          { keyword: 'fullstack' },
+          { keyword: 'Fortune 500' },
         ]),
       });
     });
