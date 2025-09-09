@@ -214,7 +214,7 @@ describe('opportunity queries', () => {
         getOpportunityMatch(id: $id) {
           status
           description {
-            description
+            reasoning
           }
         }
       }
@@ -231,7 +231,7 @@ describe('opportunity queries', () => {
       expect(res.data.getOpportunityMatch).toEqual({
         status: 'pending',
         description: {
-          description: 'Interested candidate',
+          reasoning: 'Interested candidate',
         },
       });
     });
@@ -247,7 +247,7 @@ describe('opportunity queries', () => {
       expect(res.data.getOpportunityMatch).toEqual({
         status: 'candidate_accepted',
         description: {
-          description: 'Accepted candidate',
+          reasoning: 'Accepted candidate',
         },
       });
     });
