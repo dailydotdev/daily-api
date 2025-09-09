@@ -8814,8 +8814,8 @@ describe('query post analytics', () => {
         awards
         upvotesRatio
         shares
-        boostReach
-        boostImpressions
+        reachAds
+        impressionsAds
       }
     }
   `;
@@ -8871,8 +8871,8 @@ describe('query post analytics', () => {
           downvotes: 2,
           comments: 1,
           awards: 2,
-          boostReach: 0,
-          boostImpressions: 0,
+          reachAds: 0,
+          impressionsAds: 0,
         });
       }),
     );
@@ -8913,8 +8913,8 @@ describe('query post analytics', () => {
       comments: 1,
       upvotesRatio: 82,
       awards: 2,
-      boostReach: 0,
-      boostImpressions: 0,
+      reachAds: 0,
+      impressionsAds: 0,
     });
   });
 

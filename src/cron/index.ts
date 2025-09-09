@@ -21,7 +21,6 @@ import cleanGiftedPlus from './cleanGiftedPlus';
 import { cleanStaleUserTransactions } from './cleanStaleUserTransactions';
 import { postAnalyticsClickhouseCron } from './postAnalyticsClickhouse';
 import { postAnalyticsHistoryDayClickhouseCron } from './postAnalyticsHistoryDayClickhouse';
-import { postAnalyticsBoostClickhouseCron } from './postAnalyticsBoostClickhouse';
 
 export const crons: Cron[] = [
   updateViews,
@@ -46,5 +45,4 @@ export const crons: Cron[] = [
   cleanStaleUserTransactions,
   postAnalyticsClickhouseCron,
   postAnalyticsHistoryDayClickhouseCron,
-  postAnalyticsBoostClickhouseCron,
 ];
