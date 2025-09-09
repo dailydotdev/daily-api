@@ -386,10 +386,6 @@ export const workers: Worker[] = [
     subscription: 'api.user-follow-notification',
   },
   {
-    topic: 'api.v1.post-visible',
-    subscription: 'api.post-added-squad-unread-posts',
-  },
-  {
     topic: 'api.v1.post-metrics-updated',
     subscription: 'api.post-analytics-update',
   },
