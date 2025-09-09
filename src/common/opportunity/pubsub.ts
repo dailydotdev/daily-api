@@ -12,6 +12,7 @@ import { UserCandidatePreference } from '../../entity/user/UserCandidatePreferen
 import { ChangeObject } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
+import { UserCandidateKeyword } from '../../entity/user/UserCandidateKeyword';
 
 export const notifyOpportunityMatchAccepted = async ({
   con,
@@ -54,6 +55,10 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
+  const keywords = await con.getRepository(UserCandidateKeyword).findBy({
+    userId: data.userId,
+  });
+
   const message = new CandidateAcceptedOpportunityMessage({
     opportunityId: match.opportunityId,
     userId: match.userId,
@@ -68,6 +73,7 @@ export const notifyOpportunityMatchAccepted = async ({
           getSecondsTimestamp(candidatePreference.cv.lastModified) || undefined,
       }),
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
+      keywords: keywords.map((k) => k.keyword),
     },
   });
 
@@ -168,14 +174,19 @@ export const notifyCandidatePreferenceChange = async ({
     return;
   }
 
+  const keywords = await con.getRepository(UserCandidateKeyword).findBy({
+    userId: data.userId,
+  });
+
   const message = new CandidatePreferenceUpdated({
     payload: {
       ...data,
       cv: new UserCV({
         ...data?.cv,
-        lastModified: getSecondsTimestamp(data?.cv?.lastModified),
+        lastModified: getSecondsTimestamp(data?.cv?.lastModified) || undefined,
       }),
-      updatedAt: getSecondsTimestamp(data?.updatedAt),
+      updatedAt: getSecondsTimestamp(data?.updatedAt) || undefined,
+      keywords: keywords.map((k) => k.keyword),
     },
   });
 
