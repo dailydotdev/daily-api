@@ -6,7 +6,6 @@ AS
 SELECT
 	c."postId" AS post_id,
 	sum(toUInt64(1)) AS impressions_ads,
-	sum(toUInt64(1)) AS impressions_all,
 	uniqState(user_id) AS reach_all,
 	uniqState(user_id) AS reach_ads,
 	max(event_timestamp) AS created_at
