@@ -1045,6 +1045,7 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     date: DateTime!
     impressions: Int!
+    impressionsAds: Int!
   }
 
   type PostAnalyticsHistoryEdge {
