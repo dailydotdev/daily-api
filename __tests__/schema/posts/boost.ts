@@ -3138,7 +3138,7 @@ describe('query boostEstimatedReachDaily', () => {
     );
   });
 
-  it('should return an error if post is already boosted', async () => {
+  it('should not return an error if post is already boosted', async () => {
     loggedUser = '1';
     // Set the post as already boosted
     await con.getRepository(Post).update(
@@ -3148,11 +3148,21 @@ describe('query boostEstimatedReachDaily', () => {
       },
     );
 
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { ...params, budget: 5000, duration: 7 } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    const mockFetchParse = fetchParse as jest.Mock;
+
+    mockFetchParse.mockResolvedValue({
+      impressions: 100,
+      clicks: 5,
+      users: 50,
+      min_impressions: 45,
+      max_impressions: 55,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...params, budget: 5000, duration: 7 },
+    });
+
+    expect(res.errors).toBeFalsy();
   });
 
   describe('budget validation', () => {

@@ -2294,8 +2294,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<CampaignReach> => {
       const { postId, budget, duration } = args;
-      const post = await validatePostBoostPermissions(ctx, postId);
-      checkPostAlreadyBoosted(post);
+      await validatePostBoostPermissions(ctx, postId);
       validateCampaignArgs({ budget, duration });
 
       const { minImpressions, maxImpressions } =
