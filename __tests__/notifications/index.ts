@@ -1144,7 +1144,9 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceId).toEqual('opp123');
     expect(actual.notification.referenceType).toEqual('opportunity');
     expect(actual.notification.icon).toEqual('Opportunity');
-    expect(actual.notification.title).toEqual('New opportunity waiting for you in daily.dev');
+    expect(actual.notification.title).toEqual(
+      'New opportunity waiting for you in daily.dev',
+    );
     expect(actual.notification.description).toEqual(
       '<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>',
     );
