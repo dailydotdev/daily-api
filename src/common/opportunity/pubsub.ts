@@ -13,6 +13,7 @@ import { ChangeObject } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { UserCandidateKeyword } from '../../entity/user/UserCandidateKeyword';
+import { queryReadReplica } from '../queryReadReplica';
 
 export const notifyOpportunityMatchAccepted = async ({
   con,
@@ -28,18 +29,23 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
-  const [match, candidatePreference, keywords] = await Promise.all([
-    con.getRepository(OpportunityMatch).findOneBy({
-      opportunityId: data.opportunityId,
-      userId: data.userId,
-    }),
-    con
-      .getRepository(UserCandidatePreference)
-      .findOneBy({ userId: data.userId }),
-    con.getRepository(UserCandidateKeyword).findBy({
-      userId: data.userId,
-    }),
-  ]);
+  const [match, candidatePreference, keywords] = await queryReadReplica(
+    con,
+    async ({ queryRunner }) => {
+      return await Promise.all([
+        queryRunner.manager.getRepository(OpportunityMatch).findOneBy({
+          opportunityId: data.opportunityId,
+          userId: data.userId,
+        }),
+        queryRunner.manager
+          .getRepository(UserCandidatePreference)
+          .findOneBy({ userId: data.userId }),
+        queryRunner.manager.getRepository(UserCandidateKeyword).findBy({
+          userId: data.userId,
+        }),
+      ]);
+    },
+  );
 
   if (!match) {
     logger.warn(
@@ -105,18 +111,27 @@ export const notifyJobOpportunity = async ({
     ? 'api.v1.opportunity-updated'
     : 'api.v1.opportunity-added';
 
-  const opportunity = await con.getRepository(OpportunityJob).findOneOrFail({
-    where: { id: opportunityId },
-    relations: {
-      organization: true,
-      keywords: true,
-    },
-  });
+  const [opportunity, organization, keywords] = await queryReadReplica(
+    con,
+    async ({ queryRunner }) => {
+      const opportunity = await queryRunner.manager
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id: opportunityId },
+          relations: {
+            organization: true,
+            keywords: true,
+          },
+        });
 
-  const [organization, keywords] = await Promise.all([
-    opportunity.organization,
-    opportunity.keywords,
-  ]);
+      const [organization, keywords] = await Promise.all([
+        opportunity.organization,
+        opportunity.keywords,
+      ]);
+
+      return [opportunity, organization, keywords];
+    },
+  );
 
   if (!organization) {
     logger.warn(
@@ -160,12 +175,19 @@ export const notifyCandidatePreferenceChange = async ({
   logger: FastifyBaseLogger;
   userId: string;
 }) => {
-  const [candidatePreference, keywords] = await Promise.all([
-    con.getRepository(UserCandidatePreference).findOneBy({ userId }),
-    con.getRepository(UserCandidateKeyword).findBy({
-      userId,
-    }),
-  ]);
+  const [candidatePreference, keywords] = await queryReadReplica(
+    con,
+    async ({ queryRunner }) => {
+      return await Promise.all([
+        queryRunner.manager
+          .getRepository(UserCandidatePreference)
+          .findOneBy({ userId: userId }),
+        queryRunner.manager.getRepository(UserCandidateKeyword).findBy({
+          userId: userId,
+        }),
+      ]);
+    },
+  );
 
   if (!candidatePreference) {
     logger.warn(
