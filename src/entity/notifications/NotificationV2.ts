@@ -16,7 +16,8 @@ export type NotificationReferenceType =
   | 'organization'
   | 'boost'
   | 'campaign'
-  | 'user';
+  | 'user'
+  | 'opportunity';
 
 @Entity()
 @Index('ID_notification_v2_reference', ['referenceId', 'referenceType'])

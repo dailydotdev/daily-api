@@ -9,6 +9,7 @@ import {
   NotificationCommenterContext,
   NotificationDoneByContext,
   NotificationGiftPlusContext,
+  type NotificationOpportunityMatchContext,
   NotificationPostContext,
   NotificationPostModerationContext,
   NotificationSourceContext,
@@ -1125,6 +1126,33 @@ describe('generateNotification', () => {
       `You are now a <span class="text-theme-color-cabbage">moderator</span> in <b>${sourcesFixture[0].name}</b>`,
     );
     expect(actual.notification.targetUrl).toEqual(url.toString());
+  });
+
+  it('should generate new_opportunity_match notification', () => {
+    const type = NotificationType.NewOpportunityMatch;
+    const ctx: NotificationOpportunityMatchContext = {
+      userIds: [userId],
+      opportunityId: 'opp123',
+      matchScore: 85,
+      reasoning: 'Based on your React and TypeScript skills',
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('opp123');
+    expect(actual.notification.referenceType).toEqual('opportunity');
+    expect(actual.notification.icon).toEqual('Opportunity');
+    expect(actual.notification.title).toEqual('New opportunity waiting for you in daily.dev');
+    expect(actual.notification.description).toEqual(
+      '<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>',
+    );
+    expect(actual.notification.targetUrl).toEqual(
+      `${process.env.COMMENTS_PREFIX}/opportunities/opp123`,
+    );
+    expect(actual.avatars.length).toEqual(0);
+    expect(actual.attachments.length).toEqual(0);
   });
 });
 

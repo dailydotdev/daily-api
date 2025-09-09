@@ -1464,4 +1464,38 @@ describe('streamNotificationUsers', () => {
 
     expect(results).toHaveLength(0);
   });
+
+  it('should return users for new_opportunity_match notification', async () => {
+    const users = [
+      { id: 'user15', name: 'User 15', email: 'user15@test.com' },
+      { id: 'user16', name: 'User 16', email: 'user16@test.com' },
+    ];
+
+    await con.getRepository(User).save(users);
+
+    const notif = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.NewOpportunityMatch,
+      uniqueKey: 'opportunity_match_test',
+    });
+
+    const userNotifications = users.map((user) => ({
+      userId: user.id,
+      notificationId: notif.id,
+      public: true,
+      createdAt: notificationV2Fixture.createdAt,
+    }));
+
+    await con.getRepository(UserNotification).insert(userNotifications);
+
+    const stream = await streamNotificationUsers(
+      con,
+      notif.id,
+      NotificationChannel.InApp,
+    );
+    const results = await streamToArray(stream);
+
+    expect(results).toHaveLength(2);
+    expect(results.map((r) => r.userId).sort()).toEqual(['user15', 'user16']);
+  });
 });

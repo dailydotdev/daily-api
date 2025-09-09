@@ -72,6 +72,7 @@ export enum NotificationType {
   NewUserWelcome = 'new_user_welcome',
   Announcements = 'announcements',
   InAppPurchases = 'in_app_purchases',
+  NewOpportunityMatch = 'new_opportunity_match',
 }
 
 export enum NotificationPreferenceType {
