@@ -1439,6 +1439,7 @@ const obj = new GraphORM({
       reach: {
         rawSelect: true,
         select: (_, alias) => {
+          // fallback if reachAll is not aggregated, we did not backfill for old posts without authors
           return `
             GREATEST(${alias}."reachAll", ${alias}.reach, 0)
           `;
