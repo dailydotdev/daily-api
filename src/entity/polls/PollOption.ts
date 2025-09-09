@@ -7,8 +7,8 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import type { Post } from '../posts';
-import type { UserPost } from '../user';
+import type { UserPost } from '../user/UserPost';
+import type { Post } from '../posts/Post';
 
 @Entity()
 export class PollOption {

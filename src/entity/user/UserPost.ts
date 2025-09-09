@@ -8,7 +8,7 @@ import {
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { Post } from '../posts';
+import type { Post } from '../posts/Post';
 import type { User } from './User';
 import { UserVote } from '../../types';
 import type { UserTransaction } from './UserTransaction';

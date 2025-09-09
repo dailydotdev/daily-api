@@ -10,7 +10,7 @@ import {
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
-import { User } from '../user';
+import { User } from '../user/User';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
 import type { ContentLanguage } from '../../types';
