@@ -28,10 +28,18 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
-  const match = await con.getRepository(OpportunityMatch).findOneBy({
-    opportunityId: data.opportunityId,
-    userId: data.userId,
-  });
+  const [match, candidatePreference, keywords] = await Promise.all([
+    con.getRepository(OpportunityMatch).findOneBy({
+      opportunityId: data.opportunityId,
+      userId: data.userId,
+    }),
+    con
+      .getRepository(UserCandidatePreference)
+      .findOneBy({ userId: data.userId }),
+    con.getRepository(UserCandidateKeyword).findBy({
+      userId: data.userId,
+    }),
+  ]);
 
   if (!match) {
     logger.warn(
@@ -41,12 +49,6 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
-  const candidatePreference = await con
-    .getRepository(UserCandidatePreference)
-    .findOneBy({
-      userId: data.userId,
-    });
-
   if (!candidatePreference) {
     logger.warn(
       { userId: data.userId },
@@ -54,10 +56,6 @@ export const notifyOpportunityMatchAccepted = async ({
     );
     return;
   }
-
-  const keywords = await con.getRepository(UserCandidateKeyword).findBy({
-    userId: data.userId,
-  });
 
   const message = new CandidateAcceptedOpportunityMessage({
     opportunityId: match.opportunityId,
@@ -162,11 +160,14 @@ export const notifyCandidatePreferenceChange = async ({
   logger: FastifyBaseLogger;
   userId: string;
 }) => {
-  const data = await con
-    .getRepository(UserCandidatePreference)
-    .findOneBy({ userId });
+  const [candidatePreference, keywords] = await Promise.all([
+    con.getRepository(UserCandidatePreference).findOneBy({ userId }),
+    con.getRepository(UserCandidateKeyword).findBy({
+      userId,
+    }),
+  ]);
 
-  if (!data) {
+  if (!candidatePreference) {
     logger.warn(
       { userId },
       'Candidate preference not found for user, skipping notification',
@@ -174,18 +175,17 @@ export const notifyCandidatePreferenceChange = async ({
     return;
   }
 
-  const keywords = await con.getRepository(UserCandidateKeyword).findBy({
-    userId: data.userId,
-  });
-
   const message = new CandidatePreferenceUpdated({
     payload: {
-      ...data,
+      ...candidatePreference,
       cv: new UserCV({
-        ...data?.cv,
-        lastModified: getSecondsTimestamp(data?.cv?.lastModified) || undefined,
+        ...candidatePreference?.cv,
+        lastModified:
+          getSecondsTimestamp(candidatePreference?.cv?.lastModified) ||
+          undefined,
       }),
-      updatedAt: getSecondsTimestamp(data?.updatedAt) || undefined,
+      updatedAt:
+        getSecondsTimestamp(candidatePreference?.updatedAt) || undefined,
       keywords: keywords.map((k) => k.keyword),
     },
   });
