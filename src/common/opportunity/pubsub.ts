@@ -26,6 +26,20 @@ export const notifyOpportunityMatchAccepted = async ({
     logger.warn('No data provided for opportunity match accepted notification');
     return;
   }
+
+  const match = await con.getRepository(OpportunityMatch).findOneBy({
+    opportunityId: data.opportunityId,
+    userId: data.userId,
+  });
+
+  if (!match) {
+    logger.warn(
+      { opportunityId: data.opportunityId, userId: data.userId },
+      'Opportunity match not found for accepted notification',
+    );
+    return;
+  }
+
   const candidatePreference = await con
     .getRepository(UserCandidatePreference)
     .findOneBy({
@@ -41,16 +55,17 @@ export const notifyOpportunityMatchAccepted = async ({
   }
 
   const message = new CandidateAcceptedOpportunityMessage({
-    opportunityId: data.opportunityId,
-    userId: data.userId,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-    screening: data.screening,
+    opportunityId: match.opportunityId,
+    userId: match.userId,
+    createdAt: getSecondsTimestamp(match.createdAt),
+    updatedAt: getSecondsTimestamp(match.updatedAt),
+    screening: match.screening,
     candidatePreference: {
       ...candidatePreference,
       cv: new UserCV({
         ...candidatePreference.cv,
-        lastModified: getSecondsTimestamp(candidatePreference.cv.lastModified),
+        lastModified:
+          getSecondsTimestamp(candidatePreference.cv.lastModified) || undefined,
       }),
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
     },
