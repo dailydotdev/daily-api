@@ -375,7 +375,7 @@ describe('generateNotification', () => {
     const ctx: NotificationCampaignContext = {
       user: usersFixture[0],
       campaign: campaignsFixture[0] as Reference<Campaign>,
-      event: CampaignUpdateEvent.Completed,
+      event: CampaignUpdateEvent.BudgetUpdated,
       userIds: ['1'],
     };
     const actual = generateNotificationV2(type, ctx);
@@ -414,7 +414,7 @@ describe('generateNotification', () => {
       user: usersFixture[0],
       campaign: campaignsFixture[1] as Reference<Campaign>,
       source: sourcesFixture[0] as Reference<Source>,
-      event: CampaignUpdateEvent.Completed,
+      event: CampaignUpdateEvent.BudgetUpdated,
       userIds: ['1'],
     };
     const actual = generateNotificationV2(type, ctx);

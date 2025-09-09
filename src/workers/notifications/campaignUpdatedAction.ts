@@ -4,7 +4,9 @@ import { generateTypedNotificationWorker } from './worker';
 import { type NotificationCampaignContext } from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import {
+  BudgetMilestone,
   CampaignUpdateEvent,
+  type CampaignBudgetUpdate,
   type CampaignUpdateEventArgs,
 } from '../../common/campaign/common';
 import { CampaignType } from '../../entity/campaign/Campaign';
@@ -26,8 +28,12 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
       switch (event) {
         case CampaignUpdateEvent.Completed:
           return handleCampaignCompleted({ con, params, campaign });
-        case CampaignUpdateEvent.FirstMilestone:
-          return handleCampaignFirstMilestone({ con, params, campaign });
+        case CampaignUpdateEvent.BudgetUpdated:
+          const data = params.data as CampaignBudgetUpdate;
+          if (data.labels?.milestone === BudgetMilestone.Spent70Percent) {
+            return handleCampaignFirstMilestone({ con, params, campaign });
+          }
+          break;
         default:
           return;
       }

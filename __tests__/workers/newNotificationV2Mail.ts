@@ -2513,7 +2513,7 @@ describe('campaign_post_first_milestone notifications', () => {
       userIds: ['1'],
       user: user as Reference<User>,
       campaign: campaignPost as Reference<Campaign>,
-      event: CampaignUpdateEvent.Completed,
+      event: CampaignUpdateEvent.BudgetUpdated,
     };
 
     const notificationId = await saveNotificationV2Fixture(
@@ -2568,7 +2568,7 @@ describe('campaign_squad_first_milestone notifications', () => {
       user: user as Reference<User>,
       campaign: campaignSource as Reference<Campaign>,
       source: source as Reference<Source>,
-      event: CampaignUpdateEvent.Completed,
+      event: CampaignUpdateEvent.BudgetUpdated,
     };
 
     const notificationId = await saveNotificationV2Fixture(
