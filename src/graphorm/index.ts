@@ -1419,13 +1419,29 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) => {
           return `
-            COALESCE(${alias}.sharesInternal + ${alias}.sharesExternal, 0)
+            GREATEST(${alias}."sharesInternal" + ${alias}."sharesExternal", 0)
           `;
         },
       },
       reputation: {
         transform: (value) => {
           return Math.max(0, value);
+        },
+      },
+      impressions: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.impressions + ${alias}."impressionsAds", 0)
+          `;
+        },
+      },
+      reach: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}."reachAll", ${alias}.reach, 0)
+          `;
         },
       },
     },
@@ -1438,6 +1454,14 @@ const obj = new GraphORM({
       },
       updatedAt: {
         transform: transformDate,
+      },
+      impressions: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.impressions + ${alias}."impressionsAds", 0)
+          `;
+        },
       },
     },
   },
