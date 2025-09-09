@@ -109,13 +109,13 @@ describe('opportunity queries', () => {
             description
             location
             customLinks {
-              ...Limk
+              ...Link
             }
             socialLinks {
-              ...Limk
+              ...Link
             }
             pressLinks {
-              ...Limk
+              ...Link
             }
           }
           recruiters {
@@ -127,7 +127,7 @@ describe('opportunity queries', () => {
         }
       }
 
-      fragment Limk on OrganizationLink {
+      fragment Link on OrganizationLink {
         type
         socialType
         title
