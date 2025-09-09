@@ -66,7 +66,6 @@ import {
 } from '../entity/user/UserJobPreferences';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
-import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import { OrganizationLinkType } from '../common/schema/organizations';
 
 const existsByUserAndPost =
@@ -1523,14 +1522,8 @@ const obj = new GraphORM({
       keywords: {
         relation: {
           isMany: true,
-          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
-            qb
-              .innerJoin(
-                OpportunityKeyword,
-                'ok',
-                `"${childAlias}"."value" = ok."keyword"`,
-              )
-              .where(`ok."opportunityId" = "${parentAlias}".id`),
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
         },
       },
     },
