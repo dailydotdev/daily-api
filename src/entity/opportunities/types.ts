@@ -1,14 +1,3 @@
-export enum OpportunityState {
-  Draft = 'draft',
-  Approved = 'approved',
-  Live = 'live',
-  Closed = 'closed',
-}
-
-export enum OpportunityType {
-  Job = 'job',
-}
-
 export enum OpportunityUserType {
   Recruiter = 'recruiter',
 }

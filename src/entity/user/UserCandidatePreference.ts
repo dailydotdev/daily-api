@@ -1,3 +1,4 @@
+import z from 'zod';
 import {
   Column,
   Entity,
@@ -8,27 +9,18 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './User';
-import z from 'zod';
-import type { CompanySize, CompanyStage } from '../Organization';
+import { CandidateStatus } from '@dailydotdev/schema';
 import type {
-  locationSchema,
-  locationTypeSchema,
-  salaryExpectationSchema,
-  userCandidateCVSchema,
-} from '../../common/schema/userCandidate';
+  CompanySize,
+  CompanyStage,
+  EmploymentType,
+  Location,
+  LocationType,
+  Salary,
+} from '@dailydotdev/schema';
+import type { userCandidateCVSchema } from '../../common/schema/userCandidate';
 
-export enum CandidateStatus {
-  Disabled = 'disabled',
-  ActivelyLooking = 'actively_looking',
-  OpenToOffers = 'open_to_offers',
-}
-
-export enum EmploymentType {
-  FullTime = 'full_time',
-  PartTime = 'part_time',
-  Contract = 'contract',
-  Internship = 'internship',
-}
+export type SalaryExpectation = Omit<Salary, 'max'>;
 
 @Entity()
 export class UserCandidatePreference {
@@ -38,9 +30,13 @@ export class UserCandidatePreference {
   })
   userId: string;
 
-  @Column({ type: 'text', default: CandidateStatus.Disabled })
+  @Column({
+    type: 'integer',
+    default: CandidateStatus.DISABLED,
+    comment: 'CandidateStatus from protobuf schema',
+  })
   @Index('IDX_user_candidate_preference_status')
-  status: CandidateStatus = CandidateStatus.Disabled;
+  status: CandidateStatus = CandidateStatus.DISABLED;
 
   @UpdateDateColumn()
   updatedAt: Date;
@@ -57,23 +53,51 @@ export class UserCandidatePreference {
   @Column({ type: 'float8', default: 0.5 })
   roleType: number;
 
-  @Column({ type: 'text', array: true, default: null })
-  employmentType: EmploymentType[];
+  @Column({
+    type: 'integer',
+    array: true,
+    default: null,
+    comment: 'EmploymentType from protobuf schema',
+  })
+  employmentType: Array<EmploymentType>;
 
-  @Column({ type: 'jsonb', default: '{}' })
-  salaryExpectation: z.infer<typeof salaryExpectationSchema>;
+  @Column({
+    type: 'jsonb',
+    default: {},
+    comment: 'Salary from protobuf schema',
+  })
+  salaryExpectation: SalaryExpectation;
 
-  @Column({ type: 'jsonb', default: '[]' })
-  location: z.infer<typeof locationSchema>[];
+  @Column({
+    type: 'jsonb',
+    default: [],
+    comment: 'Location from protobuf schema',
+  })
+  location: Location[];
 
-  @Column({ type: 'jsonb', default: '{}' })
-  locationType: z.infer<typeof locationTypeSchema>;
+  @Column({
+    type: 'integer',
+    array: true,
+    comment: 'LocationType from protobuf schema',
+    default: null,
+  })
+  locationType: Array<LocationType>;
 
-  @Column({ type: 'text', array: true, default: null })
-  companyStage: CompanyStage[];
+  @Column({
+    type: 'integer',
+    array: true,
+    default: null,
+    comment: 'CompanyStage from protobuf schema',
+  })
+  companyStage: Array<CompanyStage>;
 
-  @Column({ type: 'text', array: true, default: null })
-  companySize: CompanySize[];
+  @Column({
+    type: 'integer',
+    array: true,
+    default: null,
+    comment: 'CompanySize from protobuf schema',
+  })
+  companySize: Array<CompanySize>;
 
   @OneToOne('User', (user: User) => user.candidatePreference, {
     lazy: true,

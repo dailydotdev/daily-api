@@ -6,7 +6,7 @@ import {
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, In, MoreThan } from 'typeorm';
+import { DataSource, In, MoreThan, type QueryBuilder } from 'typeorm';
 import {
   canModeratePosts,
   ensureSourcePermissions,
@@ -53,8 +53,12 @@ import {
   parseBigInt,
   findPostByUrl,
   ensurePostAnalyticsPermissions,
+  getLimit,
 } from '../common';
 import {
+  Campaign,
+  CampaignPost,
+  CampaignState,
   ContentImage,
   createExternalLink,
   createSharePost,
@@ -70,6 +74,7 @@ import {
   PostRelationType,
   type PostTranslation,
   PostType,
+  preparePostForUpdate,
   Settings,
   SharePost,
   SubmitExternalLinkArgs,
@@ -126,17 +131,15 @@ import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
 import type {
   BoostedPostConnection,
-  BoostedPostStats,
+  CampaignForV1,
   GQLBoostedPost,
 } from '../common/campaign/post';
 import {
   checkPostAlreadyBoosted,
-  consolidateCampaignsWithPosts,
   getAdjustedReach,
-  getBoostedPost,
   getFormattedBoostedPost,
-  getFormattedCampaign,
-  getTotalEngagements,
+  startCampaignPost,
+  stopCampaignPost,
   validatePostBoostPermissions,
 } from '../common/campaign/post';
 import {
@@ -156,8 +159,9 @@ import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
 import type { CampaignReach } from '../integrations/skadi/api/common';
 import graphorm from '../graphorm';
 import { BriefingType } from '../integrations/feed';
-import { coresToUsd, usdToCores } from '../common/number';
+import { coresToUsd } from '../common/number';
 import {
+  getUserCampaignStats,
   type StartCampaignArgs,
   validateCampaignArgs,
 } from '../common/campaign/common';
@@ -167,6 +171,7 @@ import {
   getBriefGenerationCost,
   requestBriefGeneration,
 } from '../common/brief';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 export interface GQLPost {
   id: string;
@@ -295,6 +300,49 @@ export type GQLPostAnalyticsHistory = Omit<
   PostAnalyticsHistory,
   'post' | 'createdAt'
 >;
+
+const formatCampaignV2toV1 = (campaign: CampaignForV1) => ({
+  post: getFormattedBoostedPost(campaign.post),
+  campaign: {
+    budget: campaign.flags.budget ?? 0,
+    clicks: campaign.flags.clicks ?? 0,
+    users: campaign.flags.users ?? 0,
+    spend: campaign.flags.spend ?? 0,
+    impressions: campaign.flags.impressions ?? 0,
+    campaignId: campaign.id,
+    postId: campaign.referenceId,
+    endedAt: campaign.endedAt,
+    startedAt: campaign.createdAt,
+    status: campaign.state,
+  },
+});
+
+const builderForCampaignV1 = (builder: QueryBuilder<CampaignPost>) =>
+  builder
+    .select('c.id', 'id')
+    .addSelect('c.referenceId', 'referenceId')
+    .addSelect('c.createdAt', 'createdAt')
+    .addSelect('c.endedAt', 'endedAt')
+    .addSelect('c.state', 'state')
+    .addSelect('c.flags', 'flags')
+    .addSelect(
+      `(
+        SELECT json_build_object(
+          'id', p1.id,
+          'shortId', p1."shortId",
+          'slug', p1.slug,
+          'image', p1.image,
+          'title', p1.title,
+          'type', p1.type,
+          'sharedTitle', p2.title,
+          'sharedImage', p2.image
+        )
+        FROM post p1
+        LEFT JOIN post p2 ON p1."sharedPostId" = p2.id
+        WHERE p1.id = c."postId"
+      )`,
+      'post',
+    );
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(BriefingType, 'BriefingType')}
@@ -989,6 +1037,8 @@ export const typeDefs = /* GraphQL */ `
     awards: Int!
     upvotesRatio: Int!
     shares: Int!
+    reachAds: Int!
+    impressionsAds: Int!
   }
 
   type PostAnalyticsHistory {
@@ -1309,7 +1359,7 @@ export const typeDefs = /* GraphQL */ `
       ID of the exisiting post
       """
       postId: ID
-    ): SourcePostModeration! @auth
+    ): SourcePostModeration! @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Hide a post from all the user feeds
@@ -2269,79 +2319,73 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLBoostedPost> => {
-      const campaign = await skadiApiClientV1.getCampaignById({
-        campaignId: id,
-        userId: ctx.userId!,
-      });
+      const campaign = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        builderForCampaignV1(
+          queryRunner.manager
+            .getRepository(CampaignPost)
+            .createQueryBuilder('c'),
+        )
+          .where('c.id = :id', { id })
+          .andWhere('c."userId" = :user', { user: ctx.userId })
+          .getRawOne<CampaignForV1>(),
+      );
 
       if (!campaign) {
         throw new NotFoundError('Campaign does not exist!');
       }
 
-      const post = await getBoostedPost(ctx.con, campaign.postId);
-
-      return {
-        campaign: getFormattedCampaign(campaign),
-        post: getFormattedBoostedPost(post),
-      };
+      return formatCampaignV2toV1(campaign);
     },
     postCampaigns: async (
       _,
       args: ConnectionArguments,
       ctx: AuthContext,
     ): Promise<BoostedPostConnection> => {
-      const { userId } = ctx;
       const { first, after } = args;
       const isFirstRequest = !after;
-      const stats: BoostedPostStats | undefined = isFirstRequest
-        ? {
-            impressions: 0,
-            clicks: 0,
-            totalSpend: 0,
-            engagements: 0,
-            users: 0,
-          }
-        : undefined;
       const offset = after ? cursorToOffset(after) : 0;
       const paginated = await graphorm.queryPaginatedIntegration(
         () => !!after,
         (nodeSize) => nodeSize === first,
         (_, i) => offsetToCursor(offset + i + 1),
         async () => {
-          const campaigns = await skadiApiClientV1.getCampaigns({
-            userId,
-            offset,
-            limit: first!,
-          });
+          const campaigns = await queryReadReplica(
+            ctx.con,
+            ({ queryRunner }) => {
+              const builder = builderForCampaignV1(
+                queryRunner.manager
+                  .getRepository(CampaignPost)
+                  .createQueryBuilder('c'),
+              );
 
-          if (!campaigns?.promotedPosts?.length) {
-            return [];
-          }
+              builder
+                .andWhere(`c."userId" = :campaignUserId`, {
+                  campaignUserId: ctx.userId,
+                })
+                .orderBy(`CASE WHEN c."state" = :active THEN 0 ELSE 1 END`)
+                .addOrderBy('c."createdAt"', 'DESC')
+                .limit(getLimit({ limit: first ?? 20 }))
+                .setParameter('active', CampaignState.Active);
 
-          if (isFirstRequest && stats) {
-            stats.clicks = campaigns.clicks;
-            stats.impressions = campaigns.impressions;
-            stats.users = campaigns.users;
-            stats.totalSpend = usdToCores(parseFloat(campaigns.totalSpend));
-            stats.engagements = await queryReadReplica(
-              ctx.con,
-              ({ queryRunner }) =>
-                getTotalEngagements(queryRunner.manager, campaigns.postIds),
-            );
-          }
+              if (offset) {
+                builder.offset(offset);
+              }
 
-          return queryReadReplica(ctx.con, ({ queryRunner }) =>
-            consolidateCampaignsWithPosts(
-              campaigns.promotedPosts,
-              queryRunner.manager,
-            ),
+              return builder.getRawMany<CampaignForV1>();
+            },
           );
+
+          return campaigns.map(formatCampaignV2toV1);
         },
       );
 
+      const stats = await getUserCampaignStats(ctx);
+
       return {
         ...paginated,
-        stats,
+        stats: isFirstRequest
+          ? { ...stats, totalSpend: stats.spend, engagements: 0 }
+          : undefined,
       };
     },
     briefingPosts: async (
@@ -2434,11 +2478,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLSourcePostModeration> => {
-      await ensureSourcePermissions(
-        ctx,
-        props.sourceId,
-        SourcePermissions.PostRequest,
-      );
+      await Promise.all([
+        ensureSourcePermissions(
+          ctx,
+          props.sourceId,
+          SourcePermissions.PostRequest,
+        ),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
 
       const pendingPost = await validateSourcePostModeration(ctx, props);
       const moderatedPost = await createSourcePostModeration({
@@ -2737,7 +2784,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
 
-        const updated: Partial<EditablePost> = {};
+        let updated: Partial<EditablePost> = {};
 
         if (title && title !== post.title) {
           updated.title = title;
@@ -2780,7 +2827,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         if (Object.keys(updated).length) {
-          await repo.update({ id }, updated);
+          // Apply vordr checks before updating
+          updated = await preparePostForUpdate(updated, post, {
+            con: manager,
+            userId,
+            req: ctx.req,
+          });
+          // Type magic to avoid typescript issues
+          const updatedQuery: QueryDeepPartialEntity<Post> = updated;
+          if (updatedQuery.flags) {
+            updatedQuery.flags = updateFlagsStatement(updatedQuery.flags);
+          }
+          await repo.update({ id }, updatedQuery);
         }
       });
 
@@ -2842,166 +2900,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: Pick<StartCampaignArgs, 'budget' | 'duration'> & { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      const { postId, duration, budget } = args;
       validateCampaignArgs(args);
-      const post = await validatePostBoostPermissions(ctx, postId);
-      checkPostAlreadyBoosted(post);
 
-      const { userId } = ctx;
-      const total = budget * duration;
-
-      const request = await ctx.con.transaction(async (entityManager) => {
-        const { campaignId } = await skadiApiClientV1.startPostCampaign({
-          postId,
-          durationInDays: duration,
-          budget: coresToUsd(budget),
-          userId,
-        });
-
-        const userTransaction = await entityManager
-          .getRepository(UserTransaction)
-          .save(
-            entityManager.getRepository(UserTransaction).create({
-              id: randomUUID(),
-              processor: UserTransactionProcessor.Njord,
-              receiverId: systemUser.id,
-              status: UserTransactionStatus.Success,
-              productId: null,
-              senderId: userId,
-              value: total,
-              valueIncFees: 0,
-              fee: 0,
-              request: ctx.requestMeta,
-              flags: { note: 'Post Boost started' },
-              referenceId: campaignId,
-              referenceType: UserTransactionType.PostBoost,
-            }),
-          );
-
-        await entityManager
-          .getRepository(Post)
-          .update(
-            { id: postId },
-            { flags: updateFlagsStatement<Post>({ campaignId }) },
-          );
-
-        try {
-          const transfer = await transferCores({
-            ctx,
-            transaction: userTransaction,
-            entityManager,
-          });
-
-          return {
-            transfer,
-            transaction: {
-              referenceId: campaignId,
-              transactionId: userTransaction.id,
-              balance: {
-                amount: parseBigInt(transfer.senderBalance?.newBalance),
-              },
-            },
-          };
-        } catch (error) {
-          if (error instanceof TransferError) {
-            await throwUserTransactionError({
-              ctx,
-              entityManager,
-              error,
-              transaction: userTransaction,
-            });
-          }
-
-          throw error;
-        }
+      return startCampaignPost({
+        ctx,
+        args: {
+          value: args.postId,
+          budget: args.budget,
+          duration: args.duration,
+        },
       });
-
-      return request.transaction;
     },
     cancelPostBoost: async (
       _,
       { postId }: { postId: string },
       ctx: AuthContext,
     ): Promise<TransactionCreated> => {
-      const { userId } = ctx;
-      const post = await validatePostBoostPermissions(ctx, postId);
-      const campaignId = post?.flags?.campaignId;
-
-      if (!campaignId) {
-        throw new ValidationError('Post is not currently boosted');
-      }
-
-      const result = await ctx.con.transaction(async (entityManager) => {
-        const { currentBudget } = await skadiApiClientV1.cancelPostCampaign({
-          campaignId,
+      const campaign = await ctx.con.getRepository(Campaign).findOneOrFail({
+        where: {
+          referenceId: postId,
           userId: ctx.userId,
-        });
-
-        await entityManager
-          .getRepository(Post)
-          .update(
-            { id: postId },
-            { flags: updateFlagsStatement<Post>({ campaignId: null }) },
-          );
-
-        const toRefund = parseFloat(currentBudget);
-
-        const userTransaction = await entityManager
-          .getRepository(UserTransaction)
-          .save(
-            entityManager.getRepository(UserTransaction).create({
-              id: randomUUID(),
-              processor: UserTransactionProcessor.Njord,
-              receiverId: userId,
-              status: UserTransactionStatus.Success,
-              productId: null,
-              senderId: systemUser.id,
-              value: usdToCores(toRefund),
-              valueIncFees: 0,
-              fee: 0,
-              flags: { note: 'Post Boost refund' },
-              referenceId: campaignId,
-              referenceType: UserTransactionType.PostBoost,
-            }),
-          );
-
-        try {
-          const transfer = await transferCores({
-            ctx: { userId },
-            transaction: userTransaction,
-            entityManager,
-          });
-
-          return {
-            transfer,
-            transaction: {
-              referenceId: campaignId,
-              transactionId: userTransaction.id,
-              balance: {
-                amount: parseBigInt(transfer.receiverBalance?.newBalance),
-              },
-            },
-          };
-        } catch (error) {
-          if (error instanceof TransferError) {
-            await throwUserTransactionError({
-              ctx,
-              entityManager,
-              error,
-              transaction: userTransaction,
-            });
-          } else {
-            logger.error(
-              { campaignId, userId, postId: post.id },
-              'Error cancelling post boost',
-            );
-          }
-
-          throw error;
-        }
+          state: CampaignState.Active,
+        },
       });
 
-      return result.transaction;
+      return stopCampaignPost({ campaign, ctx });
     },
     checkLinkPreview: async (
       _,

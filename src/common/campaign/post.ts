@@ -1,17 +1,12 @@
 import { ValidationError } from 'apollo-server-errors';
 import { AuthContext } from '../../Context';
 import {
-  ArticlePost,
   CampaignPost,
   CampaignState,
   CampaignType,
   Post,
   PostType,
-  type Campaign,
   type ConnectionManager,
-  type FreeformPost,
-  type NotificationV2,
-  type SharePost,
 } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
 import {
@@ -19,17 +14,10 @@ import {
   type GetCampaignResponse,
 } from '../../integrations/skadi';
 import type { Connection } from 'graphql-relay';
-import { In, type DataSource } from 'typeorm';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
-import { NotFoundError } from '../../errors';
-import { debeziumTimeToDate, systemUser, updateFlagsStatement } from '../utils';
+import { systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink } from '../links';
-import { skadiApiClientV1 } from '../../integrations/skadi/api/v1/clients';
-import { largeNumberFormat } from '../devcard';
-import { formatMailDate, addNotificationEmailUtm } from '../mailing';
-import { truncatePostToTweet } from '../twitter';
-import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { usdToCores } from '../number';
 
 import {
@@ -84,8 +72,8 @@ interface CampaignBoostedPost
   extends Pick<Post, 'id' | 'shortId' | 'title' | 'slug'> {
   image: string;
   permalink: string;
-  engagements: number;
   commentsPermalink?: string;
+  engagements: number;
 }
 
 export interface GQLBoostedPost {
@@ -97,40 +85,7 @@ interface GetBoostedPost extends CampaignBoostedPost {
   type: PostType;
   sharedTitle?: string;
   sharedImage?: string;
-  views: number;
-  upvotes: number;
-  comments: number;
 }
-
-const getBoostedPostBuilder = (con: ConnectionManager, alias = 'p1') =>
-  con
-    .getRepository(Post)
-    .createQueryBuilder(alias)
-    .select(`"${alias}".id`, 'id')
-    .addSelect(`"${alias}"."shortId"`, 'shortId')
-    .addSelect(`"${alias}".slug`, 'slug')
-    .addSelect(`"${alias}".image`, 'image')
-    .addSelect(`"${alias}".title`, 'title')
-    .addSelect(`"${alias}".type`, 'type')
-    .addSelect(`"${alias}".upvotes::int`, 'upvotes')
-    .addSelect(`"${alias}".comments::int`, 'comments')
-    .addSelect(`"${alias}".views::int`, 'views')
-    .addSelect('p2.title', 'sharedTitle')
-    .addSelect('p2.image', 'sharedImage')
-    .leftJoin(Post, 'p2', `"${alias}"."sharedPostId" = p2.id`);
-
-export const getBoostedPost = async (
-  con: ConnectionManager,
-  id: string,
-): Promise<GetBoostedPost> => {
-  const result = await getBoostedPostBuilder(con).where({ id }).getRawOne();
-
-  if (!result) {
-    throw new NotFoundError('Post does not exist');
-  }
-
-  return result;
-};
 
 export const getFormattedBoostedPost = (
   post: GetBoostedPost,
@@ -152,23 +107,9 @@ export const getFormattedBoostedPost = (
     image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
     permalink: getPostPermalink({ shortId }),
     commentsPermalink: post.slug ? getDiscussionLink(post.slug) : undefined,
-    engagements: post.comments + post.upvotes + post.views,
+    engagements: 0, // for backwards compat - we don't really use this property anymore
   };
 };
-
-export const getFormattedCampaign = ({
-  spend,
-  budget,
-  startedAt,
-  endedAt,
-  ...campaign
-}: GetCampaignResponse): GQLPromotedPost => ({
-  ...campaign,
-  spend: usdToCores(parseFloat(spend)),
-  budget: usdToCores(parseFloat(budget)),
-  startedAt: debeziumTimeToDate(startedAt),
-  endedAt: debeziumTimeToDate(endedAt),
-});
 
 export interface BoostedPostStats
   extends Pick<GetCampaignListResponse, 'clicks' | 'impressions' | 'users'> {
@@ -177,128 +118,8 @@ export interface BoostedPostStats
 }
 
 export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
-  stats?: BoostedPostStats;
+  stats?: Partial<BoostedPostStats>;
 }
-
-export const consolidateCampaignsWithPosts = async (
-  campaigns: GetCampaignResponse[],
-  con: ConnectionManager,
-): Promise<GQLBoostedPost[]> => {
-  const ids = campaigns.map(({ postId }) => postId);
-  const builder = getBoostedPostBuilder(con);
-  const postAlias = 'p1';
-  const posts = await builder
-    .where(`"${postAlias}".id IN (:...ids)`, { ids })
-    .getRawMany<GetBoostedPost>();
-  const mapped = posts.reduce(
-    (map, post) => ({ ...map, [post.id]: post }),
-    {} as Record<string, GetBoostedPost>,
-  );
-
-  return campaigns.map((campaign) => ({
-    campaign: getFormattedCampaign(campaign),
-    post: getFormattedBoostedPost(mapped[campaign.postId]),
-  }));
-};
-
-interface TotalEngagements
-  extends Pick<Post, 'views' | 'comments' | 'upvotes'> {}
-
-export const getTotalEngagements = async (
-  con: ConnectionManager,
-  postIds: string[],
-): Promise<number> => {
-  const builder = con.getRepository(Post).createQueryBuilder();
-
-  const engagements = await builder
-    .select('SUM(upvotes)::int', 'upvotes')
-    .addSelect('SUM(comments)::int', 'comments')
-    .addSelect('SUM(views)::int', 'views')
-    .where({ id: In(postIds) })
-    .getRawOne<TotalEngagements>();
-
-  return (
-    (engagements?.upvotes || 0) +
-    (engagements?.comments || 0) +
-    (engagements?.views || 0)
-  );
-};
-
-interface GeneratePostBoostEmailProps {
-  con: DataSource;
-  postId: string;
-  notification: NotificationV2;
-  campaign: Pick<Campaign, 'createdAt' | 'endedAt' | 'flags'>;
-}
-
-export const generatePostBoostEmail = async ({
-  con,
-  postId,
-  notification,
-  campaign,
-}: GeneratePostBoostEmailProps) => {
-  const post = await con.getRepository(Post).findOne({
-    where: { id: postId },
-  });
-
-  if (!post) {
-    return null;
-  }
-
-  const sharedPost = await (post.type === PostType.Share
-    ? con.getRepository(ArticlePost).findOne({
-        where: { id: (post as SharePost).sharedPostId },
-        select: ['title', 'image', 'slug'],
-      })
-    : Promise.resolve(null));
-
-  const title = truncatePostToTweet(post || sharedPost);
-  const engagement = post.views + post.upvotes + post.comments;
-
-  return {
-    start_date: formatMailDate(campaign.createdAt),
-    end_date: formatMailDate(campaign.endedAt),
-    impressions: largeNumberFormat(campaign.flags.impressions ?? 0),
-    clicks: largeNumberFormat(campaign.flags.clicks ?? 0),
-    engagement: largeNumberFormat(engagement),
-    post_link: getDiscussionLink(post.slug),
-    analytics_link: addNotificationEmailUtm(
-      notification.targetUrl,
-      notification.type,
-    ),
-    post_image: sharedPost?.image || (post as FreeformPost).image,
-    post_title: title,
-  };
-};
-
-export const generateBoostEmailUpdate: TemplateDataFunc = async (
-  con,
-  user,
-  notification,
-) => {
-  const campaign = await skadiApiClientV1.getCampaignById({
-    campaignId: notification.referenceId!,
-    userId: user.id,
-  });
-
-  if (!campaign) {
-    return null;
-  }
-
-  return generatePostBoostEmail({
-    con,
-    postId: campaign.postId,
-    notification,
-    campaign: {
-      createdAt: debeziumTimeToDate(campaign.startedAt),
-      endedAt: debeziumTimeToDate(campaign.endedAt),
-      flags: {
-        impressions: campaign.impressions,
-        clicks: campaign.clicks,
-      },
-    },
-  });
-};
 
 export const getAdjustedReach = (value: number) => {
   // We do plus-minus 8% of the generated value
@@ -311,6 +132,14 @@ export const getAdjustedReach = (value: number) => {
 
   return estimatedReach;
 };
+
+export interface CampaignForV1
+  extends Pick<
+    CampaignPost,
+    'id' | 'referenceId' | 'createdAt' | 'endedAt' | 'state' | 'flags'
+  > {
+  post: GetBoostedPost;
+}
 
 export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;

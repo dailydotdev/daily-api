@@ -4,6 +4,7 @@ import { addNewSourceMember, removeSourceMember } from '../schema/sources';
 import { SourceMemberRoles } from '../roles';
 import { SourceMember, User } from '../entity';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { hasPlusStatusChanged } from '../paddle';
 
 export const PLUS_MEMBER_SQUAD_ID = '05862288-bace-4723-9218-d30fab6ae96d';
 const worker: TypedWorker<'user-updated'> = {
@@ -24,11 +25,15 @@ const worker: TypedWorker<'user-updated'> = {
       return;
     }
 
-    if (afterFlags?.subscriptionId === beforeFlags?.subscriptionId) {
+    const { isPlus, statusChanged } = hasPlusStatusChanged(
+      afterFlags,
+      beforeFlags,
+    );
+    if (!statusChanged) {
       return;
     }
 
-    if (afterFlags?.subscriptionId === '' || !afterFlags?.subscriptionId) {
+    if (!isPlus) {
       // Stopped being plus member remove them
       await removeSourceMember({
         con,

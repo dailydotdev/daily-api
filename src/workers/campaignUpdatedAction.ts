@@ -1,3 +1,4 @@
+import z from 'zod';
 import { TypedWorker } from './worker';
 import {
   Campaign,
@@ -10,13 +11,20 @@ import {
 import { updateFlagsStatement } from '../common';
 import {
   CampaignUpdateEvent,
-  type CampaignStateUpdate,
+  type CampaignBudgetUpdate,
+  type CampaignExtraStatsUpdate,
   type CampaignStatsUpdate,
   type CampaignUpdateEventArgs,
 } from '../common/campaign/common';
 import { usdToCores } from '../common/number';
 import { logger } from '../logger';
 import type { TypeORMQueryFailedError } from '../errors';
+
+interface HandlerEventArgs {
+  con: ConnectionManager;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}
 
 const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-action',
@@ -30,6 +38,12 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
         switch (params.data.event) {
           case CampaignUpdateEvent.StatsUpdated:
             return handleCampaignStatsUpdate({
+              con: manager,
+              params: params.data,
+              campaign,
+            });
+          case CampaignUpdateEvent.ExtraStatsUpdated:
+            return handleExtraCampaignStatsUpdate({
               con: manager,
               params: params.data,
               campaign,
@@ -54,7 +68,8 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
       const err = originalError as TypeORMQueryFailedError;
 
       if (err?.name === 'EntityNotFoundError') {
-        logger.error({ err, params }, 'could not find campaign');
+        // some campaigns do not exist on API so just warn in case we need to check later
+        logger.warn({ err, params }, 'could not find campaign');
 
         return;
       }
@@ -69,12 +84,8 @@ export default worker;
 const handleCampaignBudgetUpdate = async ({
   con,
   params: { data, campaignId },
-}: {
-  con: ConnectionManager;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
-  const { budget: usedBudget } = data as CampaignStateUpdate;
+}: HandlerEventArgs) => {
+  const { budget: usedBudget } = data as CampaignBudgetUpdate;
 
   await con.getRepository(Campaign).update(
     { id: campaignId },
@@ -89,11 +100,7 @@ const handleCampaignBudgetUpdate = async ({
 const handleCampaignStatsUpdate = async ({
   con,
   params: { data, campaignId },
-}: {
-  con: ConnectionManager;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
+}: HandlerEventArgs) => {
   const { impressions, clicks, unique_users } = data as CampaignStatsUpdate;
 
   await con.getRepository(Campaign).update(
@@ -108,20 +115,35 @@ const handleCampaignStatsUpdate = async ({
   );
 };
 
+const handleExtraCampaignStatsUpdate = async ({
+  con,
+  params: { data, campaignId },
+}: HandlerEventArgs) => {
+  const update = data as CampaignExtraStatsUpdate;
+  const newMembersCount = update['complete joining squad']?.unique_events_count;
+  const newMembers = z.coerce.number().safeParse(newMembersCount)?.data;
+
+  await con.getRepository(Campaign).update(
+    { id: campaignId },
+    {
+      flags: updateFlagsStatement<Campaign>({
+        newMembers,
+      }),
+    },
+  );
+};
+
 const handleCampaignCompleted = async ({
   con,
   params,
   campaign,
-}: {
-  con: ConnectionManager;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
+}: HandlerEventArgs) => {
   const { campaignId } = params;
 
-  await con
-    .getRepository(Campaign)
-    .update({ id: campaignId }, { state: CampaignState.Completed });
+  await con.getRepository(Campaign).update(
+    { id: campaignId, state: CampaignState.Active }, // only update if still active - for example if cancelled, do not update
+    { state: CampaignState.Completed },
+  );
 
   switch (campaign.type) {
     case CampaignType.Post:

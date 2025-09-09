@@ -20,6 +20,7 @@ import {
   WelcomePost,
   type PostTranslation,
   ArticlePost,
+  preparePostForInsert,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
@@ -225,7 +226,7 @@ export const createSquadWelcomePost = async (
 
 export type EditablePost = Pick<
   FreeformPost,
-  'title' | 'content' | 'image' | 'contentHtml'
+  'title' | 'content' | 'image' | 'contentHtml' | 'flags'
 >;
 
 export type CreatePost = Pick<
@@ -249,7 +250,7 @@ export const createFreeformPost = async ({
     type: In([SourceType.Squad, SourceType.User]),
   });
 
-  const createdPost = con.getRepository(FreeformPost).create({
+  let createdPost = con.getRepository(FreeformPost).create({
     ...args,
     shortId: args.id,
     visible: true,
@@ -262,29 +263,12 @@ export const createFreeformPost = async ({
     },
   });
 
-  if (args.authorId) {
-    const vordrStatus = await checkWithVordr(
-      {
-        id: createdPost.id,
-        type: VordrFilterType.Post,
-        content: createdPost.content,
-      },
-      { con, userId: args.authorId, req: ctx?.req },
-    );
-
-    if (vordrStatus) {
-      createdPost.banned = true;
-      createdPost.showOnFeed = false;
-
-      createdPost.flags = {
-        ...createdPost.flags,
-        banned: true,
-        showOnFeed: false,
-      };
-    }
-
-    createdPost.flags.vordr = vordrStatus;
-  }
+  // Apply vordr checks before saving
+  createdPost = await preparePostForInsert(createdPost, {
+    con,
+    userId: args.authorId || undefined,
+    req: ctx?.req,
+  });
 
   return con.getRepository(FreeformPost).save(createdPost);
 };

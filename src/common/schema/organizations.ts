@@ -39,7 +39,7 @@ export const organizationSubscriptionFlagsSchema = z.object({
 
 const linksSchemaBase = {
   title: z.string(),
-  link: z.string().url(),
+  link: z.url(),
 };
 
 export const organizationLinksSchema = z.discriminatedUnion('type', [

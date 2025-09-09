@@ -10,6 +10,10 @@ const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
 export const DELETED_BY_WORKER = 'worker';
 
+export const playwrightUser = {
+  id: '8bf2UpTsHFnczzOlk0mtg',
+};
+
 export const ghostUser = {
   id: '404',
   username: 'ghost',

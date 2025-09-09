@@ -14,12 +14,11 @@ import type { AuthContext } from '../../Context';
 import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
 import { getSourceTags } from './source';
-import { generatePostBoostEmail, getPostTags } from './post';
+import { getPostTags } from './post';
 import type { NotificationBuilder } from '../../notifications/builder';
 import { NotificationIcon } from '../../notifications/icons';
 import { notificationsLink } from '../links';
 import type { NotificationCampaignContext } from '../../notifications';
-import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 import { queryReadReplica } from '../queryReadReplica';
 
 export interface StartCampaignArgs {
@@ -168,6 +167,7 @@ export enum CampaignUpdateEvent {
   Started = 'CAMPAIGN_STARTED',
   Completed = 'CAMPAIGN_COMPLETED',
   StatsUpdated = 'STATS_UPDATED',
+  ExtraStatsUpdated = 'EXTRA_STATS_UPDATED',
   BudgetUpdated = 'BUDGET_UPDATED',
 }
 
@@ -181,15 +181,28 @@ export interface CampaignStatsUpdate {
   unique_users: number;
 }
 
-export interface CampaignStateUpdate {
+export interface CampaignBudgetUpdate {
   budget: string; // used budget
 }
+
+type ExtraStats = Partial<{
+  events_count: string;
+  unique_events_count: string;
+}>;
+
+export type CampaignExtraStatsUpdate = Partial<{
+  'complete joining squad': ExtraStats;
+}>;
 
 export interface CampaignUpdateEventArgs {
   campaignId: string;
   event: CampaignUpdateEvent;
   unique_users: number;
-  data: CampaignCompleted | CampaignStatsUpdate | CampaignStateUpdate;
+  data:
+    | CampaignCompleted
+    | CampaignStatsUpdate
+    | CampaignBudgetUpdate
+    | CampaignExtraStatsUpdate;
   d_update: number;
 }
 
@@ -220,33 +233,6 @@ export const generateCampaignCompletedNotification = (
       throw new Error(
         `Unable to generate notification for unknown type: ${campaign.type}`,
       );
-  }
-};
-
-export const generateCampaignCompletedEmail: TemplateDataFunc = async (
-  con,
-  user,
-  notification,
-) => {
-  const campaign = await con
-    .getRepository(Campaign)
-    .findOneBy({ id: notification.referenceId });
-
-  if (!campaign) {
-    return null;
-  }
-
-  switch (campaign.type) {
-    case CampaignType.Post:
-      return generatePostBoostEmail({
-        con,
-        postId: campaign.referenceId,
-        notification,
-        campaign,
-      });
-    // TODO: MI-1007 - generate email once template id is provided
-    default:
-      return null;
   }
 };
 

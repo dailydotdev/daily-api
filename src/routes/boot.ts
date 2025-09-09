@@ -39,6 +39,7 @@ import {
 import {
   FEED_SURVEY_INTERVAL,
   generateStorageKey,
+  MODERATORS,
   REDIS_BANNER_KEY,
   StorageKey,
   StorageTopic,
@@ -304,17 +305,8 @@ const getFeeds = async ({
   });
 };
 
-const moderators = [
-  '1d339aa5b85c4e0ba85fdedb523c48d4',
-  '28849d86070e4c099c877ab6837c61f0',
-  '5e0af68445e04c02b0656c3530664aff',
-  'a491ef61599a4b3e84b6dfa602e6bdfe',
-  'f7fed619a1de44fe9a896850422e98ff',
-  'pUP1hQ0AOZPBvKlViBnGI',
-];
-
 const getRoles = (userId: string): string[] => {
-  if (moderators.includes(userId)) {
+  if (MODERATORS.includes(userId)) {
     return ['moderator'];
   }
   return [];

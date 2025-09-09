@@ -50,6 +50,7 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
       case 'createFreeformPost':
       case 'submitExternalLink':
       case 'sharePost':
+      case 'createSourcePostModeration':
         return `${context.userId ?? context.trackingId}:createPost`;
       case 'commentOnPost':
       case 'commentOnComment':
@@ -79,6 +80,7 @@ export const onLimit: RateLimitOnLimit<Context> = (
     case 'createFreeformPost':
     case 'submitExternalLink':
     case 'sharePost':
+    case 'createSourcePostModeration':
       counters?.api?.rateLimit?.add(1, { type: 'createPost' });
       throw new RateLimitError({
         message: `Take a break. You already posted enough in the last ${period}`,

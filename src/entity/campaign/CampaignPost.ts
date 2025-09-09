@@ -1,5 +1,5 @@
 import { ChildEntity, Column, ManyToOne } from 'typeorm';
-import type { Post } from '../posts';
+import type { Post, FreeformPost, SharePost } from '../posts';
 import { Campaign, CampaignType } from './Campaign';
 
 @ChildEntity(CampaignType.Post)
@@ -8,5 +8,5 @@ export class CampaignPost extends Campaign {
   postId: string;
 
   @ManyToOne('Post', { lazy: true, onDelete: 'CASCADE' })
-  post: Promise<Post>;
+  post: Promise<Post | SharePost | FreeformPost>;
 }

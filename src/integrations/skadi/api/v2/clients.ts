@@ -2,8 +2,8 @@ import fetch, { RequestInit } from 'node-fetch';
 import {
   type EstimatedDailyReachParams,
   TargetingType,
-  type CancelPostCampaignResponse,
   type ISkadiApiClientV2,
+  type CancelPostCampaignResponse,
 } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../../../garmr';
 import { fetchOptions as globalFetchOptions } from '../../../../http';
@@ -124,20 +124,25 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
     userId,
   }: CancelCampaignArgs): Promise<{ budget: string }> {
     return this.garmr.execute(async () => {
-      const { budget, error } = await fetchParse<CancelPostCampaignResponse>(
-        `${this.url}/api/campaign/cancel`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            campaign_id: campaignId,
-            advertiser_id: getAdvertiserId(userId),
-          }),
+      const response = await fetch(`${this.url}/api/campaign/cancel`, {
+        ...this.fetchOptions,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({
+          campaign_id: campaignId,
+          advertiser_id: getAdvertiserId(userId),
+        }),
+      });
+
+      const text = await response.text();
+
+      if (!response.ok) {
+        throw new Error(text || 'An error occured starting the campaign');
+      }
+
+      const { error, budget } = JSON.parse(text) as CancelPostCampaignResponse;
 
       if (error) {
         throw new Error(error);
@@ -166,7 +171,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          budget,
+          daily_budget: budget,
           targeting,
         }),
       });

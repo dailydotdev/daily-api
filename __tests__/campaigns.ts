@@ -10,6 +10,7 @@ import {
 } from './helpers';
 import {
   ArticlePost,
+  Keyword,
   Post,
   PostKeyword,
   PostTag,
@@ -438,8 +439,8 @@ describe('query campaignById', () => {
 
 describe('query campaignsList', () => {
   const CAMPAIGNS_LIST_QUERY = /* GraphQL */ `
-    query CampaignsList($first: Int, $after: String) {
-      campaignsList(first: $first, after: $after) {
+    query CampaignsList($first: Int, $after: String, $entityId: ID) {
+      campaignsList(first: $first, after: $after, entityId: $entityId) {
         pageInfo {
           hasNextPage
           hasPreviousPage
@@ -482,7 +483,7 @@ describe('query campaignsList', () => {
     await con.getRepository(CampaignPost).save([
       {
         id: CAMPAIGN_UUID_1,
-        referenceId: 'ref1',
+        referenceId: 'p1',
         userId: '1',
         type: CampaignType.Post,
         state: CampaignState.Active,
@@ -499,7 +500,7 @@ describe('query campaignsList', () => {
       },
       {
         id: CAMPAIGN_UUID_2,
-        referenceId: 'ref2',
+        referenceId: 'p2',
         userId: '1',
         type: CampaignType.Post,
         state: CampaignState.Completed,
@@ -516,7 +517,7 @@ describe('query campaignsList', () => {
       },
       {
         id: CAMPAIGN_UUID_3,
-        referenceId: 'ref3',
+        referenceId: 'p3',
         userId: '1',
         type: CampaignType.Post,
         state: CampaignState.Active,
@@ -533,7 +534,7 @@ describe('query campaignsList', () => {
       },
       {
         id: CAMPAIGN_UUID_4,
-        referenceId: 'ref4',
+        referenceId: 'p4',
         userId: '2', // Different user
         type: CampaignType.Post,
         state: CampaignState.Active,
@@ -549,26 +550,6 @@ describe('query campaignsList', () => {
         postId: 'p4',
       },
     ]);
-
-    await con.getRepository(CampaignSource).save([
-      {
-        id: CAMPAIGN_UUID_5,
-        referenceId: 'ref5',
-        userId: '1',
-        type: CampaignType.Squad,
-        state: CampaignState.Pending,
-        createdAt: new Date(now.getTime() - 4000), // Oldest
-        endedAt: new Date('2023-12-31'),
-        flags: {
-          budget: 3000,
-          spend: 0,
-          users: 0,
-          clicks: 0,
-          impressions: 0,
-        },
-        sourceId: 'b',
-      },
-    ]);
   });
 
   it('should return campaigns list ordered by state and creation date', async () => {
@@ -579,7 +560,7 @@ describe('query campaignsList', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.campaignsList.edges).toHaveLength(4);
+    expect(res.data.campaignsList.edges).toHaveLength(3);
 
     // Should be ordered: Active campaigns first (by createdAt DESC), then others
     const campaigns = res.data.campaignsList.edges.map((edge) => edge.node);
@@ -593,8 +574,6 @@ describe('query campaignsList', () => {
     // Then non-active campaigns by createdAt DESC
     expect(campaigns[2].id).toBe(CAMPAIGN_UUID_2); // Completed
     expect(campaigns[2].state).toBe('COMPLETED');
-    expect(campaigns[3].id).toBe(CAMPAIGN_UUID_5); // Pending (oldest)
-    expect(campaigns[3].state).toBe('PENDING');
   });
 
   it('should only return campaigns for authenticated user', async () => {
@@ -643,15 +622,12 @@ describe('query campaignsList', () => {
     });
 
     expect(secondPage.errors).toBeFalsy();
-    expect(secondPage.data.campaignsList.edges).toHaveLength(2);
+    expect(secondPage.data.campaignsList.edges).toHaveLength(1);
     expect(secondPage.data.campaignsList.pageInfo.hasPreviousPage).toBe(true);
 
-    // Should get the next 2 campaigns
+    // Should leftover campaign
     expect(secondPage.data.campaignsList.edges[0].node.id).toBe(
       CAMPAIGN_UUID_2,
-    );
-    expect(secondPage.data.campaignsList.edges[1].node.id).toBe(
-      CAMPAIGN_UUID_5,
     );
   });
 
@@ -694,6 +670,30 @@ describe('query campaignsList', () => {
     expect(res.data.campaignsList.edges).toHaveLength(0);
     expect(res.data.campaignsList.pageInfo.hasNextPage).toBe(false);
     expect(res.data.campaignsList.pageInfo.hasPreviousPage).toBe(false);
+  });
+
+  it('should return campaigns for entity', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(CAMPAIGNS_LIST_QUERY, {
+      variables: { first: 10, entityId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignsList.edges).toHaveLength(1);
+
+    expect(res.data.campaignsList.edges[0].node.id).toBe(CAMPAIGN_UUID_1);
+  });
+
+  it('should return campaigns for entity from other user', async () => {
+    loggedUser = '2';
+
+    const res = await client.query(CAMPAIGNS_LIST_QUERY, {
+      variables: { first: 10, entityId: 'p1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.campaignsList.edges).toHaveLength(0);
   });
 });
 
@@ -1302,7 +1302,15 @@ describe('mutation startCampaign', () => {
         visible: true,
       });
 
-      // Add keywords to PostKeyword table
+      // First create the Keywords with allow status
+      await con.getRepository(Keyword).save([
+        { value: 'squadtag1', status: 'allow' },
+        { value: 'squadtag2', status: 'allow' },
+        { value: 'squadtag3', status: 'allow' },
+        { value: 'squadtag4', status: 'allow' },
+      ]);
+
+      // Add keywords to PostKeyword table (status will be set by trigger)
       await con.getRepository(PostKeyword).save([
         { postId: 'mp1', keyword: 'squadtag1' },
         { postId: 'mp1', keyword: 'squadtag2' },
@@ -1372,7 +1380,14 @@ describe('mutation startCampaign', () => {
         visible: true,
       });
 
-      // Add keywords to PostKeyword table (3 or fewer tags)
+      // First create the Keywords with allow status
+      await con.getRepository(Keyword).save([
+        { value: 'one', status: 'allow' },
+        { value: 'two', status: 'allow' },
+        { value: 'three', status: 'allow' },
+      ]);
+
+      // Add keywords to PostKeyword table (3 or fewer tags, status set by trigger)
       await con.getRepository(PostKeyword).save([
         { postId: 'mp2', keyword: 'one' },
         { postId: 'mp2', keyword: 'two' },
@@ -1432,7 +1447,14 @@ describe('mutation startCampaign', () => {
         visible: true,
       });
 
-      // Add more than 30 keywords to PostKeyword table (35 tags)
+      // First create the Keywords with allow status (35 tags)
+      const keywordEntities = Array.from({ length: 35 }, (_, i) => ({
+        value: `tag${i + 1}`,
+        status: 'allow' as const,
+      }));
+      await con.getRepository(Keyword).save(keywordEntities);
+
+      // Add more than 30 keywords to PostKeyword table (status set by trigger)
       const keywords = Array.from({ length: 35 }, (_, i) => ({
         postId: 'mp3',
         keyword: `tag${i + 1}`,
@@ -1482,6 +1504,104 @@ describe('mutation startCampaign', () => {
       expect(source?.flags?.campaignId).toEqual(
         res.data.startCampaign.referenceId,
       );
+    });
+
+    it('should only send active keywords to skadi client v2', async () => {
+      loggedUser = '3'; // moderator in 'm'
+
+      // Insert a recent post in squad 'm'
+      await con.getRepository(Post).save({
+        id: 'mp5',
+        shortId: 'mp5',
+        title: 'M Post 5',
+        url: 'http://mp5.com',
+        createdAt: new Date(),
+        sourceId: 'm',
+        type: PostType.Article,
+        visible: true,
+      });
+
+      // First create Keywords - some with allow status, some with deny status
+      const allowedKeywordEntities = Array.from({ length: 5 }, (_, i) => ({
+        value: `active_tag${i + 1}`,
+        status: 'allow' as const,
+      }));
+      const deniedKeywordEntities = Array.from({ length: 3 }, (_, i) => ({
+        value: `inactive_tag${i + 1}`,
+        status: 'deny' as const,
+      }));
+
+      await con
+        .getRepository(Keyword)
+        .save([...allowedKeywordEntities, ...deniedKeywordEntities]);
+
+      // Add PostKeywords (status will be set by trigger based on Keyword status)
+      const postKeywords = [
+        ...Array.from({ length: 5 }, (_, i) => ({
+          postId: 'mp5',
+          keyword: `active_tag${i + 1}`,
+        })),
+        ...Array.from({ length: 3 }, (_, i) => ({
+          postId: 'mp5',
+          keyword: `inactive_tag${i + 1}`,
+        })),
+      ];
+
+      await con.getRepository(PostKeyword).save(postKeywords);
+
+      nock(process.env.SKADI_API_ORIGIN_V2)
+        .post('/api/campaign/create', (body) => {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+          const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+
+          // Verify that only active keywords are sent
+          const expectedActiveKeywords = [
+            'active_tag1',
+            'active_tag2',
+            'active_tag3',
+            'active_tag4',
+            'active_tag5',
+          ];
+          const keywordsMatch =
+            requestKeywords.every((keyword: string) =>
+              expectedActiveKeywords.includes(keyword),
+            ) && requestKeywords.length === expectedActiveKeywords.length;
+
+          return (
+            body.advertiser_id === getAdvertiserId('3') &&
+            uuidRegex.test(body.campaign_id) &&
+            body.budget === 10 &&
+            Array.isArray(body.creatives) &&
+            body.creatives[0].type === 'SQUAD' &&
+            body.creatives[0].value.squad.id === 'm' &&
+            body?.targeting?.type === 'BOOST' &&
+            keywordsMatch
+          );
+        })
+        .reply(200, ''); // Successful response
+
+      const testNjordClient = njordCommon.getNjordClient();
+      await testNjordClient.transfer({
+        idempotencyKey: 'initial-balance-start-campaign-active-keywords',
+        transfers: [
+          {
+            sender: { id: 'system', type: EntityType.SYSTEM },
+            receiver: { id: '3', type: EntityType.USER },
+            amount: 10000,
+          },
+        ],
+      });
+      jest
+        .spyOn(njordCommon, 'getNjordClient')
+        .mockImplementation(() => testNjordClient);
+
+      const res = await client.mutate(MUTATION, {
+        variables: { type: 'SQUAD', value: 'm', duration: 1, budget: 1000 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.startCampaign.transactionId).toBeDefined();
     });
   });
 });
@@ -2155,7 +2275,7 @@ describe('query dailyCampaignReachEstimate', () => {
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
           return (
-            body.budget === 20 &&
+            body.daily_budget === 20 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             body.targeting?.value?.boost?.keywords === undefined
@@ -2187,7 +2307,7 @@ describe('query dailyCampaignReachEstimate', () => {
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
           return (
-            body.budget === 10 &&
+            body.daily_budget === 10 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             body.targeting?.value?.boost?.keywords === undefined
@@ -2219,7 +2339,7 @@ describe('query dailyCampaignReachEstimate', () => {
       nock(process.env.SKADI_API_ORIGIN_V2)
         .post('/api/reach', (body) => {
           return (
-            body.budget === 1000 &&
+            body.daily_budget === 1000 &&
             body.targeting?.type === 'BOOST' &&
             body.targeting?.value?.boost?.post_id === 'p1' &&
             body.targeting?.value?.boost?.keywords === undefined
@@ -2254,7 +2374,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 20 &&
+          body.daily_budget === 20 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2279,7 +2399,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 100 &&
+          body.daily_budget === 100 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2322,7 +2442,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2357,7 +2477,7 @@ describe('query dailyCampaignReachEstimate', () => {
       .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'NONE' &&
           body.targeting?.value?.boost?.post_id === undefined &&
           Array.isArray(keywords) &&
@@ -2392,7 +2512,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 40 &&
+          body.daily_budget === 40 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2427,7 +2547,7 @@ describe('query dailyCampaignReachEstimate', () => {
     nock(process.env.SKADI_API_ORIGIN_V2)
       .post('/api/reach', (body) => {
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === 'p1' &&
           body.targeting?.value?.boost?.keywords === undefined
@@ -2459,7 +2579,7 @@ describe('query dailyCampaignReachEstimate', () => {
       .post('/api/reach', (body) => {
         const keywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'NONE' &&
           body.targeting?.value?.boost?.post_id === undefined &&
           Array.isArray(keywords) &&
@@ -2502,7 +2622,14 @@ describe('query dailyCampaignReachEstimate', () => {
       visible: true,
     });
 
-    // Add more than 30 keywords to PostKeyword table (40 tags)
+    // First create the Keywords with allow status (40 tags)
+    const keywordEntities = Array.from({ length: 40 }, (_, i) => ({
+      value: `reachtag${i + 1}`,
+      status: 'allow' as const,
+    }));
+    await con.getRepository(Keyword).save(keywordEntities);
+
+    // Add more than 30 keywords to PostKeyword table (status set by trigger)
     const keywords = Array.from({ length: 40 }, (_, i) => ({
       postId: 'mp4',
       keyword: `reachtag${i + 1}`,
@@ -2514,7 +2641,7 @@ describe('query dailyCampaignReachEstimate', () => {
       .post('/api/reach', (body) => {
         const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
         return (
-          body.budget === 30 &&
+          body.daily_budget === 30 &&
           body.targeting?.type === 'BOOST' &&
           body.targeting?.value?.boost?.post_id === undefined &&
           Array.isArray(requestKeywords) &&
@@ -2539,6 +2666,98 @@ describe('query dailyCampaignReachEstimate', () => {
     expect(res.data.dailyCampaignReachEstimate).toEqual({
       min: 78,
       max: 92,
+    });
+  });
+
+  it('should only use active keywords for reach estimation', async () => {
+    loggedUser = '3'; // moderator in 'm'
+
+    // Insert a recent post in squad 'm'
+    await con.getRepository(Post).save({
+      id: 'mp6',
+      shortId: 'mp6',
+      title: 'M Post 6',
+      url: 'http://mp6.com',
+      createdAt: new Date(),
+      sourceId: 'm',
+      type: PostType.Article,
+      visible: true,
+    });
+
+    // First create Keywords - some with allow status, some with deny status
+    const allowedKeywordEntities = Array.from({ length: 6 }, (_, i) => ({
+      value: `reach_active_tag${i + 1}`,
+      status: 'allow' as const,
+    }));
+    const deniedKeywordEntities = Array.from({ length: 4 }, (_, i) => ({
+      value: `reach_inactive_tag${i + 1}`,
+      status: 'deny' as const,
+    }));
+
+    await con
+      .getRepository(Keyword)
+      .save([...allowedKeywordEntities, ...deniedKeywordEntities]);
+
+    // Add PostKeywords (status will be set by trigger based on Keyword status)
+    const postKeywords = [
+      ...Array.from({ length: 6 }, (_, i) => ({
+        postId: 'mp6',
+        keyword: `reach_active_tag${i + 1}`,
+      })),
+      ...Array.from({ length: 4 }, (_, i) => ({
+        postId: 'mp6',
+        keyword: `reach_inactive_tag${i + 1}`,
+      })),
+    ];
+
+    await con.getRepository(PostKeyword).save(postKeywords);
+
+    // Mock the HTTP response using nock - verify only active keywords are sent
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/reach', (body) => {
+        const requestKeywords = body?.targeting?.value?.boost?.keywords || [];
+
+        // Should only include the 6 active keywords
+        const expectedActiveKeywords = [
+          'reach_active_tag1',
+          'reach_active_tag2',
+          'reach_active_tag3',
+          'reach_active_tag4',
+          'reach_active_tag5',
+          'reach_active_tag6',
+        ];
+
+        const keywordsMatch =
+          requestKeywords.every((keyword: string) =>
+            expectedActiveKeywords.includes(keyword),
+          ) && requestKeywords.length === expectedActiveKeywords.length;
+
+        return (
+          body.daily_budget === 30 &&
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === undefined &&
+          Array.isArray(requestKeywords) &&
+          keywordsMatch
+        );
+      })
+      .reply(200, {
+        reach: {
+          impressions: 160,
+          clicks: 10,
+          users: 80,
+          min_impressions: 74,
+          max_impressions: 86,
+        },
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...sourceParams, budget: 3000 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.dailyCampaignReachEstimate).toEqual({
+      min: 74,
+      max: 86,
     });
   });
 });

@@ -23,14 +23,17 @@ import {
   pubsub,
 } from './pubsub';
 import {
+  CandidateAcceptedOpportunityMessage,
+  CandidatePreferenceUpdated,
   ContentUpdatedMessage,
+  MatchedCandidate,
+  type OpportunityMessage,
   type TransferResponse,
   type UserBriefingRequest,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
-import type { CampaignUpdateAction } from '../integrations/skadi';
 import { z } from 'zod';
 import type { postMetricsUpdatedTopic } from './schema/topics';
 import type { CampaignUpdateEventArgs } from './campaign/common';
@@ -161,18 +164,17 @@ export type PubSubSchema = {
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
   };
-  'skadi.v1.campaign-updated': {
-    postId: Post['id'];
-    userId: User['id'];
-    campaignId: string;
-    action: CampaignUpdateAction;
-  };
   'skadi.v2.campaign-updated': CampaignUpdateEventArgs;
   'api.v1.post-metrics-updated': z.infer<typeof postMetricsUpdatedTopic>;
   'api.v1.reputation-event': {
     op: ChangeMessage<unknown>['payload']['op'];
     payload: ChangeObject<ReputationEvent>;
   };
+  'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
+  'api.v1.opportunity-added': OpportunityMessage;
+  'api.v1.opportunity-updated': OpportunityMessage;
+  'gondul.v1.candidate-opportunity-match': MatchedCandidate;
+  'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
