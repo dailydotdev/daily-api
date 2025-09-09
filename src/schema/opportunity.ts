@@ -2,7 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
-import { Opportunity } from '@dailydotdev/schema';
+import { Opportunity, OpportunityState } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
@@ -35,10 +35,25 @@ export const typeDefs = /* GraphQL */ `
     interviewProcess: OpportunityContentBlock
   }
 
+  type Salary {
+    min: Float
+    max: Float
+    currency: String
+    period: ProtoEnumValue
+  }
+
+  type Location {
+    city: String
+    country: String
+    subdivision: String
+    continent: String
+    type: ProtoEnumValue
+  }
+
   type OpportunityMeta {
     employmentType: ProtoEnumValue
     teamSize: Int
-    # salary: Salary # TODO: implement Salary type
+    salary: Salary
     seniorityLevel: ProtoEnumValue
     roleType: Float
   }
@@ -50,7 +65,7 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     content: OpportunityContent!
     meta: OpportunityMeta!
-    # location: [Location!]! # TODO: implement Location type
+    location: [Location]!
     organization: Organization!
     recruiters: [User!]!
     keywords: [Keyword!]!
@@ -99,7 +114,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLOpportunity> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+        builder.queryBuilder
+          .where({ id })
+          .andWhere({ state: OpportunityState.LIVE });
         return builder;
       }),
     getOpportunityMatch: async (

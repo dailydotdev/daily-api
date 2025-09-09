@@ -1486,6 +1486,9 @@ const obj = new GraphORM({
       meta: {
         jsonType: true,
       },
+      location: {
+        jsonType: true,
+      },
       recruiters: {
         relation: {
           isMany: true,
