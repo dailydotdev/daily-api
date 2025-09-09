@@ -166,10 +166,13 @@ export const getReferenceTags = (
 export enum CampaignUpdateEvent {
   Started = 'CAMPAIGN_STARTED',
   Completed = 'CAMPAIGN_COMPLETED',
-  FirstMilestone = 'CAMPAIGN_FIRST_MILESTONE',
   StatsUpdated = 'STATS_UPDATED',
   ExtraStatsUpdated = 'EXTRA_STATS_UPDATED',
   BudgetUpdated = 'BUDGET_UPDATED',
+}
+
+export enum BudgetMilestone {
+  Spent70Percent = '70',
 }
 
 export interface CampaignCompleted {
@@ -184,6 +187,9 @@ export interface CampaignStatsUpdate {
 
 export interface CampaignBudgetUpdate {
   budget: string; // used budget
+  labels?: {
+    milestone: BudgetMilestone;
+  };
 }
 
 type ExtraStats = Partial<{
