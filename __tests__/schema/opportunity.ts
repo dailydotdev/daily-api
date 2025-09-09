@@ -108,6 +108,15 @@ describe('opportunity queries', () => {
             website
             description
             location
+            customLinks {
+              ...Limk
+            }
+            socialLinks {
+              ...Limk
+            }
+            pressLinks {
+              ...Limk
+            }
           }
           recruiters {
             id
@@ -116,6 +125,13 @@ describe('opportunity queries', () => {
             value
           }
         }
+      }
+
+      fragment Limk on OrganizationLink {
+        type
+        socialType
+        title
+        link
       }
     `;
 
@@ -161,6 +177,36 @@ describe('opportunity queries', () => {
           website: 'https://daily.dev',
           description: 'A platform for developers',
           location: 'San Francisco',
+          customLinks: [
+            {
+              type: 'custom',
+              title: 'Custom Link',
+              link: 'https://custom.link',
+              socialType: null,
+            },
+            {
+              type: 'custom',
+              title: 'Custom Link 2',
+              link: 'https://custom2.link',
+              socialType: null,
+            },
+          ],
+          socialLinks: [
+            {
+              type: 'social',
+              socialType: 'facebook',
+              title: null,
+              link: 'https://facebook.com',
+            },
+          ],
+          pressLinks: [
+            {
+              type: 'press',
+              title: 'Press link',
+              link: 'https://press.link',
+              socialType: null,
+            },
+          ],
         },
         recruiters: [{ id: '1' }],
         keywords: expect.arrayContaining([

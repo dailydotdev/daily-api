@@ -12,6 +12,10 @@ import {
 } from '@dailydotdev/schema';
 import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
 import type { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
+import {
+  OrganizationLinkType,
+  SocialMediaType,
+} from '../../src/common/schema/organizations';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -21,6 +25,28 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     website: 'https://daily.dev',
     description: 'A platform for developers',
     location: 'San Francisco',
+    links: [
+      {
+        type: OrganizationLinkType.Custom,
+        title: 'Custom Link',
+        link: 'https://custom.link',
+      },
+      {
+        type: OrganizationLinkType.Custom,
+        title: 'Custom Link 2',
+        link: 'https://custom2.link',
+      },
+      {
+        type: OrganizationLinkType.Social,
+        socialType: SocialMediaType.Facebook,
+        link: 'https://facebook.com',
+      },
+      {
+        type: OrganizationLinkType.Press,
+        title: 'Press link',
+        link: 'https://press.link',
+      },
+    ],
   },
   {
     id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
@@ -29,6 +55,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     website: 'https://yearly.dev',
     description: 'A platform for others',
     location: 'Skatval',
+    links: [],
   },
 ];
 
