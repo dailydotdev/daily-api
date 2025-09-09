@@ -20,6 +20,7 @@ import {
   PostType,
   type PostFlagsPublic,
   type Campaign,
+  type OrganizationLink,
 } from '../entity';
 import {
   OrganizationMemberRole,
@@ -66,6 +67,7 @@ import {
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
+import { OrganizationLinkType } from '../common/schema/organizations';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -176,6 +178,15 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
     },
   };
 };
+
+const organizationLink = (type: OrganizationLinkType) => ({
+  jsonType: true,
+  select: 'links',
+  transform: (
+    links: OrganizationLink[] | null,
+  ): OrganizationLink[] | undefined =>
+    links?.filter((link) => link.type === type),
+});
 
 const obj = new GraphORM({
   User: {
@@ -1306,6 +1317,9 @@ const obj = new GraphORM({
               status: ContentPreferenceOrganizationStatus.Plus,
             }),
       },
+      customLinks: organizationLink(OrganizationLinkType.Custom),
+      socialLinks: organizationLink(OrganizationLinkType.Social),
+      pressLinks: organizationLink(OrganizationLinkType.Press),
     },
   },
   OrganizationMember: {
