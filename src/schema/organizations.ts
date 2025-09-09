@@ -46,7 +46,11 @@ import {
 } from '../common/paddle/organization';
 import { parsePaddlePriceInCents } from '../common/paddle';
 import { SubscriptionStatus } from '../common/plus';
-import { organizationSubscriptionFlagsSchema } from '../common/schema/organizations';
+import {
+  OrganizationLinkType,
+  organizationSubscriptionFlagsSchema,
+  SocialMediaType,
+} from '../common/schema/organizations';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -77,6 +81,8 @@ export const typeDefs = /* GraphQL */ `
     ContentPreferenceOrganizationStatus,
     'OrganizationMemberSeatType',
   )}
+  ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
+  ${toGQLEnum(SocialMediaType, 'SocialMediaType')}
 
   type OrganizationMember {
     """
@@ -103,6 +109,13 @@ export const typeDefs = /* GraphQL */ `
     The date user was last active
     """
     lastActive: DateTime
+  }
+
+  type OrganizationLink {
+    type: OrganizationLinkType!
+    socialType: SocialMediaType
+    title: String
+    link: String!
   }
 
   type Organization {
@@ -180,6 +193,13 @@ export const typeDefs = /* GraphQL */ `
     The stage of the organization
     """
     stage: ProtoEnumValue
+
+    """
+    The links associated with the organization
+    """
+    customLinks: [OrganizationLink!]
+    socialLinks: [OrganizationLink!]
+    pressLinks: [OrganizationLink!]
   }
 
   type ProratedPricePreview {

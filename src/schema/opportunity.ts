@@ -72,7 +72,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type OpportunityMatchDescription {
-    description: String!
+    reasoning: String!
   }
 
   type OpportunityMatch {
