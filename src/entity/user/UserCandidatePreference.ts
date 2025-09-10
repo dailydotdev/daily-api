@@ -1,4 +1,3 @@
-import z from 'zod';
 import {
   Column,
   Entity,
@@ -18,7 +17,7 @@ import type {
   LocationType,
   Salary,
 } from '@dailydotdev/schema';
-import type { userCandidateCVSchema } from '../../common/schema/userCandidate';
+import type { UserCandidateCV } from '../../common/schema/userCandidate';
 
 export type SalaryExpectation = Omit<Salary, 'max'>;
 
@@ -42,7 +41,7 @@ export class UserCandidatePreference {
   updatedAt: Date;
 
   @Column({ type: 'jsonb', default: '{}' })
-  cv: z.infer<typeof userCandidateCVSchema>;
+  cv: UserCandidateCV;
 
   @Column({ type: 'jsonb', default: '{}' })
   cvParsed: unknown;
@@ -56,7 +55,7 @@ export class UserCandidatePreference {
   @Column({
     type: 'integer',
     array: true,
-    default: null,
+    default: [],
     comment: 'EmploymentType from protobuf schema',
   })
   employmentType: Array<EmploymentType>;
@@ -79,14 +78,14 @@ export class UserCandidatePreference {
     type: 'integer',
     array: true,
     comment: 'LocationType from protobuf schema',
-    default: null,
+    default: [],
   })
   locationType: Array<LocationType>;
 
   @Column({
     type: 'integer',
     array: true,
-    default: null,
+    default: [],
     comment: 'CompanyStage from protobuf schema',
   })
   companyStage: Array<CompanyStage>;
@@ -94,7 +93,7 @@ export class UserCandidatePreference {
   @Column({
     type: 'integer',
     array: true,
-    default: null,
+    default: [],
     comment: 'CompanySize from protobuf schema',
   })
   companySize: Array<CompanySize>;
