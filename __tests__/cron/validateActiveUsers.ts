@@ -273,10 +273,10 @@ describe('users for reactivation', () => {
         type: 'person',
         identifiers: { id: '1' },
         attributes: {
+          'cio_subscription_preferences.topics.topic_1': true,
           'cio_subscription_preferences.topics.topic_4': false,
           'cio_subscription_preferences.topics.topic_5': true,
           'cio_subscription_preferences.topics.topic_8': true,
-          'cio_subscription_preferences.topics.topic_1': true,
           'cio_subscription_preferences.topics.topic_11': true,
           'cio_subscription_preferences.topics.topic_12': true,
           'cio_subscription_preferences.topics.topic_13': true,
