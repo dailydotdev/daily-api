@@ -1133,7 +1133,6 @@ describe('generateNotification', () => {
     const ctx: NotificationOpportunityMatchContext = {
       userIds: [userId],
       opportunityId: 'opp123',
-      matchScore: 85,
       reasoning: 'Based on your React and TypeScript skills',
     };
     const actual = generateNotificationV2(type, ctx);
