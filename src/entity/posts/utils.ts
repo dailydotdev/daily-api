@@ -30,12 +30,16 @@ import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
-import { checkWithVordr, VordrFilterType } from '../../common/vordr';
 import { AuthContext } from '../../Context';
 import { logger } from '../../logger';
 import { FastifyRequest } from 'fastify';
-import { FreeformPost } from './FreeformPost';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import {
+  applyVordrHook,
+  applyVordrHookForUpdate,
+  applyDeduplicationHook,
+  applyDeduplicationHookForUpdate,
+} from './hooks';
 
 export type PostStats = {
   numPosts: number;
@@ -295,45 +299,21 @@ interface PreparePostContext {
 }
 
 /**
- * Prepares a post for insertion by checking all vordr conditions
- * and setting appropriate flags if the post should be shadow banned.
+ * Prepares a post for insertion by applying vordr and deduplication hooks.
  * This should be called before saving any new post.
  */
 export const preparePostForInsert = async <T extends DeepPartial<Post>>(
   post: T,
   context: PreparePostContext,
 ): Promise<T> => {
-  const postContent = (post as DeepPartial<FreeformPost>).content; // Some post types have content
-  const shouldVordr = await checkWithVordr(
-    {
-      id: post.id || 'new-post',
-      type: VordrFilterType.Post,
-      title: post.title || undefined,
-      content: postContent,
-    },
-    context,
-  );
+  let preparedPost = await applyVordrHook(post, context);
+  preparedPost = await applyDeduplicationHook(preparedPost);
 
-  if (shouldVordr) {
-    return {
-      ...post,
-      banned: true,
-      showOnFeed: false,
-      flags: {
-        ...post.flags,
-        vordr: true,
-        banned: true,
-        showOnFeed: false,
-      },
-    };
-  }
-
-  return post;
+  return preparedPost;
 };
 
 /**
- * Prepares a post for update by checking all vordr conditions
- * and setting appropriate flags if the post should be shadow banned.
+ * Prepares a post for update by applying vordr and deduplication hooks.
  * This should be called before updating any existing post.
  */
 export const preparePostForUpdate = async <T extends DeepPartial<Post>>(
@@ -341,39 +321,16 @@ export const preparePostForUpdate = async <T extends DeepPartial<Post>>(
   existingPost: Pick<Post, 'id' | 'flags'>,
   context: PreparePostContext,
 ): Promise<T> => {
-  // If post is already vordr'd, don't check again
-  if (existingPost.flags?.vordr) {
-    return updates;
-  }
-
-  // Check content with existing checkWithVordr if we have userId
-  const updatesContent = (updates as DeepPartial<FreeformPost>).content; // Some post types have content
-  const shouldVordr = await checkWithVordr(
-    {
-      id: existingPost.id,
-      type: VordrFilterType.Post,
-      title: updates.title || undefined,
-      content: updatesContent,
-    },
+  let preparedUpdates = await applyVordrHookForUpdate(
+    updates,
+    existingPost,
     context,
   );
-
-  if (shouldVordr) {
-    logger.info({ postId: existingPost.id }, 'Post will be vordr on update');
-
-    return {
-      ...updates,
-      showOnFeed: false,
-      metadataChangedAt: new Date(),
-      flags: {
-        ...updates.flags,
-        vordr: true,
-        showOnFeed: false,
-      },
-    };
-  }
-
-  return updates;
+  preparedUpdates = await applyDeduplicationHookForUpdate(
+    preparedUpdates,
+    existingPost,
+  );
+  return preparedUpdates;
 };
 
 export const createExternalLink = async ({
