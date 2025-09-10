@@ -269,7 +269,7 @@ export const createPollPost = async ({
   const createdPost = con.getRepository(PollPost).create({
     ...restArgs,
     shortId: restArgs.id,
-    endsAt: restArgs?.duration && addDays(new Date(), restArgs.duration),
+    endsAt: restArgs?.duration ? addDays(new Date(), restArgs.duration) : null,
     visible: true,
     private: privacy,
     visibleAt: new Date(),

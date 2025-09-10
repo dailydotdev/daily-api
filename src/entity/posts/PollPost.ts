@@ -10,7 +10,7 @@ export class PollPost extends Post {
   pollOptions: Promise<PollOption[]>;
 
   @Column({ type: 'timestamp' })
-  endsAt?: Date;
+  endsAt?: Date | null;
 
   @Column({ type: 'integer', default: 0 })
   numPollVotes: number;

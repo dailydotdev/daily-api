@@ -79,6 +79,7 @@ export const onLimit: RateLimitOnLimit<Context> = (
   const period = humanizeDuration(rlArgs.duration * 1000);
   switch (info.fieldName) {
     case 'createFreeformPost':
+    case 'createPollPost':
     case 'submitExternalLink':
     case 'sharePost':
     case 'createSourcePostModeration':

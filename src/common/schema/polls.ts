@@ -16,7 +16,7 @@ export const pollCreationSchema = z.object({
     .array(
       z.object({
         text: z.string().max(35),
-        order: z.number().min(0),
+        order: z.number().min(0).max(4),
       }),
     )
     .min(2)

@@ -3438,20 +3438,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
+      const parsedArgs = pollCreationSchema.safeParse(args);
+
+      if (!parsedArgs.success) {
+        throw new ValidationError(parsedArgs.error.issues[0].message);
+      }
+
       const sourceCheck =
         args.sourceId === ctx.userId
           ? ensureUserSourceExists(ctx.userId, ctx.con)
           : ensureSourcePermissions(ctx, args.sourceId, SourcePermissions.Post);
 
-      const [parsedArgs] = await Promise.all([
-        pollCreationSchema.safeParseAsync(args),
+      await Promise.all([
         sourceCheck,
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
-
-      if (!parsedArgs.success) {
-        throw new ValidationError(parsedArgs.error.message);
-      }
 
       const id = await generateShortId();
 
