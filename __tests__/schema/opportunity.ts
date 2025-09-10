@@ -434,15 +434,8 @@ describe('query getCandidatePreferences', () => {
         period: 1,
       },
       location: [
-        {
-          country: 'Norway',
-        },
-        {
-          city: 'London',
-          country: 'UK',
-
-          continent: 'Europe',
-        },
+        { country: 'Norway' },
+        { city: 'London', country: 'UK', continent: 'Europe' },
       ],
       locationType: [1, 3],
       employmentType: [1, 2, 3],
