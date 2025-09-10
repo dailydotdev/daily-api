@@ -95,7 +95,6 @@ export const typeDefs = /* GraphQL */ `
 
   type UserCV {
     blob: String
-    bucket: String
     lastModified: DateTime
   }
 

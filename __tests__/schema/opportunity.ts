@@ -353,7 +353,6 @@ describe('query getCandidatePreferences', () => {
         status
         cv {
           blob
-          bucket
           lastModified
         }
         role
@@ -382,6 +381,11 @@ describe('query getCandidatePreferences', () => {
       {
         userId: '1',
         role: 'Full Stack Developer',
+        cv: {
+          blob: '1',
+          bucket: 'bucket-name',
+          lastModified: new Date('2023-10-10T10:00:00Z'),
+        },
         salaryExpectation: { min: 50000, period: SalaryPeriod.ANNUAL },
         location: [
           { country: 'Norway' },
@@ -429,6 +433,10 @@ describe('query getCandidatePreferences', () => {
       status: 1,
       role: 'Full Stack Developer',
       roleType: 0.5,
+      cv: {
+        blob: '1',
+        lastModified: '2023-10-10T10:00:00.000Z',
+      },
       salaryExpectation: {
         min: 50000,
         period: 1,
@@ -454,7 +462,6 @@ describe('query getCandidatePreferences', () => {
       status: 1,
       cv: {
         blob: null,
-        bucket: null,
         lastModified: null,
       },
       role: null,
