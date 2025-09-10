@@ -1807,6 +1807,7 @@ const nullableImageType = [
   PostType.Freeform,
   PostType.Welcome,
   PostType.Collection,
+  PostType.Poll,
 ];
 
 const editablePostTypes = [PostType.Welcome, PostType.Freeform];
