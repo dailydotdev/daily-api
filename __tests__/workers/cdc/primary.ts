@@ -5516,7 +5516,7 @@ describe('content_preference', () => {
 describe('opportunity match', () => {
   type ObjectType = OpportunityMatch;
   const base: ChangeObject<ObjectType> = {
-    opportunityId: 'opportunity1',
+    opportunityId: opportunitiesFixture[0].id!,
     userId: '1',
     status: OpportunityMatchStatus.Pending,
     createdAt: new Date().getTime(),
@@ -5528,9 +5528,21 @@ describe('opportunity match', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
     await con.getRepository(UserCandidatePreference).save({
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
+    });
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: '1',
+      status: OpportunityMatchStatus.Pending,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      description: {},
+      screening: [],
+      applicationRank: {},
     });
   });
 

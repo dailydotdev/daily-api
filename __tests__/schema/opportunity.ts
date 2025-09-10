@@ -108,14 +108,30 @@ describe('opportunity queries', () => {
             website
             description
             location
+            customLinks {
+              ...Link
+            }
+            socialLinks {
+              ...Link
+            }
+            pressLinks {
+              ...Link
+            }
           }
           recruiters {
             id
           }
           keywords {
-            value
+            keyword
           }
         }
+      }
+
+      fragment Link on OrganizationLink {
+        type
+        socialType
+        title
+        link
       }
     `;
 
@@ -161,11 +177,42 @@ describe('opportunity queries', () => {
           website: 'https://daily.dev',
           description: 'A platform for developers',
           location: 'San Francisco',
+          customLinks: [
+            {
+              type: 'custom',
+              title: 'Custom Link',
+              link: 'https://custom.link',
+              socialType: null,
+            },
+            {
+              type: 'custom',
+              title: 'Custom Link 2',
+              link: 'https://custom2.link',
+              socialType: null,
+            },
+          ],
+          socialLinks: [
+            {
+              type: 'social',
+              socialType: 'facebook',
+              title: null,
+              link: 'https://facebook.com',
+            },
+          ],
+          pressLinks: [
+            {
+              type: 'press',
+              title: 'Press link',
+              link: 'https://press.link',
+              socialType: null,
+            },
+          ],
         },
         recruiters: [{ id: '1' }],
         keywords: expect.arrayContaining([
-          { value: 'webdev' },
-          { value: 'fullstack' },
+          { keyword: 'webdev' },
+          { keyword: 'fullstack' },
+          { keyword: 'Fortune 500' },
         ]),
       });
     });
@@ -214,7 +261,7 @@ describe('opportunity queries', () => {
         getOpportunityMatch(id: $id) {
           status
           description {
-            description
+            reasoning
           }
         }
       }
@@ -231,7 +278,7 @@ describe('opportunity queries', () => {
       expect(res.data.getOpportunityMatch).toEqual({
         status: 'pending',
         description: {
-          description: 'Interested candidate',
+          reasoning: 'Interested candidate',
         },
       });
     });
@@ -247,7 +294,7 @@ describe('opportunity queries', () => {
       expect(res.data.getOpportunityMatch).toEqual({
         status: 'candidate_accepted',
         description: {
-          description: 'Accepted candidate',
+          reasoning: 'Accepted candidate',
         },
       });
     });
