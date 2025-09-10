@@ -56,7 +56,7 @@ export class Organization {
   @Column({ type: 'text', array: true, default: null })
   perks: Array<string>;
 
-  @Column({ type: 'numeric', default: null })
+  @Column({ type: 'int', default: null })
   founded: number;
 
   @Column({ type: 'text', default: null })

@@ -67,6 +67,7 @@ import {
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
+import type { UserCandidateCV } from '../common/schema/userCandidate';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1558,6 +1559,29 @@ const obj = new GraphORM({
           childColumn: 'id',
           parentColumn: 'userId',
         },
+      },
+    },
+  },
+  UserCandidatePreference: {
+    fields: {
+      cv: {
+        jsonType: true,
+        transform: (value: UserCandidateCV | null): UserCandidateCV | null => {
+          if (!value) {
+            return null;
+          }
+
+          return {
+            ...value,
+            lastModified: transformDate(value.lastModified),
+          };
+        },
+      },
+      salaryExpectation: {
+        jsonType: true,
+      },
+      location: {
+        jsonType: true,
       },
     },
   },

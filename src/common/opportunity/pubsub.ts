@@ -74,7 +74,8 @@ export const notifyOpportunityMatchAccepted = async ({
       cv: new UserCV({
         ...candidatePreference.cv,
         lastModified:
-          getSecondsTimestamp(candidatePreference.cv.lastModified) || undefined,
+          getSecondsTimestamp(candidatePreference.cv.lastModified || 0) ||
+          undefined,
       }),
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
       keywords: keywords.map((k) => k.keyword),
@@ -203,7 +204,7 @@ export const notifyCandidatePreferenceChange = async ({
       cv: new UserCV({
         ...candidatePreference?.cv,
         lastModified:
-          getSecondsTimestamp(candidatePreference?.cv?.lastModified) ||
+          getSecondsTimestamp(candidatePreference?.cv?.lastModified || 0) ||
           undefined,
       }),
       updatedAt:

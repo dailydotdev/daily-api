@@ -30,6 +30,7 @@ import {
   type NotificationAwardContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
+  NotificationOpportunityMatchContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -189,6 +190,7 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
+  new_opportunity_match: () => `New opportunity waiting for you in daily.dev`,
 };
 
 export const generateNotificationMap: Record<
@@ -522,4 +524,18 @@ export const generateNotificationMap: Record<
   new_user_welcome: (builder) => builder.systemNotification(),
   announcements: (builder) => builder.systemNotification(),
   in_app_purchases: (builder) => builder.systemNotification(),
+  new_opportunity_match: (
+    builder,
+    ctx: NotificationOpportunityMatchContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx)
+      .description(
+        `<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>`,
+      )
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
+      );
+  },
 };
