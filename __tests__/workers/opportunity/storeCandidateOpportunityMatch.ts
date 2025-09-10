@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { typedWorkers } from '../../../src/workers';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
-import { User, Organization } from '../../../src/entity';
+import { User, Organization, Alerts } from '../../../src/entity';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import { usersFixture } from '../../fixture';
 import {
@@ -176,5 +176,42 @@ describe('storeCandidateOpportunityMatch worker', () => {
 
     // Restore original method
     con.getRepository = originalGetRepository;
+  });
+
+  it('should update alerts with opportunityId when match is stored', async () => {
+    const matchData = new MatchedCandidate({
+      userId: '1',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      matchScore: 85,
+      reasoning: 'Strong technical background and relevant experience',
+    });
+
+    await expectSuccessfulTypedBackground(worker, matchData);
+
+    expect(await con.getRepository(Alerts).findOneBy({ userId: '1' })).toEqual(
+      expect.objectContaining({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    );
+  });
+
+  it('should not overwrite alerts with opportunityId when match is stored', async () => {
+    await saveFixtures(con, Alerts, [
+      { userId: '1', opportunityId: '550e8400-e29b-41d4-a716-446655440002' },
+    ]);
+    const matchData = new MatchedCandidate({
+      userId: '1',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      matchScore: 85,
+      reasoning: 'Strong technical background and relevant experience',
+    });
+
+    await expectSuccessfulTypedBackground(worker, matchData);
+
+    expect(await con.getRepository(Alerts).findOneBy({ userId: '1' })).toEqual(
+      expect.objectContaining({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+      }),
+    );
   });
 });
