@@ -451,7 +451,7 @@ describe('query getCandidatePreferences', () => {
     });
   });
 
-  it('should different return candidate preferences for different authenticated user', async () => {
+  it('should return different candidate preferences for different authenticated user', async () => {
     loggedUser = '2';
 
     const res = await client.query(QUERY);
