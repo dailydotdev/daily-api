@@ -46,6 +46,11 @@ export const typeDefs = /* GraphQL */ `
     period: ProtoEnumValue
   }
 
+  type SalaryExpectation {
+    min: Float
+    period: ProtoEnumValue
+  }
+
   type Location {
     city: String
     country: String
@@ -100,7 +105,7 @@ export const typeDefs = /* GraphQL */ `
     role: String
     roleType: Float
     employmentType: [ProtoEnumValue]!
-    salaryExpectation: Salary
+    salaryExpectation: SalaryExpectation
     location: [Location]!
     locationType: [ProtoEnumValue]!
     companyStage: [ProtoEnumValue]!

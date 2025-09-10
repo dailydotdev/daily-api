@@ -360,7 +360,6 @@ describe('query getCandidatePreferences', () => {
         roleType
         salaryExpectation {
           min
-          max
           period
         }
         location {
@@ -434,7 +433,6 @@ describe('query getCandidatePreferences', () => {
       roleType: 0.5,
       salaryExpectation: {
         min: 50000,
-        max: null,
         period: 1,
       },
       location: [
@@ -470,7 +468,6 @@ describe('query getCandidatePreferences', () => {
       roleType: 0.5,
       salaryExpectation: {
         min: null,
-        max: null,
         period: null,
       },
       location: [],
