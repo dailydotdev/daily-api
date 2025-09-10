@@ -2,6 +2,7 @@ import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
+import { MatchedCandidate } from '@dailydotdev/schema';
 
 export const candidateOpportunityMatchNotification =
   generateTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>({
@@ -41,5 +42,8 @@ export const candidateOpportunityMatchNotification =
 
         throw err;
       }
+    },
+    parseMessage: (message) => {
+      return MatchedCandidate.fromBinary(message.data);
     },
   });
