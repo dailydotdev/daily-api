@@ -243,5 +243,4 @@ describe('campaignUpdatedAction worker', () => {
     expect(campaignContext.source).toBeDefined();
     expect(campaignContext.source!.id).toEqual('squad');
   });
-
 });
