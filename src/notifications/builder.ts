@@ -34,6 +34,7 @@ import {
   type NotificationCampaignContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
+  NotificationOpportunityMatchContext,
 } from './types';
 import { NotificationIcon } from './icons';
 import { SourceMemberRoles } from '../roles';
@@ -209,6 +210,15 @@ export class NotificationBuilder {
     return this.enrichNotification({
       referenceId: ctx.campaign.id,
       referenceType: 'campaign',
+    });
+  }
+
+  referenceOpportunity(
+    ctx: NotificationOpportunityMatchContext,
+  ): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: ctx.opportunityId,
+      referenceType: 'opportunity',
     });
   }
 
