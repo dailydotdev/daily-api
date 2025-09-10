@@ -58,6 +58,10 @@ export const typeDefs = /* GraphQL */ `
     roleType: Float
   }
 
+  type OpportunityKeyword {
+    keyword: String!
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -68,11 +72,11 @@ export const typeDefs = /* GraphQL */ `
     location: [Location]!
     organization: Organization!
     recruiters: [User!]!
-    keywords: [Keyword!]!
+    keywords: [OpportunityKeyword]!
   }
 
   type OpportunityMatchDescription {
-    description: String!
+    reasoning: String!
   }
 
   type OpportunityMatch {

@@ -2183,7 +2183,7 @@ describe('query dailyCampaignReachEstimate', () => {
     );
   });
 
-  it('should return an error if post is already boosted', async () => {
+  it('should not return an error if post is already boosted', async () => {
     loggedUser = '1';
     // Set the post as already boosted
     await con.getRepository(Post).update(
@@ -2193,11 +2193,31 @@ describe('query dailyCampaignReachEstimate', () => {
       },
     );
 
-    return testQueryErrorCode(
-      client,
-      { query: QUERY, variables: { ...postParams, budget: 5000 } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    // Mock the HTTP response using nock
+    nock(process.env.SKADI_API_ORIGIN_V2)
+      .post('/api/reach', (body) => {
+        return (
+          body.daily_budget === 50 &&
+          body.targeting?.type === 'BOOST' &&
+          body.targeting?.value?.boost?.post_id === 'p1' &&
+          body.targeting?.value?.boost?.keywords === undefined
+        );
+      })
+      .reply(200, {
+        reach: {
+          impressions: 100,
+          clicks: 5,
+          users: 50,
+          min_impressions: 45,
+          max_impressions: 55,
+        },
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...postParams, budget: 5000 },
+    });
+
+    expect(res.errors).toBeFalsy();
   });
 
   it('should return an error if source is already boosted', async () => {
