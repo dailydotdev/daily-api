@@ -1,8 +1,9 @@
 import z from 'zod';
 
 export const userCandidateCVSchema = z.object({
-  bucket: z.string().optional(),
   blob: z.string().optional(),
+  contentType: z.string().optional(),
+  bucket: z.string().optional(),
   lastModified: z.date().optional(),
 });
 

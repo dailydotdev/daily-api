@@ -1,6 +1,5 @@
 import { TypedWorker } from '../worker';
 import { TypeORMQueryFailedError } from '../../errors';
-import { logger } from '../../logger';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
@@ -8,7 +7,7 @@ import { opportunityMatchDescriptionSchema } from '../../common/schema/opportuni
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
     subscription: 'api.store-candidate-opportunity-match',
-    handler: async ({ data }, con): Promise<void> => {
+    handler: async ({ data }, con, logger): Promise<void> => {
       try {
         const { userId, opportunityId, matchScore, reasoning } = data;
         if (!userId || !opportunityId) {
