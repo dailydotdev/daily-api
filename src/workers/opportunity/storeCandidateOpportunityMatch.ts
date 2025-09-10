@@ -26,11 +26,17 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
         });
 
         await con.transaction(async (manager) => {
-          await manager.getRepository(OpportunityMatch).insert({
-            userId,
-            opportunityId,
-            description,
-          });
+          await manager.getRepository(OpportunityMatch).upsert(
+            {
+              userId,
+              opportunityId,
+              description,
+            },
+            {
+              conflictPaths: ['userId', 'opportunityId'],
+              skipUpdateIfNoValuesChanged: true,
+            },
+          );
 
           await manager
             .getRepository(Alerts)
