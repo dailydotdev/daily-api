@@ -214,9 +214,7 @@ export const generateCampaignSquadNotification = (
   const { campaign, source, event, user } = ctx;
 
   if (!source) {
-    throw new Error(
-      `Can't generate Squad Campaign Notification without the Squad`,
-    );
+    return builder;
   }
 
   return builder

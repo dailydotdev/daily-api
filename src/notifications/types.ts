@@ -138,7 +138,7 @@ export type NotificationBoostContext = NotificationUserContext & {
 
 export type NotificationCampaignContext = NotificationUserContext & {
   campaign: Reference<Campaign>;
-  source?: Reference<Source>;
+  source?: Reference<Source> | null;
   event: CampaignUpdateEvent;
 };
 

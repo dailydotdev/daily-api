@@ -79,8 +79,16 @@ const handleCampaignCompleted = async ({
     ctx.source = await queryReadReplica(con, ({ queryRunner }) => {
       return queryRunner.manager
         .getRepository(Source)
-        .findOneByOrFail({ id: campaign.referenceId });
+        .findOneBy({ id: campaign.referenceId });
     });
+
+    if (!ctx.source) {
+      logger.error(
+        { campaignId: campaign.id, sourceId: campaign.referenceId },
+        `could not find source for squad campaign completion notification`,
+      );
+      return;
+    }
   }
 
   return [{ type: campaignTypeToNotification[campaign.type], ctx }];
@@ -114,8 +122,16 @@ const handleCampaignFirstMilestone = async ({
     ctx.source = await queryReadReplica(con, ({ queryRunner }) => {
       return queryRunner.manager
         .getRepository(Source)
-        .findOneByOrFail({ id: campaign.referenceId });
+        .findOneBy({ id: campaign.referenceId });
     });
+
+    if (!ctx.source) {
+      logger.error(
+        { campaignId: campaign.id, sourceId: campaign.referenceId },
+        `could not find source for squad campaign first milestone notification`,
+      );
+      return;
+    }
   }
 
   return [{ type: campaignMilestoneToNotification[campaign.type], ctx }];
