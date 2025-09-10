@@ -154,7 +154,7 @@ describe('storeCandidateOpportunityMatch worker', () => {
   it('should re-throw non-EntityNotFoundError errors', async () => {
     // Mock the repository to throw a different error
     const mockRepo = {
-      insert: jest
+      upsert: jest
         .fn()
         .mockRejectedValue(new Error('Database connection failed')),
     };
