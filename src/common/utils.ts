@@ -304,3 +304,16 @@ export const getBufferFromStream = async (
     stream.on('error', (err) => reject(err));
   });
 };
+
+export const snapToHalf = (v: number): 0.0 | 0.5 | 1.0 => {
+  const x = Math.min(1, Math.max(0, v));
+
+  if (x < 0.25) {
+    return 0.0;
+  }
+  if (x < 0.75) {
+    return 0.5;
+  }
+
+  return 1.0;
+};

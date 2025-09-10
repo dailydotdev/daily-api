@@ -1,3 +1,4 @@
+import type z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
@@ -6,7 +7,9 @@ import { Opportunity, OpportunityState } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
-import type { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import type { GQLEmptyResponse } from './common';
+import { candidatePreferenceSchema } from '../common/schema/userCandidate';
 
 export interface GQLOpportunity
   extends Pick<
@@ -137,6 +140,31 @@ export const typeDefs = /* GraphQL */ `
     """
     getCandidatePreferences: UserCandidatePreference @auth
   }
+
+  input SalaryExpectationInput {
+    min: Float
+    period: ProtoEnumValue
+  }
+
+  input LocationInput {
+    city: String
+    country: String
+  }
+
+  extend type Mutation {
+    """
+    Updates the authenticated candidate's saved preferences
+    """
+    updateCandidatePreferences(
+      status: ProtoEnumValue
+      role: String
+      roleType: Float
+      employmentType: [ProtoEnumValue]
+      salaryExpectation: SalaryExpectationInput
+      location: [LocationInput]
+      locationType: [ProtoEnumValue]
+    ): EmptyResponse @auth
+  }
 `;
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -178,5 +206,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.queryBuilder.where({ userId: ctx.userId });
         return builder;
       }),
+  },
+  Mutation: {
+    updateCandidatePreferences: async (
+      _,
+      payload: z.infer<typeof candidatePreferenceSchema>,
+      { userId, con }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const preferences = candidatePreferenceSchema.safeParse(payload);
+
+      if (preferences.error) {
+        throw preferences.error;
+      }
+
+      await con.getRepository(UserCandidatePreference).upsert(
+        {
+          userId,
+          ...preferences.data,
+        },
+        {
+          conflictPaths: ['userId'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
+
+      return { _: true };
+    },
   },
 });
