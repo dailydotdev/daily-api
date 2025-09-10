@@ -263,7 +263,7 @@ describe('campaignUpdatedAction worker', () => {
 
   it('should return nothing when squad source is not found for first milestone', async () => {
     const eventArgs: CampaignUpdateEventArgs = {
-      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481', // Squad campaign  
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481', // Squad campaign
       event: CampaignUpdateEvent.BudgetUpdated,
       unique_users: 25,
       data: {
