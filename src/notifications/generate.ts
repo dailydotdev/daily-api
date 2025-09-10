@@ -545,18 +545,15 @@ export const generateNotificationMap: Record<
   new_user_welcome: (builder) => builder.systemNotification(),
   announcements: (builder) => builder.systemNotification(),
   in_app_purchases: (builder) => builder.systemNotification(),
-  new_opportunity_match: (
-    builder,
-    ctx: NotificationOpportunityMatchContext,
-  ) => {
-    return builder
+  new_opportunity_match: (builder, ctx: NotificationOpportunityMatchContext) =>
+    builder
       .icon(NotificationIcon.Opportunity)
       .referenceOpportunity(ctx)
+      .uniqueKey(ctx.userIds[0])
       .description(
         `<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> ${ctx.reasoning}</span>`,
       )
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
-      );
-  },
+      ),
 };

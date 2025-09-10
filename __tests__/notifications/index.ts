@@ -1142,6 +1142,7 @@ describe('generateNotification', () => {
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('opp123');
     expect(actual.notification.referenceType).toEqual('opportunity');
+    expect(actual.notification.uniqueKey).toEqual(userId);
     expect(actual.notification.icon).toEqual('Opportunity');
     expect(actual.notification.title).toEqual(
       'New opportunity waiting for you in daily.dev',
