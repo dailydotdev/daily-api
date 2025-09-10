@@ -1,13 +1,12 @@
 import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
-import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
 
 export const candidateOpportunityMatchNotification =
   generateTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>({
     subscription: 'api.candidate-opportunity-match-notification',
-    handler: async (data) => {
+    handler: async (data, _, logger) => {
       if (process.env.NODE_ENV === 'development') {
         return;
       }
