@@ -6,6 +6,6 @@ export const queryReadReplica = async <T>(
   callback: ({ queryRunner }: { queryRunner: QueryRunner }) => Promise<T>,
 ): Promise<T> => {
   return queryDataSource(con, callback, {
-    mode: Math.random() < 0.5 ? 'slave' : 'master',
+    mode: 'slave',
   });
 };

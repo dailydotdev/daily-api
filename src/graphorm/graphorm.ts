@@ -553,9 +553,7 @@ export class GraphORM {
 
     let slaveRunner = null;
     if (readReplica) {
-      slaveRunner = ctx.con.createQueryRunner(
-        Math.random() < 0.5 ? 'slave' : 'master',
-      );
+      slaveRunner = ctx.con.createQueryRunner('slave');
     }
 
     let builder = this.selectType(
