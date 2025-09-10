@@ -15,4 +15,5 @@ export enum NotificationIcon {
   TopReaderBadge = 'TopReaderBadge',
   Core = 'Core',
   Opportunity = 'Opportunity',
+  Analytics = 'Analytics',
 }

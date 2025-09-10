@@ -73,6 +73,7 @@ export enum NotificationType {
   Announcements = 'announcements',
   InAppPurchases = 'in_app_purchases',
   NewOpportunityMatch = 'new_opportunity_match',
+  PostAnalytics = 'post_analytics',
 }
 
 export enum NotificationPreferenceType {

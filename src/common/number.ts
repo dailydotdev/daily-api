@@ -51,3 +51,13 @@ export const coresToUsd = (cores: number): number => {
 export const usdToCores = (usd: number): number => {
   return Math.floor(usd * 100); // 1 USD = 100 Cores
 };
+
+export const formatMetricValue = (value: number): string | null => {
+  if (value > 100_000) {
+    return largeNumberFormat(value);
+  }
+
+  return formatCurrency(value, {
+    minimumFractionDigits: 0,
+  });
+};

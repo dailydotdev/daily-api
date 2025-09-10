@@ -37,6 +37,7 @@ import type { ContentPreferenceUser } from '../entity/contentPreference/ContentP
 import { z } from 'zod';
 import type { postMetricsUpdatedTopic } from './schema/topics';
 import type { CampaignUpdateEventArgs } from './campaign/common';
+import type { entityReminderSchema } from './schema/reminders';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -175,6 +176,7 @@ export type PubSubSchema = {
   'api.v1.opportunity-updated': OpportunityMessage;
   'gondul.v1.candidate-opportunity-match': MatchedCandidate;
   'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
+  'api.v1.entity-reminder': z.infer<typeof entityReminderSchema>;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

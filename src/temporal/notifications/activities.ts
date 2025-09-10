@@ -1,7 +1,9 @@
 import { InjectedProps } from '../common';
 import { triggerTypedEvent } from '../../common';
-import { Bookmark } from '../../entity';
+import { Bookmark } from '../../entity/Bookmark';
 import { logger } from '../../logger';
+import type { entityReminderSchema } from '../../common/schema/reminders';
+import type z from 'zod';
 
 interface CommonBookmarkReminderParams {
   userId: string;
@@ -27,6 +29,11 @@ export const createActivities = ({ con }: InjectedProps) => ({
       userId,
       postId,
     });
+  },
+  async sendEntityReminder(
+    params: z.infer<typeof entityReminderSchema>,
+  ): Promise<void> {
+    await triggerTypedEvent(logger, 'api.v1.entity-reminder', params);
   },
 });
 
