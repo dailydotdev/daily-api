@@ -553,7 +553,7 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Opportunity)
       .referenceOpportunity(ctx)
       .description(
-        `<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>`,
+        `<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> ${ctx.reasoning}</span>`,
       )
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,

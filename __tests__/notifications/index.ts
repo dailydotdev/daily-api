@@ -1147,7 +1147,7 @@ describe('generateNotification', () => {
       'New opportunity waiting for you in daily.dev',
     );
     expect(actual.notification.description).toEqual(
-      '<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>',
+      '<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> Based on your React and TypeScript skills</span>',
     );
     expect(actual.notification.targetUrl).toEqual(
       `${process.env.COMMENTS_PREFIX}/opportunity/opp123`,
