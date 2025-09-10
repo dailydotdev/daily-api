@@ -861,7 +861,17 @@ const getFunnel = async (
     );
   };
   const cookieKey = getCookieKeyFromFeatureKey(featureKey);
-  setCookie(req, res, cookieKey, funnel.session.id);
+
+  try {
+    setCookie(req, res, cookieKey, funnel.session.id);
+  } catch (error) {
+    logger.error(
+      { err: error, featureKey, userId, cookieKey, funnel },
+      'failed to set funnel cookie',
+    );
+
+    throw error;
+  }
 
   return funnel;
 };
