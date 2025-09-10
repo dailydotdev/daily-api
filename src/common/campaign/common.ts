@@ -18,8 +18,8 @@ import { getPostTags } from './post';
 import type { NotificationBuilder } from '../../notifications/builder';
 import { NotificationIcon } from '../../notifications/icons';
 import { notificationsLink } from '../links';
-import type { NotificationCampaignContext } from '../../notifications';
 import { queryReadReplica } from '../queryReadReplica';
+import type { NotificationCampaignSourceContext } from '../../notifications';
 
 export interface StartCampaignArgs {
   value: string;
@@ -215,7 +215,7 @@ export interface CampaignUpdateEventArgs {
 
 export const generateCampaignCompletedNotification = (
   builder: NotificationBuilder,
-  ctx: NotificationCampaignContext,
+  ctx: NotificationCampaignSourceContext,
 ) => {
   const { campaign, source, event, user } = ctx;
 
