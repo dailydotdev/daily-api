@@ -3,6 +3,8 @@ import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
+import { Alerts } from '../../entity';
+import { IsNull } from 'typeorm';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -23,10 +25,16 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
           matchScore,
         });
 
-        await con.getRepository(OpportunityMatch).insert({
-          userId,
-          opportunityId,
-          description,
+        await con.transaction(async (manager) => {
+          await manager.getRepository(OpportunityMatch).insert({
+            userId,
+            opportunityId,
+            description,
+          });
+
+          await manager
+            .getRepository(Alerts)
+            .update({ userId, opportunityId: IsNull() }, { opportunityId });
         });
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;

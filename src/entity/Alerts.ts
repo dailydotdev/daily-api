@@ -1,5 +1,14 @@
-import { Column, Entity, Index, OneToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToOne,
+  PrimaryColumn,
+} from 'typeorm';
 import type { User } from './user';
+import type { Opportunity } from './opportunities/Opportunity';
 
 export type AlertsFlags = Partial<{
   lastReferralReminder: Date | null;
@@ -66,14 +75,31 @@ export class Alerts {
   @Column({ type: 'bool', default: false })
   showTopReader?: boolean;
 
+  @Column({ type: 'uuid', nullable: true })
+  @Index('IDX_alerts_opportunity_id')
+  opportunityId?: string | null;
+
   @OneToOne('User', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   user: Promise<User>;
+
+  @ManyToOne('Opportunity', {
+    onDelete: 'SET NULL',
+    lazy: true,
+  })
+  @JoinColumn({
+    name: 'opportunityId',
+    foreignKeyConstraintName: 'FK_alerts_opportunity_id',
+  })
+  opportunity?: Opportunity | null;
 }
 
-export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
+export const ALERTS_DEFAULT: Omit<
+  Alerts,
+  'userId' | 'flags' | 'user' | 'opportunity'
+> = {
   filter: true,
   rankLastSeen: null,
   myFeed: null,
@@ -91,4 +117,5 @@ export const ALERTS_DEFAULT: Omit<Alerts, 'userId' | 'flags' | 'user'> = {
   showRecoverStreak: false,
   showTopReader: false,
   briefBannerLastSeen: null,
+  opportunityId: null,
 };
