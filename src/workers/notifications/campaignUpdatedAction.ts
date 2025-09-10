@@ -99,20 +99,9 @@ const handleCampaignCompleted = async ({
   params,
   campaign,
 }: GenerateNotificationProps) => {
-  try {
-    const { ctx } = await getCampaignContext({ con, params, campaign });
+  const { ctx } = await getCampaignContext({ con, params, campaign });
 
-    return [{ type: campaignTypeToNotification[campaign.type], ctx }];
-  } catch (error) {
-    const err = error as TypeORMQueryFailedError;
-
-    if (err?.name === 'EntityNotFoundError') {
-      logger.warn(
-        { err, campaignId: campaign.id, sourceId: campaign.referenceId },
-        'could not find source for squad campaign completed notification',
-      );
-    }
-  }
+  return [{ type: campaignTypeToNotification[campaign.type], ctx }];
 };
 
 const campaignMilestoneToNotification: Record<CampaignType, NotificationType> =
@@ -126,20 +115,9 @@ const handleCampaignFirstMilestone = async ({
   params,
   campaign,
 }: GenerateNotificationProps) => {
-  try {
-    const { ctx } = await getCampaignContext({ con, params, campaign });
+  const { ctx } = await getCampaignContext({ con, params, campaign });
 
-    return [{ type: campaignMilestoneToNotification[campaign.type], ctx }];
-  } catch (error) {
-    const err = error as TypeORMQueryFailedError;
-
-    if (err?.name === 'EntityNotFoundError') {
-      logger.warn(
-        { err, campaignId: campaign.id, sourceId: campaign.referenceId },
-        'could not find source for squad campaign first milestone notification',
-      );
-    }
-  }
+  return [{ type: campaignMilestoneToNotification[campaign.type], ctx }];
 };
 
 export default worker;

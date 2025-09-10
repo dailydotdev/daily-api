@@ -244,40 +244,4 @@ describe('campaignUpdatedAction worker', () => {
     expect(campaignContext.source!.id).toEqual('squad');
   });
 
-  it('should return nothing when squad source is not found for completion', async () => {
-    const eventArgs: CampaignUpdateEventArgs = {
-      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481', // Squad campaign
-      event: CampaignUpdateEvent.Completed,
-      unique_users: 75,
-      data: {
-        budget: '5.00',
-      },
-      d_update: Date.now() * 1000,
-    };
-
-    // Don't update the source type to Squad, so the source won't be found as a squad
-    const result = await invokeNotificationWorker(worker, eventArgs);
-
-    expect(result).toBeUndefined();
-  });
-
-  it('should return nothing when squad source is not found for first milestone', async () => {
-    const eventArgs: CampaignUpdateEventArgs = {
-      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481', // Squad campaign
-      event: CampaignUpdateEvent.BudgetUpdated,
-      unique_users: 25,
-      data: {
-        budget: '3.50',
-        labels: {
-          milestone: BudgetMilestone.Spent70Percent,
-        },
-      },
-      d_update: Date.now() * 1000,
-    };
-
-    // Don't update the source type to Squad, so the source won't be found as a squad
-    const result = await invokeNotificationWorker(worker, eventArgs);
-
-    expect(result).toBeUndefined();
-  });
 });
