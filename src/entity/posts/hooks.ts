@@ -126,6 +126,10 @@ export const generateContentHash = (content: string): string => {
 export const generateDeduplicationKey = (
   post: DeepPartial<Post>,
 ): string | undefined => {
+  if (!post.type || ![PostType.Share, PostType.Freeform].includes(post.type)) {
+    return undefined;
+  }
+
   // For shared posts, always use the sharedPostId
   if (
     post.type === PostType.Share &&
@@ -157,7 +161,6 @@ export const generateDeduplicationKey = (
     }
   }
 
-  // For other post types, no deduplication key
   return undefined;
 };
 
@@ -168,7 +171,6 @@ export const applyDeduplicationHook = async <T extends DeepPartial<Post>>(
   post: T,
 ): Promise<T> => {
   const dedupKey = generateDeduplicationKey(post);
-
   if (dedupKey) {
     return {
       ...post,
@@ -176,6 +178,31 @@ export const applyDeduplicationHook = async <T extends DeepPartial<Post>>(
         ...post.flags,
         dedupKey,
       },
+      metadataChangedAt: new Date(),
+    };
+  }
+
+  return post;
+};
+
+/**
+ * Apply deduplication hook to add dedupKey to post flags for updates
+ */
+export const applyDeduplicationHookForUpdate = async <
+  T extends DeepPartial<Post>,
+>(
+  post: T,
+  existingPost: DeepPartial<Post>,
+): Promise<T> => {
+  const dedupKey = generateDeduplicationKey({ ...existingPost, ...post });
+  if (dedupKey) {
+    return {
+      ...post,
+      flags: {
+        ...post.flags,
+        dedupKey,
+      },
+      metadataChangedAt: new Date(),
     };
   }
 

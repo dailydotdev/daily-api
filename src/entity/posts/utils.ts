@@ -38,6 +38,7 @@ import {
   applyVordrHook,
   applyVordrHookForUpdate,
   applyDeduplicationHook,
+  applyDeduplicationHookForUpdate,
 } from './hooks';
 
 export type PostStats = {
@@ -325,7 +326,10 @@ export const preparePostForUpdate = async <T extends DeepPartial<Post>>(
     existingPost,
     context,
   );
-  preparedUpdates = await applyDeduplicationHook(preparedUpdates);
+  preparedUpdates = await applyDeduplicationHookForUpdate(
+    preparedUpdates,
+    existingPost,
+  );
   return preparedUpdates;
 };
 
