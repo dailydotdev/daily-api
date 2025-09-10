@@ -16,6 +16,7 @@ import {
   SquadSource,
   type Organization,
   type Campaign,
+  CampaignType,
 } from '../entity';
 import { ChangeObject } from '../types';
 import { DeepPartial } from 'typeorm';
@@ -136,10 +137,25 @@ export type NotificationBoostContext = NotificationUserContext & {
   campaignId: string;
 };
 
-export type NotificationCampaignContext = NotificationUserContext & {
+export interface NotificationCampaignBaseContext
+  extends NotificationUserContext {
   campaign: Reference<Campaign>;
-  source?: Reference<Source> | null;
   event: CampaignUpdateEvent;
+}
+
+export interface NotificationCampaignSourceContext
+  extends NotificationCampaignBaseContext {
+  source: Reference<Source>;
+}
+
+export type NotificationCampaignContext =
+  | NotificationCampaignBaseContext
+  | NotificationCampaignSourceContext;
+
+export const isSquadCampaignNotification = (
+  ctx: NotificationCampaignContext,
+): ctx is NotificationCampaignSourceContext => {
+  return ctx.campaign.type === CampaignType.Squad;
 };
 
 declare module 'fs' {

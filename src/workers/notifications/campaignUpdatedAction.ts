@@ -1,7 +1,11 @@
 import { Campaign, Source } from '../../entity';
 import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
-import { type NotificationCampaignContext } from '../../notifications';
+import {
+  isSquadCampaignNotification,
+  type NotificationCampaignContext,
+  type NotificationCampaignSourceContext,
+} from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import {
   BudgetMilestone,
@@ -52,46 +56,63 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
   },
 });
 
+interface GenerateNotificationProps {
+  con: DataSource;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}
+
 const campaignTypeToNotification: Record<CampaignType, NotificationType> = {
   [CampaignType.Post]: NotificationType.CampaignPostCompleted,
   [CampaignType.Squad]: NotificationType.CampaignSquadCompleted,
 };
 
-const handleCampaignCompleted = async ({
+const getCampaignContext = async ({
   con,
   params,
   campaign,
-}: {
-  con: DataSource;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
+}: GenerateNotificationProps) => {
   const { event } = params;
   const user = await campaign.user;
-  const ctx: NotificationCampaignContext = {
+  const ctx: NotificationCampaignContext | NotificationCampaignSourceContext = {
     user,
     campaign,
     event,
     userIds: [campaign.userId],
   };
 
-  if (campaign.type === CampaignType.Squad) {
-    ctx.source = await queryReadReplica(con, ({ queryRunner }) => {
+  if (isSquadCampaignNotification(ctx)) {
+    const source = await queryReadReplica(con, ({ queryRunner }) => {
       return queryRunner.manager
         .getRepository(Source)
-        .findOneBy({ id: campaign.referenceId });
+        .findOneByOrFail({ id: campaign.referenceId });
     });
 
-    if (!ctx.source) {
-      logger.error(
-        { campaignId: campaign.id, sourceId: campaign.referenceId },
-        `could not find source for squad campaign completion notification`,
-      );
-      return;
-    }
+    ctx.source = source;
   }
 
-  return [{ type: campaignTypeToNotification[campaign.type], ctx }];
+  return { ctx };
+};
+
+const handleCampaignCompleted = async ({
+  con,
+  params,
+  campaign,
+}: GenerateNotificationProps) => {
+  try {
+    const { ctx } = await getCampaignContext({ con, params, campaign });
+
+    return [{ type: campaignTypeToNotification[campaign.type], ctx }];
+  } catch (error) {
+    const err = error as TypeORMQueryFailedError;
+
+    if (err?.name === 'EntityNotFoundError') {
+      logger.warn(
+        { err, campaignId: campaign.id, sourceId: campaign.referenceId },
+        'could not find source for squad campaign completed notification',
+      );
+    }
+  }
 };
 
 const campaignMilestoneToNotification: Record<CampaignType, NotificationType> =
@@ -104,37 +125,21 @@ const handleCampaignFirstMilestone = async ({
   con,
   params,
   campaign,
-}: {
-  con: DataSource;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
-  const { event } = params;
-  const user = await campaign.user;
-  const ctx: NotificationCampaignContext = {
-    user,
-    campaign,
-    event,
-    userIds: [campaign.userId],
-  };
+}: GenerateNotificationProps) => {
+  try {
+    const { ctx } = await getCampaignContext({ con, params, campaign });
 
-  if (campaign.type === CampaignType.Squad) {
-    ctx.source = await queryReadReplica(con, ({ queryRunner }) => {
-      return queryRunner.manager
-        .getRepository(Source)
-        .findOneBy({ id: campaign.referenceId });
-    });
+    return [{ type: campaignMilestoneToNotification[campaign.type], ctx }];
+  } catch (error) {
+    const err = error as TypeORMQueryFailedError;
 
-    if (!ctx.source) {
-      logger.error(
-        { campaignId: campaign.id, sourceId: campaign.referenceId },
-        `could not find source for squad campaign first milestone notification`,
+    if (err?.name === 'EntityNotFoundError') {
+      logger.warn(
+        { err, campaignId: campaign.id, sourceId: campaign.referenceId },
+        'could not find source for squad campaign first milestone notification',
       );
-      return;
     }
   }
-
-  return [{ type: campaignMilestoneToNotification[campaign.type], ctx }];
 };
 
 export default worker;

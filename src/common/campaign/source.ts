@@ -30,12 +30,12 @@ import {
 import { usdToCores } from '../number';
 import { systemUser, updateFlagsStatement } from '../utils';
 import { skadiApiClientV2 } from '../../integrations/skadi/api/v2/clients';
-import type { NotificationCampaignContext } from '../../notifications';
 import { NotificationIcon } from '../../notifications/icons';
 import { notificationsLink } from '../links';
 import type { NotificationBuilder } from '../../notifications/builder';
 import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
+import type { NotificationCampaignSourceContext } from '../../notifications';
 
 export const validateSquadBoostPermissions = async (
   ctx: AuthContext,
@@ -209,13 +209,9 @@ export const stopCampaignSource = async ({
 
 export const generateCampaignSquadNotification = (
   builder: NotificationBuilder,
-  ctx: NotificationCampaignContext,
+  ctx: NotificationCampaignSourceContext,
 ) => {
   const { campaign, source, event, user } = ctx;
-
-  if (!source) {
-    return builder;
-  }
 
   return builder
     .icon(NotificationIcon.DailyDev)
