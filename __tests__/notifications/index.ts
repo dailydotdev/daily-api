@@ -1150,7 +1150,7 @@ describe('generateNotification', () => {
       '<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>',
     );
     expect(actual.notification.targetUrl).toEqual(
-      `${process.env.COMMENTS_PREFIX}/opportunities/opp123`,
+      `${process.env.COMMENTS_PREFIX}/opportunity/opp123`,
     );
     expect(actual.avatars.length).toEqual(0);
     expect(actual.attachments.length).toEqual(0);
