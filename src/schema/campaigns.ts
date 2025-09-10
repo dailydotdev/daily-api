@@ -14,7 +14,6 @@ import type { GQLSource } from './sources';
 import { getLimit, toGQLEnum } from '../common';
 import { type TransactionCreated } from '../common/njord';
 import {
-  checkPostAlreadyBoosted,
   getAdjustedReach,
   startCampaignPost,
   stopCampaignPost,
@@ -261,9 +260,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       switch (type) {
         case CampaignType.Post:
-          checkPostAlreadyBoosted(
-            await validatePostBoostPermissions(ctx, value),
-          );
+          await validatePostBoostPermissions(ctx, value);
           break;
         case CampaignType.Squad:
           await validateSquadBoostPermissions(ctx, value);

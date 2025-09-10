@@ -7,10 +7,15 @@ import {
   LocationType,
   OpportunityState,
   OpportunityType,
+  SalaryPeriod,
   SeniorityLevel,
 } from '@dailydotdev/schema';
 import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
 import type { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
+import {
+  OrganizationLinkType,
+  SocialMediaType,
+} from '../../src/common/schema/organizations';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -20,6 +25,28 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     website: 'https://daily.dev',
     description: 'A platform for developers',
     location: 'San Francisco',
+    links: [
+      {
+        type: OrganizationLinkType.Custom,
+        title: 'Custom Link',
+        link: 'https://custom.link',
+      },
+      {
+        type: OrganizationLinkType.Custom,
+        title: 'Custom Link 2',
+        link: 'https://custom2.link',
+      },
+      {
+        type: OrganizationLinkType.Social,
+        socialType: SocialMediaType.Facebook,
+        link: 'https://facebook.com',
+      },
+      {
+        type: OrganizationLinkType.Press,
+        title: 'Press link',
+        link: 'https://press.link',
+      },
+    ],
   },
   {
     id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
@@ -28,6 +55,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     website: 'https://yearly.dev',
     description: 'A platform for others',
     location: 'Skatval',
+    links: [],
   },
 ];
 
@@ -49,6 +77,12 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
       teamSize: 10,
       seniorityLevel: SeniorityLevel.SENIOR,
       employmentType: EmploymentType.FULL_TIME,
+      salary: {
+        min: 60000,
+        max: 120000,
+        currency: 'USD',
+        period: SalaryPeriod.ANNUAL,
+      },
     },
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
@@ -77,6 +111,12 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
       teamSize: 10,
       seniorityLevel: SeniorityLevel.JUNIOR,
       employmentType: EmploymentType.INTERNSHIP,
+      salary: {
+        min: 60000,
+        max: 120000,
+        currency: 'USD',
+        period: SalaryPeriod.ANNUAL,
+      },
     },
     createdAt: new Date('2023-01-02'),
     updatedAt: new Date('2023-01-02'),
@@ -105,6 +145,12 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
       teamSize: 10,
       seniorityLevel: SeniorityLevel.SENIOR,
       employmentType: EmploymentType.FULL_TIME,
+      salary: {
+        min: 60000,
+        max: 120000,
+        currency: 'USD',
+        period: SalaryPeriod.ANNUAL,
+      },
     },
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
@@ -133,6 +179,12 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
       teamSize: 10,
       seniorityLevel: SeniorityLevel.JUNIOR,
       employmentType: EmploymentType.INTERNSHIP,
+      salary: {
+        min: 60000,
+        max: 120000,
+        currency: 'USD',
+        period: SalaryPeriod.ANNUAL,
+      },
     },
     createdAt: new Date('2023-01-02'),
     updatedAt: new Date('2023-01-02'),
@@ -156,6 +208,10 @@ export const opportunityKeywordsFixture: DeepPartial<OpportunityKeyword>[] = [
     keyword: 'fullstack',
   },
   {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+    keyword: 'Fortune 500',
+  },
+  {
     opportunityId: '550e8400-e29b-41d4-a716-446655440002',
     keyword: 'webdev',
   },
@@ -166,7 +222,7 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     opportunityId: '550e8400-e29b-41d4-a716-446655440001',
     userId: '1',
     status: OpportunityMatchStatus.Pending,
-    description: { description: 'Interested candidate' },
+    description: { reasoning: 'Interested candidate' },
     createdAt: new Date('2023-01-03'),
     updatedAt: new Date('2023-01-03'),
   },
@@ -174,7 +230,7 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     opportunityId: '550e8400-e29b-41d4-a716-446655440001',
     userId: '2',
     status: OpportunityMatchStatus.CandidateAccepted,
-    description: { description: 'Accepted candidate' },
+    description: { reasoning: 'Accepted candidate' },
     createdAt: new Date('2023-01-04'),
     updatedAt: new Date('2023-01-04'),
   },

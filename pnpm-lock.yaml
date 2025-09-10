@@ -35,8 +35,8 @@ importers:
         specifier: ^2.4.3
         version: 2.4.3(graphql-subscriptions@3.0.0(graphql@16.11.0))
       '@dailydotdev/schema':
-        specifier: 0.2.32
-        version: 0.2.32(@bufbuild/protobuf@1.10.0)
+        specifier: 0.2.33
+        version: 0.2.33(@bufbuild/protobuf@1.10.0)
       '@dailydotdev/ts-ioredis-pool':
         specifier: ^1.0.2
         version: 1.0.2
@@ -211,6 +211,9 @@ importers:
       dotenv:
         specifier: 16.5.0
         version: 16.5.0
+      emoji-regex:
+        specifier: ^10.5.0
+        version: 10.5.0
       eventsource:
         specifier: ^2.0.2
         version: 2.0.2
@@ -696,8 +699,8 @@ packages:
     peerDependencies:
       graphql-subscriptions: ^1.0.0 || ^2.0.0
 
-  '@dailydotdev/schema@0.2.32':
-    resolution: {integrity: sha512-eSZ3C0nYofjaTpP41QsYu9GjyeHRRGhOn+ohKmHTJwyBRNOt1wnuOafjnz+SJkSYJSsLviCfHzaYlqt46wtN5A==}
+  '@dailydotdev/schema@0.2.33':
+    resolution: {integrity: sha512-6rSvfksduPVc3tBYkXHgtn2V9beT1wwNUj63YHVAF81hm+IlIfPSWW1giQlXgUtMHEasYivB/Owgpif9X/vi5A==}
     peerDependencies:
       '@bufbuild/protobuf': 1.x
 
@@ -2450,6 +2453,9 @@ packages:
   emittery@0.13.1:
     resolution: {integrity: sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ==}
     engines: {node: '>=12'}
+
+  emoji-regex@10.5.0:
+    resolution: {integrity: sha512-lb49vf1Xzfx080OKA0o6l8DQQpV+6Vg95zyCJX9VB/BqKYlhG7N4wgROUUHRA+ZPUefLnteQOad7z1kT2bV7bg==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -5167,7 +5173,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@dailydotdev/schema@0.2.32(@bufbuild/protobuf@1.10.0)':
+  '@dailydotdev/schema@0.2.33(@bufbuild/protobuf@1.10.0)':
     dependencies:
       '@bufbuild/protobuf': 1.10.0
 
@@ -7344,6 +7350,8 @@ snapshots:
   electron-to-chromium@1.5.79: {}
 
   emittery@0.13.1: {}
+
+  emoji-regex@10.5.0: {}
 
   emoji-regex@8.0.0: {}
 
