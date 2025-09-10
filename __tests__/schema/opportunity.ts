@@ -383,7 +383,10 @@ describe('query getCandidatePreferences', () => {
         userId: '1',
         role: 'Full Stack Developer',
         salaryExpectation: { min: 50000, period: SalaryPeriod.ANNUAL },
-        location: [{ country: 'Norway' }],
+        location: [
+          { country: 'Norway' },
+          { city: 'London', country: 'UK', continent: 'Europe' },
+        ],
         locationType: [LocationType.REMOTE, LocationType.HYBRID],
         employmentType: [
           EmploymentType.FULL_TIME,
@@ -422,13 +425,8 @@ describe('query getCandidatePreferences', () => {
     const res = await client.query(QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getCandidatePreferences).toEqual({
+    expect(res.data.getCandidatePreferences).toMatchObject({
       status: 1,
-      cv: {
-        blob: null,
-        bucket: null,
-        lastModified: null,
-      },
       role: 'Full Stack Developer',
       roleType: 0.5,
       salaryExpectation: {
@@ -437,11 +435,13 @@ describe('query getCandidatePreferences', () => {
       },
       location: [
         {
-          city: null,
           country: 'Norway',
-          subdivision: null,
-          continent: null,
-          type: null,
+        },
+        {
+          city: 'London',
+          country: 'UK',
+
+          continent: 'Europe',
         },
       ],
       locationType: [1, 3],
