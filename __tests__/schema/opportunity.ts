@@ -353,6 +353,7 @@ describe('query getCandidatePreferences', () => {
         status
         cv {
           blob
+          contentType
           lastModified
         }
         role
@@ -383,6 +384,7 @@ describe('query getCandidatePreferences', () => {
         role: 'Full Stack Developer',
         cv: {
           blob: '1',
+          contentType: 'application/pdf',
           bucket: 'bucket-name',
           lastModified: new Date('2023-10-10T10:00:00Z'),
         },
@@ -435,6 +437,7 @@ describe('query getCandidatePreferences', () => {
       roleType: 0.5,
       cv: {
         blob: '1',
+        contentType: 'application/pdf',
         lastModified: '2023-10-10T10:00:00.000Z',
       },
       salaryExpectation: {
@@ -462,6 +465,7 @@ describe('query getCandidatePreferences', () => {
       status: 1,
       cv: {
         blob: null,
+        contentType: null,
         lastModified: null,
       },
       role: null,
