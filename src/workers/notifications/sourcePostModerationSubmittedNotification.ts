@@ -9,9 +9,10 @@ import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
 
-const worker: TypedNotificationWorker<'api.v1.source-post-moderation-submitted'> = {
-  subscription: 'api.source-post-moderation-submitted-notification',
-  handler: async ({ post }, con) => {
+const worker: TypedNotificationWorker<'api.v1.source-post-moderation-submitted'> =
+  {
+    subscription: 'api.source-post-moderation-submitted-notification',
+    handler: async ({ post }, con) => {
       if (post.status !== SourcePostModerationStatus.Pending) {
         return;
       }
@@ -46,6 +47,6 @@ const worker: TypedNotificationWorker<'api.v1.source-post-moderation-submitted'>
         }
       }
     },
-};
+  };
 
 export default worker;

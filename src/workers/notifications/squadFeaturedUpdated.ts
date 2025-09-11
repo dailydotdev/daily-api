@@ -10,31 +10,31 @@ const toNotify = [SourceMemberRoles.Admin, SourceMemberRoles.Moderator];
 const worker: TypedNotificationWorker<'api.v1.squad-featured-updated'> = {
   subscription: 'api.squad-featured-updated-notification',
   handler: async ({ squad }, con) => {
-      if (!squad.flags.featured) {
-        return undefined;
-      }
+    if (!squad.flags.featured) {
+      return undefined;
+    }
 
-      const members = await getSubscribedMembers(
-        con,
-        NotificationType.SquadFeatured,
-        squad.id,
-        {
-          sourceId: squad.id,
-          role: In(toNotify),
-        },
-      );
+    const members = await getSubscribedMembers(
+      con,
+      NotificationType.SquadFeatured,
+      squad.id,
+      {
+        sourceId: squad.id,
+        role: In(toNotify),
+      },
+    );
 
-      if (!members.length) {
-        return undefined;
-      }
+    if (!members.length) {
+      return undefined;
+    }
 
-      const ctx: NotificationSourceContext = {
-        userIds: members.map((u) => u.userId),
-        source: squad,
-      };
+    const ctx: NotificationSourceContext = {
+      userIds: members.map((u) => u.userId),
+      source: squad,
+    };
 
-      return [{ type: NotificationType.SquadFeatured, ctx }];
-    },
+    return [{ type: NotificationType.SquadFeatured, ctx }];
+  },
 };
 
 export default worker;
