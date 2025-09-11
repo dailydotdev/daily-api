@@ -559,10 +559,8 @@ describe('mutation updateCandidatePreferences', () => {
       $role: String
       $roleType: Float
       $employmentType: [ProtoEnumValue]
-      $salaryExpectationMin: Float
-      $salaryExpectationPeriod: ProtoEnumValue
-      $locationCity: String
-      $locationCountry: String
+      $salaryExpectation: SalaryExpectationInput
+      $location: [LocationInput]
       $locationType: [ProtoEnumValue]
     ) {
       updateCandidatePreferences(
@@ -570,11 +568,8 @@ describe('mutation updateCandidatePreferences', () => {
         role: $role
         roleType: $roleType
         employmentType: $employmentType
-        salaryExpectation: {
-          min: $salaryExpectationMin
-          period: $salaryExpectationPeriod
-        }
-        location: [{ city: $locationCity, country: $locationCountry }]
+        salaryExpectation: $salaryExpectation
+        location: $location
         locationType: $locationType
       ) {
         _
@@ -606,10 +601,8 @@ describe('mutation updateCandidatePreferences', () => {
         role: 'Backend Developer',
         roleType: 1.0,
         employmentType: [1, 3],
-        salaryExpectationMin: 70000,
-        salaryExpectationPeriod: 1,
-        locationCity: 'Berlin',
-        locationCountry: 'Germany',
+        salaryExpectation: { min: 70000, period: 1 },
+        location: [{ city: 'Berlin', country: 'Germany' }],
         locationType: [1, 2],
       },
     });
@@ -672,7 +665,7 @@ describe('mutation updateCandidatePreferences', () => {
       variables: {
         status: 2000,
         employmentType: [300],
-        salaryExpectationPeriod: 800,
+        salaryExpectation: { min: 70000, period: 800 },
         locationType: [90],
       },
     });
@@ -699,14 +692,14 @@ describe('mutation updateCandidatePreferences', () => {
     ).toBe(0);
   });
 
-  it('should throw error on when given UNSPECIFIED proto enum value', async () => {
+  it('should throw error when given UNSPECIFIED proto enum value', async () => {
     loggedUser = '1';
 
     const res = await client.mutate(MUTATION, {
       variables: {
         status: 0,
         employmentType: [0],
-        salaryExpectationPeriod: 0,
+        salaryExpectation: { period: 0 },
         locationType: [0],
       },
     });
