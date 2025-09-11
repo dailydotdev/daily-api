@@ -159,6 +159,19 @@ describe('storeCandidateOpportunityMatch worker', () => {
         .mockRejectedValue(new Error('Database connection failed')),
     };
 
+    // Mock the manager that transaction callback will receive
+    const mockManager = {
+      getRepository: jest.fn().mockReturnValue(mockRepo),
+    };
+
+    // Mock the connection's transaction method to invoke the callback with our mock manager
+    const originalTransaction = con.transaction;
+    con.transaction = jest.fn(
+      async (cb: (manager: unknown) => Promise<void>) => {
+        return cb(mockManager);
+      },
+    );
+
     const originalGetRepository = con.getRepository;
     con.getRepository = jest.fn().mockReturnValue(mockRepo);
 
@@ -175,6 +188,7 @@ describe('storeCandidateOpportunityMatch worker', () => {
     ).rejects.toThrow('Database connection failed');
 
     // Restore original method
+    con.transaction = originalTransaction;
     con.getRepository = originalGetRepository;
   });
 
