@@ -7,6 +7,7 @@ import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import type { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import { Alerts } from '../entity';
 
 export interface GQLOpportunity
   extends Pick<
@@ -150,7 +151,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunity> =>
-      graphorm.queryOneOrFail(ctx, info, (builder) => {
+      graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
         builder.queryBuilder
           .where({ id })
           .andWhere({ state: OpportunityState.LIVE });
@@ -161,13 +162,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       ctx: AuthContext,
       info,
-    ): Promise<GQLOpportunityMatch> =>
-      graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder
-          .where({ opportunityId: id })
-          .andWhere({ userId: ctx.userId });
-        return builder;
-      }),
+    ): Promise<GQLOpportunityMatch> => {
+      const match = await graphorm.queryOneOrFail<GQLOpportunityMatch>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where({ opportunityId: id })
+            .andWhere({ userId: ctx.userId });
+          return builder;
+        },
+      );
+
+      await ctx.con.getRepository(Alerts).update(
+        {
+          userId: ctx.userId,
+          opportunityId: id,
+        },
+        {
+          opportunityId: null,
+        },
+      );
+
+      return match;
+    },
     getCandidatePreferences: async (
       _,
       __,
