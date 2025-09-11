@@ -86,9 +86,10 @@ describe('userUpdatedCio', () => {
       username: 'cio',
       referral_link: referral,
       email_confirmed: true,
-      'cio_subscription_preferences.topics.topic_4': true,
-      'cio_subscription_preferences.topics.topic_8': false,
       'cio_subscription_preferences.topics.topic_1': true,
+      'cio_subscription_preferences.topics.topic_4': true,
+      'cio_subscription_preferences.topics.topic_5': true,
+      'cio_subscription_preferences.topics.topic_8': false,
       'cio_subscription_preferences.topics.topic_11': true,
       'cio_subscription_preferences.topics.topic_12': true,
       'cio_subscription_preferences.topics.topic_13': true,
@@ -104,7 +105,7 @@ describe('userUpdatedCio', () => {
       'cio_subscription_preferences.topics.topic_24': true,
       'cio_subscription_preferences.topics.topic_25': true,
       'cio_subscription_preferences.topics.topic_26': true,
-      'cio_subscription_preferences.topics.topic_5': true,
+      'cio_subscription_preferences.topics.topic_27': true,
     });
   });
 
