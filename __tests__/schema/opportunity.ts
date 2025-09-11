@@ -12,6 +12,7 @@ import {
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from '../helpers';
 import { keywordsFixture } from '../fixture/keywords';
@@ -480,5 +481,154 @@ describe('query getCandidatePreferences', () => {
       companySize: [],
       companyStage: [],
     });
+  });
+});
+
+describe('mutation updateCandidatePreferences', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation UpdateCandidatePreferences(
+      $status: ProtoEnumValue
+      $role: String
+      $roleType: Float
+      $employmentType: [ProtoEnumValue]
+      $salaryExpectationMin: Float
+      $salaryExpectationPeriod: ProtoEnumValue
+      $locationCity: String
+      $locationCountry: String
+      $locationType: [ProtoEnumValue]
+    ) {
+      updateCandidatePreferences(
+        status: $status
+        role: $role
+        roleType: $roleType
+        employmentType: $employmentType
+        salaryExpectation: {
+          min: $salaryExpectationMin
+          period: $salaryExpectationPeriod
+        }
+        location: [{ city: $locationCity, country: $locationCountry }]
+        locationType: $locationType
+      ) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should update candidate preferences for authenticated user', async () => {
+    loggedUser = '1';
+
+    // Ensure no existing preferences
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        status: 2,
+        role: 'Backend Developer',
+        roleType: 1.0,
+        employmentType: [1, 3],
+        salaryExpectationMin: 70000,
+        salaryExpectationPeriod: 1,
+        locationCity: 'Berlin',
+        locationCountry: 'Germany',
+        locationType: [1, 2],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateCandidatePreferences).toEqual({ _: true });
+
+    const updated = await con
+      .getRepository(UserCandidatePreference)
+      .findOneBy({ userId: '1' });
+
+    expect(updated).toMatchObject({
+      userId: '1',
+      status: 2,
+      role: 'Backend Developer',
+      roleType: 1.0,
+      employmentType: [1, 3], // FULL_TIME, CONTRACT
+      salaryExpectation: { min: 70000, period: 1 }, // ANNUAL
+      location: [{ city: 'Berlin', country: 'Germany' }],
+      locationType: [1, 2], // REMOTE, ONSITE
+    });
+  });
+
+  test.each([
+    [0.0, 0.0],
+    [0.1, 0.0],
+    [0.25, 0.5],
+    [0.74, 0.5],
+    [0.75, 1.0],
+    [0.8, 1.0],
+    [1.2, 1.0],
+  ])(
+    'should snap role type to closest accepted value (input: %p, expected: %p)',
+    async (input, expected) => {
+      loggedUser = '1';
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          roleType: input,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.updateCandidatePreferences).toEqual({ _: true });
+
+      const updated = await con
+        .getRepository(UserCandidatePreference)
+        .findOneBy({ userId: '1' });
+
+      expect(updated).toMatchObject({
+        roleType: expected,
+      });
+    },
+  );
+
+  it('should throw error on invalid proto enum values', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        status: 2000,
+        role: 'Backend Developer',
+        roleType: 1.0,
+        employmentType: [300],
+        salaryExpectationMin: 70000,
+        salaryExpectationPeriod: 800,
+        locationCity: 'Berlin',
+        locationCountry: 'Germany',
+        locationType: [90],
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.data.updateCandidatePreferences).toEqual(null);
+    expect(
+      res.errors[0].extensions.issues.map((issue) => issue.message),
+    ).toEqual(
+      expect.arrayContaining([
+        'Invalid candidate status',
+        'Invalid employment type',
+        'Invalid salary period',
+        'Invalid location type',
+      ]),
+    );
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({ userId: '1' }),
+    ).toBe(0);
   });
 });
