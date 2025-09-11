@@ -10,6 +10,8 @@ import {
   Banner,
   Bookmark,
   CampaignCtaPlacement,
+  CampaignState,
+  CampaignType,
   ChecklistViewState,
   CollectionPost,
   Comment,
@@ -60,6 +62,8 @@ import {
   UserStreakAction,
   UserStreakActionType,
   YouTubePost,
+  type CampaignPost,
+  type CampaignSource,
 } from '../../../src/entity';
 import {
   DayOfWeek,
@@ -142,7 +146,9 @@ import {
 } from '../../../src/config';
 import { generateUUID } from '../../../src/ids';
 import {
+  cancelEntityReminderWorkflow,
   cancelReminderWorkflow,
+  runEntityReminderWorkflow,
   runReminderWorkflow,
 } from '../../../src/temporal/notifications/utils';
 import { ReportReason } from '../../../src/entity/common';
@@ -169,6 +175,8 @@ import {
   organizationsFixture,
 } from '../../fixture/opportunity';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
+import type z from 'zod';
+import type { entityReminderSchema } from '../../../src/common/schema/reminders';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -217,6 +225,8 @@ jest.mock('../../../src/temporal/notifications/utils', () => ({
   ...jest.requireActual('../../../src/temporal/notifications/utils'),
   runReminderWorkflow: jest.fn(),
   cancelReminderWorkflow: jest.fn(),
+  runEntityReminderWorkflow: jest.fn(),
+  cancelEntityReminderWorkflow: jest.fn(),
 }));
 
 let con: DataSource;
@@ -6190,5 +6200,127 @@ describe('organization', () => {
     );
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('campaign post', () => {
+  it('should schedule entity reminder workflow for post campaign', async () => {
+    const campaignId = randomUUID();
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<CampaignPost>({
+        after: {
+          id: campaignId,
+          referenceId: 'p1',
+          userId: '1',
+          type: CampaignType.Post,
+          state: CampaignState.Active,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          endedAt: Date.now(),
+          flags: JSON.stringify({}),
+          postId: 'p1',
+        },
+        op: 'c',
+        table: 'campaign',
+      }),
+    );
+
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: campaignId,
+      entityTableName: 'campaign',
+      scheduledAtMs: expect.any(Number),
+      delayMs: 24 * 60 * 60 * 1000,
+    } as z.infer<typeof entityReminderSchema>);
+  });
+
+  it('should not schedule entity reminder workflow for other campaign types', async () => {
+    const campaignId = randomUUID();
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<CampaignSource>({
+        after: {
+          id: campaignId,
+          referenceId: 's1',
+          userId: '1',
+          type: CampaignType.Squad,
+          state: CampaignState.Active,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          endedAt: Date.now(),
+          flags: JSON.stringify({}),
+          sourceId: 's1',
+        },
+        op: 'c',
+        table: 'campaign',
+      }),
+    );
+
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+  });
+
+  it('should cancel entity reminder workflow for post campaign', async () => {
+    const campaignId = randomUUID();
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<CampaignPost>({
+        before: {
+          id: campaignId,
+          referenceId: 'p1',
+          userId: '1',
+          type: CampaignType.Post,
+          state: CampaignState.Active,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          endedAt: Date.now(),
+          flags: JSON.stringify({}),
+          postId: 'p1',
+        },
+        op: 'd',
+        table: 'campaign',
+      }),
+    );
+
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: campaignId,
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 24 * 60 * 60 * 1000,
+    } as z.infer<typeof entityReminderSchema>);
+  });
+
+  it('should not cancel entity reminder workflow for other campaign types', async () => {
+    const campaignId = randomUUID();
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<CampaignSource>({
+        after: {
+          id: campaignId,
+          referenceId: 's1',
+          userId: '1',
+          type: CampaignType.Squad,
+          state: CampaignState.Active,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          endedAt: Date.now(),
+          flags: JSON.stringify({}),
+          sourceId: 's1',
+        },
+        op: 'c',
+        table: 'campaign',
+      }),
+    );
+
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
   });
 });

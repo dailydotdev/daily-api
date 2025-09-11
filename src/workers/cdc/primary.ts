@@ -43,7 +43,7 @@ import {
   UserStreak,
   UserTopReader,
 } from '../../entity';
-import { Campaign } from '../../entity/campaign/Campaign';
+import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
 import {
   DayOfWeek,
@@ -1336,24 +1336,32 @@ export const onCampaignChange = async (
   data: ChangeMessage<Campaign>,
 ) => {
   if (data.payload.op === 'c') {
-    await runEntityReminderWorkflow({
-      entityId: data.payload.after!.id,
-      entityTableName: getTableName(con, Campaign),
-      scheduledAtMs: Date.now(),
-      delayMs: 24 * 60 * 60 * 1000,
-    });
+    const after = data.payload.after!;
+
+    if (after.type === CampaignType.Post) {
+      await runEntityReminderWorkflow({
+        entityId: after.id,
+        entityTableName: getTableName(con, Campaign),
+        scheduledAtMs: Date.now(),
+        delayMs: 24 * 60 * 60 * 1000,
+      });
+    }
 
     return;
   }
 
   // campaigns are never deleted but to be safe
   if (data.payload.op === 'd') {
-    await cancelEntityReminderWorkflow({
-      entityId: data.payload.before!.id,
-      entityTableName: getTableName(con, Campaign),
-      scheduledAtMs: 0,
-      delayMs: 24 * 60 * 60 * 1000,
-    });
+    const before = data.payload.before!;
+
+    if (before.type === CampaignType.Post) {
+      await cancelEntityReminderWorkflow({
+        entityId: before.id,
+        entityTableName: getTableName(con, Campaign),
+        scheduledAtMs: 0,
+        delayMs: 24 * 60 * 60 * 1000,
+      });
+    }
 
     return;
   }
