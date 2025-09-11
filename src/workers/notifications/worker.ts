@@ -22,11 +22,11 @@ type NotificationMessageHandler = (
   logger: FastifyBaseLogger,
 ) => Promise<NotificationHandlerReturn>;
 
-export interface NotificationWorker<T> {
+export interface NotificationWorker<T = object> {
   subscription: string;
   handler: NotificationMessageHandler;
   maxMessages?: number;
-  parseMessage: (message: Message) => T;
+  parseMessage?: (message: Message) => T;
 }
 
 interface GenerateTypeWorkerResult {
