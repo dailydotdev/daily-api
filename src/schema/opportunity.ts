@@ -2,15 +2,11 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
-import {
-  EmploymentType,
-  Opportunity,
-  OpportunityType,
-  SeniorityLevel,
-} from '@dailydotdev/schema';
+import { Opportunity, OpportunityState } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { protoToGQLEnum, toGQLEnum } from '../common';
+import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
+import type { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 
 export interface GQLOpportunity
   extends Pick<
@@ -24,11 +20,10 @@ export interface GQLOpportunity
 export interface GQLOpportunityMatch
   extends Pick<OpportunityMatch, 'status' | 'description'> {}
 
-export const typeDefs = /* GraphQL */ `
-  ${protoToGQLEnum<typeof OpportunityType>(OpportunityType, 'OpportunityType')}
-  ${protoToGQLEnum<typeof SeniorityLevel>(SeniorityLevel, 'SeniorityLevel')}
-  ${protoToGQLEnum<typeof EmploymentType>(EmploymentType, 'EmploymentType')}
+export interface GQLUserCandidatePreference
+  extends Omit<UserCandidatePreference, 'id' | 'cvParsed'> {}
 
+export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
 
   type OpportunityContentBlock {
@@ -44,34 +39,77 @@ export const typeDefs = /* GraphQL */ `
     interviewProcess: OpportunityContentBlock
   }
 
+  type Salary {
+    min: Float
+    max: Float
+    currency: String
+    period: ProtoEnumValue
+  }
+
+  type SalaryExpectation {
+    min: Float
+    period: ProtoEnumValue
+  }
+
+  type Location {
+    city: String
+    country: String
+    subdivision: String
+    continent: String
+    type: ProtoEnumValue
+  }
+
   type OpportunityMeta {
-    employmentType: EmploymentType
+    employmentType: ProtoEnumValue
     teamSize: Int
-    # salary: Salary # TODO: implement Salary type
-    seniorityLevel: SeniorityLevel
+    salary: Salary
+    seniorityLevel: ProtoEnumValue
     roleType: Float
+  }
+
+  type OpportunityKeyword {
+    keyword: String!
   }
 
   type Opportunity {
     id: ID!
-    type: OpportunityType!
+    type: ProtoEnumValue!
     title: String!
     tldr: String
     content: OpportunityContent!
     meta: OpportunityMeta!
-    # location: [Location!]! # TODO: implement Location type
+    location: [Location]!
     organization: Organization!
     recruiters: [User!]!
-    keywords: [Keyword!]!
+    keywords: [OpportunityKeyword]!
   }
 
   type OpportunityMatchDescription {
-    description: String!
+    reasoning: String!
   }
 
   type OpportunityMatch {
     status: OpportunityMatchStatus!
     description: OpportunityMatchDescription!
+  }
+
+  type UserCV {
+    blob: String
+    contentType: String
+    lastModified: DateTime
+  }
+
+  type UserCandidatePreference {
+    status: ProtoEnumValue!
+    cv: UserCV
+    role: String
+    roleType: Float
+    employmentType: [ProtoEnumValue]!
+    salaryExpectation: SalaryExpectation
+    location: [Location]!
+    locationType: [ProtoEnumValue]!
+    companyStage: [ProtoEnumValue]!
+    companySize: [ProtoEnumValue]!
   }
 
   extend type Query {
@@ -93,6 +131,11 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): OpportunityMatch @auth
+
+    """
+    Returns the authenticated candidate's saved preferences
+    """
+    getCandidatePreferences: UserCandidatePreference @auth
   }
 `;
 
@@ -108,7 +151,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info,
     ): Promise<GQLOpportunity> =>
       graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+        builder.queryBuilder
+          .where({ id })
+          .andWhere({ state: OpportunityState.LIVE });
         return builder;
       }),
     getOpportunityMatch: async (
@@ -121,6 +166,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.queryBuilder
           .where({ opportunityId: id })
           .andWhere({ userId: ctx.userId });
+        return builder;
+      }),
+    getCandidatePreferences: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLUserCandidatePreference> =>
+      graphorm.queryOneOrFail(ctx, info, (builder) => {
+        builder.queryBuilder.where({ userId: ctx.userId });
         return builder;
       }),
   },

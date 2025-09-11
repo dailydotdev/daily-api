@@ -405,6 +405,10 @@ export const workers: Worker[] = [
     topic: 'gondul.v1.candidate-opportunity-match',
     subscription: 'api.store-candidate-opportunity-match',
   },
+  {
+    topic: 'gondul.v1.candidate-opportunity-match',
+    subscription: 'api.candidate-opportunity-match-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -30,9 +30,16 @@ import { PostMention } from './PostMention';
 import { PostQuestion } from './PostQuestion';
 import { PostRelation, PostRelationType } from './PostRelation';
 import { CollectionPost } from './CollectionPost';
-import { checkWithVordr, VordrFilterType } from '../../common/vordr';
 import { AuthContext } from '../../Context';
 import { logger } from '../../logger';
+import { FastifyRequest } from 'fastify';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import {
+  applyVordrHook,
+  applyVordrHookForUpdate,
+  applyDeduplicationHook,
+  applyDeduplicationHookForUpdate,
+} from './hooks';
 
 export type PostStats = {
   numPosts: number;
@@ -285,6 +292,47 @@ interface CreateExternalLinkArgs {
   };
 }
 
+interface PreparePostContext {
+  con: DataSource | EntityManager;
+  userId?: string;
+  req?: Pick<FastifyRequest, 'ip'>;
+}
+
+/**
+ * Prepares a post for insertion by applying vordr and deduplication hooks.
+ * This should be called before saving any new post.
+ */
+export const preparePostForInsert = async <T extends DeepPartial<Post>>(
+  post: T,
+  context: PreparePostContext,
+): Promise<T> => {
+  let preparedPost = await applyVordrHook(post, context);
+  preparedPost = await applyDeduplicationHook(preparedPost);
+
+  return preparedPost;
+};
+
+/**
+ * Prepares a post for update by applying vordr and deduplication hooks.
+ * This should be called before updating any existing post.
+ */
+export const preparePostForUpdate = async <T extends DeepPartial<Post>>(
+  updates: T,
+  existingPost: Pick<Post, 'id' | 'flags'>,
+  context: PreparePostContext,
+): Promise<T> => {
+  let preparedUpdates = await applyVordrHookForUpdate(
+    updates,
+    existingPost,
+    context,
+  );
+  preparedUpdates = await applyDeduplicationHookForUpdate(
+    preparedUpdates,
+    existingPost,
+  );
+  return preparedUpdates;
+};
+
 export const createExternalLink = async ({
   con,
   ctx,
@@ -305,7 +353,7 @@ export const createExternalLink = async ({
   const isVisible = !!title;
 
   return con.transaction(async (entityManager) => {
-    await entityManager.getRepository(ArticlePost).insert({
+    let postData = {
       id,
       shortId: id,
       createdAt: new Date(),
@@ -324,7 +372,16 @@ export const createExternalLink = async ({
         visible: isVisible,
         originalUrl: originalUrl,
       },
+    };
+
+    // Apply vordr checks before saving
+    postData = await preparePostForInsert(postData, {
+      con: entityManager,
+      userId: authorId,
+      req: ctx?.req,
     });
+
+    await entityManager.getRepository(ArticlePost).insert(postData);
     const post = await createSharePost({
       con: entityManager,
       ctx,
@@ -395,7 +452,7 @@ export const createSharePost = async ({
 
     const id = await generateShortId();
 
-    const createdPost = con.getRepository(SharePost).create({
+    let createdPost = con.getRepository(SharePost).create({
       id,
       shortId: id,
       createdAt: new Date(),
@@ -416,27 +473,12 @@ export const createSharePost = async ({
       },
     } as DeepPartial<SharePost>);
 
-    const vordrStatus = await checkWithVordr(
-      {
-        id: createdPost.id,
-        content: createdPost.title || undefined,
-        type: VordrFilterType.Post,
-      },
-      { con, userId, req: ctx?.req },
-    );
-
-    if (vordrStatus) {
-      createdPost.banned = true;
-      createdPost.showOnFeed = false;
-
-      createdPost.flags = {
-        ...createdPost.flags,
-        banned: true,
-        showOnFeed: false,
-      };
-    }
-
-    createdPost.flags.vordr = vordrStatus;
+    // Apply vordr checks before saving
+    createdPost = await preparePostForInsert(createdPost, {
+      con,
+      userId,
+      req: ctx?.req,
+    });
 
     const post = await con.getRepository(SharePost).save(createdPost);
 
@@ -474,12 +516,28 @@ export const updateSharePost = async (
       ? generateTitleHtml(commentary, mentions)
       : null;
 
-    await con
+    // Get existing post for vordr checks
+    const post = await con
       .getRepository(SharePost)
-      .update(
-        { id: postId },
-        { title: strippedCommentary, titleHtml: titleHtml },
-      );
+      .findOneOrFail({ where: { id: postId }, select: ['id', 'flags'] });
+
+    let updateData: Partial<SharePost> = {
+      title: strippedCommentary,
+      titleHtml: titleHtml,
+    };
+
+    // Apply vordr checks before updating
+    updateData = await preparePostForUpdate(updateData, post, {
+      con,
+      userId,
+    });
+
+    // Type magic to avoid typescript issues
+    const updatedQuery: QueryDeepPartialEntity<Post> = updateData;
+    if (updatedQuery.flags) {
+      updatedQuery.flags = updateFlagsStatement(updatedQuery.flags);
+    }
+    await con.getRepository(SharePost).update({ id: postId }, updatedQuery);
 
     if (mentions.length) {
       await saveMentions(con, postId, userId, mentions, PostMention);

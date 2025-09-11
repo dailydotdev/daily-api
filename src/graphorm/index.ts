@@ -20,6 +20,7 @@ import {
   PostType,
   type PostFlagsPublic,
   type Campaign,
+  type OrganizationLink,
 } from '../entity';
 import {
   OrganizationMemberRole,
@@ -65,15 +66,8 @@ import {
 } from '../entity/user/UserJobPreferences';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
-import { OpportunityKeyword } from '../entity/OpportunityKeyword';
-import {
-  CompanySize,
-  CompanyStage,
-  EmploymentType,
-  OpportunityType,
-  SeniorityLevel,
-  type OpportunityMeta,
-} from '@dailydotdev/schema';
+import { OrganizationLinkType } from '../common/schema/organizations';
+import type { UserCandidateCV } from '../common/schema/userCandidate';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -184,6 +178,15 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
     },
   };
 };
+
+const organizationLink = (type: OrganizationLinkType) => ({
+  jsonType: true,
+  select: 'links',
+  transform: (
+    links: OrganizationLink[] | null,
+  ): OrganizationLink[] | undefined =>
+    links?.filter((link) => link.type === type),
+});
 
 const obj = new GraphORM({
   User: {
@@ -1300,12 +1303,6 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) => `${alias}."subscriptionFlags"->>'status'`,
       },
-      size: {
-        transform: (value) => CompanySize[value as keyof typeof CompanySize],
-      },
-      stage: {
-        transform: (value) => CompanyStage[value as keyof typeof CompanyStage],
-      },
       activeSeats: {
         rawSelect: true,
         select: (_, alias, qb) =>
@@ -1320,6 +1317,9 @@ const obj = new GraphORM({
               status: ContentPreferenceOrganizationStatus.Plus,
             }),
       },
+      customLinks: organizationLink(OrganizationLinkType.Custom),
+      socialLinks: organizationLink(OrganizationLinkType.Social),
+      pressLinks: organizationLink(OrganizationLinkType.Press),
     },
   },
   OrganizationMember: {
@@ -1433,13 +1433,30 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) => {
           return `
-            COALESCE(${alias}.sharesInternal + ${alias}.sharesExternal, 0)
+            GREATEST(${alias}."sharesInternal" + ${alias}."sharesExternal", 0)
           `;
         },
       },
       reputation: {
         transform: (value) => {
           return Math.max(0, value);
+        },
+      },
+      impressions: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.impressions + ${alias}."impressionsAds", 0)
+          `;
+        },
+      },
+      reach: {
+        rawSelect: true,
+        select: (_, alias) => {
+          // fallback if reachAll is not aggregated, we did not backfill for old posts without authors
+          return `
+            GREATEST(${alias}."reachAll", ${alias}.reach, 0)
+          `;
         },
       },
     },
@@ -1453,14 +1470,18 @@ const obj = new GraphORM({
       updatedAt: {
         transform: transformDate,
       },
+      impressions: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.impressions + ${alias}."impressionsAds", 0)
+          `;
+        },
+      },
     },
   },
   Opportunity: {
     fields: {
-      type: {
-        transform: (value) =>
-          OpportunityType[value as keyof typeof OpportunityType],
-      },
       createdAt: {
         transform: transformDate,
       },
@@ -1479,17 +1500,9 @@ const obj = new GraphORM({
       },
       meta: {
         jsonType: true,
-        transform: (value: OpportunityMeta) => ({
-          ...value,
-          seniorityLevel:
-            SeniorityLevel[
-              value.seniorityLevel as unknown as keyof typeof SeniorityLevel
-            ],
-          employmentType:
-            EmploymentType[
-              value.employmentType as unknown as keyof typeof EmploymentType
-            ],
-        }),
+      },
+      location: {
+        jsonType: true,
       },
       recruiters: {
         relation: {
@@ -1510,14 +1523,8 @@ const obj = new GraphORM({
       keywords: {
         relation: {
           isMany: true,
-          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
-            qb
-              .innerJoin(
-                OpportunityKeyword,
-                'ok',
-                `"${childAlias}"."value" = ok."keyword"`,
-              )
-              .where(`ok."opportunityId" = "${parentAlias}".id`),
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
         },
       },
     },
@@ -1552,6 +1559,29 @@ const obj = new GraphORM({
           childColumn: 'id',
           parentColumn: 'userId',
         },
+      },
+    },
+  },
+  UserCandidatePreference: {
+    fields: {
+      cv: {
+        jsonType: true,
+        transform: (value: UserCandidateCV | null): UserCandidateCV | null => {
+          if (!value) {
+            return null;
+          }
+
+          return {
+            ...value,
+            lastModified: transformDate(value.lastModified),
+          };
+        },
+      },
+      salaryExpectation: {
+        jsonType: true,
+      },
+      location: {
+        jsonType: true,
       },
     },
   },

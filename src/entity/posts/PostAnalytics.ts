@@ -63,10 +63,13 @@ export class PostAnalytics {
   awards: number;
 
   @Column({ default: 0 })
-  boostImpressions: number;
+  impressionsAds: number;
 
   @Column({ default: 0 })
-  boostReach: number;
+  reachAds: number;
+
+  @Column({ default: 0 })
+  reachAll: number;
 
   //  not added to migration because raw events data has some invalid post ids
   @OneToOne('Post', {

@@ -26,6 +26,9 @@ export class PostAnalyticsHistory {
   @Column({ default: 0 })
   impressions: number;
 
+  @Column({ default: 0 })
+  impressionsAds: number;
+
   // not added to migration because raw events data has some invalid post ids
   @OneToOne('Post', {
     lazy: true,

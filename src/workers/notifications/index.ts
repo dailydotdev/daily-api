@@ -34,6 +34,7 @@ import { organizationUserJoined } from '../organization/organizationUserJoined';
 import campaignUpdatedAction from './campaignUpdatedAction';
 import { userBriefReadyNotification } from './userBriefReadyNotification';
 import { userFollowNotification } from './userFollowNotification';
+import { candidateOpportunityMatchNotification } from './candidateOpportunityMatchNotification';
 
 export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   return {
@@ -106,6 +107,7 @@ const notificationWorkers: NotificationWorker[] = [
   campaignUpdatedAction,
   userBriefReadyNotification,
   userFollowNotification,
+  candidateOpportunityMatchNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

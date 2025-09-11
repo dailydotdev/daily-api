@@ -74,6 +74,7 @@ import {
   PostRelationType,
   type PostTranslation,
   PostType,
+  preparePostForUpdate,
   Settings,
   SharePost,
   SubmitExternalLinkArgs,
@@ -170,6 +171,7 @@ import {
   getBriefGenerationCost,
   requestBriefGeneration,
 } from '../common/brief';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 
 export interface GQLPost {
   id: string;
@@ -1035,14 +1037,15 @@ export const typeDefs = /* GraphQL */ `
     awards: Int!
     upvotesRatio: Int!
     shares: Int!
-    boostReach: Int!
-    boostImpressions: Int!
+    reachAds: Int!
+    impressionsAds: Int!
   }
 
   type PostAnalyticsHistory {
     id: ID!
     date: DateTime!
     impressions: Int!
+    impressionsAds: Int!
   }
 
   type PostAnalyticsHistoryEdge {
@@ -2782,7 +2785,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
 
-        const updated: Partial<EditablePost> = {};
+        let updated: Partial<EditablePost> = {};
 
         if (title && title !== post.title) {
           updated.title = title;
@@ -2825,7 +2828,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         if (Object.keys(updated).length) {
-          await repo.update({ id }, updated);
+          // Apply vordr checks before updating
+          updated = await preparePostForUpdate(updated, post, {
+            con: manager,
+            userId,
+            req: ctx.req,
+          });
+          // Type magic to avoid typescript issues
+          const updatedQuery: QueryDeepPartialEntity<Post> = updated;
+          if (updatedQuery.flags) {
+            updatedQuery.flags = updateFlagsStatement(updatedQuery.flags);
+          }
+          await repo.update({ id }, updatedQuery);
         }
       });
 

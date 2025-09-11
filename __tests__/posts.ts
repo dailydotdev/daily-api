@@ -3498,7 +3498,7 @@ describe('mutation submitExternalLink', () => {
           .getRepository(SharePost)
           .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
 
-        expect(post.flags.vordr).toEqual(false);
+        expect(post.flags.vordr).toBeFalsy();
       });
 
       it('should set the correct vordr flags on new post by a bad user', async () => {
@@ -3537,7 +3537,7 @@ describe('mutation submitExternalLink', () => {
           .getRepository(SharePost)
           .findOneByOrFail({ sourceId: 's1', authorId: loggedUser });
 
-        expect(post.flags.vordr).toEqual(false);
+        expect(post.flags.vordr).toBeFalsy();
       });
 
       it('should set the correct vordr flags on existing post by bad user', async () => {
@@ -4276,7 +4276,7 @@ describe('mutation createFreeformPost', () => {
         .getRepository(FreeformPost)
         .findOneByOrFail({ id: res.data.createFreeformPost.id });
 
-      expect(post.flags.vordr).toEqual(false);
+      expect(post.flags.vordr).toBeFalsy();
     });
 
     it('should set the correct vordr flags on a freeform post by good user if vordr filter catches it', async () => {
@@ -8814,8 +8814,8 @@ describe('query post analytics', () => {
         awards
         upvotesRatio
         shares
-        boostReach
-        boostImpressions
+        reachAds
+        impressionsAds
       }
     }
   `;
@@ -8871,8 +8871,9 @@ describe('query post analytics', () => {
           downvotes: 2,
           comments: 1,
           awards: 2,
-          boostReach: 0,
-          boostImpressions: 0,
+          reachAds: 7,
+          reachAll: 12,
+          impressionsAds: 25,
         });
       }),
     );
@@ -8899,8 +8900,8 @@ describe('query post analytics', () => {
 
     expect(res.data.postAnalytics).toMatchObject({
       id: 'p1-paq',
-      impressions: 10,
-      reach: 5,
+      impressions: 35,
+      reach: 12,
       bookmarks: 1,
       profileViews: 3,
       followers: 2,
@@ -8913,8 +8914,8 @@ describe('query post analytics', () => {
       comments: 1,
       upvotesRatio: 82,
       awards: 2,
-      boostReach: 0,
-      boostImpressions: 0,
+      reachAds: 7,
+      impressionsAds: 25,
     });
   });
 
@@ -8960,6 +8961,7 @@ describe('query history for post analytics', () => {
             id
             date
             impressions
+            impressionsAds
           }
         }
       }
@@ -9011,6 +9013,7 @@ describe('query history for post analytics', () => {
               id: `${item.id}-paqh`,
               date: format(date, 'yyyy-MM-dd'),
               impressions: 10,
+              impressionsAds: 20,
             });
           });
         })
@@ -9052,7 +9055,8 @@ describe('query history for post analytics', () => {
       expect(edge.node).toMatchObject({
         id: 'p1-paqh',
         date: expect.any(String),
-        impressions: 10,
+        impressions: 30,
+        impressionsAds: 20,
       });
     });
   });
