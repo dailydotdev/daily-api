@@ -22,10 +22,11 @@ type NotificationMessageHandler = (
   logger: FastifyBaseLogger,
 ) => Promise<NotificationHandlerReturn>;
 
-export interface NotificationWorker {
+export interface NotificationWorker<T> {
   subscription: string;
   handler: NotificationMessageHandler;
   maxMessages?: number;
+  parseMessage: (message: Message) => T;
 }
 
 interface GenerateTypeWorkerResult {
@@ -33,17 +34,16 @@ interface GenerateTypeWorkerResult {
   handler: NotificationMessageHandler;
 }
 
-export const generateTypedNotificationWorker = <
-  T extends keyof PubSubSchema,
-  D extends PubSubSchema[T] = PubSubSchema[T],
->({
+export const generateTypedNotificationWorker = <T extends keyof PubSubSchema>({
   subscription,
   handler,
+  parseMessage,
 }: TypedNotificationWorkerProps<T>): GenerateTypeWorkerResult => {
   return {
     subscription,
     handler: (message, ...props) => {
-      const data: D = messageToJson(message);
+      const parser = parseMessage || messageToJson<T>;
+      const data = parser(message) as PubSubSchema[T];
 
       return handler(data, ...props);
     },

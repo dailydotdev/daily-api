@@ -36,7 +36,10 @@ import { userBriefReadyNotification } from './userBriefReadyNotification';
 import { userFollowNotification } from './userFollowNotification';
 import { candidateOpportunityMatchNotification } from './candidateOpportunityMatchNotification';
 
-export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
+export function notificationWorkerToWorker(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  worker: NotificationWorker<any>,
+): Worker {
   return {
     ...worker,
     handler: async (message, con, logger) => {
@@ -74,7 +77,8 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   };
 }
 
-const notificationWorkers: NotificationWorker[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const notificationWorkers: NotificationWorker<any>[] = [
   communityPicksFailed,
   communityPicksGranted,
   articleNewCommentPostCommented,

@@ -4,10 +4,10 @@ import createOrGetConnection from '../../../src/db';
 import { User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { NotificationType } from '../../../src/notifications/common';
 import type { NotificationOpportunityMatchContext } from '../../../src/notifications';
-import type { PubSubSchema } from '../../../src/common';
+import { MatchedCandidate } from '@dailydotdev/schema';
 
 let con: DataSource;
 
@@ -30,12 +30,15 @@ describe('candidateOpportunityMatchNotification worker', () => {
   });
 
   it('should send notification with all required fields', async () => {
-    const result = await invokeNotificationWorker(worker, {
-      userId: '1',
-      opportunityId: 'opp123',
-      matchScore: 85,
-      reasoning: 'Based on your React and TypeScript skills',
-    } as PubSubSchema['gondul.v1.candidate-opportunity-match']);
+    const result = await invokeTypedNotificationWorker(
+      worker,
+      new MatchedCandidate({
+        userId: '1',
+        opportunityId: 'opp123',
+        matchScore: 85,
+        reasoning: 'Based on your React and TypeScript skills',
+      }),
+    );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.NewOpportunityMatch);
@@ -50,10 +53,13 @@ describe('candidateOpportunityMatchNotification worker', () => {
   });
 
   it('should send notification without optional fields', async () => {
-    const result = await invokeNotificationWorker(worker, {
-      userId: '2',
-      opportunityId: 'opp456',
-    } as PubSubSchema['gondul.v1.candidate-opportunity-match']);
+    const result = await invokeTypedNotificationWorker(
+      worker,
+      new MatchedCandidate({
+        userId: '2',
+        opportunityId: 'opp456',
+      }),
+    );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.NewOpportunityMatch);
@@ -62,23 +68,29 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     expect(context.userIds).toEqual(['2']);
     expect(context.opportunityId).toEqual('opp456');
-    expect(context.reasoning).toBeUndefined();
+    expect(context.reasoning).toEqual('');
   });
 
   it('should not send notification when userId is missing', async () => {
-    const result = await invokeNotificationWorker(worker, {
-      opportunityId: 'opp123',
-      reasoning: 'Test reasoning',
-    } as PubSubSchema['gondul.v1.candidate-opportunity-match']);
+    const result = await invokeTypedNotificationWorker(
+      worker,
+      new MatchedCandidate({
+        opportunityId: 'opp123',
+        reasoning: 'Test reasoning',
+      }),
+    );
 
     expect(result).toBeUndefined();
   });
 
   it('should not send notification when opportunityId is missing', async () => {
-    const result = await invokeNotificationWorker(worker, {
-      userId: '1',
-      reasoning: 'Test reasoning',
-    } as PubSubSchema['gondul.v1.candidate-opportunity-match']);
+    const result = await invokeTypedNotificationWorker(
+      worker,
+      new MatchedCandidate({
+        userId: '1',
+        reasoning: 'Test reasoning',
+      }),
+    );
 
     expect(result).toBeUndefined();
   });
