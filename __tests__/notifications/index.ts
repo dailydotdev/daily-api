@@ -980,7 +980,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.uniqueKey).toEqual('2');
     expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/posts/welcome1?comment=%40tsahidailywelcome+to+A%21',
+      'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21',
     );
     expect(actual.avatars).toEqual([
       {
