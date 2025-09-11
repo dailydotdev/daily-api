@@ -407,13 +407,17 @@ describe('mutation clearOpportunityAlert', () => {
     loggedUser = '1';
 
     saveFixtures(con, OpportunityJob, [
-      { ...opportunitiesFixture[0], organizationId: undefined },
+      {
+        ...opportunitiesFixture[0],
+        id: '45bef485-ba42-4fd9-8c8c-a2ea4b2d1d62',
+        organizationId: undefined,
+      },
     ]);
 
     await con.getRepository(Alerts).save(
       con.getRepository(Alerts).create({
         userId: '1',
-        opportunityId: opportunitiesFixture[0].id,
+        opportunityId: '45bef485-ba42-4fd9-8c8c-a2ea4b2d1d62',
       }),
     );
 
