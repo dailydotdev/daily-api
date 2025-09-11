@@ -5624,6 +5624,7 @@ describe('opportunity match', () => {
 
 describe('opportunity', () => {
   beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
   });
@@ -5776,6 +5777,48 @@ describe('opportunity', () => {
     );
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should clear alerts on opportunity going from live to draft', async () => {
+    await saveFixtures(con, Alerts, [
+      {
+        userId: '1',
+        opportunityId: opportunitiesFixture[0].id!,
+      },
+      {
+        userId: '2',
+        opportunityId: opportunitiesFixture[0].id!,
+      },
+    ]);
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          state: OpportunityState.LIVE,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: 'org-1',
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(
+      await con
+        .getRepository(Alerts)
+        .countBy({ opportunityId: '550e8400-e29b-41d4-a716-446655440001' }),
+    ).toEqual(0);
   });
 });
 

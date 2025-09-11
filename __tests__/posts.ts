@@ -115,6 +115,7 @@ import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
 import * as njordCommon from '../src/common/njord';
 import { BriefPost } from '../src/entity/posts/BriefPost';
 import { createClient } from '@connectrpc/connect';
+import isSameDay from 'date-fns/isSameDay';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -9069,5 +9070,204 @@ describe('query history for post analytics', () => {
       { query: QUERY, variables: { id: 'p1-paqh', first: 45 } },
       'FORBIDDEN',
     );
+  });
+});
+describe('mutate polls', () => {
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const MUTATION = `
+    mutation CreatePollPost($sourceId: ID!, $title: String!, $options: [PollOptionInput!]!, $duration: Int) {
+      createPollPost(sourceId: $sourceId, title: $title, options: $options, duration: $duration) {
+        id
+        title
+        endsAt
+        type
+        source {
+          id
+        }
+        author {
+          id
+        }
+        pollOptions {
+          id
+          text
+          numVotes
+          order
+        }
+      }
+    }
+`;
+
+  const defaultOptions = [
+    { text: 'Option 1', order: 0 },
+    { text: 'Option 2', order: 1 },
+    { text: 'Option 3', order: 2 },
+  ];
+
+  const defaultPoll = {
+    sourceId: 'a',
+    title: 'My poll',
+  };
+
+  it('should create a poll post', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      options: defaultOptions,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.id).toBeTruthy();
+    expect(res.data.createPollPost.title).toEqual('My poll');
+    expect(res.data.createPollPost.type).toEqual(PostType.Poll);
+    expect(res.data.createPollPost.pollOptions.length).toEqual(3);
+  });
+
+  it('should fail to create a poll without at least two options', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      options: defaultOptions.slice(0, 1),
+    };
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: poll,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should fail to create a poll with more than 4 options', async () => {
+    loggedUser = '1';
+
+    const options = [
+      ...defaultOptions,
+      {
+        text: 'Option 4',
+        order: 3,
+      },
+      {
+        text: 'Option 5',
+        order: 4,
+      },
+    ];
+
+    const poll = {
+      ...defaultPoll,
+      options,
+    };
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: poll,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create a poll that ends in 7 days', async () => {
+    loggedUser = '1';
+    const fakeNow = new Date(2025, 5, 5);
+    const futureDate = addDays(fakeNow, 7);
+
+    // Test fails due to timeout if we do not exclude the APIs we don't need.
+    const doNotFake: FakeableAPI[] = [
+      'nextTick',
+      'setImmediate',
+      'clearImmediate',
+      'setInterval',
+      'clearInterval',
+      'setTimeout',
+      'clearTimeout',
+    ];
+    jest.useFakeTimers({ doNotFake }).setSystemTime(fakeNow);
+
+    const poll = {
+      ...defaultPoll,
+      duration: 7,
+      options: defaultOptions,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    jest
+      .useFakeTimers({ doNotFake, advanceTimers: true })
+      .setSystemTime(futureDate);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.endsAt).toBeTruthy();
+    expect(
+      isSameDay(new Date(res.data.createPollPost.endsAt), futureDate),
+    ).toBeTruthy();
+  });
+
+  it('should faill to create a poll with a duration other than specified numbers in the zod schema', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      duration: 2,
+      options: defaultOptions,
+    };
+
+    testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: poll,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should create a poll without an end date', async () => {
+    loggedUser = '1';
+
+    const poll = {
+      ...defaultPoll,
+      options: defaultOptions,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.endsAt).toBeFalsy();
+  });
+
+  it('should allow the user to post a poll to his his userId as source', async () => {
+    loggedUser = '1';
+    const poll = { ...defaultPoll, sourceId: '1', options: defaultOptions };
+    const res = await client.mutate(MUTATION, {
+      variables: poll,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createPollPost.source.id).toBe('1');
+    expect(res.data.createPollPost.author.id).toBe('1');
   });
 });
