@@ -45,26 +45,11 @@ export function notificationWorkerToWorker(
   return {
     ...worker,
     handler: async (message, con, logger) => {
-      const messageParser = worker.parseMessage ?? messageToJson;
-
-      // Handle both legacy NotificationWorker and typed notification workers
-      let args;
-      if ('handler' in worker && typeof worker.handler === 'function') {
-        // For typed workers, call handler with parsed data directly
-        if (worker.parseMessage) {
-          args = await worker.handler(messageParser(message), con, logger);
-        } else {
-          // For legacy workers, wrap in Message format
-          args = await worker.handler(
-            {
-              messageId: message.messageId,
-              data: messageParser(message),
-            },
-            con,
-            logger,
-          );
-        }
-      }
+      const args = await worker.handler(
+        worker.parseMessage ? worker.parseMessage(message) : message,
+        con,
+        logger,
+      );
 
       if (!args) {
         return;
