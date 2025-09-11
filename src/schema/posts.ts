@@ -232,7 +232,7 @@ export interface GQLPost {
   permalink?: string;
   endsAt?: Date;
   pollOptions?: GQLPollOption[];
-  totalPollVotes?: number;
+  numPollVotes?: number;
 }
 
 interface PinPostArgs {

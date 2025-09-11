@@ -9081,6 +9081,10 @@ describe('mutate polls', () => {
     });
   });
 
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   const MUTATION = `
     mutation CreatePollPost($sourceId: ID!, $title: String!, $options: [PollOptionInput!]!, $duration: Int) {
       createPollPost(sourceId: $sourceId, title: $title, options: $options, duration: $duration) {
@@ -9184,6 +9188,20 @@ describe('mutate polls', () => {
 
   it('should create a poll that ends in 7 days', async () => {
     loggedUser = '1';
+    const fakeNow = new Date(2025, 5, 5);
+    const futureDate = addDays(fakeNow, 7);
+
+    // Test fails due to timeout if we do not exclude the APIs we don't need.
+    const doNotFake: FakeableAPI[] = [
+      'nextTick',
+      'setImmediate',
+      'clearImmediate',
+      'setInterval',
+      'clearInterval',
+      'setTimeout',
+      'clearTimeout',
+    ];
+    jest.useFakeTimers({ doNotFake }).setSystemTime(fakeNow);
 
     const poll = {
       ...defaultPoll,
@@ -9195,13 +9213,14 @@ describe('mutate polls', () => {
       variables: poll,
     });
 
+    jest
+      .useFakeTimers({ doNotFake, advanceTimers: true })
+      .setSystemTime(futureDate);
+
     expect(res.errors).toBeFalsy();
     expect(res.data.createPollPost.endsAt).toBeTruthy();
     expect(
-      isSameDay(
-        new Date(res.data.createPollPost.endsAt),
-        addDays(new Date(), 7),
-      ),
+      isSameDay(new Date(res.data.createPollPost.endsAt), futureDate),
     ).toBeTruthy();
   });
 
