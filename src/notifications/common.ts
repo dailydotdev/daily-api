@@ -265,6 +265,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
   },
   [NotificationType.PostAnalytics]: {
     email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
   },
 };
 
