@@ -45,4 +45,5 @@ export const notificationFlagsSchema = z.strictObject({
   [NotificationType.NewUserWelcome]: notificationPreferenceSchema,
   [NotificationType.Announcements]: notificationPreferenceSchema,
   [NotificationType.InAppPurchases]: notificationPreferenceSchema,
+  [NotificationType.PostAnalytics]: notificationPreferenceSchema,
 });
