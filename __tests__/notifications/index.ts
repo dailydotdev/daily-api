@@ -1143,12 +1143,13 @@ describe('generateNotification', () => {
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual('opp123');
     expect(actual.notification.referenceType).toEqual('opportunity');
+    expect(actual.notification.uniqueKey).toEqual(userId);
     expect(actual.notification.icon).toEqual('Opportunity');
     expect(actual.notification.title).toEqual(
       'New opportunity waiting for you in daily.dev',
     );
     expect(actual.notification.description).toEqual(
-      '<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>',
+      '<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> Based on your React and TypeScript skills</span>',
     );
     expect(actual.notification.targetUrl).toEqual(
       `${process.env.COMMENTS_PREFIX}/opportunity/opp123`,

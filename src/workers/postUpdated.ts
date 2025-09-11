@@ -45,6 +45,7 @@ import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
 import { insertCodeSnippetsFromUrl } from '../common/post';
 import { BriefPost } from '../entity/posts/BriefPost';
+import { PollPost } from '../entity/posts/PollPost';
 
 interface Data {
   id: string;
@@ -288,6 +289,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Collection]: CollectionPost,
   [PostType.VideoYouTube]: YouTubePost,
   [PostType.Brief]: BriefPost,
+  [PostType.Poll]: PollPost,
 };
 
 type UpdatePostProps = {

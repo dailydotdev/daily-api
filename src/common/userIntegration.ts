@@ -76,6 +76,15 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
   };
 
   switch (postType) {
+    case PostType.Poll: {
+      const pollPost = post as Post & { options: string[] };
+
+      if (pollPost.title) {
+        attachment.title = pollPost.title;
+        attachment.title_link = postLink;
+      }
+      break;
+    }
     case PostType.Article:
     case PostType.Collection:
     case PostType.VideoYouTube: {
