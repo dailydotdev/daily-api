@@ -270,7 +270,13 @@ export const invokeTypedNotificationWorker = async <
     messageId: '1',
   };
 
-  return worker.handler(message, con, logger);
+  // Simulate the internal wrapper logic that parses the message
+  const parser =
+    worker.parseMessage ||
+    ((msg: Message) => JSON.parse(msg.data.toString('utf-8')));
+  const parsedData = parser(message);
+
+  return worker.handler(parsedData, con, logger);
 };
 
 export const invokeCron = async (cron: Cron, logger: Logger): Promise<void> => {

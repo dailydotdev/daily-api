@@ -72,11 +72,6 @@ export type TypedWorker<T extends keyof PubSubSchema> = ConditionalTypedWorker<
   PubSubSchema[T]
 >;
 
-export type TypedNotificationWorkerProps<
-  T extends keyof PubSubSchema,
-  D extends PubSubSchema[T] = PubSubSchema[T],
-> = ConditionalTypedWorker<T, D, NotificationWorkerHandler<D>>;
-
 export type TypedNotificationWorker<T extends keyof PubSubSchema> =
   ConditionalTypedWorker<
     T,

@@ -43,7 +43,15 @@ export function notificationWorkerToWorker(
   return {
     ...worker,
     handler: async (message, con, logger) => {
-      const args = await worker.handler(message, con, logger);
+      const messageParser = worker.parseMessage ?? messageToJson;
+      const args = await worker.handler(
+        {
+          messageId: message.id,
+          data: messageParser(message),
+        },
+        con,
+        logger,
+      );
       if (!args) {
         return;
       }

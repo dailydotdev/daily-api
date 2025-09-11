@@ -1,5 +1,5 @@
 import { NotificationType } from '../../notifications/common';
-import { generateTypedNotificationWorker } from './worker';
+import { TypedNotificationWorker } from '../worker';
 import { NotificationSourceContext } from '../../notifications';
 import { SourceMemberRoles } from '../../roles';
 import { In } from 'typeorm';
@@ -7,10 +7,9 @@ import { getSubscribedMembers } from './utils';
 
 const toNotify = [SourceMemberRoles.Admin, SourceMemberRoles.Moderator];
 
-const worker = generateTypedNotificationWorker<'api.v1.squad-featured-updated'>(
-  {
-    subscription: 'api.squad-featured-updated-notification',
-    handler: async ({ squad }, con) => {
+const worker: TypedNotificationWorker<'api.v1.squad-featured-updated'> = {
+  subscription: 'api.squad-featured-updated-notification',
+  handler: async ({ squad }, con) => {
       if (!squad.flags.featured) {
         return undefined;
       }
@@ -36,7 +35,6 @@ const worker = generateTypedNotificationWorker<'api.v1.squad-featured-updated'>(
 
       return [{ type: NotificationType.SquadFeatured, ctx }];
     },
-  },
-);
+};
 
 export default worker;

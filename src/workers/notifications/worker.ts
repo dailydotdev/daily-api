@@ -1,13 +1,8 @@
 import { DataSource } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
-import {
-  Message,
-  messageToJson,
-  TypedNotificationWorkerProps,
-} from '../worker';
+import { Message } from '../worker';
 import { NotificationBaseContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
-import { PubSubSchema } from '../../common';
 
 interface NotificationWorkerResult {
   type: NotificationType;
@@ -28,24 +23,3 @@ export interface NotificationWorker<T = object> {
   maxMessages?: number;
   parseMessage?: (message: Message) => T;
 }
-
-interface GenerateTypeWorkerResult {
-  subscription: string;
-  handler: NotificationMessageHandler;
-}
-
-export const generateTypedNotificationWorker = <T extends keyof PubSubSchema>({
-  subscription,
-  handler,
-  parseMessage,
-}: TypedNotificationWorkerProps<T>): GenerateTypeWorkerResult => {
-  return {
-    subscription,
-    handler: (message, ...props) => {
-      const parser = parseMessage || messageToJson<T>;
-      const data = parser(message) as PubSubSchema[T];
-
-      return handler(data, ...props);
-    },
-  };
-};
