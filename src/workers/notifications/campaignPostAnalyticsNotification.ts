@@ -40,6 +40,10 @@ export const campaignPostAnalyticsNotification =
         return;
       }
 
+      if (!campaign.postId) {
+        return;
+      }
+
       const [postCtx, postAnalytics] = await Promise.all([
         buildPostContext(con, campaign.postId),
         con.getRepository(PostAnalytics).findOne({

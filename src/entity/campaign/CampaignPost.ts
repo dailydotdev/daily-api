@@ -5,7 +5,7 @@ import { Campaign, CampaignType } from './Campaign';
 @ChildEntity(CampaignType.Post)
 export class CampaignPost extends Campaign {
   @Column({ type: 'text', default: null })
-  postId: string;
+  postId: string | null;
 
   @ManyToOne('Post', { lazy: true, onDelete: 'CASCADE' })
   post: Promise<Post | SharePost | FreeformPost>;
