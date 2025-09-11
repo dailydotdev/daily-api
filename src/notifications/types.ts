@@ -146,6 +146,11 @@ export interface NotificationCampaignSourceContext
   source: Reference<Source>;
 }
 
+export type NotificationOpportunityMatchContext = NotificationBaseContext & {
+  opportunityId: string;
+  reasoning: string;
+};
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

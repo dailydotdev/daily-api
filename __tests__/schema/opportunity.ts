@@ -24,7 +24,15 @@ import {
 } from '../fixture/opportunity';
 import { OpportunityUser } from '../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../src/entity/opportunities/types';
-import { OpportunityState } from '@dailydotdev/schema';
+import {
+  CompanySize,
+  CompanyStage,
+  EmploymentType,
+  LocationType,
+  OpportunityState,
+  SalaryPeriod,
+} from '@dailydotdev/schema';
+import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -108,14 +116,30 @@ describe('opportunity queries', () => {
             website
             description
             location
+            customLinks {
+              ...Link
+            }
+            socialLinks {
+              ...Link
+            }
+            pressLinks {
+              ...Link
+            }
           }
           recruiters {
             id
           }
           keywords {
-            value
+            keyword
           }
         }
+      }
+
+      fragment Link on OrganizationLink {
+        type
+        socialType
+        title
+        link
       }
     `;
 
@@ -161,11 +185,42 @@ describe('opportunity queries', () => {
           website: 'https://daily.dev',
           description: 'A platform for developers',
           location: 'San Francisco',
+          customLinks: [
+            {
+              type: 'custom',
+              title: 'Custom Link',
+              link: 'https://custom.link',
+              socialType: null,
+            },
+            {
+              type: 'custom',
+              title: 'Custom Link 2',
+              link: 'https://custom2.link',
+              socialType: null,
+            },
+          ],
+          socialLinks: [
+            {
+              type: 'social',
+              socialType: 'facebook',
+              title: null,
+              link: 'https://facebook.com',
+            },
+          ],
+          pressLinks: [
+            {
+              type: 'press',
+              title: 'Press link',
+              link: 'https://press.link',
+              socialType: null,
+            },
+          ],
         },
         recruiters: [{ id: '1' }],
         keywords: expect.arrayContaining([
-          { value: 'webdev' },
-          { value: 'fullstack' },
+          { keyword: 'webdev' },
+          { keyword: 'fullstack' },
+          { keyword: 'Fortune 500' },
         ]),
       });
     });
@@ -214,7 +269,7 @@ describe('opportunity queries', () => {
         getOpportunityMatch(id: $id) {
           status
           description {
-            description
+            reasoning
           }
         }
       }
@@ -231,7 +286,7 @@ describe('opportunity queries', () => {
       expect(res.data.getOpportunityMatch).toEqual({
         status: 'pending',
         description: {
-          description: 'Interested candidate',
+          reasoning: 'Interested candidate',
         },
       });
     });
@@ -247,7 +302,7 @@ describe('opportunity queries', () => {
       expect(res.data.getOpportunityMatch).toEqual({
         status: 'candidate_accepted',
         description: {
-          description: 'Accepted candidate',
+          reasoning: 'Accepted candidate',
         },
       });
     });
@@ -287,6 +342,143 @@ describe('opportunity queries', () => {
         },
         'NOT_FOUND',
       );
+    });
+  });
+});
+
+describe('query getCandidatePreferences', () => {
+  const QUERY = /* GraphQL */ `
+    query GetCandidatePreferences {
+      getCandidatePreferences {
+        status
+        cv {
+          blob
+          contentType
+          lastModified
+        }
+        role
+        roleType
+        salaryExpectation {
+          min
+          period
+        }
+        location {
+          city
+          country
+          subdivision
+          continent
+          type
+        }
+        locationType
+        employmentType
+        companySize
+        companyStage
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, UserCandidatePreference, [
+      {
+        userId: '1',
+        role: 'Full Stack Developer',
+        cv: {
+          blob: '1',
+          contentType: 'application/pdf',
+          bucket: 'bucket-name',
+          lastModified: new Date('2023-10-10T10:00:00Z'),
+        },
+        salaryExpectation: { min: 50000, period: SalaryPeriod.ANNUAL },
+        location: [
+          { country: 'Norway' },
+          { city: 'London', country: 'UK', continent: 'Europe' },
+        ],
+        locationType: [LocationType.REMOTE, LocationType.HYBRID],
+        employmentType: [
+          EmploymentType.FULL_TIME,
+          EmploymentType.PART_TIME,
+          EmploymentType.CONTRACT,
+        ],
+        companyStage: [
+          CompanyStage.SERIES_A,
+          CompanyStage.SERIES_B,
+          CompanyStage.GOVERNMENT,
+        ],
+        companySize: [
+          CompanySize.COMPANY_SIZE_51_200,
+          CompanySize.COMPANY_SIZE_201_500,
+        ],
+      },
+      {
+        userId: '2',
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return candidate preferences for authenticated user', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getCandidatePreferences).toMatchObject({
+      status: 1,
+      role: 'Full Stack Developer',
+      roleType: 0.5,
+      cv: {
+        blob: '1',
+        contentType: 'application/pdf',
+        lastModified: '2023-10-10T10:00:00.000Z',
+      },
+      salaryExpectation: {
+        min: 50000,
+        period: 1,
+      },
+      location: [
+        { country: 'Norway' },
+        { city: 'London', country: 'UK', continent: 'Europe' },
+      ],
+      locationType: [1, 3],
+      employmentType: [1, 2, 3],
+      companyStage: [3, 4, 10],
+      companySize: [3, 4],
+    });
+  });
+
+  it('should return different candidate preferences for different authenticated user', async () => {
+    loggedUser = '2';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getCandidatePreferences).toEqual({
+      status: 1,
+      cv: {
+        blob: null,
+        contentType: null,
+        lastModified: null,
+      },
+      role: null,
+      roleType: 0.5,
+      salaryExpectation: {
+        min: null,
+        period: null,
+      },
+      location: [],
+      locationType: [],
+      employmentType: [],
+      companySize: [],
+      companyStage: [],
     });
   });
 });

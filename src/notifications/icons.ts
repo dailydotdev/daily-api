@@ -14,4 +14,5 @@ export enum NotificationIcon {
   Streak = 'Streak',
   TopReaderBadge = 'TopReaderBadge',
   Core = 'Core',
+  Opportunity = 'Opportunity',
 }

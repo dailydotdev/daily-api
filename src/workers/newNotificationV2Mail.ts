@@ -119,6 +119,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   campaign_squad_completed: '83',
   campaign_post_first_milestone: '80',
   campaign_squad_first_milestone: '82',
+  new_opportunity_match: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1045,6 +1046,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   in_app_purchases: async () => {
+    return null;
+  },
+  new_opportunity_match: async () => {
     return null;
   },
 };

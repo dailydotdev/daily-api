@@ -15,6 +15,8 @@ import type {
 } from '../common/schema/organizations';
 import type { CompanySize, CompanyStage } from '@dailydotdev/schema';
 
+export type OrganizationLink = z.infer<typeof organizationLinksSchema>;
+
 @Entity()
 @Index('IDX_organization_subflags_subscriptionid', { synchronize: false })
 export class Organization {
@@ -43,7 +45,7 @@ export class Organization {
   subscriptionFlags: z.infer<typeof organizationSubscriptionFlagsSchema>;
 
   @Column({ type: 'jsonb', default: '[]' })
-  links: z.infer<typeof organizationLinksSchema>[];
+  links: OrganizationLink[];
 
   @Column({ type: 'text', default: null })
   website: string;
@@ -54,7 +56,7 @@ export class Organization {
   @Column({ type: 'text', array: true, default: null })
   perks: Array<string>;
 
-  @Column({ type: 'numeric', default: null })
+  @Column({ type: 'int', default: null })
   founded: number;
 
   @Column({ type: 'text', default: null })
