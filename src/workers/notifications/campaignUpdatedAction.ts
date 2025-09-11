@@ -2,7 +2,6 @@ import { Campaign, Source } from '../../entity';
 import { NotificationType } from '../../notifications/common';
 import { generateTypedNotificationWorker } from './worker';
 import {
-  isSquadCampaignNotification,
   type NotificationCampaignContext,
   type NotificationCampaignSourceContext,
 } from '../../notifications';
@@ -74,21 +73,22 @@ const getCampaignContext = async ({
 }: GenerateNotificationProps) => {
   const { event } = params;
   const user = await campaign.user;
-  const ctx: NotificationCampaignContext | NotificationCampaignSourceContext = {
+  const ctx: NotificationCampaignContext = {
     user,
     campaign,
     event,
     userIds: [campaign.userId],
   };
 
-  if (isSquadCampaignNotification(ctx)) {
-    const source = await queryReadReplica(con, ({ queryRunner }) => {
-      return queryRunner.manager
-        .getRepository(Source)
-        .findOneByOrFail({ id: campaign.referenceId });
-    });
-
-    ctx.source = source;
+  if (campaign.type === CampaignType.Squad) {
+    (ctx as NotificationCampaignSourceContext).source = await queryReadReplica(
+      con,
+      ({ queryRunner }) => {
+        return queryRunner.manager
+          .getRepository(Source)
+          .findOneByOrFail({ id: campaign.referenceId });
+      },
+    );
   }
 
   return { ctx };
