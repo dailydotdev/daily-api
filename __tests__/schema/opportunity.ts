@@ -603,27 +603,26 @@ describe('mutation updateCandidatePreferences', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         status: 2000,
-        role: 'Backend Developer',
-        roleType: 1.0,
         employmentType: [300],
-        salaryExpectationMin: 70000,
         salaryExpectationPeriod: 800,
-        locationCity: 'Berlin',
-        locationCountry: 'Germany',
         locationType: [90],
       },
     });
 
     expect(res.errors).toBeTruthy();
     expect(res.data.updateCandidatePreferences).toEqual(null);
-    expect(
-      res.errors[0].extensions.issues.map((issue) => issue.message),
-    ).toEqual(
+
+    const errors = res.errors[0].extensions.issues.map((issue) => [
+      issue.message,
+      issue.path[0],
+    ]);
+
+    expect(errors).toEqual(
       expect.arrayContaining([
-        'Invalid candidate status',
-        'Invalid employment type',
-        'Invalid salary period',
-        'Invalid location type',
+        ['Invalid candidate status', 'status'],
+        ['Invalid employment type', 'employmentType'],
+        ['Invalid salary period', 'salaryExpectation'],
+        ['Invalid location type', 'locationType'],
       ]),
     );
 
