@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { DayOfWeek, DEFAULT_TIMEZONE, DEFAULT_WEEK_START } from '../../common';
 import { ContentLanguage, CoresRole } from '../../types';
-import type { Post } from '../posts';
+import type { Post } from '../posts/Post';
 import type { DevCard } from '../DevCard';
 import type { UserStreak } from './UserStreak';
 import type { UserStreakAction } from './UserStreakAction';

@@ -50,3 +50,33 @@ cmd_button(
     '--skip-preview',
   ],
 )
+
+# Add a button to API to seed the database
+cmd_button(
+  name="db_seed",
+  resource="api",
+  text="Seed Database",
+  icon_name="repartition",
+  requires_confirmation=True,
+  argv=["npm", "run", "db:seed:import"],
+)
+
+# Add a button to API to run db migrations
+cmd_button(
+  name="db_migrate",
+  resource="api",
+  text="Run database migrations",
+  icon_name="dns",
+  requires_confirmation=True,
+  argv=["npm", "run", "db:migrate:latest"],
+)
+
+# Add a button to API to run db rollback
+cmd_button(
+  name="db_rollback",
+  resource="api",
+  text="Run database rollback",
+  icon_name="settings_backup_restore",
+  requires_confirmation=True,
+  argv=["npm", "run", "db:migrate:rollback"],
+)

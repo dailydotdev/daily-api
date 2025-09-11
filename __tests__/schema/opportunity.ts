@@ -1,5 +1,5 @@
-import { DataSource } from 'typeorm';
-import { User, Keyword } from '../../src/entity';
+import { DataSource, IsNull } from 'typeorm';
+import { User, Keyword, Alerts } from '../../src/entity';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { Organization } from '../../src/entity/Organization';
@@ -290,6 +290,74 @@ describe('opportunity queries', () => {
           reasoning: 'Interested candidate',
         },
       });
+    });
+
+    it('should clear alert when alert matches opportunityId', async () => {
+      loggedUser = '1';
+
+      await saveFixtures(con, Alerts, [
+        {
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      ]);
+
+      const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.getOpportunityMatch).toEqual({
+        status: 'pending',
+        description: {
+          reasoning: 'Interested candidate',
+        },
+      });
+      expect(
+        await con.getRepository(Alerts).countBy({
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        }),
+      ).toEqual(0);
+      expect(
+        await con
+          .getRepository(Alerts)
+          .countBy({ userId: '1', opportunityId: IsNull() }),
+      ).toEqual(1);
+    });
+
+    it('should not clear alert when alert does not match opportunityId', async () => {
+      loggedUser = '1';
+
+      await saveFixtures(con, Alerts, [
+        {
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+        },
+      ]);
+
+      const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.getOpportunityMatch).toEqual({
+        status: 'pending',
+        description: {
+          reasoning: 'Interested candidate',
+        },
+      });
+      expect(
+        await con.getRepository(Alerts).countBy({
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+        }),
+      ).toEqual(1);
+      expect(
+        await con
+          .getRepository(Alerts)
+          .countBy({ userId: '1', opportunityId: IsNull() }),
+      ).toEqual(0);
     });
 
     it('should return different match for different user', async () => {
