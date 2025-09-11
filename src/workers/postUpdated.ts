@@ -365,11 +365,14 @@ const updatePost = async ({
   const title = data?.title || databasePost.title;
   data.title = title;
 
+  const metadataChangedAt = data?.metadataChangedAt;
+
   // Apply vordr checks before updating the post
   data = await preparePostForUpdate(data, databasePost, {
     con: entityManager,
     userId: data.authorId || undefined,
   });
+  data.metadataChangedAt = metadataChangedAt;
 
   data.id = databasePost.id;
   data.sourceId = data.sourceId || databasePost.sourceId;

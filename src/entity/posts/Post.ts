@@ -52,6 +52,7 @@ export type PostFlags = Partial<{
   sources: number;
   savedTime: number;
   generatedAt: Date;
+  dedupKey: string;
 }>;
 
 export type PostFlagsPublic = Pick<
