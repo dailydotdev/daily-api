@@ -260,9 +260,10 @@ export const invokeTypedNotificationWorker = async <
   const con = await createOrGetConnection();
 
   // Create message data based on whether it's a protobuf type or not
-  const messageData = (data as any)?.toBinary
-    ? (data as any).toBinary()
-    : Buffer.from(JSON.stringify(data), 'utf-8');
+  const messageData =
+    'toBinary' in data
+      ? data.toBinary()
+      : Buffer.from(JSON.stringify(data), 'utf-8');
 
   const message: Message = {
     data: messageData,
