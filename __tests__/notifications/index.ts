@@ -10,6 +10,7 @@ import {
   NotificationDoneByContext,
   NotificationGiftPlusContext,
   type NotificationOpportunityMatchContext,
+  type NotificationPostAnalyticsContext,
   NotificationPostContext,
   NotificationPostModerationContext,
   NotificationSourceContext,
@@ -979,7 +980,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('source');
     expect(actual.notification.uniqueKey).toEqual('2');
     expect(actual.notification.targetUrl).toEqual(
-      'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21',
+      'http://localhost:5002/posts/welcome1?comment=%40tsahidailywelcome+to+A%21',
     );
     expect(actual.avatars).toEqual([
       {
@@ -1818,5 +1819,78 @@ describe('user follow notifications', () => {
         type: 'user',
       },
     ]);
+  });
+});
+
+describe('post analytics notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+  });
+
+  it('should notify post analytics', async () => {
+    const post = postsFixture[0] as ChangeObject<Post>;
+
+    const type = NotificationType.PostAnalytics;
+    const ctx: NotificationPostAnalyticsContext = {
+      userIds: ['1'],
+      source: sourcesFixture.find(
+        (item) => item.id === 'unknown',
+      ) as Reference<Source>,
+      post,
+      analytics: {
+        impressions: 12_101,
+      },
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1/analytics',
+    );
+    expect(actual.attachments).toEqual([
+      {
+        image: 'https://daily.dev/image.jpg',
+        referenceId: 'p1',
+        title: 'P1',
+        type: 'post',
+      },
+    ]);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http//image.com/unknown',
+        name: 'unknown',
+        referenceId: 'unknown',
+        targetUrl: 'http://localhost:5002/sources/unknown',
+        type: 'source',
+      },
+    ]);
+    expect(actual.notification.title).toEqual(
+      'Your post has reached 12,101 impressions so far. <span class="text-text-link">View more analytics</span>',
+    );
+  });
+
+  it('should use K notation when impressions are above 100_000', async () => {
+    const post = postsFixture[0] as ChangeObject<Post>;
+
+    const type = NotificationType.PostAnalytics;
+    const ctx: NotificationPostAnalyticsContext = {
+      userIds: ['1'],
+      source: sourcesFixture.find(
+        (item) => item.id === 'unknown',
+      ) as Reference<Source>,
+      post,
+      analytics: {
+        impressions: 120_101,
+      },
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.title).toEqual(
+      'Your post has reached 120.1K impressions so far. <span class="text-text-link">View more analytics</span>',
+    );
   });
 });

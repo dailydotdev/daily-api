@@ -190,7 +190,7 @@ export const notificationTitleMap: Record<
   in_app_purchases: systemTitle,
   new_opportunity_match: () => `New opportunity waiting for you in daily.dev`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
-    return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</strong>`;
+    return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
   },
 };
 
