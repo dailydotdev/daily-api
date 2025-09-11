@@ -96,6 +96,11 @@ export const typeDefs = /* GraphQL */ `
     Date of the last time user saw the brief banner
     """
     briefBannerLastSeen: DateTime
+
+    """
+    Opportunity ID the user has been matched with
+    """
+    opportunityId: String
   }
 
   input UpdateAlertsInput {
@@ -179,6 +184,11 @@ export const typeDefs = /* GraphQL */ `
     Reset feed settings feedback (survey) reminder
     """
     updateFeedFeedbackReminder: EmptyResponse @auth
+
+    """
+    Reset opportunity alert
+    """
+    clearOpportunityAlert: EmptyResponse! @auth
   }
 
   extend type Query {
@@ -202,6 +212,7 @@ export const saveReturnAlerts = (alerts: Alerts) => {
 interface GQLAlertInputInternalInput {
   showGenericReferral?: boolean;
   lastFeedSettingsFeedback?: Date;
+  opportunityId?: string | null;
 }
 
 export const updateAlerts = async (
@@ -293,6 +304,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await updateAlerts(ctx.con, ctx.userId, {
         lastFeedSettingsFeedback: new Date(),
       });
+      return { _: true };
+    },
+    clearOpportunityAlert: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await updateAlerts(ctx.con, ctx.userId, { opportunityId: null });
       return { _: true };
     },
   },

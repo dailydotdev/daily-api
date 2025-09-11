@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { typedWorkers } from '../../../src/workers';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
-import { User, Organization } from '../../../src/entity';
+import { User, Organization, Alerts } from '../../../src/entity';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import { usersFixture } from '../../fixture';
 import {
@@ -154,10 +154,23 @@ describe('storeCandidateOpportunityMatch worker', () => {
   it('should re-throw non-EntityNotFoundError errors', async () => {
     // Mock the repository to throw a different error
     const mockRepo = {
-      insert: jest
+      upsert: jest
         .fn()
         .mockRejectedValue(new Error('Database connection failed')),
     };
+
+    // Mock the manager that transaction callback will receive
+    const mockManager = {
+      getRepository: jest.fn().mockReturnValue(mockRepo),
+    };
+
+    // Mock the connection's transaction method to invoke the callback with our mock manager
+    const originalTransaction = con.transaction;
+    con.transaction = jest.fn(
+      async (cb: (manager: unknown) => Promise<void>) => {
+        return cb(mockManager);
+      },
+    );
 
     const originalGetRepository = con.getRepository;
     con.getRepository = jest.fn().mockReturnValue(mockRepo);
@@ -175,6 +188,44 @@ describe('storeCandidateOpportunityMatch worker', () => {
     ).rejects.toThrow('Database connection failed');
 
     // Restore original method
+    con.transaction = originalTransaction;
     con.getRepository = originalGetRepository;
+  });
+
+  it('should update alerts with opportunityId when match is stored', async () => {
+    const matchData = new MatchedCandidate({
+      userId: '1',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      matchScore: 85,
+      reasoning: 'Strong technical background and relevant experience',
+    });
+
+    await expectSuccessfulTypedBackground(worker, matchData);
+
+    expect(await con.getRepository(Alerts).findOneBy({ userId: '1' })).toEqual(
+      expect.objectContaining({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    );
+  });
+
+  it('should not overwrite alerts with opportunityId when match is stored', async () => {
+    await saveFixtures(con, Alerts, [
+      { userId: '1', opportunityId: '550e8400-e29b-41d4-a716-446655440002' },
+    ]);
+    const matchData = new MatchedCandidate({
+      userId: '1',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      matchScore: 85,
+      reasoning: 'Strong technical background and relevant experience',
+    });
+
+    await expectSuccessfulTypedBackground(worker, matchData);
+
+    expect(await con.getRepository(Alerts).findOneBy({ userId: '1' })).toEqual(
+      expect.objectContaining({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+      }),
+    );
   });
 });

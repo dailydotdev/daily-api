@@ -10,7 +10,7 @@ import {
 import { Source, UNKNOWN_SOURCE } from '../Source';
 import { PostTag } from '../PostTag';
 import { PostKeyword } from '../PostKeyword';
-import { User } from '../user';
+import { User } from '../user/User';
 import { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
 import type { ContentLanguage } from '../../types';
@@ -23,6 +23,7 @@ export enum PostType {
   Collection = 'collection',
   VideoYouTube = 'video:youtube',
   Brief = 'brief',
+  Poll = 'poll',
 }
 
 export const postTypes: string[] = Object.values(PostType);
@@ -51,6 +52,7 @@ export type PostFlags = Partial<{
   sources: number;
   savedTime: number;
   generatedAt: Date;
+  dedupKey: string;
 }>;
 
 export type PostFlagsPublic = Pick<

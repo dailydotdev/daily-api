@@ -7,10 +7,6 @@ export const candidateOpportunityMatchNotification =
   generateTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>({
     subscription: 'api.candidate-opportunity-match-notification',
     handler: async (data, _, logger) => {
-      if (process.env.NODE_ENV === 'development') {
-        return;
-      }
-
       try {
         const { userId, opportunityId, reasoning } = data;
         if (!userId || !opportunityId) {

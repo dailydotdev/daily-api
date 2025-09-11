@@ -19,6 +19,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         lastFeedSettingsFeedback
         showTopReader
         briefBannerLastSeen
+        opportunityId
       }
     }`;
 
