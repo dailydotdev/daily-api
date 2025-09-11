@@ -25,17 +25,29 @@ export type UserCandidateCV = z.infer<typeof userCandidateCVSchema>;
 export const candidatePreferenceSchema = z.object({
   status: z
     .enum(CandidateStatus, { error: 'Invalid candidate status' })
+    .refine((val) => val !== CandidateStatus.UNSPECIFIED, {
+      message: 'Invalid candidate status',
+    })
     .optional(),
   role: z.string().min(3).max(100).optional(),
   roleType: z.number().transform(snapToHalf).pipe(z.enum(RoleType)).optional(),
   employmentType: z
-    .array(z.enum(EmploymentType, { error: 'Invalid employment type' }))
+    .array(
+      z
+        .enum(EmploymentType, { error: 'Invalid employment type' })
+        .refine((val) => val !== EmploymentType.UNSPECIFIED, {
+          message: 'Invalid employment type',
+        }),
+    )
     .optional(),
   salaryExpectation: z
     .object({
       min: z.number().min(0).optional(),
       period: z
         .enum(SalaryPeriod, { error: 'Invalid salary period' })
+        .refine((val) => val !== SalaryPeriod.UNSPECIFIED, {
+          message: 'Invalid salary period',
+        })
         .optional(),
     })
     .optional(),
@@ -48,6 +60,12 @@ export const candidatePreferenceSchema = z.object({
     )
     .optional(),
   locationType: z
-    .array(z.enum(LocationType, { error: 'Invalid location type' }))
+    .array(
+      z
+        .enum(LocationType, { error: 'Invalid location type' })
+        .refine((val) => val !== LocationType.UNSPECIFIED, {
+          message: 'Invalid location type',
+        }),
+    )
     .optional(),
 });

@@ -698,4 +698,38 @@ describe('mutation updateCandidatePreferences', () => {
       await con.getRepository(UserCandidatePreference).countBy({ userId: '1' }),
     ).toBe(0);
   });
+
+  it('should throw error on when given UNSPECIFIED proto enum value', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        status: 0,
+        employmentType: [0],
+        salaryExpectationPeriod: 0,
+        locationType: [0],
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.data.updateCandidatePreferences).toEqual(null);
+
+    const errors = res.errors[0].extensions.issues.map((issue) => [
+      issue.message,
+      issue.path[0],
+    ]);
+
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        ['Invalid candidate status', 'status'],
+        ['Invalid employment type', 'employmentType'],
+        ['Invalid salary period', 'salaryExpectation'],
+        ['Invalid location type', 'locationType'],
+      ]),
+    );
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
 });
