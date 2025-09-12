@@ -1,4 +1,4 @@
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { userReceivedAward as worker } from '../../../src/workers/transactions/userReceivedAward';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
@@ -54,7 +54,7 @@ describe('userReceivedAward worker', () => {
   });
 
   it('should do nothing if transaction not found', async () => {
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: {
         id: '87b79108-d258-42d2-b38a-4a02974746cc',
       },
@@ -77,7 +77,7 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
     });
 
@@ -98,7 +98,7 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
     });
 
@@ -119,7 +119,7 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
     });
 
@@ -161,7 +161,7 @@ describe('userReceivedAward worker', () => {
       awardTransactionId: transactionId,
     });
 
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
     });
 
@@ -212,7 +212,7 @@ describe('userReceivedAward worker', () => {
       awardTransactionId: transactionId,
     });
 
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
     });
 
@@ -249,7 +249,7 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
     });
 
@@ -282,7 +282,7 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeNotificationWorker(worker, {
+    const result = await invokeTypedNotificationWorker(worker, {
       transaction: transaction as unknown as ChangeObject<UserTransaction>,
     });
 
