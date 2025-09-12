@@ -16,6 +16,7 @@ import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../../src/common/schema/organizations';
+import type { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -195,6 +196,27 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
         country: 'USA',
       },
     ],
+  },
+];
+
+export const opportunityQuestionsFixture: DeepPartial<QuestionScreening>[] = [
+  {
+    id: '750e8400-e29b-41d4-a716-446655440001',
+    title: 'What is your favorite programming language?',
+    placeholder: 'e.g., JavaScript, Python, etc.',
+    opportunityId: opportunitiesFixture[0].id,
+  },
+  {
+    id: '750e8400-e29b-41d4-a716-446655440002',
+    title: 'Describe a challenging project you worked on.',
+    placeholder: 'Your answer here...',
+    opportunityId: opportunitiesFixture[0].id,
+  },
+  {
+    id: '750e8400-e29b-41d4-a716-446655440003',
+    title: 'What are your career goals?',
+    placeholder: 'Your answer here...',
+    opportunityId: opportunitiesFixture[1].id,
   },
 ];
 

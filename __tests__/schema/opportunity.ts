@@ -21,6 +21,7 @@ import {
   opportunitiesFixture,
   opportunityKeywordsFixture,
   opportunityMatchesFixture,
+  opportunityQuestionsFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
 import { OpportunityUser } from '../../src/entity/opportunities/user';
@@ -34,6 +35,8 @@ import {
   SalaryPeriod,
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
+import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
+import type { GQLOpportunity } from '../../src/schema/opportunity';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -57,6 +60,7 @@ beforeEach(async () => {
   await saveFixtures(con, Keyword, keywordsFixture);
   await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, Opportunity, opportunitiesFixture);
+  await saveFixtures(con, QuestionScreening, opportunityQuestionsFixture);
   await saveFixtures(con, OpportunityKeyword, opportunityKeywordsFixture);
   await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
   await saveFixtures(con, OpportunityUser, [
@@ -132,6 +136,11 @@ describe('query opportunityById', () => {
         keywords {
           keyword
         }
+        questions {
+          id
+          title
+          placeholder
+        }
       }
     }
 
@@ -144,7 +153,10 @@ describe('query opportunityById', () => {
   `;
 
   it('should return opportunity by id', async () => {
-    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+    const res = await client.query<
+      { opportunityById: GQLOpportunity },
+      { id: string }
+    >(OPPORTUNITY_BY_ID_QUERY, {
       variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
     });
 
@@ -221,6 +233,18 @@ describe('query opportunityById', () => {
         { keyword: 'webdev' },
         { keyword: 'fullstack' },
         { keyword: 'Fortune 500' },
+      ]),
+      questions: expect.arrayContaining([
+        {
+          id: '750e8400-e29b-41d4-a716-446655440001',
+          title: 'What is your favorite programming language?',
+          placeholder: 'e.g., JavaScript, Python, etc.',
+        },
+        {
+          id: '750e8400-e29b-41d4-a716-446655440002',
+          title: 'Describe a challenging project you worked on.',
+          placeholder: 'Your answer here...',
+        },
       ]),
     });
   });

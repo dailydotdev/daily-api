@@ -75,6 +75,12 @@ export const typeDefs = /* GraphQL */ `
     keyword: String!
   }
 
+  type OpportunityScreeningQuestion {
+    id: ID!
+    title: String!
+    placeholder: String
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -86,6 +92,7 @@ export const typeDefs = /* GraphQL */ `
     organization: Organization!
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
+    questions: [OpportunityScreeningQuestion]!
   }
 
   type OpportunityMatchDescription {
