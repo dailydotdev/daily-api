@@ -289,23 +289,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const opportunityId = safePayload.data.id;
       const answers = safePayload.data.answers;
 
-      const match = await con.getRepository(OpportunityMatch).findOneBy({
-        opportunityId,
-        userId,
-        status: OpportunityMatchStatus.Pending,
-      });
-      if (!match) {
-        throw new ForbiddenError(`Access denied! Match is not pending`);
-      }
-
-      const opportunity = await con
-        .getRepository(OpportunityJob)
-        .findOneOrFail({
+      const [match, opportunity] = await Promise.all([
+        con.getRepository(OpportunityMatch).findOneBy({
+          opportunityId,
+          userId,
+          status: OpportunityMatchStatus.Pending,
+        }),
+        con.getRepository(OpportunityJob).findOneOrFail({
           where: { id: opportunityId, state: OpportunityState.LIVE },
           relations: {
             questions: true,
           },
-        });
+        }),
+      ]);
+
+      if (!match) {
+        throw new ForbiddenError(`Access denied! Match is not pending`);
+      }
 
       const questions = await opportunity.questions;
 
