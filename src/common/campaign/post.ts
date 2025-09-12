@@ -7,6 +7,8 @@ import {
   Post,
   PostType,
   type ConnectionManager,
+  type FreeformPost,
+  type SharePost,
 } from '../../entity';
 import { getPostPermalink } from '../../schema/posts';
 import {
@@ -17,7 +19,7 @@ import type { Connection } from 'graphql-relay';
 import { mapCloudinaryUrl } from '../cloudinary';
 import { pickImageUrl } from '../post';
 import { systemUser, updateFlagsStatement } from '../utils';
-import { getDiscussionLink } from '../links';
+import { getDiscussionLink, notificationsLink } from '../links';
 import { usdToCores } from '../number';
 
 import {
@@ -35,6 +37,12 @@ import {
 } from '../../entity/user/UserTransaction';
 import { addDays } from 'date-fns';
 import { skadiApiClientV2 } from '../../integrations/skadi/api/v2/clients';
+import type { NotificationCampaignContext } from '../../notifications';
+import type { NotificationBuilder } from '../../notifications/builder';
+import { NotificationIcon } from '../../notifications/icons';
+import { formatMailDate, addNotificationEmailUtm } from '../mailing';
+import { truncatePostToTweet } from '../twitter';
+import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 
 export interface GQLPromotedPost
   extends Omit<
@@ -287,4 +295,50 @@ export const getPostTags = async (con: ConnectionManager, postId: string) => {
   const list = [...tags1, ...tags2].filter((tag) => tag.trim().length > 0);
 
   return Array.from(new Set(list));
+};
+
+export const generateCampaignPostNotification = (
+  builder: NotificationBuilder,
+  ctx: NotificationCampaignContext,
+) => {
+  const { campaign, event, user } = ctx;
+
+  return builder
+    .icon(NotificationIcon.DailyDev)
+    .referenceCampaign(ctx)
+    .targetUrl(notificationsLink)
+    .setTargetUrlParameter([['c_id', campaign.id]])
+    .uniqueKey(`${campaign.id}-${user.id}-${event}`)
+    .avatarUser(user);
+};
+
+export const generateCampaignPostEmail: TemplateDataFunc = async (
+  con,
+  user,
+  notification,
+) => {
+  const campaign = await con.getRepository(CampaignPost).findOne({
+    where: { id: notification.referenceId },
+    relations: ['post', 'post.sharedPost'],
+  });
+
+  if (!campaign) {
+    return null;
+  }
+
+  const post = await campaign.post;
+  const sharedPost = await (post as SharePost).sharedPost;
+  const title = truncatePostToTweet(post || sharedPost);
+
+  return {
+    start_date: formatMailDate(campaign.createdAt),
+    end_date: formatMailDate(campaign.endedAt),
+    analytics_link: addNotificationEmailUtm(
+      notification.targetUrl,
+      notification.type,
+    ),
+    post_link: getDiscussionLink(post.slug),
+    post_image: ((sharedPost || post) as FreeformPost)?.image,
+    post_title: title,
+  };
 };

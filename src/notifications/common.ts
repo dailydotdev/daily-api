@@ -72,6 +72,8 @@ export enum NotificationType {
   NewUserWelcome = 'new_user_welcome',
   Announcements = 'announcements',
   InAppPurchases = 'in_app_purchases',
+  CampaignPostFirstMilestone = 'campaign_post_first_milestone',
+  CampaignSquadFirstMilestone = 'campaign_squad_first_milestone',
   NewOpportunityMatch = 'new_opportunity_match',
 }
 
