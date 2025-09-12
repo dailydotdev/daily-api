@@ -4,7 +4,7 @@ import { ChangeObject } from '../../../src/types';
 import { usersFixture } from '../../fixture';
 import { SubscriptionCycles } from '../../../src/paddle';
 import { addYears } from 'date-fns';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { PLUS_MEMBER_SQUAD_ID } from '../../../src/workers/userUpdatedPlusSubscriptionSquad';
 import { SourceType, User, Source } from '../../../src/entity';
 import { NotificationGiftPlusContext } from '../../../src/notifications';
@@ -57,7 +57,7 @@ const WORKER_RELATIVE_PATH =
 describe('plus subscription gift', () => {
   it('should early return for currently non plus user', async () => {
     const worker = await import(WORKER_RELATIVE_PATH);
-    const actual = await invokeNotificationWorker(worker.default, {
+    const actual = await invokeTypedNotificationWorker(worker.default, {
       user: base,
       newProfile: base,
     });
@@ -66,7 +66,7 @@ describe('plus subscription gift', () => {
 
   it('should not return anything plus user since before', async () => {
     const worker = await import(WORKER_RELATIVE_PATH);
-    const actual = await invokeNotificationWorker(worker.default, {
+    const actual = await invokeTypedNotificationWorker(worker.default, {
       user: plusUser,
       newProfile: plusUser,
     });
@@ -75,7 +75,7 @@ describe('plus subscription gift', () => {
 
   it('should return notification for gifted plus user', async () => {
     const worker = await import(WORKER_RELATIVE_PATH);
-    const actual = (await invokeNotificationWorker(worker.default, {
+    const actual = (await invokeTypedNotificationWorker(worker.default, {
       user: base,
       newProfile: giftedPlusUser,
     })) as Array<{
