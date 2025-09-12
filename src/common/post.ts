@@ -55,6 +55,9 @@ import type { GraphQLResolveInfo } from 'graphql';
 import { offsetPageGenerator } from '../schema/common';
 import { SourceMemberRoles } from '../roles';
 import { queryReadReplica } from './queryReadReplica';
+import { PollOption } from '../entity/polls/PollOption';
+import addDays from 'date-fns/addDays';
+import { PollPost } from '../entity/posts/PollPost';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -240,6 +243,75 @@ interface CreateFreeformPostArgs {
   args: CreatePost;
 }
 
+interface CreatePollPostArgs {
+  con: DataSource | EntityManager;
+  ctx: AuthContext;
+  args: {
+    id: string;
+    title: string;
+    sourceId: string;
+    authorId: string;
+    duration?: number;
+    pollOptions: PollOption[];
+  };
+}
+
+export const createPollPost = async ({
+  con,
+  ctx,
+  args,
+}: CreatePollPostArgs) => {
+  const { pollOptions, ...restArgs } = args;
+  const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
+    id: restArgs.sourceId,
+    type: In([SourceType.Squad, SourceType.User]),
+  });
+
+  const createdPost = con.getRepository(PollPost).create({
+    ...restArgs,
+    shortId: restArgs.id,
+    endsAt: restArgs?.duration ? addDays(new Date(), restArgs.duration) : null,
+    visible: true,
+    private: privacy,
+    visibleAt: new Date(),
+    origin: PostOrigin.UserGenerated,
+    flags: {
+      visible: true,
+      private: privacy,
+    },
+  });
+
+  const vordrStatus = await checkWithVordr(
+    {
+      id: createdPost.id,
+      type: VordrFilterType.Post,
+      content: createdPost.title || '',
+    },
+    { con, userId: args.authorId, req: ctx?.req },
+  );
+
+  if (vordrStatus) {
+    createdPost.banned = true;
+    createdPost.showOnFeed = false;
+
+    createdPost.flags = {
+      ...createdPost.flags,
+      banned: true,
+      showOnFeed: false,
+    };
+  }
+
+  createdPost.flags.vordr = vordrStatus;
+
+  return con.transaction(async (entityManager) => {
+    const savedPost = await entityManager
+      .getRepository(PollPost)
+      .save(createdPost);
+    await entityManager.getRepository(PollOption).save(pollOptions);
+    return savedPost;
+  });
+};
+
 export const createFreeformPost = async ({
   con,
   args,
@@ -347,6 +419,17 @@ export interface EditPostArgs
 export interface CreatePostArgs
   extends Pick<EditPostArgs, 'title' | 'content' | 'image'> {
   sourceId: string;
+}
+
+export interface PollOptionInput {
+  text: string;
+  order: number;
+}
+
+export interface CreatePollPostProps
+  extends Pick<CreatePostArgs, 'title' | 'sourceId'> {
+  options: PollOptionInput[];
+  duration: number;
 }
 
 const MAX_TITLE_LENGTH = 250;

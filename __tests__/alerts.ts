@@ -22,6 +22,8 @@ import { DataSource } from 'typeorm';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { usersFixture } from './fixture/user';
 import { isSameDay, subDays } from 'date-fns';
+import { opportunitiesFixture } from './fixture/opportunity';
+import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -46,24 +48,27 @@ beforeEach(async () => {
 });
 
 describe('query userAlerts', () => {
-  const QUERY = `{
-    userAlerts {
-      filter
-      rankLastSeen
-      myFeed
-      companionHelper
-      lastChangelog
-      lastBanner
-      squadTour
-      showGenericReferral
-      showStreakMilestone
-      showRecoverStreak
-      lastBootPopup
-      lastFeedSettingsFeedback
-      showTopReader
-      briefBannerLastSeen
+  const QUERY = /* GraphQL */ `
+    {
+      userAlerts {
+        filter
+        rankLastSeen
+        myFeed
+        companionHelper
+        lastChangelog
+        lastBanner
+        squadTour
+        showGenericReferral
+        showStreakMilestone
+        showRecoverStreak
+        lastBootPopup
+        lastFeedSettingsFeedback
+        showTopReader
+        briefBannerLastSeen
+        opportunityId
+      }
     }
-  }`;
+  `;
 
   it('should return alerts default values if anonymous', async () => {
     const res = await client.query(QUERY);
@@ -76,6 +81,7 @@ describe('query userAlerts', () => {
       lastChangelog: res.data.userAlerts.lastChangelog,
       lastFeedSettingsFeedback: res.data.userAlerts.lastFeedSettingsFeedback,
       briefBannerLastSeen: null, // Should be null for anonymous users
+      opportunityId: null,
     });
   });
 
@@ -139,7 +145,7 @@ describe('query userAlerts', () => {
 });
 
 describe('mutation updateUserAlerts', () => {
-  const MUTATION = (extra = '') => `
+  const MUTATION = (extra = '') => /* GraphQL */ `
     mutation UpdateUserAlerts($data: UpdateAlertsInput!) {
       updateUserAlerts(data: $data) {
         filter
@@ -305,7 +311,7 @@ describe('dedicated api routes', () => {
 });
 
 describe('mutation updateLastReferralReminder', () => {
-  const MUTATION = `
+  const MUTATION = /* GraphQL */ `
     mutation UpdateLastReferralReminder {
       updateLastReferralReminder {
         _
@@ -357,7 +363,7 @@ describe('mutation updateLastReferralReminder', () => {
 });
 
 describe('updateFeedFeedbackReminder', () => {
-  const MUTATION = `
+  const MUTATION = /* GraphQL */ `
     mutation UpdateFeedFeedbackReminder {
       updateFeedFeedbackReminder {
         _
@@ -383,5 +389,43 @@ describe('updateFeedFeedbackReminder', () => {
     const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
     expect(alerts.lastFeedSettingsFeedback).toBeTruthy();
     expect(isSameDay(alerts.lastFeedSettingsFeedback, new Date())).toBeTruthy();
+  });
+});
+
+describe('mutation clearOpportunityAlert', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearOpportunityAlert {
+      clearOpportunityAlert {
+        _
+      }
+    }
+  `;
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(client, { mutation: MUTATION }, 'UNAUTHENTICATED'));
+
+  it('should clear opportunityId from alerts', async () => {
+    loggedUser = '1';
+
+    saveFixtures(con, OpportunityJob, [
+      {
+        ...opportunitiesFixture[0],
+        id: '45bef485-ba42-4fd9-8c8c-a2ea4b2d1d62',
+        organizationId: undefined,
+      },
+    ]);
+
+    await con.getRepository(Alerts).save(
+      con.getRepository(Alerts).create({
+        userId: '1',
+        opportunityId: '45bef485-ba42-4fd9-8c8c-a2ea4b2d1d62',
+      }),
+    );
+
+    const res = await client.mutate(MUTATION);
+    expect(res.errors).toBeFalsy();
+    const alerts = await con
+      .getRepository(Alerts)
+      .findOneByOrFail({ userId: '1' });
+    expect(alerts.opportunityId).toBeNull();
   });
 });

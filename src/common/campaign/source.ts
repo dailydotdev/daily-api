@@ -30,6 +30,12 @@ import {
 import { usdToCores } from '../number';
 import { systemUser, updateFlagsStatement } from '../utils';
 import { skadiApiClientV2 } from '../../integrations/skadi/api/v2/clients';
+import { NotificationIcon } from '../../notifications/icons';
+import { notificationsLink } from '../links';
+import type { NotificationBuilder } from '../../notifications/builder';
+import { formatMailDate, addNotificationEmailUtm } from '../mailing';
+import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
+import type { NotificationCampaignSourceContext } from '../../notifications';
 
 export const validateSquadBoostPermissions = async (
   ctx: AuthContext,
@@ -199,4 +205,49 @@ export const stopCampaignSource = async ({
   });
 
   return result.transaction;
+};
+
+export const generateCampaignSquadNotification = (
+  builder: NotificationBuilder,
+  ctx: NotificationCampaignSourceContext,
+) => {
+  const { campaign, source, event, user } = ctx;
+
+  return builder
+    .icon(NotificationIcon.DailyDev)
+    .referenceCampaign(ctx)
+    .targetUrl(notificationsLink)
+    .setTargetUrlParameter([['c_id', campaign.id]])
+    .uniqueKey(`${campaign.id}-${user.id}-${event}`)
+    .avatarSource(source);
+};
+
+export const generateCampaignSquadEmail: TemplateDataFunc = async (
+  con,
+  user,
+  notification,
+) => {
+  const campaign = await con
+    .getRepository(CampaignSource)
+    .findOneBy({ id: notification.referenceId });
+
+  if (!campaign) {
+    return null;
+  }
+
+  const source = await con
+    .getRepository(Source)
+    .findOneByOrFail({ id: campaign.sourceId });
+
+  return {
+    start_date: formatMailDate(campaign.createdAt),
+    end_date: formatMailDate(campaign.endedAt),
+    analytics_link: addNotificationEmailUtm(
+      notification.targetUrl,
+      notification.type,
+    ),
+    source_image: source.image,
+    source_handle: source.handle,
+    source_name: source.name,
+  };
 };

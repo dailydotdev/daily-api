@@ -30,7 +30,6 @@ import {
   type NotificationAwardContext,
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
-  NotificationCampaignContext,
   NotificationOpportunityMatchContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
@@ -39,6 +38,8 @@ import { NotificationType } from './common';
 import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
 import { formatCoresCurrency } from '../common/number';
+import { generateCampaignPostNotification } from '../common/campaign/post';
+import { generateCampaignSquadNotification } from '../common/campaign/source';
 
 const systemTitle = () => undefined;
 
@@ -178,6 +179,8 @@ export const notificationTitleMap: Record<
   },
   campaign_post_completed: () => `Your boosted post just wrapped up!`,
   campaign_squad_completed: () => `Your boosted Squad just wrapped up!`,
+  campaign_post_first_milestone: () => `Your post boost is live!`,
+  campaign_squad_first_milestone: () => `Your Squad boost is live!`,
   briefing_ready: () =>
     `<strong>Your presidential briefing is ready!</strong> Cut through the noise. Read what actually matters.`,
   user_follow: (ctx: NotificationUserContext) => {
@@ -495,34 +498,10 @@ export const generateNotificationMap: Record<
       .targetUrl(getOrganizationPermalink(ctx.organization))
       .icon(NotificationIcon.Bell)
       .avatarOrganization(ctx.organization),
-  campaign_post_completed: (builder, ctx: NotificationCampaignContext) => {
-    const { campaign, event, user } = ctx;
-
-    return builder
-      .icon(NotificationIcon.DailyDev)
-      .referenceCampaign(ctx)
-      .targetUrl(notificationsLink)
-      .setTargetUrlParameter([['c_id', campaign.id]])
-      .uniqueKey(`${campaign.id}-${user.id}-${event}`)
-      .avatarUser(user);
-  },
-  campaign_squad_completed: (builder, ctx: NotificationCampaignContext) => {
-    const { campaign, source, event, user } = ctx;
-
-    if (!source) {
-      throw new Error(
-        `Can't generate Squad Campaign Notification without the Squad`,
-      );
-    }
-
-    return builder
-      .icon(NotificationIcon.DailyDev)
-      .referenceCampaign(ctx)
-      .targetUrl(notificationsLink)
-      .setTargetUrlParameter([['c_id', campaign.id]])
-      .uniqueKey(`${campaign.id}-${user.id}-${event}`)
-      .avatarSource(source);
-  },
+  campaign_post_completed: generateCampaignPostNotification,
+  campaign_squad_completed: generateCampaignSquadNotification,
+  campaign_post_first_milestone: generateCampaignPostNotification,
+  campaign_squad_first_milestone: generateCampaignSquadNotification,
   briefing_ready: (
     builder: NotificationBuilder,
     ctx: NotificationPostContext,
@@ -545,18 +524,15 @@ export const generateNotificationMap: Record<
   new_user_welcome: (builder) => builder.systemNotification(),
   announcements: (builder) => builder.systemNotification(),
   in_app_purchases: (builder) => builder.systemNotification(),
-  new_opportunity_match: (
-    builder,
-    ctx: NotificationOpportunityMatchContext,
-  ) => {
-    return builder
+  new_opportunity_match: (builder, ctx: NotificationOpportunityMatchContext) =>
+    builder
       .icon(NotificationIcon.Opportunity)
       .referenceOpportunity(ctx)
+      .uniqueKey(ctx.userIds[0])
       .description(
-        `<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> {ctx.reasoning}</span>`,
+        `<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> ${ctx.reasoning}</span>`,
       )
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
-      );
-  },
+      ),
 };
