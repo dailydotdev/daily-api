@@ -88,6 +88,14 @@ export const notifyOpportunityMatchAccepted = async ({
       'api.v1.candidate-accepted-opportunity',
       message,
     );
+
+    logger.debug(
+      {
+        opportunityId: match.opportunityId,
+        userId: match.userId,
+      },
+      'Sent opportunity match accepted event',
+    );
   } catch (_err) {
     const err = _err as Error;
     logger.error(

@@ -191,6 +191,13 @@ export const typeDefs = /* GraphQL */ `
 
       answers: [OpportunityScreeningAnswerInput!]!
     ): EmptyResponse @auth
+
+    acceptOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -350,6 +357,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           skipUpdateIfNoValuesChanged: true,
         },
       );
+      return { _: true };
+    },
+    acceptOpportunityMatch: async (
+      _,
+      { id }: { id: string },
+      { userId, con, log }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const match = await con.getRepository(OpportunityMatch).findOneBy({
+        opportunityId: id,
+        userId,
+      });
+
+      if (!match) {
+        log.error(
+          { opportunityId: id, userId },
+          'No match found for opportunity',
+        );
+        throw new ForbiddenError('Access denied! No match found');
+      }
+
+      if (match.status !== OpportunityMatchStatus.Pending) {
+        log.error(
+          { opportunityId: id, userId, status: match.status },
+          'Match is not pending',
+        );
+        throw new ForbiddenError(`Access denied! Match is not pending`);
+      }
+
+      await con.getRepository(OpportunityMatch).update(
+        {
+          opportunityId: id,
+          userId,
+        },
+        {
+          status: OpportunityMatchStatus.CandidateAccepted,
+        },
+      );
+
       return { _: true };
     },
   },
