@@ -2,8 +2,6 @@ import { messageToJson, Worker } from './worker';
 import { ChangeObject } from '../types';
 import {
   ArticlePost,
-  CampaignPost,
-  CampaignSource,
   CollectionPost,
   Comment,
   FreeformPost,
@@ -33,7 +31,6 @@ import {
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
   formatMailDate,
-  getDiscussionLink,
   getOrganizationPermalink,
   getSourceLink,
   liveTimerDateFormat,
@@ -63,6 +60,8 @@ import { isPlusMember } from '../paddle';
 import { BriefingSection } from '@dailydotdev/schema';
 import type { JsonValue } from '@bufbuild/protobuf';
 import { isNullOrUndefined } from '../common/object';
+import { generateCampaignPostEmail } from '../common/campaign/post';
+import { generateCampaignSquadEmail } from '../common/campaign/source';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -118,6 +117,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   in_app_purchases: '',
   campaign_post_completed: '79',
   campaign_squad_completed: '83',
+  campaign_post_first_milestone: '80',
+  campaign_squad_first_milestone: '82',
   new_opportunity_match: '',
   post_analytics: '',
 };
@@ -134,57 +135,10 @@ export type TemplateDataFunc = (
   avatars: NotificationAvatarV2[],
 ) => Promise<TemplateData | null>;
 const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
-  campaign_post_completed: async (con, user, notification) => {
-    const campaign = await con.getRepository(CampaignPost).findOne({
-      where: { id: notification.referenceId },
-      relations: ['post', 'post.sharedPost'],
-    });
-
-    if (!campaign) {
-      return null;
-    }
-
-    const post = await campaign.post;
-    const sharedPost = await (post as SharePost).sharedPost;
-    const title = truncatePostToTweet(post || sharedPost);
-
-    return {
-      start_date: formatMailDate(campaign.createdAt),
-      end_date: formatMailDate(campaign.endedAt),
-      analytics_link: addNotificationEmailUtm(
-        notification.targetUrl,
-        notification.type,
-      ),
-      post_link: getDiscussionLink(post.slug),
-      post_image: ((sharedPost || post) as FreeformPost)?.image,
-      post_title: title,
-    };
-  },
-  campaign_squad_completed: async (con, user, notification) => {
-    const campaign = await con
-      .getRepository(CampaignSource)
-      .findOneBy({ id: notification.referenceId });
-
-    if (!campaign) {
-      return null;
-    }
-
-    const source = await con
-      .getRepository(Source)
-      .findOneByOrFail({ id: campaign.sourceId });
-
-    return {
-      start_date: formatMailDate(campaign.createdAt),
-      end_date: formatMailDate(campaign.endedAt),
-      analytics_link: addNotificationEmailUtm(
-        notification.targetUrl,
-        notification.type,
-      ),
-      source_image: source.image,
-      source_handle: source.handle,
-      source_name: source.name,
-    };
-  },
+  campaign_post_completed: generateCampaignPostEmail,
+  campaign_squad_completed: generateCampaignSquadEmail,
+  campaign_post_first_milestone: generateCampaignPostEmail,
+  campaign_squad_first_milestone: generateCampaignSquadEmail,
   source_post_approved: async (con, user, notification) => {
     const post = await con.getRepository(Post).findOne({
       where: { id: notification.referenceId },

@@ -372,6 +372,83 @@ describe('generateNotification', () => {
     expect(actual.attachments).toEqual([]);
   });
 
+  it('should generate campaign_post_first_milestone notification', () => {
+    const type = NotificationType.CampaignPostFirstMilestone;
+    const ctx: NotificationCampaignContext = {
+      user: usersFixture[0],
+      campaign: campaignsFixture[0] as Reference<Campaign>,
+      event: CampaignUpdateEvent.BudgetUpdated,
+      userIds: ['1'],
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    );
+    expect(actual.notification.referenceType).toEqual('campaign');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?c_id=f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    );
+    expect(
+      actual.notification.uniqueKey?.startsWith(
+        'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      ),
+    ).toBeTruthy();
+    expect(actual.notification.title).toEqual('Your post boost is live!');
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments).toEqual([]);
+  });
+
+  it('should generate campaign_squad_first_milestone notification', () => {
+    const type = NotificationType.CampaignSquadFirstMilestone;
+    const ctx: NotificationCampaignContext = {
+      user: usersFixture[0],
+      campaign: campaignsFixture[1] as Reference<Campaign>,
+      source: sourcesFixture[0] as Reference<Source>,
+      event: CampaignUpdateEvent.BudgetUpdated,
+      userIds: ['1'],
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+    );
+    expect(actual.notification.referenceType).toEqual('campaign');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/notifications?c_id=f47ac10b-58cc-4372-a567-0e02b2c3d481',
+    );
+    expect(
+      actual.notification.uniqueKey?.startsWith(
+        'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+      ),
+    ).toBeTruthy();
+    expect(actual.notification.title).toEqual('Your Squad boost is live!');
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.attachments).toEqual([]);
+  });
+
   it('should generate post_bookmark_reminder notification', () => {
     const type = NotificationType.PostBookmarkReminder;
     const post = postsFixture[0] as Reference<Post>;

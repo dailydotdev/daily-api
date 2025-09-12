@@ -9,6 +9,7 @@ import { workers } from '../../../src/workers/notifications';
 import { invokeNotificationWorker, saveFixtures } from '../../helpers';
 import { NotificationType } from '../../../src/notifications/common';
 import {
+  BudgetMilestone,
   CampaignUpdateEvent,
   type CampaignUpdateEventArgs,
 } from '../../../src/common/campaign/common';
@@ -142,7 +143,7 @@ describe('campaignUpdatedAction worker', () => {
     expect(result).toBeUndefined();
   });
 
-  it('should handle budget updated events (no-op)', async () => {
+  it('should handle budget updated events without milestone (no-op)', async () => {
     const eventArgs: CampaignUpdateEventArgs = {
       campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
       event: CampaignUpdateEvent.BudgetUpdated,
@@ -154,5 +155,92 @@ describe('campaignUpdatedAction worker', () => {
     const result = await invokeNotificationWorker(worker, eventArgs);
 
     expect(result).toBeUndefined();
+  });
+
+  it('should handle budget updated events with wrong milestone (no-op)', async () => {
+    const eventArgs: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.BudgetUpdated,
+      unique_users: 100,
+      data: {
+        budget: '15.00',
+        labels: {
+          milestone: '50' as BudgetMilestone, // not the 70% milestone
+        },
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    const result = await invokeNotificationWorker(worker, eventArgs);
+
+    expect(result).toBeUndefined();
+  });
+
+  it('should handle Post campaign first milestone via budget updated event', async () => {
+    const eventArgs: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      event: CampaignUpdateEvent.BudgetUpdated,
+      unique_users: 50,
+      data: {
+        budget: '7.00',
+        labels: {
+          milestone: BudgetMilestone.Spent70Percent,
+        },
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    const result = await invokeNotificationWorker(worker, eventArgs);
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(
+      NotificationType.CampaignPostFirstMilestone,
+    );
+
+    const campaignContext = result![0].ctx as NotificationCampaignContext;
+    expect(campaignContext.userIds).toEqual(['1']);
+    expect(campaignContext.campaign.id).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    );
+    expect(campaignContext.campaign.type).toEqual(CampaignType.Post);
+    expect(campaignContext.event).toEqual(CampaignUpdateEvent.BudgetUpdated);
+    expect(campaignContext.source).toBeUndefined();
+  });
+
+  it('should handle Squad campaign first milestone via budget updated event', async () => {
+    // Update the source to be a squad for the test
+    await con
+      .getRepository(Source)
+      .update({ id: 'squad' }, { type: SourceType.Squad });
+
+    const eventArgs: CampaignUpdateEventArgs = {
+      campaignId: 'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+      event: CampaignUpdateEvent.BudgetUpdated,
+      unique_users: 25,
+      data: {
+        budget: '3.50',
+        labels: {
+          milestone: BudgetMilestone.Spent70Percent,
+        },
+      },
+      d_update: Date.now() * 1000,
+    };
+
+    const result = await invokeNotificationWorker(worker, eventArgs);
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(
+      NotificationType.CampaignSquadFirstMilestone,
+    );
+
+    const campaignContext = result![0].ctx as NotificationCampaignContext;
+    expect(campaignContext.userIds).toEqual(['1']);
+    expect(campaignContext.campaign.id).toEqual(
+      'f47ac10b-58cc-4372-a567-0e02b2c3d481',
+    );
+    expect(campaignContext.campaign.type).toEqual(CampaignType.Squad);
+    expect(campaignContext.event).toEqual(CampaignUpdateEvent.BudgetUpdated);
+    expect(campaignContext.source).toBeDefined();
+    expect(campaignContext.source!.id).toEqual('squad');
   });
 });

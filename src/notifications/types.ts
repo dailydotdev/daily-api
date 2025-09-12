@@ -141,11 +141,15 @@ export type NotificationBoostContext = NotificationUserContext & {
   campaignId: string;
 };
 
-export type NotificationCampaignContext = NotificationUserContext & {
+export interface NotificationCampaignContext extends NotificationUserContext {
   campaign: Reference<Campaign>;
-  source?: Reference<Source>;
   event: CampaignUpdateEvent;
-};
+}
+
+export interface NotificationCampaignSourceContext
+  extends NotificationCampaignContext {
+  source: Reference<Source>;
+}
 
 export type NotificationOpportunityMatchContext = NotificationBaseContext & {
   opportunityId: string;
