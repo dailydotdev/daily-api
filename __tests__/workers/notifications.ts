@@ -248,9 +248,13 @@ describe('squad featured updated notification', () => {
     const worker = await import(
       '../../src/workers/notifications/squadFeaturedUpdated'
     );
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      squad: { ...squad, flags: { featured: false } },
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker.default,
+        {
+          squad: { ...squad, flags: { featured: false } },
+        },
+      );
     expect(actual).toBeFalsy();
   });
 
@@ -258,9 +262,13 @@ describe('squad featured updated notification', () => {
     const worker = await import(
       '../../src/workers/notifications/squadFeaturedUpdated'
     );
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      squad,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker.default,
+        {
+          squad,
+        },
+      );
     const source = await con.getRepository(Source).findOneBy({ id: squad.id });
 
     expect(actual).toBeTruthy();
@@ -281,9 +289,13 @@ describe('squad featured updated notification', () => {
     const worker = await import(
       '../../src/workers/notifications/squadFeaturedUpdated'
     );
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      squad,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker.default,
+        {
+          squad,
+        },
+      );
     const source = await con.getRepository(Source).findOneBy({ id: squad.id });
 
     expect(actual).toBeTruthy();
@@ -304,9 +316,13 @@ describe('squad featured updated notification', () => {
     const worker = await import(
       '../../src/workers/notifications/squadFeaturedUpdated'
     );
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      squad,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker.default,
+        {
+          squad,
+        },
+      );
     const source = await con.getRepository(Source).findOneBy({ id: squad.id });
 
     expect(actual).toBeTruthy();
@@ -327,9 +343,13 @@ describe('squad featured updated notification', () => {
     const worker = await import(
       '../../src/workers/notifications/squadFeaturedUpdated'
     );
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      squad,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker.default,
+        {
+          squad,
+        },
+      );
     const source = await con.getRepository(Source).findOneBy({ id: squad.id });
 
     expect(actual).toBeTruthy();
@@ -943,10 +963,14 @@ describe('post bookmark reminder', () => {
     await con
       .getRepository(Bookmark)
       .save({ userId: '1', postId: 'p1', remindAt });
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.post-bookmark-reminder'>(
+        worker.default,
+        {
+          userId: '1',
+          postId: 'p1',
+        },
+      );
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
     const ctx = bundle.ctx as NotificationPostContext &
@@ -964,10 +988,14 @@ describe('post bookmark reminder', () => {
       '../../src/workers/notifications/postBookmarkReminder'
     );
     await con.getRepository(Bookmark).save({ userId: '1', postId: 'p1' });
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.post-bookmark-reminder'>(
+        worker.default,
+        {
+          userId: '1',
+          postId: 'p1',
+        },
+      );
     expect(actual).toBeFalsy();
   });
 
@@ -975,10 +1003,14 @@ describe('post bookmark reminder', () => {
     const worker = await import(
       '../../src/workers/notifications/postBookmarkReminder'
     );
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1notfound',
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.post-bookmark-reminder'>(
+        worker.default,
+        {
+          userId: '1',
+          postId: 'p1notfound',
+        },
+      );
     expect(actual).toBeFalsy();
   });
 });
@@ -1028,9 +1060,13 @@ describe('streak reset restore', () => {
     );
     const debeziumTime = streak.lastViewAt.getTime();
     await setRedisObject(key, lastStreak.toString());
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      streak: { ...streak, lastViewAt: debeziumTime },
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
+        worker.default,
+        {
+          streak: { ...streak, lastViewAt: debeziumTime },
+        },
+      );
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
     const ctx = bundle.ctx as NotificationStreakContext;
@@ -1047,9 +1083,13 @@ describe('streak reset restore', () => {
     const streak = await con
       .getRepository(UserStreak)
       .save({ userId: '1-srrn', currentStreak: 0, lastViewAt });
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      streak,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
+        worker.default,
+        {
+          streak,
+        },
+      );
     expect(actual).toBeUndefined();
   });
 
@@ -1071,9 +1111,13 @@ describe('streak reset restore', () => {
     await con
       .getRepository(Settings)
       .save({ userId: '1-srrn', optOutReadingStreak: true });
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      streak,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
+        worker.default,
+        {
+          streak,
+        },
+      );
     expect(actual).toBeUndefined();
   });
 
@@ -1091,9 +1135,13 @@ describe('streak reset restore', () => {
       streak.userId,
     );
     await setRedisObject(key, '1-srrntest');
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      streak,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
+        worker.default,
+        {
+          streak,
+        },
+      );
     expect(actual).toBeUndefined();
   });
 
@@ -1120,9 +1168,13 @@ describe('streak reset restore', () => {
     const debeziumTime = streak.lastViewAt.getTime();
     await setRedisObject(key, lastStreak.toString());
 
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      streak: { ...streak, lastViewAt: debeziumTime },
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
+        worker.default,
+        {
+          streak: { ...streak, lastViewAt: debeziumTime },
+        },
+      );
 
     expect(actual).toBeUndefined();
   });
@@ -2370,9 +2422,12 @@ describe('user post added', () => {
         status: ContentPreferenceStatus.Subscribed,
       },
     ]);
-    const actual = await invokeTypedNotificationWorker(worker, {
-      post: postsFixture[0],
-    });
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      worker,
+      {
+        post: postsFixture[0],
+      },
+    );
     expect(actual!.length).toEqual(1);
     const bundle = actual![0];
     expect(bundle.type).toEqual(NotificationType.UserPostAdded);
@@ -2403,9 +2458,12 @@ describe('user post added', () => {
         status: ContentPreferenceStatus.Subscribed,
       },
     ]);
-    const actual = await invokeTypedNotificationWorker(worker, {
-      post: postsFixture[0],
-    });
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      worker,
+      {
+        post: postsFixture[0],
+      },
+    );
     expect(actual!.length).toEqual(1);
     const bundle = actual![0];
     expect(bundle.type).toEqual(NotificationType.UserPostAdded);
@@ -2436,9 +2494,12 @@ describe('user post added', () => {
         status: ContentPreferenceStatus.Follow,
       },
     ]);
-    const actual = await invokeTypedNotificationWorker(worker, {
-      post: postsFixture[0],
-    });
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      worker,
+      {
+        post: postsFixture[0],
+      },
+    );
     expect(actual!.length).toEqual(1);
     const bundle = actual![0];
     expect(bundle.type).toEqual(NotificationType.UserPostAdded);
@@ -2477,9 +2538,12 @@ describe('user post added', () => {
         status: ContentPreferenceStatus.Subscribed,
       },
     ]);
-    const actual = await invokeTypedNotificationWorker(worker, {
-      post: privatePost,
-    });
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      worker,
+      {
+        post: privatePost,
+      },
+    );
     expect(actual).toBeUndefined();
   });
 
@@ -2514,9 +2578,12 @@ describe('user post added', () => {
         status: NotificationPreferenceStatus.Muted,
       },
     ]);
-    const actual = await invokeTypedNotificationWorker(worker, {
-      post: postsFixture[0],
-    });
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      worker,
+      {
+        post: postsFixture[0],
+      },
+    );
     expect(actual!.length).toEqual(1);
     const bundle = actual![0];
     expect(bundle.ctx.userIds).toIncludeSameMembers(['3']);
@@ -2586,9 +2653,12 @@ describe('user post added', () => {
         status: NotificationPreferenceStatus.Subscribed,
       },
     ]);
-    const actual = await invokeTypedNotificationWorker(worker, {
-      post: postsFixture[0],
-    });
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      worker,
+      {
+        post: postsFixture[0],
+      },
+    );
     expect(actual!.length).toEqual(1);
     const bundle = actual![0];
     expect(bundle.ctx.userIds).toHaveLength(2);
@@ -2631,9 +2701,12 @@ describe('user post added', () => {
         status: NotificationPreferenceStatus.Muted,
       },
     ]);
-    const actual = await invokeTypedNotificationWorker(worker, {
-      post,
-    });
+    const actual = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+      worker,
+      {
+        post,
+      },
+    );
     expect(actual).toBeUndefined();
   });
 });

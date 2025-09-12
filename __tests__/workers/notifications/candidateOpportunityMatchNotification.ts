@@ -30,15 +30,16 @@ describe('candidateOpportunityMatchNotification worker', () => {
   });
 
   it('should send notification with all required fields', async () => {
-    const result = await invokeTypedNotificationWorker(
-      worker,
-      new MatchedCandidate({
-        userId: '1',
-        opportunityId: 'opp123',
-        matchScore: 85,
-        reasoning: 'Based on your React and TypeScript skills',
-      }),
-    );
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          userId: '1',
+          opportunityId: 'opp123',
+          matchScore: 85,
+          reasoning: 'Based on your React and TypeScript skills',
+        }),
+      );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.NewOpportunityMatch);
@@ -53,13 +54,14 @@ describe('candidateOpportunityMatchNotification worker', () => {
   });
 
   it('should send notification without optional fields', async () => {
-    const result = await invokeTypedNotificationWorker(
-      worker,
-      new MatchedCandidate({
-        userId: '2',
-        opportunityId: 'opp456',
-      }),
-    );
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          userId: '2',
+          opportunityId: 'opp456',
+        }),
+      );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.NewOpportunityMatch);
@@ -72,25 +74,27 @@ describe('candidateOpportunityMatchNotification worker', () => {
   });
 
   it('should not send notification when userId is missing', async () => {
-    const result = await invokeTypedNotificationWorker(
-      worker,
-      new MatchedCandidate({
-        opportunityId: 'opp123',
-        reasoning: 'Test reasoning',
-      }),
-    );
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          opportunityId: 'opp123',
+          reasoning: 'Test reasoning',
+        }),
+      );
 
     expect(result).toBeUndefined();
   });
 
   it('should not send notification when opportunityId is missing', async () => {
-    const result = await invokeTypedNotificationWorker(
-      worker,
-      new MatchedCandidate({
-        userId: '1',
-        reasoning: 'Test reasoning',
-      }),
-    );
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          userId: '1',
+          reasoning: 'Test reasoning',
+        }),
+      );
 
     expect(result).toBeUndefined();
   });

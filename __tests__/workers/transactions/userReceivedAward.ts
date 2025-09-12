@@ -54,11 +54,12 @@ describe('userReceivedAward worker', () => {
   });
 
   it('should do nothing if transaction not found', async () => {
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: {
-        id: '87b79108-d258-42d2-b38a-4a02974746cc',
-      },
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: {
+          id: '87b79108-d258-42d2-b38a-4a02974746cc',
+        },
+      });
 
     expect(result).toBeUndefined();
   });
@@ -77,9 +78,10 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: transaction as unknown as ChangeObject<UserTransaction>,
+      });
 
     expect(result).toBeUndefined();
   });
@@ -98,9 +100,10 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: transaction as unknown as ChangeObject<UserTransaction>,
+      });
 
     expect(result).toBeUndefined();
   });
@@ -119,9 +122,10 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: transaction as unknown as ChangeObject<UserTransaction>,
+      });
 
     expect(result).toBeTruthy();
     expect(result).toHaveLength(1);
@@ -161,9 +165,10 @@ describe('userReceivedAward worker', () => {
       awardTransactionId: transactionId,
     });
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: transaction as unknown as ChangeObject<UserTransaction>,
+      });
 
     expect(result).toBeTruthy();
     expect(result).toHaveLength(1);
@@ -212,9 +217,10 @@ describe('userReceivedAward worker', () => {
       awardTransactionId: transactionId,
     });
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: transaction as unknown as ChangeObject<UserTransaction>,
+      });
 
     expect(result).toBeTruthy();
     expect(result).toHaveLength(1);
@@ -249,9 +255,10 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: transaction as unknown as ChangeObject<UserTransaction>,
+      });
 
     expect(result).toBeTruthy();
     expect(result).toHaveLength(1);
@@ -282,9 +289,10 @@ describe('userReceivedAward worker', () => {
       status: UserTransactionStatus.Success,
     });
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      transaction: transaction as unknown as ChangeObject<UserTransaction>,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.user-transaction'>(worker, {
+        transaction: transaction as unknown as ChangeObject<UserTransaction>,
+      });
 
     expect(result).toBeUndefined();
   });

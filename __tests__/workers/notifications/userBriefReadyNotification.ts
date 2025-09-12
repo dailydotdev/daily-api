@@ -49,14 +49,17 @@ describe('userBriefReadyNotification worker', () => {
 
     await con.getRepository(BriefPost).save(post);
 
-    const result = await invokeTypedNotificationWorker(worker, {
-      payload: {
-        userId: '1',
-        frequency: 'daily',
-        modelName: BriefingModel.Default,
-      },
-      postId,
-    } as PubSubSchema['api.v1.brief-ready']);
+    const result = await invokeTypedNotificationWorker<'api.v1.brief-ready'>(
+      worker,
+      {
+        payload: {
+          userId: '1',
+          frequency: 'daily',
+          modelName: BriefingModel.Default,
+        },
+        postId,
+      } as PubSubSchema['api.v1.brief-ready'],
+    );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.BriefingReady);

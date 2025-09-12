@@ -50,7 +50,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.CampaignPostCompleted);
@@ -81,7 +85,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.CampaignSquadCompleted);
@@ -106,7 +114,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result).toBeUndefined();
   });
@@ -120,7 +132,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result).toBeUndefined();
   });
@@ -138,7 +154,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result).toBeUndefined();
   });
@@ -152,7 +172,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result).toBeUndefined();
   });
@@ -171,7 +195,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result).toBeUndefined();
   });
@@ -190,7 +218,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(
@@ -226,7 +258,11 @@ describe('campaignUpdatedAction worker', () => {
       d_update: Date.now() * 1000,
     };
 
-    const result = await invokeTypedNotificationWorker(worker, eventArgs);
+    const result =
+      await invokeTypedNotificationWorker<'skadi.v2.campaign-updated'>(
+        worker,
+        eventArgs,
+      );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(

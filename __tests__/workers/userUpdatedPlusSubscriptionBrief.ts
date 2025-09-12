@@ -94,7 +94,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: newBase,
       user: base,
     } as unknown as PubSubSchema['user-updated']);
@@ -138,7 +138,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
@@ -165,7 +165,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
@@ -195,7 +195,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
@@ -225,7 +225,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: before,
       user: before,
     } as unknown as PubSubSchema['user-updated']);
@@ -268,7 +268,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: base,
       user: oldBase,
     } as unknown as PubSubSchema['user-updated']);
@@ -315,7 +315,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestbase).toBeNull();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: base,
       user: base,
     } as unknown as PubSubSchema['user-updated']);
@@ -355,7 +355,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: base,
       user: oldBase,
     } as unknown as PubSubSchema['user-updated']);
@@ -412,7 +412,7 @@ describe('userUpdatedPlusSubscriptionBrief worker', () => {
 
     expect(digestBefore).toBeDefined();
 
-    await expectSuccessfulTypedBackground(worker, {
+    await expectSuccessfulTypedBackground<'user-updated'>(worker, {
       newProfile: newBase,
       user: base,
     } as unknown as PubSubSchema['user-updated']);

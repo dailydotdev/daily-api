@@ -57,28 +57,38 @@ const WORKER_RELATIVE_PATH =
 describe('plus subscription gift', () => {
   it('should early return for currently non plus user', async () => {
     const worker = await import(WORKER_RELATIVE_PATH);
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      user: base,
-      newProfile: base,
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker.default,
+        {
+          user: base,
+          newProfile: base,
+        },
+      );
     expect(actual).toBeUndefined();
   });
 
   it('should not return anything plus user since before', async () => {
     const worker = await import(WORKER_RELATIVE_PATH);
-    const actual = await invokeTypedNotificationWorker(worker.default, {
-      user: plusUser,
-      newProfile: plusUser,
-    });
+    const actual = await invokeTypedNotificationWorker<'user-updated'>(
+      worker.default,
+      {
+        user: plusUser,
+        newProfile: plusUser,
+      },
+    );
     expect(actual).toBeUndefined();
   });
 
   it('should return notification for gifted plus user', async () => {
     const worker = await import(WORKER_RELATIVE_PATH);
-    const actual = (await invokeTypedNotificationWorker(worker.default, {
-      user: base,
-      newProfile: giftedPlusUser,
-    })) as Array<{
+    const actual = (await invokeTypedNotificationWorker<'user-updated'>(
+      worker.default,
+      {
+        user: base,
+        newProfile: giftedPlusUser,
+      },
+    )) as Array<{
       type: string;
       ctx: NotificationGiftPlusContext;
     }>;
