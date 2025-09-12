@@ -1529,6 +1529,9 @@ const obj = new GraphORM({
       },
     },
   },
+  OpportunityScreeningQuestion: {
+    from: 'QuestionScreening',
+  },
   OpportunityMatch: {
     fields: {
       createdAt: {
