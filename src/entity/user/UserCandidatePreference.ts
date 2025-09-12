@@ -31,11 +31,11 @@ export class UserCandidatePreference {
 
   @Column({
     type: 'integer',
-    default: CandidateStatus.DISABLED,
+    default: CandidateStatus.OPEN_TO_OFFERS,
     comment: 'CandidateStatus from protobuf schema',
   })
   @Index('IDX_user_candidate_preference_status')
-  status: CandidateStatus = CandidateStatus.DISABLED;
+  status: CandidateStatus = CandidateStatus.OPEN_TO_OFFERS;
 
   @UpdateDateColumn()
   updatedAt: Date;
