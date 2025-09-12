@@ -9146,7 +9146,7 @@ describe('mutate polls', () => {
       options: defaultOptions.slice(0, 1),
     };
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -9176,7 +9176,7 @@ describe('mutate polls', () => {
       options,
     };
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -9233,7 +9233,7 @@ describe('mutate polls', () => {
       options: defaultOptions,
     };
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
