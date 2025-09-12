@@ -14,6 +14,7 @@ import { Alerts } from '../entity';
 import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
+import { ConflictError } from '../errors';
 
 export interface GQLOpportunity
   extends Pick<
@@ -310,8 +311,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Check if the number of answers matches the number of questions
       if (answers.length !== questions.length) {
-        throw new Error(
-          `Number of answers (${answers.length}) does not match number of questions (${questions.length}) for opportunity ${opportunity.id}`,
+        log.error(
+          { answers, questions, opportunityId },
+          'Answer count mismatch',
+        );
+        throw new ConflictError(
+          `Number of answers (${answers.length}) does not match the required questions`,
         );
       }
 
@@ -323,8 +328,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             { answer, questions, opportunityId },
             'Question not found for opportunity',
           );
-          throw new Error(
-            `Question with id ${answer.questionId} not found for opportunity ${opportunity.id}`,
+          throw new ConflictError(
+            `Question ${answer.questionId} not found for opportunity`,
           );
         }
 

@@ -721,3 +721,191 @@ describe('mutation updateCandidatePreferences', () => {
     ).toBe(0);
   });
 });
+
+describe('mutation saveOpportunityScreeningAnswers', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation SaveOpportunityScreeningAnswers(
+      $id: ID!
+      $answers: [OpportunityScreeningAnswerInput!]!
+    ) {
+      saveOpportunityScreeningAnswers(id: $id, answers: $answers) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440002',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should save screening answers for authenticated user', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        answers: [
+          {
+            questionId: '750e8400-e29b-41d4-a716-446655440001',
+            answer: 'JavaScript',
+          },
+          {
+            questionId: '750e8400-e29b-41d4-a716-446655440002',
+            answer: 'Built a full-stack app',
+          },
+        ],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.saveOpportunityScreeningAnswers).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+    });
+
+    expect(match.screening).toEqual(
+      expect.arrayContaining([
+        {
+          screening: 'What is your favorite programming language?',
+          answer: 'JavaScript',
+        },
+        {
+          screening: 'Describe a challenging project you worked on.',
+          answer: 'Built a full-stack app',
+        },
+      ]),
+    );
+  });
+
+  it('should return FORBIDDEN when match is not pending', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440002',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match is not pending',
+    );
+  });
+
+  it('should return error when there are duplicate answers by questionId', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'Python',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440002',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('custom');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'Duplicate questionId 750e8400-e29b-41d4-a716-446655440001',
+        );
+      },
+    );
+  });
+
+  it('should return error when the questionId does not belong to opportunity', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440003',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'CONFLICT',
+      'Question 750e8400-e29b-41d4-a716-446655440003 not found for opportunity',
+    );
+  });
+
+  it('should return error when not enough answers are provided', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+          ],
+        },
+      },
+      'CONFLICT',
+      'Number of answers (1) does not match the required questions',
+    );
+  });
+});
