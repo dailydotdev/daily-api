@@ -1,16 +1,24 @@
-import { bookmarkReminderWorkflow } from '../../../src/temporal/notifications/workflows';
+import {
+  bookmarkReminderWorkflow,
+  entityReminderWorkflow,
+} from '../../../src/temporal/notifications/workflows';
 import { BookmarkActivities } from '../../../src/temporal/notifications/activities';
 import { TestWorkflowEnvironment } from '@temporalio/testing';
 import { Worker } from '@temporalio/worker';
-import { getReminderWorkflowId } from '../../../src/temporal/notifications/utils';
+import {
+  getEntityReminderWorkflowId,
+  getReminderWorkflowId,
+} from '../../../src/temporal/notifications/utils';
 
 let testEnv: TestWorkflowEnvironment;
 
 const validateBookmark = jest.fn();
 const sendBookmarkReminder = jest.fn();
+const sendEntityReminder = jest.fn();
 const mockActivities: BookmarkActivities = {
   validateBookmark,
   sendBookmarkReminder,
+  sendEntityReminder,
 };
 
 let worker: Worker;
@@ -78,5 +86,29 @@ describe('bookmarkReminderWorkflow workflow', () => {
       postId: 'p1',
       userId: '1',
     });
+  });
+});
+
+describe('entityReminderWorkflow workflow', () => {
+  it('should send reminder event', async () => {
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    sendEntityReminder.mockReturnValueOnce(undefined);
+
+    await worker.runUntil(
+      testEnv.client.workflow.execute(entityReminderWorkflow, {
+        workflowId: getEntityReminderWorkflowId(params),
+        args: [params],
+        taskQueue: 'test',
+      }),
+    );
+
+    expect(mockActivities.sendEntityReminder).toHaveBeenCalledTimes(1);
+    expect(mockActivities.sendEntityReminder).toHaveBeenCalledWith(params);
   });
 });
