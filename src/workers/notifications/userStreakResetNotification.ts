@@ -12,7 +12,6 @@ import { messageToJson, TypedNotificationWorker } from '../worker';
 const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
   subscription: 'api.user-streak-reset-notification',
   handler: async ({ streak }, con) => {
-    console.log(streak);
     const { userId } = streak;
     const key = generateStorageKey(
       StorageTopic.Streak,
