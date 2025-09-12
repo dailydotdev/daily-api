@@ -1,5 +1,4 @@
 import { DataSource, ViewColumn, ViewEntity } from 'typeorm';
-import { Post } from './posts';
 
 @ViewEntity({
   materialized: true,
@@ -12,7 +11,7 @@ import { Post } from './posts';
       .addSelect(
         `log(10, upvotes - downvotes) + extract(epoch from ("createdAt" - now() + interval '7 days')) / 200000 r`,
       )
-      .from(Post, 'p')
+      .from('post', 'p')
       .where(
         `not p.private and p."createdAt" > now() - interval '7 day' and upvotes > downvotes`,
       )
