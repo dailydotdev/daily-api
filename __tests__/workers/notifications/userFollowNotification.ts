@@ -3,7 +3,7 @@ import { userFollowNotification as worker } from '../../../src/workers/notificat
 import createOrGetConnection from '../../../src/db';
 import { usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { updateFlagsStatement, type PubSubSchema } from '../../../src/common';
 import { NotificationType } from '../../../src/notifications/common';
 import type { NotificationUserContext } from '../../../src/notifications';
@@ -66,10 +66,13 @@ describe('userFollowNotification worker', () => {
 
     await con.getRepository(ContentPreferenceUser).save(contentPreference);
 
-    const result = await invokeNotificationWorker(worker, {
-      payload:
-        contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
-    } as PubSubSchema['api.v1.user-follow']);
+    const result = await invokeTypedNotificationWorker<'api.v1.user-follow'>(
+      worker,
+      {
+        payload:
+          contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
+      } as PubSubSchema['api.v1.user-follow'],
+    );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.UserFollow);
@@ -95,10 +98,13 @@ describe('userFollowNotification worker', () => {
 
     await con.getRepository(ContentPreferenceUser).save(contentPreference);
 
-    const result = await invokeNotificationWorker(worker, {
-      payload:
-        contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
-    } as PubSubSchema['api.v1.user-follow']);
+    const result = await invokeTypedNotificationWorker<'api.v1.user-follow'>(
+      worker,
+      {
+        payload:
+          contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
+      } as PubSubSchema['api.v1.user-follow'],
+    );
 
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.UserFollow);
@@ -133,10 +139,13 @@ describe('userFollowNotification worker', () => {
 
     await con.getRepository(ContentPreferenceUser).save(contentPreference);
 
-    const result = await invokeNotificationWorker(worker, {
-      payload:
-        contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
-    } as PubSubSchema['api.v1.user-follow']);
+    const result = await invokeTypedNotificationWorker<'api.v1.user-follow'>(
+      worker,
+      {
+        payload:
+          contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
+      } as PubSubSchema['api.v1.user-follow'],
+    );
 
     expect(result).toBeUndefined();
   });
@@ -166,10 +175,13 @@ describe('userFollowNotification worker', () => {
 
     await con.getRepository(ContentPreferenceUser).save(contentPreference);
 
-    const result = await invokeNotificationWorker(worker, {
-      payload:
-        contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
-    } as PubSubSchema['api.v1.user-follow']);
+    const result = await invokeTypedNotificationWorker<'api.v1.user-follow'>(
+      worker,
+      {
+        payload:
+          contentPreference as unknown as ChangeObject<ContentPreferenceUser>,
+      } as PubSubSchema['api.v1.user-follow'],
+    );
 
     expect(result).toBeUndefined();
   });

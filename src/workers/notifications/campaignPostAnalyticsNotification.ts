@@ -3,13 +3,13 @@ import { PostAnalytics } from '../../entity/posts/PostAnalytics';
 import { User } from '../../entity/user/User';
 import type { NotificationPostAnalyticsContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
+import type { TypedNotificationWorker } from '../worker';
 import { buildPostContext } from './utils';
-import { generateTypedNotificationWorker } from './worker';
 
 const impressionsThreshold = 10_000;
 
-export const campaignPostAnalyticsNotification =
-  generateTypedNotificationWorker<'api.v1.delayed-notification-reminder'>({
+export const campaignPostAnalyticsNotification: TypedNotificationWorker<'api.v1.delayed-notification-reminder'> =
+  {
     subscription: 'api.campaign-post-analytics-notification',
     handler: async (data, con) => {
       if (
@@ -77,4 +77,4 @@ export const campaignPostAnalyticsNotification =
         },
       ];
     },
-  });
+  };

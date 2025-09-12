@@ -1,5 +1,4 @@
 import { NotificationType } from '../../notifications/common';
-import { generateTypedNotificationWorker } from './worker';
 import { NotificationStreakContext } from '../../notifications';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import { getRedisObject } from '../../redis';
@@ -8,8 +7,9 @@ import { Settings, User } from '../../entity';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
+import { TypedNotificationWorker } from '../worker';
 
-const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
+const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
   subscription: 'api.user-streak-reset-notification',
   handler: async ({ streak }, con) => {
     const { userId } = streak;
@@ -59,6 +59,6 @@ const worker = generateTypedNotificationWorker<'api.v1.user-streak-updated'>({
 
     return [{ type: NotificationType.StreakResetRestore, ctx }];
   },
-});
+};
 
 export default worker;

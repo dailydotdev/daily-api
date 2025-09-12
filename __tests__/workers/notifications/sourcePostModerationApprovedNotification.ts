@@ -10,7 +10,7 @@ import {
 } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { SourcePostModerationStatus } from '../../../src/entity/SourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationPostModerationContext } from '../../../src/notifications';
@@ -46,9 +46,13 @@ describe('SourcePostModerationSubmitted', () => {
       status: SourcePostModerationStatus.Rejected,
     };
 
-    const rejected = await invokeNotificationWorker(worker, {
-      post: postRejected,
-    });
+    const rejected =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-approved'>(
+        worker,
+        {
+          post: postRejected,
+        },
+      );
     expect(rejected).toBeUndefined();
 
     const postPending = {
@@ -58,9 +62,13 @@ describe('SourcePostModerationSubmitted', () => {
       status: SourcePostModerationStatus.Pending,
     };
 
-    const pending = await invokeNotificationWorker(worker, {
-      post: postPending,
-    });
+    const pending =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-approved'>(
+        worker,
+        {
+          post: postPending,
+        },
+      );
     expect(pending).toBeUndefined();
   });
 
@@ -81,7 +89,11 @@ describe('SourcePostModerationSubmitted', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-approved'>(
+        worker,
+        { post },
+      );
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
@@ -121,7 +133,11 @@ describe('SourcePostModerationSubmitted', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-approved'>(
+        worker,
+        { post },
+      );
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);

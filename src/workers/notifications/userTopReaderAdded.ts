@@ -1,14 +1,14 @@
 import { Alerts, UserTopReader } from '../../entity';
 import { retryFetch } from '../../integrations/retry';
 import { logger } from '../../logger';
-import { generateTypedNotificationWorker } from './worker';
 import { uploadFile, UploadPreset } from '../../common';
 import { Readable } from 'stream';
 import { NotificationType } from '../../notifications/common';
 import { WEBAPP_MAGIC_IMAGE_PREFIX } from '../../config';
+import { TypedNotificationWorker } from '../worker';
 
-export const userTopReaderAdded =
-  generateTypedNotificationWorker<'api.v1.user-top-reader'>({
+export const userTopReaderAdded: TypedNotificationWorker<'api.v1.user-top-reader'> =
+  {
     subscription: 'api.user-top-reader-added',
     handler: async ({ userTopReader }, con) => {
       if (process.env.NODE_ENV === 'development') {
@@ -92,4 +92,4 @@ export const userTopReaderAdded =
         },
       ];
     },
-  });
+  };

@@ -1,10 +1,10 @@
 import { NotificationType } from '../../notifications/common';
-import { generateTypedNotificationWorker } from './worker';
+import { TypedNotificationWorker } from '../worker';
 import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
 
-export const candidateOpportunityMatchNotification =
-  generateTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>({
+const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.candidate-opportunity-match'> =
+  {
     subscription: 'api.candidate-opportunity-match-notification',
     handler: async (data, _, logger) => {
       try {
@@ -41,4 +41,6 @@ export const candidateOpportunityMatchNotification =
     parseMessage: (message) => {
       return MatchedCandidate.fromBinary(message.data);
     },
-  });
+  };
+
+export { candidateOpportunityMatchNotification };

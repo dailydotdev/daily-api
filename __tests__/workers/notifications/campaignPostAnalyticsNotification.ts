@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { campaignsFixture, sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { User } from '../../../src/entity/user/User';
 import { Source } from '../../../src/entity/Source';
 import { Post } from '../../../src/entity/posts/Post';
@@ -83,12 +83,16 @@ describe('campaignPostAnalyticsNotification worker', () => {
   });
 
   it('should not send notification if no campaign found', async () => {
-    const result = await invokeNotificationWorker(worker, {
-      entityId: '00000000-0000-0000-0000-000000000000',
-      entityTableName: 'campaign',
-      scheduledAtMs: 0,
-      delayMs: 1_000,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        worker,
+        {
+          entityId: '00000000-0000-0000-0000-000000000000',
+          entityTableName: 'campaign',
+          scheduledAtMs: 0,
+          delayMs: 1_000,
+        },
+      );
 
     expect(result).toBeUndefined();
   });
@@ -102,12 +106,16 @@ describe('campaignPostAnalyticsNotification worker', () => {
 
     expect(campaign).toBeDefined();
 
-    const result = await invokeNotificationWorker(worker, {
-      entityId: campaign.id,
-      entityTableName: 'campaign',
-      scheduledAtMs: 0,
-      delayMs: 1_000,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        worker,
+        {
+          entityId: campaign.id,
+          entityTableName: 'campaign',
+          scheduledAtMs: 0,
+          delayMs: 1_000,
+        },
+      );
 
     expect(result).toBeUndefined();
   });
@@ -126,12 +134,15 @@ describe('campaignPostAnalyticsNotification worker', () => {
     });
 
     await expect(
-      invokeNotificationWorker(worker, {
-        entityId: campaign.id,
-        entityTableName: 'campaign',
-        scheduledAtMs: 0,
-        delayMs: 1_000,
-      }),
+      invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        worker,
+        {
+          entityId: campaign.id,
+          entityTableName: 'campaign',
+          scheduledAtMs: 0,
+          delayMs: 1_000,
+        },
+      ),
     ).rejects.toThrow('Post analytics not found for post');
   });
 
@@ -144,12 +155,16 @@ describe('campaignPostAnalyticsNotification worker', () => {
 
     expect(campaign).toBeDefined();
 
-    const result = await invokeNotificationWorker(worker, {
-      entityId: campaign.id,
-      entityTableName: 'campaign',
-      scheduledAtMs: 0,
-      delayMs: 1_000,
-    });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        worker,
+        {
+          entityId: campaign.id,
+          entityTableName: 'campaign',
+          scheduledAtMs: 0,
+          delayMs: 1_000,
+        },
+      );
 
     expect(result).toHaveLength(1);
     const notification = result![0];
