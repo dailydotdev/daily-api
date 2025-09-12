@@ -79,339 +79,337 @@ beforeEach(async () => {
   ]);
 });
 
-describe('opportunity queries', () => {
-  describe('opportunityById', () => {
-    const OPPORTUNITY_BY_ID_QUERY = /* GraphQL */ `
-      query OpportunityById($id: ID!) {
-        opportunityById(id: $id) {
-          id
-          type
-          title
-          tldr
-          content {
-            overview {
-              content
-              html
-            }
-          }
-          meta {
-            roleType
-            teamSize
-            seniorityLevel
-            employmentType
-            salary {
-              min
-              max
-              period
-            }
-          }
-          location {
-            city
-            country
-            type
-          }
-          organization {
-            id
-            name
-            image
-            website
-            description
-            location
-            customLinks {
-              ...Link
-            }
-            socialLinks {
-              ...Link
-            }
-            pressLinks {
-              ...Link
-            }
-          }
-          recruiters {
-            id
-          }
-          keywords {
-            keyword
+describe('query opportunityById', () => {
+  const OPPORTUNITY_BY_ID_QUERY = /* GraphQL */ `
+    query OpportunityById($id: ID!) {
+      opportunityById(id: $id) {
+        id
+        type
+        title
+        tldr
+        content {
+          overview {
+            content
+            html
           }
         }
+        meta {
+          roleType
+          teamSize
+          seniorityLevel
+          employmentType
+          salary {
+            min
+            max
+            period
+          }
+        }
+        location {
+          city
+          country
+          type
+        }
+        organization {
+          id
+          name
+          image
+          website
+          description
+          location
+          customLinks {
+            ...Link
+          }
+          socialLinks {
+            ...Link
+          }
+          pressLinks {
+            ...Link
+          }
+        }
+        recruiters {
+          id
+        }
+        keywords {
+          keyword
+        }
       }
+    }
 
-      fragment Link on OrganizationLink {
-        type
-        socialType
-        title
-        link
-      }
-    `;
+    fragment Link on OrganizationLink {
+      type
+      socialType
+      title
+      link
+    }
+  `;
 
-    it('should return opportunity by id', async () => {
-      const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
-        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-      });
+  it('should return opportunity by id', async () => {
+    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
 
-      expect(res.errors).toBeFalsy();
-      expect(res.data.opportunityById).toEqual({
-        id: '550e8400-e29b-41d4-a716-446655440001',
-        type: 1,
-        title: 'Senior Full Stack Developer',
-        tldr: 'Join our team as a Senior Full Stack Developer',
-        content: {
-          overview: {
-            content: 'We are looking for a Senior Full Stack Developer...',
-            html: '<p>We are looking for a Senior Full Stack Developer...</p>',
-          },
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityById).toEqual({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      type: 1,
+      title: 'Senior Full Stack Developer',
+      tldr: 'Join our team as a Senior Full Stack Developer',
+      content: {
+        overview: {
+          content: 'We are looking for a Senior Full Stack Developer...',
+          html: '<p>We are looking for a Senior Full Stack Developer...</p>',
         },
-        meta: {
-          roleType: 0.0,
-          teamSize: 10,
-          seniorityLevel: 4,
-          employmentType: 1,
-          salary: {
-            min: 60000,
-            max: 120000,
-            period: 1,
-          },
+      },
+      meta: {
+        roleType: 0.0,
+        teamSize: 10,
+        seniorityLevel: 4,
+        employmentType: 1,
+        salary: {
+          min: 60000,
+          max: 120000,
+          period: 1,
         },
-        location: [
+      },
+      location: [
+        {
+          city: null,
+          country: 'Norway',
+          type: 1,
+        },
+      ],
+      organization: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Daily Dev Inc',
+        image: 'https://example.com/logo.png',
+        website: 'https://daily.dev',
+        description: 'A platform for developers',
+        location: 'San Francisco',
+        customLinks: [
           {
-            city: null,
-            country: 'Norway',
-            type: 1,
+            type: 'custom',
+            title: 'Custom Link',
+            link: 'https://custom.link',
+            socialType: null,
+          },
+          {
+            type: 'custom',
+            title: 'Custom Link 2',
+            link: 'https://custom2.link',
+            socialType: null,
           },
         ],
-        organization: {
-          id: '550e8400-e29b-41d4-a716-446655440000',
-          name: 'Daily Dev Inc',
-          image: 'https://example.com/logo.png',
-          website: 'https://daily.dev',
-          description: 'A platform for developers',
-          location: 'San Francisco',
-          customLinks: [
-            {
-              type: 'custom',
-              title: 'Custom Link',
-              link: 'https://custom.link',
-              socialType: null,
-            },
-            {
-              type: 'custom',
-              title: 'Custom Link 2',
-              link: 'https://custom2.link',
-              socialType: null,
-            },
-          ],
-          socialLinks: [
-            {
-              type: 'social',
-              socialType: 'facebook',
-              title: null,
-              link: 'https://facebook.com',
-            },
-          ],
-          pressLinks: [
-            {
-              type: 'press',
-              title: 'Press link',
-              link: 'https://press.link',
-              socialType: null,
-            },
-          ],
-        },
-        recruiters: [{ id: '1' }],
-        keywords: expect.arrayContaining([
-          { keyword: 'webdev' },
-          { keyword: 'fullstack' },
-          { keyword: 'Fortune 500' },
-        ]),
-      });
-    });
-
-    it('should return UNEXPECTED for false UUID opportunity', async () => {
-      await testQueryErrorCode(
-        client,
-        { query: OPPORTUNITY_BY_ID_QUERY, variables: { id: 'non-existing' } },
-        'UNEXPECTED',
-      );
-    });
-
-    it('should return null for non-live opportunity', async () => {
-      await con
-        .getRepository(Opportunity)
-        .update(
-          { id: '550e8400-e29b-41d4-a716-446655440001' },
-          { state: OpportunityState.DRAFT },
-        );
-
-      await testQueryErrorCode(
-        client,
-        {
-          query: OPPORTUNITY_BY_ID_QUERY,
-          variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-        },
-        'NOT_FOUND',
-      );
-    });
-
-    it('should return null for not existing opportunity', async () => {
-      await testQueryErrorCode(
-        client,
-        {
-          query: OPPORTUNITY_BY_ID_QUERY,
-          variables: { id: '660e8400-e29b-41d4-a716-446655440000' },
-        },
-        'NOT_FOUND',
-      );
+        socialLinks: [
+          {
+            type: 'social',
+            socialType: 'facebook',
+            title: null,
+            link: 'https://facebook.com',
+          },
+        ],
+        pressLinks: [
+          {
+            type: 'press',
+            title: 'Press link',
+            link: 'https://press.link',
+            socialType: null,
+          },
+        ],
+      },
+      recruiters: [{ id: '1' }],
+      keywords: expect.arrayContaining([
+        { keyword: 'webdev' },
+        { keyword: 'fullstack' },
+        { keyword: 'Fortune 500' },
+      ]),
     });
   });
 
-  describe('getOpportunityMatch', () => {
-    const GET_OPPORTUNITY_MATCH_QUERY = /* GraphQL */ `
-      query GetOpportunityMatch($id: ID!) {
-        getOpportunityMatch(id: $id) {
-          status
-          description {
-            reasoning
-          }
+  it('should return UNEXPECTED for false UUID opportunity', async () => {
+    await testQueryErrorCode(
+      client,
+      { query: OPPORTUNITY_BY_ID_QUERY, variables: { id: 'non-existing' } },
+      'UNEXPECTED',
+    );
+  });
+
+  it('should return null for non-live opportunity', async () => {
+    await con
+      .getRepository(Opportunity)
+      .update(
+        { id: '550e8400-e29b-41d4-a716-446655440001' },
+        { state: OpportunityState.DRAFT },
+      );
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: OPPORTUNITY_BY_ID_QUERY,
+        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should return null for not existing opportunity', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: OPPORTUNITY_BY_ID_QUERY,
+        variables: { id: '660e8400-e29b-41d4-a716-446655440000' },
+      },
+      'NOT_FOUND',
+    );
+  });
+});
+
+describe('query getOpportunityMatch', () => {
+  const GET_OPPORTUNITY_MATCH_QUERY = /* GraphQL */ `
+    query GetOpportunityMatch($id: ID!) {
+      getOpportunityMatch(id: $id) {
+        status
+        description {
+          reasoning
         }
       }
-    `;
+    }
+  `;
 
-    it('should return opportunity match for authenticated user', async () => {
-      loggedUser = '1';
+  it('should return opportunity match for authenticated user', async () => {
+    loggedUser = '1';
 
-      const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+    const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunityMatch).toEqual({
+      status: 'pending',
+      description: {
+        reasoning: 'Interested candidate',
+      },
+    });
+  });
+
+  it('should clear alert when alert matches opportunityId', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, Alerts, [
+      {
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunityMatch).toEqual({
+      status: 'pending',
+      description: {
+        reasoning: 'Interested candidate',
+      },
+    });
+    expect(
+      await con.getRepository(Alerts).countBy({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    ).toEqual(0);
+    expect(
+      await con
+        .getRepository(Alerts)
+        .countBy({ userId: '1', opportunityId: IsNull() }),
+    ).toEqual(1);
+  });
+
+  it('should not clear alert when alert does not match opportunityId', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, Alerts, [
+      {
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunityMatch).toEqual({
+      status: 'pending',
+      description: {
+        reasoning: 'Interested candidate',
+      },
+    });
+    expect(
+      await con.getRepository(Alerts).countBy({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+      }),
+    ).toEqual(1);
+    expect(
+      await con
+        .getRepository(Alerts)
+        .countBy({ userId: '1', opportunityId: IsNull() }),
+    ).toEqual(0);
+  });
+
+  it('should return different match for different user', async () => {
+    loggedUser = '2';
+
+    const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunityMatch).toEqual({
+      status: 'candidate_accepted',
+      description: {
+        reasoning: 'Accepted candidate',
+      },
+    });
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITY_MATCH_QUERY,
         variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-      });
+      },
+      'UNAUTHENTICATED',
+    );
+  });
 
-      expect(res.errors).toBeFalsy();
-      expect(res.data.getOpportunityMatch).toEqual({
-        status: 'pending',
-        description: {
-          reasoning: 'Interested candidate',
-        },
-      });
-    });
+  it('should return null for non-existent match', async () => {
+    loggedUser = '1';
 
-    it('should clear alert when alert matches opportunityId', async () => {
-      loggedUser = '1';
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITY_MATCH_QUERY,
+        variables: { id: '770e8400-e29b-41d4-a716-446655440001' },
+      },
+      'NOT_FOUND',
+    );
+  });
 
-      await saveFixtures(con, Alerts, [
-        {
-          userId: '1',
-          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-        },
-      ]);
+  it('should return null when user has no match for opportunity', async () => {
+    loggedUser = '3';
 
-      const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITY_MATCH_QUERY,
         variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.getOpportunityMatch).toEqual({
-        status: 'pending',
-        description: {
-          reasoning: 'Interested candidate',
-        },
-      });
-      expect(
-        await con.getRepository(Alerts).countBy({
-          userId: '1',
-          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-        }),
-      ).toEqual(0);
-      expect(
-        await con
-          .getRepository(Alerts)
-          .countBy({ userId: '1', opportunityId: IsNull() }),
-      ).toEqual(1);
-    });
-
-    it('should not clear alert when alert does not match opportunityId', async () => {
-      loggedUser = '1';
-
-      await saveFixtures(con, Alerts, [
-        {
-          userId: '1',
-          opportunityId: '550e8400-e29b-41d4-a716-446655440002',
-        },
-      ]);
-
-      const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
-        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.getOpportunityMatch).toEqual({
-        status: 'pending',
-        description: {
-          reasoning: 'Interested candidate',
-        },
-      });
-      expect(
-        await con.getRepository(Alerts).countBy({
-          userId: '1',
-          opportunityId: '550e8400-e29b-41d4-a716-446655440002',
-        }),
-      ).toEqual(1);
-      expect(
-        await con
-          .getRepository(Alerts)
-          .countBy({ userId: '1', opportunityId: IsNull() }),
-      ).toEqual(0);
-    });
-
-    it('should return different match for different user', async () => {
-      loggedUser = '2';
-
-      const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
-        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.getOpportunityMatch).toEqual({
-        status: 'candidate_accepted',
-        description: {
-          reasoning: 'Accepted candidate',
-        },
-      });
-    });
-
-    it('should require authentication', async () => {
-      await testQueryErrorCode(
-        client,
-        {
-          query: GET_OPPORTUNITY_MATCH_QUERY,
-          variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-        },
-        'UNAUTHENTICATED',
-      );
-    });
-
-    it('should return null for non-existent match', async () => {
-      loggedUser = '1';
-
-      await testQueryErrorCode(
-        client,
-        {
-          query: GET_OPPORTUNITY_MATCH_QUERY,
-          variables: { id: '770e8400-e29b-41d4-a716-446655440001' },
-        },
-        'NOT_FOUND',
-      );
-    });
-
-    it('should return null when user has no match for opportunity', async () => {
-      loggedUser = '3';
-
-      await testQueryErrorCode(
-        client,
-        {
-          query: GET_OPPORTUNITY_MATCH_QUERY,
-          variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-        },
-        'NOT_FOUND',
-      );
-    });
+      },
+      'NOT_FOUND',
+    );
   });
 });
 
