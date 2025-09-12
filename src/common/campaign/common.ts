@@ -15,10 +15,6 @@ import type { EntityManager } from 'typeorm';
 import { CAMPAIGN_VALIDATION_SCHEMA } from '../schema/campaigns';
 import { getSourceTags } from './source';
 import { getPostTags } from './post';
-import type { NotificationBuilder } from '../../notifications/builder';
-import { NotificationIcon } from '../../notifications/icons';
-import { notificationsLink } from '../links';
-import type { NotificationCampaignContext } from '../../notifications';
 import { queryReadReplica } from '../queryReadReplica';
 
 export interface StartCampaignArgs {
@@ -151,6 +147,10 @@ export enum CampaignUpdateEvent {
   BudgetUpdated = 'BUDGET_UPDATED',
 }
 
+export enum BudgetMilestone {
+  Spent70Percent = '70',
+}
+
 export interface CampaignCompleted {
   budget: string;
 }
@@ -163,6 +163,9 @@ export interface CampaignStatsUpdate {
 
 export interface CampaignBudgetUpdate {
   budget: string; // used budget
+  labels?: {
+    milestone: BudgetMilestone;
+  };
 }
 
 type ExtraStats = Partial<{
@@ -185,36 +188,6 @@ export interface CampaignUpdateEventArgs {
     | CampaignExtraStatsUpdate;
   d_update: number;
 }
-
-export const generateCampaignCompletedNotification = (
-  builder: NotificationBuilder,
-  ctx: NotificationCampaignContext,
-) => {
-  const { campaign, source, event, user } = ctx;
-
-  const nb = builder
-    .icon(NotificationIcon.DailyDev)
-    .referenceCampaign(ctx)
-    .targetUrl(notificationsLink)
-    .setTargetUrlParameter([['c_id', campaign.id]])
-    .uniqueKey(`${campaign.id}-${user.id}-${event}`);
-
-  switch (campaign.type) {
-    case CampaignType.Post:
-      return nb.avatarUser(user);
-    case CampaignType.Squad:
-      if (!source) {
-        throw new Error(
-          `Can't generate Squad Campaign Notification without the Squad`,
-        );
-      }
-      return nb.avatarSource(source);
-    default:
-      throw new Error(
-        `Unable to generate notification for unknown type: ${campaign.type}`,
-      );
-  }
-};
 
 export type UserCampaignStats = Pick<
   CampaignFlags,

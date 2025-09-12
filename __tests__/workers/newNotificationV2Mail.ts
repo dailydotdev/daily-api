@@ -2490,3 +2490,110 @@ describe('campaign_squad_completed notifications', () => {
     expect(args.transactional_message_id).toEqual('83');
   });
 });
+
+describe('campaign_post_first_milestone notifications', () => {
+  it('should set parameters for Post Campaign First Milestone email', async () => {
+    await con.getRepository(ArticlePost).save(postsFixture[0]);
+
+    // Create a CampaignPost (not just Campaign) with postId pointing to the post
+    const campaignPost = await con.getRepository(CampaignPost).save({
+      id: 'b2c3d4e5-f6a7-8901-bcde-f23456789012',
+      referenceId: 'p1',
+      userId: '1',
+      type: CampaignType.Post,
+      state: CampaignState.Active,
+      createdAt: new Date(2023, 2, 10, 14, 30),
+      endedAt: new Date(2023, 2, 17, 14, 30),
+      postId: 'p1', // This is the key field that was missing
+      flags: {},
+    });
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+
+    const ctx: NotificationCampaignContext = {
+      userIds: ['1'],
+      user: user as Reference<User>,
+      campaign: campaignPost as Reference<Campaign>,
+      event: CampaignUpdateEvent.BudgetUpdated,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.CampaignPostFirstMilestone,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      start_date: 'Mar 10, 2023',
+      end_date: 'Mar 17, 2023',
+      analytics_link:
+        'http://localhost:5002/notifications?c_id=b2c3d4e5-f6a7-8901-bcde-f23456789012&utm_source=notification&utm_medium=email&utm_campaign=campaign_post_first_milestone',
+      post_link: 'http://localhost:5002/posts/p1-p1',
+      post_image: 'https://daily.dev/image.jpg',
+      post_title: 'P1',
+    });
+    expect(args.transactional_message_id).toEqual('80');
+  });
+});
+
+describe('campaign_squad_first_milestone notifications', () => {
+  it('should set parameters for Squad Campaign First Milestone email', async () => {
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    // Create a CampaignSource (not just Campaign) with sourceId pointing to the source
+    const campaignSource = await con.getRepository(CampaignSource).save({
+      id: 'c3d4e5f6-a7b8-9012-cdef-345678901234',
+      referenceId: 'a',
+      userId: '1',
+      type: CampaignType.Squad,
+      state: CampaignState.Active,
+      createdAt: new Date(2023, 3, 5, 11, 45),
+      endedAt: new Date(2023, 3, 12, 11, 45),
+      sourceId: 'a', // This is the key field that was missing
+      flags: {},
+    });
+    const user = await con.getRepository(User).findOneBy({ id: '1' });
+
+    const ctx: NotificationCampaignContext = {
+      userIds: ['1'],
+      user: user as Reference<User>,
+      campaign: campaignSource as Reference<Campaign>,
+      source: source as Reference<Source>,
+      event: CampaignUpdateEvent.BudgetUpdated,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.CampaignSquadFirstMilestone,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      start_date: 'Apr 05, 2023',
+      end_date: 'Apr 12, 2023',
+      analytics_link:
+        'http://localhost:5002/notifications?c_id=c3d4e5f6-a7b8-9012-cdef-345678901234&utm_source=notification&utm_medium=email&utm_campaign=campaign_squad_first_milestone',
+      source_image: 'http://image.com/a',
+      source_handle: 'a',
+      source_name: 'A',
+    });
+    expect(args.transactional_message_id).toEqual('82');
+  });
+});

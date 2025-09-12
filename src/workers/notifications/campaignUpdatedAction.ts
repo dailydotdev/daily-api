@@ -1,10 +1,15 @@
 import { Campaign, Source } from '../../entity';
 import { NotificationType } from '../../notifications/common';
 import { TypedNotificationWorker } from '../worker';
-import { type NotificationCampaignContext } from '../../notifications';
+import {
+  type NotificationCampaignContext,
+  type NotificationCampaignSourceContext,
+} from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import {
+  BudgetMilestone,
   CampaignUpdateEvent,
+  type CampaignBudgetUpdate,
   type CampaignUpdateEventArgs,
 } from '../../common/campaign/common';
 import { CampaignType } from '../../entity/campaign/Campaign';
@@ -26,6 +31,12 @@ const worker: TypedNotificationWorker<'skadi.v2.campaign-updated'> = {
       switch (event) {
         case CampaignUpdateEvent.Completed:
           return handleCampaignCompleted({ con, params, campaign });
+        case CampaignUpdateEvent.BudgetUpdated:
+          const data = params.data as CampaignBudgetUpdate;
+          if (data.labels?.milestone === BudgetMilestone.Spent70Percent) {
+            return handleCampaignFirstMilestone({ con, params, campaign });
+          }
+          break;
         default:
           return;
       }
@@ -44,20 +55,22 @@ const worker: TypedNotificationWorker<'skadi.v2.campaign-updated'> = {
   },
 };
 
+interface GenerateNotificationProps {
+  con: DataSource;
+  params: CampaignUpdateEventArgs;
+  campaign: Campaign;
+}
+
 const campaignTypeToNotification: Record<CampaignType, NotificationType> = {
   [CampaignType.Post]: NotificationType.CampaignPostCompleted,
   [CampaignType.Squad]: NotificationType.CampaignSquadCompleted,
 };
 
-const handleCampaignCompleted = async ({
+const getCampaignContext = async ({
   con,
   params,
   campaign,
-}: {
-  con: DataSource;
-  params: CampaignUpdateEventArgs;
-  campaign: Campaign;
-}) => {
+}: GenerateNotificationProps) => {
   const { event } = params;
   const user = await campaign.user;
   const ctx: NotificationCampaignContext = {
@@ -68,14 +81,43 @@ const handleCampaignCompleted = async ({
   };
 
   if (campaign.type === CampaignType.Squad) {
-    ctx.source = await queryReadReplica(con, ({ queryRunner }) => {
-      return queryRunner.manager
-        .getRepository(Source)
-        .findOneByOrFail({ id: campaign.referenceId });
-    });
+    (ctx as NotificationCampaignSourceContext).source = await queryReadReplica(
+      con,
+      ({ queryRunner }) => {
+        return queryRunner.manager
+          .getRepository(Source)
+          .findOneByOrFail({ id: campaign.referenceId });
+      },
+    );
   }
 
+  return { ctx };
+};
+
+const handleCampaignCompleted = async ({
+  con,
+  params,
+  campaign,
+}: GenerateNotificationProps) => {
+  const { ctx } = await getCampaignContext({ con, params, campaign });
+
   return [{ type: campaignTypeToNotification[campaign.type], ctx }];
+};
+
+const campaignMilestoneToNotification: Record<CampaignType, NotificationType> =
+  {
+    [CampaignType.Post]: NotificationType.CampaignPostFirstMilestone,
+    [CampaignType.Squad]: NotificationType.CampaignSquadFirstMilestone,
+  };
+
+const handleCampaignFirstMilestone = async ({
+  con,
+  params,
+  campaign,
+}: GenerateNotificationProps) => {
+  const { ctx } = await getCampaignContext({ con, params, campaign });
+
+  return [{ type: campaignMilestoneToNotification[campaign.type], ctx }];
 };
 
 export default worker;
