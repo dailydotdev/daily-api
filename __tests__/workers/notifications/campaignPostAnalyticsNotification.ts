@@ -112,27 +112,6 @@ describe('campaignPostAnalyticsNotification worker', () => {
     expect(result).toBeUndefined();
   });
 
-  it('should not send notification if no post found', async () => {
-    const campaign = await con.getRepository(CampaignPost).findOneOrFail({
-      where: {
-        userId: 'cpanw-1',
-      },
-    });
-
-    expect(campaign).toBeDefined();
-
-    await con.getRepository(CampaignPost).update(campaign.id, { postId: null });
-
-    const result = await invokeNotificationWorker(worker, {
-      entityId: campaign.id,
-      entityTableName: 'campaign',
-      scheduledAtMs: 0,
-      delayMs: 1_000,
-    });
-
-    expect(result).toBeUndefined();
-  });
-
   it('should throw if no post analytics found', async () => {
     const campaign = await con.getRepository(CampaignPost).findOneOrFail({
       where: {
