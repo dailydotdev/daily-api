@@ -11,6 +11,8 @@ import { UserCandidatePreference } from '../entity/user/UserCandidatePreference'
 import type { GQLEmptyResponse } from './common';
 import { candidatePreferenceSchema } from '../common/schema/userCandidate';
 import { Alerts } from '../entity';
+import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
+import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 
 export interface GQLOpportunity
   extends Pick<
@@ -160,6 +162,11 @@ export const typeDefs = /* GraphQL */ `
     country: String
   }
 
+  input OpportunityScreeningAnswerInput {
+    questionId: ID!
+    answer: String!
+  }
+
   extend type Mutation {
     """
     Updates the authenticated candidate's saved preferences
@@ -172,6 +179,15 @@ export const typeDefs = /* GraphQL */ `
       salaryExpectation: SalaryExpectationInput
       location: [LocationInput]
       locationType: [ProtoEnumValue]
+    ): EmptyResponse @auth
+
+    saveOpportunityScreeningAnswers(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      answers: [OpportunityScreeningAnswerInput!]!
     ): EmptyResponse @auth
   }
 `;
@@ -256,6 +272,78 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
+      return { _: true };
+    },
+    saveOpportunityScreeningAnswers: async (
+      _,
+      payload: z.infer<typeof opportunityScreeningAnswersSchema>,
+      { userId, con, log }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const safePayload = opportunityScreeningAnswersSchema.safeParse(payload);
+      if (safePayload.error) {
+        throw safePayload.error;
+      }
+
+      const opportunityId = safePayload.data.id;
+      const answers = safePayload.data.answers;
+
+      // Check if the payload contains duplicate answers for the same questionId
+      const hasDuplicateAnswers = answers.some(
+        ({ questionId }, i) =>
+          answers.findIndex((x) => x.questionId === questionId) !== i,
+      );
+      if (hasDuplicateAnswers) {
+        throw new Error('Conflicting answers for the same questionId');
+      }
+
+      const opportunity = await con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id: opportunityId, state: OpportunityState.LIVE },
+          relations: {
+            questions: true,
+          },
+        });
+
+      const questions = await opportunity.questions;
+
+      // Check if the number of answers matches the number of questions
+      if (answers.length !== questions.length) {
+        throw new Error(
+          `Number of answers (${answers.length}) does not match number of questions (${questions.length}) for opportunity ${opportunity.id}`,
+        );
+      }
+
+      // Map answers to questions, throw if question not found
+      const screening = answers.map((answer) => {
+        const question = questions.find((q) => q.id === answer.questionId);
+        if (!question) {
+          log.error(
+            { answer, questions, opportunityId },
+            'Question not found for opportunity',
+          );
+          throw new Error(
+            `Question with id ${answer.questionId} not found for opportunity ${opportunity.id}`,
+          );
+        }
+
+        return {
+          screening: question.title,
+          answer: answer.answer,
+        };
+      });
+
+      await con.getRepository(OpportunityMatch).upsert(
+        {
+          opportunityId,
+          userId,
+          screening,
+        },
+        {
+          conflictPaths: ['opportunityId', 'userId'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
       return { _: true };
     },
   },
