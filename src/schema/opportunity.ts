@@ -364,9 +364,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       { userId, con, log }: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const match = await con.getRepository(OpportunityMatch).findOneBy({
-        opportunityId: id,
-        userId,
+      const match = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          opportunityId: id,
+          userId,
+        },
+        relations: {
+          opportunity: true,
+        },
       });
 
       if (!match) {
@@ -383,6 +388,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           'Match is not pending',
         );
         throw new ForbiddenError(`Access denied! Match is not pending`);
+      }
+
+      const opportunity = await match.opportunity;
+      if (opportunity.state !== OpportunityState.LIVE) {
+        log.error(
+          { opportunityId: id, userId, state: opportunity.state },
+          'Opportunity is not live',
+        );
+        throw new ForbiddenError(`Access denied! Opportunity is not live`);
       }
 
       await con.getRepository(OpportunityMatch).update(
