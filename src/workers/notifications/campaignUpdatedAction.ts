@@ -1,6 +1,6 @@
 import { Campaign, Source } from '../../entity';
 import { NotificationType } from '../../notifications/common';
-import { generateTypedNotificationWorker } from './worker';
+import { TypedNotificationWorker } from '../worker';
 import {
   type NotificationCampaignContext,
   type NotificationCampaignSourceContext,
@@ -17,7 +17,7 @@ import { type DataSource } from 'typeorm';
 import { logger } from '../../logger';
 import type { TypeORMQueryFailedError } from '../../errors';
 
-const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
+const worker: TypedNotificationWorker<'skadi.v2.campaign-updated'> = {
   subscription: 'api.campaign-updated-v2-notification',
   handler: async (params, con) => {
     const { event } = params;
@@ -53,7 +53,7 @@ const worker = generateTypedNotificationWorker<'skadi.v2.campaign-updated'>({
       throw err;
     }
   },
-});
+};
 
 interface GenerateNotificationProps {
   con: DataSource;

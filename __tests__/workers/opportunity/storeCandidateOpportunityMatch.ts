@@ -43,7 +43,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
       reasoning: 'Strong technical background and relevant experience',
     });
 
-    await expectSuccessfulTypedBackground(worker, matchData);
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
 
     const savedMatch = await con.getRepository(OpportunityMatch).findOne({
       where: {
@@ -67,7 +70,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
       reasoning: 'Strong technical background',
     });
 
-    await expectSuccessfulTypedBackground(worker, matchData);
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
 
     // Verify no match was inserted
     const matches = await con.getRepository(OpportunityMatch).find({
@@ -84,7 +90,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
       reasoning: 'Strong technical background',
     });
 
-    await expectSuccessfulTypedBackground(worker, matchData);
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
 
     // Verify no match was inserted
     const matches = await con.getRepository(OpportunityMatch).find({
@@ -101,7 +110,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
       reasoning: 'Strong technical background',
     });
 
-    await expectSuccessfulTypedBackground(worker, matchData);
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
 
     // Verify no match was inserted
     const matches = await con.getRepository(OpportunityMatch).find();
@@ -120,7 +132,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
     });
 
     // This should not throw due to the FK_opportunity_match_opportunity_id handling
-    await expectSuccessfulTypedBackground(worker, matchData);
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
 
     consoleSpy.mockRestore();
   });
@@ -184,7 +199,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
 
     // This should re-throw the error since it's not an EntityNotFoundError
     await expect(
-      expectSuccessfulTypedBackground(worker, matchData),
+      expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        matchData,
+      ),
     ).rejects.toThrow('Database connection failed');
 
     // Restore original method
@@ -200,7 +218,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
       reasoning: 'Strong technical background and relevant experience',
     });
 
-    await expectSuccessfulTypedBackground(worker, matchData);
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
 
     expect(await con.getRepository(Alerts).findOneBy({ userId: '1' })).toEqual(
       expect.objectContaining({
@@ -220,7 +241,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
       reasoning: 'Strong technical background and relevant experience',
     });
 
-    await expectSuccessfulTypedBackground(worker, matchData);
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
 
     expect(await con.getRepository(Alerts).findOneBy({ userId: '1' })).toEqual(
       expect.objectContaining({
