@@ -626,38 +626,6 @@ describe('mutation updateCandidatePreferences', () => {
     });
   });
 
-  test.each([
-    [0.0, 0.0],
-    [0.1, 0.0],
-    [0.25, 0.5],
-    [0.74, 0.5],
-    [0.75, 1.0],
-    [0.8, 1.0],
-    [1.2, 1.0],
-  ])(
-    'should snap role type to closest accepted value (input: %p, expected: %p)',
-    async (input, expected) => {
-      loggedUser = '1';
-
-      const res = await client.mutate(MUTATION, {
-        variables: {
-          roleType: input,
-        },
-      });
-
-      expect(res.errors).toBeFalsy();
-      expect(res.data.updateCandidatePreferences).toEqual({ _: true });
-
-      const updated = await con
-        .getRepository(UserCandidatePreference)
-        .findOneBy({ userId: '1' });
-
-      expect(updated).toMatchObject({
-        roleType: expected,
-      });
-    },
-  );
-
   it('should throw error on invalid proto enum values', async () => {
     loggedUser = '1';
 
@@ -698,6 +666,7 @@ describe('mutation updateCandidatePreferences', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         status: 0,
+        roleType: 0.6,
         employmentType: [0],
         salaryExpectation: { period: 0 },
         locationType: [0],
@@ -715,6 +684,7 @@ describe('mutation updateCandidatePreferences', () => {
     expect(errors).toEqual(
       expect.arrayContaining([
         ['Invalid candidate status', 'status'],
+        ['Invalid role type', 'roleType'],
         ['Invalid employment type', 'employmentType'],
         ['Invalid salary period', 'salaryExpectation'],
         ['Invalid location type', 'locationType'],

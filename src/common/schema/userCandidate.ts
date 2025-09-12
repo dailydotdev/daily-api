@@ -5,7 +5,6 @@ import {
   SalaryPeriod,
 } from '@dailydotdev/schema';
 import z from 'zod';
-import { snapToHalf } from '../utils';
 
 export enum RoleType {
   IC = 0.0,
@@ -30,7 +29,7 @@ export const candidatePreferenceSchema = z.object({
     })
     .optional(),
   role: z.string().min(3).max(100).optional(),
-  roleType: z.number().transform(snapToHalf).pipe(z.enum(RoleType)).optional(),
+  roleType: z.enum(RoleType, { error: 'Invalid role type' }).optional(),
   employmentType: z
     .array(
       z
