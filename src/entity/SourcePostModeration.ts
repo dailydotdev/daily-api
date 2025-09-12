@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Post, PostType } from './posts';
+import type { Post, PostType } from './posts';
 import type { Source } from './Source';
 import type { User } from './user';
 

@@ -195,5 +195,12 @@
     "patchedDependencies": {
       "mercurius-upload": "patches/mercurius-upload.patch"
     }
+  },
+  "madge": {
+    "detectiveOptions": {
+      "ts": {
+        "skipTypeImports": true
+      }
+    }
   }
 }

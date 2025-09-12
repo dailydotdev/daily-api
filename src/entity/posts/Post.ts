@@ -7,11 +7,11 @@ import {
   PrimaryColumn,
   TableInheritance,
 } from 'typeorm';
-import { Source, UNKNOWN_SOURCE } from '../Source';
-import { PostTag } from '../PostTag';
-import { PostKeyword } from '../PostKeyword';
-import { User } from '../user/User';
-import { PostRelation } from './PostRelation';
+import { type Source, UNKNOWN_SOURCE } from '../Source';
+import type { PostTag } from '../PostTag';
+import type { PostKeyword } from '../PostKeyword';
+import type { User } from '../user/User';
+import type { PostRelation } from './PostRelation';
 import type { PostCodeSnippet } from './PostCodeSnippet';
 import type { ContentLanguage } from '../../types';
 
@@ -152,7 +152,7 @@ export class Post {
   @Column({ type: 'text', default: UNKNOWN_SOURCE })
   sourceId: string;
 
-  @ManyToOne(() => Source, (source) => source.posts, {
+  @ManyToOne('Source', (source: Source) => source.posts, {
     lazy: true,
     onDelete: 'CASCADE',
   })
@@ -166,10 +166,12 @@ export class Post {
   @Index('IDX_post_score', { synchronize: false })
   score: number;
 
-  @OneToMany(() => PostTag, (tag) => tag.post, { lazy: true })
+  @OneToMany('PostTag', (tag: PostTag) => tag.post, { lazy: true })
   tags: Promise<PostTag[]>;
 
-  @OneToMany(() => PostKeyword, (keyword) => keyword.post, { lazy: true })
+  @OneToMany('PostKeyword', (keyword: PostKeyword) => keyword.post, {
+    lazy: true,
+  })
   keywords: Promise<PostKeyword[]>;
 
   @Column({ type: 'text', nullable: true })
@@ -188,7 +190,7 @@ export class Post {
   @Index('IDX_post_scout')
   scoutId: string | null;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'SET NULL',
   })
@@ -198,7 +200,7 @@ export class Post {
   @Index('IDX_post_author')
   authorId: string | null;
 
-  @ManyToOne(() => User, {
+  @ManyToOne('User', {
     lazy: true,
     onDelete: 'SET NULL',
   })
@@ -277,9 +279,13 @@ export class Post {
   })
   yggdrasilId: string;
 
-  @OneToMany(() => PostRelation, (postRelation) => postRelation.post, {
-    lazy: true,
-  })
+  @OneToMany(
+    'PostRelation',
+    (postRelation: PostRelation) => postRelation.post,
+    {
+      lazy: true,
+    },
+  )
   public relatedPosts: Promise<PostRelation[]>;
 
   @Column({
