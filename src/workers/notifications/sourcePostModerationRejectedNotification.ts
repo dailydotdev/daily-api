@@ -5,7 +5,7 @@ import { getPostModerationContext } from './utils';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
-import { TypedNotificationWorker } from '../worker';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
 const worker: TypedNotificationWorker<'api.v1.source-post-moderation-rejected'> =
   {
@@ -34,6 +34,10 @@ const worker: TypedNotificationWorker<'api.v1.source-post-moderation-rejected'> 
           );
         }
       }
+    },
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
     },
   };
 
