@@ -13,6 +13,7 @@ import { candidatePreferenceSchema } from '../common/schema/userCandidate';
 import { Alerts } from '../entity';
 import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
+import { ForbiddenError } from 'apollo-server-errors';
 
 export interface GQLOpportunity
   extends Pick<
@@ -286,6 +287,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const opportunityId = safePayload.data.id;
       const answers = safePayload.data.answers;
+
+      const match = await con.getRepository(OpportunityMatch).findOneBy({
+        opportunityId,
+        userId,
+        status: OpportunityMatchStatus.Pending,
+      });
+      if (!match) {
+        throw new ForbiddenError(`Access denied! Match is not pending`);
+      }
 
       const opportunity = await con
         .getRepository(OpportunityJob)
