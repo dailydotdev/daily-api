@@ -287,15 +287,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const opportunityId = safePayload.data.id;
       const answers = safePayload.data.answers;
 
-      // Check if the payload contains duplicate answers for the same questionId
-      const hasDuplicateAnswers = answers.some(
-        ({ questionId }, i) =>
-          answers.findIndex((x) => x.questionId === questionId) !== i,
-      );
-      if (hasDuplicateAnswers) {
-        throw new Error('Conflicting answers for the same questionId');
-      }
-
       const opportunity = await con
         .getRepository(OpportunityJob)
         .findOneOrFail({
