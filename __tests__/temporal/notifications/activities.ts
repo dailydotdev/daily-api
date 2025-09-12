@@ -62,3 +62,24 @@ describe('sendBookmarkReminder activity', () => {
     );
   });
 });
+
+describe('sendEntityReminder activity', () => {
+  it('should send a pubsub event', async () => {
+    await env.run(activities.sendEntityReminder, {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    });
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.delayed-notification-reminder',
+      {
+        entityId: '1',
+        entityTableName: 'campaign',
+        scheduledAtMs: 0,
+        delayMs: 1_000,
+      },
+    );
+  });
+});

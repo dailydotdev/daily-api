@@ -75,6 +75,7 @@ export enum NotificationType {
   CampaignPostFirstMilestone = 'campaign_post_first_milestone',
   CampaignSquadFirstMilestone = 'campaign_squad_first_milestone',
   NewOpportunityMatch = 'new_opportunity_match',
+  PostAnalytics = 'post_analytics',
 }
 
 export enum NotificationPreferenceType {
@@ -261,6 +262,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.NewOpportunityMatch]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.PostAnalytics]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
