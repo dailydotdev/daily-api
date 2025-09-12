@@ -9,7 +9,7 @@ import { generateTypedNotificationWorker } from './worker';
 const impressionsThreshold = 10_000;
 
 export const campaignPostAnalyticsNotification =
-  generateTypedNotificationWorker<'api.v1.entity-reminder'>({
+  generateTypedNotificationWorker<'api.v1.delayed-notification-reminder'>({
     subscription: 'api.campaign-post-analytics-notification',
     handler: async (data, con) => {
       if (

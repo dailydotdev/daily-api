@@ -33,7 +33,11 @@ export const createActivities = ({ con }: InjectedProps) => ({
   async sendEntityReminder(
     params: z.infer<typeof entityReminderSchema>,
   ): Promise<void> {
-    await triggerTypedEvent(logger, 'api.v1.entity-reminder', params);
+    await triggerTypedEvent(
+      logger,
+      'api.v1.delayed-notification-reminder',
+      params,
+    );
   },
 });
 

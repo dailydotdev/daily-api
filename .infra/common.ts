@@ -410,7 +410,7 @@ export const workers: Worker[] = [
     subscription: 'api.candidate-opportunity-match-notification',
   },
   {
-    topic: 'api.v1.entity-reminder',
+    topic: 'api.v1.delayed-notification-reminder',
     subscription: 'api.campaign-post-analytics-notification',
   },
 ];

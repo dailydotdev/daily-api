@@ -73,7 +73,7 @@ describe('sendEntityReminder activity', () => {
     });
     expect(triggerTypedEvent).toHaveBeenCalledWith(
       expect.anything(),
-      'api.v1.entity-reminder',
+      'api.v1.delayed-notification-reminder',
       {
         entityId: '1',
         entityTableName: 'campaign',
