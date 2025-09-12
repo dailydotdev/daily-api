@@ -4,7 +4,7 @@ import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { SourcePostModerationStatus } from '../../../src/entity/SourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationPostModerationContext } from '../../../src/notifications';
