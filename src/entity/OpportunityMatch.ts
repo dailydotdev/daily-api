@@ -12,10 +12,8 @@ import type { Opportunity } from './opportunities/Opportunity';
 import type { User } from './user';
 import { OpportunityMatchStatus } from './opportunities/types';
 import type z from 'zod';
-import type {
-  opportunityMatchDescriptionSchema,
-  opportunityMatchScreeningSchema,
-} from '../common/schema/opportunities';
+import type { opportunityMatchDescriptionSchema } from '../common/schema/opportunities';
+import type { Screening } from '@dailydotdev/schema';
 
 @Entity()
 export class OpportunityMatch {
@@ -45,7 +43,7 @@ export class OpportunityMatch {
   description: z.infer<typeof opportunityMatchDescriptionSchema>;
 
   @Column({ type: 'jsonb', default: '[]' })
-  screening: z.infer<typeof opportunityMatchScreeningSchema>[];
+  screening: Array<Screening>;
 
   @Column({ type: 'jsonb', default: '{}' })
   applicationRank: unknown;
