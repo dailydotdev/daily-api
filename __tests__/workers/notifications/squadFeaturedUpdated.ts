@@ -4,7 +4,7 @@ import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationSourceContext } from '../../../src/notifications';
 import { NotificationPreferenceSource } from '../../../src/entity/notifications/NotificationPreferenceSource';
