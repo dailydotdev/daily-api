@@ -79,6 +79,7 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     title: String!
     placeholder: String
+    opportunityId: ID!
   }
 
   type Opportunity {
