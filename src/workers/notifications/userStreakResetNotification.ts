@@ -7,11 +7,12 @@ import { Settings, User } from '../../entity';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
-import { TypedNotificationWorker } from '../worker';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
 const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
   subscription: 'api.user-streak-reset-notification',
   handler: async ({ streak }, con) => {
+    console.log(streak);
     const { userId } = streak;
     const key = generateStorageKey(
       StorageTopic.Streak,
@@ -58,6 +59,9 @@ const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
     };
 
     return [{ type: NotificationType.StreakResetRestore, ctx }];
+  },
+  parseMessage(message) {
+    return messageToJson(message);
   },
 };
 
