@@ -44,6 +44,7 @@ import {
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
+import { Message as ProtobufMessage } from '@bufbuild/protobuf';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -261,7 +262,7 @@ export const invokeTypedNotificationWorker = async <
 
   // Create message data based on whether it's a protobuf type or not
   const messageData =
-    'toBinary' in data
+    data instanceof ProtobufMessage
       ? data.toBinary()
       : Buffer.from(JSON.stringify(data), 'utf-8');
 
