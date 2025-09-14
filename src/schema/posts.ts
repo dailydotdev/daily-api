@@ -118,7 +118,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
-import { subDays } from 'date-fns';
+import { isBefore, subDays } from 'date-fns';
 import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
@@ -176,6 +176,7 @@ import {
 } from '../common/brief';
 import { pollCreationSchema } from '../common/schema/polls';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { PollPost } from '../entity/posts/PollPost';
 
 export interface GQLPollOption {
   id: string;
@@ -270,6 +271,7 @@ export interface GQLUserPost {
   flags?: UserPostFlagsPublic;
   votedAt: Date | null;
   awarded: boolean;
+  pollVoteOptionId?: string | null;
 }
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
@@ -553,6 +555,10 @@ export const typeDefs = /* GraphQL */ `
     The transaction that was created for the award
     """
     awardTransaction: UserTransactionPublic
+    """
+    If the user voted on the poll, this is the option they voted for
+    """
+    pollVoteOptionId: String
   }
 
   type PostTranslation {
@@ -838,6 +844,10 @@ export const typeDefs = /* GraphQL */ `
     Date the poll ends
     """
     endsAt: DateTime
+    """
+    Total number of votes in the poll
+    """
+    numPollVotes: Int
   }
 
   type PostConnection {
@@ -1350,6 +1360,23 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
+    """
+    Vote on a poll
+    """
+    votePoll(
+      """
+      ID of the post containing the poll
+      """
+      postId: ID!
+      """
+      ID of the option to vote for
+      """
+      optionId: ID!
+      """
+      ID of the source the post belongs to
+      """
+      sourceId: ID
+    ): Post! @auth
     """
     To create post moderation item
     """
@@ -3492,6 +3519,50 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return getPostById(ctx, info, savedPost.id);
+    },
+    votePoll: async (
+      _,
+      args: { optionId: string; postId: string; sourceId?: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLPost> => {
+      if (args.sourceId) {
+        await ensureSourcePermissions(ctx, args.sourceId);
+      }
+
+      const res = await ctx.con
+        .createQueryBuilder(PollPost, 'post')
+        .leftJoin(
+          UserPost,
+          'userPost',
+          'userPost.postId = post.id AND userPost.userId = :userId',
+        )
+        .select(['post.id', 'post.endsAt', 'userPost.pollVoteOptionId'])
+        .where('post.id = :postId')
+        .setParameters({ postId: args.postId, userId: ctx.userId })
+        .getRawOne();
+
+      if (!res) {
+        throw new ValidationError('Post not found');
+      }
+
+      const hasAlreadyVoted = !!res.userPost_pollVoteOptionId;
+
+      if (res.post_endsAt && isBefore(res.post_endsAt, new Date())) {
+        throw new ValidationError('Poll has ended');
+      }
+
+      if (hasAlreadyVoted) {
+        throw new ValidationError('User has already voted in this poll');
+      }
+
+      await ctx.con.getRepository(UserPost).save({
+        userId: ctx.userId,
+        postId: args.postId,
+        pollVoteOptionId: args.optionId,
+      });
+
+      return getPostById(ctx, info, args.postId);
     },
   },
   Subscription: {
