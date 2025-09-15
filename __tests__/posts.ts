@@ -9300,20 +9300,11 @@ describe('mutate poll vote', () => {
     mutation VotePoll($postId: ID!, $optionId: ID!, $sourceId: ID) {
       votePoll(postId: $postId, optionId: $optionId, sourceId: $sourceId) {
         id
-        title
         endsAt
-        type
-        source {
-          id
-        }
-        author {
-          id
-        }
         pollOptions {
           id
           text
           numVotes
-          order
         }
       }
     }
