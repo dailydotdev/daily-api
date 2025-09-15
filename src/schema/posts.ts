@@ -3546,11 +3546,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Post not found');
       }
 
-      const hasAlreadyVoted = !!res.userPost_pollVoteOptionId;
-
       if (res.post_endsAt && isBefore(res.post_endsAt, new Date())) {
         throw new ValidationError('Poll has ended');
       }
+
+      const hasAlreadyVoted = !!res.userPost_pollVoteOptionId;
 
       if (hasAlreadyVoted) {
         throw new ValidationError('User has already voted in this poll');
