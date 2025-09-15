@@ -1529,6 +1529,17 @@ const obj = new GraphORM({
       },
     },
   },
+  OpportunityScreeningQuestion: {
+    from: 'QuestionScreening',
+    requiredColumns: ['questionOrder'],
+    additionalQuery: (_, alias, qb) =>
+      qb.orderBy(`${alias}."questionOrder"`, 'ASC'),
+    fields: {
+      order: {
+        alias: { field: 'questionOrder', type: 'int' },
+      },
+    },
+  },
   OpportunityMatch: {
     fields: {
       createdAt: {
