@@ -4,6 +4,7 @@ import {
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
   OpportunityMessage,
+  Salary,
   UserCV,
 } from '@dailydotdev/schema';
 import { triggerTypedEvent } from '../../common';
@@ -71,6 +72,12 @@ export const notifyOpportunityMatchAccepted = async ({
     screening: match.screening,
     candidatePreference: {
       ...candidatePreference,
+      salaryExpectation: new Salary({
+        min: candidatePreference.salaryExpectation?.min
+          ? BigInt(candidatePreference.salaryExpectation.min)
+          : undefined,
+        period: candidatePreference.salaryExpectation?.period,
+      }),
       cv: new UserCV({
         ...candidatePreference.cv,
         lastModified:
@@ -201,6 +208,12 @@ export const notifyCandidatePreferenceChange = async ({
   const message = new CandidatePreferenceUpdated({
     payload: {
       ...candidatePreference,
+      salaryExpectation: new Salary({
+        min: candidatePreference.salaryExpectation?.min
+          ? BigInt(candidatePreference.salaryExpectation.min)
+          : undefined,
+        period: candidatePreference.salaryExpectation?.period,
+      }),
       cv: new UserCV({
         ...candidatePreference?.cv,
         lastModified:

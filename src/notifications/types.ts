@@ -153,7 +153,7 @@ export interface NotificationCampaignSourceContext
 
 export type NotificationOpportunityMatchContext = NotificationBaseContext & {
   opportunityId: string;
-  reasoning: string;
+  reasoningShort: string;
 };
 
 declare module 'fs' {

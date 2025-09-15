@@ -15,11 +15,14 @@ import type {
   EmploymentType,
   Location,
   LocationType,
-  Salary,
 } from '@dailydotdev/schema';
-import type { UserCandidateCV } from '../../common/schema/userCandidate';
+import type {
+  salaryExpectationSchema,
+  UserCandidateCV,
+} from '../../common/schema/userCandidate';
+import type z from 'zod';
 
-export type SalaryExpectation = Omit<Salary, 'max'>;
+export type SalaryExpectation = z.infer<typeof salaryExpectationSchema>;
 
 @Entity()
 export class UserCandidatePreference {

@@ -648,7 +648,7 @@ describe('mutation updateCandidatePreferences', () => {
       role: 'Backend Developer',
       roleType: 1.0,
       employmentType: [1, 3], // FULL_TIME, CONTRACT
-      salaryExpectation: { min: 70000, period: 1 }, // ANNUAL
+      salaryExpectation: { min: '70000', period: 1 }, // ANNUAL
       location: [{ city: 'Berlin', country: 'Germany' }],
       locationType: [1, 2], // REMOTE, ONSITE
     });

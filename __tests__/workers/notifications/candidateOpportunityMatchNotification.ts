@@ -42,7 +42,8 @@ describe('candidateOpportunityMatchNotification worker', () => {
           userId: '1',
           opportunityId: 'opp123',
           matchScore: 85,
-          reasoning: 'Based on your React and TypeScript skills',
+          reasoning: 'Based on your React and TypeScript skills and experience',
+          reasoningShort: 'Based on your React and TypeScript skills',
         }),
       );
 
@@ -53,7 +54,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     expect(context.userIds).toEqual(['1']);
     expect(context.opportunityId).toEqual('opp123');
-    expect(context.reasoning).toEqual(
+    expect(context.reasoningShort).toEqual(
       'Based on your React and TypeScript skills',
     );
   });
@@ -75,7 +76,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     expect(context.userIds).toEqual(['1']);
     expect(context.opportunityId).toEqual('opp456');
-    expect(context.reasoning).toEqual('');
+    expect(context.reasoningShort).toEqual('');
   });
 
   it('should not send notification when userId is missing', async () => {
