@@ -2,11 +2,12 @@ import { NotificationType } from '../../notifications/common';
 import { TypedNotificationWorker } from '../worker';
 import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
+import { Feature, FeatureType } from '../../entity';
 
 const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.candidate-opportunity-match'> =
   {
     subscription: 'api.candidate-opportunity-match-notification',
-    handler: async (data, _, logger) => {
+    handler: async (data, con, logger) => {
       try {
         const { userId, opportunityId, reasoning } = data;
         if (!userId || !opportunityId) {
@@ -14,6 +15,18 @@ const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.
             { data },
             'Missing userId or opportunityId in candidate opportunity match notification',
           );
+          return;
+        }
+
+        // TODO: Temporary until we happy to launch
+        const isTeamMember = await con.getRepository(Feature).exists({
+          where: {
+            userId,
+            feature: FeatureType.Team,
+            value: 1,
+          },
+        });
+        if (!isTeamMember) {
           return;
         }
 
