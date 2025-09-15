@@ -48,7 +48,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     expect(context.userIds).toEqual(['1']);
     expect(context.opportunityId).toEqual('opp123');
-    expect(context.reasoning).toEqual(
+    expect(context.reasoningShort).toEqual(
       'Based on your React and TypeScript skills',
     );
   });
@@ -70,7 +70,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     expect(context.userIds).toEqual(['2']);
     expect(context.opportunityId).toEqual('opp456');
-    expect(context.reasoning).toEqual('');
+    expect(context.reasoningShort).toEqual('');
   });
 
   it('should not send notification when userId is missing', async () => {

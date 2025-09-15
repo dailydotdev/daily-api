@@ -8,7 +8,7 @@ const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.
     subscription: 'api.candidate-opportunity-match-notification',
     handler: async (data, _, logger) => {
       try {
-        const { userId, opportunityId, reasoning } = data;
+        const { userId, opportunityId, reasoningShort } = data;
         if (!userId || !opportunityId) {
           logger.warn(
             { data },
@@ -23,7 +23,7 @@ const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.
             ctx: {
               userIds: [userId],
               opportunityId,
-              reasoning,
+              reasoningShort,
             },
           },
         ];

@@ -11,7 +11,8 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
     subscription: 'api.store-candidate-opportunity-match',
     handler: async ({ data }, con, logger): Promise<void> => {
       try {
-        const { userId, opportunityId, matchScore, reasoning } = data;
+        const { userId, opportunityId, matchScore, reasoning, reasoningShort } =
+          data;
         if (!userId || !opportunityId) {
           logger.warn(
             { data },
@@ -22,6 +23,7 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
 
         const description = opportunityMatchDescriptionSchema.parse({
           reasoning,
+          reasoningShort,
           matchScore,
         });
 

@@ -41,6 +41,7 @@ describe('storeCandidateOpportunityMatch worker', () => {
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
       matchScore: 85,
       reasoning: 'Strong technical background and relevant experience',
+      reasoningShort: 'Strong technical background',
     });
 
     await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
@@ -58,6 +59,9 @@ describe('storeCandidateOpportunityMatch worker', () => {
     expect(savedMatch).toBeDefined();
     expect(savedMatch!.description.reasoning).toBe(
       'Strong technical background and relevant experience',
+    );
+    expect(savedMatch!.description.reasoning).toBe(
+      'Strong technical background',
     );
     expect(savedMatch!.description.matchScore).toBe(85);
   });
@@ -145,7 +149,8 @@ describe('storeCandidateOpportunityMatch worker', () => {
       userId: '1',
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
       matchScore: 85,
-      reasoning: 'Strong technical background',
+      reasoning: 'Strong technical background and relevant experience',
+      reasoningShort: 'Strong technical background',
     });
 
     // Create a binary representation
@@ -159,7 +164,10 @@ describe('storeCandidateOpportunityMatch worker', () => {
       '550e8400-e29b-41d4-a716-446655440001',
     );
     expect(parsedData.matchScore).toBe(85);
-    expect(parsedData.reasoning).toBe('Strong technical background');
+    expect(parsedData.reasoning).toBe(
+      'Strong technical background and relevant experience',
+    );
+    expect(parsedData.reasoningShort).toBe('Strong technical background');
   });
 
   it('should have correct subscription name', () => {
