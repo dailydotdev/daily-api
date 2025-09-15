@@ -58,6 +58,7 @@ cmd_button(
   text="Seed Database",
   icon_name="repartition",
   requires_confirmation=True,
+  dir="./",
   argv=["npm", "run", "db:seed:import"],
 )
 
@@ -68,6 +69,7 @@ cmd_button(
   text="Run database migrations",
   icon_name="dns",
   requires_confirmation=True,
+  dir="./",
   argv=["npm", "run", "db:migrate:latest"],
 )
 
@@ -78,5 +80,6 @@ cmd_button(
   text="Run database rollback",
   icon_name="settings_backup_restore",
   requires_confirmation=True,
+  dir="./",
   argv=["npm", "run", "db:migrate:rollback"],
 )
