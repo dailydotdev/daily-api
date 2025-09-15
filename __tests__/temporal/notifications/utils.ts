@@ -2,8 +2,11 @@ import { BookmarkActivities } from '../../../src/temporal/notifications/activiti
 import { TestWorkflowEnvironment } from '@temporalio/testing';
 import { Worker } from '@temporalio/worker';
 import {
+  cancelEntityReminderWorkflow,
   cancelReminderWorkflow,
+  getEntityReminderWorkflowId,
   getReminderWorkflowId,
+  runEntityReminderWorkflow,
   runReminderWorkflow,
 } from '../../../src/temporal/notifications/utils';
 
@@ -135,6 +138,115 @@ describe('cancelReminderWorkflow', () => {
     };
 
     const result = await worker.runUntil(cancelReminderWorkflow(params));
+
+    expect(result).not.toBeDefined();
+  });
+});
+
+describe('getEntityReminderWorkflowId', () => {
+  it('should generate workflow id', () => {
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    expect(getEntityReminderWorkflowId(params)).toBe(
+      `notification:entity:${JSON.stringify({
+        entityId: '1',
+        entityTableName: 'campaign',
+        delayMs: 1_000,
+      })}`,
+    );
+  });
+});
+
+describe('runEntityReminderWorkflow', () => {
+  beforeEach(async () => {
+    await setupTestEnv();
+  });
+
+  afterEach(async () => {
+    await cleanupTestEnv();
+  });
+
+  it('should start reminder workflow', async () => {
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    const result = await worker.runUntil(runEntityReminderWorkflow(params));
+    expect(result).toBeDefined();
+    const description = await result!.describe();
+
+    expect(description.status.name).toEqual('RUNNING');
+  });
+
+  it('should not start reminder workflow when workflow exists', async () => {
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    const result = await worker.runUntil(runEntityReminderWorkflow(params));
+    expect(result).toBeDefined();
+    const description = await result!.describe();
+
+    expect(description.status.name).toEqual('RUNNING');
+
+    const newWorkflow = await runEntityReminderWorkflow(params);
+
+    expect(newWorkflow).not.toBeDefined();
+  });
+});
+
+describe('cancelEntityReminderWorkflow', () => {
+  beforeEach(async () => {
+    await setupTestEnv();
+  });
+
+  afterEach(async () => {
+    await cleanupTestEnv();
+  });
+
+  it('should cancel workflow', async () => {
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    const result = await runEntityReminderWorkflow(params);
+    expect(result).toBeDefined();
+    const description = await result!.describe();
+
+    expect(description.status.name).toEqual('RUNNING');
+
+    const cancelledResult = await worker.runUntil(
+      cancelEntityReminderWorkflow(params),
+    );
+    expect(cancelledResult).toBeDefined();
+    const cancelled = await result!.describe();
+    expect(cancelledResult).toBeDefined();
+    expect(cancelled.status.name).toEqual('TERMINATED');
+  });
+
+  it('should do nothing when workflow does not exist', async () => {
+    const params = {
+      entityId: '1',
+      entityTableName: 'campaign',
+      scheduledAtMs: 0,
+      delayMs: 1_000,
+    };
+
+    const result = await worker.runUntil(cancelEntityReminderWorkflow(params));
 
     expect(result).not.toBeDefined();
   });

@@ -4,7 +4,6 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../../entity/contentPreference/types';
-import { generateTypedNotificationWorker } from './worker';
 import {
   NotificationPreferenceStatus,
   NotificationType,
@@ -19,13 +18,14 @@ import { buildPostContext } from './utils';
 import { Post, PostType } from '../../entity/posts/Post';
 import { NotificationPreferenceUser } from '../../entity';
 import { Brackets } from 'typeorm';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
 const sendQueueConcurrency = 10;
 
 const skippedTypes = Object.freeze([PostType.Brief]);
 
-export const postAddedUserNotification =
-  generateTypedNotificationWorker<'api.v1.post-visible'>({
+export const postAddedUserNotification: TypedNotificationWorker<'api.v1.post-visible'> =
+  {
     subscription: 'api.post-added-user-notification',
     handler: async (data, con) => {
       if (data.post.private) {
@@ -132,4 +132,8 @@ export const postAddedUserNotification =
 
       return Array.from(notificationResult.values());
     },
-  });
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };

@@ -1,5 +1,5 @@
 import { Column, Entity, Index, ManyToOne, PrimaryColumn } from 'typeorm';
-import { Post } from './posts';
+import type { Post } from './posts/Post';
 
 @Entity()
 @Index('IDX_post_keyword_postId_status', ['postId', 'status'])
@@ -22,7 +22,7 @@ export class PostKeyword {
   @Index('IDX_post_keyword_status')
   status: string;
 
-  @ManyToOne(() => Post, (post) => post.keywords, {
+  @ManyToOne('Post', (post: Post) => post.keywords, {
     lazy: true,
     onDelete: 'CASCADE',
   })

@@ -1,12 +1,12 @@
-import { generateTypedNotificationWorker } from './worker';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostContext } from '../../notifications';
 import { buildPostContext } from './utils';
 import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
 import { queryReadReplica } from '../../common/queryReadReplica';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
-const worker =
-  generateTypedNotificationWorker<'api.v1.source-post-moderation-approved'>({
+const worker: TypedNotificationWorker<'api.v1.source-post-moderation-approved'> =
+  {
     subscription: 'api.source-post-moderation-approved-notification',
     handler: async ({ post: data }, con) => {
       if (data.status !== SourcePostModerationStatus.Approved) {
@@ -30,6 +30,10 @@ const worker =
 
       return [{ type: NotificationType.SourcePostApproved, ctx }];
     },
-  });
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };
 
 export default worker;

@@ -23,6 +23,7 @@ import { SourceMemberRoles } from '../roles';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { CampaignUpdateEvent } from '../common/campaign/common';
+import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 
 export type Reference<T> = ChangeObject<T> | T;
 
@@ -59,6 +60,10 @@ export type NotificationPostContext<T extends Post = Post> =
       sharedPost?: Reference<Post> | null;
       moderated?: Reference<SourcePostModeration>;
     };
+
+export type NotificationPostAnalyticsContext = NotificationPostContext & {
+  analytics: Pick<PostAnalytics, 'impressions'>;
+};
 
 export type NotificationCommentContext = NotificationPostContext & {
   comment: Reference<Comment>;

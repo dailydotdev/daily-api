@@ -1,10 +1,10 @@
 import { User } from '../../entity';
 import { NotificationType } from '../../notifications/common';
 import { buildPostContext } from './utils';
-import { generateTypedNotificationWorker } from './worker';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
-export const userBriefReadyNotification =
-  generateTypedNotificationWorker<'api.v1.brief-ready'>({
+export const userBriefReadyNotification: TypedNotificationWorker<'api.v1.brief-ready'> =
+  {
     subscription: 'api.user-brief-ready-notification',
     handler: async (data, con) => {
       const { postId, sendAtMs } = data;
@@ -37,4 +37,8 @@ export const userBriefReadyNotification =
         },
       ];
     },
-  });
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };

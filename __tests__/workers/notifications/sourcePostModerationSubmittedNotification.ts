@@ -4,7 +4,7 @@ import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { SourcePostModerationStatus } from '../../../src/entity/SourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationPostModerationContext } from '../../../src/notifications';
@@ -41,7 +41,11 @@ describe('SourcePostModerationSubmitted', () => {
       status: SourcePostModerationStatus.Approved,
     };
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+        worker,
+        { post },
+      );
 
     expect(result).toBeUndefined();
   });
@@ -62,7 +66,11 @@ describe('SourcePostModerationSubmitted', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+        worker,
+        { post },
+      );
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
@@ -87,7 +95,11 @@ describe('SourcePostModerationSubmitted', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+        worker,
+        { post },
+      );
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
@@ -120,7 +132,11 @@ describe('SourcePostModerationSubmitted', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+        worker,
+        { post },
+      );
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
@@ -155,7 +171,11 @@ describe('SourcePostModerationSubmitted', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+        worker,
+        { post },
+      );
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
@@ -190,7 +210,11 @@ describe('SourcePostModerationSubmitted', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { post });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+        worker,
+        { post },
+      );
     const ctx = result[0].ctx as NotificationPostModerationContext;
 
     expect(result.length).toEqual(1);
@@ -226,7 +250,11 @@ describe('SourcePostModerationSubmitted', () => {
         },
       ]);
 
-      const result = await invokeNotificationWorker(worker, { post });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+          worker,
+          { post },
+        );
       const ctx = result[0].ctx as NotificationPostModerationContext;
 
       expect(result.length).toEqual(1);
@@ -268,7 +296,11 @@ describe('SourcePostModerationSubmitted', () => {
         status: NotificationPreferenceStatus.Muted,
       });
 
-      const result = await invokeNotificationWorker(worker, { post });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+          worker,
+          { post },
+        );
       const ctx = result[0].ctx as NotificationPostModerationContext;
 
       expect(result.length).toEqual(1);
@@ -310,7 +342,11 @@ describe('SourcePostModerationSubmitted', () => {
         status: NotificationPreferenceStatus.Subscribed,
       });
 
-      const result = await invokeNotificationWorker(worker, { post });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+          worker,
+          { post },
+        );
       const ctx = result[0].ctx as NotificationPostModerationContext;
 
       expect(result.length).toEqual(1);
@@ -355,7 +391,11 @@ describe('SourcePostModerationSubmitted', () => {
         },
       );
 
-      const result = await invokeNotificationWorker(worker, { post });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+          worker,
+          { post },
+        );
       const ctx = result[0].ctx as NotificationPostModerationContext;
 
       expect(result.length).toEqual(1);
@@ -410,7 +450,11 @@ describe('SourcePostModerationSubmitted', () => {
         },
       );
 
-      const result = await invokeNotificationWorker(worker, { post });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+          worker,
+          { post },
+        );
       const ctx = result[0].ctx as NotificationPostModerationContext;
 
       expect(result.length).toEqual(1);
@@ -468,7 +512,11 @@ describe('SourcePostModerationSubmitted', () => {
         status: NotificationPreferenceStatus.Subscribed,
       });
 
-      const result = await invokeNotificationWorker(worker, { post });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>(
+          worker,
+          { post },
+        );
       const ctx = result[0].ctx as NotificationPostModerationContext;
 
       expect(result.length).toEqual(1);
