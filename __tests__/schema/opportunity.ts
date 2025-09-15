@@ -575,8 +575,8 @@ describe('query getCandidatePreferences', () => {
         period: null,
       },
       location: [],
-      locationType: [],
-      employmentType: [],
+      locationType: [1, 2, 3],
+      employmentType: [1, 2, 3, 4],
       companySize: [],
       companyStage: [],
     });
