@@ -60,7 +60,7 @@ describe('storeCandidateOpportunityMatch worker', () => {
     expect(savedMatch!.description.reasoning).toBe(
       'Strong technical background and relevant experience',
     );
-    expect(savedMatch!.description.reasoning).toBe(
+    expect(savedMatch!.description.reasoningShort).toBe(
       'Strong technical background',
     );
     expect(savedMatch!.description.matchScore).toBe(85);

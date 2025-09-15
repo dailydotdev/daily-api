@@ -37,7 +37,8 @@ describe('candidateOpportunityMatchNotification worker', () => {
           userId: '1',
           opportunityId: 'opp123',
           matchScore: 85,
-          reasoning: 'Based on your React and TypeScript skills',
+          reasoning: 'Based on your React and TypeScript skills and experience',
+          reasoningShort: 'Based on your React and TypeScript skills',
         }),
       );
 
