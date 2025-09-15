@@ -1,4 +1,4 @@
-import { generateTypedNotificationWorker } from './worker';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 import { In } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { NotificationType } from '../../notifications/common';
@@ -9,8 +9,8 @@ import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
 
-const worker =
-  generateTypedNotificationWorker<'api.v1.source-post-moderation-submitted'>({
+const worker: TypedNotificationWorker<'api.v1.source-post-moderation-submitted'> =
+  {
     subscription: 'api.source-post-moderation-submitted-notification',
     handler: async ({ post }, con) => {
       if (post.status !== SourcePostModerationStatus.Pending) {
@@ -47,6 +47,10 @@ const worker =
         }
       }
     },
-  });
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };
 
 export default worker;

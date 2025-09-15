@@ -31,13 +31,14 @@ import {
   type NotificationOrganizationContext,
   type NotificationUserTopReaderContext,
   NotificationOpportunityMatchContext,
+  type NotificationPostAnalyticsContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
 import { NotificationType } from './common';
 import { format } from 'date-fns';
 import { rejectReason } from '../entity/SourcePostModeration';
-import { formatCoresCurrency } from '../common/number';
+import { formatCoresCurrency, formatMetricValue } from '../common/number';
 import { generateCampaignPostNotification } from '../common/campaign/post';
 import { generateCampaignSquadNotification } from '../common/campaign/source';
 
@@ -191,6 +192,9 @@ export const notificationTitleMap: Record<
   announcements: systemTitle,
   in_app_purchases: systemTitle,
   new_opportunity_match: () => `New opportunity waiting for you in daily.dev`,
+  post_analytics: (ctx: NotificationPostAnalyticsContext) => {
+    return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
+  },
 };
 
 export const generateNotificationMap: Record<
@@ -535,4 +539,17 @@ export const generateNotificationMap: Record<
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
       ),
+  post_analytics: (
+    builder: NotificationBuilder,
+    ctx: NotificationPostAnalyticsContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Analytics)
+      .objectPost(ctx.post, ctx.source)
+      .avatarSource(ctx.source)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/posts/${ctx.post.id}/analytics`,
+      )
+      .uniqueKey(`${ctx.post.id}-metrics-${new Date().toISOString()}`);
+  },
 };

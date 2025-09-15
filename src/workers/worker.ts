@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { PubSubSchema } from '../common/typedPubsub';
 import { ExperimentAllocationClient } from '../growthbook';
 import { NotificationHandlerReturn } from './notifications/worker';
+import { Message as ProtobufMessage } from '@bufbuild/protobuf';
 
 export interface Message {
   messageId?: string;
@@ -56,13 +57,27 @@ export interface BaseTypedWorker<
   parseMessage?: (message: Message) => T;
 }
 
-export interface TypedWorker<T extends keyof PubSubSchema>
-  extends BaseTypedWorker<PubSubSchema[T]> {}
-
-export interface TypedNotificationWorkerProps<
+type ConditionalTypedWorker<
   T extends keyof PubSubSchema,
-  D extends PubSubSchema[T] = PubSubSchema[T],
-> extends BaseTypedWorker<D, NotificationWorkerHandler<D>> {}
+  D,
+  Worker extends WorkerHandlers<D> = BaseTypedWorkerHandler<D>,
+> = PubSubSchema[T] extends ProtobufMessage
+  ? Omit<BaseTypedWorker<D, Worker>, 'parseMessage'> & {
+      parseMessage: (message: Message) => D;
+    }
+  : BaseTypedWorker<D, Worker>;
+
+export type TypedWorker<T extends keyof PubSubSchema> = ConditionalTypedWorker<
+  T,
+  PubSubSchema[T]
+>;
+
+export type TypedNotificationWorker<T extends keyof PubSubSchema> =
+  ConditionalTypedWorker<
+    T,
+    PubSubSchema[T],
+    NotificationWorkerHandler<PubSubSchema[T]>
+  >;
 
 export interface ExperimentWorker extends Worker {
   subscription: string;

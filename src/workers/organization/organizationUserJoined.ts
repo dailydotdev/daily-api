@@ -1,11 +1,11 @@
 import { JsonContains } from 'typeorm';
 import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
 import { NotificationType } from '../../notifications/common';
-import { generateTypedNotificationWorker } from '../notifications/worker';
 import { OrganizationMemberRole } from '../../roles';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
-export const organizationUserJoined =
-  generateTypedNotificationWorker<'api.v1.organization-user-joined'>({
+export const organizationUserJoined: TypedNotificationWorker<'api.v1.organization-user-joined'> =
+  {
     subscription: 'api.organization-user-joined',
     handler: async ({ organizationId, memberId }, con, logger) => {
       const member = await con
@@ -52,4 +52,8 @@ export const organizationUserJoined =
         },
       ];
     },
-  });
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };

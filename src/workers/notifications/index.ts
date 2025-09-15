@@ -1,5 +1,5 @@
 import { NotificationWorker } from './worker';
-import { messageToJson, Worker } from '../worker';
+import { messageToJson, TypedNotificationWorker, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
@@ -35,12 +35,23 @@ import campaignUpdatedAction from './campaignUpdatedAction';
 import { userBriefReadyNotification } from './userBriefReadyNotification';
 import { userFollowNotification } from './userFollowNotification';
 import { candidateOpportunityMatchNotification } from './candidateOpportunityMatchNotification';
+import { campaignPostAnalyticsNotification } from './campaignPostAnalyticsNotification';
 
-export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyNotificationWorker = NotificationWorker | TypedNotificationWorker<any>;
+
+export function notificationWorkerToWorker(
+  worker: AnyNotificationWorker,
+): Worker {
   return {
     ...worker,
     handler: async (message, con, logger) => {
-      const args = await worker.handler(message, con, logger);
+      const args = await worker.handler(
+        worker.parseMessage ? worker.parseMessage(message) : message,
+        con,
+        logger,
+      );
+
       if (!args) {
         return;
       }
@@ -74,7 +85,7 @@ export function notificationWorkerToWorker(worker: NotificationWorker): Worker {
   };
 }
 
-const notificationWorkers: NotificationWorker[] = [
+const notificationWorkers: AnyNotificationWorker[] = [
   communityPicksFailed,
   communityPicksGranted,
   articleNewCommentPostCommented,
@@ -108,6 +119,7 @@ const notificationWorkers: NotificationWorker[] = [
   userBriefReadyNotification,
   userFollowNotification,
   candidateOpportunityMatchNotification,
+  campaignPostAnalyticsNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

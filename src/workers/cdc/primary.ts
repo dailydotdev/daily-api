@@ -43,6 +43,7 @@ import {
   UserStreak,
   UserTopReader,
 } from '../../entity';
+import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
 import {
   DayOfWeek,
@@ -113,7 +114,9 @@ import {
 } from '../../redis';
 import { counters } from '../../telemetry';
 import {
+  cancelEntityReminderWorkflow,
   cancelReminderWorkflow,
+  runEntityReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
 import { addDays, nextMonday, nextTuesday } from 'date-fns';
@@ -1341,6 +1344,43 @@ const onOrganizationChange = async (
   }
 };
 
+export const onCampaignChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<Campaign>,
+) => {
+  if (data.payload.op === 'c') {
+    const after = data.payload.after!;
+
+    if (after.type === CampaignType.Post) {
+      await runEntityReminderWorkflow({
+        entityId: after.id,
+        entityTableName: getTableName(con, Campaign),
+        scheduledAtMs: Date.now(),
+        delayMs: 24 * 60 * 60 * 1000,
+      });
+    }
+
+    return;
+  }
+
+  // campaigns are never deleted but to be safe
+  if (data.payload.op === 'd') {
+    const before = data.payload.before!;
+
+    if (before.type === CampaignType.Post) {
+      await cancelEntityReminderWorkflow({
+        entityId: before.id,
+        entityTableName: getTableName(con, Campaign),
+        scheduledAtMs: 0,
+        delayMs: 24 * 60 * 60 * 1000,
+      });
+    }
+
+    return;
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1467,6 +1507,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserCandidatePreference):
           await onUserCandidatePreferenceChange(con, logger, data);
+          break;
+        case getTableName(con, Campaign):
+          await onCampaignChange(con, logger, data);
           break;
       }
     } catch (err) {

@@ -1,4 +1,3 @@
-import { generateTypedNotificationWorker } from './worker';
 import { NotificationType } from '../../notifications/common';
 import { NotificationPostModerationContext } from '../../notifications';
 import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
@@ -6,9 +5,10 @@ import { getPostModerationContext } from './utils';
 import { logger } from '../../logger';
 import { TypeORMQueryFailedError } from '../../errors';
 import { queryReadReplica } from '../../common/queryReadReplica';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
-const worker =
-  generateTypedNotificationWorker<'api.v1.source-post-moderation-rejected'>({
+const worker: TypedNotificationWorker<'api.v1.source-post-moderation-rejected'> =
+  {
     subscription: 'api.source-post-moderation-rejected-notification',
     handler: async ({ post }, con) => {
       if (post.status !== SourcePostModerationStatus.Rejected) {
@@ -35,6 +35,10 @@ const worker =
         }
       }
     },
-  });
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };
 
 export default worker;

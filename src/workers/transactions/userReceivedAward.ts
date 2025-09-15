@@ -6,11 +6,11 @@ import {
   UserTransactionProcessor,
 } from '../../entity/user/UserTransaction';
 import { NotificationType } from '../../notifications/common';
-import { generateTypedNotificationWorker } from '../notifications/worker';
 import { isSpecialUser } from '../../common';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
-export const userReceivedAward =
-  generateTypedNotificationWorker<'api.v1.user-transaction'>({
+export const userReceivedAward: TypedNotificationWorker<'api.v1.user-transaction'> =
+  {
     subscription: 'api.user-received-award',
     handler: async (data, con, logger) => {
       const transaction = await con.getRepository(UserTransaction).findOne({
@@ -81,4 +81,8 @@ export const userReceivedAward =
         },
       ];
     },
-  });
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };

@@ -8,7 +8,12 @@ import { DataSource, DeepPartial, ObjectType } from 'typeorm';
 import request from 'supertest';
 import { GraphQLFormattedError } from 'graphql';
 import { Context } from '../src/Context';
-import { Message, TypedWorker, Worker } from '../src/workers/worker';
+import {
+  Message,
+  TypedWorker,
+  Worker,
+  TypedNotificationWorker,
+} from '../src/workers/worker';
 import { base64, PubSubSchema, triggerTypedEvent } from '../src/common';
 import { Roles } from '../src/roles';
 import { Cron } from '../src/cron/cron';
@@ -39,6 +44,7 @@ import {
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
+import { Message as ProtobufMessage } from '@bufbuild/protobuf';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -238,12 +244,40 @@ export const expectSuccessfulBackground = (
   data: Record<string, unknown>,
 ): Promise<void> => invokeBackground(worker, data);
 
-export const invokeNotificationWorker = async (
-  worker: NotificationWorker,
+export const invokeNotificationWorker = async <T>(
+  worker: NotificationWorker<T>,
   data: Record<string, unknown>,
 ): Promise<NotificationHandlerReturn> => {
   const con = await createOrGetConnection();
   return worker.handler(mockMessage(data).message, con, logger);
+};
+
+export const invokeTypedNotificationWorker = async <
+  T extends keyof PubSubSchema,
+>(
+  worker: TypedNotificationWorker<T>,
+  data: PubSubSchema[T],
+): Promise<NotificationHandlerReturn> => {
+  const con = await createOrGetConnection();
+
+  // Create message data based on whether it's a protobuf type or not
+  const messageData =
+    data instanceof ProtobufMessage
+      ? Buffer.from(data.toBinary())
+      : Buffer.from(JSON.stringify(data), 'utf-8');
+
+  const message: Message = {
+    data: messageData,
+    messageId: '1',
+  };
+
+  // Simulate the internal wrapper logic that parses the message
+  const parser =
+    worker.parseMessage ||
+    ((msg: Message) => JSON.parse(msg.data.toString('utf-8')));
+  const parsedData = parser(message);
+
+  return worker.handler(parsedData, con, logger);
 };
 
 export const invokeCron = async (cron: Cron, logger: Logger): Promise<void> => {

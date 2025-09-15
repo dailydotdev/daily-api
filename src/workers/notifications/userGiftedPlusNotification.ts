@@ -1,5 +1,4 @@
 import { NotificationType } from '../../notifications/common';
-import { generateTypedNotificationWorker } from './worker';
 import { NotificationGiftPlusContext } from '../../notifications';
 import { SquadSource, User, UserSubscriptionFlags } from '../../entity';
 import { isGiftedPlus, isPlusMember } from '../../paddle';
@@ -7,6 +6,7 @@ import { queryReadReplica } from '../../common/queryReadReplica';
 import { PLUS_MEMBER_SQUAD_ID } from '../userUpdatedPlusSubscriptionSquad';
 import { CioTransactionalMessageTemplateId, sendEmail } from '../../common';
 import { logger } from '../../logger';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 
 async function sendNotificationEmailToGifter(ctx: NotificationGiftPlusContext) {
   const message_data = {
@@ -24,7 +24,7 @@ async function sendNotificationEmailToGifter(ctx: NotificationGiftPlusContext) {
   });
 }
 
-const worker = generateTypedNotificationWorker<'user-updated'>({
+const worker: TypedNotificationWorker<'user-updated'> = {
   subscription: 'api.user-gifted-plus-notification',
   handler: async ({ user, newProfile: recipient }, con) => {
     const { id: userId } = user;
@@ -81,6 +81,10 @@ const worker = generateTypedNotificationWorker<'user-updated'>({
 
     return [{ type: NotificationType.UserGiftedPlus, ctx }];
   },
-});
+  parseMessage(message) {
+    // TODO: Clean this once we move all workers to TypedWorkers
+    return messageToJson(message);
+  },
+};
 
 export default worker;

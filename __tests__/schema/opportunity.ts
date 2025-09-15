@@ -526,7 +526,7 @@ describe('query getCandidatePreferences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.getCandidatePreferences).toMatchObject({
-      status: 1,
+      status: 3,
       role: 'Full Stack Developer',
       roleType: 0.5,
       cv: {
@@ -556,7 +556,7 @@ describe('query getCandidatePreferences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.getCandidatePreferences).toEqual({
-      status: 1,
+      status: 3,
       cv: {
         blob: null,
         contentType: null,

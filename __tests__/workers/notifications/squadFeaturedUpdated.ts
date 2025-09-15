@@ -4,7 +4,7 @@ import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationSourceContext } from '../../../src/notifications';
 import { NotificationPreferenceSource } from '../../../src/entity/notifications/NotificationPreferenceSource';
@@ -40,7 +40,11 @@ describe('SquadFeaturedUpdated', () => {
       flags: { featured: false },
     };
 
-    const result = await invokeNotificationWorker(worker, { squad });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker,
+        { squad },
+      );
 
     expect(result).toBeUndefined();
   });
@@ -60,7 +64,11 @@ describe('SquadFeaturedUpdated', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { squad });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker,
+        { squad },
+      );
     const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
@@ -84,7 +92,11 @@ describe('SquadFeaturedUpdated', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { squad });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker,
+        { squad },
+      );
     const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
@@ -116,7 +128,11 @@ describe('SquadFeaturedUpdated', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { squad });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker,
+        { squad },
+      );
     const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
@@ -150,7 +166,11 @@ describe('SquadFeaturedUpdated', () => {
       },
     ]);
 
-    const result = await invokeNotificationWorker(worker, { squad });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker,
+        { squad },
+      );
     const ctx = result[0].ctx as NotificationSourceContext;
 
     expect(result.length).toEqual(1);
@@ -176,7 +196,11 @@ describe('SquadFeaturedUpdated', () => {
       referralToken: 'a',
     });
 
-    const result = await invokeNotificationWorker(worker, { squad });
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+        worker,
+        { squad },
+      );
 
     expect(result).toBeUndefined();
   });
@@ -205,7 +229,11 @@ describe('SquadFeaturedUpdated', () => {
         },
       ]);
 
-      const result = await invokeNotificationWorker(worker, { squad });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+          worker,
+          { squad },
+        );
       const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
@@ -246,7 +274,11 @@ describe('SquadFeaturedUpdated', () => {
         status: NotificationPreferenceStatus.Muted,
       });
 
-      const result = await invokeNotificationWorker(worker, { squad });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+          worker,
+          { squad },
+        );
       const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
@@ -287,7 +319,11 @@ describe('SquadFeaturedUpdated', () => {
         status: NotificationPreferenceStatus.Subscribed,
       });
 
-      const result = await invokeNotificationWorker(worker, { squad });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+          worker,
+          { squad },
+        );
       const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
@@ -331,7 +367,11 @@ describe('SquadFeaturedUpdated', () => {
         },
       );
 
-      const result = await invokeNotificationWorker(worker, { squad });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+          worker,
+          { squad },
+        );
       const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
@@ -385,7 +425,11 @@ describe('SquadFeaturedUpdated', () => {
         },
       );
 
-      const result = await invokeNotificationWorker(worker, { squad });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+          worker,
+          { squad },
+        );
       const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
@@ -442,7 +486,11 @@ describe('SquadFeaturedUpdated', () => {
         status: NotificationPreferenceStatus.Subscribed,
       });
 
-      const result = await invokeNotificationWorker(worker, { squad });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+          worker,
+          { squad },
+        );
       const ctx = result[0].ctx as NotificationSourceContext;
 
       expect(result.length).toEqual(1);
@@ -493,7 +541,11 @@ describe('SquadFeaturedUpdated', () => {
         },
       ]);
 
-      const result = await invokeNotificationWorker(worker, { squad });
+      const result =
+        await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
+          worker,
+          { squad },
+        );
 
       expect(result).toBeUndefined(); // No notifications should be sent
     });
