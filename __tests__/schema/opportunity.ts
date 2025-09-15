@@ -142,6 +142,7 @@ describe('query opportunityById', () => {
         questions {
           id
           title
+          order
           placeholder
           opportunityId
         }
@@ -244,12 +245,14 @@ describe('query opportunityById', () => {
           title: 'What is your favorite programming language?',
           placeholder: 'e.g., JavaScript, Python, etc.',
           opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          order: 1,
         },
         {
           id: '750e8400-e29b-41d4-a716-446655440002',
           title: 'Describe a challenging project you worked on.',
           placeholder: 'Your answer here...',
           opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          order: 0,
         },
       ]),
     });

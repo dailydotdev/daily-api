@@ -82,6 +82,7 @@ export const typeDefs = /* GraphQL */ `
   type OpportunityScreeningQuestion {
     id: ID!
     title: String!
+    order: Int!
     placeholder: String
     opportunityId: ID!
   }
