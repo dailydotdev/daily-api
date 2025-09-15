@@ -148,6 +148,7 @@ import {
   UserJobPreferences,
   WorkLocationType,
 } from '../src/entity/user/UserJobPreferences';
+import { UserCandidatePreference } from '../src/entity/user/UserCandidatePreference';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -7571,5 +7572,78 @@ describe('user job preferences', () => {
       });
       expect(user2Prefs?.preferredRoles).toEqual(['Designer']);
     });
+  });
+});
+
+describe('mutation clearResume', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearResume {
+      clearResume {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, UserCandidatePreference, [
+      {
+        userId: '1',
+        cv: { blob: 'blobname' },
+        cvParsed: { some: 'data' },
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should delete user resume if it exists', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION);
+
+    expect(deleteFileFromBucket).toHaveBeenCalledWith(
+      expect.any(Bucket),
+      loggedUser,
+    );
+
+    const ucp = await con
+      .getRepository(UserCandidatePreference)
+      .findOneByOrFail({
+        userId: loggedUser,
+      });
+
+    expect(ucp.cv).toEqual({});
+    expect(ucp.cvParsed).toEqual({});
+  });
+
+  it('should handle case when user has no candidate preferences', async () => {
+    loggedUser = '2';
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({
+        userId: loggedUser,
+      }),
+    ).toEqual(0);
+
+    await client.mutate(MUTATION);
+
+    expect(deleteFileFromBucket).toHaveBeenCalledWith(
+      expect.any(Bucket),
+      loggedUser,
+    );
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({
+        userId: loggedUser,
+      }),
+    ).toEqual(0);
   });
 });
