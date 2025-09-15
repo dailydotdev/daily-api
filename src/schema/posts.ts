@@ -847,7 +847,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Total number of votes in the poll
     """
-    numPollVotes: Int
+    numPollVotes: Int!
   }
 
   type PostConnection {
@@ -1372,10 +1372,6 @@ export const typeDefs = /* GraphQL */ `
       ID of the option to vote for
       """
       optionId: ID!
-      """
-      ID of the source the post belongs to
-      """
-      sourceId: ID
     ): Post! @auth
     """
     To create post moderation item
@@ -3522,38 +3518,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     votePoll: async (
       _,
-      args: { optionId: string; postId: string; sourceId?: string },
+      args: { optionId: string; postId: string },
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
-      if (args.sourceId) {
-        await ensureSourcePermissions(ctx, args.sourceId);
+      const userPost = await ctx.con.getRepository(UserPost).findOne({
+        where: {
+          postId: args.postId,
+          userId: ctx.userId,
+        },
+        relations: ['post'],
+      });
+
+      let post: PollPost | undefined;
+      if (userPost) {
+        post = (await userPost.post) as PollPost;
+      } else {
+        post = await ctx.con.getRepository(PollPost).findOneByOrFail({
+          id: args.postId,
+        });
       }
 
-      const res = await ctx.con
-        .createQueryBuilder(PollPost, 'post')
-        .leftJoin(
-          UserPost,
-          'userPost',
-          'userPost.postId = post.id AND userPost.userId = :userId',
-        )
-        .select(['post.id', 'post.endsAt', 'userPost.pollVoteOptionId'])
-        .where('post.id = :postId')
-        .setParameters({ postId: args.postId, userId: ctx.userId })
-        .getRawOne();
-
-      if (!res) {
-        throw new ValidationError('Post not found');
-      }
-
-      if (res.post_endsAt && isBefore(res.post_endsAt, new Date())) {
+      if (post.endsAt && isBefore(post.endsAt, new Date())) {
         throw new ValidationError('Poll has ended');
       }
 
-      const hasAlreadyVoted = !!res.userPost_pollVoteOptionId;
+      const hasAlreadyVoted = !!userPost?.pollVoteOptionId;
 
       if (hasAlreadyVoted) {
-        throw new ValidationError('User has already voted in this poll');
+        throw new ValidationError('User has already voted on this poll');
       }
 
       await ctx.con.getRepository(UserPost).save({

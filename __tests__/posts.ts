@@ -9297,8 +9297,8 @@ describe('mutate poll vote', () => {
   });
 
   const MUTATION = `
-    mutation VotePoll($postId: ID!, $optionId: ID!, $sourceId: ID) {
-      votePoll(postId: $postId, optionId: $optionId, sourceId: $sourceId) {
+    mutation VotePoll($postId: ID!, $optionId: ID!) {
+      votePoll(postId: $postId, optionId: $optionId) {
         id
         endsAt
         pollOptions {
@@ -9329,7 +9329,10 @@ describe('mutate poll vote', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.votePoll.id).toBe(pollId);
-    expect(res.data.votePoll.pollOptions[0].numVotes).toBe(1);
+    const votedPollOption = res.data.votePoll.pollOptions.find(
+      (opt) => opt.id === option!.id,
+    );
+    expect(votedPollOption.numVotes).toBe(1);
   });
 
   it('should fail to vote on a poll the user has already voted on', async () => {
@@ -9350,7 +9353,10 @@ describe('mutate poll vote', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.votePoll.id).toBe(pollId);
-    expect(res.data.votePoll.pollOptions[0].numVotes).toBe(1);
+    const votedPollOption = res.data.votePoll.pollOptions.find(
+      (opt) => opt.id === options[0].id,
+    );
+    expect(votedPollOption.numVotes).toBe(1);
 
     const vote2 = {
       postId: pollId,
@@ -9413,16 +9419,19 @@ describe('mutate poll vote', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.votePoll.id).toBe(pollId);
-    expect(res.data.votePoll.pollOptions[0].numVotes).toBe(1);
+    const votedPollOption = res.data.votePoll.pollOptions.find(
+      (opt) => opt.id === option!.id,
+    );
+    expect(votedPollOption.numVotes).toBe(1);
 
     await con.getRepository(User).delete({ id: '1' });
     const pollPost = await con
       .getRepository(PollPost)
       .findOneBy({ id: pollId });
     expect(pollPost?.numPollVotes).toBe(0);
-    const votedOption = con.getRepository(PollOption).findOneBy({
+    const votedOptionAfterDelete = con.getRepository(PollOption).findOneBy({
       id: option!.id,
     });
-    expect((await votedOption)?.numVotes).toBe(0);
+    expect((await votedOptionAfterDelete)?.numVotes).toBe(0);
   });
 });
