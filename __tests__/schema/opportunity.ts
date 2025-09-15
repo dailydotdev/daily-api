@@ -473,6 +473,7 @@ describe('query getCandidatePreferences', () => {
         employmentType
         companySize
         companyStage
+        customKeywords
       }
     }
   `;
@@ -488,7 +489,7 @@ describe('query getCandidatePreferences', () => {
           bucket: 'bucket-name',
           lastModified: new Date('2023-10-10T10:00:00Z'),
         },
-        salaryExpectation: { min: 50000, period: SalaryPeriod.ANNUAL },
+        salaryExpectation: { min: '50000', period: SalaryPeriod.ANNUAL },
         location: [
           { country: 'Norway' },
           { city: 'London', country: 'UK', continent: 'Europe' },
@@ -508,6 +509,7 @@ describe('query getCandidatePreferences', () => {
           CompanySize.COMPANY_SIZE_51_200,
           CompanySize.COMPANY_SIZE_201_500,
         ],
+        customKeywords: true,
       },
       {
         userId: '2',
@@ -552,6 +554,7 @@ describe('query getCandidatePreferences', () => {
       employmentType: [1, 2, 3],
       companyStage: [3, 4, 10],
       companySize: [3, 4],
+      customKeywords: true,
     });
   });
 
@@ -579,6 +582,7 @@ describe('query getCandidatePreferences', () => {
       employmentType: [],
       companySize: [],
       companyStage: [],
+      customKeywords: false,
     });
   });
 });
@@ -593,6 +597,7 @@ describe('mutation updateCandidatePreferences', () => {
       $salaryExpectation: SalaryExpectationInput
       $location: [LocationInput]
       $locationType: [ProtoEnumValue]
+      $customKeywords: Boolean
     ) {
       updateCandidatePreferences(
         status: $status
@@ -602,6 +607,7 @@ describe('mutation updateCandidatePreferences', () => {
         salaryExpectation: $salaryExpectation
         location: $location
         locationType: $locationType
+        customKeywords: $customKeywords
       ) {
         _
       }
@@ -635,6 +641,7 @@ describe('mutation updateCandidatePreferences', () => {
         salaryExpectation: { min: 70000, period: 1 },
         location: [{ city: 'Berlin', country: 'Germany' }],
         locationType: [1, 2],
+        customKeywords: true,
       },
     });
 
@@ -654,6 +661,7 @@ describe('mutation updateCandidatePreferences', () => {
       salaryExpectation: { min: '70000', period: 1 }, // ANNUAL
       location: [{ city: 'Berlin', country: 'Germany' }],
       locationType: [1, 2], // REMOTE, ONSITE
+      customKeywords: true,
     });
   });
 
