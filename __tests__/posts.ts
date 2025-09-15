@@ -9226,7 +9226,7 @@ describe('mutate polls', () => {
     ).toBeTruthy();
   });
 
-  it('should faill to create a poll with a duration other than specified numbers in the zod schema', async () => {
+  it('should fail to create a poll with a duration other than specified numbers in the zod schema', async () => {
     loggedUser = '1';
 
     const poll = {
@@ -9401,5 +9401,37 @@ describe('mutate poll vote', () => {
       },
       'GRAPHQL_VALIDATION_FAILED',
     );
+  });
+
+  it('should remove vote from count if user is deleted', async () => {
+    loggedUser = '1';
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+      sourceId: 'a',
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: vote,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.votePoll.id).toBe(pollId);
+    expect(res.data.votePoll.pollOptions[0].numVotes).toBe(1);
+
+    await con.getRepository(User).delete({ id: '1' });
+    const pollPost = await con
+      .getRepository(PollPost)
+      .findOneBy({ id: pollId });
+    expect(pollPost?.numPollVotes).toBe(0);
+    const votedOption = con.getRepository(PollOption).findOneBy({
+      id: option!.id,
+    });
+    expect((await votedOption)?.numVotes).toBe(0);
   });
 });
