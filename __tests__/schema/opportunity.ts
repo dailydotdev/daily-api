@@ -21,10 +21,14 @@ import {
   opportunitiesFixture,
   opportunityKeywordsFixture,
   opportunityMatchesFixture,
+  opportunityQuestionsFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
 import { OpportunityUser } from '../../src/entity/opportunities/user';
-import { OpportunityUserType } from '../../src/entity/opportunities/types';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from '../../src/entity/opportunities/types';
 import {
   CompanySize,
   CompanyStage,
@@ -34,6 +38,8 @@ import {
   SalaryPeriod,
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
+import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
+import type { GQLOpportunity } from '../../src/schema/opportunity';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -57,6 +63,7 @@ beforeEach(async () => {
   await saveFixtures(con, Keyword, keywordsFixture);
   await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, Opportunity, opportunitiesFixture);
+  await saveFixtures(con, QuestionScreening, opportunityQuestionsFixture);
   await saveFixtures(con, OpportunityKeyword, opportunityKeywordsFixture);
   await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
   await saveFixtures(con, OpportunityUser, [
@@ -132,6 +139,12 @@ describe('query opportunityById', () => {
         keywords {
           keyword
         }
+        questions {
+          id
+          title
+          placeholder
+          opportunityId
+        }
       }
     }
 
@@ -144,7 +157,10 @@ describe('query opportunityById', () => {
   `;
 
   it('should return opportunity by id', async () => {
-    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+    const res = await client.query<
+      { opportunityById: GQLOpportunity },
+      { id: string }
+    >(OPPORTUNITY_BY_ID_QUERY, {
       variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
     });
 
@@ -221,6 +237,20 @@ describe('query opportunityById', () => {
         { keyword: 'webdev' },
         { keyword: 'fullstack' },
         { keyword: 'Fortune 500' },
+      ]),
+      questions: expect.arrayContaining([
+        {
+          id: '750e8400-e29b-41d4-a716-446655440001',
+          title: 'What is your favorite programming language?',
+          placeholder: 'e.g., JavaScript, Python, etc.',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        },
+        {
+          id: '750e8400-e29b-41d4-a716-446655440002',
+          title: 'Describe a challenging project you worked on.',
+          placeholder: 'Your answer here...',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        },
       ]),
     });
   });
@@ -692,5 +722,277 @@ describe('mutation updateCandidatePreferences', () => {
     expect(
       await con.getRepository(UserCandidatePreference).countBy({ userId: '1' }),
     ).toBe(0);
+  });
+});
+
+describe('mutation saveOpportunityScreeningAnswers', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation SaveOpportunityScreeningAnswers(
+      $id: ID!
+      $answers: [OpportunityScreeningAnswerInput!]!
+    ) {
+      saveOpportunityScreeningAnswers(id: $id, answers: $answers) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440002',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should save screening answers for authenticated user', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        answers: [
+          {
+            questionId: '750e8400-e29b-41d4-a716-446655440001',
+            answer: 'JavaScript',
+          },
+          {
+            questionId: '750e8400-e29b-41d4-a716-446655440002',
+            answer: 'Built a full-stack app',
+          },
+        ],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.saveOpportunityScreeningAnswers).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+    });
+
+    expect(match.screening).toEqual(
+      expect.arrayContaining([
+        {
+          screening: 'What is your favorite programming language?',
+          answer: 'JavaScript',
+        },
+        {
+          screening: 'Describe a challenging project you worked on.',
+          answer: 'Built a full-stack app',
+        },
+      ]),
+    );
+  });
+
+  it('should return FORBIDDEN when match is not pending', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440002',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match is not pending',
+    );
+  });
+
+  it('should return error when there are duplicate answers by questionId', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'Python',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440002',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('custom');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'Duplicate questionId 750e8400-e29b-41d4-a716-446655440001',
+        );
+      },
+    );
+  });
+
+  it('should return error when the questionId does not belong to opportunity', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440003',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      },
+      'CONFLICT',
+      'Question 750e8400-e29b-41d4-a716-446655440003 not found for opportunity',
+    );
+  });
+
+  it('should return error when not enough answers are provided', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+          ],
+        },
+      },
+      'CONFLICT',
+      'Number of answers (1) does not match the required questions',
+    );
+  });
+});
+
+describe('mutation acceptOpportunityMatch', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation AcceptOpportunityMatch($id: ID!) {
+      acceptOpportunityMatch(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should accept opportunity match for authenticated user', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.Pending,
+      }),
+    ).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.acceptOpportunityMatch).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateAccepted,
+      }),
+    ).toEqual(1);
+  });
+
+  it('should return error when the match is not pending', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match is not pending',
+    );
+  });
+
+  it('should return error when the opportunity is not live', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440003',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Opportunity is not live',
+    );
   });
 });
