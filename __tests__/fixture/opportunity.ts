@@ -256,4 +256,12 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     createdAt: new Date('2023-01-04'),
     updatedAt: new Date('2023-01-04'),
   },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440003',
+    userId: '1',
+    status: OpportunityMatchStatus.Pending,
+    description: { reasoning: 'Interested candidate' },
+    createdAt: new Date('2023-01-03'),
+    updatedAt: new Date('2023-01-03'),
+  },
 ];
