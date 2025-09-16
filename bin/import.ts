@@ -69,7 +69,7 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'Organization');
   await importEntity(con, 'OpportunityJob');
   await importEntity(con, 'OpportunityKeyword');
-  await importEntity(con, 'OpportunityUser');
+  await importEntity(con, 'OpportunityUserRecruiter');
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);
