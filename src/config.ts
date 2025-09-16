@@ -26,6 +26,8 @@ export const submissionAccessThreshold = parseInt(
     DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
 );
 
+export const RESUME_BUCKET_NAME = 'daily-dev-resumes';
+
 export enum StorageTopic {
   Boot = 'boot',
   Search = 'search',

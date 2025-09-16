@@ -9,17 +9,15 @@ import {
 } from 'typeorm';
 import type { User } from './User';
 import { CandidateStatus } from '@dailydotdev/schema';
+import { EmploymentType, LocationType } from '@dailydotdev/schema';
+import type { CompanySize, CompanyStage, Location } from '@dailydotdev/schema';
 import type {
-  CompanySize,
-  CompanyStage,
-  EmploymentType,
-  Location,
-  LocationType,
-  Salary,
-} from '@dailydotdev/schema';
-import type { UserCandidateCV } from '../../common/schema/userCandidate';
+  salaryExpectationSchema,
+  UserCandidateCV,
+} from '../../common/schema/userCandidate';
+import type z from 'zod';
 
-export type SalaryExpectation = Omit<Salary, 'max'>;
+export type SalaryExpectation = z.infer<typeof salaryExpectationSchema>;
 
 @Entity()
 export class UserCandidatePreference {
@@ -55,8 +53,13 @@ export class UserCandidatePreference {
   @Column({
     type: 'integer',
     array: true,
-    default: [],
     comment: 'EmploymentType from protobuf schema',
+    default: [
+      EmploymentType.FULL_TIME,
+      EmploymentType.PART_TIME,
+      EmploymentType.CONTRACT,
+      EmploymentType.INTERNSHIP,
+    ],
   })
   employmentType: Array<EmploymentType>;
 
@@ -78,7 +81,7 @@ export class UserCandidatePreference {
     type: 'integer',
     array: true,
     comment: 'LocationType from protobuf schema',
-    default: [],
+    default: [LocationType.REMOTE, LocationType.OFFICE, LocationType.HYBRID],
   })
   locationType: Array<LocationType>;
 

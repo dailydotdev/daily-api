@@ -115,7 +115,12 @@ import {
 } from '../types';
 import { markdown } from '../common/markdown';
 import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
-import { generateStorageKey, StorageKey, StorageTopic } from '../config';
+import {
+  generateStorageKey,
+  RESUME_BUCKET_NAME,
+  StorageKey,
+  StorageTopic,
+} from '../config';
 import { FastifyBaseLogger } from 'fastify';
 import { cachePrefillMarketingCta } from '../common/redisCache';
 import { cio, identifyUserPersonalizedDigest } from '../cio';
@@ -154,7 +159,10 @@ import {
   UserTransactionProcessor,
   UserTransactionStatus,
 } from '../entity/user/UserTransaction';
-import { uploadResumeFromBuffer } from '../common/googleCloud';
+import {
+  deleteResumeByUserId,
+  uploadResumeFromBuffer,
+} from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 import { syncNotificationFlagsToCio } from '../cio';
@@ -164,6 +172,7 @@ import {
   WorkLocationType,
 } from '../entity/user/UserJobPreferences';
 import { completeVerificationForExperienceByUserCompany } from '../common/userExperience';
+import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1176,6 +1185,11 @@ export const typeDefs = /* GraphQL */ `
       """
       resume: Upload!
     ): EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
+
+    """
+    Clear user resume
+    """
+    clearResume: EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
 
     """
     Update the user's readme
@@ -2571,6 +2585,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         contentType: fileType?.mime,
       });
 
+      await ctx.con.getRepository(UserCandidatePreference).upsert(
+        {
+          userId: ctx.userId,
+          cv: {
+            blob: filename,
+            contentType: fileType?.mime,
+            bucket: RESUME_BUCKET_NAME,
+            lastModified: new Date(),
+          },
+        },
+        {
+          conflictPaths: ['userId'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
+
+      return { _: true };
+    },
+    clearResume: async (_, __, ctx: AuthContext): Promise<GQLEmptyResponse> => {
+      await deleteResumeByUserId(ctx.userId);
+
+      await ctx.con.getRepository(UserCandidatePreference).update(
+        {
+          userId: ctx.userId,
+        },
+        {
+          cv: {},
+          cvParsed: {},
+        },
+      );
       return { _: true };
     },
     updateReadme: async (

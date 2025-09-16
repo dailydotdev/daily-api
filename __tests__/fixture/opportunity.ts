@@ -205,18 +205,21 @@ export const opportunityQuestionsFixture: DeepPartial<QuestionScreening>[] = [
     title: 'What is your favorite programming language?',
     placeholder: 'e.g., JavaScript, Python, etc.',
     opportunityId: opportunitiesFixture[0].id,
+    questionOrder: 1,
   },
   {
     id: '750e8400-e29b-41d4-a716-446655440002',
     title: 'Describe a challenging project you worked on.',
     placeholder: 'Your answer here...',
     opportunityId: opportunitiesFixture[0].id,
+    questionOrder: 0,
   },
   {
     id: '750e8400-e29b-41d4-a716-446655440003',
     title: 'What are your career goals?',
     placeholder: 'Your answer here...',
     opportunityId: opportunitiesFixture[1].id,
+    questionOrder: 0,
   },
 ];
 

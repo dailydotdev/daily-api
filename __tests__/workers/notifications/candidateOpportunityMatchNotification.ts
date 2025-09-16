@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { candidateOpportunityMatchNotification as worker } from '../../../src/workers/notifications/candidateOpportunityMatchNotification';
 import createOrGetConnection from '../../../src/db';
-import { User } from '../../../src/entity';
+import { Feature, FeatureType, User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
@@ -19,6 +19,11 @@ describe('candidateOpportunityMatchNotification worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     await saveFixtures(con, User, usersFixture);
+    await con.getRepository(Feature).insert({
+      userId: '1',
+      feature: FeatureType.Team,
+      value: 1,
+    });
   });
 
   it('should be registered', () => {
@@ -37,7 +42,8 @@ describe('candidateOpportunityMatchNotification worker', () => {
           userId: '1',
           opportunityId: 'opp123',
           matchScore: 85,
-          reasoning: 'Based on your React and TypeScript skills',
+          reasoning: 'Based on your React and TypeScript skills and experience',
+          reasoningShort: 'Based on your React and TypeScript skills',
         }),
       );
 
@@ -48,7 +54,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     expect(context.userIds).toEqual(['1']);
     expect(context.opportunityId).toEqual('opp123');
-    expect(context.reasoning).toEqual(
+    expect(context.reasoningShort).toEqual(
       'Based on your React and TypeScript skills',
     );
   });
@@ -58,7 +64,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
       await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
         worker,
         new MatchedCandidate({
-          userId: '2',
+          userId: '1',
           opportunityId: 'opp456',
         }),
       );
@@ -68,9 +74,9 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     const context = result![0].ctx as NotificationOpportunityMatchContext;
 
-    expect(context.userIds).toEqual(['2']);
+    expect(context.userIds).toEqual(['1']);
     expect(context.opportunityId).toEqual('opp456');
-    expect(context.reasoning).toEqual('');
+    expect(context.reasoningShort).toEqual('');
   });
 
   it('should not send notification when userId is missing', async () => {
