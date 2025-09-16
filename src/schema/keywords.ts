@@ -247,7 +247,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             status: [KeywordStatus.Allow, KeywordStatus.Synonym],
           })
           .andWhere('k.value ILIKE :query', { query: `%${data.query}%` })
-          .orderBy('k.occurrences', 'DESC')
+          .orderBy(`(k.status <> '${KeywordStatus.Allow}')`, 'ASC')
+          .addOrderBy('k.occurrences', 'DESC')
           .addOrderBy('k.value', 'ASC')
           .limit(data.limit)
           .getRawMany<{ keyword: string; title: string | null }>(),
