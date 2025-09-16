@@ -28,7 +28,7 @@ export const encrypt = async (
     keyObject,
     new TextEncoder().encode(input),
   );
-  return bufToBase64(iv) + ':' + bufToBase64(encrypted);
+  return bufToBase64(iv.buffer) + ':' + bufToBase64(encrypted);
 };
 
 export const decrypt = async (
