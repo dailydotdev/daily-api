@@ -11,8 +11,8 @@ export class PollVotes1757630994202 implements MigrationInterface {
                 IF NEW."pollVoteOptionId" IS NOT NULL THEN
                     UPDATE poll_option SET "numVotes" = "numVotes" + 1 WHERE id = NEW."pollVoteOptionId";
                     
-                    UPDATE post SET "numPollVotes" = "numPollVotes" + 1 
-                    WHERE id = (SELECT "postId" FROM poll_option WHERE id = NEW."pollVoteOptionId");
+                    UPDATE post SET "numPollVotes" = "numPollVotes" + 1
+                    WHERE id = NEW."postId";
                 END IF;
 
                 RETURN NEW;
@@ -36,8 +36,8 @@ export class PollVotes1757630994202 implements MigrationInterface {
                 IF OLD."pollVoteOptionId" IS NOT NULL THEN
                     UPDATE poll_option SET "numVotes" = GREATEST("numVotes" - 1, 0) WHERE id = OLD."pollVoteOptionId";
                     
-                    UPDATE post SET "numPollVotes" = GREATEST("numPollVotes" - 1, 0) 
-                    WHERE id = (SELECT "postId" FROM poll_option WHERE id = OLD."pollVoteOptionId");
+                    UPDATE post SET "numPollVotes" = GREATEST("numPollVotes" - 1, 0)
+                    WHERE id = OLD."postId";
                 END IF;
 
                 RETURN OLD;

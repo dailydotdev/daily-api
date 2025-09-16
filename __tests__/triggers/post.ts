@@ -19,6 +19,10 @@ import {
   UserTransactionStatus,
 } from '../../src/entity/user/UserTransaction';
 import { usersFixture } from '../fixture';
+import { PollPost } from '../../src/entity/posts/PollPost';
+import { PollOption } from '../../src/entity/polls/PollOption';
+import { generateUUID } from '../../src/ids';
+import { addDays } from 'date-fns';
 
 let con: DataSource;
 
@@ -488,5 +492,93 @@ describe('trigger user_post_award_update_trigger_function', () => {
       .findOneByOrFail({ id: post.id });
 
     expect(postAfter.awards).toBe(4);
+  });
+});
+
+describe('trigger user_post_poll_vote_insert_trigger', () => {
+  it('should increment poll option votes and post total votes on insert', async () => {
+    const pollPost = await con.getRepository(PollPost).save({
+      id: 'poll-test',
+      shortId: 'poll-test',
+      title: 'Test Poll',
+      type: PostType.Poll,
+      sourceId: 'a',
+      endsAt: addDays(new Date(), 3),
+      numPollVotes: 0,
+    });
+
+    const option = await con.getRepository(PollOption).save({
+      text: 'Option 1',
+      order: 1,
+      postId: pollPost.id,
+      numVotes: 0,
+    });
+
+    await con.getRepository(User).save({
+      id: 'poll-user',
+      name: 'Poll User',
+      image: 'https://daily.dev/image.jpg',
+    });
+
+    await con.getRepository(UserPost).save({
+      postId: pollPost.id,
+      userId: 'poll-user',
+      pollVoteOptionId: option.id,
+    });
+
+    const updatedOption = await con
+      .getRepository(PollOption)
+      .findOneByOrFail({ id: option.id });
+    const updatedPost = await con
+      .getRepository(PollPost)
+      .findOneByOrFail({ id: pollPost.id });
+
+    expect(updatedOption.numVotes).toBe(1);
+    expect(updatedPost.numPollVotes).toBe(1);
+  });
+});
+
+describe('trigger user_post_poll_vote_delete_trigger', () => {
+  it('should decrement poll option votes and post total votes on delete', async () => {
+    const pollPost = await con.getRepository(PollPost).save({
+      id: 'poll-del',
+      shortId: 'poll-del',
+      title: 'Test Poll Delete',
+      type: PostType.Poll,
+      sourceId: 'a',
+      endsAt: addDays(new Date(), 3),
+      numPollVotes: 0,
+    });
+
+    const option = await con.getRepository(PollOption).save({
+      text: 'Option 1',
+      order: 1,
+      postId: pollPost.id,
+      numVotes: 0,
+    });
+
+    await con.getRepository(User).save({
+      id: 'poll-user-del',
+      name: 'Poll User Del',
+      image: 'https://daily.dev/image.jpg',
+    });
+
+    await con.getRepository(UserPost).save({
+      postId: pollPost.id,
+      userId: 'poll-user-del',
+      pollVoteOptionId: option.id,
+    });
+
+    await con.getRepository(User).delete({ id: 'poll-user-del' });
+
+    const updatedOption = await con
+      .getRepository(PollOption)
+      .findOneByOrFail({ id: option.id });
+    const updatedPost = await con
+      .getRepository(PollPost)
+      .findOneByOrFail({ id: pollPost.id });
+
+    expect(updatedOption.numVotes).toBe(0);
+    expect(updatedPost.numPollVotes).toBe(0);
   });
 });

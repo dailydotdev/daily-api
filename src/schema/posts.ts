@@ -558,7 +558,7 @@ export const typeDefs = /* GraphQL */ `
     """
     If the user voted on the poll, this is the option they voted for
     """
-    pollVoteOptionId: String
+    pollOption: PollOption
   }
 
   type PostTranslation {

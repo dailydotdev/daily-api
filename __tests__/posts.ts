@@ -9400,38 +9400,4 @@ describe('mutate poll vote', () => {
     );
   });
 
-  it('should remove vote from count if user is deleted', async () => {
-    loggedUser = '1';
-
-    const option = await con.getRepository(PollOption).findOneBy({
-      postId: pollId,
-    });
-
-    const vote = {
-      postId: pollId,
-      optionId: option!.id,
-      sourceId: 'a',
-    };
-
-    const res = await client.mutate(MUTATION, {
-      variables: vote,
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.votePoll.id).toBe(pollId);
-    const votedPollOption = res.data.votePoll.pollOptions.find(
-      (opt) => opt.id === option!.id,
-    );
-    expect(votedPollOption.numVotes).toBe(1);
-
-    await con.getRepository(User).delete({ id: '1' });
-    const pollPost = await con
-      .getRepository(PollPost)
-      .findOneBy({ id: pollId });
-    expect(pollPost?.numPollVotes).toBe(0);
-    const votedOptionAfterDelete = con.getRepository(PollOption).findOneBy({
-      id: option!.id,
-    });
-    expect((await votedOptionAfterDelete)?.numVotes).toBe(0);
-  });
 });
