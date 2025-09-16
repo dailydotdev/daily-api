@@ -6,7 +6,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
+export enum KeywordStatus {
+  Pending = 'pending',
+  Allow = 'allow',
+  Deny = 'deny',
+  Synonym = 'synonym',
+}
 
 export type KeywordFlags = Partial<{
   onboarding: boolean;
