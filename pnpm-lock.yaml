@@ -299,8 +299,8 @@ importers:
         specifier: ^8.0.0
         version: 8.0.0
       mercurius-upload:
-        specifier: ^8.0.0
-        version: 8.0.0(patch_hash=eqsa5a7scgh6fjlcmij4kb5p24)(graphql@16.11.0)
+        specifier: ^7.0.0
+        version: 7.0.0(patch_hash=eqsa5a7scgh6fjlcmij4kb5p24)(graphql@16.11.0)
       nanoid:
         specifier: ^3.3.4
         version: 3.3.11
@@ -2708,6 +2708,9 @@ packages:
     resolution: {integrity: sha512-xkjOecfnKGkSsOwtZ5Pz7Us/T6mrbPQrq0nh+aCO5V9nk5NLWmasAHumTKjiPJPWANe+kAZ84Jc8ooJkzZ88Sw==}
     hasBin: true
 
+  fastify-plugin@4.5.1:
+    resolution: {integrity: sha512-stRHYGeuqpEZTL1Ef0Ovr2ltazUT9g844X5z/zEBFLG8RYlpDiOCIG+ATvYEp+/zmc7sN29mcIMp8gvYplYPIQ==}
+
   fastify-plugin@5.0.1:
     resolution: {integrity: sha512-HCxs+YnRaWzCl+cWRYFnHmeRFyR5GVnJTAaCJQiYzQSDwK9MgJdyAsuL3nh0EWRCYMgQ5MeziymvmAhUHYHDUQ==}
 
@@ -3624,8 +3627,8 @@ packages:
       graphql: '*'
       mercurius: ^11.0.0
 
-  mercurius-upload@8.0.0:
-    resolution: {integrity: sha512-lKYtqo6enNHRhFa6MrGE2OLf5/G0CvaXLCFp/Wczb6vS14LxtWor1fPwayNbiHV3RCS9DsiMnqCWdWaySZxKWA==}
+  mercurius-upload@7.0.0:
+    resolution: {integrity: sha512-DoSHkWmLaP1pfeJoI6NyuI6ur4SbkrLhhcG/Y5lhhzmVAJljGNubjl7H7krgcEd2VanhZ5rlh/PYg1o3AcgHNw==}
     peerDependencies:
       graphql: ^16.3.0
 
@@ -7636,6 +7639,8 @@ snapshots:
     dependencies:
       strnum: 1.0.5
 
+  fastify-plugin@4.5.1: {}
+
   fastify-plugin@5.0.1: {}
 
   fastify-raw-body@5.0.0:
@@ -8826,9 +8831,9 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  mercurius-upload@8.0.0(patch_hash=eqsa5a7scgh6fjlcmij4kb5p24)(graphql@16.11.0):
+  mercurius-upload@7.0.0(patch_hash=eqsa5a7scgh6fjlcmij4kb5p24)(graphql@16.11.0):
     dependencies:
-      fastify-plugin: 5.0.1
+      fastify-plugin: 4.5.1
       graphql: 16.11.0
       graphql-upload-minimal: 1.6.1(graphql@16.11.0)
 
