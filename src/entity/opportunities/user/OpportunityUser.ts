@@ -12,7 +12,7 @@ import type { Opportunity } from '../Opportunity';
 import type { OpportunityUserType } from '../types';
 
 @Entity()
-@TableInheritance({ column: { type: 'text', name: 'type' } })
+@TableInheritance({ column: { type: 'text', name: 'userType' } })
 export class OpportunityUser {
   @PrimaryColumn({
     type: 'text',
@@ -28,8 +28,8 @@ export class OpportunityUser {
   userId: string;
 
   @Column({ type: 'text' })
-  @Index('IDX_opportunity_user_type')
-  type: OpportunityUserType;
+  @Index('IDX_opportunity_user_userType')
+  userType: OpportunityUserType;
 
   @ManyToOne('Opportunity', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({

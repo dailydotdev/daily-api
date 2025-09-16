@@ -1518,8 +1518,8 @@ const obj = new GraphORM({
                 `"${childAlias}"."id" = ou."userId"`,
               )
               .where(`ou."opportunityId" = "${parentAlias}".id`)
-              .andWhere(`ou."type" = :type`, {
-                type: OpportunityUserType.Recruiter,
+              .andWhere(`ou."userType" = :userType`, {
+                userType: OpportunityUserType.Recruiter,
               }),
         },
       },

@@ -10,13 +10,18 @@ import {
   SalaryPeriod,
   SeniorityLevel,
 } from '@dailydotdev/schema';
-import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from '../../src/entity/opportunities/types';
 import type { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../../src/common/schema/organizations';
 import type { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
+import type { OpportunityUserRecruiter } from '../../src/entity/opportunities/user';
+import { usersFixture } from './user';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -198,6 +203,26 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
     ],
   },
 ];
+
+export const opportunityRecruitersFixture: DeepPartial<OpportunityUserRecruiter>[] =
+  [
+    {
+      opportunityId: opportunitiesFixture[0].id,
+      userId: usersFixture[0].id,
+      userType: OpportunityUserType.Recruiter,
+    },
+    {
+      opportunityId: opportunitiesFixture[0].id,
+      userId: usersFixture[1].id,
+      // @ts-expect-error no other type is defined but we're testing filtering
+      userType: 'other',
+    },
+    {
+      opportunityId: opportunitiesFixture[1].id,
+      userId: usersFixture[1].id,
+      userType: OpportunityUserType.Recruiter,
+    },
+  ];
 
 export const opportunityQuestionsFixture: DeepPartial<QuestionScreening>[] = [
   {
