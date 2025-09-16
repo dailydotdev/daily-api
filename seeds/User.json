@@ -232,5 +232,27 @@
     "acceptedMarketing": true,
     "username": "testuser25",
     "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "recruiter0",
+    "name": "Buzz Carleton",
+    "email": "buzz.carleton@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "recruiter0",
+    "timezone": "Europe/London",
+    "bio": "Lead Talent Acquisition",
+    "readme": "Senior Organizational consultant & HR manager with a broad understanding of corporate & executive levels needs. Led various change management processes and post merge integrations. Excellent communication skills, multi-tasking, business oriented advisor. Always willing to listen and share knowledge."
+  },
+  {
+    "id": "recruiter1",
+    "name": "Lydia Corrine",
+    "email": "lydia.corrine@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "recruiter1",
+    "timezone": "Europe/London",
+    "bio": "HR Manager",
+    "readme": "Senior Organizational consultant & HR manager with a broad understanding of corporate & executive levels needs. Led various change management processes and post merge integrations. Excellent communication skills, multi-tasking, business oriented advisor. Always willing to listen and share knowledge."
   }
 ]
