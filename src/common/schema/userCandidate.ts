@@ -71,4 +71,5 @@ export const candidatePreferenceSchema = z.object({
         }),
     )
     .optional(),
+  customKeywords: z.boolean().optional(),
 });

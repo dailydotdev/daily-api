@@ -101,6 +101,12 @@ export class UserCandidatePreference {
   })
   companySize: Array<CompanySize>;
 
+  @Column({
+    type: 'boolean',
+    default: false,
+  })
+  customKeywords: boolean;
+
   @OneToOne('User', (user: User) => user.candidatePreference, {
     lazy: true,
     onDelete: 'CASCADE',
