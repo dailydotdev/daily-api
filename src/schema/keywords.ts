@@ -125,7 +125,10 @@ export const typeDefs = /* GraphQL */ `
     searchKeywords(query: String!): KeywordSearchResults
       @auth(requires: [MODERATOR])
 
-    autocompleteKeywords(query: String!): [KeywordAutocomplete!]! @auth
+    autocompleteKeywords(
+      query: String!
+      limit: Int = 20
+    ): [KeywordAutocomplete!]! @auth
     """
     Get a keyword
     """
@@ -246,7 +249,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .andWhere('k.value ILIKE :query', { query: `%${data.query}%` })
           .orderBy('k.occurrences', 'DESC')
           .addOrderBy('k.value', 'ASC')
-          .limit(20)
+          .limit(data.limit)
           .getRawMany<{ keyword: string; title: string | null }>(),
       );
     },
