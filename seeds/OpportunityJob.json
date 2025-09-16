@@ -1,0 +1,48 @@
+[
+  {
+    "id": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "title": "Senior Frontend Developer",
+    "tldr": "Senior frontend role at Linear (issue tracking startup). React/TS stack, $140k-$180k, remote- first, Series B stage. Build dev tools used by top companies. Strong culture, great benefits, perfect match for your skills and preferences.",
+    "content": {
+      "overview": {
+        "html": "<p class=\"typo-body text-text-secondary\">Join Linear's frontend team to build the next generation of issue tracking and project management tools. You'll work on performance-critical features, design systems, and collaborate closely with design and product teams.</p>",
+        "content": "Join Linear's frontend team to build the next generation of issue tracking and project management tools. You'll work on performance-critical features, design systems, and collaborate closely with design and product teams."
+      },
+      "whatYoullDo": {
+        "html": "<p class=\"typo-body text-text-secondary\">As a Senior Frontend Developer at Linear, your day will be centered around crafting high-quality user experiences using React and TypeScript. You'll collaborate closely with product designers and backend engineers to ship clean, maintainable code across the app. Your mornings might start with async stand-ups or pairing sessions (remote-friendly, timezone-aligned), followed by deep focus time for building new features, refining UX, or improving performance. You'll participate in thoughtful code reviews, contribute to architecture decisions, and help shape internal tooling and frontend infrastructure. Expect a product-minded culture with minimal process overhead, where autonomy and craftsmanship are highly valued.</p>",
+        "content": "As a Senior Frontend Developer at Linear, your day will be centered around crafting high-quality user experiences using React and TypeScript. You'll collaborate closely with product designers and backend engineers to ship clean, maintainable code across the app. Your mornings might start with async stand-ups or pairing sessions (remote-friendly, timezone-aligned), followed by deep focus time for building new features, refining UX, or improving performance. You'll participate in thoughtful code reviews, contribute to architecture decisions, and help shape internal tooling and frontend infrastructure. Expect a product-minded culture with minimal process overhead, where autonomy and craftsmanship are highly valued."
+      },
+      "requirements": {
+        "html": "<ul class=\"list-disc pl-7\"><li class=\"typo-body text-text-secondary\">5+ years of experience building and maintaining complex web applications</li><li class=\"typo-body text-text-secondary\">Deep expertise in JavaScript, TypeScript, and React (or similar modern frameworks)</li><li class=\"typo-body text-text-secondary\">Proven track record of shipping polished, performant UIs in product-led environments</li><li class=\"typo-body text-text-secondary\">Strong understanding of frontend architecture, state management, and component design</li><li class=\"typo-body text-text-secondary\">Comfortable collaborating across design, product, and backend teams</li><li class=\"typo-body text-text-secondary\">Clear, concise communicator, especially in remote and async work setups</li><li class=\"typo-body text-text-secondary\">Experience working in high-autonomy, fast-moving teams</li><li class=\"typo-body text-text-secondary\">Bonus: Familiarity with tools like Vite, Next.js, GraphQL, or design systems</li></ul>",
+        "content": "- 5+ years of experience building and maintaining complex web applications\n- Deep expertise in JavaScript, TypeScript, and React (or similar modern frameworks)\n- Proven track record of shipping polished, performant UIs in product-led environments\n- Strong understanding of frontend architecture, state management, and component design\n- Comfortable collaborating across design, product, and backend teams\n- Clear, concise communicator, especially in remote and async work setups\n- Experience working in high-autonomy, fast-moving teams\n- Bonus: Familiarity with tools like Vite, Next.js, GraphQL, or design systems"
+      },
+      "interviewProcess": {
+        "html": "<ol class=\"list-decimal pl-7\"><li class=\"typo-body text-text-secondary\">Intro Chat (30 mins)<br>A casual conversation with our recruiter or hiring manager to learn more about your background and share more about the role and team.</li><li class=\"typo-body text-text-secondary\">Technical Interview (60 mins)<br>A live technical discussion or hands-on coding exercise focused on frontend fundamentals, React/TypeScript, and product thinking.</li><li class=\"typo-body text-text-secondary\">Project Assignment or Deep Dive (1-2 hrs async or scheduled)<br>Either a take-home project or a session diving into real-world frontend challenges, followed by a walkthrough of your thought process.</li><li class=\"typo-body text-text-secondary\">Team Interviews (2 x 45 mins)&lt;br&gt;Meet with 2-3 team members across engineering and design. We'll explore how you collaborate, make decisions, and approach product-building.</li><li class=\"typo-body text-text-secondary\">Final Chat (30-45 mins)<br>A wrap-up conversation with leadership to align on expectations, values, and any final questions.</li></ol>",
+        "content": "1. Intro Chat (30 mins)\nA casual conversation with our recruiter or hiring manager to learn more about your background and share more about the role and team.\n2. Technical Interview (60 mins)\nA live technical discussion or hands-on coding exercise focused on frontend fundamentals, React/TypeScript, and product thinking.\n3. Project Assignment or Deep Dive (1-2 hrs async or scheduled)\nEither a take-home project or a session diving into real-world frontend challenges, followed by a walkthrough of your thought process.\n4. Team Interviews (2 x 45 mins)\nMeet with 2-3 team members across engineering and design. We'll explore how you collaborate, make decisions, and approach product-building.\n5. Final Chat (30-45 mins)\nA wrap-up conversation with leadership to align on expectations, values, and any final questions."
+      },
+      "responsibilities": {
+        "html": "<ul class=\"list-disc pl-7\"><li class=\"typo-body text-text-secondary\">Build and maintain Linear's web application using React and TypeScript</li><li class=\"typo-body text-text-secondary\">Implement pixel-perfect designs with attention to performance</li><li class=\"typo-body text-text-secondary\">Collaborate with the team on architecture decisions</li><li class=\"typo-body text-text-secondary\">Contribute to Linear's open-source projects</li></ul>",
+        "content": "- Build and maintain Linear's web application using React and TypeScript\n- Implement pixel-perfect designs with attention to performance\n- Collaborate with the team on architecture decisions\n- Contribute to Linear's open-source projects"
+      }
+    },
+    "meta": {
+      "salary": {"max": 100000, "min": 60000, "period": 1, "currency": "USD"},
+      "roleType": 0.0,
+      "teamSize": 10,
+      "employmentType": 1,
+      "seniorityLevel": 5
+    },
+    "organizationId": "85449b8a-acca-4756-8556-4290a126566b",
+    "location": {
+      "0": {
+        "city": "Stjørdal",
+        "type": 1,
+        "country": "Norway",
+        "continent": "Europe",
+        "subdivision": "Trøndelag"
+      }
+    },
+    "state": 2,
+    "type": 1
+  }
+]
