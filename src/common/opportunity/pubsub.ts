@@ -155,6 +155,7 @@ export const notifyJobOpportunity = async ({
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
+      type: opportunity.opportunityType,
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords.map((k) => k.keyword),
