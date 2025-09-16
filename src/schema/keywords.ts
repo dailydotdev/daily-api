@@ -125,7 +125,7 @@ export const typeDefs = /* GraphQL */ `
     searchKeywords(query: String!): KeywordSearchResults
       @auth(requires: [MODERATOR])
 
-    autocompleteKeywords(query: String!): [KeywordAutocomplete!]!
+    autocompleteKeywords(query: String!): [KeywordAutocomplete!]! @auth
     """
     Get a keyword
     """
