@@ -9320,7 +9320,6 @@ describe('mutate poll vote', () => {
     const vote = {
       postId: pollId,
       optionId: option!.id,
-      sourceId: 'a',
     };
 
     const res = await client.mutate(MUTATION, {
@@ -9344,7 +9343,6 @@ describe('mutate poll vote', () => {
     const vote = {
       postId: pollId,
       optionId: options[0].id,
-      sourceId: 'a',
     };
 
     const res = await client.mutate(MUTATION, {
@@ -9361,7 +9359,6 @@ describe('mutate poll vote', () => {
     const vote2 = {
       postId: pollId,
       optionId: options[1].id,
-      sourceId: 'a',
     };
 
     await testMutationErrorCode(
@@ -9387,7 +9384,6 @@ describe('mutate poll vote', () => {
     const vote = {
       postId: pollId,
       optionId: option!.id,
-      sourceId: 'a',
     };
 
     await testMutationErrorCode(
@@ -9397,6 +9393,29 @@ describe('mutate poll vote', () => {
         variables: vote,
       },
       'CONFLICT',
+    );
+  });
+
+  it('should not allow user to vote on polls they cant access', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: vote,
+      },
+      'FORBIDDEN',
     );
   });
 });

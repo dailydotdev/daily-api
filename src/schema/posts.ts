@@ -3540,6 +3540,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
       }
 
+      await ensureSourcePermissions(ctx, post.sourceId);
+
       if (post.endsAt && isBefore(post.endsAt, new Date())) {
         throw new ConflictError('Poll has ended');
       }

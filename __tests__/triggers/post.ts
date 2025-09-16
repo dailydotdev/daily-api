@@ -629,4 +629,111 @@ describe('trigger user_post_poll_vote_update_trigger', () => {
     expect(updatedOption.numVotes).toBe(1);
     expect(updatedPost.numPollVotes).toBe(1);
   });
+
+  it('should decrement poll option votes and post total votes when pollVoteOptionId is removed', async () => {
+    const pollPost = await con.getRepository(PollPost).save({
+      id: 'poll-upd-remove',
+      shortId: 'poll-upd-rem',
+      title: 'Test Poll Update Remove',
+      type: PostType.Poll,
+      sourceId: 'a',
+      endsAt: addDays(new Date(), 3),
+      numPollVotes: 1,
+    });
+
+    const option = await con.getRepository(PollOption).save({
+      text: 'Option 1',
+      order: 1,
+      postId: pollPost.id,
+      numVotes: 1,
+    });
+
+    await con.getRepository(User).save({
+      id: 'poll-user-upd-remove',
+      name: 'Poll User Update Remove',
+      image: 'https://daily.dev/image.jpg',
+    });
+
+    await con.getRepository(UserPost).save({
+      postId: pollPost.id,
+      userId: 'poll-user-upd-remove',
+      pollVoteOptionId: option.id,
+    });
+
+    await con
+      .getRepository(UserPost)
+      .update(
+        { postId: pollPost.id, userId: 'poll-user-upd-remove' },
+        { pollVoteOptionId: null },
+      );
+
+    const updatedOption = await con
+      .getRepository(PollOption)
+      .findOneByOrFail({ id: option.id });
+    const updatedPost = await con
+      .getRepository(PollPost)
+      .findOneByOrFail({ id: pollPost.id });
+
+    expect(updatedOption.numVotes).toBe(0);
+    expect(updatedPost.numPollVotes).toBe(0);
+  });
+
+  it('should handle changing vote from one option to another', async () => {
+    const pollPost = await con.getRepository(PollPost).save({
+      id: 'poll-upd-change',
+      shortId: 'poll-upd-chg',
+      title: 'Test Poll Update Change',
+      type: PostType.Poll,
+      sourceId: 'a',
+      endsAt: addDays(new Date(), 3),
+      numPollVotes: 1,
+    });
+
+    const option1 = await con.getRepository(PollOption).save({
+      text: 'Option 1',
+      order: 1,
+      postId: pollPost.id,
+      numVotes: 1,
+    });
+
+    const option2 = await con.getRepository(PollOption).save({
+      text: 'Option 2',
+      order: 2,
+      postId: pollPost.id,
+      numVotes: 0,
+    });
+
+    await con.getRepository(User).save({
+      id: 'poll-user-upd-change',
+      name: 'Poll User Update Change',
+      image: 'https://daily.dev/image.jpg',
+    });
+
+    await con.getRepository(UserPost).save({
+      postId: pollPost.id,
+      userId: 'poll-user-upd-change',
+      pollVoteOptionId: option1.id,
+    });
+
+    await con
+      .getRepository(UserPost)
+      .update(
+        { postId: pollPost.id, userId: 'poll-user-upd-change' },
+        { pollVoteOptionId: option2.id },
+      );
+
+    const updatedOption1 = await con
+      .getRepository(PollOption)
+      .findOneByOrFail({ id: option1.id });
+    const updatedOption2 = await con
+      .getRepository(PollOption)
+      .findOneByOrFail({ id: option2.id });
+    const updatedPost = await con
+      .getRepository(PollPost)
+      .findOneByOrFail({ id: pollPost.id });
+
+    expect(updatedOption1.numVotes).toBe(0);
+    expect(updatedOption2.numVotes).toBe(1);
+    expect(updatedPost.numPollVotes).toBe(1);
+  });
 });
