@@ -92,6 +92,7 @@ import {
 import { PollOption } from '../entity/polls/PollOption';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
   TransferError,
@@ -3540,13 +3541,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       if (post.endsAt && isBefore(post.endsAt, new Date())) {
-        throw new ValidationError('Poll has ended');
+        throw new ConflictError('Poll has ended');
       }
 
       const hasAlreadyVoted = !!userPost?.pollVoteOptionId;
 
       if (hasAlreadyVoted) {
-        throw new ValidationError('User has already voted on this poll');
+        throw new ConflictError('User has already voted on this poll');
       }
 
       await ctx.con.getRepository(UserPost).save({

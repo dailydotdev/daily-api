@@ -9370,7 +9370,7 @@ describe('mutate poll vote', () => {
         mutation: MUTATION,
         variables: vote2,
       },
-      'GRAPHQL_VALIDATION_FAILED',
+      'CONFLICT',
     );
   });
 
@@ -9396,7 +9396,7 @@ describe('mutate poll vote', () => {
         mutation: MUTATION,
         variables: vote,
       },
-      'GRAPHQL_VALIDATION_FAILED',
+      'CONFLICT',
     );
   });
 });
