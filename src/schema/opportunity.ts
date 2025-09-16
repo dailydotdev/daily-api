@@ -127,6 +127,7 @@ export const typeDefs = /* GraphQL */ `
     locationType: [ProtoEnumValue]!
     companyStage: [ProtoEnumValue]!
     companySize: [ProtoEnumValue]!
+    customKeywords: Boolean
   }
 
   extend type Query {
@@ -182,6 +183,7 @@ export const typeDefs = /* GraphQL */ `
       salaryExpectation: SalaryExpectationInput
       location: [LocationInput]
       locationType: [ProtoEnumValue]
+      customKeywords: Boolean
     ): EmptyResponse @auth
 
     saveOpportunityScreeningAnswers(
