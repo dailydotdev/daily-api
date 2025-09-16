@@ -21,6 +21,20 @@ export const userCandidateCVSchema = z.object({
 
 export type UserCandidateCV = z.infer<typeof userCandidateCVSchema>;
 
+export const salaryExpectationSchema = z.object({
+  min: z.coerce
+    .bigint()
+    .min(BigInt(0))
+    .transform((val) => val.toString())
+    .optional(),
+  period: z
+    .enum(SalaryPeriod, { error: 'Invalid salary period' })
+    .refine((val) => val !== SalaryPeriod.UNSPECIFIED, {
+      message: 'Invalid salary period',
+    })
+    .optional(),
+});
+
 export const candidatePreferenceSchema = z.object({
   status: z
     .enum(CandidateStatus, { error: 'Invalid candidate status' })
@@ -39,17 +53,7 @@ export const candidatePreferenceSchema = z.object({
         }),
     )
     .optional(),
-  salaryExpectation: z
-    .object({
-      min: z.number().min(0).optional(),
-      period: z
-        .enum(SalaryPeriod, { error: 'Invalid salary period' })
-        .refine((val) => val !== SalaryPeriod.UNSPECIFIED, {
-          message: 'Invalid salary period',
-        })
-        .optional(),
-    })
-    .optional(),
+  salaryExpectation: salaryExpectationSchema.optional(),
   location: z
     .array(
       z.object({

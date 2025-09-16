@@ -10,8 +10,7 @@ import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
 import { logger } from '../logger';
-
-export const RESUMES_BUCKET_NAME = 'daily-dev-resumes';
+import { RESUME_BUCKET_NAME } from '../config';
 
 export const downloadFile = async ({
   url,
@@ -63,10 +62,9 @@ export const uploadResumeFromBuffer = async (
   fileName: string,
   file: Buffer,
   options?: SaveOptions,
-  bucketName = RESUMES_BUCKET_NAME,
 ): Promise<string> => {
   return uploadFileFromBuffer({
-    bucketName,
+    bucketName: RESUME_BUCKET_NAME,
     fileName,
     file,
     options,
@@ -97,7 +95,7 @@ export const deleteFileFromBucket = async (
 export const deleteResumeByUserId = async (
   userId: string,
 ): Promise<boolean> => {
-  const bucketName = RESUMES_BUCKET_NAME;
+  const bucketName = RESUME_BUCKET_NAME;
 
   if (!userId?.trim()) {
     logger.warn('User ID is required to delete resume');

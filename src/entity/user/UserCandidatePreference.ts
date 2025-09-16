@@ -15,11 +15,14 @@ import type {
   EmploymentType,
   Location,
   LocationType,
-  Salary,
 } from '@dailydotdev/schema';
-import type { UserCandidateCV } from '../../common/schema/userCandidate';
+import type {
+  salaryExpectationSchema,
+  UserCandidateCV,
+} from '../../common/schema/userCandidate';
+import type z from 'zod';
 
-export type SalaryExpectation = Omit<Salary, 'max'>;
+export type SalaryExpectation = z.infer<typeof salaryExpectationSchema>;
 
 @Entity()
 export class UserCandidatePreference {
@@ -31,11 +34,11 @@ export class UserCandidatePreference {
 
   @Column({
     type: 'integer',
-    default: CandidateStatus.DISABLED,
+    default: CandidateStatus.OPEN_TO_OFFERS,
     comment: 'CandidateStatus from protobuf schema',
   })
   @Index('IDX_user_candidate_preference_status')
-  status: CandidateStatus = CandidateStatus.DISABLED;
+  status: CandidateStatus = CandidateStatus.OPEN_TO_OFFERS;
 
   @UpdateDateColumn()
   updatedAt: Date;

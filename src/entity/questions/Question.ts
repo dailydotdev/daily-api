@@ -24,4 +24,7 @@ export class Question {
 
   @Column({ type: 'text', default: null })
   placeholder: string | null;
+
+  @Column({ type: 'smallint', default: 0 })
+  questionOrder: number;
 }

@@ -16,6 +16,7 @@ import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../../src/common/schema/organizations';
+import type { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -198,6 +199,30 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
   },
 ];
 
+export const opportunityQuestionsFixture: DeepPartial<QuestionScreening>[] = [
+  {
+    id: '750e8400-e29b-41d4-a716-446655440001',
+    title: 'What is your favorite programming language?',
+    placeholder: 'e.g., JavaScript, Python, etc.',
+    opportunityId: opportunitiesFixture[0].id,
+    questionOrder: 1,
+  },
+  {
+    id: '750e8400-e29b-41d4-a716-446655440002',
+    title: 'Describe a challenging project you worked on.',
+    placeholder: 'Your answer here...',
+    opportunityId: opportunitiesFixture[0].id,
+    questionOrder: 0,
+  },
+  {
+    id: '750e8400-e29b-41d4-a716-446655440003',
+    title: 'What are your career goals?',
+    placeholder: 'Your answer here...',
+    opportunityId: opportunitiesFixture[1].id,
+    questionOrder: 0,
+  },
+];
+
 export const opportunityKeywordsFixture: DeepPartial<OpportunityKeyword>[] = [
   {
     opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -233,5 +258,13 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     description: { reasoning: 'Accepted candidate' },
     createdAt: new Date('2023-01-04'),
     updatedAt: new Date('2023-01-04'),
+  },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440003',
+    userId: '1',
+    status: OpportunityMatchStatus.Pending,
+    description: { reasoning: 'Interested candidate' },
+    createdAt: new Date('2023-01-03'),
+    updatedAt: new Date('2023-01-03'),
   },
 ];

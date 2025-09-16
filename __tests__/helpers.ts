@@ -169,6 +169,7 @@ export const testMutationErrorCode = async (
   mutation: Mutation,
   code: string,
   message?: string,
+  callback?: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
 ): Promise<void> =>
   testMutationError(client, mutation, (errors) => {
     expect(errors?.length || 0).toEqual(1);
@@ -176,6 +177,7 @@ export const testMutationErrorCode = async (
     if (message) {
       expect(errors[0].message).toEqual(message);
     }
+    return callback?.(errors);
   });
 
 export type Query = {
@@ -198,6 +200,7 @@ export const testQueryErrorCode = async (
   query: Query,
   code: string,
   message?: string,
+  callback?: (errors: readonly GraphQLFormattedError[]) => void | Promise<void>,
 ): Promise<void> =>
   testQueryError(client, query, (errors) => {
     expect(errors?.length || 0).toEqual(1);
@@ -205,6 +208,7 @@ export const testQueryErrorCode = async (
     if (message) {
       expect(errors[0].message).toEqual(message);
     }
+    return callback?.(errors);
   });
 
 export async function saveFixtures<Entity>(
