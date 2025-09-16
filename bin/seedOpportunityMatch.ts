@@ -1,11 +1,10 @@
-import createOrGetConnection from '../src/db';
-
 import { createInterface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
-import { User } from '../src/entity';
 import { MatchedCandidate } from '@dailydotdev/schema';
-import { pubsub } from '../src/common';
+import createOrGetConnection from '../src/db';
+import { User } from '../src/entity/user/User';
+import { pubsub } from '../src/common/pubsub';
 
 const ask = async (q: string) => {
   const rl = createInterface({ input, output });
