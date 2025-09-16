@@ -638,14 +638,14 @@ describe('trigger user_post_poll_vote_update_trigger', () => {
       type: PostType.Poll,
       sourceId: 'a',
       endsAt: addDays(new Date(), 3),
-      numPollVotes: 1,
+      numPollVotes: 0,
     });
 
     const option = await con.getRepository(PollOption).save({
       text: 'Option 1',
       order: 1,
       postId: pollPost.id,
-      numVotes: 1,
+      numVotes: 0,
     });
 
     await con.getRepository(User).save({
@@ -657,9 +657,14 @@ describe('trigger user_post_poll_vote_update_trigger', () => {
     await con.getRepository(UserPost).save({
       postId: pollPost.id,
       userId: 'poll-user-upd-remove',
-      pollVoteOptionId: option.id,
     });
 
+    await con
+      .getRepository(UserPost)
+      .update(
+        { postId: pollPost.id, userId: 'poll-user-upd-remove' },
+        { pollVoteOptionId: option.id },
+      );
     await con
       .getRepository(UserPost)
       .update(
@@ -686,14 +691,14 @@ describe('trigger user_post_poll_vote_update_trigger', () => {
       type: PostType.Poll,
       sourceId: 'a',
       endsAt: addDays(new Date(), 3),
-      numPollVotes: 1,
+      numPollVotes: 0,
     });
 
     const option1 = await con.getRepository(PollOption).save({
       text: 'Option 1',
       order: 1,
       postId: pollPost.id,
-      numVotes: 1,
+      numVotes: 0,
     });
 
     const option2 = await con.getRepository(PollOption).save({
@@ -712,9 +717,14 @@ describe('trigger user_post_poll_vote_update_trigger', () => {
     await con.getRepository(UserPost).save({
       postId: pollPost.id,
       userId: 'poll-user-upd-change',
-      pollVoteOptionId: option1.id,
     });
 
+    await con
+      .getRepository(UserPost)
+      .update(
+        { postId: pollPost.id, userId: 'poll-user-upd-change' },
+        { pollVoteOptionId: option1.id },
+      );
     await con
       .getRepository(UserPost)
       .update(
