@@ -1,1 +1,258 @@
-[{"id":"testuser","name":"Test User","email":"test@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser","coresRole":3},{"id":"testuser1","name":"Test User 1","email":"testuser1@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser1","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser1","coresRole":3},{"id":"testuser2","name":"Test User 2","email":"testuser2@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser2","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser2","coresRole":3},{"id":"testuser3","name":"Test User 3","email":"testuser3@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser3","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser3","coresRole":3},{"id":"testuser4","name":"Test User 4","email":"testuser4@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser4","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser4","coresRole":3},{"id":"testuser5","name":"Test User 5","email":"testuser5@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser5","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser5","coresRole":3},{"id":"testuser6","name":"Test User 6","email":"testuser6@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser6","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser6","coresRole":3},{"id":"testuser7","name":"Test User 7","email":"testuser7@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser7","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser7","coresRole":3},{"id":"testuser8","name":"Test User 8","email":"testuser8@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser8","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser8","coresRole":3},{"id":"testuser9","name":"Test User 9","email":"testuser9@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser9","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser9","coresRole":3},{"id":"testuser10","name":"Test User 10","email":"testuser10@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser10","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser10","coresRole":3},{"id":"testuser11","name":"Test User 11","email":"testuser11@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser11","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser11","coresRole":3},{"id":"testuser12","name":"Test User 12","email":"testuser12@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser12","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser12","coresRole":3},{"id":"testuser13","name":"Test User 13","email":"testuser13@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser13","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser13","coresRole":3},{"id":"testuser14","name":"Test User 14","email":"testuser14@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser14","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser14","coresRole":3},{"id":"testuser15","name":"Test User 15","email":"testuser15@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser15","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser15","coresRole":3},{"id":"testuser16","name":"Test User 16","email":"testuser16@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser16","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser16","coresRole":3},{"id":"testuser17","name":"Test User 17","email":"testuser17@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser17","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser17","coresRole":3},{"id":"testuser18","name":"Test User 18","email":"testuser18@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser18","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser18","coresRole":3},{"id":"testuser19","name":"Test User 19","email":"testuser19@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser19","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser19","coresRole":2},{"id":"testuser20","name":"Test User 20","email":"testuser20@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser20","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser20","coresRole":2},{"id":"testuser21","name":"Test User 21","email":"testuser21@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser21","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser21","coresRole":1},{"id":"testuser22","name":"Test User 22","email":"testuser22@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser22","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser22","coresRole":1},{"id":"testuser23","name":"Test User 23","email":"testuser23@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser23","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser23","coresRole":0},{"id":"testuser24","name":"Test User 24","email":"testuser24@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser24","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser24","coresRole":0},{"id":"testuser25","name":"Test User 25","email":"testuser25@email.com","image":"https://res.cloudinary.com/daily-now/image/upload/s--O0TOmw4y--/f_auto/v1715772965/public/noProfile","company":null,"title":null,"infoConfirmed":true,"acceptedMarketing":true,"notificationEmail":true,"reputation":10,"username":"testuser25","bio":null,"twitter":null,"github":null,"portfolio":null,"hashnode":null,"devcardEligible":false,"timezone":"Asia/Chongqing","createdAt":"2023-11-23T12:37:06.662Z","updatedAt":null,"referralId":null,"referralOrigin":null,"permalink":"http://localhost:5002/testuser25","coresRole":0}]
+[
+  {
+    "id": "testuser",
+    "name": "Test User",
+    "email": "test@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser1",
+    "name": "Test User 1",
+    "email": "testuser1@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser1",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser2",
+    "name": "Test User 2",
+    "email": "testuser2@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser2",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser3",
+    "name": "Test User 3",
+    "email": "testuser3@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser3",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser4",
+    "name": "Test User 4",
+    "email": "testuser4@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser4",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser5",
+    "name": "Test User 5",
+    "email": "testuser5@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser5",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser6",
+    "name": "Test User 6",
+    "email": "testuser6@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser6",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser7",
+    "name": "Test User 7",
+    "email": "testuser7@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser7",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser8",
+    "name": "Test User 8",
+    "email": "testuser8@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser8",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser9",
+    "name": "Test User 9",
+    "email": "testuser9@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser9",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser10",
+    "name": "Test User 10",
+    "email": "testuser10@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser10",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser11",
+    "name": "Test User 11",
+    "email": "testuser11@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser11",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser12",
+    "name": "Test User 12",
+    "email": "testuser12@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser12",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser13",
+    "name": "Test User 13",
+    "email": "testuser13@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser13",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser14",
+    "name": "Test User 14",
+    "email": "testuser14@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser14",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser15",
+    "name": "Test User 15",
+    "email": "testuser15@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser15",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser16",
+    "name": "Test User 16",
+    "email": "testuser16@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser16",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser17",
+    "name": "Test User 17",
+    "email": "testuser17@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser17",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser18",
+    "name": "Test User 18",
+    "email": "testuser18@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser18",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser19",
+    "name": "Test User 19",
+    "email": "testuser19@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser19",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser20",
+    "name": "Test User 20",
+    "email": "testuser20@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser20",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser21",
+    "name": "Test User 21",
+    "email": "testuser21@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser21",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser22",
+    "name": "Test User 22",
+    "email": "testuser22@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser22",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser23",
+    "name": "Test User 23",
+    "email": "testuser23@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser23",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser24",
+    "name": "Test User 24",
+    "email": "testuser24@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser24",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "testuser25",
+    "name": "Test User 25",
+    "email": "testuser25@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "testuser25",
+    "timezone": "Asia/Chongqing"
+  },
+  {
+    "id": "recruiter0",
+    "name": "Buzz Carleton",
+    "email": "buzz.carleton@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "recruiter0",
+    "timezone": "Europe/London",
+    "bio": "Lead Talent Acquisition",
+    "readme": "Senior Organizational consultant & HR manager with a broad understanding of corporate & executive levels needs. Led various change management processes and post merge integrations. Excellent communication skills, multi-tasking, business oriented advisor. Always willing to listen and share knowledge."
+  },
+  {
+    "id": "recruiter1",
+    "name": "Lydia Corrine",
+    "email": "lydia.corrine@email.com",
+    "infoConfirmed": true,
+    "acceptedMarketing": true,
+    "username": "recruiter1",
+    "timezone": "Europe/London",
+    "bio": "HR Manager",
+    "readme": "Senior Organizational consultant & HR manager with a broad understanding of corporate & executive levels needs. Led various change management processes and post merge integrations. Excellent communication skills, multi-tasking, business oriented advisor. Always willing to listen and share knowledge."
+  }
+]
