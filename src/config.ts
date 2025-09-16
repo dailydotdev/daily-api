@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 
 const env = process.env.NODE_ENV || 'development';
 
-dotenv.config({ path: `.env.${env}` });
-dotenv.config({ path: '.env' });
+dotenv.config({ path: `.env.${env}`, quiet: true });
+dotenv.config({ path: '.env', quiet: true });
 
 export const fallbackImages = {
   avatar:
