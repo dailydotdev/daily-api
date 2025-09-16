@@ -33,7 +33,8 @@ import {
   ATTR_MESSAGING_MESSAGE_BODY_SIZE,
   ATTR_MESSAGING_MESSAGE_ID,
   ATTR_MESSAGING_SYSTEM,
-} from '@opentelemetry/semantic-conventions/build/src/index-incubating';
+  // @ts-expect-error - no longer resolves types because of cjs/esm change but values are exported
+} from '@opentelemetry/semantic-conventions/incubating';
 
 const resourceDetectors = [
   resources.envDetector,
