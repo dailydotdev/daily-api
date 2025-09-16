@@ -9399,5 +9399,4 @@ describe('mutate poll vote', () => {
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
-
 });

@@ -21,7 +21,6 @@ import {
 import { usersFixture } from '../fixture';
 import { PollPost } from '../../src/entity/posts/PollPost';
 import { PollOption } from '../../src/entity/polls/PollOption';
-import { generateUUID } from '../../src/ids';
 import { addDays } from 'date-fns';
 
 let con: DataSource;
