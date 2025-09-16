@@ -1482,6 +1482,9 @@ const obj = new GraphORM({
   },
   Opportunity: {
     fields: {
+      type: {
+        alias: { field: 'opportunityType', type: 'string' },
+      },
       createdAt: {
         transform: transformDate,
       },

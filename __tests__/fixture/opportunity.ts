@@ -63,7 +63,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
 export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
   {
     id: '550e8400-e29b-41d4-a716-446655440001',
-    type: OpportunityType.JOB,
+    opportunityType: OpportunityType.JOB,
     state: OpportunityState.LIVE,
     title: 'Senior Full Stack Developer',
     tldr: 'Join our team as a Senior Full Stack Developer',
@@ -97,7 +97,7 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
-    type: OpportunityType.JOB,
+    opportunityType: OpportunityType.JOB,
     state: OpportunityState.LIVE,
     title: 'Frontend Developer',
     tldr: 'Build amazing user interfaces',
@@ -131,7 +131,7 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440003',
-    type: OpportunityType.JOB,
+    opportunityType: OpportunityType.JOB,
     state: OpportunityState.DRAFT,
     title: 'Senior Full Stack Developer',
     tldr: 'Join our team as a Senior Full Stack Developer',
@@ -165,7 +165,7 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440004',
-    type: OpportunityType.JOB,
+    opportunityType: OpportunityType.JOB,
     state: OpportunityState.DRAFT,
     title: 'Frontend Developer',
     tldr: 'Build amazing user interfaces',

@@ -1263,7 +1263,7 @@ const onOpportunityChange = async (
   }
 
   if (
-    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.opportunityType === OpportunityType.JOB &&
     data.payload.after?.state === OpportunityState.LIVE
   ) {
     const isUpdate = data.payload.op === 'u';
@@ -1278,7 +1278,7 @@ const onOpportunityChange = async (
 
   if (
     data.payload.op === 'u' &&
-    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.opportunityType === OpportunityType.JOB &&
     data.payload.before?.state === OpportunityState.LIVE &&
     data.payload.after?.state !== OpportunityState.LIVE
   ) {

@@ -20,7 +20,7 @@ import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
 
 @Entity()
-@TableInheritance({ column: { type: 'text', name: 'type' } })
+@TableInheritance({ column: { type: 'integer', name: 'opportunityType' } })
 export class Opportunity {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_Opportunity_Id',
@@ -34,8 +34,8 @@ export class Opportunity {
   updatedAt: Date;
 
   @Column({ type: 'integer', comment: 'OpportunityType from protobuf schema' })
-  @Index('IDX_opportunity_type')
-  type: OpportunityType;
+  @Index('IDX_opportunity_opportunityType')
+  opportunityType: OpportunityType;
 
   @Column({ type: 'integer', comment: 'OpportunityState from protobuf schema' })
   state: OpportunityState;
