@@ -9,13 +9,8 @@ import {
 } from 'typeorm';
 import type { User } from './User';
 import { CandidateStatus } from '@dailydotdev/schema';
-import type {
-  CompanySize,
-  CompanyStage,
-  EmploymentType,
-  Location,
-  LocationType,
-} from '@dailydotdev/schema';
+import { EmploymentType, LocationType } from '@dailydotdev/schema';
+import type { CompanySize, CompanyStage, Location } from '@dailydotdev/schema';
 import type {
   salaryExpectationSchema,
   UserCandidateCV,
@@ -58,8 +53,13 @@ export class UserCandidatePreference {
   @Column({
     type: 'integer',
     array: true,
-    default: [],
     comment: 'EmploymentType from protobuf schema',
+    default: [
+      EmploymentType.FULL_TIME,
+      EmploymentType.PART_TIME,
+      EmploymentType.CONTRACT,
+      EmploymentType.INTERNSHIP,
+    ],
   })
   employmentType: Array<EmploymentType>;
 
@@ -81,7 +81,7 @@ export class UserCandidatePreference {
     type: 'integer',
     array: true,
     comment: 'LocationType from protobuf schema',
-    default: [],
+    default: [LocationType.REMOTE, LocationType.OFFICE, LocationType.HYBRID],
   })
   locationType: Array<LocationType>;
 
