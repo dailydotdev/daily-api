@@ -17,6 +17,7 @@ import {
   SocialMediaType,
 } from '../../src/common/schema/organizations';
 import type { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
+import { demoCompany } from '../../src/common';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -56,6 +57,15 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     website: 'https://yearly.dev',
     description: 'A platform for others',
     location: 'Skatval',
+    links: [],
+  },
+  {
+    id: demoCompany.id,
+    name: 'Demo Dev Inc',
+    image: 'https://example.com/logo.png',
+    website: 'https://monthly.dev',
+    description: 'Another platform for developers',
+    location: 'Oslo',
     links: [],
   },
 ];
@@ -194,6 +204,40 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
       {
         type: LocationType.HYBRID,
         country: 'USA',
+      },
+    ],
+  },
+  {
+    id: '550e8400-e29b-41d4-a716-446655440005',
+    type: OpportunityType.JOB,
+    state: OpportunityState.LIVE,
+    title: 'Senior Full Stack Developer',
+    tldr: 'Join our team as a Senior Full Stack Developer',
+    content: {
+      overview: {
+        content: 'We are looking for a Senior Full Stack Developer...',
+        html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+      },
+    },
+    meta: {
+      roleType: 0.0,
+      teamSize: 10,
+      seniorityLevel: SeniorityLevel.SENIOR,
+      employmentType: EmploymentType.FULL_TIME,
+      salary: {
+        min: 60000,
+        max: 120000,
+        currency: 'USD',
+        period: SalaryPeriod.ANNUAL,
+      },
+    },
+    createdAt: new Date('2023-01-01'),
+    updatedAt: new Date('2023-01-01'),
+    organizationId: demoCompany.id,
+    location: [
+      {
+        type: LocationType.REMOTE,
+        country: 'Norway',
       },
     ],
   },
