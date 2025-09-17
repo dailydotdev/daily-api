@@ -56,7 +56,7 @@ export class UserCandidatePreference {
   cvParsed: Record<string, unknown> = {};
 
   @Column({ type: 'text', default: null })
-  role: string | null = null;
+  role?: string;
 
   @Column({ type: 'float8', default: 0.5 })
   roleType: number = 0.5;
