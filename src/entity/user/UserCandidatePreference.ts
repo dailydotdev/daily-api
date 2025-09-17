@@ -10,8 +10,13 @@ import {
 } from 'typeorm';
 import type { User } from './User';
 import { CandidateStatus } from '@dailydotdev/schema';
-import { EmploymentType, LocationType } from '@dailydotdev/schema';
-import type { CompanySize, CompanyStage, Location } from '@dailydotdev/schema';
+import {
+  CompanySize,
+  CompanyStage,
+  EmploymentType,
+  LocationType,
+} from '@dailydotdev/schema';
+import type { Location } from '@dailydotdev/schema';
 import type {
   salaryExpectationSchema,
   UserCandidateCV,
@@ -22,6 +27,9 @@ export type SalaryExpectation = z.infer<typeof salaryExpectationSchema>;
 
 const defaultEmploymentTypes = listAllProtoEnumValues(EmploymentType);
 const defaultLocationTypes = listAllProtoEnumValues(LocationType);
+const defaultCompanyStages = listAllProtoEnumValues(CompanyStage);
+const defaultCompanySizes = listAllProtoEnumValues(CompanySize);
+
 @Entity()
 export class UserCandidatePreference {
   @PrimaryColumn({
@@ -86,18 +94,18 @@ export class UserCandidatePreference {
   @Column({
     type: 'integer',
     array: true,
-    default: [],
     comment: 'CompanyStage from protobuf schema',
+    default: defaultCompanyStages,
   })
-  companyStage: Array<CompanyStage> = [];
+  companyStage: Array<CompanyStage> = defaultCompanyStages;
 
   @Column({
     type: 'integer',
     array: true,
-    default: [],
     comment: 'CompanySize from protobuf schema',
+    default: defaultCompanySizes,
   })
-  companySize: Array<CompanySize> = [];
+  companySize: Array<CompanySize> = defaultCompanySizes;
 
   @Column({
     type: 'boolean',
