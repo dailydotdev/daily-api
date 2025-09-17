@@ -604,8 +604,8 @@ describe('query getCandidatePreferences', () => {
       location: [],
       locationType: [1, 2, 3],
       employmentType: [1, 2, 3, 4],
-      companySize: [],
-      companyStage: [],
+      companySize: [1, 2, 3, 4, 5, 6, 7],
+      companyStage: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       customKeywords: false,
       keywords: [],
     });
@@ -633,8 +633,8 @@ describe('query getCandidatePreferences', () => {
       location: [],
       locationType: [1, 2, 3],
       employmentType: [1, 2, 3, 4],
-      companySize: [],
-      companyStage: [],
+      companySize: [1, 2, 3, 4, 5, 6, 7],
+      companyStage: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       customKeywords: false,
       keywords: [],
     });
