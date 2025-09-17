@@ -5797,7 +5797,9 @@ describe('opportunity', () => {
     );
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual('');
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
   });
 
   it('should not trigger on updated opportunity when state is not live', async () => {
