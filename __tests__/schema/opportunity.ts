@@ -1047,7 +1047,7 @@ describe('mutation candidateAddKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: 'NewKeyword' },
+        variables: { keyword: ['NewKeyword'] },
       },
       'UNAUTHENTICATED',
     );
@@ -1061,7 +1061,7 @@ describe('mutation candidateAddKeyword', () => {
     ).toBe(0);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: '  NewKeyword  ' },
+      variables: { keyword: ['  NewKeyword  '] },
     });
 
     expect(res.errors).toBeFalsy();
@@ -1090,7 +1090,7 @@ describe('mutation candidateAddKeyword', () => {
     ).toBe(1);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: '  ExistingKeyword  ' },
+      variables: { keyword: ['  ExistingKeyword  '] },
     });
 
     expect(res.errors).toBeFalsy();
@@ -1138,7 +1138,7 @@ describe('mutation candidateAddKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: '   ' },
+        variables: { keyword: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
@@ -1225,7 +1225,7 @@ describe('mutation candidateRemoveKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: 'SomeKeyword' },
+        variables: { keyword: ['SomeKeyword'] },
       },
       'UNAUTHENTICATED',
     );
@@ -1244,7 +1244,7 @@ describe('mutation candidateRemoveKeyword', () => {
     ).toBe(1);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: '   RemoveMe   ' },
+      variables: { keyword: ['   RemoveMe   '] },
     });
 
     expect(res.errors).toBeFalsy();
@@ -1263,7 +1263,7 @@ describe('mutation candidateRemoveKeyword', () => {
     ).toBe(0);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: 'NonExistingKeyword' },
+      variables: { keyword: ['NonExistingKeyword'] },
     });
 
     expect(res.errors).toBeFalsy();
@@ -1307,7 +1307,7 @@ describe('mutation candidateRemoveKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: '   ' },
+        variables: { keyword: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
