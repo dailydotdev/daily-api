@@ -1,20 +1,31 @@
 import { DeepPartial } from 'typeorm';
-import { Keyword } from '../../src/entity';
+import { Keyword, KeywordStatus } from '../../src/entity';
 import { postsFixture } from './post';
 
 export const keywordsFixture: DeepPartial<Keyword>[] = [
-  { value: 'webdev', occurrences: 100, status: 'allow' },
-  { value: 'development', occurrences: 200, status: 'allow' },
-  { value: 'fullstack', occurrences: 300, status: 'allow' },
-  { value: 'rust', occurrences: 5, status: 'allow' },
-  { value: 'golang', occurrences: 10, status: 'allow' },
+  {
+    value: 'webdev',
+    occurrences: 100,
+    status: KeywordStatus.Allow,
+    flags: {
+      title: 'Web Development',
+      roadmap: 'frontend',
+      onboarding: true,
+      description:
+        "Explore the world of web development with resources covering HTML, CSS, JavaScript, and web frameworks. This category offers tutorials, tips, and best practices for building responsive and interactive web applications. Whether you're a frontend developer, backend engineer, or full-stack developer, you'll find  content to help you stay updated with the latest web development technologies and techniques.",
+    },
+  },
+  { value: 'development', occurrences: 200, status: KeywordStatus.Allow },
+  { value: 'fullstack', occurrences: 300, status: KeywordStatus.Allow },
+  { value: 'rust', occurrences: 5, status: KeywordStatus.Allow },
+  { value: 'golang', occurrences: 10, status: KeywordStatus.Allow },
   {
     value: 'web-development',
     occurrences: 100,
-    status: 'synonym',
+    status: KeywordStatus.Synonym,
     synonym: 'webdev',
   },
-  { value: 'politics', occurrences: 100, status: 'deny' },
+  { value: 'politics', occurrences: 100, status: KeywordStatus.Deny },
   { value: 'pending' },
 ];
 
@@ -29,7 +40,7 @@ export const postRecommendedKeywordsFixture = postsFixture.reduce(
         acc.push({
           value: keyword,
           occurrences: 1,
-          status: 'allow',
+          status: KeywordStatus.Allow,
           createdAt: new Date(),
           updatedAt: new Date(),
           flags: {},

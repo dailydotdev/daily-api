@@ -68,6 +68,7 @@ import {
 import {
   DayOfWeek,
   debeziumTimeToDate,
+  demoCompany,
   notifyBannerCreated,
   notifyBannerRemoved,
   notifyCommentCommented,
@@ -177,6 +178,10 @@ import {
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import type z from 'zod';
 import type { entityReminderSchema } from '../../../src/common/schema/reminders';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../../../src/entity/contentPreference/ContentPreferenceOrganization';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -5664,6 +5669,62 @@ describe('opportunity', () => {
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
     );
+  });
+
+  it('should trigger opportunity job for demo company', async () => {
+    await con.getRepository(Feed).save([
+      { id: '1', userId: '1' },
+      { id: '2', userId: '2' },
+    ]);
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        feedId: '1',
+        userId: '1',
+        referenceId: demoCompany.id,
+        organizationId: demoCompany.id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Free,
+        createdAt: new Date(),
+      },
+      {
+        feedId: '2',
+        userId: '2',
+        referenceId: demoCompany.id,
+        organizationId: demoCompany.id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Plus,
+        createdAt: new Date(),
+      },
+    ]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440005',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: demoCompany.id,
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'gondul.v1.candidate-opportunity-match',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][2].userId).toEqual('1');
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'gondul.v1.candidate-opportunity-match',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][2].userId).toEqual('2');
   });
 
   it('should not trigger on new opportunity when state is not live', async () => {
