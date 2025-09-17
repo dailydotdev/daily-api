@@ -475,6 +475,9 @@ describe('query getCandidatePreferences', () => {
         companySize
         companyStage
         customKeywords
+        keywords {
+          keyword
+        }
       }
     }
   `;
@@ -514,6 +517,21 @@ describe('query getCandidatePreferences', () => {
       },
       {
         userId: '2',
+      },
+    ]);
+
+    await saveFixtures(con, UserCandidateKeyword, [
+      {
+        userId: '1',
+        keyword: 'JavaScript',
+      },
+      {
+        userId: '1',
+        keyword: 'Zig',
+      },
+      {
+        userId: '1',
+        keyword: 'NATS',
       },
     ]);
   });
@@ -556,6 +574,11 @@ describe('query getCandidatePreferences', () => {
       companyStage: [3, 4, 10],
       companySize: [3, 4],
       customKeywords: true,
+      keywords: expect.arrayContaining([
+        { keyword: 'JavaScript' },
+        { keyword: 'Zig' },
+        { keyword: 'NATS' },
+      ]),
     });
   });
 
@@ -584,6 +607,7 @@ describe('query getCandidatePreferences', () => {
       companySize: [],
       companyStage: [],
       customKeywords: false,
+      keywords: [],
     });
   });
 });
