@@ -539,7 +539,7 @@ export const updateModeratedPost = async (
   moderated: ModeratedPostCdc,
 ): Promise<ModeratedPostCdc | null> => {
   if (!moderated?.postId) {
-    logger.error('unable to update moderated post', { moderated });
+    logger.error({ moderated }, 'unable to update moderated post');
     return null;
   }
 
