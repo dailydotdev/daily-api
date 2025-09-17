@@ -237,6 +237,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
+      const status = !!ctx.userId
+        ? [KeywordStatus.Allow, KeywordStatus.Synonym]
+        : [KeywordStatus.Allow];
+
       return queryReadReplica(ctx.con, async ({ queryRunner }) =>
         queryRunner.manager
           .createQueryBuilder()
@@ -244,7 +248,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .addSelect(`COALESCE(k.flags->>'title', NULL)`, 'title')
           .from(Keyword, 'k')
           .where('k.status IN (:...status)', {
-            status: [KeywordStatus.Allow, KeywordStatus.Synonym],
+            status: status,
           })
           .andWhere('k.value ILIKE :query', { query: `%${data.query}%` })
           .orderBy(`(k.status <> '${KeywordStatus.Allow}')`, 'ASC')
