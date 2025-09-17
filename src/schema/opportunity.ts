@@ -215,14 +215,14 @@ export const typeDefs = /* GraphQL */ `
       """
       Keyword to add to candidate profile
       """
-      keyword: String!
+      keyword: [String!]!
     ): EmptyResponse @auth
 
     candidateRemoveKeyword(
       """
       Keyword to remove from candidate profile
       """
-      keyword: String!
+      keyword: [String!]!
     ): EmptyResponse @auth
   }
 `;
@@ -448,16 +448,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      await ctx.con.getRepository(UserCandidateKeyword).upsert(
-        {
-          userId: ctx.userId,
-          keyword: data.keyword,
-        },
-        {
-          conflictPaths: ['userId', 'keyword'],
-          skipUpdateIfNoValuesChanged: true,
-        },
-      );
+      const rows = data.keyword.map((keyword) => ({
+        userId: ctx.userId,
+        keyword,
+      }));
+
+      await ctx.con.getRepository(UserCandidateKeyword).upsert(rows, {
+        conflictPaths: ['userId', 'keyword'],
+        skipUpdateIfNoValuesChanged: true,
+      });
 
       return { _: true };
     },
@@ -472,10 +471,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      await ctx.con.getRepository(UserCandidateKeyword).delete({
+      const rows = data.keyword.map((keyword) => ({
         userId: ctx.userId,
-        keyword: data.keyword,
-      });
+        keyword,
+      }));
+
+      await ctx.con.getRepository(UserCandidateKeyword).delete(rows);
 
       return { _: true };
     },

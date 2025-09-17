@@ -1035,7 +1035,7 @@ describe('mutation acceptOpportunityMatch', () => {
 
 describe('mutation candidateAddKeyword', () => {
   const MUTATION = /* GraphQL */ `
-    mutation CandidateAddKeyword($keyword: String!) {
+    mutation CandidateAddKeyword($keyword: [String!]!) {
       candidateAddKeyword(keyword: $keyword) {
         _
       }
@@ -1130,11 +1130,36 @@ describe('mutation candidateAddKeyword', () => {
       await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
     ).toBe(0);
   });
+
+  it('should add multiple keywords to candidate profile', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual(
+      expect.arrayContaining([
+        { userId: '1', keyword: 'Keyword1' },
+        { userId: '1', keyword: 'Keyword2' },
+        { userId: '1', keyword: 'Keyword3' },
+      ]),
+    );
+  });
 });
 
 describe('mutation candidateRemoveKeyword', () => {
   const MUTATION = /* GraphQL */ `
-    mutation CandidateRemoveKeyword($keyword: String!) {
+    mutation CandidateRemoveKeyword($keyword: [String!]!) {
       candidateRemoveKeyword(keyword: $keyword) {
         _
       }
@@ -1218,5 +1243,31 @@ describe('mutation candidateRemoveKeyword', () => {
     expect(
       await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
     ).toBe(0);
+  });
+
+  it('should remove multiple keywords from candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert([
+      { userId: '1', keyword: 'Keyword1' },
+      { userId: '1', keyword: 'Keyword2' },
+      { userId: '1', keyword: 'Keyword3' },
+      { userId: '1', keyword: 'Keyword4' },
+    ]);
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(4);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual(expect.arrayContaining([{ userId: '1', keyword: 'Keyword4' }]));
   });
 });
