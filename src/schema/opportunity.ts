@@ -33,7 +33,12 @@ export interface GQLOpportunityMatch
   extends Pick<OpportunityMatch, 'status' | 'description'> {}
 
 export interface GQLUserCandidatePreference
-  extends Omit<UserCandidatePreference, 'id' | 'cvParsed'> {}
+  extends Omit<
+    UserCandidatePreference,
+    'userId' | 'user' | 'updatedAt' | 'cvParsed'
+  > {
+  keywords?: Array<{ keyword: string }>;
+}
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -278,11 +283,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserCandidatePreference> =>
-      graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ userId: ctx.userId });
-        return builder;
-      }),
+    ): Promise<GQLUserCandidatePreference> => {
+      const preferences = await graphorm.queryOne<GQLUserCandidatePreference>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ userId: ctx.userId });
+          return builder;
+        },
+      );
+
+      if (preferences) {
+        return preferences;
+      }
+
+      return {
+        ...new UserCandidatePreference(),
+        keywords: [],
+      };
+    },
   },
   Mutation: {
     updateCandidatePreferences: async (

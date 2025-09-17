@@ -32,3 +32,26 @@ export const protoEnumToConstant = <T>(
         .map((key) => [key, key]),
     ),
   ) as Readonly<Record<keyof T, keyof T>>;
+
+/**
+ * List all numeric values from a protobuf enum object.
+ *
+ * By default the function filters out the 'UNSPECIFIED' / zero value (commonly 0),
+ * but includeUnspecified=true will keep it.
+ *
+ * Example:
+ *   listAllProtoEnumValues(SomeProtoEnum) // -> [1,2,3]
+ *   listAllProtoEnumValues(SomeProtoEnum, true) // -> [0,1,2,3]
+ *
+ * @param value - protobuf enum object.
+ * @param includeUnspecified - when true, include zero (commonly "UNSPECIFIED") values.
+ * @returns array of numeric enum values.
+ */
+export const listAllProtoEnumValues = <T>(
+  value: T,
+  includeUnspecified = false,
+): number[] => {
+  return Object.values(value as unknown as Record<string, number>)
+    .filter((v) => !isNaN(Number(v)))
+    .filter((v) => includeUnspecified || v !== 0) as number[];
+};
