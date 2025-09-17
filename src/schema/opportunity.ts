@@ -217,6 +217,13 @@ export const typeDefs = /* GraphQL */ `
       """
       keyword: String!
     ): EmptyResponse @auth
+
+    candidateRemoveKeyword(
+      """
+      Keyword to remove from candidate profile
+      """
+      keyword: String!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -451,6 +458,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           skipUpdateIfNoValuesChanged: true,
         },
       );
+
+      return { _: true };
+    },
+    candidateRemoveKeyword: async (
+      _,
+      payload: z.infer<typeof userCandidateToggleKeywordSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { data, error } =
+        userCandidateToggleKeywordSchema.safeParse(payload);
+      if (error) {
+        throw error;
+      }
+
+      await ctx.con.getRepository(UserCandidateKeyword).delete({
+        userId: ctx.userId,
+        keyword: data.keyword,
+      });
 
       return { _: true };
     },

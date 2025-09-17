@@ -1107,3 +1107,92 @@ describe('mutation candidateAddKeyword', () => {
     ).toBe(0);
   });
 });
+
+describe('mutation candidateRemoveKeyword', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CandidateRemoveKeyword($keyword: String!) {
+      candidateRemoveKeyword(keyword: $keyword) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keyword: 'SomeKeyword' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should remove keyword from candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert({
+      userId: '1',
+      keyword: 'RemoveMe',
+    });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: '   RemoveMe   ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual([]);
+  });
+
+  it('should be idempotent if keyword does not exist', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: 'NonExistingKeyword' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+
+  it('should return error on empty keyword', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keyword: '   ' },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'Keyword cannot be empty',
+        );
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+});
