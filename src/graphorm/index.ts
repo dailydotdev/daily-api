@@ -1060,7 +1060,7 @@ const obj = new GraphORM({
     from: 'NotificationAvatarV2',
   },
   UserPost: {
-    requiredColumns: ['votedAt', 'awardTransactionId'],
+    requiredColumns: ['votedAt', 'awardTransactionId', 'pollVoteOptionId'],
     fields: {
       flags: {
         jsonType: true,

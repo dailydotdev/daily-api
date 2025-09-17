@@ -92,6 +92,7 @@ import {
 import { PollOption } from '../entity/polls/PollOption';
 import { GQLEmptyResponse, offsetPageGenerator } from './common';
 import {
+  ConflictError,
   NotFoundError,
   SubmissionFailErrorMessage,
   TransferError,
@@ -118,7 +119,7 @@ import { FileUpload } from 'graphql-upload/GraphQLUpload';
 import { insertOrIgnoreAction } from './actions';
 import { generateShortId, generateUUID } from '../ids';
 import { generateStorageKey, StorageTopic } from '../config';
-import { subDays } from 'date-fns';
+import { isBefore, subDays } from 'date-fns';
 import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
 import { PostCodeSnippetLanguage, UserVote } from '../types';
@@ -176,6 +177,7 @@ import {
 } from '../common/brief';
 import { pollCreationSchema } from '../common/schema/polls';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { PollPost } from '../entity/posts/PollPost';
 
 export interface GQLPollOption {
   id: string;
@@ -270,6 +272,7 @@ export interface GQLUserPost {
   flags?: UserPostFlagsPublic;
   votedAt: Date | null;
   awarded: boolean;
+  pollVoteOptionId?: string | null;
 }
 
 export interface GQLPostUpvoteArgs extends ConnectionArguments {
@@ -553,6 +556,10 @@ export const typeDefs = /* GraphQL */ `
     The transaction that was created for the award
     """
     awardTransaction: UserTransactionPublic
+    """
+    If the user voted on the poll, this is the option they voted for
+    """
+    pollOption: PollOption
   }
 
   type PostTranslation {
@@ -838,6 +845,10 @@ export const typeDefs = /* GraphQL */ `
     Date the poll ends
     """
     endsAt: DateTime
+    """
+    Total number of votes in the poll
+    """
+    numPollVotes: Int!
   }
 
   type PostConnection {
@@ -1350,6 +1361,19 @@ export const typeDefs = /* GraphQL */ `
   }
 
   extend type Mutation {
+    """
+    Vote on a poll
+    """
+    votePoll(
+      """
+      ID of the post containing the poll
+      """
+      postId: ID!
+      """
+      ID of the option to vote for
+      """
+      optionId: ID!
+    ): Post! @auth
     """
     To create post moderation item
     """
@@ -3492,6 +3516,49 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return getPostById(ctx, info, savedPost.id);
+    },
+    votePoll: async (
+      _,
+      args: { optionId: string; postId: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLPost> => {
+      const userPost = await ctx.con.getRepository(UserPost).findOne({
+        where: {
+          postId: args.postId,
+          userId: ctx.userId,
+        },
+        relations: ['post'],
+      });
+
+      let post: PollPost | undefined;
+      if (userPost) {
+        post = (await userPost.post) as PollPost;
+      } else {
+        post = await ctx.con.getRepository(PollPost).findOneByOrFail({
+          id: args.postId,
+        });
+      }
+
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      if (post.endsAt && isBefore(post.endsAt, new Date())) {
+        throw new ConflictError('Poll has ended');
+      }
+
+      const hasAlreadyVoted = !!userPost?.pollVoteOptionId;
+
+      if (hasAlreadyVoted) {
+        throw new ConflictError('User has already voted on this poll');
+      }
+
+      await ctx.con.getRepository(UserPost).save({
+        userId: ctx.userId,
+        postId: args.postId,
+        pollVoteOptionId: args.optionId,
+      });
+
+      return getPostById(ctx, info, args.postId);
     },
   },
   Subscription: {
