@@ -116,6 +116,10 @@ export const typeDefs = /* GraphQL */ `
     lastModified: DateTime
   }
 
+  type UserCandidateKeyword {
+    keyword: String!
+  }
+
   type UserCandidatePreference {
     status: ProtoEnumValue!
     cv: UserCV
@@ -128,6 +132,7 @@ export const typeDefs = /* GraphQL */ `
     companyStage: [ProtoEnumValue]!
     companySize: [ProtoEnumValue]!
     customKeywords: Boolean
+    keywords: [UserCandidateKeyword!]!
   }
 
   extend type Query {
