@@ -128,7 +128,7 @@ export const typeDefs = /* GraphQL */ `
     autocompleteKeywords(
       query: String!
       limit: Int = 20
-    ): [KeywordAutocomplete!]! @auth
+    ): [KeywordAutocomplete!]! @cacheControl(maxAge: 3600)
     """
     Get a keyword
     """
