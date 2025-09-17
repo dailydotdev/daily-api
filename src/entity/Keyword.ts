@@ -6,7 +6,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export type KeywordStatus = 'pending' | 'allow' | 'deny' | 'synonym';
+export enum KeywordStatus {
+  Pending = 'pending',
+  Allow = 'allow',
+  Deny = 'deny',
+  Synonym = 'synonym',
+}
 
 export type KeywordFlags = Partial<{
   onboarding: boolean;
@@ -28,6 +33,8 @@ export type KeywordFlagsPublic = Pick<
   'value',
   'occurrences',
 ])
+@Index('IDX_keyword_value_trgm_allow_synonym', { synchronize: false })
+@Index('IDX_keyword_status_occ_value', { synchronize: false })
 export class Keyword {
   @PrimaryColumn({ type: 'text' })
   @Index('IDX_keyword_value')
