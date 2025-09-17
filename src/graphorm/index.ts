@@ -1594,6 +1594,13 @@ const obj = new GraphORM({
       location: {
         jsonType: true,
       },
+      keywords: {
+        relation: {
+          isMany: true,
+          parentColumn: 'userId',
+          childColumn: 'userId',
+        },
+      },
     },
   },
 });
