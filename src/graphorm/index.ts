@@ -1,3 +1,4 @@
+import { PollOption } from './../entity/polls/PollOption';
 import { getPermissionsForMember } from '../schema/sources';
 import { GraphORM, GraphORMField, QueryBuilder } from './graphorm';
 import {
@@ -638,6 +639,10 @@ const obj = new GraphORM({
               .limit(1);
           },
         },
+      },
+      pollOptions: {
+        transform: (value: PollOption[]) =>
+          value?.sort((a, b) => a.order - b.order),
       },
     },
   },
