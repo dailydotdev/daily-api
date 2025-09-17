@@ -26,7 +26,7 @@ import {
   ClickHouseSync,
   ClickHouseSyncConfig,
   ApplicationSuiteArgs,
-  type AdditionalSecret,
+  AdditionalSecret,
 } from '@dailydotdev/pulumi-common';
 import { getSecretVersionOutput } from '@pulumi/gcp/secretmanager/getSecretVersion';
 
