@@ -1907,7 +1907,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       if (generatedUsernames.length === 0) {
-        ctx.log.info('usernameChecks', usernameChecks);
+        ctx.log.info(usernameChecks, 'usernameChecks');
         return '';
       }
 
