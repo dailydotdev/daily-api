@@ -211,18 +211,18 @@ export const typeDefs = /* GraphQL */ `
       id: ID!
     ): EmptyResponse @auth
 
-    candidateAddKeyword(
+    candidateAddKeywords(
       """
-      Keyword to add to candidate profile
+      Keywords to add to candidate profile
       """
-      keyword: [String!]!
+      keywords: [String!]!
     ): EmptyResponse @auth
 
-    candidateRemoveKeyword(
+    candidateRemoveKeywords(
       """
-      Keyword to remove from candidate profile
+      Keywords to remove from candidate profile
       """
-      keyword: [String!]!
+      keywords: [String!]!
     ): EmptyResponse @auth
   }
 `;
@@ -437,7 +437,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
-    candidateAddKeyword: async (
+    candidateAddKeywords: async (
       _,
       payload: z.infer<typeof userCandidateToggleKeywordSchema>,
       ctx: AuthContext,
@@ -448,7 +448,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      const rows = data.keyword.map((keyword) => ({
+      const rows = data.keywords.map((keyword) => ({
         userId: ctx.userId,
         keyword,
       }));
@@ -460,7 +460,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
-    candidateRemoveKeyword: async (
+    candidateRemoveKeywords: async (
       _,
       payload: z.infer<typeof userCandidateToggleKeywordSchema>,
       ctx: AuthContext,
@@ -471,7 +471,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      const rows = data.keyword.map((keyword) => ({
+      const rows = data.keywords.map((keyword) => ({
         userId: ctx.userId,
         keyword,
       }));

@@ -75,7 +75,7 @@ export const candidatePreferenceSchema = z.object({
 });
 
 export const userCandidateToggleKeywordSchema = z.object({
-  keyword: z
+  keywords: z
     .array(z.string().trim().min(1, 'Keyword cannot be empty'))
     .min(1, 'At least one keyword is required')
     .max(100, 'Too many keywords provided'),

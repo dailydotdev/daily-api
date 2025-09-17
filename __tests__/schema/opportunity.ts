@@ -1033,10 +1033,10 @@ describe('mutation acceptOpportunityMatch', () => {
   });
 });
 
-describe('mutation candidateAddKeyword', () => {
+describe('mutation candidateAddKeywords', () => {
   const MUTATION = /* GraphQL */ `
-    mutation CandidateAddKeyword($keyword: [String!]!) {
-      candidateAddKeyword(keyword: $keyword) {
+    mutation CandidateAddKeywords($keywords: [String!]!) {
+      candidateAddKeywords(keywords: $keywords) {
         _
       }
     }
@@ -1047,7 +1047,7 @@ describe('mutation candidateAddKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: ['NewKeyword'] },
+        variables: { keywords: ['NewKeyword'] },
       },
       'UNAUTHENTICATED',
     );
@@ -1061,11 +1061,11 @@ describe('mutation candidateAddKeyword', () => {
     ).toBe(0);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['  NewKeyword  '] },
+      variables: { keywords: ['  NewKeyword  '] },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+    expect(res.data.candidateAddKeywords).toEqual({ _: true });
 
     expect(
       await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
@@ -1090,11 +1090,11 @@ describe('mutation candidateAddKeyword', () => {
     ).toBe(1);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['  ExistingKeyword  '] },
+      variables: { keywords: ['  ExistingKeyword  '] },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+    expect(res.data.candidateAddKeywords).toEqual({ _: true });
 
     expect(
       await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
@@ -1114,11 +1114,11 @@ describe('mutation candidateAddKeyword', () => {
     ).toBe(0);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+      variables: { keywords: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+    expect(res.data.candidateAddKeywords).toEqual({ _: true });
 
     expect(
       await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
@@ -1138,7 +1138,7 @@ describe('mutation candidateAddKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: ['   '] },
+        variables: { keywords: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
@@ -1164,7 +1164,7 @@ describe('mutation candidateAddKeyword', () => {
       {
         mutation: MUTATION,
         variables: {
-          keyword: [],
+          keywords: [],
         },
       },
       'ZOD_VALIDATION_ERROR',
@@ -1191,7 +1191,7 @@ describe('mutation candidateAddKeyword', () => {
       {
         mutation: MUTATION,
         variables: {
-          keyword: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
+          keywords: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
         },
       },
       'ZOD_VALIDATION_ERROR',
@@ -1211,10 +1211,10 @@ describe('mutation candidateAddKeyword', () => {
   });
 });
 
-describe('mutation candidateRemoveKeyword', () => {
+describe('mutation candidateRemoveKeywords', () => {
   const MUTATION = /* GraphQL */ `
-    mutation CandidateRemoveKeyword($keyword: [String!]!) {
-      candidateRemoveKeyword(keyword: $keyword) {
+    mutation CandidateRemoveKeywords($keywords: [String!]!) {
+      candidateRemoveKeywords(keywords: $keywords) {
         _
       }
     }
@@ -1225,7 +1225,7 @@ describe('mutation candidateRemoveKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: ['SomeKeyword'] },
+        variables: { keywords: ['SomeKeyword'] },
       },
       'UNAUTHENTICATED',
     );
@@ -1244,11 +1244,11 @@ describe('mutation candidateRemoveKeyword', () => {
     ).toBe(1);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['   RemoveMe   '] },
+      variables: { keywords: ['   RemoveMe   '] },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+    expect(res.data.candidateRemoveKeywords).toEqual({ _: true });
 
     expect(
       await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
@@ -1263,11 +1263,11 @@ describe('mutation candidateRemoveKeyword', () => {
     ).toBe(0);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['NonExistingKeyword'] },
+      variables: { keywords: ['NonExistingKeyword'] },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+    expect(res.data.candidateRemoveKeywords).toEqual({ _: true });
 
     expect(
       await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
@@ -1289,11 +1289,11 @@ describe('mutation candidateRemoveKeyword', () => {
     ).toBe(4);
 
     const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+      variables: { keywords: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+    expect(res.data.candidateRemoveKeywords).toEqual({ _: true });
 
     expect(
       await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
@@ -1307,7 +1307,7 @@ describe('mutation candidateRemoveKeyword', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { keyword: ['   '] },
+        variables: { keywords: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
@@ -1333,7 +1333,7 @@ describe('mutation candidateRemoveKeyword', () => {
       {
         mutation: MUTATION,
         variables: {
-          keyword: [],
+          keywords: [],
         },
       },
       'ZOD_VALIDATION_ERROR',
@@ -1360,7 +1360,7 @@ describe('mutation candidateRemoveKeyword', () => {
       {
         mutation: MUTATION,
         variables: {
-          keyword: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
+          keywords: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
         },
       },
       'ZOD_VALIDATION_ERROR',
