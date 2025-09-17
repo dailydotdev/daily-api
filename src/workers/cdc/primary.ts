@@ -154,6 +154,7 @@ import {
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
+import { PollPost } from '../../entity/posts/PollPost';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -553,6 +554,21 @@ const onPostChange = async (
         await notifyFreeformContentRequested(logger, freeform);
       }
     }
+    if (data.payload.after!.type === PostType.Poll) {
+      const now = Date.now();
+      const poll = data as ChangeMessage<PollPost>;
+      const after = poll.payload.after!;
+      const notificationTime =
+        after.endsAt?.getTime() ||
+        new Date(now + 14 * 24 * 60 * 60 * 1000).getTime();
+
+      await runEntityReminderWorkflow({
+        entityId: after!.id,
+        entityTableName: getTableName(con, PollPost),
+        scheduledAtMs: now,
+        delayMs: notificationTime - now,
+      });
+    }
   } else if (data.payload.op === 'u') {
     await notifyPostContentUpdated({ con, post: data.payload.after! });
 
@@ -572,6 +588,18 @@ const onPostChange = async (
           await notifyPostContentEdited(logger, data.payload.after!);
         }
       }
+    }
+
+    if (
+      data.payload.after!.type === PostType.Poll &&
+      data.payload.after!.deleted
+    ) {
+      cancelEntityReminderWorkflow({
+        entityId: data.payload.after!.id,
+        entityTableName: getTableName(con, PollPost),
+        scheduledAtMs: 0,
+        delayMs: 0,
+      });
     }
 
     if (data.payload.after!.type === PostType.Collection) {
