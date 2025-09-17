@@ -78,5 +78,5 @@ export const userCandidateToggleKeywordSchema = z.object({
   keyword: z
     .array(z.string().trim().min(1, 'Keyword cannot be empty'))
     .min(1, 'At least one keyword is required')
-    .max(100, 'Maximum 100 keywords allowed'),
+    .max(100, 'Too many keywords provided'),
 });

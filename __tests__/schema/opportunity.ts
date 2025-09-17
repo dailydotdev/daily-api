@@ -1106,6 +1106,31 @@ describe('mutation candidateAddKeyword', () => {
     ]);
   });
 
+  it('should add multiple keywords to candidate profile', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual(
+      expect.arrayContaining([
+        { userId: '1', keyword: 'Keyword1' },
+        { userId: '1', keyword: 'Keyword2' },
+        { userId: '1', keyword: 'Keyword3' },
+      ]),
+    );
+  });
+
   it('should return error on empty keyword', async () => {
     loggedUser = '1';
 
@@ -1131,29 +1156,58 @@ describe('mutation candidateAddKeyword', () => {
     ).toBe(0);
   });
 
-  it('should add multiple keywords to candidate profile', async () => {
+  it('should return error when no keywords', async () => {
     loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keyword: [],
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'At least one keyword is required',
+        );
+      },
+    );
 
     expect(
       await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
     ).toBe(0);
+  });
 
-    const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
-    });
+  it('should return error on too many keywords', async () => {
+    loggedUser = '1';
 
-    expect(res.errors).toBeFalsy();
-    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keyword: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('too_big');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'Too many keywords provided',
+        );
+      },
+    );
 
     expect(
-      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
-    ).toEqual(
-      expect.arrayContaining([
-        { userId: '1', keyword: 'Keyword1' },
-        { userId: '1', keyword: 'Keyword2' },
-        { userId: '1', keyword: 'Keyword3' },
-      ]),
-    );
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
   });
 });
 
@@ -1220,6 +1274,32 @@ describe('mutation candidateRemoveKeyword', () => {
     ).toBe(0);
   });
 
+  it('should remove multiple keywords from candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert([
+      { userId: '1', keyword: 'Keyword1' },
+      { userId: '1', keyword: 'Keyword2' },
+      { userId: '1', keyword: 'Keyword3' },
+      { userId: '1', keyword: 'Keyword4' },
+    ]);
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(4);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual(expect.arrayContaining([{ userId: '1', keyword: 'Keyword4' }]));
+  });
+
   it('should return error on empty keyword', async () => {
     loggedUser = '1';
 
@@ -1245,29 +1325,57 @@ describe('mutation candidateRemoveKeyword', () => {
     ).toBe(0);
   });
 
-  it('should remove multiple keywords from candidate profile', async () => {
+  it('should return error when no keywords', async () => {
     loggedUser = '1';
 
-    await con.getRepository(UserCandidateKeyword).insert([
-      { userId: '1', keyword: 'Keyword1' },
-      { userId: '1', keyword: 'Keyword2' },
-      { userId: '1', keyword: 'Keyword3' },
-      { userId: '1', keyword: 'Keyword4' },
-    ]);
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keyword: [],
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'At least one keyword is required',
+        );
+      },
+    );
 
     expect(
       await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
-    ).toBe(4);
+    ).toBe(0);
+  });
 
-    const res = await client.mutate(MUTATION, {
-      variables: { keyword: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
-    });
+  it('should return error on too many keywords', async () => {
+    loggedUser = '1';
 
-    expect(res.errors).toBeFalsy();
-    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keyword: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('too_big');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'Too many keywords provided',
+        );
+      },
+    );
 
     expect(
-      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
-    ).toEqual(expect.arrayContaining([{ userId: '1', keyword: 'Keyword4' }]));
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
   });
 });
