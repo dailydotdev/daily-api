@@ -74,6 +74,7 @@ declare global {
       APPLE_APP_BUNDLE_ID: string;
 
       GEOIP_PATH?: string;
+      RESUME_BUCKET_NAME: string;
     }
   }
 }
