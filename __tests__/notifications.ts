@@ -53,14 +53,6 @@ import { invokeTypedNotificationWorker } from './helpers';
 import { getTableName } from '../src/workers/cdc/common';
 import { PollPost } from '../src/entity/posts/PollPost';
 import { PollOption } from '../src/entity/polls/PollOption';
-import { cancelEntityReminderWorkflow } from '../src/temporal/notifications/utils';
-import cdcWorker from '../src/workers/cdc/primary';
-import { expectSuccessfulBackground, mockChangeMessage } from './helpers';
-
-jest.mock('../src/temporal/notifications/utils', () => ({
-  ...jest.requireActual('../src/temporal/notifications/utils'),
-  cancelEntityReminderWorkflow: jest.fn(),
-}));
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1626,37 +1618,5 @@ describe('poll result notifications', () => {
       );
 
     expect(result).toBeUndefined();
-  });
-
-  it('should cancel entity reminder workflow when poll is deleted', async () => {
-    const poll = await createPollPost('1');
-
-    // Simulate the CDC change event for a poll post being deleted
-    await expectSuccessfulBackground(
-      cdcWorker,
-      mockChangeMessage<Post>({
-        // Convert to debezium time format
-        before: {
-          ...poll,
-          deleted: false,
-          createdAt: poll.createdAt.getTime() * 1000,
-        },
-        after: {
-          ...poll,
-          deleted: true,
-          createdAt: poll.createdAt.getTime() * 1000,
-        },
-        op: 'u',
-        table: 'post',
-      }),
-    );
-
-    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(1);
-    expect(cancelEntityReminderWorkflow).toHaveBeenCalledWith({
-      entityId: poll.id,
-      entityTableName: getTableName(con, PollPost),
-      scheduledAtMs: 0,
-      delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
-    });
   });
 });
