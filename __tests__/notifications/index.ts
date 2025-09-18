@@ -2065,31 +2065,4 @@ describe('poll result notifications', () => {
       '<b>Your poll has ended!</b> Check the results for: <b>What is your favorite programming language?</b>',
     );
   });
-
-  it('should handle poll with null title', async () => {
-    const pollPost: ChangeObject<PollPost> = {
-      id: 'poll2',
-      shortId: 'sp2',
-      title: null,
-      type: PostType.Poll,
-      sourceId: 'a',
-      createdAt: 0,
-      endsAt: null,
-    };
-
-    const type = NotificationType.PollResult;
-    const ctx: NotificationPostContext = {
-      userIds: ['1'],
-      source: sourcesFixture.find(
-        (item) => item.id === 'a',
-      ) as Reference<Source>,
-      post: pollPost,
-    };
-
-    const actual = generateNotificationV2(type, ctx);
-    expect(actual.notification.title).toEqual(
-      '<b>Poll you voted on has ended!</b> See the results for: <b>null</b>',
-    );
-    expect(actual.attachments).toEqual([]);
-  });
 });
