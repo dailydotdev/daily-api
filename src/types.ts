@@ -74,6 +74,7 @@ declare global {
 
       GEOIP_PATH?: string;
       RESUME_BUCKET_NAME: string;
+      EMPLOYMENT_AGREEMENT_BUCKET_NAME: string;
     }
   }
 }

@@ -5,12 +5,13 @@ import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Opportunity, OpportunityState } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { toGQLEnum } from '../common';
+import { isProd, toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
+  uploadEmploymentAgreementSchema,
   userCandidateToggleKeywordSchema,
 } from '../common/schema/userCandidate';
 import { Alerts } from '../entity';
@@ -19,6 +20,8 @@ import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
 import { ConflictError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
+import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
+import { uploadEmploymentAgreementFromBuffer } from '../common/googleCloud';
 
 export interface GQLOpportunity
   extends Pick<
@@ -119,8 +122,9 @@ export const typeDefs = /* GraphQL */ `
     description: OpportunityMatchDescription!
   }
 
-  type UserCV {
+  type GCSBlob {
     blob: String
+    fileName: String
     contentType: String
     lastModified: DateTime
   }
@@ -131,7 +135,8 @@ export const typeDefs = /* GraphQL */ `
 
   type UserCandidatePreference {
     status: ProtoEnumValue!
-    cv: UserCV
+    cv: GCSBlob
+    employmentAgreement: GCSBlob
     role: String
     roleType: Float
     employmentType: [ProtoEnumValue]!
@@ -229,6 +234,13 @@ export const typeDefs = /* GraphQL */ `
       """
       keywords: [String!]!
     ): EmptyResponse @auth
+
+    uploadEmploymentAgreement(
+      """
+      Asset to upload
+      """
+      file: Upload!
+    ): EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
   }
 `;
 
@@ -496,6 +508,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }));
 
       await ctx.con.getRepository(UserCandidateKeyword).delete(rows);
+
+      return { _: true };
+    },
+    uploadEmploymentAgreement: async (
+      _,
+      payload: z.infer<typeof uploadEmploymentAgreementSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { data, error } =
+        await uploadEmploymentAgreementSchema.safeParseAsync(payload);
+      if (error) {
+        throw error;
+      }
+
+      const { file } = data;
+
+      const prefix = isProd ? '' : 'employmentAgreement';
+      const filename = `${prefix}/${ctx.userId}`;
+      await uploadEmploymentAgreementFromBuffer(filename, file.buffer, {
+        contentType: file.mimetype,
+      });
+
+      await ctx.con.getRepository(UserCandidatePreference).upsert(
+        {
+          userId: ctx.userId,
+          employmentAgreement: {
+            blob: filename,
+            fileName: file.filename,
+            contentType: file.mimetype,
+            bucket: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+            lastModified: new Date(),
+          },
+        },
+        {
+          conflictPaths: ['userId'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
 
       return { _: true };
     },

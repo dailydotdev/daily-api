@@ -28,6 +28,8 @@ export const submissionAccessThreshold = parseInt(
 );
 
 export const RESUME_BUCKET_NAME = process.env.RESUME_BUCKET_NAME;
+export const EMPLOYMENT_AGREEMENT_BUCKET_NAME =
+  process.env.EMPLOYMENT_AGREEMENT_BUCKET_NAME;
 
 export enum StorageTopic {
   Boot = 'boot',

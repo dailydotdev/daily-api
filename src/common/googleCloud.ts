@@ -10,7 +10,10 @@ import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
 import { logger } from '../logger';
-import { RESUME_BUCKET_NAME } from '../config';
+import {
+  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  RESUME_BUCKET_NAME,
+} from '../config';
 
 export const downloadFile = async ({
   url,
@@ -65,6 +68,19 @@ export const uploadResumeFromBuffer = async (
 ): Promise<string> => {
   return uploadFileFromBuffer({
     bucketName: RESUME_BUCKET_NAME,
+    fileName,
+    file,
+    options,
+  });
+};
+
+export const uploadEmploymentAgreementFromBuffer = async (
+  fileName: string,
+  file: Buffer,
+  options?: SaveOptions,
+): Promise<string> => {
+  return uploadFileFromBuffer({
+    bucketName: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
     fileName,
     file,
     options,
