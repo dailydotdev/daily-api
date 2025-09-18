@@ -639,11 +639,16 @@ const obj = new GraphORM({
           },
         },
       },
+      pollOptions: {
+        relation: {
+          isMany: true,
+          sort: 'order',
+          order: 'ASC',
+          parentColumn: 'id',
+          childColumn: 'postId',
+        },
+      },
     },
-  },
-  PollOption: {
-    requiredColumns: ['order'],
-    additionalQuery: (_, alias, qb) => qb.orderBy(`"${alias}".order`, 'ASC'),
   },
   SourceCategory: {
     requiredColumns: ['createdAt'],
