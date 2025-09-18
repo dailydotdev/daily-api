@@ -1,3 +1,4 @@
+import type { ZodError } from 'zod';
 import { DataSource, IsNull } from 'typeorm';
 import { User, Keyword, Alerts } from '../../src/entity';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
@@ -41,6 +42,10 @@ import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePref
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
 import type { GQLOpportunity } from '../../src/schema/opportunity';
 import { UserCandidateKeyword } from '../../src/entity/user/UserCandidateKeyword';
+import * as googleCloud from '../../src/common/googleCloud';
+import { Bucket } from '@google-cloud/storage';
+
+const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -754,7 +759,8 @@ describe('mutation updateCandidatePreferences', () => {
     expect(res.errors).toBeTruthy();
     expect(res.data.updateCandidatePreferences).toEqual(null);
 
-    const errors = res.errors[0].extensions.issues.map((issue) => [
+    const extensions = res?.errors?.[0].extensions as unknown as ZodError;
+    const errors = extensions.issues.map((issue) => [
       issue.message,
       issue.path[0],
     ]);
@@ -789,7 +795,8 @@ describe('mutation updateCandidatePreferences', () => {
     expect(res.errors).toBeTruthy();
     expect(res.data.updateCandidatePreferences).toEqual(null);
 
-    const errors = res.errors[0].extensions.issues.map((issue) => [
+    const extensions = res?.errors?.[0].extensions as unknown as ZodError;
+    const errors = extensions.issues.map((issue) => [
       issue.message,
       issue.path[0],
     ]);
@@ -940,9 +947,10 @@ describe('mutation saveOpportunityScreeningAnswers', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('custom');
-        expect(errors[0].extensions.issues[0].message).toEqual(
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('custom');
+        expect(extensions.issues[0].message).toEqual(
           'Duplicate questionId 750e8400-e29b-41d4-a716-446655440001',
         );
       },
@@ -1192,11 +1200,10 @@ describe('mutation candidateAddKeywords', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
-        expect(errors[0].extensions.issues[0].message).toEqual(
-          'Keyword cannot be empty',
-        );
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual('Keyword cannot be empty');
       },
     );
 
@@ -1219,9 +1226,10 @@ describe('mutation candidateAddKeywords', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
-        expect(errors[0].extensions.issues[0].message).toEqual(
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual(
           'At least one keyword is required',
         );
       },
@@ -1246,9 +1254,10 @@ describe('mutation candidateAddKeywords', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('too_big');
-        expect(errors[0].extensions.issues[0].message).toEqual(
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_big');
+        expect(extensions.issues[0].message).toEqual(
           'Too many keywords provided',
         );
       },
@@ -1361,11 +1370,10 @@ describe('mutation candidateRemoveKeywords', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
-        expect(errors[0].extensions.issues[0].message).toEqual(
-          'Keyword cannot be empty',
-        );
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual('Keyword cannot be empty');
       },
     );
 
@@ -1388,9 +1396,10 @@ describe('mutation candidateRemoveKeywords', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
-        expect(errors[0].extensions.issues[0].message).toEqual(
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual(
           'At least one keyword is required',
         );
       },
@@ -1415,9 +1424,10 @@ describe('mutation candidateRemoveKeywords', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('too_big');
-        expect(errors[0].extensions.issues[0].message).toEqual(
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_big');
+        expect(extensions.issues[0].message).toEqual(
           'Too many keywords provided',
         );
       },
@@ -1426,5 +1436,77 @@ describe('mutation candidateRemoveKeywords', () => {
     expect(
       await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
     ).toBe(0);
+  });
+});
+
+describe('mutation clearEmploymentAgreement', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearEmploymentAgreement {
+      clearEmploymentAgreement {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, UserCandidatePreference, [
+      {
+        userId: '1',
+        employmentAgreement: { blob: 'blobname' },
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should delete user employment agreement if it exists', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION);
+
+    expect(deleteFileFromBucket).toHaveBeenCalledWith(
+      expect.any(Bucket),
+      'employment-agreement/1',
+    );
+
+    const ucp = await con
+      .getRepository(UserCandidatePreference)
+      .findOneByOrFail({
+        userId: loggedUser,
+      });
+
+    expect(ucp.cv).toEqual({});
+    expect(ucp.cvParsed).toEqual({});
+  });
+
+  it('should handle case when user has no candidate preferences', async () => {
+    loggedUser = '2';
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({
+        userId: loggedUser,
+      }),
+    ).toEqual(0);
+
+    await client.mutate(MUTATION);
+
+    expect(deleteFileFromBucket).toHaveBeenCalledWith(
+      expect.any(Bucket),
+      'employment-agreement/2',
+    );
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({
+        userId: loggedUser,
+      }),
+    ).toEqual(0);
   });
 });
