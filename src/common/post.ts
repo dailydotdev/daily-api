@@ -253,7 +253,7 @@ interface CreatePollPostArgs {
     title: string;
     sourceId: string;
     authorId: string;
-    duration?: number;
+    duration?: number | null;
     pollOptions: CreatePollOption[];
   };
 }
@@ -365,7 +365,7 @@ export interface CreateSourcePostModeration
   externalLink?: string | null;
   postId?: string;
   pollOptions?: CreatePollOption[];
-  duration?: number;
+  duration?: number | null;
 }
 
 interface CreateSourcePostModerationProps {
@@ -801,7 +801,7 @@ export const validateSourcePostModeration = async (
     externalLink,
     createdById: userId,
     pollOptions,
-    duration,
+    duration: duration || null, // to clear if left empty (no duration),
   };
 
   const mentions = await getMentions(con, content, userId, sourceId);

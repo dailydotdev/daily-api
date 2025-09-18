@@ -148,5 +148,5 @@ export class SourcePostModeration {
   pollOptions?: CreatePollOption[];
 
   @Column({ default: null })
-  duration?: number;
+  duration?: number | null;
 }
