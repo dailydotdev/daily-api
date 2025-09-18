@@ -147,6 +147,6 @@ export class SourcePostModeration {
   @Column({ type: 'jsonb', default: null })
   pollOptions?: CreatePollOption[];
 
-  @Column({ default: null })
+  @Column({ type: 'integer', default: null })
   duration?: number | null;
 }
