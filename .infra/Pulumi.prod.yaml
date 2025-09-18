@@ -166,6 +166,8 @@ config:
       secure: AAABAAysCHiW8/lYE8NP3D9CE2UBE8YJdDZKf4B7aYVygfgyUAj9rk52klyHA26/jRtBW5pzCTTMHTatBm+ABdMTajgGy1GZ3yYkXMwzhhbJo30a+pq18vYGcx0F04MI
     clickhouseUrl:
       secure: AAABAOH/zIUW1KRNkCa3XH3Wxrs/GLDTjOeXsHqlDPoGowQC04O958oU8MXxtE0OeiNoHjTm/e6PrEr66nluAeEcwV0BhQLvVAAoP3L150tQNUU=
+    resumeBucketName:
+      secure: AAABAP/5px9eOttfTK97ljmZ5PS5aVJcFGjhahnko+DJKBmbJgVcGA4V11ZLxVP1QA==
   api:k8s:
     host: subs.daily.dev
     namespace: daily
