@@ -33,7 +33,12 @@ export interface GQLOpportunityMatch
   extends Pick<OpportunityMatch, 'status' | 'description'> {}
 
 export interface GQLUserCandidatePreference
-  extends Omit<UserCandidatePreference, 'id' | 'cvParsed'> {}
+  extends Omit<
+    UserCandidatePreference,
+    'userId' | 'user' | 'updatedAt' | 'cvParsed'
+  > {
+  keywords?: Array<{ keyword: string }>;
+}
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -211,18 +216,18 @@ export const typeDefs = /* GraphQL */ `
       id: ID!
     ): EmptyResponse @auth
 
-    candidateAddKeyword(
+    candidateAddKeywords(
       """
-      Keyword to add to candidate profile
+      Keywords to add to candidate profile
       """
-      keyword: String!
+      keywords: [String!]!
     ): EmptyResponse @auth
 
-    candidateRemoveKeyword(
+    candidateRemoveKeywords(
       """
-      Keyword to remove from candidate profile
+      Keywords to remove from candidate profile
       """
-      keyword: String!
+      keywords: [String!]!
     ): EmptyResponse @auth
   }
 `;
@@ -278,11 +283,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserCandidatePreference> =>
-      graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ userId: ctx.userId });
-        return builder;
-      }),
+    ): Promise<GQLUserCandidatePreference> => {
+      const preferences = await graphorm.queryOne<GQLUserCandidatePreference>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ userId: ctx.userId });
+          return builder;
+        },
+      );
+
+      if (preferences) {
+        return preferences;
+      }
+
+      return {
+        ...new UserCandidatePreference(),
+        keywords: [],
+      };
+    },
   },
   Mutation: {
     updateCandidatePreferences: async (
@@ -437,7 +456,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
-    candidateAddKeyword: async (
+    candidateAddKeywords: async (
       _,
       payload: z.infer<typeof userCandidateToggleKeywordSchema>,
       ctx: AuthContext,
@@ -448,20 +467,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      await ctx.con.getRepository(UserCandidateKeyword).upsert(
-        {
-          userId: ctx.userId,
-          keyword: data.keyword,
-        },
-        {
-          conflictPaths: ['userId', 'keyword'],
-          skipUpdateIfNoValuesChanged: true,
-        },
-      );
+      const rows = data.keywords.map((keyword) => ({
+        userId: ctx.userId,
+        keyword,
+      }));
+
+      await ctx.con.getRepository(UserCandidateKeyword).upsert(rows, {
+        conflictPaths: ['userId', 'keyword'],
+        skipUpdateIfNoValuesChanged: true,
+      });
 
       return { _: true };
     },
-    candidateRemoveKeyword: async (
+    candidateRemoveKeywords: async (
       _,
       payload: z.infer<typeof userCandidateToggleKeywordSchema>,
       ctx: AuthContext,
@@ -472,10 +490,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      await ctx.con.getRepository(UserCandidateKeyword).delete({
+      const rows = data.keywords.map((keyword) => ({
         userId: ctx.userId,
-        keyword: data.keyword,
-      });
+        keyword,
+      }));
+
+      await ctx.con.getRepository(UserCandidateKeyword).delete(rows);
 
       return { _: true };
     },

@@ -74,9 +74,6 @@ export const feedClient = new FeedClient(process.env.INTERNAL_FEED, {
 export const lofnClient = new LofnClient(process.env.LOFN_ORIGIN, {
   garmr: garmLofnService,
 });
-export const popularFeedClient = new FeedClient(process.env.POPULAR_FEED, {
-  garmr: garmFeedService,
-});
 
 const opts: Options = {
   includeBlockedTags: true,
