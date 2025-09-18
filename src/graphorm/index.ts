@@ -639,6 +639,15 @@ const obj = new GraphORM({
           },
         },
       },
+      pollOptions: {
+        relation: {
+          isMany: true,
+          sort: 'order',
+          order: 'ASC',
+          parentColumn: 'id',
+          childColumn: 'postId',
+        },
+      },
     },
   },
   SourceCategory: {
