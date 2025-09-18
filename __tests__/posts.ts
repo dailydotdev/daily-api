@@ -4568,8 +4568,8 @@ describe('mutation createSourcePostModeration', () => {
     await saveSquadFixtures();
   });
 
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $externalLink: String, $postId: ID) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, externalLink: $externalLink, postId: $postId) {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $externalLink: String, $postId: ID, $pollOptions: [PollOptionInput!], $duration: Int) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, externalLink: $externalLink, postId: $postId, pollOptions: $pollOptions, duration: $duration) {
       id
       title
       content
@@ -4851,6 +4851,219 @@ describe('mutation createSourcePostModeration', () => {
         .findOneByOrFail({ id });
       expect(moderation.status).toEqual(SourcePostModerationStatus.Pending);
       expect(moderation.flags.vordr).toEqual(true);
+    });
+  });
+
+  describe('poll type posts', () => {
+    const defaultPollOptions = [
+      { text: 'Option 1', order: 0 },
+      { text: 'Option 2', order: 1 },
+      { text: 'Option 3', order: 2 },
+    ];
+
+    const pollParams = {
+      sourceId: 'm',
+      title: 'My poll question',
+      type: PostType.Poll,
+      pollOptions: defaultPollOptions,
+    };
+
+    it('should create poll source post moderation successfully', async () => {
+      loggedUser = '4';
+
+      const res = await client.mutate(MUTATION, {
+        variables: pollParams,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.title).toEqual(
+        'My poll question',
+      );
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Poll);
+      expect(res.data.createSourcePostModeration.source.permalink).toBeTruthy();
+
+      // Verify poll options were saved
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOne({ where: { id: moderationId }, select: ['pollOptions'] });
+      expect(moderation?.pollOptions).toHaveLength(3);
+      expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+        'Option 1',
+        'Option 2',
+        'Option 3',
+      ]);
+    });
+
+    it('should fail to create poll without poll options', async () => {
+      loggedUser = '4';
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: undefined,
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with less than 2 options', async () => {
+      loggedUser = '4';
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: [{ text: 'Only one option', order: 0 }],
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with more than 4 options', async () => {
+      loggedUser = '4';
+
+      const tooManyOptions = [
+        ...defaultPollOptions,
+        { text: 'Option 4', order: 3 },
+        { text: 'Option 5', order: 4 },
+      ];
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: tooManyOptions,
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with empty option text', async () => {
+      loggedUser = '4';
+
+      const invalidOptions = [
+        { text: 'Valid option', order: 0 },
+        { text: '', order: 1 },
+        { text: 'Another valid option', order: 2 },
+      ];
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: invalidOptions,
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should create poll with duration', async () => {
+      loggedUser = '4';
+
+      const pollWithDuration = {
+        ...pollParams,
+        duration: 7,
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: pollWithDuration,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Poll);
+
+      // Verify the poll duration was saved correctly
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOne({ where: { id: moderationId }, select: ['duration'] });
+
+      expect(moderation?.duration).toBe(7);
+    });
+
+    it('should create poll without duration', async () => {
+      loggedUser = '4';
+
+      const pollWithoutDuration = {
+        ...pollParams,
+        // duration not specified
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: pollWithoutDuration,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Poll);
+
+      // Verify no duration was set
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOne({ where: { id: moderationId }, select: ['duration'] });
+
+      expect(moderation?.duration).toBeFalsy();
+    });
+
+    it('should fail to create poll with invalid duration', async () => {
+      loggedUser = '4';
+
+      const invalidDurationParams = {
+        ...pollParams,
+        duration: 2, // Invalid duration (should be 3-30 days)
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidDurationParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with duration over 30 days', async () => {
+      loggedUser = '4';
+
+      const invalidDurationParams = {
+        ...pollParams,
+        duration: 31, // Invalid duration (should be 3-30 days)
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidDurationParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
     });
   });
 });

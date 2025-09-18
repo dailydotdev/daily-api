@@ -1418,6 +1418,14 @@ export const typeDefs = /* GraphQL */ `
       ID of the exisiting post
       """
       postId: ID
+      """
+      Poll options
+      """
+      pollOptions: [PollOptionInput!]
+      """
+      Duration in days for poll (3-30 days)
+      """
+      duration: Int
     ): SourcePostModeration! @auth @rateLimit(limit: 1, duration: 30)
 
     """

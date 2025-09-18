@@ -46,6 +46,7 @@ import { uniqueifyObjectArray } from './utils';
 import {
   SourcePostModeration,
   SourcePostModerationStatus,
+  type CreatePollOption,
 } from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
 import { getMentions } from '../schema/comments';
@@ -58,6 +59,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { PollOption } from '../entity/polls/PollOption';
 import addDays from 'date-fns/addDays';
 import { PollPost } from '../entity/posts/PollPost';
+import { pollCreationSchema } from './schema/polls';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -252,7 +254,7 @@ interface CreatePollPostArgs {
     sourceId: string;
     authorId: string;
     duration?: number;
-    pollOptions: PollOption[];
+    pollOptions: CreatePollOption[];
   };
 }
 
@@ -345,18 +347,18 @@ export const createFreeformPost = async ({
   return con.getRepository(FreeformPost).save(createdPost);
 };
 
-export type CreateSourcePostModeration = Omit<
-  CreatePost,
-  'authorId' | 'content' | 'contentHtml' | 'id'
-> &
-  Pick<
-    SourcePostModeration,
-    'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
-  > & {
-    contentHtml?: string;
-    externalLink?: string | null;
-    postId?: string;
-  };
+export interface CreateSourcePostModeration
+  extends Omit<CreatePost, 'authorId' | 'content' | 'contentHtml' | 'id'>,
+    Pick<
+      SourcePostModeration,
+      'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
+    > {
+  contentHtml?: string;
+  externalLink?: string | null;
+  postId?: string;
+  pollOptions?: CreatePollOption[];
+  duration?: number;
+}
 
 interface CreateSourcePostModerationProps {
   ctx: AuthContext;
@@ -409,6 +411,8 @@ export interface CreateSourcePostModerationArgs
   externalLink?: string | null;
   type: PostType;
   postId?: string;
+  pollOptions?: CreatePollOption[];
+  duration?: number;
 }
 
 export interface EditPostArgs
@@ -740,10 +744,25 @@ export const validateSourcePostModeration = async (
     sharedPostId,
     imageUrl,
     externalLink,
+    pollOptions,
+    duration,
   }: CreateSourcePostModerationArgs,
 ): Promise<CreateSourcePostModeration> => {
-  if (![PostType.Share, PostType.Freeform].includes(type)) {
+  if (![PostType.Share, PostType.Freeform, PostType.Poll].includes(type)) {
     throw new ValidationError('Invalid post type!');
+  }
+
+  if (type === PostType.Poll) {
+    const parsedArgs = pollCreationSchema.safeParse({
+      title,
+      duration,
+      options: pollOptions,
+      sourceId,
+    });
+
+    if (!parsedArgs.success) {
+      throw new ValidationError(parsedArgs.error.issues[0].message);
+    }
   }
 
   const { con, userId } = ctx;
@@ -755,6 +774,8 @@ export const validateSourcePostModeration = async (
     sharedPostId,
     externalLink,
     createdById: userId,
+    pollOptions,
+    duration,
   };
 
   const mentions = await getMentions(con, content, userId, sourceId);
