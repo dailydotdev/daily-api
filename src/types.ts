@@ -46,7 +46,6 @@ declare global {
       NODE_ENV: 'development' | 'production' | 'test';
       SNOTRA_ORIGIN: string;
       LOFN_ORIGIN: string;
-      POPULAR_FEED: string;
       INTERNAL_FEED: string;
       ROASTER_URL: string;
       MAGNI_ORIGIN: string;
@@ -74,6 +73,7 @@ declare global {
       APPLE_APP_BUNDLE_ID: string;
 
       GEOIP_PATH?: string;
+      RESUME_BUCKET_NAME: string;
     }
   }
 }
