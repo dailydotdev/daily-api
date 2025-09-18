@@ -448,16 +448,18 @@ describe('query autocompleteKeywords', () => {
     await saveFixtures(con, Keyword, keywordsFixture);
   });
 
-  it('should require authentication', async () => {
-    await testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: {
-          query: 'next',
-        },
+  it('should return autocomplete allowed keywords when not logged in', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        query: 'dev',
       },
-      'UNAUTHENTICATED',
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteKeywords).toEqual(
+      expect.arrayContaining([
+        { keyword: 'webdev', title: 'Web Development' },
+        { keyword: 'development', title: null },
+      ]),
     );
   });
 

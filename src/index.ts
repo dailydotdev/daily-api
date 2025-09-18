@@ -320,6 +320,9 @@ export default async function app(
           searchTags: true,
           userReadingRankHistory: true,
           userReadHistory: true,
+          autocompleteKeywords: {
+            ttl: 3600,
+          },
         },
       },
     });
