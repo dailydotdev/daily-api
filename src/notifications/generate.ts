@@ -561,7 +561,6 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
-      .targetUrl(`${process.env.COMMENTS_PREFIX}/posts/${ctx.post.id}`)
       .referencePost(ctx.post),
   poll_result_author: (
     builder: NotificationBuilder,
@@ -571,6 +570,5 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
-      .targetUrl(`${process.env.COMMENTS_PREFIX}/posts/${ctx.post.id}`)
       .referencePost(ctx.post),
 };

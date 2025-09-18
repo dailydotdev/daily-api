@@ -30,7 +30,7 @@ export const pollResultAuthorNotification: TypedNotificationWorker<'api.v1.delay
 
       const notificationCtx: NotificationPostContext = {
         ...postCtx,
-        userIds: [poll.authorId!],
+        userIds: [poll.authorId],
       };
 
       return [
