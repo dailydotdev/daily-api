@@ -22,8 +22,7 @@ import { ConflictError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
-  deleteBlobFromGCS,
-  gcsBucketMap,
+  deleteEmploymentAgreementByUserId,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
 
@@ -561,10 +560,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const { bucketName, prefixedBlob } = gcsBucketMap.employmentAgreement;
-      const isDeleted = await deleteBlobFromGCS({
-        blobName: prefixedBlob(ctx.userId),
-        bucketName,
+      const isDeleted = await deleteEmploymentAgreementByUserId({
+        userId: ctx.userId,
         logger: ctx.log,
       });
 

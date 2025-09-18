@@ -189,6 +189,22 @@ export const deleteBlobFromGCS = async ({
   }
 };
 
+export const deleteEmploymentAgreementByUserId = async ({
+  userId,
+  logger,
+}: {
+  userId: string;
+  logger: FastifyBaseLogger;
+}): Promise<boolean> => {
+  const { bucketName, prefixedBlob } = gcsBucketMap.employmentAgreement;
+
+  return deleteBlobFromGCS({
+    blobName: prefixedBlob(userId),
+    bucketName,
+    logger,
+  });
+};
+
 export enum UserActiveState {
   Active = '1',
   InactiveSince6wAgo = '2',
