@@ -7758,8 +7758,8 @@ describe('Source post moderation edit/delete', () => {
   }`;
 
   const EDIT_MUTATION = `
-  mutation EditSourcePostModeration($id: ID!, $sourceId: ID!, $title: String, $content: String, $type: String!) {
-    editSourcePostModeration(id: $id, sourceId: $sourceId, title: $title, content: $content, type: $type) {
+  mutation EditSourcePostModeration($id: ID!, $sourceId: ID!, $title: String, $content: String, $type: String!, $pollOptions: [PollOptionInput!], $duration: Int) {
+    editSourcePostModeration(id: $id, sourceId: $sourceId, title: $title, content: $content, type: $type, pollOptions: $pollOptions, duration: $duration) {
       id
       title
       content
@@ -7912,6 +7912,181 @@ describe('Source post moderation edit/delete', () => {
       expect(post.title).toEqual('New Title');
       expect(post.content).toEqual('New Content');
       expect(post.status).toEqual(SourcePostModerationStatus.Pending);
+    });
+
+    describe('poll editing', () => {
+      const pollId = generateUUID();
+      const defaultPollOptions = [
+        { text: 'Option 1', order: 0 },
+        { text: 'Option 2', order: 1 },
+      ];
+
+      beforeEach(async () => {
+        // Add a poll moderation entry for testing
+        await con.getRepository(SourcePostModeration).save({
+          id: pollId,
+          sourceId: 'm',
+          createdById: '4',
+          title: 'Original Poll Question',
+          type: PostType.Poll,
+          status: SourcePostModerationStatus.Pending,
+          pollOptions: defaultPollOptions,
+          duration: 7,
+        });
+      });
+
+      it('should edit poll options and duration', async () => {
+        loggedUser = '4';
+
+        const newPollOptions = [
+          { text: 'New Option 1', order: 0 },
+          { text: 'New Option 2', order: 1 },
+          { text: 'New Option 3', order: 2 },
+        ];
+
+        const res = await client.mutate(EDIT_MUTATION, {
+          variables: {
+            id: pollId,
+            sourceId: 'm',
+            title: 'Updated Poll Question',
+            type: PostType.Poll,
+            pollOptions: newPollOptions,
+            duration: 14,
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+
+        const updatedPost = res.data.editSourcePostModeration;
+        expect(updatedPost.title).toEqual('Updated Poll Question');
+        expect(updatedPost.status).toEqual(SourcePostModerationStatus.Pending);
+
+        // Verify poll options and duration were updated in database
+        const moderation = await con
+          .getRepository(SourcePostModeration)
+          .findOne({
+            where: { id: pollId },
+            select: ['pollOptions', 'duration'],
+          });
+
+        expect(moderation?.pollOptions).toHaveLength(3);
+        expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+          'New Option 1',
+          'New Option 2',
+          'New Option 3',
+        ]);
+        expect(moderation?.duration).toBe(14);
+      });
+
+      it('should overwrite poll options completely', async () => {
+        loggedUser = '4';
+
+        // Change from 2 options to 4 options
+        const newPollOptions = [
+          { text: 'A', order: 0 },
+          { text: 'B', order: 1 },
+          { text: 'C', order: 2 },
+          { text: 'D', order: 3 },
+        ];
+
+        const res = await client.mutate(EDIT_MUTATION, {
+          variables: {
+            id: pollId,
+            sourceId: 'm',
+            title: 'Poll with 4 options',
+            type: PostType.Poll,
+            pollOptions: newPollOptions,
+            duration: 30,
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+
+        // Verify all options were replaced
+        const moderation = await con
+          .getRepository(SourcePostModeration)
+          .findOne({
+            where: { id: pollId },
+            select: ['pollOptions', 'duration'],
+          });
+
+        expect(moderation?.pollOptions).toHaveLength(4);
+        expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+          'A',
+          'B',
+          'C',
+          'D',
+        ]);
+        expect(moderation?.duration).toBe(30);
+      });
+
+      it('should clear duration when not provided', async () => {
+        loggedUser = '4';
+
+        const res = await client.mutate(EDIT_MUTATION, {
+          variables: {
+            id: pollId,
+            sourceId: 'm',
+            title: 'Poll without duration',
+            type: PostType.Poll,
+            pollOptions: defaultPollOptions,
+            // duration not specified
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+
+        // Verify duration was cleared
+        const moderation = await con
+          .getRepository(SourcePostModeration)
+          .findOne({
+            where: { id: pollId },
+            select: ['duration'],
+          });
+
+        expect(moderation?.duration).toBeFalsy();
+      });
+
+      it('should fail to edit poll with invalid poll options', async () => {
+        loggedUser = '4';
+
+        const invalidPollOptions = [{ text: 'Only one option', order: 0 }];
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: EDIT_MUTATION,
+            variables: {
+              id: pollId,
+              sourceId: 'm',
+              title: 'Invalid poll',
+              type: PostType.Poll,
+              pollOptions: invalidPollOptions,
+            },
+          },
+          'GRAPHQL_VALIDATION_FAILED',
+        );
+      });
+
+      it('should fail to edit with invalid duration', async () => {
+        loggedUser = '4';
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: EDIT_MUTATION,
+            variables: {
+              id: pollId,
+              sourceId: 'm',
+              title: 'Invalid duration poll',
+              type: PostType.Poll,
+              pollOptions: defaultPollOptions,
+              duration: 2, // Invalid duration (should be 3-30)
+            },
+          },
+          'GRAPHQL_VALIDATION_FAILED',
+        );
+      });
     });
   });
 });

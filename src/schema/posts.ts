@@ -1798,6 +1798,14 @@ export const typeDefs = /* GraphQL */ `
       External link of the post
       """
       externalLink: String
+      """
+      Poll options
+      """
+      pollOptions: [PollOptionInput!]
+      """
+      Duration in days for poll (3-30 days)
+      """
+      duration: Int
     ): SourcePostModeration! @auth
 
     """
