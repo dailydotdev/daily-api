@@ -604,8 +604,37 @@ describe('query getCandidatePreferences', () => {
       location: [],
       locationType: [1, 2, 3],
       employmentType: [1, 2, 3, 4],
-      companySize: [],
-      companyStage: [],
+      companySize: [1, 2, 3, 4, 5, 6, 7],
+      companyStage: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      customKeywords: false,
+      keywords: [],
+    });
+  });
+
+  it('should return default candidate preferences when there are no existing preferences', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getCandidatePreferences).toEqual({
+      status: 3,
+      cv: {
+        blob: null,
+        contentType: null,
+        lastModified: null,
+      },
+      role: null,
+      roleType: 0.5,
+      salaryExpectation: {
+        min: null,
+        period: null,
+      },
+      location: [],
+      locationType: [1, 2, 3],
+      employmentType: [1, 2, 3, 4],
+      companySize: [1, 2, 3, 4, 5, 6, 7],
+      companyStage: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       customKeywords: false,
       keywords: [],
     });
