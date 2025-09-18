@@ -66,6 +66,8 @@ import {
   type CampaignSource,
 } from '../../../src/entity';
 import { PollPost } from '../../../src/entity/posts/PollPost';
+import { PollOption } from '../../../src/entity/polls/PollOption';
+import { addDays, isSameDay } from 'date-fns';
 import {
   DayOfWeek,
   debeziumTimeToDate,
@@ -5439,6 +5441,101 @@ describe('source_post_moderation', () => {
         'api.v1.source-post-moderation-approved',
         { post: { ...afterProps, postId: after.id } },
       ]);
+    });
+
+    it('should create poll post with options and duration', async () => {
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(1);
+
+      const pollOptions = [
+        { text: 'Option 1', order: 0 },
+        { text: 'Option 2', order: 1 },
+        { text: 'Option 3', order: 2 },
+      ];
+
+      const after = {
+        ...base,
+        type: PostType.Poll,
+        status: SourcePostModerationStatus.Approved,
+        title: 'What is your favorite tech stack?',
+        pollOptions,
+        duration: 7,
+      };
+
+      await mockUpdate(after);
+
+      const poll = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as PollPost;
+
+      expect(poll).toBeTruthy();
+      expect(poll.type).toEqual(PostType.Poll);
+      expect(poll.title).toEqual('What is your favorite tech stack?');
+      expect(poll.endsAt).toBeTruthy();
+      expect(
+        isSameDay(new Date(poll.endsAt!), addDays(new Date(), 7)),
+      ).toBeTruthy();
+
+      // Verify poll options were created
+      const options = await con.getRepository(PollOption).find({
+        where: { postId: poll.id },
+        order: { order: 'ASC' },
+      });
+
+      expect(options).toHaveLength(3);
+      expect(options[0].text).toEqual('Option 1');
+      expect(options[0].order).toEqual(0);
+      expect(options[1].text).toEqual('Option 2');
+      expect(options[1].order).toEqual(1);
+      expect(options[2].text).toEqual('Option 3');
+      expect(options[2].order).toEqual(2);
+
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: { ...after, postId: poll.id } },
+      ]);
+    });
+
+    it('should create poll post without duration (no end date)', async () => {
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(1);
+
+      const pollOptions = [
+        { text: 'Yes', order: 0 },
+        { text: 'No', order: 1 },
+      ];
+
+      const after = {
+        ...base,
+        type: PostType.Poll,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Do you like polls?',
+        pollOptions,
+        // duration not specified
+      };
+
+      await mockUpdate(after);
+
+      const poll = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as PollPost;
+
+      expect(poll).toBeTruthy();
+      expect(poll.type).toEqual(PostType.Poll);
+      expect(poll.title).toEqual('Do you like polls?');
+      expect(poll.endsAt).toBeNull();
+
+      // Verify poll options were created
+      const options = await con.getRepository(PollOption).find({
+        where: { postId: poll.id },
+        order: { order: 'ASC' },
+      });
+
+      expect(options).toHaveLength(2);
+      expect(options[0].text).toEqual('Yes');
+      expect(options[1].text).toEqual('No');
     });
   });
 });

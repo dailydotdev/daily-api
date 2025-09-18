@@ -29,6 +29,7 @@ import {
   WelcomePost,
   YouTubePost,
 } from '../src/entity';
+import { PollOption } from '../src/entity/polls/PollOption';
 import { SourceMemberRoles } from '../src/roles';
 import { Category } from '../src/entity/Category';
 import { FastifyInstance } from 'fastify';
@@ -4615,5 +4616,164 @@ describe('query customFeed', () => {
     expect(res.data.customFeed.edges.map((item) => item.node.id)).toMatchObject(
       ['p1', 'p4'],
     );
+  });
+});
+
+describe('poll options ordering in feeds', () => {
+  const feedFieldsWithPollOptions = (extra = '') => `
+    pageInfo {
+      endCursor
+      hasNextPage
+    }
+    edges {
+      node {
+        ${extra}
+        id
+        url
+        title
+        type
+        pollOptions {
+          id
+          text
+          order
+          numVotes
+        }
+        source {
+          id
+          name
+          image
+          public
+        }
+      }
+    }`;
+
+  const FEED_QUERY = `
+    query Feed($ranking: Ranking, $first: Int, $supportedTypes: [String!]) {
+      feed(ranking: $ranking, first: $first, supportedTypes: $supportedTypes) {
+        ${feedFieldsWithPollOptions()}
+      }
+    }
+  `;
+
+  const POST_QUERY = `
+    query Post($id: ID!) {
+      post(id: $id) {
+        id
+        title
+        type
+        pollOptions {
+          id
+          text
+          order
+          numVotes
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFeedFixtures();
+
+    // Convert existing post p1 to a poll post (this ensures it will appear in feeds)
+    await con.getRepository(Post).update(
+      { id: 'p1' },
+      {
+        type: PostType.Poll,
+        title: 'Best Programming Language?',
+      },
+    );
+
+    // Create poll options with intentionally mixed order values and UUID IDs
+    await con.getRepository(PollOption).save([
+      {
+        id: randomUUID(),
+        text: 'Go',
+        order: 3,
+        postId: 'p1',
+        numVotes: 1,
+      },
+      {
+        id: randomUUID(),
+        text: 'JavaScript',
+        order: 2,
+        postId: 'p1',
+        numVotes: 5,
+      },
+      {
+        id: randomUUID(),
+        text: 'TypeScript',
+        order: 0,
+        postId: 'p1',
+        numVotes: 8,
+      },
+      {
+        id: randomUUID(),
+        text: 'Python',
+        order: 1,
+        postId: 'p1',
+        numVotes: 3,
+      },
+    ]);
+  });
+
+  it('should return poll options sorted by order in authenticated feed', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(FEED_QUERY, {
+      variables: {
+        ranking: Ranking.POPULARITY,
+        first: 10,
+        supportedTypes: ['article', 'share', 'welcome', 'freeform', 'poll'],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toBeTruthy();
+
+    const pollPost = res.data.feed.edges.find((edge) => edge.node.id === 'p1');
+
+    expect(pollPost).toBeTruthy();
+
+    expect(pollPost.node.pollOptions).toHaveLength(4);
+
+    // Verify options are sorted by order: 0, 1, 2, 3
+    const expectedOrder = [
+      { text: 'TypeScript', order: 0 },
+      { text: 'Python', order: 1 },
+      { text: 'JavaScript', order: 2 },
+      { text: 'Go', order: 3 },
+    ];
+
+    pollPost.node.pollOptions.forEach((option, index) => {
+      expect(option.order).toBe(expectedOrder[index].order);
+      expect(option.text).toBe(expectedOrder[index].text);
+    });
+  });
+
+  it('should return poll options sorted by order in single post query', async () => {
+    const res = await client.query(POST_QUERY, {
+      variables: {
+        id: 'p1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toBeTruthy();
+    expect(res.data.post.id).toBe('p1');
+    expect(res.data.post.type).toBe(PostType.Poll);
+    expect(res.data.post.pollOptions).toHaveLength(4);
+
+    // Verify options are sorted by order: 0, 1, 2, 3
+    const expectedOrder = [
+      { text: 'TypeScript', order: 0 },
+      { text: 'Python', order: 1 },
+      { text: 'JavaScript', order: 2 },
+      { text: 'Go', order: 3 },
+    ];
+
+    res.data.post.pollOptions.forEach((option, index) => {
+      expect(option.order).toBe(expectedOrder[index].order);
+      expect(option.text).toBe(expectedOrder[index].text);
+    });
   });
 });

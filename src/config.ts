@@ -1,3 +1,4 @@
+import process from 'node:process';
 import dotenv from 'dotenv';
 
 const env = process.env.NODE_ENV || 'development';
@@ -26,7 +27,7 @@ export const submissionAccessThreshold = parseInt(
     DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
 );
 
-export const RESUME_BUCKET_NAME = 'daily-dev-resumes';
+export const RESUME_BUCKET_NAME = process.env.RESUME_BUCKET_NAME;
 
 export enum StorageTopic {
   Boot = 'boot',
