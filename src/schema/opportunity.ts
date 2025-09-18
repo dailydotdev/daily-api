@@ -1,4 +1,4 @@
-import type z from 'zod';
+import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
