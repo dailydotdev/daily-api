@@ -13,6 +13,8 @@ export const fallbackImages = {
     'https://media.daily.dev/image/upload/s--yc7EcfBs--/f_auto,q_auto/v1/public/organization_fallback',
 };
 
+export const GQL_MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MiB
+
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
 
 export const DEFAULT_SUBMISSION_LIMIT = '3';
