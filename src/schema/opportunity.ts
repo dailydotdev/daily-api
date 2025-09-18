@@ -5,7 +5,7 @@ import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
 import { Opportunity, OpportunityState } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { isProd, toGQLEnum } from '../common';
+import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
@@ -23,6 +23,7 @@ import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
   deleteBlobFromGCS,
+  gcsBucketMap,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
 
@@ -531,9 +532,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const { file } = data;
 
-      const prefix = isProd ? '' : 'employmentAgreement';
-      const filename = `${prefix}/${ctx.userId}`;
-      await uploadEmploymentAgreementFromBuffer(filename, file.buffer, {
+      const blobName = ctx.userId;
+      await uploadEmploymentAgreementFromBuffer(blobName, file.buffer, {
         contentType: file.mimetype,
       });
 
@@ -541,7 +541,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {
           userId: ctx.userId,
           employmentAgreement: {
-            blob: filename,
+            blob: blobName,
             fileName: file.filename,
             contentType: file.mimetype,
             bucket: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
@@ -561,21 +561,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const preference = await ctx.con
-        .getRepository(UserCandidatePreference)
-        .findOneBy({ userId: ctx.userId });
-
-      if (!preference || !preference.employmentAgreement?.blob) {
-        return { _: true };
-      }
-
-      const deletd = await deleteBlobFromGCS({
-        blobName: preference.employmentAgreement.blob,
-        bucketName: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+      const { bucketName, prefixedBlob } = gcsBucketMap.employmentAgreement;
+      const isDeleted = await deleteBlobFromGCS({
+        blobName: prefixedBlob(ctx.userId),
+        bucketName,
         logger: ctx.log,
       });
 
-      if (!deletd) {
+      if (!isDeleted) {
         ctx.log.warn(
           { userId: ctx.userId },
           'Failed to delete employment agreement from GCS',

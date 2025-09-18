@@ -15,6 +15,19 @@ import {
   EMPLOYMENT_AGREEMENT_BUCKET_NAME,
   RESUME_BUCKET_NAME,
 } from '../config';
+import { isProd } from './utils';
+
+export const gcsBucketMap = {
+  resume: {
+    prefixedBlob: (blob: string) => (isProd ? blob : `resume/${blob}`),
+    bucketName: RESUME_BUCKET_NAME,
+  },
+  employmentAgreement: {
+    prefixedBlob: (blob: string) =>
+      isProd ? blob : `employment-agreement/${blob}`,
+    bucketName: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  },
+};
 
 export const downloadFile = async ({
   url,
@@ -80,9 +93,10 @@ export const uploadEmploymentAgreementFromBuffer = async (
   file: Buffer,
   options?: SaveOptions,
 ): Promise<string> => {
+  const { bucketName, prefixedBlob } = gcsBucketMap.employmentAgreement;
   return uploadFileFromBuffer({
-    bucketName: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
-    fileName,
+    bucketName,
+    fileName: prefixedBlob(fileName),
     file,
     options,
   });
