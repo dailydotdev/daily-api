@@ -1,13 +1,14 @@
-import { DataSource } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
+  MatchedCandidate,
   OpportunityMessage,
   Salary,
   UserCV,
 } from '@dailydotdev/schema';
-import { triggerTypedEvent } from '../../common';
+import { demoCompany, triggerTypedEvent } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { ChangeObject } from '../../types';
@@ -15,6 +16,50 @@ import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { UserCandidateKeyword } from '../../entity/user/UserCandidateKeyword';
 import { queryReadReplica } from '../queryReadReplica';
+import { ContentPreference } from '../../entity/contentPreference/ContentPreference';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../entity/contentPreference/types';
+import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
+
+const fetchCandidateKeywords = async (
+  manager: EntityManager,
+  candidatePreference: UserCandidatePreference | null,
+): Promise<Array<string>> => {
+  if (!candidatePreference) {
+    return [];
+  }
+
+  // Fetch custom keywords if enabled
+  if (candidatePreference.customKeywords) {
+    const customKeywords = await manager
+      .getRepository(UserCandidateKeyword)
+      .findBy({
+        userId: candidatePreference.userId,
+      });
+
+    return customKeywords.map((k) => k.keyword);
+  }
+
+  // Otherwise fetch keywords from content preferences
+  const feedKeywords = await manager
+    .createQueryBuilder()
+    .select(`"keywordId"`, 'keyword')
+    .from(ContentPreference, 'cpk')
+    .where(`cpk."feedId" = :userId`, {
+      userId: candidatePreference.userId,
+    })
+    .andWhere('cpk.type = :contentPreferenceType', {
+      contentPreferenceType: ContentPreferenceType.Keyword,
+    })
+    .andWhere('cpk.status != :contentPreferenceStatus', {
+      contentPreferenceStatus: ContentPreferenceStatus.Blocked,
+    })
+    .getRawMany<{ keyword: string }>();
+
+  return feedKeywords.map((k) => k.keyword);
+};
 
 export const notifyOpportunityMatchAccepted = async ({
   con,
@@ -30,10 +75,10 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
-  const [match, candidatePreference, keywords] = await queryReadReplica(
+  const { match, candidatePreference, keywords } = await queryReadReplica(
     con,
     async ({ queryRunner }) => {
-      return await Promise.all([
+      const [match, candidatePreference] = await Promise.all([
         queryRunner.manager.getRepository(OpportunityMatch).findOneBy({
           opportunityId: data.opportunityId,
           userId: data.userId,
@@ -41,10 +86,14 @@ export const notifyOpportunityMatchAccepted = async ({
         queryRunner.manager
           .getRepository(UserCandidatePreference)
           .findOneBy({ userId: data.userId }),
-        queryRunner.manager.getRepository(UserCandidateKeyword).findBy({
-          userId: data.userId,
-        }),
       ]);
+
+      const keywords = await fetchCandidateKeywords(
+        queryRunner.manager,
+        candidatePreference,
+      );
+
+      return { match, candidatePreference, keywords };
     },
   );
 
@@ -85,7 +134,7 @@ export const notifyOpportunityMatchAccepted = async ({
           undefined,
       }),
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
-      keywords: keywords.map((k) => k.keyword),
+      keywords: keywords,
     },
   });
 
@@ -152,6 +201,34 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
+  /**
+   * Demo logic: if the company is the demo company we can omit using Gondul and simply return the users from that company as matched candidates
+   */
+  if (organization.id === demoCompany.id) {
+    const members = await con
+      .getRepository(ContentPreferenceOrganization)
+      .find({
+        select: ['userId'],
+        where: { organizationId: organization.id },
+      });
+    for (const { userId } of members) {
+      await triggerTypedEvent(
+        logger,
+        'gondul.v1.candidate-opportunity-match',
+        new MatchedCandidate({
+          opportunityId,
+          userId,
+          matchScore: 0.87,
+          reasoning:
+            "We have noticed that you've been digging into React performance optimization and exploring payment systems lately. Your skills in TypeScript and Node.js line up directly with the core technologies this team uses. You also follow several Atlassian engineers and have shown consistent interest in project management software, which makes this role a natural fit for your trajectory.",
+          reasoningShort:
+            'Your skills in TypeScript and Node.js line up directly with the core technologies this team uses.',
+        }),
+      );
+    }
+    return;
+  }
+
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
@@ -183,17 +260,19 @@ export const notifyCandidatePreferenceChange = async ({
   logger: FastifyBaseLogger;
   userId: string;
 }) => {
-  const [candidatePreference, keywords] = await queryReadReplica(
+  const { candidatePreference, keywords } = await queryReadReplica(
     con,
     async ({ queryRunner }) => {
-      return await Promise.all([
-        queryRunner.manager
-          .getRepository(UserCandidatePreference)
-          .findOneBy({ userId: userId }),
-        queryRunner.manager.getRepository(UserCandidateKeyword).findBy({
-          userId: userId,
-        }),
-      ]);
+      const candidatePreference = await queryRunner.manager
+        .getRepository(UserCandidatePreference)
+        .findOneBy({ userId: userId });
+
+      const keywords = await fetchCandidateKeywords(
+        queryRunner.manager,
+        candidatePreference,
+      );
+
+      return { candidatePreference, keywords };
     },
   );
 
@@ -222,7 +301,7 @@ export const notifyCandidatePreferenceChange = async ({
       }),
       updatedAt:
         getSecondsTimestamp(candidatePreference?.updatedAt) || undefined,
-      keywords: keywords.map((k) => k.keyword),
+      keywords: keywords,
     },
   });
 

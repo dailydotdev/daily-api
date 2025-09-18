@@ -33,13 +33,14 @@ import {
   ATTR_MESSAGING_MESSAGE_BODY_SIZE,
   ATTR_MESSAGING_MESSAGE_ID,
   ATTR_MESSAGING_SYSTEM,
+  // @ts-expect-error - no longer resolves types because of cjs/esm change but values are exported
 } from '@opentelemetry/semantic-conventions/incubating';
 
 const resourceDetectors = [
-  resources.envDetectorSync,
-  resources.hostDetectorSync,
-  resources.osDetectorSync,
-  resources.processDetectorSync,
+  resources.envDetector,
+  resources.hostDetector,
+  resources.osDetector,
+  resources.processDetector,
   containerDetector,
   gcpDetector,
   new GcpDetectorSync(),

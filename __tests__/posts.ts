@@ -116,6 +116,8 @@ import * as njordCommon from '../src/common/njord';
 import { BriefPost } from '../src/entity/posts/BriefPost';
 import { createClient } from '@connectrpc/connect';
 import isSameDay from 'date-fns/isSameDay';
+import { PollPost } from '../src/entity/posts/PollPost';
+import { PollOption } from '../src/entity/polls/PollOption';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -9224,7 +9226,7 @@ describe('mutate polls', () => {
     ).toBeTruthy();
   });
 
-  it('should faill to create a poll with a duration other than specified numbers in the zod schema', async () => {
+  it('should fail to create a poll with a duration other than specified numbers in the zod schema', async () => {
     loggedUser = '1';
 
     const poll = {
@@ -9269,5 +9271,151 @@ describe('mutate polls', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.createPollPost.source.id).toBe('1');
     expect(res.data.createPollPost.author.id).toBe('1');
+  });
+});
+
+describe('mutate poll vote', () => {
+  const pollId = generateUUID();
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    const defaultPoll = await con.getRepository(PollPost).save({
+      id: pollId,
+      shortId: 'poll1',
+      title: 'Best OS',
+      type: PostType.Poll,
+      sourceId: 'a',
+      authorId: '1',
+      endsAt: addDays(new Date(), 3),
+    });
+
+    await con.getRepository(PollOption).save([
+      { text: 'Windows', order: 1, postId: defaultPoll.id },
+      { text: 'MacOS', order: 2, postId: defaultPoll.id },
+      { text: 'Linux', order: 3, postId: defaultPoll.id },
+    ]);
+  });
+
+  const MUTATION = `
+    mutation VotePoll($postId: ID!, $optionId: ID!) {
+      votePoll(postId: $postId, optionId: $optionId) {
+        id
+        endsAt
+        pollOptions {
+          id
+          text
+          numVotes
+        }
+      }
+    }
+`;
+
+  it('should successfully vote on a poll', async () => {
+    loggedUser = '1';
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: vote,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.votePoll.id).toBe(pollId);
+    const votedPollOption = res.data.votePoll.pollOptions.find(
+      (opt) => opt.id === option!.id,
+    );
+    expect(votedPollOption.numVotes).toBe(1);
+  });
+
+  it('should fail to vote on a poll the user has already voted on', async () => {
+    loggedUser = '1';
+    const options = await con
+      .getRepository(PollOption)
+      .find({ where: { postId: pollId } });
+
+    const vote = {
+      postId: pollId,
+      optionId: options[0].id,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: vote,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.votePoll.id).toBe(pollId);
+    const votedPollOption = res.data.votePoll.pollOptions.find(
+      (opt) => opt.id === options[0].id,
+    );
+    expect(votedPollOption.numVotes).toBe(1);
+
+    const vote2 = {
+      postId: pollId,
+      optionId: options[1].id,
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: vote2,
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not allow the user to vote on a poll that has ended', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(PollPost)
+      .update({ id: pollId }, { endsAt: subDays(new Date(), 10) });
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: vote,
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not allow user to vote on polls they cant access', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: vote,
+      },
+      'FORBIDDEN',
+    );
   });
 });

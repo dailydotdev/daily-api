@@ -97,7 +97,12 @@ import {
   ioRedisPool,
   setRedisObjectWithExpiry,
 } from '../src/redis';
-import { generateStorageKey, StorageKey, StorageTopic } from '../src/config';
+import {
+  generateStorageKey,
+  RESUME_BUCKET_NAME,
+  StorageKey,
+  StorageTopic,
+} from '../src/config';
 import {
   UserIntegration,
   UserIntegrationType,
@@ -135,7 +140,6 @@ import * as njordCommon from '../src/common/njord';
 import { createClient } from '@connectrpc/connect';
 import { Credits, EntityType } from '@dailydotdev/schema';
 import * as googleCloud from '../src/common/googleCloud';
-import { RESUMES_BUCKET_NAME } from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
 import { Bucket } from '@google-cloud/storage';
 import {
@@ -7030,7 +7034,7 @@ describe('mutation uploadResume', () => {
 
     // Mock the upload function to return a URL
     uploadResumeFromBuffer.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1`,
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/1`,
     );
 
     // Execute the mutation with a file upload
@@ -7059,6 +7063,21 @@ describe('mutation uploadResume', () => {
       expect.any(Object),
       { contentType: 'application/pdf' },
     );
+
+    const ucp = await con
+      .getRepository(UserCandidatePreference)
+      .findOneByOrFail({
+        userId: loggedUser,
+      });
+
+    expect(ucp.cv).toEqual(
+      expect.objectContaining({
+        blob: loggedUser,
+        bucket: RESUME_BUCKET_NAME,
+        contentType: 'application/pdf',
+        lastModified: expect.any(String),
+      }),
+    );
   });
 
   it('should upload docx resume successfully', async () => {
@@ -7072,7 +7091,7 @@ describe('mutation uploadResume', () => {
 
     // Mock the upload function to return a URL
     uploadResumeFromBuffer.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUMES_BUCKET_NAME}/1`,
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/1`,
     );
 
     // Execute the mutation with a file upload
@@ -7103,6 +7122,22 @@ describe('mutation uploadResume', () => {
         contentType:
           'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       },
+    );
+
+    const ucp = await con
+      .getRepository(UserCandidatePreference)
+      .findOneByOrFail({
+        userId: loggedUser,
+      });
+
+    expect(ucp.cv).toEqual(
+      expect.objectContaining({
+        blob: loggedUser,
+        bucket: RESUME_BUCKET_NAME,
+        contentType:
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        lastModified: expect.any(String),
+      }),
     );
   });
 

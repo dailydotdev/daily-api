@@ -2,8 +2,8 @@ import dotenv from 'dotenv';
 
 const env = process.env.NODE_ENV || 'development';
 
-dotenv.config({ path: `.env.${env}` });
-dotenv.config({ path: '.env' });
+dotenv.config({ path: `.env.${env}`, quiet: true });
+dotenv.config({ path: '.env', quiet: true });
 
 export const fallbackImages = {
   avatar:
@@ -25,6 +25,8 @@ export const submissionAccessThreshold = parseInt(
   process.env.SCOUT_SUBMISSION_ACCESS_THRESHOLD ||
     DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
 );
+
+export const RESUME_BUCKET_NAME = 'daily-dev-resumes';
 
 export enum StorageTopic {
   Boot = 'boot',

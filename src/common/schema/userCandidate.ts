@@ -71,4 +71,9 @@ export const candidatePreferenceSchema = z.object({
         }),
     )
     .optional(),
+  customKeywords: z.boolean().optional(),
+});
+
+export const userCandidateToggleKeywordSchema = z.object({
+  keyword: z.string().trim().min(1, 'Keyword cannot be empty'),
 });

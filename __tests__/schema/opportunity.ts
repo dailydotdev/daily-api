@@ -40,6 +40,7 @@ import {
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
 import type { GQLOpportunity } from '../../src/schema/opportunity';
+import { UserCandidateKeyword } from '../../src/entity/user/UserCandidateKeyword';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -473,6 +474,10 @@ describe('query getCandidatePreferences', () => {
         employmentType
         companySize
         companyStage
+        customKeywords
+        keywords {
+          keyword
+        }
       }
     }
   `;
@@ -488,7 +493,7 @@ describe('query getCandidatePreferences', () => {
           bucket: 'bucket-name',
           lastModified: new Date('2023-10-10T10:00:00Z'),
         },
-        salaryExpectation: { min: 50000, period: SalaryPeriod.ANNUAL },
+        salaryExpectation: { min: '50000', period: SalaryPeriod.ANNUAL },
         location: [
           { country: 'Norway' },
           { city: 'London', country: 'UK', continent: 'Europe' },
@@ -508,9 +513,25 @@ describe('query getCandidatePreferences', () => {
           CompanySize.COMPANY_SIZE_51_200,
           CompanySize.COMPANY_SIZE_201_500,
         ],
+        customKeywords: true,
       },
       {
         userId: '2',
+      },
+    ]);
+
+    await saveFixtures(con, UserCandidateKeyword, [
+      {
+        userId: '1',
+        keyword: 'JavaScript',
+      },
+      {
+        userId: '1',
+        keyword: 'Zig',
+      },
+      {
+        userId: '1',
+        keyword: 'NATS',
       },
     ]);
   });
@@ -552,6 +573,12 @@ describe('query getCandidatePreferences', () => {
       employmentType: [1, 2, 3],
       companyStage: [3, 4, 10],
       companySize: [3, 4],
+      customKeywords: true,
+      keywords: expect.arrayContaining([
+        { keyword: 'JavaScript' },
+        { keyword: 'Zig' },
+        { keyword: 'NATS' },
+      ]),
     });
   });
 
@@ -575,10 +602,12 @@ describe('query getCandidatePreferences', () => {
         period: null,
       },
       location: [],
-      locationType: [],
-      employmentType: [],
+      locationType: [1, 2, 3],
+      employmentType: [1, 2, 3, 4],
       companySize: [],
       companyStage: [],
+      customKeywords: false,
+      keywords: [],
     });
   });
 });
@@ -593,6 +622,7 @@ describe('mutation updateCandidatePreferences', () => {
       $salaryExpectation: SalaryExpectationInput
       $location: [LocationInput]
       $locationType: [ProtoEnumValue]
+      $customKeywords: Boolean
     ) {
       updateCandidatePreferences(
         status: $status
@@ -602,6 +632,7 @@ describe('mutation updateCandidatePreferences', () => {
         salaryExpectation: $salaryExpectation
         location: $location
         locationType: $locationType
+        customKeywords: $customKeywords
       ) {
         _
       }
@@ -635,6 +666,7 @@ describe('mutation updateCandidatePreferences', () => {
         salaryExpectation: { min: 70000, period: 1 },
         location: [{ city: 'Berlin', country: 'Germany' }],
         locationType: [1, 2],
+        customKeywords: true,
       },
     });
 
@@ -654,6 +686,7 @@ describe('mutation updateCandidatePreferences', () => {
       salaryExpectation: { min: '70000', period: 1 }, // ANNUAL
       location: [{ city: 'Berlin', country: 'Germany' }],
       locationType: [1, 2], // REMOTE, ONSITE
+      customKeywords: true,
     });
   });
 
@@ -997,5 +1030,193 @@ describe('mutation acceptOpportunityMatch', () => {
       'FORBIDDEN',
       'Access denied! Opportunity is not live',
     );
+  });
+});
+
+describe('mutation candidateAddKeyword', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CandidateAddKeyword($keyword: String!) {
+      candidateAddKeyword(keyword: $keyword) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keyword: 'NewKeyword' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should add keyword to candidate profile', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: '  NewKeyword  ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual([
+      {
+        userId: '1',
+        keyword: 'NewKeyword',
+      },
+    ]);
+  });
+
+  it('should not add duplicate keyword to candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert({
+      userId: '1',
+      keyword: 'ExistingKeyword',
+    });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: '  ExistingKeyword  ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateAddKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual([
+      {
+        userId: '1',
+        keyword: 'ExistingKeyword',
+      },
+    ]);
+  });
+
+  it('should return error on empty keyword', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keyword: '   ' },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'Keyword cannot be empty',
+        );
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+});
+
+describe('mutation candidateRemoveKeyword', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CandidateRemoveKeyword($keyword: String!) {
+      candidateRemoveKeyword(keyword: $keyword) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keyword: 'SomeKeyword' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should remove keyword from candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert({
+      userId: '1',
+      keyword: 'RemoveMe',
+    });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: '   RemoveMe   ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual([]);
+  });
+
+  it('should be idempotent if keyword does not exist', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keyword: 'NonExistingKeyword' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeyword).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+
+  it('should return error on empty keyword', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keyword: '   ' },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        expect(errors[0].extensions.issues.length).toEqual(1);
+        expect(errors[0].extensions.issues[0].code).toEqual('too_small');
+        expect(errors[0].extensions.issues[0].message).toEqual(
+          'Keyword cannot be empty',
+        );
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
   });
 });

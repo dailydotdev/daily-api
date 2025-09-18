@@ -9,12 +9,16 @@ import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
-import { candidatePreferenceSchema } from '../common/schema/userCandidate';
+import {
+  candidatePreferenceSchema,
+  userCandidateToggleKeywordSchema,
+} from '../common/schema/userCandidate';
 import { Alerts } from '../entity';
 import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
 import { ConflictError } from '../errors';
+import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 
 export interface GQLOpportunity
   extends Pick<
@@ -116,6 +120,10 @@ export const typeDefs = /* GraphQL */ `
     lastModified: DateTime
   }
 
+  type UserCandidateKeyword {
+    keyword: String!
+  }
+
   type UserCandidatePreference {
     status: ProtoEnumValue!
     cv: UserCV
@@ -127,6 +135,8 @@ export const typeDefs = /* GraphQL */ `
     locationType: [ProtoEnumValue]!
     companyStage: [ProtoEnumValue]!
     companySize: [ProtoEnumValue]!
+    customKeywords: Boolean
+    keywords: [UserCandidateKeyword!]!
   }
 
   extend type Query {
@@ -182,6 +192,7 @@ export const typeDefs = /* GraphQL */ `
       salaryExpectation: SalaryExpectationInput
       location: [LocationInput]
       locationType: [ProtoEnumValue]
+      customKeywords: Boolean
     ): EmptyResponse @auth
 
     saveOpportunityScreeningAnswers(
@@ -198,6 +209,20 @@ export const typeDefs = /* GraphQL */ `
       Id of the Opportunity
       """
       id: ID!
+    ): EmptyResponse @auth
+
+    candidateAddKeyword(
+      """
+      Keyword to add to candidate profile
+      """
+      keyword: String!
+    ): EmptyResponse @auth
+
+    candidateRemoveKeyword(
+      """
+      Keyword to remove from candidate profile
+      """
+      keyword: String!
     ): EmptyResponse @auth
   }
 `;
@@ -409,6 +434,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           status: OpportunityMatchStatus.CandidateAccepted,
         },
       );
+
+      return { _: true };
+    },
+    candidateAddKeyword: async (
+      _,
+      payload: z.infer<typeof userCandidateToggleKeywordSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { data, error } =
+        userCandidateToggleKeywordSchema.safeParse(payload);
+      if (error) {
+        throw error;
+      }
+
+      await ctx.con.getRepository(UserCandidateKeyword).upsert(
+        {
+          userId: ctx.userId,
+          keyword: data.keyword,
+        },
+        {
+          conflictPaths: ['userId', 'keyword'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
+
+      return { _: true };
+    },
+    candidateRemoveKeyword: async (
+      _,
+      payload: z.infer<typeof userCandidateToggleKeywordSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { data, error } =
+        userCandidateToggleKeywordSchema.safeParse(payload);
+      if (error) {
+        throw error;
+      }
+
+      await ctx.con.getRepository(UserCandidateKeyword).delete({
+        userId: ctx.userId,
+        keyword: data.keyword,
+      });
 
       return { _: true };
     },
