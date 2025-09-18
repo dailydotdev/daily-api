@@ -453,8 +453,11 @@ describe('query getCandidatePreferences', () => {
       getCandidatePreferences {
         status
         cv {
-          blob
-          contentType
+          fileName
+          lastModified
+        }
+        employmentAgreement {
+          fileName
           lastModified
         }
         role
@@ -490,8 +493,16 @@ describe('query getCandidatePreferences', () => {
         cv: {
           blob: '1',
           contentType: 'application/pdf',
+          fileName: 'cv.pdf',
           bucket: 'bucket-name',
           lastModified: new Date('2023-10-10T10:00:00Z'),
+        },
+        employmentAgreement: {
+          blob: '2',
+          contentType: 'application/pdf',
+          fileName: 'employment-agreement.pdf',
+          bucket: 'bucket-name',
+          lastModified: new Date('2024-10-10T10:00:00Z'),
         },
         salaryExpectation: { min: '50000', period: SalaryPeriod.ANNUAL },
         location: [
@@ -557,9 +568,12 @@ describe('query getCandidatePreferences', () => {
       role: 'Full Stack Developer',
       roleType: 0.5,
       cv: {
-        blob: '1',
-        contentType: 'application/pdf',
+        fileName: 'cv.pdf',
         lastModified: '2023-10-10T10:00:00.000Z',
+      },
+      employmentAgreement: {
+        fileName: 'employment-agreement.pdf',
+        lastModified: '2024-10-10T10:00:00.000Z',
       },
       salaryExpectation: {
         min: 50000,
@@ -591,8 +605,11 @@ describe('query getCandidatePreferences', () => {
     expect(res.data.getCandidatePreferences).toEqual({
       status: 3,
       cv: {
-        blob: null,
-        contentType: null,
+        fileName: null,
+        lastModified: null,
+      },
+      employmentAgreement: {
+        fileName: null,
         lastModified: null,
       },
       role: null,
@@ -620,8 +637,11 @@ describe('query getCandidatePreferences', () => {
     expect(res.data.getCandidatePreferences).toEqual({
       status: 3,
       cv: {
-        blob: null,
-        contentType: null,
+        fileName: null,
+        lastModified: null,
+      },
+      employmentAgreement: {
+        fileName: null,
         lastModified: null,
       },
       role: null,
