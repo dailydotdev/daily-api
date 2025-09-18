@@ -21,7 +21,10 @@ import { ForbiddenError } from 'apollo-server-errors';
 import { ConflictError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
-import { uploadEmploymentAgreementFromBuffer } from '../common/googleCloud';
+import {
+  deleteBlobFromGCS,
+  uploadEmploymentAgreementFromBuffer,
+} from '../common/googleCloud';
 
 export interface GQLOpportunity
   extends Pick<
@@ -241,6 +244,10 @@ export const typeDefs = /* GraphQL */ `
       """
       file: Upload!
     ): EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
+
+    clearEmploymentAgreement: EmptyResponse
+      @auth
+      @rateLimit(limit: 5, duration: 60)
   }
 `;
 
@@ -547,6 +554,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
+      return { _: true };
+    },
+    clearEmploymentAgreement: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const preference = await ctx.con
+        .getRepository(UserCandidatePreference)
+        .findOneBy({ userId: ctx.userId });
+
+      if (!preference || !preference.employmentAgreement?.blob) {
+        return { _: true };
+      }
+
+      const deletd = await deleteBlobFromGCS({
+        blobName: preference.employmentAgreement.blob,
+        bucketName: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+        logger: ctx.log,
+      });
+
+      if (!deletd) {
+        ctx.log.warn(
+          { userId: ctx.userId },
+          'Failed to delete employment agreement from GCS',
+        );
+        throw new Error('Failed to delete employment agreement');
+      }
+
+      await ctx.con.getRepository(UserCandidatePreference).update(
+        {
+          userId: ctx.userId,
+        },
+        {
+          employmentAgreement: {},
+        },
+      );
       return { _: true };
     },
   },

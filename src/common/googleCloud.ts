@@ -4,6 +4,7 @@ import {
   Storage,
   type SaveOptions,
 } from '@google-cloud/storage';
+import type { FastifyBaseLogger } from 'fastify';
 import { acceptedResumeExtensions, PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
@@ -144,6 +145,32 @@ export const deleteResumeByUserId = async (
       },
       'failed to delete user resume',
     );
+    return false;
+  }
+};
+
+export const deleteBlobFromGCS = async ({
+  blobName,
+  bucketName,
+  logger,
+}: {
+  blobName: string;
+  bucketName: string;
+  logger: FastifyBaseLogger;
+}): Promise<boolean> => {
+  try {
+    const storage = new Storage();
+    const bucket = storage.bucket(bucketName);
+
+    await deleteFileFromBucket(bucket, blobName);
+    return true;
+  } catch (_err) {
+    const err = _err as Error;
+    logger.error(
+      { err, bucketName, blobName },
+      'Failed to delete blob from GCS',
+    );
+
     return false;
   }
 };
