@@ -247,7 +247,7 @@ interface CreateFreeformPostArgs {
 
 interface CreatePollPostArgs {
   con: DataSource | EntityManager;
-  ctx: AuthContext;
+  ctx?: AuthContext;
   args: {
     id: string;
     title: string;
@@ -283,33 +283,41 @@ export const createPollPost = async ({
     },
   });
 
-  const vordrStatus = await checkWithVordr(
-    {
-      id: createdPost.id,
-      type: VordrFilterType.Post,
-      content: createdPost.title || '',
-    },
-    { con, userId: args.authorId, req: ctx?.req },
-  );
+  if (ctx) {
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        type: VordrFilterType.Post,
+        content: createdPost.title || '',
+      },
+      { con, userId: args.authorId, req: ctx.req },
+    );
 
-  if (vordrStatus) {
-    createdPost.banned = true;
-    createdPost.showOnFeed = false;
+    if (vordrStatus) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
 
-    createdPost.flags = {
-      ...createdPost.flags,
-      banned: true,
-      showOnFeed: false,
-    };
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    createdPost.flags.vordr = vordrStatus;
   }
-
-  createdPost.flags.vordr = vordrStatus;
 
   return con.transaction(async (entityManager) => {
     const savedPost = await entityManager
       .getRepository(PollPost)
       .save(createdPost);
-    await entityManager.getRepository(PollOption).save(pollOptions);
+    await entityManager.getRepository(PollOption).save(
+      pollOptions.map(({ text, order }) => ({
+        text,
+        order,
+        postId: savedPost.id,
+      })),
+    );
     return savedPost;
   });
 };
@@ -656,7 +664,25 @@ export const processApprovedModeratedPost = async (
     titleHtml,
     externalLink,
     sharedPostId,
+    pollOptions,
+    duration,
   } = moderated;
+
+  if (moderated.type === PostType.Poll) {
+    const id = await generateShortId();
+    const post = await createPollPost({
+      con,
+      args: {
+        id,
+        title: title!,
+        sourceId,
+        authorId: createdById,
+        duration,
+        pollOptions: pollOptions!,
+      },
+    });
+    return { ...moderated, postId: post.id };
+  }
 
   if (moderated.type === PostType.Freeform) {
     const id = await generateShortId();
