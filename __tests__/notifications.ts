@@ -47,10 +47,8 @@ import {
   UserPost,
 } from '../src/entity';
 import { PostType } from '../src/entity/posts/Post';
-import {
-  pollResultNotification,
-  pollResultAuthorNotification,
-} from '../src/workers/notifications/pollResult';
+import { pollResultNotification } from '../src/workers/notifications/pollResultNotification';
+import { pollResultAuthorNotification } from '../src/workers/notifications/pollResultAuthorNotification';
 import { invokeTypedNotificationWorker } from './helpers';
 import { getTableName } from '../src/workers/cdc/common';
 import { PollPost } from '../src/entity/posts/PollPost';
@@ -1637,8 +1635,17 @@ describe('poll result notifications', () => {
     await expectSuccessfulBackground(
       cdcWorker,
       mockChangeMessage<Post>({
-        before: { ...poll, deleted: false },
-        after: { ...poll, deleted: true },
+        // Convert to debezium time format
+        before: {
+          ...poll,
+          deleted: false,
+          createdAt: poll.createdAt.getTime() * 1000,
+        },
+        after: {
+          ...poll,
+          deleted: true,
+          createdAt: poll.createdAt.getTime() * 1000,
+        },
         op: 'u',
         table: 'post',
       }),
@@ -1649,7 +1656,7 @@ describe('poll result notifications', () => {
       entityId: poll.id,
       entityTableName: getTableName(con, PollPost),
       scheduledAtMs: 0,
-      delayMs: 0,
+      delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
     });
   });
 });

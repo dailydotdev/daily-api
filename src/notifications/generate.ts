@@ -559,18 +559,18 @@ export const generateNotificationMap: Record<
   poll_result: (builder: NotificationBuilder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost!)
+      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .targetUrl(`${process.env.COMMENTS_PREFIX}/posts/${ctx.post.id}`)
-      .uniqueKey(`${ctx.post.id}-poll-result`),
+      .referencePost(ctx.post),
   poll_result_author: (
     builder: NotificationBuilder,
     ctx: NotificationPostContext,
   ) =>
     builder
       .icon(NotificationIcon.Bell)
-      .objectPost(ctx.post, ctx.source, ctx.sharedPost!)
+      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .targetUrl(`${process.env.COMMENTS_PREFIX}/posts/${ctx.post.id}`)
-      .uniqueKey(`${ctx.post.id}-poll-result`),
+      .referencePost(ctx.post),
 };

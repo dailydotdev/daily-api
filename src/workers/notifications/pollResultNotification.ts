@@ -21,7 +21,7 @@ export const pollResultNotification: TypedNotificationWorker<'api.v1.delayed-not
         select: ['id', 'authorId'],
       });
 
-      if (!poll) {
+      if (!poll?.authorId) {
         return;
       }
 
@@ -29,46 +29,12 @@ export const pollResultNotification: TypedNotificationWorker<'api.v1.delayed-not
         where: {
           postId: poll.id,
           pollVoteOptionId: Not(IsNull()),
-          userId: Not(poll.authorId!),
+          userId: Not(poll.authorId),
         },
         select: ['userId'],
       });
 
-      const postCtx = await buildPostContext(con, poll.id);
-      if (!postCtx || !userPosts.length) {
-        return;
-      }
-
-      const notificationCtx: NotificationPostContext = {
-        ...postCtx,
-        userIds: userPosts.map((up) => up.userId),
-      };
-
-      return [
-        {
-          type: NotificationType.PollResult,
-          ctx: notificationCtx,
-        },
-      ];
-    },
-  };
-
-export const pollResultAuthorNotification: TypedNotificationWorker<'api.v1.delayed-notification-reminder'> =
-  {
-    subscription: 'api.poll-result-author-notification',
-    handler: async (data, con) => {
-      if (
-        data.entityTableName !== con.getRepository(PollPost).metadata.tableName
-      ) {
-        return;
-      }
-
-      const poll = await con.getRepository(PollPost).findOne({
-        where: { id: data.entityId },
-        select: ['id', 'authorId'],
-      });
-
-      if (!poll) {
+      if (!userPosts.length) {
         return;
       }
 
@@ -79,7 +45,7 @@ export const pollResultAuthorNotification: TypedNotificationWorker<'api.v1.delay
 
       const notificationCtx: NotificationPostContext = {
         ...postCtx,
-        userIds: [poll.authorId!],
+        userIds: userPosts.map((up) => up.userId),
       };
 
       return [

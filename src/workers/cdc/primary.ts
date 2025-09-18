@@ -555,18 +555,19 @@ const onPostChange = async (
       }
     }
     if (data.payload.after!.type === PostType.Poll) {
-      const now = Date.now();
       const poll = data as ChangeMessage<PollPost>;
       const after = poll.payload.after!;
+
+      const createdDate = debeziumTimeToDate(after.createdAt).getTime();
       const notificationTime =
         after.endsAt?.getTime() ||
-        new Date(now + 14 * 24 * 60 * 60 * 1000).getTime();
+        new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
 
       await runEntityReminderWorkflow({
         entityId: after!.id,
         entityTableName: getTableName(con, PollPost),
-        scheduledAtMs: now,
-        delayMs: notificationTime - now,
+        scheduledAtMs: 0,
+        delayMs: notificationTime - createdDate,
       });
     }
   } else if (data.payload.op === 'u') {
@@ -594,11 +595,19 @@ const onPostChange = async (
       data.payload.after!.type === PostType.Poll &&
       data.payload.after!.deleted
     ) {
+      const poll = data as ChangeMessage<PollPost>;
+      const after = poll.payload.after!;
+
+      const createdDate = debeziumTimeToDate(after.createdAt).getTime();
+      const notificationTime =
+        after!.endsAt?.getTime() ||
+        new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
+
       cancelEntityReminderWorkflow({
         entityId: data.payload.after!.id,
         entityTableName: getTableName(con, PollPost),
         scheduledAtMs: 0,
-        delayMs: 0,
+        delayMs: notificationTime - createdDate,
       });
     }
 

@@ -177,7 +177,6 @@ export type PubSubSchema = {
   'gondul.v1.candidate-opportunity-match': MatchedCandidate;
   'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
   'api.v1.delayed-notification-reminder': z.infer<typeof entityReminderSchema>;
-  'api.v1.delayed-poll-result': z.infer<typeof entityReminderSchema>;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
