@@ -56,5 +56,63 @@
     "size": 2,
     "stage": 2,
     "founded": 2020
+  },
+  {
+    "id": "e8c7a930-ca69-4cba-b26c-b6c810d6ab7d",
+    "name": "daily.demo",
+    "image": "https://media.daily.dev/image/upload/s--ndrCX-hE--/f_auto/v1748943527/organization/e8c7a930-ca69-4cba-b26c-b6c810d6ab7d?_a=BAMClqUq0",
+    "seats": 999,
+    "links": [
+      {
+        "link": "https://daily.dev/blog",
+        "type": "custom",
+        "title": "Engineering Blog"
+      },
+      {
+        "link": "https://x.com/dailydotdev",
+        "type": "social",
+        "socialType": "x"
+      },
+      {
+        "link": "https://github.com/dailydotdev",
+        "type": "social",
+        "socialType": "github"
+      },
+      {
+        "link": "https://www.crunchbase.com/organization/daily-dev",
+        "type": "social",
+        "socialType": "crunchbase"
+      },
+      {
+        "link": "https://github.com/dailydotdev/daily",
+        "type": "custom",
+        "title": "Public GitHub / OSS Links"
+      },
+      {
+        "link": "https://daily.dev/blog/seed-round",
+        "type": "press",
+        "title": "daily.dev raised an $11M seed round 🎉"
+      },
+      {
+        "link": "https://techcrunch.com/2023/03/23/daily-dev-is-like-reddit-meets-stack-overflow/",
+        "type": "press",
+        "title": "Daily.dev is like Reddit meets Stack Overflow"
+      }
+    ],
+    "website": "https://daily.dev",
+    "description": "daily dev is a professional network for developers to learn, collaborate, and grow together.",
+    "perks": [
+      "Work remotely",
+      "Flexible working schedule",
+      "Social benefits",
+      "Company gathering",
+      "Open source donations",
+      "Home office heaven"
+    ],
+    "location": "Tel Aviv, Tel Aviv, Israel",
+    "category": "Software",
+    "size": 2,
+    "stage": 2,
+    "founded": 2020
   }
 ]

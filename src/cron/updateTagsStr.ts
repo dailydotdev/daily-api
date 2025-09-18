@@ -1,6 +1,6 @@
 import { Cron } from './cron';
 import { Checkpoint } from '../entity/Checkpoint';
-import { Keyword } from '../entity';
+import { Keyword, KeywordStatus } from '../entity';
 import { MoreThanOrEqual, Not } from 'typeorm';
 
 const cron: Cron = {
@@ -15,7 +15,10 @@ const cron: Cron = {
 
     await con.transaction(async (entityManager): Promise<void> => {
       const keywords = await entityManager.getRepository(Keyword).find({
-        where: { status: Not('pending'), updatedAt: MoreThanOrEqual(after) },
+        where: {
+          status: Not(KeywordStatus.Pending),
+          updatedAt: MoreThanOrEqual(after),
+        },
       });
       if (keywords.length) {
         await entityManager.query(
