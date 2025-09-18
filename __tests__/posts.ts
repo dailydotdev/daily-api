@@ -5021,13 +5021,21 @@ describe('mutation createSourcePostModeration', () => {
       expect(res.data.createSourcePostModeration.id).toBeTruthy();
       expect(res.data.createSourcePostModeration.type).toEqual(PostType.Poll);
 
-      // Verify no duration was set
+      // Verify no duration was set but poll options are still stored
       const moderationId = res.data.createSourcePostModeration.id;
-      const moderation = await con
-        .getRepository(SourcePostModeration)
-        .findOne({ where: { id: moderationId }, select: ['duration'] });
+      const moderation = await con.getRepository(SourcePostModeration).findOne({
+        where: { id: moderationId },
+        select: ['duration', 'pollOptions'],
+      });
 
       expect(moderation?.duration).toBeFalsy();
+      // Poll options should still be stored since this is a poll type
+      expect(moderation?.pollOptions).toHaveLength(3);
+      expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+        'Option 1',
+        'Option 2',
+        'Option 3',
+      ]);
     });
 
     it('should fail to create poll with invalid duration', async () => {
@@ -5064,6 +5072,80 @@ describe('mutation createSourcePostModeration', () => {
         },
         'GRAPHQL_VALIDATION_FAILED',
       );
+    });
+  });
+
+  describe('non-poll types with poll options', () => {
+    const defaultPollOptions = [
+      { text: 'Option 1', order: 0 },
+      { text: 'Option 2', order: 1 },
+    ];
+
+    it('should ignore poll options when creating freeform post', async () => {
+      loggedUser = '4';
+
+      const freeformWithPollOptions = {
+        sourceId: 'm',
+        title: 'Freeform post with poll options',
+        content: 'This should ignore poll options',
+        type: PostType.Freeform,
+        pollOptions: defaultPollOptions,
+        duration: 7,
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: freeformWithPollOptions,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.title).toEqual(
+        'Freeform post with poll options',
+      );
+      expect(res.data.createSourcePostModeration.type).toEqual(
+        PostType.Freeform,
+      );
+
+      // Verify poll options were ignored (not saved)
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con.getRepository(SourcePostModeration).findOne({
+        where: { id: moderationId },
+        select: ['pollOptions', 'duration'],
+      });
+
+      expect(moderation?.pollOptions).toEqual([]);
+      expect(moderation?.duration).toBeNull();
+    });
+
+    it('should ignore poll options when creating share post', async () => {
+      loggedUser = '4';
+
+      const shareWithPollOptions = {
+        sourceId: 'm',
+        title: 'Share post with poll options',
+        type: PostType.Share,
+        sharedPostId: 'p1',
+        pollOptions: defaultPollOptions,
+        duration: 14,
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: shareWithPollOptions,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+
+      // Verify poll options were ignored (not saved)
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con.getRepository(SourcePostModeration).findOne({
+        where: { id: moderationId },
+        select: ['pollOptions', 'duration'],
+      });
+
+      expect(moderation?.pollOptions).toEqual([]);
+      expect(moderation?.duration).toBeNull();
     });
   });
 });
@@ -8036,15 +8118,21 @@ describe('Source post moderation edit/delete', () => {
 
         expect(res.errors).toBeFalsy();
 
-        // Verify duration was cleared
+        // Verify duration was cleared but poll options were updated
         const moderation = await con
           .getRepository(SourcePostModeration)
           .findOne({
             where: { id: pollId },
-            select: ['duration'],
+            select: ['duration', 'pollOptions'],
           });
 
         expect(moderation?.duration).toBeFalsy();
+        // Poll options should be updated since they were provided
+        expect(moderation?.pollOptions).toHaveLength(2);
+        expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+          'Option 1',
+          'Option 2',
+        ]);
       });
 
       it('should fail to edit poll with invalid poll options', async () => {

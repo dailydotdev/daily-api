@@ -778,6 +778,17 @@ export const validateSourcePostModeration = async (
     throw new ValidationError('Invalid post type!');
   }
 
+  const { con, userId } = ctx;
+  const pendingPost: CreateSourcePostModeration = {
+    title: validateCommentary(title),
+    postId,
+    sourceId,
+    type,
+    sharedPostId,
+    externalLink,
+    createdById: userId,
+  };
+
   if (type === PostType.Poll) {
     const parsedArgs = pollCreationSchema.safeParse({
       title,
@@ -789,20 +800,10 @@ export const validateSourcePostModeration = async (
     if (!parsedArgs.success) {
       throw new ValidationError(parsedArgs.error.issues[0].message);
     }
-  }
 
-  const { con, userId } = ctx;
-  const pendingPost: CreateSourcePostModeration = {
-    title: validateCommentary(title),
-    postId,
-    sourceId,
-    type,
-    sharedPostId,
-    externalLink,
-    createdById: userId,
-    pollOptions,
-    duration: duration || null, // to clear if left empty (no duration),
-  };
+    pendingPost.pollOptions = pollOptions;
+    pendingPost.duration = duration || null; // to clear if left empty (no duration),
+  }
 
   const mentions = await getMentions(con, content, userId, sourceId);
 

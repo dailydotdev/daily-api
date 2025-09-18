@@ -144,7 +144,7 @@ export class SourcePostModeration {
   @Index('IDX_source_post_moderation_flags_vordr', { synchronize: false })
   flags: SourcePostModerationFlags;
 
-  @Column({ type: 'jsonb', default: null })
+  @Column({ type: 'jsonb', default: [] })
   pollOptions?: CreatePollOption[];
 
   @Column({ type: 'integer', default: null })
