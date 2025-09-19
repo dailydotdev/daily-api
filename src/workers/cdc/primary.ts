@@ -603,7 +603,7 @@ const onPostChange = async (
         after!.endsAt?.getTime() ||
         new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
 
-      cancelEntityReminderWorkflow({
+      await cancelEntityReminderWorkflow({
         entityId: data.payload.after!.id,
         entityTableName: getTableName(con, PollPost),
         scheduledAtMs: 0,
