@@ -7103,6 +7103,7 @@ describe('mutation uploadResume', () => {
     expect(ucp.cv).toEqual(
       expect.objectContaining({
         blob: loggedUser,
+        fileName: 'screen.pdf',
         bucket: RESUME_BUCKET_NAME,
         contentType: 'application/pdf',
         lastModified: expect.any(String),
