@@ -169,7 +169,7 @@ config:
     resumeBucketName:
       secure: AAABAP/5px9eOttfTK97ljmZ5PS5aVJcFGjhahnko+DJKBmbJgVcGA4V11ZLxVP1QA==
     employmentAgreementBucketName:
-      secure: AAABALA9Mq+55CyD5H8+xM8AR1uZzKVA0j0JjZ0c9jUfX5Z9pC0TIi3rid5u9vVqKV4tGzhO6qz06VD4vuwlTQ==
+      secure: AAABALYmrJB/AIJh7SXF/2vStsA+vCbPUZ3GVJH/JgIxRg9azoA5A/BZkpSUYHwbVGMLP4yNZpc9Js3/2ISG
   api:k8s:
     host: subs.daily.dev
     namespace: daily
