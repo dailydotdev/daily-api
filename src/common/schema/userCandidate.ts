@@ -29,13 +29,15 @@ export const salaryExpectationSchema = z.object({
     .bigint()
     .min(BigInt(0))
     .transform((val) => val.toString())
-    .optional(),
+    .optional()
+    .nullable(),
   period: z
     .enum(SalaryPeriod, { error: 'Invalid salary period' })
     .refine((val) => val !== SalaryPeriod.UNSPECIFIED, {
       message: 'Invalid salary period',
     })
-    .optional(),
+    .optional()
+    .nullable(),
 });
 
 export const candidatePreferenceSchema = z.object({

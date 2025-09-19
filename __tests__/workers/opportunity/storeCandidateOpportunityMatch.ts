@@ -4,7 +4,13 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { typedWorkers } from '../../../src/workers';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
-import { User, Organization, Alerts } from '../../../src/entity';
+import {
+  User,
+  Organization,
+  Alerts,
+  Feature,
+  FeatureType,
+} from '../../../src/entity';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import { usersFixture } from '../../fixture';
 import {
@@ -25,6 +31,12 @@ describe('storeCandidateOpportunityMatch worker', () => {
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
+
+    await con.getRepository(Feature).insert({
+      userId: '1',
+      feature: FeatureType.Team,
+      value: 1,
+    });
   });
 
   it('should be registered', () => {
