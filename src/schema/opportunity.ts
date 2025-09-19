@@ -3,7 +3,11 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import graphorm from '../graphorm';
-import { Opportunity, OpportunityState } from '@dailydotdev/schema';
+import {
+  Opportunity,
+  OpportunityContent,
+  OpportunityState,
+} from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
@@ -31,6 +35,7 @@ import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
 } from '../common/opportunity/accessControl';
+import { markdown } from '../common/markdown';
 
 export interface GQLOpportunity
   extends Pick<
@@ -219,13 +224,21 @@ export const typeDefs = /* GraphQL */ `
     keyword: String!
   }
 
+  input OpportunityContentInput {
+    overview: String
+    responsibilities: String
+    requirements: String
+    whatYoullDo: String
+    interviewProcess: String
+  }
+
   input OpportunityEditInput {
-    id: ID!
-    title: String!
-    tldr: String!
+    title: String
+    tldr: String
     meta: OpportunityMetaInput
-    location: [LocationInput]!
-    keywords: [OpportunityKeywordInput]!
+    location: [LocationInput]
+    keywords: [OpportunityKeywordInput]
+    content: OpportunityContentInput
   }
 
   extend type Mutation {
@@ -284,7 +297,17 @@ export const typeDefs = /* GraphQL */ `
       @auth
       @rateLimit(limit: 5, duration: 60)
 
-    editOpportunity(payload: OpportunityEditInput!): Opportunity! @auth
+    editOpportunity(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      """
+      Opportunity data to update
+      """
+      payload: OpportunityEditInput!
+    ): Opportunity! @auth
   }
 `;
 
@@ -622,7 +645,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     editOpportunity: async (
       _,
-      { payload },
+      {
+        id,
+        payload,
+      }: { id: string; payload: z.infer<typeof opportunityEditSchema> },
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunity> => {
@@ -631,36 +657,55 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
         userId: ctx.userId,
-        opportunityId: payload.id,
+        opportunityId: id,
         permission: OpportunityPermissions.Edit,
       });
 
       await ctx.con.transaction(async (entityManager) => {
-        const { keywords, ...opportunityUpdate } = opportunity;
+        const { keywords, content, ...opportunityUpdate } = opportunity;
+
+        const renderedContent: Record<
+          string,
+          { content: string; html: string }
+        > = {};
+
+        Object.entries(content || {}).forEach(([key, value]) => {
+          renderedContent[key] = {
+            content: value.replace(/'/g, "''"),
+            html: markdown.render(value).replace(/'/g, "''"),
+          };
+        });
+
+        const opportunityContent = new OpportunityContent(renderedContent);
 
         await entityManager.getRepository(OpportunityJob).update(
-          { id: payload.id },
+          { id },
           {
             ...opportunityUpdate,
-            meta: () => `meta || '${JSON.stringify(opportunity.meta)}'`,
+            content: opportunityContent
+              ? () => `content || '${opportunityContent.toJsonString()}'`
+              : undefined,
+            meta: () => `meta || '${JSON.stringify(opportunity.meta || {})}'`,
           },
         );
 
-        await entityManager.getRepository(OpportunityKeyword).delete({
-          opportunityId: payload.id,
-        });
+        if (Array.isArray(keywords)) {
+          await entityManager.getRepository(OpportunityKeyword).delete({
+            opportunityId: id,
+          });
 
-        await entityManager.getRepository(OpportunityKeyword).insert(
-          keywords.map((keyword) => ({
-            opportunityId: payload.id,
-            keyword: keyword.keyword,
-          })),
-        );
+          await entityManager.getRepository(OpportunityKeyword).insert(
+            keywords.map((keyword) => ({
+              opportunityId: id,
+              keyword: keyword.keyword,
+            })),
+          );
+        }
       });
 
       return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
         builder.queryBuilder
-          .where({ id: payload.id })
+          .where({ id })
           .andWhere({ state: OpportunityState.LIVE });
         return builder;
       });
