@@ -5,6 +5,7 @@ import {
   SalaryPeriod,
 } from '@dailydotdev/schema';
 import z from 'zod';
+import { acceptedEmploymentAgreementFiles, createFileSchema } from './files';
 
 export enum RoleType {
   IC = 0.0,
@@ -12,14 +13,16 @@ export enum RoleType {
   Managerial = 1.0,
 }
 
-export const userCandidateCVSchema = z.object({
+export const gcsBlobSchema = z.object({
   blob: z.string().optional(),
+  fileName: z.string().optional(),
   contentType: z.string().optional(),
   bucket: z.string().optional(),
   lastModified: z.date().optional(),
 });
 
-export type UserCandidateCV = z.infer<typeof userCandidateCVSchema>;
+export type UserCandidateCV = z.infer<typeof gcsBlobSchema>;
+export type GCSBlob = z.infer<typeof gcsBlobSchema>;
 
 export const salaryExpectationSchema = z.object({
   min: z.coerce
@@ -79,4 +82,8 @@ export const userCandidateToggleKeywordSchema = z.object({
     .array(z.string().trim().min(1, 'Keyword cannot be empty'))
     .min(1, 'At least one keyword is required')
     .max(100, 'Too many keywords provided'),
+});
+
+export const uploadEmploymentAgreementSchema = z.object({
+  file: z.promise(createFileSchema(acceptedEmploymentAgreementFiles)),
 });

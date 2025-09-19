@@ -94,6 +94,7 @@ config:
     urlPrefix: https://api.local.fylla.dev
     validLanguagesFeatureKey: valid_languages
     resumeBucketName: adhoc-daily-api
+    employmentAgreementBucketName: adhoc-daily-api
   api:k8s:
     namespace: local
   api:temporal:

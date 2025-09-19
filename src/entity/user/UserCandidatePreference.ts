@@ -18,6 +18,7 @@ import {
 } from '@dailydotdev/schema';
 import type { Location } from '@dailydotdev/schema';
 import type {
+  GCSBlob,
   salaryExpectationSchema,
   UserCandidateCV,
 } from '../../common/schema/userCandidate';
@@ -54,6 +55,9 @@ export class UserCandidatePreference {
 
   @Column({ type: 'jsonb', default: {} })
   cvParsed: Record<string, unknown> = {};
+
+  @Column({ type: 'jsonb', default: {} })
+  employmentAgreement: GCSBlob = {};
 
   @Column({ type: 'text', default: null })
   role?: string;
