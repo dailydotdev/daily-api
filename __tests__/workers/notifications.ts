@@ -66,6 +66,7 @@ import {
 } from '../../src/entity/contentPreference/types';
 import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
+import { articleNewCommentCommentCommented } from '../../src/workers/notifications/articleNewCommentCommentCommented';
 
 let con: DataSource;
 
@@ -1254,9 +1255,6 @@ describe('article new comment', () => {
   });
 
   it('should add notification for scout and author on new reply', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentCommentCommented'
-    );
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -1264,11 +1262,16 @@ describe('article new comment', () => {
         authorId: '3',
       },
     );
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      childCommentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '3']);
   });
@@ -1326,9 +1329,6 @@ describe('article new comment', () => {
   });
 
   it('should add notification but ignore users with muted settings', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentCommentCommented'
-    );
     await con
       .getRepository(Post)
       .update({ id: 'p1' }, { scoutId: '1', authorId: '3' });
@@ -1339,19 +1339,21 @@ describe('article new comment', () => {
       status: NotificationPreferenceStatus.Muted,
       notificationType: NotificationType.ArticleNewComment,
     });
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      childCommentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds).toEqual(['3']);
   });
 
   it('should insert or ignore completed action type first post comment', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentCommentCommented'
-    );
     const repo = con.getRepository(UserAction);
     const getAction = () =>
       repo.findOneBy({
@@ -1365,19 +1367,30 @@ describe('article new comment', () => {
       .update({ id: 'a' }, { type: SourceType.Squad });
     expect(exists).toBeFalsy();
 
-    await invokeNotificationWorker(worker.default, {
-      postId: 'p1',
-      childCommentId: 'c1',
-    });
+    await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: null,
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
 
     const inserted = await getAction();
     expect(inserted).toBeTruthy();
 
-    await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      childCommentId: 'c1',
-    });
+    await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
 
     const existing = await getAction();
     expect(existing).toBeTruthy();
@@ -1385,15 +1398,17 @@ describe('article new comment', () => {
   });
 
   it('should not insert completed action type first post comment if source is not squad', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentCommentCommented'
-    );
-
     await con.getRepository(Comment).update({ id: 'c1' }, { userId: '1' });
-    await invokeNotificationWorker(worker.default, {
-      postId: 'p1',
-      childCommentId: 'c1',
-    });
+    await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     const exists = await con.getRepository(UserAction).findOneBy({
       userId: '1',
       type: UserActionType.SquadFirstComment,
@@ -1402,9 +1417,6 @@ describe('article new comment', () => {
   });
 
   it('should not add notification for new squad comment when author is blocked from squad', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentPostCommented'
-    );
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
@@ -1415,11 +1427,16 @@ describe('article new comment', () => {
         { role: SourceMemberRoles.Blocked },
       );
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      commentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'comment-commented'>(
+      articleNewCommentCommentCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        parentCommentId: 'c0',
+        childCommentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual).toBeFalsy();
   });
 
