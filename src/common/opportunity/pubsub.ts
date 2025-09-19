@@ -125,7 +125,7 @@ export const notifyOpportunityMatchAccepted = async ({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)
           : undefined,
-        period: candidatePreference.salaryExpectation?.period,
+        period: candidatePreference.salaryExpectation?.period ?? undefined,
       }),
       cv: new UserCV({
         ...candidatePreference.cv,
@@ -291,7 +291,7 @@ export const notifyCandidatePreferenceChange = async ({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)
           : undefined,
-        period: candidatePreference.salaryExpectation?.period,
+        period: candidatePreference.salaryExpectation?.period ?? undefined,
       }),
       cv: new UserCV({
         ...candidatePreference?.cv,
