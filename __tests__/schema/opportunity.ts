@@ -1,5 +1,6 @@
 import type { ZodError } from 'zod';
 import { DataSource, IsNull } from 'typeorm';
+import request from 'supertest';
 import { User, Keyword, Alerts } from '../../src/entity';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
@@ -7,6 +8,7 @@ import { Organization } from '../../src/entity/Organization';
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
 import createOrGetConnection from '../../src/db';
 import {
+  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -44,10 +46,19 @@ import type { GQLOpportunity } from '../../src/schema/opportunity';
 import { UserCandidateKeyword } from '../../src/entity/user/UserCandidateKeyword';
 import * as googleCloud from '../../src/common/googleCloud';
 import { Bucket } from '@google-cloud/storage';
+import { deleteRedisKey } from '../../src/redis';
+import { rateLimiterName } from '../../src/directive/rateLimit';
+import { fileTypeFromBuffer } from '../setup';
+import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
+const uploadEmploymentAgreementFromBuffer = jest.spyOn(
+  googleCloud,
+  'uploadEmploymentAgreementFromBuffer',
+);
 
 let con: DataSource;
+let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
@@ -58,6 +69,7 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
+  app = state.app;
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -1508,5 +1520,221 @@ describe('mutation clearEmploymentAgreement', () => {
         userId: loggedUser,
       }),
     ).toEqual(0);
+  });
+});
+
+describe('mutation uploadEmploymentAgreement', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation UploadEmploymentAgreement($file: Upload!) {
+      uploadEmploymentAgreement(file: $file) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await deleteRedisKey(
+      `${rateLimiterName}:1:Mutation.uploadEmploymentAgreement`,
+    );
+  });
+
+  it('should throw error when file is missing', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = '';
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png', 'sample.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+  });
+
+  it('should upload pdf agreement successfully', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    // Mock the upload function to return a URL
+    uploadEmploymentAgreementFromBuffer.mockResolvedValue(
+      `https://storage.cloud.google.com/${EMPLOYMENT_AGREEMENT_BUCKET_NAME}/1`,
+    );
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    // Verify the response
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    // Verify the mocks were called correctly
+    expect(uploadEmploymentAgreementFromBuffer).toHaveBeenCalledWith(
+      loggedUser,
+      expect.any(Object),
+      { contentType: 'application/pdf' },
+    );
+
+    const ucp = await con
+      .getRepository(UserCandidatePreference)
+      .findOneByOrFail({
+        userId: loggedUser,
+      });
+
+    const { bucketName } = googleCloud.gcsBucketMap.employmentAgreement;
+
+    expect(ucp.employmentAgreement).toEqual(
+      expect.objectContaining({
+        blob: loggedUser,
+        fileName: 'screen.pdf',
+        bucket: bucketName,
+        contentType: 'application/pdf',
+        lastModified: expect.any(String),
+      }),
+    );
+  });
+
+  it('should throw error when file extension is not supported', async () => {
+    loggedUser = '1';
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    const extensions = body?.errors?.[0].extensions as unknown as ZodError;
+
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(extensions.issues[0].code).toEqual('custom');
+    expect(extensions.issues[0].message).toEqual('Unsupported file type');
+    expect(extensions.issues[0].path).toEqual(['file', 'extension']);
+  });
+
+  it('should throw error when file type does not match extension', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'png',
+      mime: 'image/png',
+    });
+
+    // Rename the file to have a .pdf extension
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png', 'fake.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    const extensions = body?.errors?.[0].extensions as unknown as ZodError;
+
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(extensions.issues[0].code).toEqual('custom');
+    expect(extensions.issues[0].message).toEqual(
+      'File type does not match file extension',
+    );
+    expect(extensions.issues[0].path).toEqual(['file', 'mimetype']);
+  });
+
+  it('should throw error when file content does not match file extension', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Incorrect mime type for a PDF
+    });
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    const extensions = body?.errors?.[0].extensions as unknown as ZodError;
+
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(extensions.issues[0].code).toEqual('custom');
+    expect(extensions.issues[0].message).toEqual(
+      'File content does not match file extension',
+    );
+    expect(extensions.issues[0].path).toEqual(['file', 'buffer']);
   });
 });
