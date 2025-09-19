@@ -7,5 +7,8 @@ export const articleNewCommentCommentCommented: TypedNotificationWorker<'comment
     handler: async ({ childCommentId }, con) => {
       return articleNewCommentHandler(con, childCommentId);
     },
-    parseMessage: (message) => messageToJson(message),
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
   };
