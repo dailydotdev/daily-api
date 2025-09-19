@@ -74,6 +74,7 @@ declare global {
 
       GEOIP_PATH?: string;
       RESUME_BUCKET_NAME: string;
+      EMPLOYMENT_AGREEMENT_BUCKET_NAME: string;
     }
   }
 }
@@ -253,6 +254,19 @@ export enum StreakRestoreCoresPrice {
   First = 0,
   Regular = 100,
 }
+
+/**
+ * Map of accepted file extensions to their corresponding MIME types.
+ */
+export type AcceptedFilesMap = Record<string, { mime: Array<string> }>;
+
+/**
+ * Defines a fully typed map of accepted file extensions to their corresponding MIME types.
+ * @param map - Map of accepted file extensions to their corresponding MIME types.
+ * @returns The same map, for convenience.
+ */
+export const defineAcceptedFilesMap = <T extends AcceptedFilesMap>(map: T): T =>
+  map;
 
 export const acceptedResumeFileTypes: Array<Record<'mime' | 'ext', string>> = [
   { mime: 'application/pdf', ext: 'pdf' },
