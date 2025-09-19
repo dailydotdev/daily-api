@@ -76,8 +76,6 @@ export enum NotificationType {
   CampaignSquadFirstMilestone = 'campaign_squad_first_milestone',
   NewOpportunityMatch = 'new_opportunity_match',
   PostAnalytics = 'post_analytics',
-  PollResult = 'poll_result',
-  PollResultAuthor = 'poll_result_author',
 }
 
 export enum NotificationPreferenceType {
@@ -112,8 +110,6 @@ export const notificationPreferenceMap: Partial<
   [NotificationType.UserTopReaderBadge]: NotificationPreferenceType.User,
   [NotificationType.SourcePostSubmitted]: NotificationPreferenceType.Source,
   [NotificationType.SquadFeatured]: NotificationPreferenceType.Source,
-  [NotificationType.PollResult]: NotificationPreferenceType.Post,
-  [NotificationType.PollResultAuthor]: NotificationPreferenceType.Post,
 };
 
 export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
@@ -270,14 +266,6 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.PostAnalytics]: {
-    email: NotificationPreferenceStatus.Subscribed,
-    inApp: NotificationPreferenceStatus.Subscribed,
-  },
-  [NotificationType.PollResult]: {
-    email: NotificationPreferenceStatus.Subscribed,
-    inApp: NotificationPreferenceStatus.Subscribed,
-  },
-  [NotificationType.PollResultAuthor]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
