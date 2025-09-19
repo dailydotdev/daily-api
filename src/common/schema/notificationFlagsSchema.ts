@@ -47,6 +47,4 @@ export const notificationFlagsSchema = z.strictObject({
   [NotificationType.InAppPurchases]: notificationPreferenceSchema,
   [NotificationType.NewOpportunityMatch]: notificationPreferenceSchema,
   [NotificationType.PostAnalytics]: notificationPreferenceSchema,
-  [NotificationType.PollResult]: notificationPreferenceSchema,
-  [NotificationType.PollResultAuthor]: notificationPreferenceSchema,
 });
