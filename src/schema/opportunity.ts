@@ -25,6 +25,12 @@ import {
   deleteEmploymentAgreementByUserId,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
+import { opportunityEditSchema } from '../common/schema/opportunities';
+import { OpportunityKeyword } from '../entity/OpportunityKeyword';
+import {
+  ensureOpportunityPermissions,
+  OpportunityPermissions,
+} from '../common/opportunity/accessControl';
 
 export interface GQLOpportunity
   extends Pick<
@@ -186,11 +192,40 @@ export const typeDefs = /* GraphQL */ `
   input LocationInput {
     city: String
     country: String
+    subdivision: String
+    type: ProtoEnumValue
   }
 
   input OpportunityScreeningAnswerInput {
     questionId: ID!
     answer: String!
+  }
+
+  input SalaryInput {
+    min: Float
+    max: Float
+    period: ProtoEnumValue
+  }
+
+  input OpportunityMetaInput {
+    employmentType: ProtoEnumValue
+    teamSize: Int
+    salary: SalaryInput
+    seniorityLevel: ProtoEnumValue
+    roleType: Float
+  }
+
+  input OpportunityKeywordInput {
+    keyword: String!
+  }
+
+  input OpportunityEditInput {
+    id: ID!
+    title: String!
+    tldr: String!
+    meta: OpportunityMetaInput
+    location: [LocationInput]!
+    keywords: [OpportunityKeywordInput]!
   }
 
   extend type Mutation {
@@ -248,6 +283,8 @@ export const typeDefs = /* GraphQL */ `
     clearEmploymentAgreement: EmptyResponse
       @auth
       @rateLimit(limit: 5, duration: 60)
+
+    editOpportunity(payload: OpportunityEditInput!): Opportunity! @auth
   }
 `;
 
@@ -582,6 +619,51 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
       return { _: true };
+    },
+    editOpportunity: async (
+      _,
+      { payload },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLOpportunity> => {
+      const opportunity = opportunityEditSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: payload.id,
+        permission: OpportunityPermissions.Edit,
+      });
+
+      await ctx.con.transaction(async (entityManager) => {
+        const { keywords, ...opportunityUpdate } = opportunity;
+
+        await entityManager.getRepository(OpportunityJob).update(
+          { id: payload.id },
+          {
+            ...opportunityUpdate,
+            meta: () => `meta || '${JSON.stringify(opportunity.meta)}'`,
+          },
+        );
+
+        await entityManager.getRepository(OpportunityKeyword).delete({
+          opportunityId: payload.id,
+        });
+
+        await entityManager.getRepository(OpportunityKeyword).insert(
+          keywords.map((keyword) => ({
+            opportunityId: payload.id,
+            keyword: keyword.keyword,
+          })),
+        );
+      });
+
+      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+        builder.queryBuilder
+          .where({ id: payload.id })
+          .andWhere({ state: OpportunityState.LIVE });
+        return builder;
+      });
     },
   },
 });
