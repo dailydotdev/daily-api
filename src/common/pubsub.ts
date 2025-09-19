@@ -501,50 +501,60 @@ export const workerSubscribe = (
   ) => Promise<void>,
   maxMessages = 1,
 ): void => {
-  logger.info(`subscribing to ${subscription}`);
-  const sub = pubsub.subscription(subscription, {
-    flowControl: {
-      maxMessages,
-    },
-    batching: { maxMilliseconds: 10 },
-  });
-  const childLogger = logger.child({ subscription });
-  // const histogram = meter.createHistogram('message_processing_time', {
-  //   unit: 'ms',
-  //   description: 'time to process a message',
-  // });
-  sub.on('message', async (message) =>
-    runInRootSpan(
-      `message: ${subscription}`,
-      async (span) => {
-        // const startTime = performance.now();
-        // let success = true;
-        addPubsubSpanLabels(span, subscription, message);
-        try {
-          await runInSpan('handler', async () =>
-            handler(message, connection, childLogger, pubsub),
-          );
-          message.ack();
-        } catch (err) {
-          // success = false;
-          childLogger.error(
-            {
-              messageId: message.id,
-              data: message.data.toString('utf-8'),
-              err,
-            },
-            'failed to process message',
-          );
-          message.nack();
-        }
-        // histogram.record(performance.now() - startTime, {
-        //   subscription,
-        //   success,
-        // });
+  try {
+    logger.info(`subscribing to ${subscription}`);
+    const sub = pubsub.subscription(subscription, {
+      flowControl: {
+        maxMessages,
       },
-      {
-        kind: opentelemetry.SpanKind.CONSUMER,
-      },
-    ),
-  );
+      batching: { maxMilliseconds: 10 },
+    });
+    const childLogger = logger.child({ subscription });
+    // const histogram = meter.createHistogram('message_processing_time', {
+    //   unit: 'ms',
+    //   description: 'time to process a message',
+    // });
+
+    logger.info({ subscription }, 'fml worker subscribed almost');
+
+    sub.on('message', async (message) =>
+      runInRootSpan(
+        `message: ${subscription}`,
+        async (span) => {
+          // const startTime = performance.now();
+          // let success = true;
+          addPubsubSpanLabels(span, subscription, message);
+          try {
+            await runInSpan('handler', async () =>
+              handler(message, connection, childLogger, pubsub),
+            );
+            message.ack();
+          } catch (err) {
+            // success = false;
+            childLogger.error(
+              {
+                messageId: message.id,
+                data: message.data.toString('utf-8'),
+                err,
+              },
+              'failed to process message',
+            );
+            message.nack();
+          }
+          // histogram.record(performance.now() - startTime, {
+          //   subscription,
+          //   success,
+          // });
+        },
+        {
+          kind: opentelemetry.SpanKind.CONSUMER,
+        },
+      ),
+    );
+    sub.on('error', (err) => {
+      logger.error({ err, subscription }, 'fml worker on error');
+    });
+  } catch (error) {
+    logger.error({ err: error, subscription }, 'fml worker try catch');
+  }
 };
