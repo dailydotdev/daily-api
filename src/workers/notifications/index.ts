@@ -36,6 +36,8 @@ import { userBriefReadyNotification } from './userBriefReadyNotification';
 import { userFollowNotification } from './userFollowNotification';
 import { candidateOpportunityMatchNotification } from './candidateOpportunityMatchNotification';
 import { campaignPostAnalyticsNotification } from './campaignPostAnalyticsNotification';
+import { pollResultNotification } from './pollResultNotification';
+import { pollResultAuthorNotification } from './pollResultAuthorNotification';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNotificationWorker = NotificationWorker | TypedNotificationWorker<any>;
@@ -120,6 +122,8 @@ const notificationWorkers: AnyNotificationWorker[] = [
   userFollowNotification,
   candidateOpportunityMatchNotification,
   campaignPostAnalyticsNotification,
+  pollResultNotification,
+  pollResultAuthorNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];
