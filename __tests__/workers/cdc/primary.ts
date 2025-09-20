@@ -6526,3 +6526,66 @@ describe('campaign post', () => {
     expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
   });
 });
+
+describe('poll post', () => {
+  it('should schedule entity reminder workflow for poll creation', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000; // Convert to debezium microseconds
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+        },
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: pollId,
+      entityTableName: 'post',
+      scheduledAtMs: 0,
+      delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
+    });
+  });
+
+  it('should cancel entity reminder workflow when poll is deleted', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000; // Convert to debezium microseconds
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        before: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          deleted: false,
+        },
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          deleted: true,
+        },
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: pollId,
+      entityTableName: 'post',
+      scheduledAtMs: 0,
+      delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
+    });
+  });
+});

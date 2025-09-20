@@ -413,6 +413,14 @@ export const workers: Worker[] = [
     topic: 'api.v1.delayed-notification-reminder',
     subscription: 'api.campaign-post-analytics-notification',
   },
+  {
+    topic: 'api.v1.delayed-notification-reminder',
+    subscription: 'api.poll-result-author-notification',
+  },
+  {
+    topic: 'api.v1.delayed-notification-reminder',
+    subscription: 'api.poll-result-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
