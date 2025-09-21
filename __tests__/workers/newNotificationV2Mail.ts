@@ -43,6 +43,7 @@ import {
   UserPersonalizedDigestType,
   WelcomePost,
 } from '../../src/entity';
+import { PollPost } from '../../src/entity/posts/PollPost';
 import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -2595,5 +2596,109 @@ describe('campaign_squad_first_milestone notifications', () => {
       source_name: 'A',
     });
     expect(args.transactional_message_id).toEqual('82');
+  });
+});
+
+describe('poll result notifications', () => {
+  it('should set parameters for poll_result email', async () => {
+    const poll = await con.getRepository(Post).save({
+      id: 'poll1',
+      shortId: 'poll1',
+      sourceId: 'a',
+      title: 'What is your favorite programming language?',
+      createdAt: new Date(2023, 0, 1),
+      authorId: '2',
+      type: PostType.Poll,
+    });
+    await con.getRepository(PollPost).save({
+      id: 'poll1',
+      endsAt: new Date(2023, 0, 5),
+      numPollVotes: 150,
+    });
+
+    const ctx: NotificationPostContext & NotificationSourceContext = {
+      userIds: ['1'],
+      post: { id: poll.id } as Reference<Post>,
+      source,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.PollResult,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      post_link: expect.stringContaining(
+        'poll1?utm_source=notification&utm_medium=email&utm_campaign=poll_result',
+      ),
+      analytics_link: expect.stringContaining('poll1/analytics'),
+      post_title: 'What is your favorite programming language?',
+      title: 'The poll you voted on has ended',
+      subtitle:
+        'Thanks for voting! The poll is now closed. Curious to see how others voted?',
+    });
+    expect(args.transactional_message_id).toEqual('84');
+  });
+
+  it('should set parameters for poll_result_author email', async () => {
+    const poll = await con.getRepository(Post).save({
+      id: 'poll2',
+      shortId: 'poll2',
+      sourceId: 'a',
+      title: 'Which framework do you prefer?',
+      createdAt: new Date(2023, 0, 1),
+      authorId: '1',
+      type: PostType.Poll,
+    });
+    await con.getRepository(PollPost).save({
+      id: 'poll2',
+      endsAt: new Date(2023, 0, 5),
+      numPollVotes: 75,
+    });
+
+    const ctx: NotificationPostContext & NotificationSourceContext = {
+      userIds: ['1'],
+      post: { id: poll.id } as Reference<Post>,
+      source,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.PollResultAuthor,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      post_link: expect.stringContaining(
+        'poll2?utm_source=notification&utm_medium=email&utm_campaign=poll_result_author',
+      ),
+      analytics_link: expect.stringContaining('poll2/analytics'),
+      post_title: 'Which framework do you prefer?',
+      title: 'Your poll has ended',
+      subtitle:
+        'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
+    });
+    expect(args.transactional_message_id).toEqual('84');
   });
 });
