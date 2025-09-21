@@ -129,7 +129,9 @@ export const counters: Partial<{
   }>;
 }> = {};
 
-export const startMetrics = (serviceName: keyof typeof counterMap): void => {
+export const startMetrics = async (
+  serviceName: keyof typeof counterMap,
+): Promise<void> => {
   if (process.env.METRICS_ENABLED !== 'true') {
     return;
   }
@@ -142,13 +144,17 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
     }),
   ];
 
-  const resource = new resources.Resource({
-    [ATTR_SERVICE_NAME]: serviceName,
-  }).merge(
-    resources.detectResourcesSync({
-      detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
-    }),
-  );
+  const resource = resources
+    .resourceFromAttributes({
+      [ATTR_SERVICE_NAME]: serviceName,
+    })
+    .merge(
+      resources.detectResources({
+        detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
+      }),
+    );
+
+  await resource.waitForAsyncAttributes?.();
 
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);

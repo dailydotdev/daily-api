@@ -3,11 +3,12 @@ import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
+  MatchedCandidate,
   OpportunityMessage,
   Salary,
   UserCV,
 } from '@dailydotdev/schema';
-import { triggerTypedEvent } from '../../common';
+import { demoCompany, triggerTypedEvent } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { ChangeObject } from '../../types';
@@ -20,6 +21,7 @@ import {
   ContentPreferenceStatus,
   ContentPreferenceType,
 } from '../../entity/contentPreference/types';
+import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
 
 const fetchCandidateKeywords = async (
   manager: EntityManager,
@@ -123,7 +125,7 @@ export const notifyOpportunityMatchAccepted = async ({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)
           : undefined,
-        period: candidatePreference.salaryExpectation?.period,
+        period: candidatePreference.salaryExpectation?.period ?? undefined,
       }),
       cv: new UserCV({
         ...candidatePreference.cv,
@@ -199,6 +201,34 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
+  /**
+   * Demo logic: if the company is the demo company we can omit using Gondul and simply return the users from that company as matched candidates
+   */
+  if (organization.id === demoCompany.id) {
+    const members = await con
+      .getRepository(ContentPreferenceOrganization)
+      .find({
+        select: ['userId'],
+        where: { organizationId: organization.id },
+      });
+    for (const { userId } of members) {
+      await triggerTypedEvent(
+        logger,
+        'gondul.v1.candidate-opportunity-match',
+        new MatchedCandidate({
+          opportunityId,
+          userId,
+          matchScore: 0.87,
+          reasoning:
+            "We have noticed that you've been digging into React performance optimization and exploring payment systems lately. Your skills in TypeScript and Node.js line up directly with the core technologies this team uses. You also follow several Atlassian engineers and have shown consistent interest in project management software, which makes this role a natural fit for your trajectory.",
+          reasoningShort:
+            'Your skills in TypeScript and Node.js line up directly with the core technologies this team uses.',
+        }),
+      );
+    }
+    return;
+  }
+
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
@@ -261,7 +291,7 @@ export const notifyCandidatePreferenceChange = async ({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)
           : undefined,
-        period: candidatePreference.salaryExpectation?.period,
+        period: candidatePreference.salaryExpectation?.period ?? undefined,
       }),
       cv: new UserCV({
         ...candidatePreference?.cv,

@@ -1907,7 +1907,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       if (generatedUsernames.length === 0) {
-        ctx.log.info('usernameChecks', usernameChecks);
+        ctx.log.info(usernameChecks, 'usernameChecks');
         return '';
       }
 
@@ -2590,6 +2590,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           userId: ctx.userId,
           cv: {
             blob: filename,
+            fileName: upload.filename,
             contentType: fileType?.mime,
             bucket: RESUME_BUCKET_NAME,
             lastModified: new Date(),

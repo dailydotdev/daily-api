@@ -67,7 +67,7 @@ import {
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
-import type { UserCandidateCV } from '../common/schema/userCandidate';
+import type { GCSBlob } from '../common/schema/userCandidate';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -639,6 +639,15 @@ const obj = new GraphORM({
           },
         },
       },
+      pollOptions: {
+        relation: {
+          isMany: true,
+          sort: 'order',
+          order: 'ASC',
+          parentColumn: 'id',
+          childColumn: 'postId',
+        },
+      },
     },
   },
   SourceCategory: {
@@ -1060,7 +1069,7 @@ const obj = new GraphORM({
     from: 'NotificationAvatarV2',
   },
   UserPost: {
-    requiredColumns: ['votedAt', 'awardTransactionId'],
+    requiredColumns: ['votedAt', 'awardTransactionId', 'pollVoteOptionId'],
     fields: {
       flags: {
         jsonType: true,
@@ -1577,22 +1586,30 @@ const obj = new GraphORM({
     fields: {
       cv: {
         jsonType: true,
-        transform: (value: UserCandidateCV | null): UserCandidateCV | null => {
-          if (!value) {
-            return null;
-          }
-
-          return {
-            ...value,
-            lastModified: transformDate(value.lastModified),
-          };
-        },
+        transform: (value: GCSBlob) => ({
+          ...value,
+          lastModified: transformDate(value?.lastModified),
+        }),
+      },
+      employmentAgreement: {
+        jsonType: true,
+        transform: (value: GCSBlob) => ({
+          ...value,
+          lastModified: transformDate(value?.lastModified),
+        }),
       },
       salaryExpectation: {
         jsonType: true,
       },
       location: {
         jsonType: true,
+      },
+      keywords: {
+        relation: {
+          isMany: true,
+          parentColumn: 'userId',
+          childColumn: 'userId',
+        },
       },
     },
   },

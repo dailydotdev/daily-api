@@ -116,6 +116,8 @@ import * as njordCommon from '../src/common/njord';
 import { BriefPost } from '../src/entity/posts/BriefPost';
 import { createClient } from '@connectrpc/connect';
 import isSameDay from 'date-fns/isSameDay';
+import { PollPost } from '../src/entity/posts/PollPost';
+import { PollOption } from '../src/entity/polls/PollOption';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -4566,8 +4568,8 @@ describe('mutation createSourcePostModeration', () => {
     await saveSquadFixtures();
   });
 
-  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $externalLink: String, $postId: ID) {
-    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, externalLink: $externalLink, postId: $postId) {
+  const MUTATION = `mutation CreateSourcePostModeration($sourceId: ID! $title: String!, $type: String!, $content: String, $image: Upload, $imageUrl: String, $sharedPostId: ID, $externalLink: String, $postId: ID, $pollOptions: [PollOptionInput!], $duration: Int) {
+    createSourcePostModeration(sourceId: $sourceId, title: $title, type: $type, content: $content, image: $image, imageUrl: $imageUrl, sharedPostId: $sharedPostId, externalLink: $externalLink, postId: $postId, pollOptions: $pollOptions, duration: $duration) {
       id
       title
       content
@@ -4849,6 +4851,301 @@ describe('mutation createSourcePostModeration', () => {
         .findOneByOrFail({ id });
       expect(moderation.status).toEqual(SourcePostModerationStatus.Pending);
       expect(moderation.flags.vordr).toEqual(true);
+    });
+  });
+
+  describe('poll type posts', () => {
+    const defaultPollOptions = [
+      { text: 'Option 1', order: 0 },
+      { text: 'Option 2', order: 1 },
+      { text: 'Option 3', order: 2 },
+    ];
+
+    const pollParams = {
+      sourceId: 'm',
+      title: 'My poll question',
+      type: PostType.Poll,
+      pollOptions: defaultPollOptions,
+    };
+
+    it('should create poll source post moderation successfully', async () => {
+      loggedUser = '4';
+
+      const res = await client.mutate(MUTATION, {
+        variables: pollParams,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.title).toEqual(
+        'My poll question',
+      );
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Poll);
+      expect(res.data.createSourcePostModeration.source.permalink).toBeTruthy();
+
+      // Verify poll options were saved
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOne({ where: { id: moderationId }, select: ['pollOptions'] });
+      expect(moderation?.pollOptions).toHaveLength(3);
+      expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+        'Option 1',
+        'Option 2',
+        'Option 3',
+      ]);
+    });
+
+    it('should fail to create poll without poll options', async () => {
+      loggedUser = '4';
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: undefined,
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with less than 2 options', async () => {
+      loggedUser = '4';
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: [{ text: 'Only one option', order: 0 }],
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with more than 4 options', async () => {
+      loggedUser = '4';
+
+      const tooManyOptions = [
+        ...defaultPollOptions,
+        { text: 'Option 4', order: 3 },
+        { text: 'Option 5', order: 4 },
+      ];
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: tooManyOptions,
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with empty option text', async () => {
+      loggedUser = '4';
+
+      const invalidOptions = [
+        { text: 'Valid option', order: 0 },
+        { text: '', order: 1 },
+        { text: 'Another valid option', order: 2 },
+      ];
+
+      const invalidPollParams = {
+        ...pollParams,
+        pollOptions: invalidOptions,
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidPollParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should create poll with duration', async () => {
+      loggedUser = '4';
+
+      const pollWithDuration = {
+        ...pollParams,
+        duration: 7,
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: pollWithDuration,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Poll);
+
+      // Verify the poll duration was saved correctly
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con
+        .getRepository(SourcePostModeration)
+        .findOne({ where: { id: moderationId }, select: ['duration'] });
+
+      expect(moderation?.duration).toBe(7);
+    });
+
+    it('should create poll without duration', async () => {
+      loggedUser = '4';
+
+      const pollWithoutDuration = {
+        ...pollParams,
+        // duration not specified
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: pollWithoutDuration,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Poll);
+
+      // Verify no duration was set but poll options are still stored
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con.getRepository(SourcePostModeration).findOne({
+        where: { id: moderationId },
+        select: ['duration', 'pollOptions'],
+      });
+
+      expect(moderation?.duration).toBeFalsy();
+      // Poll options should still be stored since this is a poll type
+      expect(moderation?.pollOptions).toHaveLength(3);
+      expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+        'Option 1',
+        'Option 2',
+        'Option 3',
+      ]);
+    });
+
+    it('should fail to create poll with invalid duration', async () => {
+      loggedUser = '4';
+
+      const invalidDurationParams = {
+        ...pollParams,
+        duration: 2, // Invalid duration (should be 3-30 days)
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidDurationParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should fail to create poll with duration over 30 days', async () => {
+      loggedUser = '4';
+
+      const invalidDurationParams = {
+        ...pollParams,
+        duration: 31, // Invalid duration (should be 3-30 days)
+      };
+
+      await testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: invalidDurationParams,
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+  });
+
+  describe('non-poll types with poll options', () => {
+    const defaultPollOptions = [
+      { text: 'Option 1', order: 0 },
+      { text: 'Option 2', order: 1 },
+    ];
+
+    it('should ignore poll options when creating freeform post', async () => {
+      loggedUser = '4';
+
+      const freeformWithPollOptions = {
+        sourceId: 'm',
+        title: 'Freeform post with poll options',
+        content: 'This should ignore poll options',
+        type: PostType.Freeform,
+        pollOptions: defaultPollOptions,
+        duration: 7,
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: freeformWithPollOptions,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.title).toEqual(
+        'Freeform post with poll options',
+      );
+      expect(res.data.createSourcePostModeration.type).toEqual(
+        PostType.Freeform,
+      );
+
+      // Verify poll options were ignored (not saved)
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con.getRepository(SourcePostModeration).findOne({
+        where: { id: moderationId },
+        select: ['pollOptions', 'duration'],
+      });
+
+      expect(moderation?.pollOptions).toEqual([]);
+      expect(moderation?.duration).toBeNull();
+    });
+
+    it('should ignore poll options when creating share post', async () => {
+      loggedUser = '4';
+
+      const shareWithPollOptions = {
+        sourceId: 'm',
+        title: 'Share post with poll options',
+        type: PostType.Share,
+        sharedPostId: 'p1',
+        pollOptions: defaultPollOptions,
+        duration: 14,
+      };
+
+      const res = await client.mutate(MUTATION, {
+        variables: shareWithPollOptions,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createSourcePostModeration.id).toBeTruthy();
+      expect(res.data.createSourcePostModeration.type).toEqual(PostType.Share);
+
+      // Verify poll options were ignored (not saved)
+      const moderationId = res.data.createSourcePostModeration.id;
+      const moderation = await con.getRepository(SourcePostModeration).findOne({
+        where: { id: moderationId },
+        select: ['pollOptions', 'duration'],
+      });
+
+      expect(moderation?.pollOptions).toEqual([]);
+      expect(moderation?.duration).toBeNull();
     });
   });
 });
@@ -7543,8 +7840,8 @@ describe('Source post moderation edit/delete', () => {
   }`;
 
   const EDIT_MUTATION = `
-  mutation EditSourcePostModeration($id: ID!, $sourceId: ID!, $title: String, $content: String, $type: String!) {
-    editSourcePostModeration(id: $id, sourceId: $sourceId, title: $title, content: $content, type: $type) {
+  mutation EditSourcePostModeration($id: ID!, $sourceId: ID!, $title: String, $content: String, $type: String!, $pollOptions: [PollOptionInput!], $duration: Int) {
+    editSourcePostModeration(id: $id, sourceId: $sourceId, title: $title, content: $content, type: $type, pollOptions: $pollOptions, duration: $duration) {
       id
       title
       content
@@ -7697,6 +7994,187 @@ describe('Source post moderation edit/delete', () => {
       expect(post.title).toEqual('New Title');
       expect(post.content).toEqual('New Content');
       expect(post.status).toEqual(SourcePostModerationStatus.Pending);
+    });
+
+    describe('poll editing', () => {
+      const pollId = generateUUID();
+      const defaultPollOptions = [
+        { text: 'Option 1', order: 0 },
+        { text: 'Option 2', order: 1 },
+      ];
+
+      beforeEach(async () => {
+        // Add a poll moderation entry for testing
+        await con.getRepository(SourcePostModeration).save({
+          id: pollId,
+          sourceId: 'm',
+          createdById: '4',
+          title: 'Original Poll Question',
+          type: PostType.Poll,
+          status: SourcePostModerationStatus.Pending,
+          pollOptions: defaultPollOptions,
+          duration: 7,
+        });
+      });
+
+      it('should edit poll options and duration', async () => {
+        loggedUser = '4';
+
+        const newPollOptions = [
+          { text: 'New Option 1', order: 0 },
+          { text: 'New Option 2', order: 1 },
+          { text: 'New Option 3', order: 2 },
+        ];
+
+        const res = await client.mutate(EDIT_MUTATION, {
+          variables: {
+            id: pollId,
+            sourceId: 'm',
+            title: 'Updated Poll Question',
+            type: PostType.Poll,
+            pollOptions: newPollOptions,
+            duration: 14,
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+
+        const updatedPost = res.data.editSourcePostModeration;
+        expect(updatedPost.title).toEqual('Updated Poll Question');
+        expect(updatedPost.status).toEqual(SourcePostModerationStatus.Pending);
+
+        // Verify poll options and duration were updated in database
+        const moderation = await con
+          .getRepository(SourcePostModeration)
+          .findOne({
+            where: { id: pollId },
+            select: ['pollOptions', 'duration'],
+          });
+
+        expect(moderation?.pollOptions).toHaveLength(3);
+        expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+          'New Option 1',
+          'New Option 2',
+          'New Option 3',
+        ]);
+        expect(moderation?.duration).toBe(14);
+      });
+
+      it('should overwrite poll options completely', async () => {
+        loggedUser = '4';
+
+        // Change from 2 options to 4 options
+        const newPollOptions = [
+          { text: 'A', order: 0 },
+          { text: 'B', order: 1 },
+          { text: 'C', order: 2 },
+          { text: 'D', order: 3 },
+        ];
+
+        const res = await client.mutate(EDIT_MUTATION, {
+          variables: {
+            id: pollId,
+            sourceId: 'm',
+            title: 'Poll with 4 options',
+            type: PostType.Poll,
+            pollOptions: newPollOptions,
+            duration: 30,
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+
+        // Verify all options were replaced
+        const moderation = await con
+          .getRepository(SourcePostModeration)
+          .findOne({
+            where: { id: pollId },
+            select: ['pollOptions', 'duration'],
+          });
+
+        expect(moderation?.pollOptions).toHaveLength(4);
+        expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+          'A',
+          'B',
+          'C',
+          'D',
+        ]);
+        expect(moderation?.duration).toBe(30);
+      });
+
+      it('should clear duration when not provided', async () => {
+        loggedUser = '4';
+
+        const res = await client.mutate(EDIT_MUTATION, {
+          variables: {
+            id: pollId,
+            sourceId: 'm',
+            title: 'Poll without duration',
+            type: PostType.Poll,
+            pollOptions: defaultPollOptions,
+            // duration not specified
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+
+        // Verify duration was cleared but poll options were updated
+        const moderation = await con
+          .getRepository(SourcePostModeration)
+          .findOne({
+            where: { id: pollId },
+            select: ['duration', 'pollOptions'],
+          });
+
+        expect(moderation?.duration).toBeFalsy();
+        // Poll options should be updated since they were provided
+        expect(moderation?.pollOptions).toHaveLength(2);
+        expect(moderation?.pollOptions?.map((opt) => opt.text)).toEqual([
+          'Option 1',
+          'Option 2',
+        ]);
+      });
+
+      it('should fail to edit poll with invalid poll options', async () => {
+        loggedUser = '4';
+
+        const invalidPollOptions = [{ text: 'Only one option', order: 0 }];
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: EDIT_MUTATION,
+            variables: {
+              id: pollId,
+              sourceId: 'm',
+              title: 'Invalid poll',
+              type: PostType.Poll,
+              pollOptions: invalidPollOptions,
+            },
+          },
+          'GRAPHQL_VALIDATION_FAILED',
+        );
+      });
+
+      it('should fail to edit with invalid duration', async () => {
+        loggedUser = '4';
+
+        await testMutationErrorCode(
+          client,
+          {
+            mutation: EDIT_MUTATION,
+            variables: {
+              id: pollId,
+              sourceId: 'm',
+              title: 'Invalid duration poll',
+              type: PostType.Poll,
+              pollOptions: defaultPollOptions,
+              duration: 2, // Invalid duration (should be 3-30)
+            },
+          },
+          'GRAPHQL_VALIDATION_FAILED',
+        );
+      });
     });
   });
 });
@@ -9224,7 +9702,7 @@ describe('mutate polls', () => {
     ).toBeTruthy();
   });
 
-  it('should faill to create a poll with a duration other than specified numbers in the zod schema', async () => {
+  it('should fail to create a poll with a duration other than specified numbers in the zod schema', async () => {
     loggedUser = '1';
 
     const poll = {
@@ -9269,5 +9747,151 @@ describe('mutate polls', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.createPollPost.source.id).toBe('1');
     expect(res.data.createPollPost.author.id).toBe('1');
+  });
+});
+
+describe('mutate poll vote', () => {
+  const pollId = generateUUID();
+
+  beforeEach(async () => {
+    await saveSquadFixtures();
+    const defaultPoll = await con.getRepository(PollPost).save({
+      id: pollId,
+      shortId: 'poll1',
+      title: 'Best OS',
+      type: PostType.Poll,
+      sourceId: 'a',
+      authorId: '1',
+      endsAt: addDays(new Date(), 3),
+    });
+
+    await con.getRepository(PollOption).save([
+      { text: 'Windows', order: 1, postId: defaultPoll.id },
+      { text: 'MacOS', order: 2, postId: defaultPoll.id },
+      { text: 'Linux', order: 3, postId: defaultPoll.id },
+    ]);
+  });
+
+  const MUTATION = `
+    mutation VotePoll($postId: ID!, $optionId: ID!) {
+      votePoll(postId: $postId, optionId: $optionId) {
+        id
+        endsAt
+        pollOptions {
+          id
+          text
+          numVotes
+        }
+      }
+    }
+`;
+
+  it('should successfully vote on a poll', async () => {
+    loggedUser = '1';
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: vote,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.votePoll.id).toBe(pollId);
+    const votedPollOption = res.data.votePoll.pollOptions.find(
+      (opt) => opt.id === option!.id,
+    );
+    expect(votedPollOption.numVotes).toBe(1);
+  });
+
+  it('should fail to vote on a poll the user has already voted on', async () => {
+    loggedUser = '1';
+    const options = await con
+      .getRepository(PollOption)
+      .find({ where: { postId: pollId } });
+
+    const vote = {
+      postId: pollId,
+      optionId: options[0].id,
+    };
+
+    const res = await client.mutate(MUTATION, {
+      variables: vote,
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.votePoll.id).toBe(pollId);
+    const votedPollOption = res.data.votePoll.pollOptions.find(
+      (opt) => opt.id === options[0].id,
+    );
+    expect(votedPollOption.numVotes).toBe(1);
+
+    const vote2 = {
+      postId: pollId,
+      optionId: options[1].id,
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: vote2,
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not allow the user to vote on a poll that has ended', async () => {
+    loggedUser = '1';
+    await con
+      .getRepository(PollPost)
+      .update({ id: pollId }, { endsAt: subDays(new Date(), 10) });
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: vote,
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should not allow user to vote on polls they cant access', async () => {
+    loggedUser = '3';
+    await con.getRepository(Source).update({ id: 'a' }, { private: true });
+
+    const option = await con.getRepository(PollOption).findOneBy({
+      postId: pollId,
+    });
+
+    const vote = {
+      postId: pollId,
+      optionId: option!.id,
+    };
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: vote,
+      },
+      'FORBIDDEN',
+    );
   });
 });

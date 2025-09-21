@@ -37,6 +37,7 @@ import { BrokenCircuitError } from 'cockatiel';
 import { remoteConfig } from './remoteConfig';
 import { ZodError } from 'zod';
 import { closeClickHouseClient } from './common/clickhouse';
+import { GQL_MAX_FILE_SIZE } from './config';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -155,7 +156,7 @@ export default async function app(
   });
 
   app.register(MercuriusGQLUpload, {
-    maxFileSize: 1024 * 1024 * 20,
+    maxFileSize: GQL_MAX_FILE_SIZE,
     maxFiles: 1,
   });
 
@@ -320,6 +321,9 @@ export default async function app(
           searchTags: true,
           userReadingRankHistory: true,
           userReadHistory: true,
+          autocompleteKeywords: {
+            ttl: 3600,
+          },
         },
       },
     });

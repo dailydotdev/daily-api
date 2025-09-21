@@ -95,7 +95,6 @@ config:
     personalizedDigestFeed: http://feed-digest-server.feed/api/personalised
     personalizedDigestSecret:
       secure: AAABAN1TYaqznVMVbKDZtYEnLGB0VIzXDrpcmB6rBsImneobrDOS12T4XwbVvnexdZt1NBCnZRBwH4AL7OgpZkj/2UgT8Lzj0o7TdVSBeIeVDzKa/V6jlvJ4AskEC9rg
-    popularFeed: http://feed.feed.svc.cluster.local/api/popular
     postScraperOrigin: http://post-scraper-one-ai-server.content.svc.cluster.local
     roasterUrl:
       secure: AAABAG345FgrKQUdnHkiyTstCqLN33wENnz6dIoBkxqaUAbJPS2h+kPwSH/W0i8+TWHmE4npH37runeN8qm/fyoZxz425ATWQsyrTVJU4KMAApeHwGUI4pgtAvDB11x96eWDX5SBLW2t4UemyaHXw1kYagdwWkd9LP4e3j8E7oKXJE7YwHRaIT4LI09JoTQWTuMLwYfZY1vWzAy5BOHqouf1v1+hGWWSF+NTdFHHkw==
@@ -167,6 +166,10 @@ config:
       secure: AAABAAysCHiW8/lYE8NP3D9CE2UBE8YJdDZKf4B7aYVygfgyUAj9rk52klyHA26/jRtBW5pzCTTMHTatBm+ABdMTajgGy1GZ3yYkXMwzhhbJo30a+pq18vYGcx0F04MI
     clickhouseUrl:
       secure: AAABAOH/zIUW1KRNkCa3XH3Wxrs/GLDTjOeXsHqlDPoGowQC04O958oU8MXxtE0OeiNoHjTm/e6PrEr66nluAeEcwV0BhQLvVAAoP3L150tQNUU=
+    resumeBucketName:
+      secure: AAABAP/5px9eOttfTK97ljmZ5PS5aVJcFGjhahnko+DJKBmbJgVcGA4V11ZLxVP1QA==
+    employmentAgreementBucketName:
+      secure: AAABALYmrJB/AIJh7SXF/2vStsA+vCbPUZ3GVJH/JgIxRg9azoA5A/BZkpSUYHwbVGMLP4yNZpc9Js3/2ISG
   api:k8s:
     host: subs.daily.dev
     namespace: daily

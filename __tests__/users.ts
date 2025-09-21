@@ -4449,6 +4449,36 @@ describe('mutation deleteUser', () => {
       expect(userOne).toEqual(null);
     });
   });
+
+  describe('deleting user employment agreement', () => {
+    it('should delete user employment agreement if it exists', async () => {
+      loggedUser = '1';
+
+      await client.mutate(MUTATION);
+
+      // Verify we requested delete action for every extension supported
+      expect(deleteFileFromBucket).toHaveBeenCalledWith(
+        expect.any(Bucket),
+        'employment-agreement/1',
+      );
+    });
+
+    it('should handle case when user has no employment agreement', async () => {
+      loggedUser = '1';
+
+      await client.mutate(MUTATION);
+
+      // Verify the function was called but no error was thrown
+      expect(deleteFileFromBucket).toHaveBeenCalledWith(
+        expect.any(Bucket),
+        'employment-agreement/1',
+      );
+
+      // User should still be deleted
+      const userOne = await con.getRepository(User).findOneBy({ id: '1' });
+      expect(userOne).toEqual(null);
+    });
+  });
 });
 
 describe('POST /v1/users/logout', () => {
@@ -7073,6 +7103,7 @@ describe('mutation uploadResume', () => {
     expect(ucp.cv).toEqual(
       expect.objectContaining({
         blob: loggedUser,
+        fileName: 'screen.pdf',
         bucket: RESUME_BUCKET_NAME,
         contentType: 'application/pdf',
         lastModified: expect.any(String),

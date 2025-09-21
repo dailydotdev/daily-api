@@ -1,4 +1,4 @@
-import type z from 'zod';
+import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
@@ -9,12 +9,22 @@ import { toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
-import { candidatePreferenceSchema } from '../common/schema/userCandidate';
+import {
+  candidatePreferenceSchema,
+  uploadEmploymentAgreementSchema,
+  userCandidateToggleKeywordSchema,
+} from '../common/schema/userCandidate';
 import { Alerts } from '../entity';
 import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
 import { ConflictError } from '../errors';
+import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
+import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
+import {
+  deleteEmploymentAgreementByUserId,
+  uploadEmploymentAgreementFromBuffer,
+} from '../common/googleCloud';
 
 export interface GQLOpportunity
   extends Pick<
@@ -29,7 +39,12 @@ export interface GQLOpportunityMatch
   extends Pick<OpportunityMatch, 'status' | 'description'> {}
 
 export interface GQLUserCandidatePreference
-  extends Omit<UserCandidatePreference, 'id' | 'cvParsed'> {}
+  extends Omit<
+    UserCandidatePreference,
+    'userId' | 'user' | 'updatedAt' | 'cvParsed'
+  > {
+  keywords?: Array<{ keyword: string }>;
+}
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -110,15 +125,21 @@ export const typeDefs = /* GraphQL */ `
     description: OpportunityMatchDescription!
   }
 
-  type UserCV {
+  type GCSBlob {
     blob: String
+    fileName: String
     contentType: String
     lastModified: DateTime
   }
 
+  type UserCandidateKeyword {
+    keyword: String!
+  }
+
   type UserCandidatePreference {
     status: ProtoEnumValue!
-    cv: UserCV
+    cv: GCSBlob
+    employmentAgreement: GCSBlob
     role: String
     roleType: Float
     employmentType: [ProtoEnumValue]!
@@ -128,6 +149,7 @@ export const typeDefs = /* GraphQL */ `
     companyStage: [ProtoEnumValue]!
     companySize: [ProtoEnumValue]!
     customKeywords: Boolean
+    keywords: [UserCandidateKeyword!]!
   }
 
   extend type Query {
@@ -201,6 +223,31 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): EmptyResponse @auth
+
+    candidateAddKeywords(
+      """
+      Keywords to add to candidate profile
+      """
+      keywords: [String!]!
+    ): EmptyResponse @auth
+
+    candidateRemoveKeywords(
+      """
+      Keywords to remove from candidate profile
+      """
+      keywords: [String!]!
+    ): EmptyResponse @auth
+
+    uploadEmploymentAgreement(
+      """
+      Asset to upload
+      """
+      file: Upload!
+    ): EmptyResponse @auth @rateLimit(limit: 5, duration: 60)
+
+    clearEmploymentAgreement: EmptyResponse
+      @auth
+      @rateLimit(limit: 5, duration: 60)
   }
 `;
 
@@ -255,11 +302,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserCandidatePreference> =>
-      graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where({ userId: ctx.userId });
-        return builder;
-      }),
+    ): Promise<GQLUserCandidatePreference> => {
+      const preferences = await graphorm.queryOne<GQLUserCandidatePreference>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ userId: ctx.userId });
+          return builder;
+        },
+      );
+
+      if (preferences) {
+        return preferences;
+      }
+
+      return {
+        ...new UserCandidatePreference(),
+        keywords: [],
+      };
+    },
   },
   Mutation: {
     updateCandidatePreferences: async (
@@ -412,6 +473,114 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
+      return { _: true };
+    },
+    candidateAddKeywords: async (
+      _,
+      payload: z.infer<typeof userCandidateToggleKeywordSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { data, error } =
+        userCandidateToggleKeywordSchema.safeParse(payload);
+      if (error) {
+        throw error;
+      }
+
+      const rows = data.keywords.map((keyword) => ({
+        userId: ctx.userId,
+        keyword,
+      }));
+
+      await ctx.con.getRepository(UserCandidateKeyword).upsert(rows, {
+        conflictPaths: ['userId', 'keyword'],
+        skipUpdateIfNoValuesChanged: true,
+      });
+
+      return { _: true };
+    },
+    candidateRemoveKeywords: async (
+      _,
+      payload: z.infer<typeof userCandidateToggleKeywordSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { data, error } =
+        userCandidateToggleKeywordSchema.safeParse(payload);
+      if (error) {
+        throw error;
+      }
+
+      const rows = data.keywords.map((keyword) => ({
+        userId: ctx.userId,
+        keyword,
+      }));
+
+      await ctx.con.getRepository(UserCandidateKeyword).delete(rows);
+
+      return { _: true };
+    },
+    uploadEmploymentAgreement: async (
+      _,
+      payload: z.infer<typeof uploadEmploymentAgreementSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { data, error } =
+        await uploadEmploymentAgreementSchema.safeParseAsync(payload);
+      if (error) {
+        throw error;
+      }
+
+      const { file } = data;
+
+      const blobName = ctx.userId;
+      await uploadEmploymentAgreementFromBuffer(blobName, file.buffer, {
+        contentType: file.mimetype,
+      });
+
+      await ctx.con.getRepository(UserCandidatePreference).upsert(
+        {
+          userId: ctx.userId,
+          employmentAgreement: {
+            blob: blobName,
+            fileName: file.filename,
+            contentType: file.mimetype,
+            bucket: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+            lastModified: new Date(),
+          },
+        },
+        {
+          conflictPaths: ['userId'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
+
+      return { _: true };
+    },
+    clearEmploymentAgreement: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const isDeleted = await deleteEmploymentAgreementByUserId({
+        userId: ctx.userId,
+        logger: ctx.log,
+      });
+
+      if (!isDeleted) {
+        ctx.log.warn(
+          { userId: ctx.userId },
+          'Failed to delete employment agreement from GCS',
+        );
+        throw new Error('Failed to delete employment agreement');
+      }
+
+      await ctx.con.getRepository(UserCandidatePreference).update(
+        {
+          userId: ctx.userId,
+        },
+        {
+          employmentAgreement: {},
+        },
+      );
       return { _: true };
     },
   },

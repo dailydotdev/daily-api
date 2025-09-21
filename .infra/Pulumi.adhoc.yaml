@@ -1,4 +1,6 @@
 config:
+  gcp:project: devkit-prod
+  gcp:region: us-central1
   api:cert:
     key: |-
       -----BEGIN RSA PRIVATE KEY-----
@@ -91,6 +93,8 @@ config:
     tz: UTC
     urlPrefix: https://api.local.fylla.dev
     validLanguagesFeatureKey: valid_languages
+    resumeBucketName: adhoc-daily-api
+    employmentAgreementBucketName: adhoc-daily-api
   api:k8s:
     namespace: local
   api:temporal:

@@ -26,7 +26,9 @@ import {
   ClickHouseSync,
   ClickHouseSyncConfig,
   ApplicationSuiteArgs,
+  AdditionalSecret,
 } from '@dailydotdev/pulumi-common';
+import { getSecretVersionOutput } from '@pulumi/gcp/secretmanager/getSecretVersion';
 
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
@@ -55,6 +57,18 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
 );
 
 const dependsOn: pulumi.Resource[] = [];
+const additionalSecrets: AdditionalSecret[] = [];
+const vols: VolsType = {
+  volumes: [
+    { name: 'cert', secret: { secretName: 'cert-secret' } },
+    { name: 'temporal', secret: { secretName: 'temporal-secret' } },
+  ],
+  volumeMounts: [
+    { name: 'cert', mountPath: '/opt/app/cert' },
+    { name: 'temporal', mountPath: '/opt/app/temporal' },
+  ],
+};
+
 if (isAdhocEnv) {
   const db = new SqlDatabase('database', {
     isAdhocEnv,
@@ -62,6 +76,28 @@ if (isAdhocEnv) {
     instance: 'postgres',
   });
   dependsOn.push(db);
+
+  const serviceAccountKey = getSecretVersionOutput({
+    secret: 'adhoc-daly-api-sa-key',
+  });
+
+  additionalSecrets.push({
+    name: 'api-gcloud-creds',
+    data: {
+      'application_default_credentials.json': serviceAccountKey.apply(
+        (secret) => Buffer.from(secret.secretData).toString('base64'),
+      ),
+    },
+  });
+
+  vols.volumes.push({
+    name: 'gcloud-creds',
+    secret: { secretName: 'api-gcloud-creds' },
+  });
+  vols.volumeMounts.push({
+    name: 'gcloud-creds',
+    mountPath: '/root/.config/gcloud',
+  });
 }
 
 // Provision Redis (Memorystore)
@@ -183,27 +219,6 @@ type VolsType = {
 };
 
 const podAnnotations: ApplicationArgs['podAnnotations'] = {};
-
-const vols: VolsType = {
-  volumes: [
-    {
-      name: 'cert',
-      secret: {
-        secretName: 'cert-secret',
-      },
-    },
-    {
-      name: 'temporal',
-      secret: {
-        secretName: 'temporal-secret',
-      },
-    },
-  ],
-  volumeMounts: [
-    { name: 'cert', mountPath: '/opt/app/cert' },
-    { name: 'temporal', mountPath: '/opt/app/temporal' },
-  ],
-};
 
 if (!isAdhocEnv) {
   vols.volumes.push({
@@ -487,12 +502,12 @@ const migrations: ApplicationSuiteArgs['migrations'] = {
     args: isAdhocEnv
       ? ['npm', 'run', 'db:migrate:latest']
       : [
-          'node',
-          './node_modules/typeorm/cli.js',
-          'migration:run',
-          '-d',
-          'src/data-source.js',
-        ],
+        'node',
+        './node_modules/typeorm/cli.js',
+        'migration:run',
+        '-d',
+        'src/data-source.js',
+      ],
   },
 };
 
@@ -551,24 +566,25 @@ const [apps] = deployApplicationSuite(
           'key.pem': Buffer.from(temporalCert.key).toString('base64'),
         },
       },
+      ...additionalSecrets
     ],
     apps: appsArgs,
     crons: isAdhocEnv
       ? []
       : crons.map((cron) => ({
-          nameSuffix: cron.name,
-          args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
-          schedule: cron.schedule,
-          limits: cron.limits ?? bgLimits,
-          requests: cron.requests ?? bgRequests,
-          activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
-          spot: {
-            enabled: true,
-            weight: 70,
-          },
-          podAnnotations: podAnnotations,
-          ...vols,
-        })),
+        nameSuffix: cron.name,
+        args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
+        schedule: cron.schedule,
+        limits: cron.limits ?? bgLimits,
+        requests: cron.requests ?? bgRequests,
+        activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
+        spot: {
+          enabled: true,
+          weight: 70,
+        },
+        podAnnotations: podAnnotations,
+        ...vols,
+      })),
     isAdhocEnv,
     dependsOn,
   },
