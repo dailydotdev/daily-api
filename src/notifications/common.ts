@@ -469,10 +469,12 @@ export const generateUserNotificationUniqueKey = ({
   type,
   referenceId,
   referenceType,
+  dedupKey,
 }: {
   type: NotificationType;
   referenceId?: string;
   referenceType?: NotificationReferenceType;
+  dedupKey?: string;
 }): string | null => {
   const uniqueKey = notificationTypeToUniqueKey[type];
 
@@ -480,7 +482,9 @@ export const generateUserNotificationUniqueKey = ({
     return null;
   }
 
-  return [uniqueKey, referenceId, referenceType].filter(Boolean).join(':');
+  return [uniqueKey, referenceId, referenceType, dedupKey]
+    .filter(Boolean)
+    .join(':');
 };
 
 export const cleanupSourcePostModerationNotifications = async (

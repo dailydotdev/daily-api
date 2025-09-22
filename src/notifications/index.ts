@@ -123,6 +123,7 @@ async function upsertAttachments(
 export async function storeNotificationBundleV2(
   entityManager: EntityManager,
   bundle: NotificationBundleV2,
+  dedupKey?: string,
 ): Promise<{ id: string }[]> {
   const [avatars, attachments] = await Promise.all([
     upsertAvatarsV2(entityManager, bundle.avatars || []),
@@ -147,7 +148,10 @@ export async function storeNotificationBundleV2(
   }
 
   const notification = generatedMaps[0] as NotificationV2;
-  const uniqueKey = generateUserNotificationUniqueKey(notification);
+  const uniqueKey = generateUserNotificationUniqueKey({
+    ...notification,
+    dedupKey,
+  });
 
   const chunkSize = 500;
 
@@ -262,7 +266,7 @@ export async function generateAndStoreNotificationsV2(
       if (!bundle.userIds.length) {
         return;
       }
-      return storeNotificationBundleV2(entityManager, bundle);
+      return storeNotificationBundleV2(entityManager, bundle, ctx.dedupKey);
     }),
   );
 }

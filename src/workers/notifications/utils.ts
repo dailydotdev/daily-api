@@ -135,6 +135,7 @@ export const buildPostContext = async (
       post,
       source: await post.source,
       sharedPost,
+      dedupKey: post.flags.dedupKey,
     };
   }
   return null;
