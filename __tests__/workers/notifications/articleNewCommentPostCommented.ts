@@ -1,13 +1,11 @@
 import { DataSource } from 'typeorm';
-import worker, {
-  Data,
-} from '../../../src/workers/notifications/articleNewCommentPostCommented';
 import createOrGetConnection from '../../../src/db';
 import { Comment, Post, Source, User } from '../../../src/entity';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../../fixture';
 import { postsFixture } from '../../fixture/post';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
+import { articleNewCommentPostCommented } from '../../../src/workers/notifications/articleNewCommentPostCommented';
 
 let con: DataSource;
 
@@ -44,22 +42,22 @@ beforeEach(async () => {
 describe('articleNewCommentPostCommented', () => {
   it('should be registered', () => {
     const registeredWorker = workers.find(
-      (item) => item.subscription === worker.subscription,
+      (item) =>
+        item.subscription === articleNewCommentPostCommented.subscription,
     );
 
     expect(registeredWorker).toBeDefined();
   });
 
   it('should not send notification when the comment is prevented by vordr', async () => {
-    const payload: Data = {
-      userId: '1',
-      commentId: 'c2',
-      postId: 'p1',
-    };
-
-    const result = await invokeNotificationWorker(
-      worker,
-      payload as unknown as Record<string, unknown>,
+    const result = await invokeTypedNotificationWorker<'post-commented'>(
+      articleNewCommentPostCommented,
+      {
+        userId: '1',
+        commentId: 'c2',
+        postId: 'p1',
+        contentHtml: '<p>comment</p>',
+      },
     );
 
     expect(result).toBeUndefined();
