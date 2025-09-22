@@ -67,6 +67,7 @@ import {
 import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { articleNewCommentCommentCommented } from '../../src/workers/notifications/articleNewCommentCommentCommented';
+import { articleReportApproved } from '../../src/workers/notifications/articleReportApproved';
 
 let con: DataSource;
 
@@ -1666,17 +1667,17 @@ describe('article upvote milestone', () => {
 });
 
 it('should add article report approved notification for every reporter', async () => {
-  const worker = await import(
-    '../../src/workers/notifications/articleReportApproved'
-  );
   await con.getRepository(PostReport).save([
     { userId: '1', postId: 'p1', reason: ReportReason.Nsfw },
     { userId: '2', postId: 'p1', reason: ReportReason.Clickbait },
   ]);
   const post = await con.getRepository(Post).findOneBy({ id: 'p1' });
-  const actual = await invokeNotificationWorker(worker.default, {
-    post,
-  });
+  const actual = await invokeTypedNotificationWorker<'post-banned-or-removed'>(
+    articleReportApproved,
+    {
+      post,
+    },
+  );
   expect(actual.length).toEqual(1);
   expect(actual[0].type).toEqual('article_report_approved');
   expect(actual[0].ctx.userIds).toIncludeSameMembers(['1', '2']);
