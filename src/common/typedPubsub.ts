@@ -60,6 +60,13 @@ export type PubSubSchema = {
     postId: string;
     userId: string;
   };
+  'comment-commented': {
+    postId: string;
+    userId: string;
+    parentCommentId: string;
+    childCommentId: string;
+    contentHtml: string;
+  };
   'comment-upvoted': {
     commentId: string;
     userId: string;

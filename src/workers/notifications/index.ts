@@ -4,7 +4,6 @@ import { generateAndStoreNotificationsV2 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
 import articleNewCommentPostCommented from './articleNewCommentPostCommented';
-import articleNewCommentCommentCommented from './articleNewCommentCommentCommented';
 import articleUpvoteMilestone from './articleUpvoteMilestone';
 import articleReportApproved from './articleReportApproved';
 import articleAnalytics from './articleAnalytics';
@@ -38,6 +37,7 @@ import { candidateOpportunityMatchNotification } from './candidateOpportunityMat
 import { campaignPostAnalyticsNotification } from './campaignPostAnalyticsNotification';
 import { pollResultAuthorNotification } from './pollResultAuthorNotification';
 import { pollResultNotification } from './pollResultNotification';
+import { articleNewCommentCommentCommented } from './articleNewCommentCommentCommented';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNotificationWorker = NotificationWorker | TypedNotificationWorker<any>;

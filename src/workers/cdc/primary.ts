@@ -1536,6 +1536,7 @@ const worker: Worker = {
           break;
         case getTableName(con, OpportunityMatch):
           await onOpportunityMatchChange(con, logger, data);
+          break;
         case getTableName(con, Opportunity):
           await onOpportunityChange(con, logger, data);
           break;
