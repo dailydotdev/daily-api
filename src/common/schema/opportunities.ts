@@ -23,8 +23,8 @@ export const opportunityEditSchema = z
     location: z.array(
       z.object({
         country: z.string().nonempty().max(240),
-        city: z.string().nonempty().max(240),
-        subdivision: z.string().nonempty().max(240),
+        city: z.string().nonempty().max(240).optional(),
+        subdivision: z.string().nonempty().max(240).optional(),
         type: z.coerce.number().min(1),
       }),
     ),

@@ -697,7 +697,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           await entityManager.getRepository(OpportunityKeyword).insert(
             keywords.map((keyword) => ({
               opportunityId: id,
-              keyword: keyword.keyword,
+              keyword: keyword.keyword.replace(/\s+/g, ' ').trim(),
             })),
           );
         }
