@@ -670,6 +670,10 @@ export const processApprovedModeratedPost = async (
 
   if (moderated.type === PostType.Poll) {
     const id = await generateShortId();
+
+    const options =
+      typeof pollOptions === 'string' ? JSON.parse(pollOptions) : pollOptions;
+
     const post = await createPollPost({
       con,
       args: {
@@ -678,7 +682,7 @@ export const processApprovedModeratedPost = async (
         sourceId,
         authorId: createdById,
         duration,
-        pollOptions: pollOptions!,
+        pollOptions: options,
       },
     });
     return { ...moderated, postId: post.id };
