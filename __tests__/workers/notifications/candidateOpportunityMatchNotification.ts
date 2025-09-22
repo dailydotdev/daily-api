@@ -3,7 +3,7 @@ import { candidateOpportunityMatchNotification as worker } from '../../../src/wo
 import createOrGetConnection from '../../../src/db';
 import { Feature, FeatureType, User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
-import { workers } from '../../../src/workers';
+import { notificationWorkers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { NotificationType } from '../../../src/notifications/common';
 import type { NotificationOpportunityMatchContext } from '../../../src/notifications';
@@ -27,7 +27,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
   });
 
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 

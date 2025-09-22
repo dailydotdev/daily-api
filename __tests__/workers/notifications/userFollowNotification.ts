@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import { userFollowNotification as worker } from '../../../src/workers/notifications/userFollowNotification';
 import createOrGetConnection from '../../../src/db';
 import { usersFixture } from '../../fixture';
-import { workers } from '../../../src/workers';
+import { notificationWorkers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { updateFlagsStatement, type PubSubSchema } from '../../../src/common';
 import { NotificationType } from '../../../src/notifications/common';
@@ -48,7 +48,7 @@ describe('userFollowNotification worker', () => {
   });
 
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 

@@ -3,7 +3,7 @@ import worker from '../../../src/workers/notifications/squadFeaturedUpdated';
 import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
-import { workers } from '../../../src/workers';
+import { notificationWorkers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { SourceMemberRoles } from '../../../src/roles';
 import { NotificationSourceContext } from '../../../src/notifications';
@@ -27,7 +27,7 @@ beforeEach(async () => {
 
 describe('SquadFeaturedUpdated', () => {
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 

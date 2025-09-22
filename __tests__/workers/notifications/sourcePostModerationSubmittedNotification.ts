@@ -3,7 +3,7 @@ import worker from '../../../src/workers/notifications/sourcePostModerationSubmi
 import createOrGetConnection from '../../../src/db';
 import { Source, SourceMember, SourceType, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
-import { workers } from '../../../src/workers';
+import { notificationWorkers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { SourcePostModerationStatus } from '../../../src/entity/SourcePostModeration';
 import { SourceMemberRoles } from '../../../src/roles';
@@ -28,7 +28,7 @@ beforeEach(async () => {
 
 describe('SourcePostModerationSubmitted', () => {
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 

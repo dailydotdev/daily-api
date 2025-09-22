@@ -55,7 +55,7 @@ import { createSquadWelcomePost, NotificationReason } from '../../src/common';
 import { randomUUID } from 'crypto';
 import { CoresRole, UserVote } from '../../src/types';
 import { UserComment } from '../../src/entity/user/UserComment';
-import { workers } from '../../src/workers';
+import { notificationWorkers } from '../../src/workers';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
 import { ioRedisPool, setRedisObject } from '../../src/redis';
 import { ReportReason } from '../../src/entity/common';
@@ -238,7 +238,7 @@ describe('squad featured updated notification', () => {
       '../../src/workers/notifications/squadFeaturedUpdated'
     );
 
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.default.subscription,
     );
 
@@ -949,7 +949,7 @@ describe('post bookmark reminder', () => {
       '../../src/workers/notifications/postBookmarkReminder'
     );
 
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.default.subscription,
     );
 
@@ -1038,7 +1038,7 @@ describe('streak reset restore', () => {
       '../../src/workers/notifications/userStreakResetNotification'
     );
 
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.default.subscription,
     );
 

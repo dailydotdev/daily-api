@@ -3,7 +3,7 @@ import { userBriefReadyNotification as worker } from '../../../src/workers/notif
 import createOrGetConnection from '../../../src/db';
 import { Source, User } from '../../../src/entity';
 import { sourcesFixture, usersFixture } from '../../fixture';
-import { workers } from '../../../src/workers';
+import { notificationWorkers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { generateShortId } from '../../../src/ids';
 import { BriefPost } from '../../../src/entity/posts/BriefPost';
@@ -26,7 +26,7 @@ describe('userBriefReadyNotification worker', () => {
   });
 
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 

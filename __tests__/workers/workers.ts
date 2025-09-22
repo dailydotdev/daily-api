@@ -6,6 +6,7 @@ import {
   typedWorkers,
   workers as legacyWorkers,
   personalizedDigestWorkers,
+  notificationWorkers,
 } from '../../src/workers/index';
 
 const infraWorkersMap = infraWorkers.reduce(
@@ -28,7 +29,7 @@ describe('pubsub workers', () => {
   });
 
   it('should have all subscriptions from legacy workers to be defined', () => {
-    const allIsFound = legacyWorkers.every(
+    const allIsFound = [...legacyWorkers, ...notificationWorkers].every(
       ({ subscription }) => subscription in infraWorkersMap,
     );
 

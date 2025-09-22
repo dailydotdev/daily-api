@@ -12,7 +12,7 @@ import {
 } from '../../../src/entity';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../../fixture';
 import { postsFixture } from '../../fixture/post';
-import { workers } from '../../../src/workers';
+import { notificationWorkers } from '../../../src/workers';
 import { invokeNotificationWorker, saveFixtures } from '../../helpers';
 
 let con: DataSource;
@@ -48,7 +48,7 @@ beforeEach(async () => {
 
 describe('commentMention', () => {
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 

@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { campaignsFixture, sourcesFixture, usersFixture } from '../../fixture';
-import { workers } from '../../../src/workers';
+import { notificationWorkers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { User } from '../../../src/entity/user/User';
 import { Source } from '../../../src/entity/Source';
@@ -75,7 +75,7 @@ describe('campaignPostAnalyticsNotification worker', () => {
   });
 
   it('should be registered', () => {
-    const registeredWorker = workers.find(
+    const registeredWorker = notificationWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
 
