@@ -154,6 +154,7 @@ import {
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
+import { PollPost } from '../../entity/posts/PollPost';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -553,6 +554,22 @@ const onPostChange = async (
         await notifyFreeformContentRequested(logger, freeform);
       }
     }
+    if (data.payload.after!.type === PostType.Poll) {
+      const poll = data as ChangeMessage<PollPost>;
+      const after = poll.payload.after!;
+
+      const createdDate = debeziumTimeToDate(after.createdAt).getTime();
+      const notificationTime =
+        after.endsAt?.getTime() ||
+        new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
+
+      await runEntityReminderWorkflow({
+        entityId: after!.id,
+        entityTableName: getTableName(con, PollPost),
+        scheduledAtMs: 0,
+        delayMs: notificationTime - createdDate,
+      });
+    }
   } else if (data.payload.op === 'u') {
     await notifyPostContentUpdated({ con, post: data.payload.after! });
 
@@ -572,6 +589,26 @@ const onPostChange = async (
           await notifyPostContentEdited(logger, data.payload.after!);
         }
       }
+    }
+
+    if (
+      data.payload.after!.type === PostType.Poll &&
+      data.payload.after!.deleted
+    ) {
+      const poll = data as ChangeMessage<PollPost>;
+      const after = poll.payload.after!;
+
+      const createdDate = debeziumTimeToDate(after.createdAt).getTime();
+      const notificationTime =
+        after!.endsAt?.getTime() ||
+        new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
+
+      await cancelEntityReminderWorkflow({
+        entityId: data.payload.after!.id,
+        entityTableName: getTableName(con, PollPost),
+        scheduledAtMs: 0,
+        delayMs: notificationTime - createdDate,
+      });
     }
 
     if (data.payload.after!.type === PostType.Collection) {
@@ -1499,6 +1536,7 @@ const worker: Worker = {
           break;
         case getTableName(con, OpportunityMatch):
           await onOpportunityMatchChange(con, logger, data);
+          break;
         case getTableName(con, Opportunity):
           await onOpportunityChange(con, logger, data);
           break;

@@ -50,6 +50,7 @@ import {
   UserTopReader,
   WelcomePost,
 } from '../../src/entity';
+import { PollPost } from '../../src/entity/posts/PollPost';
 import { CampaignUpdateEvent } from '../../src/common/campaign/common';
 import {
   createSquadWelcomePost,
@@ -1969,6 +1970,99 @@ describe('post analytics notifications', () => {
     expect(actual.notification.type).toEqual(type);
     expect(actual.notification.title).toEqual(
       'Your post has reached 120.1K impressions so far. <span class="text-text-link">View more analytics</span>',
+    );
+  });
+});
+
+describe('poll result notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+  });
+
+  it('should notify poll result for voters', async () => {
+    const pollPost: ChangeObject<PollPost> = {
+      id: 'poll1',
+      shortId: 'sp1',
+      title: 'What is your favorite programming language?',
+      type: PostType.Poll,
+      sourceId: 'a',
+      createdAt: 0,
+      endsAt: null,
+    };
+
+    const type = NotificationType.PollResult;
+    const ctx: NotificationPostContext = {
+      userIds: ['1', '2'],
+      source: sourcesFixture.find(
+        (item) => item.id === 'a',
+      ) as Reference<Source>,
+      post: pollPost,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1', '2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(pollPost.id);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/poll1',
+    );
+    expect(actual.attachments).toEqual([]);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.notification.title).toEqual(
+      '<b>Poll you voted on has ended!</b> See the results for: <b>What is your favorite programming language?</b>',
+    );
+  });
+
+  it('should notify poll result author', async () => {
+    const pollPost: ChangeObject<PollPost> = {
+      id: 'poll1',
+      shortId: 'sp1',
+      title: 'What is your favorite programming language?',
+      type: PostType.Poll,
+      sourceId: 'a',
+      createdAt: 0,
+      endsAt: null,
+      authorId: '1',
+    };
+
+    const type = NotificationType.PollResultAuthor;
+    const ctx: NotificationPostContext = {
+      userIds: ['1'],
+      source: sourcesFixture.find(
+        (item) => item.id === 'a',
+      ) as Reference<Source>,
+      post: pollPost,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(pollPost.id);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/poll1',
+    );
+    expect(actual.attachments).toEqual([]);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/sources/a',
+        type: 'source',
+      },
+    ]);
+    expect(actual.notification.title).toEqual(
+      '<b>Your poll has ended!</b> Check the results for: <b>What is your favorite programming language?</b>',
     );
   });
 });

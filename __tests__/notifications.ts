@@ -4,6 +4,7 @@ import {
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
+  invokeTypedNotificationWorker,
   MockContext,
   saveFixtures,
   testMutationErrorCode,
@@ -19,6 +20,8 @@ import {
   NotificationPreferenceSource,
   NotificationPreference,
   NotificationAttachmentType,
+  PostType,
+  UserPost,
 } from '../src/entity';
 import type { UserNotificationFlags } from '../src/entity/user/User';
 import { DataSource } from 'typeorm';
@@ -45,6 +48,11 @@ import {
   NotificationAttachmentV2,
   NotificationAvatarV2,
 } from '../src/entity';
+import { getTableName } from '../src/workers/cdc/common';
+import { PollPost } from '../src/entity/posts/PollPost';
+import { pollResultNotification } from '../src/workers/notifications/pollResultNotification';
+import { pollResultAuthorNotification } from '../src/workers/notifications/pollResultAuthorNotification';
+import { PollOption } from '../src/entity/polls/PollOption';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -1463,5 +1471,152 @@ describe('streamNotificationUsers', () => {
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(0);
+  });
+});
+
+describe('poll result notifications', () => {
+  beforeEach(async () => {
+    await con.getRepository(User).save(usersFixture);
+    await saveFixtures(con, Source, sourcesFixture);
+  });
+
+  const createPollPost = async (authorId: string, endsAt?: Date) => {
+    return con.getRepository(Post).save({
+      id: 'poll-1',
+      shortId: 'poll-short',
+      authorId,
+      sourceId: 'a',
+      title: 'What is your favorite framework?',
+      type: PostType.Poll,
+      createdAt: new Date('2021-09-22T07:15:51.247Z'),
+      endsAt,
+    });
+  };
+
+  const createPollOptions = async (pollId: string) => {
+    return con.getRepository(PollOption).save([
+      {
+        id: '01234567-0123-0123-0123-0123456789ab',
+        postId: pollId,
+        text: 'React',
+        order: 1,
+        numVotes: 0,
+      },
+      {
+        id: '01234567-0123-0123-0123-0123456789ac',
+        postId: pollId,
+        text: 'Vue',
+        order: 2,
+        numVotes: 0,
+      },
+    ]);
+  };
+
+  const createPollVotes = async (
+    pollId: string,
+    voterIds: string[],
+    optionId = '01234567-0123-0123-0123-0123456789ab',
+  ) => {
+    return con.getRepository(UserPost).save(
+      voterIds.map((userId) => ({
+        userId,
+        postId: pollId,
+        pollVoteOptionId: optionId,
+      })),
+    );
+  };
+
+  it('should send notification to poll author when poll expires', async () => {
+    const poll = await createPollPost('1'); // user '1' is the author
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        pollResultAuthorNotification,
+        {
+          entityId: poll.id,
+          entityTableName: getTableName(con, PollPost),
+          scheduledAtMs: Date.now(),
+          delayMs: 1000,
+        },
+      );
+
+    expect(result).toHaveLength(1);
+    expect(result![0].type).toBe(NotificationType.PollResult);
+    expect(result![0].ctx.userIds).toEqual(['1']);
+  });
+
+  it('should send notifications to poll voters when poll expires', async () => {
+    const poll = await createPollPost('1'); // user '1' is the author
+    await createPollOptions(poll.id);
+    await createPollVotes(poll.id, ['2', '3', '4']); // users 2, 3, 4 voted
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        pollResultNotification,
+        {
+          entityId: poll.id,
+          entityTableName: getTableName(con, PollPost),
+          scheduledAtMs: Date.now(),
+          delayMs: 1000,
+        },
+      );
+
+    expect(result).toHaveLength(1);
+    expect(result![0].type).toBe(NotificationType.PollResult);
+    expect(result![0].ctx.userIds).toEqual(['2', '3', '4']);
+  });
+
+  it('should exclude poll author from voter notifications', async () => {
+    const poll = await createPollPost('1'); // user '1' is the author
+    await createPollOptions(poll.id);
+    await createPollVotes(poll.id, ['1', '2', '3']); // author also voted
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        pollResultNotification,
+        {
+          entityId: poll.id,
+          entityTableName: getTableName(con, PollPost),
+          scheduledAtMs: Date.now(),
+          delayMs: 1000,
+        },
+      );
+
+    expect(result).toHaveLength(1);
+    expect(result![0].type).toBe(NotificationType.PollResult);
+    expect(result![0].ctx.userIds).toEqual(['2', '3']); // author excluded
+  });
+
+  it('should return nothing if no voters exist', async () => {
+    const poll = await createPollPost('1');
+    // No votes created
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        pollResultNotification,
+        {
+          entityId: poll.id,
+          entityTableName: getTableName(con, PollPost),
+          scheduledAtMs: Date.now(),
+          delayMs: 1000,
+        },
+      );
+
+    expect(result).toBeUndefined();
+  });
+
+  it('should return nothing if poll does not exist', async () => {
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.delayed-notification-reminder'>(
+        pollResultNotification,
+        {
+          entityId: 'non-existent-poll',
+          entityTableName: getTableName(con, PollPost),
+          scheduledAtMs: Date.now(),
+          delayMs: 1000,
+        },
+      );
+
+    expect(result).toBeUndefined();
   });
 });
