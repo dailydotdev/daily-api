@@ -15,7 +15,7 @@ export const opportunityEditSchema = z
     keywords: z
       .array(
         z.object({
-          keyword: z.string().nonempty(),
+          keyword: z.string().nonempty().trim(),
         }),
       )
       .min(1)
