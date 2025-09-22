@@ -4,7 +4,7 @@ import { PubSub } from '@google-cloud/pubsub';
 
 import './config';
 
-import { typedWorkers, workers } from './workers';
+import { typedWorkers, workers, notificationWorkers } from './workers';
 import createOrGetConnection from './db';
 import { workerSubscribe } from './common';
 import { messageToJson } from './workers/worker';
@@ -28,6 +28,27 @@ export default async function app(): Promise<void> {
     workerSubscribe(
       logger,
       pubsub,
+      connection,
+      worker.subscription,
+      (message, con, logger, pubsub) =>
+        worker.handler(
+          {
+            messageId: message.id,
+            data: message.data,
+          },
+          con,
+          logger,
+          pubsub,
+        ),
+    ),
+  );
+
+  const notificationPubsub = new PubSub();
+
+  notificationWorkers.forEach((worker) =>
+    workerSubscribe(
+      logger,
+      notificationPubsub,
       connection,
       worker.subscription,
       (message, con, logger, pubsub) =>

@@ -73,6 +73,8 @@ import { storeCandidateOpportunityMatch } from './opportunity/storeCandidateOppo
 
 export { Worker } from './worker';
 
+export { notificationWorkers };
+
 export const workers: Worker[] = [
   bannerAdded,
   bannerDeleted,
@@ -105,7 +107,6 @@ export const workers: Worker[] = [
   cdc,
   cdcNotifications,
   userCreatedPersonalizedDigestSendType,
-  ...notificationWorkers,
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
