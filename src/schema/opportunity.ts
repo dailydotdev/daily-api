@@ -704,9 +704,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder
-          .where({ id })
-          .andWhere({ state: OpportunityState.LIVE });
+        builder.queryBuilder.where({ id });
+
         return builder;
       });
     },
