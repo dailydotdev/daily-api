@@ -1069,7 +1069,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
     return {
       post_link: addNotificationEmailUtm(notif.targetUrl, notif.type),
-      analytics_link: notif.targetUrl + '/analytics',
+      analytics_link: addNotificationEmailUtm(
+        notif.targetUrl + '/analytics',
+        notif.type,
+      ),
       post_title: poll.title,
       title: 'The poll you voted on has ended',
       subtitle:
@@ -1087,7 +1090,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
     return {
       post_link: addNotificationEmailUtm(notif.targetUrl, notif.type),
-      analytics_link: notif.targetUrl + '/analytics',
+      analytics_link: addNotificationEmailUtm(
+        notif.targetUrl + '/analytics',
+        notif.type,
+      ),
       post_title: poll.title,
       title: 'Your poll has ended',
       subtitle:

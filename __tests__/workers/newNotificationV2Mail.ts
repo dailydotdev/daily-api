@@ -2645,7 +2645,9 @@ describe('poll result notifications', () => {
     expect(data.post_link).toEqual(
       `${baseUrl}/posts/poll1?utm_source=notification&utm_medium=email&utm_campaign=poll_result`,
     );
-    expect(data.analytics_link).toEqual(`${baseUrl}/posts/poll1/analytics`);
+    expect(data.analytics_link).toEqual(
+      `${baseUrl}/posts/poll1/analytics?utm_source=notification&utm_medium=email&utm_campaign=poll_result`,
+    );
     expect(data.post_title).toEqual(
       'What is your favorite programming language?',
     );
@@ -2702,7 +2704,9 @@ describe('poll result notifications', () => {
     expect(data.post_link).toEqual(
       `${baseUrl}/posts/poll2?utm_source=notification&utm_medium=email&utm_campaign=poll_result_author`,
     );
-    expect(data.analytics_link).toEqual(`${baseUrl}/posts/poll2/analytics`);
+    expect(data.analytics_link).toEqual(
+      `${baseUrl}/posts/poll2/analytics?utm_source=notification&utm_medium=email&utm_campaign=poll_result_author`,
+    );
     expect(data.post_title).toEqual('Which framework do you prefer?');
     expect(data.title).toEqual('Your poll has ended');
     expect(data.subtitle).toEqual(
