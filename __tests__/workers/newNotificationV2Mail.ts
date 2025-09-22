@@ -2638,16 +2638,22 @@ describe('poll result notifications', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const args = jest.mocked(sendEmail).mock
       .calls[0][0] as SendEmailRequestWithTemplate;
-    expect(args.message_data).toEqual({
-      post_link: expect.stringContaining(
-        'poll1?utm_source=notification&utm_medium=email&utm_campaign=poll_result',
-      ),
-      analytics_link: expect.stringContaining('poll1/analytics'),
-      post_title: 'What is your favorite programming language?',
-      title: 'The poll you voted on has ended',
-      subtitle:
-        'Thanks for voting! The poll is now closed. Curious to see how others voted?',
-    });
+
+    const baseUrl = process.env.COMMENTS_PREFIX;
+    const data = args.message_data!;
+
+    expect(data.post_link).toEqual(
+      `${baseUrl}/posts/poll1?utm_source=notification&utm_medium=email&utm_campaign=poll_result`,
+    );
+    expect(data.analytics_link).toEqual(`${baseUrl}/posts/poll1/analytics`);
+    expect(data.post_title).toEqual(
+      'What is your favorite programming language?',
+    );
+    expect(data.title).toEqual('The poll you voted on has ended');
+    expect(data.subtitle).toEqual(
+      'Thanks for voting! The poll is now closed. Curious to see how others voted?',
+    );
+    expect(args.transactional_message_id).toEqual('84');
     expect(args.transactional_message_id).toEqual('84');
   });
 
@@ -2689,16 +2695,19 @@ describe('poll result notifications', () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
     const args = jest.mocked(sendEmail).mock
       .calls[0][0] as SendEmailRequestWithTemplate;
-    expect(args.message_data).toEqual({
-      post_link: expect.stringContaining(
-        'poll2?utm_source=notification&utm_medium=email&utm_campaign=poll_result_author',
-      ),
-      analytics_link: expect.stringContaining('poll2/analytics'),
-      post_title: 'Which framework do you prefer?',
-      title: 'Your poll has ended',
-      subtitle:
-        'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
-    });
+
+    const baseUrl = process.env.COMMENTS_PREFIX;
+    const data = args.message_data!;
+
+    expect(data.post_link).toEqual(
+      `${baseUrl}/posts/poll2?utm_source=notification&utm_medium=email&utm_campaign=poll_result_author`,
+    );
+    expect(data.analytics_link).toEqual(`${baseUrl}/posts/poll2/analytics`);
+    expect(data.post_title).toEqual('Which framework do you prefer?');
+    expect(data.title).toEqual('Your poll has ended');
+    expect(data.subtitle).toEqual(
+      'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
+    );
     expect(args.transactional_message_id).toEqual('84');
   });
 });

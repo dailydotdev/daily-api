@@ -1059,9 +1059,13 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   poll_result: async (con, _, notif) => {
-    const poll = await con.getRepository(PollPost).findOneByOrFail({
+    const poll = await con.getRepository(PollPost).findOneBy({
       id: notif.referenceId,
     });
+
+    if (!poll) {
+      return null;
+    }
 
     return {
       post_link: addNotificationEmailUtm(notif.targetUrl, notif.type),
@@ -1073,9 +1077,13 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   poll_result_author: async (con, _, notif) => {
-    const poll = await con.getRepository(PollPost).findOneByOrFail({
+    const poll = await con.getRepository(PollPost).findOneBy({
       id: notif.referenceId,
     });
+
+    if (!poll) {
+      return null;
+    }
 
     return {
       post_link: addNotificationEmailUtm(notif.targetUrl, notif.type),
