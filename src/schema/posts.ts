@@ -20,42 +20,42 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
   createFreeformPost,
+  CreateMultipleSourcePostProps,
   createPollPost,
-  CreatePost,
+  type CreatePollPostProps,
   CreatePostArgs,
   createSourcePostModeration,
   CreateSourcePostModerationArgs,
   DEFAULT_POST_TITLE,
   EditablePost,
   EditPostArgs,
+  ensurePostAnalyticsPermissions,
   fetchLinkPreview,
+  findPostByUrl,
+  getAllModerationItemsAsAdmin,
   getDiscussionLink,
+  getLimit,
+  getModerationItemsAsAdminForSource,
+  getModerationItemsByUserForSource,
+  getPostSmartTitle,
+  getPostTranslatedTitle,
+  getTranslationRecord,
+  type GQLSourcePostModeration,
   isValidHttpUrl,
   mapCloudinaryUrl,
   notifyView,
   ONE_MINUTE_IN_SECONDS,
+  parseBigInt,
   pickImageUrl,
+  type SourcePostModerationArgs,
   standardizeURL,
+  systemUser,
   toGQLEnum,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
   validateSourcePostModeration,
-  getPostTranslatedTitle,
-  getPostSmartTitle,
-  getModerationItemsAsAdminForSource,
-  getModerationItemsByUserForSource,
-  type GQLSourcePostModeration,
-  type SourcePostModerationArgs,
-  getAllModerationItemsAsAdmin,
-  getTranslationRecord,
-  systemUser,
-  parseBigInt,
-  findPostByUrl,
-  ensurePostAnalyticsPermissions,
-  getLimit,
-  type CreatePollPostProps,
 } from '../common';
 import {
   Campaign,
@@ -361,8 +361,23 @@ const builderForCampaignV1 = (builder: QueryBuilder<CampaignPost>) =>
       'post',
     );
 
+enum MultiplePostItemType {
+  Post = 'post',
+  ModerationItem = 'moderationItem',
+}
+
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(BriefingType, 'BriefingType')}
+  ${toGQLEnum(MultiplePostItemType, 'MultiplePostItemType')}
+
+  """
+  Multiple post item
+  """
+  type MultiplePostItem {
+    type: MultiplePostItemType!
+    sourceId: ID!
+    id: ID!
+  }
 
   """
   Post moderation item
@@ -1427,6 +1442,52 @@ export const typeDefs = /* GraphQL */ `
       """
       duration: Int
     ): SourcePostModeration! @auth @rateLimit(limit: 1, duration: 30)
+
+    """
+    Create multiple source posts
+    """
+    createMultipleSourcePosts(
+      """
+      Ids of the Sources to post into
+      """
+      sourceIds: [ID!]!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      type of the post
+      """
+      type: String!
+      """
+      External link of the post
+      """
+      externalLink: String
+      """
+      ID of the exisiting post
+      """
+      postId: ID
+    ): [MultiplePostItem]! @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Hide a post from all the user feeds
@@ -2789,53 +2850,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
     createFreeformPost: async (
-      source,
+      _,
       args: CreatePostArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
-      const { sourceId, image } = args;
-      const { con, userId } = ctx;
-      const id = await generateShortId();
-      const { title, content } = validatePost(args);
-
-      if (!title) {
-        throw new ValidationError('Title can not be an empty string!');
-      }
-
-      if (sourceId === userId) {
-        await ensureUserSourceExists(userId, con);
-      }
-
-      await Promise.all([
-        ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-        ensurePostRateLimit(ctx.con, ctx.userId),
-      ]);
-      await con.transaction(async (manager) => {
-        const mentions = await getMentions(manager, content, userId, sourceId);
-        const contentHtml = markdown.render(content, { mentions });
-        const params: CreatePost = {
-          id,
-          title,
-          content,
-          contentHtml,
-          authorId: userId,
-          sourceId,
-        };
-
-        if (image && process.env.CLOUDINARY_URL) {
-          const upload = await image;
-          const { url: coverImageUrl } = await uploadPostFile(
-            id,
-            upload.createReadStream(),
-            UploadPreset.PostBannerImage,
-          );
-          params.image = coverImageUrl;
-        }
-
-        await createFreeformPost({ con: manager, ctx, args: params });
-        await saveMentions(manager, id, userId, mentions, PostMention);
-      });
+      const { id } = await createFreeformPost(ctx, args);
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
         ...builder,
@@ -2846,7 +2866,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }));
     },
     editPost: async (
-      source,
+      _,
       args: EditPostArgs,
       ctx: AuthContext,
       info,
@@ -3575,6 +3595,53 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return getPostById(ctx, info, args.postId);
+    },
+    createMultipleSourcePosts: async (
+      _,
+      args: CreateMultipleSourcePostProps,
+      ctx: AuthContext,
+    ) => {
+      const { sourceIds, ...postArgs } = args;
+      const createdPosts = [];
+      // const isPostingInMultipleSources =
+      //   sourceIds.filter((id) => id !== ctx.userId).length > 1;
+
+      await ctx.con.transaction(async ({ queryRunner }) => {
+        console.log(queryRunner);
+        for (const sourceId of sourceIds) {
+          const canUserPosts = await ensureSourcePermissions(
+            ctx,
+            sourceId,
+            SourcePermissions.Post,
+          );
+
+          if (canUserPosts) {
+            const id = await createFreeformPost(ctx, { ...postArgs, sourceId });
+            createdPosts.push({
+              id,
+              sourceId,
+              type: MultiplePostItemType.Post,
+            });
+          } else {
+            const pendingPost = await validateSourcePostModeration(ctx, {
+              ...postArgs,
+              sourceId,
+              type: PostType.Freeform,
+            });
+            const { id } = await createSourcePostModeration({
+              ctx,
+              args: pendingPost,
+            });
+            createdPosts.push({
+              id,
+              sourceId,
+              type: MultiplePostItemType.ModerationItem,
+            });
+          }
+        }
+      });
+
+      return null;
     },
   },
   Subscription: {

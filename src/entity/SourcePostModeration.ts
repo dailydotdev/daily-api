@@ -54,6 +54,7 @@ export enum WarningReason {
 export type SourcePostModerationFlags = Partial<{
   vordr: boolean;
   warningReason: WarningReason;
+  dedupKey: string;
 }>;
 
 export type CreatePollOption = Pick<PollOption, 'text' | 'order'>;

@@ -1,5 +1,6 @@
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import {
+  ArticlePost,
   Comment,
   ConnectionManager,
   createExternalLink,
@@ -8,8 +9,11 @@ import {
   FreeformPost,
   generateTitleHtml,
   Post,
+  PostMention,
   PostOrigin,
+  type PostTranslation,
   PostType,
+  preparePostForInsert,
   Source,
   SourceMember,
   SourceType,
@@ -18,13 +22,10 @@ import {
   User,
   validateCommentary,
   WelcomePost,
-  type PostTranslation,
-  ArticlePost,
-  preparePostForInsert,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
-import { findMarkdownTag, markdown } from './markdown';
+import { findMarkdownTag, markdown, saveMentions } from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 // @ts-expect-error - no types
@@ -37,16 +38,17 @@ import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
 import {
-  ContentLanguage,
   type ChangeObject,
+  ContentLanguage,
   type I18nRecord,
   type PostCodeSnippetJsonFile,
 } from '../types';
 import { uniqueifyObjectArray } from './utils';
 import {
+  type CreatePollOption,
   SourcePostModeration,
   SourcePostModerationStatus,
-  type CreatePollOption,
+  WarningReason,
 } from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
 import { getMentions } from '../schema/comments';
@@ -60,6 +62,13 @@ import { PollOption } from '../entity/polls/PollOption';
 import addDays from 'date-fns/addDays';
 import { PollPost } from '../entity/posts/PollPost';
 import { pollCreationSchema } from './schema/polls';
+import {
+  ensureSourcePermissions,
+  ensureUserSourceExists,
+  SourcePermissions,
+} from '../schema/sources';
+import { ensurePostRateLimit } from './rateLimit';
+import { generateDeduplicationKey } from '../entity/posts/hooks';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -322,7 +331,7 @@ export const createPollPost = async ({
   });
 };
 
-export const createFreeformPost = async ({
+export const insertFreeformPost = async ({
   con,
   args,
   ctx,
@@ -371,13 +380,80 @@ export interface CreateSourcePostModeration
 interface CreateSourcePostModerationProps {
   ctx: AuthContext;
   args: CreateSourcePostModeration;
+  options?: Partial<{
+    isMultiplePosting: boolean;
+  }>;
 }
+
+const checkForDuplicatedPostByDedupKey = async (
+  con: DataSource,
+  dedupKey?: string,
+  sourceId?: string,
+): Promise<boolean> => {
+  if (!dedupKey) return false;
+
+  return await queryReadReplica(con, async ({ queryRunner }) => {
+    const pendingQuery = queryRunner.manager
+      .getRepository(SourcePostModeration)
+      .createQueryBuilder('moderation')
+      .where({
+        status: SourcePostModerationStatus.Pending,
+      })
+      .andWhere(`moderation.flags.dedupKey = :dedupKey`, { dedupKey });
+    const postQuery = queryRunner.manager
+      .getRepository(Post)
+      .createQueryBuilder('post')
+      .where(`post.flags.dedupKey = :dedupKey`, { dedupKey });
+
+    if (sourceId) {
+      postQuery.andWhere(`post.sourceId = :sourceId`, { sourceId });
+      pendingQuery.andWhere(`moderation.sourceId = :sourceId`, { sourceId });
+    }
+
+    const duplicates = await queryRunner.manager.query(
+      `SELECT EXISTS (${pendingQuery.getQuery()} UNION ${postQuery.getQuery()})`,
+    );
+
+    return !!duplicates;
+  });
+};
+
+const getModerationWarningFlag = async ({
+  con,
+  isMultiplePosting = false,
+  dedupKey,
+  sourceId,
+}: {
+  con: DataSource;
+  isMultiplePosting?: boolean;
+  dedupKey?: string;
+  sourceId?: string;
+}): Promise<WarningReason | undefined> => {
+  if (isMultiplePosting) {
+    return WarningReason.MultipleSquadPost;
+  }
+
+  if (!dedupKey) {
+    return;
+  }
+  if (await checkForDuplicatedPostByDedupKey(con, dedupKey, sourceId)) {
+    return WarningReason.DuplicatedInSameSquad;
+  }
+
+  if (await checkForDuplicatedPostByDedupKey(con, dedupKey)) {
+    return WarningReason.MultipleSquadPost;
+  }
+
+  return;
+};
 
 export const createSourcePostModeration = async ({
   ctx,
   args,
+  options = {},
 }: CreateSourcePostModerationProps) => {
   const { con } = ctx;
+  const { isMultiplePosting = false } = options;
 
   if (args.postId) {
     const post = await con
@@ -395,9 +471,16 @@ export const createSourcePostModeration = async ({
   });
 
   const content = `${args.title} ${args.content}`.trim();
+  const dedupKey = generateDeduplicationKey(args);
 
-  newModerationEntry.flags = {
-    vordr: await checkWithVordr(
+  const [warningReason, vordr] = await Promise.all([
+    getModerationWarningFlag({
+      con,
+      isMultiplePosting,
+      dedupKey,
+      sourceId: args.sourceId,
+    }),
+    checkWithVordr(
       {
         id: newModerationEntry.id,
         type: VordrFilterType.PostModeration,
@@ -405,6 +488,11 @@ export const createSourcePostModeration = async ({
       },
       { con, userId: ctx.userId, req: ctx.req },
     ),
+  ]);
+
+  newModerationEntry.flags = {
+    warningReason,
+    vordr,
   };
 
   return await con.getRepository(SourcePostModeration).save(newModerationEntry);
@@ -442,6 +530,11 @@ export interface CreatePollPostProps
   extends Pick<CreatePostArgs, 'title' | 'sourceId'> {
   options: PollOptionInput[];
   duration: number;
+}
+
+export interface CreateMultipleSourcePostProps
+  extends Omit<CreatePostArgs, 'sourceId'> {
+  sourceIds: string[];
 }
 
 const MAX_TITLE_LENGTH = 250;
@@ -700,7 +793,7 @@ export const processApprovedModeratedPost = async (
       sourceId,
       authorId: createdById,
     };
-    const post = await createFreeformPost({ con, args: params as CreatePost });
+    const post = await insertFreeformPost({ con, args: params as CreatePost });
     return { ...moderated, postId: post.id };
   }
 
@@ -1101,4 +1194,54 @@ export const ensurePostAnalyticsPermissions = async ({
       'You do not have permission to view post analytics',
     );
   }
+};
+
+export const createFreeformPost = async (
+  ctx: AuthContext,
+  args: CreatePostArgs,
+) => {
+  const { sourceId, image } = args;
+  const { con, userId } = ctx;
+  const id = await generateShortId();
+  const { title, content } = validatePost(args);
+
+  if (!title) {
+    throw new ValidationError('Title can not be an empty string!');
+  }
+
+  if (sourceId === userId) {
+    await ensureUserSourceExists(userId, con);
+  }
+
+  await Promise.all([
+    ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
+    ensurePostRateLimit(ctx.con, ctx.userId),
+  ]);
+  await con.transaction(async (manager) => {
+    const mentions = await getMentions(manager, content, userId, sourceId);
+    const contentHtml = markdown.render(content, { mentions });
+    const params: CreatePost = {
+      id,
+      title,
+      content,
+      contentHtml,
+      authorId: userId,
+      sourceId,
+    };
+
+    if (image && process.env.CLOUDINARY_URL) {
+      const upload = await image;
+      const { url: coverImageUrl } = await uploadPostFile(
+        id,
+        upload.createReadStream(),
+        UploadPreset.PostBannerImage,
+      );
+      params.image = coverImageUrl;
+    }
+
+    await insertFreeformPost({ con: manager, ctx, args: params });
+    await saveMentions(manager, id, userId, mentions, PostMention);
+  });
+
+  return { id };
 };
