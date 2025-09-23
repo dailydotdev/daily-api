@@ -24,7 +24,10 @@ import { CoresRole } from '../types';
 import { remoteConfig } from '../remoteConfig';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { SubscriptionProvider, SubscriptionStatus } from './plus';
-import { deleteResumeByUserId } from './googleCloud';
+import {
+  deleteEmploymentAgreementByUserId,
+  deleteResumeByUserId,
+} from './googleCloud';
 
 export const deleteUser = async (
   con: DataSource,
@@ -70,6 +73,7 @@ export const deleteUser = async (
 
     // Delete user's resume if exists
     await deleteResumeByUserId(userId);
+    await deleteEmploymentAgreementByUserId({ userId, logger });
 
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.getRepository(View).delete({ userId });

@@ -1,6 +1,6 @@
 import { DataSource, DeepPartial, EntityManager, In } from 'typeorm';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
-import { Keyword } from '../Keyword';
+import { Keyword, KeywordStatus } from '../Keyword';
 import {
   notifyContentRequested,
   removeEmptyValues,
@@ -130,7 +130,7 @@ export const mergeKeywords = async (
     );
     const synonymKeywords = await entityManager.getRepository(Keyword).find({
       where: {
-        status: 'synonym',
+        status: KeywordStatus.Synonym,
         value: In(cleanedKeywords),
       },
     });
@@ -144,7 +144,7 @@ export const mergeKeywords = async (
     );
     const allowedKeywords = await entityManager.getRepository(Keyword).find({
       where: {
-        status: 'allow',
+        status: KeywordStatus.Allow,
         value: In(mergedKeywords),
       },
       order: { occurrences: 'DESC' },

@@ -1,4 +1,6 @@
+import type { ZodError } from 'zod';
 import { DataSource, IsNull } from 'typeorm';
+import request from 'supertest';
 import { User, Keyword, Alerts } from '../../src/entity';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
@@ -6,6 +8,7 @@ import { Organization } from '../../src/entity/Organization';
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
 import createOrGetConnection from '../../src/db';
 import {
+  authorizeRequest,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -36,12 +39,28 @@ import {
   LocationType,
   OpportunityState,
   SalaryPeriod,
+  SeniorityLevel,
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
 import type { GQLOpportunity } from '../../src/schema/opportunity';
+import { UserCandidateKeyword } from '../../src/entity/user/UserCandidateKeyword';
+import * as googleCloud from '../../src/common/googleCloud';
+import { Bucket } from '@google-cloud/storage';
+import { deleteRedisKey } from '../../src/redis';
+import { rateLimiterName } from '../../src/directive/rateLimit';
+import { fileTypeFromBuffer } from '../setup';
+import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
+import { RoleType } from '../../src/common/schema/userCandidate';
+
+const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
+const uploadEmploymentAgreementFromBuffer = jest.spyOn(
+  googleCloud,
+  'uploadEmploymentAgreementFromBuffer',
+);
 
 let con: DataSource;
+let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
@@ -52,6 +71,7 @@ beforeAll(async () => {
     () => new MockContext(con, loggedUser),
   );
   client = state.client;
+  app = state.app;
 });
 
 afterAll(() => disposeGraphQLTesting(state));
@@ -452,8 +472,11 @@ describe('query getCandidatePreferences', () => {
       getCandidatePreferences {
         status
         cv {
-          blob
-          contentType
+          fileName
+          lastModified
+        }
+        employmentAgreement {
+          fileName
           lastModified
         }
         role
@@ -474,6 +497,9 @@ describe('query getCandidatePreferences', () => {
         companySize
         companyStage
         customKeywords
+        keywords {
+          keyword
+        }
       }
     }
   `;
@@ -486,8 +512,16 @@ describe('query getCandidatePreferences', () => {
         cv: {
           blob: '1',
           contentType: 'application/pdf',
+          fileName: 'cv.pdf',
           bucket: 'bucket-name',
           lastModified: new Date('2023-10-10T10:00:00Z'),
+        },
+        employmentAgreement: {
+          blob: '2',
+          contentType: 'application/pdf',
+          fileName: 'employment-agreement.pdf',
+          bucket: 'bucket-name',
+          lastModified: new Date('2024-10-10T10:00:00Z'),
         },
         salaryExpectation: { min: '50000', period: SalaryPeriod.ANNUAL },
         location: [
@@ -515,6 +549,21 @@ describe('query getCandidatePreferences', () => {
         userId: '2',
       },
     ]);
+
+    await saveFixtures(con, UserCandidateKeyword, [
+      {
+        userId: '1',
+        keyword: 'JavaScript',
+      },
+      {
+        userId: '1',
+        keyword: 'Zig',
+      },
+      {
+        userId: '1',
+        keyword: 'NATS',
+      },
+    ]);
   });
 
   it('should require authentication', async () => {
@@ -538,9 +587,12 @@ describe('query getCandidatePreferences', () => {
       role: 'Full Stack Developer',
       roleType: 0.5,
       cv: {
-        blob: '1',
-        contentType: 'application/pdf',
+        fileName: 'cv.pdf',
         lastModified: '2023-10-10T10:00:00.000Z',
+      },
+      employmentAgreement: {
+        fileName: 'employment-agreement.pdf',
+        lastModified: '2024-10-10T10:00:00.000Z',
       },
       salaryExpectation: {
         min: 50000,
@@ -555,6 +607,11 @@ describe('query getCandidatePreferences', () => {
       companyStage: [3, 4, 10],
       companySize: [3, 4],
       customKeywords: true,
+      keywords: expect.arrayContaining([
+        { keyword: 'JavaScript' },
+        { keyword: 'Zig' },
+        { keyword: 'NATS' },
+      ]),
     });
   });
 
@@ -567,8 +624,11 @@ describe('query getCandidatePreferences', () => {
     expect(res.data.getCandidatePreferences).toEqual({
       status: 3,
       cv: {
-        blob: null,
-        contentType: null,
+        fileName: null,
+        lastModified: null,
+      },
+      employmentAgreement: {
+        fileName: null,
         lastModified: null,
       },
       role: null,
@@ -580,9 +640,42 @@ describe('query getCandidatePreferences', () => {
       location: [],
       locationType: [1, 2, 3],
       employmentType: [1, 2, 3, 4],
-      companySize: [],
-      companyStage: [],
+      companySize: [1, 2, 3, 4, 5, 6, 7],
+      companyStage: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
       customKeywords: false,
+      keywords: [],
+    });
+  });
+
+  it('should return default candidate preferences when there are no existing preferences', async () => {
+    loggedUser = '3';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getCandidatePreferences).toEqual({
+      status: 3,
+      cv: {
+        fileName: null,
+        lastModified: null,
+      },
+      employmentAgreement: {
+        fileName: null,
+        lastModified: null,
+      },
+      role: null,
+      roleType: 0.5,
+      salaryExpectation: {
+        min: null,
+        period: null,
+      },
+      location: [],
+      locationType: [1, 2, 3],
+      employmentType: [1, 2, 3, 4],
+      companySize: [1, 2, 3, 4, 5, 6, 7],
+      companyStage: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+      customKeywords: false,
+      keywords: [],
     });
   });
 });
@@ -680,7 +773,8 @@ describe('mutation updateCandidatePreferences', () => {
     expect(res.errors).toBeTruthy();
     expect(res.data.updateCandidatePreferences).toEqual(null);
 
-    const errors = res.errors[0].extensions.issues.map((issue) => [
+    const extensions = res?.errors?.[0].extensions as unknown as ZodError;
+    const errors = extensions.issues.map((issue) => [
       issue.message,
       issue.path[0],
     ]);
@@ -715,7 +809,8 @@ describe('mutation updateCandidatePreferences', () => {
     expect(res.errors).toBeTruthy();
     expect(res.data.updateCandidatePreferences).toEqual(null);
 
-    const errors = res.errors[0].extensions.issues.map((issue) => [
+    const extensions = res?.errors?.[0].extensions as unknown as ZodError;
+    const errors = extensions.issues.map((issue) => [
       issue.message,
       issue.path[0],
     ]);
@@ -866,9 +961,10 @@ describe('mutation saveOpportunityScreeningAnswers', () => {
       'ZOD_VALIDATION_ERROR',
       'Zod validation error',
       (errors) => {
-        expect(errors[0].extensions.issues.length).toEqual(1);
-        expect(errors[0].extensions.issues[0].code).toEqual('custom');
-        expect(errors[0].extensions.issues[0].message).toEqual(
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('custom');
+        expect(extensions.issues[0].message).toEqual(
           'Duplicate questionId 750e8400-e29b-41d4-a716-446655440001',
         );
       },
@@ -1004,6 +1100,884 @@ describe('mutation acceptOpportunityMatch', () => {
       },
       'FORBIDDEN',
       'Access denied! Opportunity is not live',
+    );
+  });
+});
+
+describe('mutation candidateAddKeywords', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CandidateAddKeywords($keywords: [String!]!) {
+      candidateAddKeywords(keywords: $keywords) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keywords: ['NewKeyword'] },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should add keyword to candidate profile', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keywords: ['  NewKeyword  '] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateAddKeywords).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual([
+      {
+        userId: '1',
+        keyword: 'NewKeyword',
+      },
+    ]);
+  });
+
+  it('should not add duplicate keyword to candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert({
+      userId: '1',
+      keyword: 'ExistingKeyword',
+    });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keywords: ['  ExistingKeyword  '] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateAddKeywords).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual([
+      {
+        userId: '1',
+        keyword: 'ExistingKeyword',
+      },
+    ]);
+  });
+
+  it('should add multiple keywords to candidate profile', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keywords: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateAddKeywords).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual(
+      expect.arrayContaining([
+        { userId: '1', keyword: 'Keyword1' },
+        { userId: '1', keyword: 'Keyword2' },
+        { userId: '1', keyword: 'Keyword3' },
+      ]),
+    );
+  });
+
+  it('should return error on empty keyword', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keywords: ['   '] },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual('Keyword cannot be empty');
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+
+  it('should return error when no keywords', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keywords: [],
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual(
+          'At least one keyword is required',
+        );
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+
+  it('should return error on too many keywords', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keywords: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_big');
+        expect(extensions.issues[0].message).toEqual(
+          'Too many keywords provided',
+        );
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+});
+
+describe('mutation candidateRemoveKeywords', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CandidateRemoveKeywords($keywords: [String!]!) {
+      candidateRemoveKeywords(keywords: $keywords) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keywords: ['SomeKeyword'] },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should remove keyword from candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert({
+      userId: '1',
+      keyword: 'RemoveMe',
+    });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keywords: ['   RemoveMe   '] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeywords).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual([]);
+  });
+
+  it('should be idempotent if keyword does not exist', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keywords: ['NonExistingKeyword'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeywords).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+
+  it('should remove multiple keywords from candidate profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserCandidateKeyword).insert([
+      { userId: '1', keyword: 'Keyword1' },
+      { userId: '1', keyword: 'Keyword2' },
+      { userId: '1', keyword: 'Keyword3' },
+      { userId: '1', keyword: 'Keyword4' },
+    ]);
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(4);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { keywords: ['Keyword1', '  Keyword2  ', 'Keyword3'] },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.candidateRemoveKeywords).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).findBy({ userId: '1' }),
+    ).toEqual(expect.arrayContaining([{ userId: '1', keyword: 'Keyword4' }]));
+  });
+
+  it('should return error on empty keyword', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { keywords: ['   '] },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual('Keyword cannot be empty');
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+
+  it('should return error when no keywords', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keywords: [],
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_small');
+        expect(extensions.issues[0].message).toEqual(
+          'At least one keyword is required',
+        );
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+
+  it('should return error on too many keywords', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          keywords: Array.from({ length: 101 }, (_, i) => `keyword-${i}`),
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_big');
+        expect(extensions.issues[0].message).toEqual(
+          'Too many keywords provided',
+        );
+      },
+    );
+
+    expect(
+      await con.getRepository(UserCandidateKeyword).countBy({ userId: '1' }),
+    ).toBe(0);
+  });
+});
+
+describe('mutation clearEmploymentAgreement', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearEmploymentAgreement {
+      clearEmploymentAgreement {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, UserCandidatePreference, [
+      {
+        userId: '1',
+        employmentAgreement: { blob: 'blobname' },
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should delete user employment agreement if it exists', async () => {
+    loggedUser = '1';
+
+    await client.mutate(MUTATION);
+
+    expect(deleteFileFromBucket).toHaveBeenCalledWith(
+      expect.any(Bucket),
+      'employment-agreement/1',
+    );
+
+    const ucp = await con
+      .getRepository(UserCandidatePreference)
+      .findOneByOrFail({
+        userId: loggedUser,
+      });
+
+    expect(ucp.cv).toEqual({});
+    expect(ucp.cvParsed).toEqual({});
+  });
+
+  it('should handle case when user has no candidate preferences', async () => {
+    loggedUser = '2';
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({
+        userId: loggedUser,
+      }),
+    ).toEqual(0);
+
+    await client.mutate(MUTATION);
+
+    expect(deleteFileFromBucket).toHaveBeenCalledWith(
+      expect.any(Bucket),
+      'employment-agreement/2',
+    );
+
+    expect(
+      await con.getRepository(UserCandidatePreference).countBy({
+        userId: loggedUser,
+      }),
+    ).toEqual(0);
+  });
+});
+
+describe('mutation uploadEmploymentAgreement', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation UploadEmploymentAgreement($file: Upload!) {
+      uploadEmploymentAgreement(file: $file) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    await deleteRedisKey(
+      `${rateLimiterName}:1:Mutation.uploadEmploymentAgreement`,
+    );
+  });
+
+  it('should throw error when file is missing', async () => {
+    loggedUser = '1';
+
+    return testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+    );
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = '';
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png', 'sample.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].extensions.code).toEqual('UNAUTHENTICATED');
+  });
+
+  it('should upload pdf agreement successfully', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    // Mock the upload function to return a URL
+    uploadEmploymentAgreementFromBuffer.mockResolvedValue(
+      `https://storage.cloud.google.com/${EMPLOYMENT_AGREEMENT_BUCKET_NAME}/1`,
+    );
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    // Verify the response
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    // Verify the mocks were called correctly
+    expect(uploadEmploymentAgreementFromBuffer).toHaveBeenCalledWith(
+      loggedUser,
+      expect.any(Object),
+      { contentType: 'application/pdf' },
+    );
+
+    const ucp = await con
+      .getRepository(UserCandidatePreference)
+      .findOneByOrFail({
+        userId: loggedUser,
+      });
+
+    const { bucketName } = googleCloud.gcsBucketMap.employmentAgreement;
+
+    expect(ucp.employmentAgreement).toEqual(
+      expect.objectContaining({
+        blob: loggedUser,
+        fileName: 'screen.pdf',
+        bucket: bucketName,
+        contentType: 'application/pdf',
+        lastModified: expect.any(String),
+      }),
+    );
+  });
+
+  it('should throw error when file extension is not supported', async () => {
+    loggedUser = '1';
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    const extensions = body?.errors?.[0].extensions as unknown as ZodError;
+
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(extensions.issues[0].code).toEqual('custom');
+    expect(extensions.issues[0].message).toEqual('Unsupported file type');
+    expect(extensions.issues[0].path).toEqual(['file', 'extension']);
+  });
+
+  it('should throw error when file type does not match extension', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'png',
+      mime: 'image/png',
+    });
+
+    // Rename the file to have a .pdf extension
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/happy_card.png', 'fake.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    const extensions = body?.errors?.[0].extensions as unknown as ZodError;
+
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(extensions.issues[0].code).toEqual('custom');
+    expect(extensions.issues[0].message).toEqual(
+      'File type does not match file extension',
+    );
+    expect(extensions.issues[0].path).toEqual(['file', 'mimetype']);
+  });
+
+  it('should throw error when file content does not match file extension', async () => {
+    loggedUser = '1';
+
+    // mock the file-type check to allow PDF files
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Incorrect mime type for a PDF
+    });
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: { file: null },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+      loggedUser,
+    ).expect(200);
+
+    const body = res.body;
+    const extensions = body?.errors?.[0].extensions as unknown as ZodError;
+
+    expect(body.errors).toBeTruthy();
+    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
+    expect(extensions.issues[0].code).toEqual('custom');
+    expect(extensions.issues[0].message).toEqual(
+      'File content does not match file extension',
+    );
+    expect(extensions.issues[0].path).toEqual(['file', 'buffer']);
+  });
+});
+
+describe('mutation editOpportunity', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation EditOpportunity($id: ID!, $payload: OpportunityEditInput!) {
+      editOpportunity(id: $id, payload: $payload) {
+        id
+        title
+        tldr
+        content {
+          overview {
+            content
+            html
+          }
+          requirements {
+            content
+            html
+          }
+        }
+        meta {
+          roleType
+          teamSize
+          seniorityLevel
+          employmentType
+          salary {
+            min
+            max
+            period
+          }
+        }
+        location {
+          city
+          country
+          type
+        }
+        keywords {
+          keyword
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: { title: 'New Title' },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw error when user is not a recruiter for opportunity', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: { title: 'Illegal edit' },
+        },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+  });
+
+  it('should throw error when opportunity does not exist', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '660e8400-e29b-41d4-a716-446655440999',
+          payload: { title: 'Does not matter' },
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should edit opportunity', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          title: 'Updated Senior Full Stack Developer',
+          tldr: 'Updated TLDR',
+          location: [{ country: 'Germany', type: LocationType.REMOTE }],
+          meta: {
+            employmentType: EmploymentType.INTERNSHIP,
+            teamSize: 100,
+            salary: { min: 100, max: 200, period: SalaryPeriod.HOURLY },
+            seniorityLevel: SeniorityLevel.VP,
+            roleType: RoleType.Managerial,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity).toMatchObject({
+      id: opportunitiesFixture[0].id,
+      title: 'Updated Senior Full Stack Developer',
+      tldr: 'Updated TLDR',
+      location: [{ country: 'Germany', city: null, type: 1 }],
+      meta: {
+        employmentType: EmploymentType.INTERNSHIP,
+        teamSize: 100,
+        salary: {
+          min: 100,
+          max: 200,
+          period: SalaryPeriod.HOURLY,
+        },
+        seniorityLevel: SeniorityLevel.VP,
+        roleType: RoleType.Managerial,
+      },
+    });
+  });
+
+  it('should edit opportunity keywords', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          keywords: [
+            { keyword: ' ios  ' },
+            { keyword: 'webdev' },
+            { keyword: 'ps5  ' },
+            { keyword: 'android' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.keywords).toEqual(
+      expect.arrayContaining([
+        { keyword: 'ios' },
+        { keyword: 'webdev' },
+        { keyword: 'ps5' },
+        { keyword: 'android' },
+      ]),
+    );
+
+    const afterKeywords = await con
+      .getRepository(OpportunityKeyword)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(afterKeywords.map((k) => k.keyword)).toEqual(
+      expect.arrayContaining(['ios', 'webdev', 'ps5', 'android']),
+    );
+  });
+
+  it('should edit opportunity content without overwriting existing fields', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          content: {
+            requirements: 'Updated requirements *italic*',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.content).toEqual({
+      overview: {
+        content: 'We are looking for a Senior Full Stack Developer...',
+        html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+      },
+      requirements: {
+        content: 'Updated requirements *italic*',
+        html: '<p>Updated requirements <em>italic</em></p>\n',
+      },
+    });
+
+    const afterContent = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunitiesFixture[0].id });
+    expect(afterContent.content).toEqual({
+      overview: {
+        content: 'We are looking for a Senior Full Stack Developer...',
+        html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+      },
+      requirements: {
+        content: 'Updated requirements *italic*',
+        html: '<p>Updated requirements <em>italic</em></p>\n',
+      },
+    });
+  });
+
+  it('should support partial update without overwriting unspecified content/meta and keywords', async () => {
+    loggedUser = '1';
+
+    const before = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunitiesFixture[0].id });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          title: 'Partially Updated Title',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.title).toEqual('Partially Updated Title');
+
+    const after = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunitiesFixture[0].id });
+
+    expect(after.meta).toEqual(before.meta);
+    expect(after.content).toEqual(before.content); // unchanged
+
+    // keywords remain same from previous test
+    const keywords = await con
+      .getRepository(OpportunityKeyword)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+
+    expect(keywords.map((k) => k.keyword)).toEqual(
+      expect.arrayContaining(['webdev', 'fullstack', 'Fortune 500']),
     );
   });
 });

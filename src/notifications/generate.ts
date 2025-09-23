@@ -195,6 +195,10 @@ export const notificationTitleMap: Record<
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
   },
+  poll_result: (ctx: NotificationPostContext) =>
+    `<b>Poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
+  poll_result_author: (ctx: NotificationPostContext) =>
+    `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
 };
 
 export const generateNotificationMap: Record<
@@ -552,4 +556,19 @@ export const generateNotificationMap: Record<
       )
       .uniqueKey(`${ctx.post.id}-metrics-${new Date().toISOString()}`);
   },
+  poll_result: (builder: NotificationBuilder, ctx: NotificationPostContext) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .targetPost(ctx.post)
+      .avatarSource(ctx.source)
+      .referencePost(ctx.post),
+  poll_result_author: (
+    builder: NotificationBuilder,
+    ctx: NotificationPostContext,
+  ) =>
+    builder
+      .icon(NotificationIcon.Bell)
+      .targetPost(ctx.post)
+      .avatarSource(ctx.source)
+      .referencePost(ctx.post),
 };

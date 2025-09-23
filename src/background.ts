@@ -43,10 +43,12 @@ export default async function app(): Promise<void> {
     ),
   );
 
+  const typedPubsub = new PubSub();
+
   typedWorkers.forEach((worker) =>
     workerSubscribe(
       logger,
-      pubsub,
+      typedPubsub,
       connection,
       worker.subscription,
       (message, con, logger, pubsub) => {

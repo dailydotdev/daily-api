@@ -15,7 +15,7 @@ async function run(positionals: string[]) {
   switch (positionals[0]) {
     case 'api':
       tracer('api').start();
-      startMetrics('api');
+      await startMetrics('api');
 
       await initGeoReader();
 
@@ -34,23 +34,23 @@ async function run(positionals: string[]) {
       break;
     case 'background':
       tracer('background').start();
-      startMetrics('background');
+      await startMetrics('background');
       await background();
       break;
     case 'temporal':
       tracer('temporal').start();
-      startMetrics('temporal');
+      await startMetrics('temporal');
       await temporal();
       break;
     case 'cron':
       tracer('cron').start();
-      startMetrics('cron');
+      await startMetrics('cron');
       await cron(positionals[1]);
       process.exit();
       break;
     case 'personalized-digest':
       tracer('personalized-digest').start();
-      startMetrics('personalized-digest');
+      await startMetrics('personalized-digest');
       await personalizedDigest();
       break;
     default:

@@ -33,15 +33,15 @@
       "seniorityLevel": 5
     },
     "organizationId": "85449b8a-acca-4756-8556-4290a126566b",
-    "location": {
-      "0": {
+    "location": [
+     {
         "city": "Stjørdal",
         "type": 1,
         "country": "Norway",
         "continent": "Europe",
         "subdivision": "Trøndelag"
       }
-    },
+    ],
     "state": 2,
     "type": 1
   }

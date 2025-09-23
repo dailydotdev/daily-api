@@ -129,7 +129,9 @@ export const counters: Partial<{
   }>;
 }> = {};
 
-export const startMetrics = (serviceName: keyof typeof counterMap): void => {
+export const startMetrics = async (
+  serviceName: keyof typeof counterMap,
+): Promise<void> => {
   if (process.env.METRICS_ENABLED !== 'true') {
     return;
   }
@@ -151,6 +153,8 @@ export const startMetrics = (serviceName: keyof typeof counterMap): void => {
         detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
       }),
     );
+
+  await resource.waitForAsyncAttributes?.();
 
   const meterProvider = new metrics.MeterProvider({ resource, readers });
   api.metrics.setGlobalMeterProvider(meterProvider);

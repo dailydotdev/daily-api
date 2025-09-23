@@ -1,19 +1,14 @@
-import { messageToJson } from '../worker';
-import { NotificationWorker } from './worker';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 import { articleNewCommentHandler } from './utils';
 
-export interface Data {
-  userId: string;
-  childCommentId: string;
-  postId: string;
-}
-
-const worker: NotificationWorker = {
-  subscription: 'api.article-new-comment-notification.comment-commented',
-  handler: (message, con) => {
-    const data: Data = messageToJson(message);
-    return articleNewCommentHandler(con, data.childCommentId);
-  },
-};
-
-export default worker;
+export const articleNewCommentCommentCommented: TypedNotificationWorker<'comment-commented'> =
+  {
+    subscription: 'api.article-new-comment-notification.comment-commented',
+    handler: async ({ childCommentId }, con) => {
+      return articleNewCommentHandler(con, childCommentId);
+    },
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };

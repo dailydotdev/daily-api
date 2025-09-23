@@ -77,7 +77,10 @@ export type TypedNotificationWorker<T extends keyof PubSubSchema> =
     T,
     PubSubSchema[T],
     NotificationWorkerHandler<PubSubSchema[T]>
-  >;
+    // TODO require parseMessage as BC until all notification workers are TypedWorkers
+  > & {
+    parseMessage: (message: Message) => PubSubSchema[T];
+  };
 
 export interface ExperimentWorker extends Worker {
   subscription: string;

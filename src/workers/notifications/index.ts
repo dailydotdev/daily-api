@@ -3,11 +3,10 @@ import { messageToJson, TypedNotificationWorker, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
-import articleNewCommentPostCommented from './articleNewCommentPostCommented';
-import articleNewCommentCommentCommented from './articleNewCommentCommentCommented';
+import { articleNewCommentPostCommented } from './articleNewCommentPostCommented';
 import articleUpvoteMilestone from './articleUpvoteMilestone';
-import articleReportApproved from './articleReportApproved';
-import articleAnalytics from './articleAnalytics';
+import { articleReportApproved } from './articleReportApproved';
+import { articleAnalytics } from './articleAnalytics';
 import sourceRequest from './sourceRequest';
 import commentMention from './commentMention';
 import commentReply from './commentReply';
@@ -36,6 +35,9 @@ import { userBriefReadyNotification } from './userBriefReadyNotification';
 import { userFollowNotification } from './userFollowNotification';
 import { candidateOpportunityMatchNotification } from './candidateOpportunityMatchNotification';
 import { campaignPostAnalyticsNotification } from './campaignPostAnalyticsNotification';
+import { pollResultAuthorNotification } from './pollResultAuthorNotification';
+import { pollResultNotification } from './pollResultNotification';
+import { articleNewCommentCommentCommented } from './articleNewCommentCommentCommented';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyNotificationWorker = NotificationWorker | TypedNotificationWorker<any>;
@@ -120,6 +122,8 @@ const notificationWorkers: AnyNotificationWorker[] = [
   userFollowNotification,
   candidateOpportunityMatchNotification,
   campaignPostAnalyticsNotification,
+  pollResultAuthorNotification,
+  pollResultNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

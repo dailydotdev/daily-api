@@ -4,13 +4,30 @@ import {
   Storage,
   type SaveOptions,
 } from '@google-cloud/storage';
+import type { FastifyBaseLogger } from 'fastify';
 import { acceptedResumeExtensions, PropsParameters } from '../types';
 import path from 'path';
 import { BigQuery } from '@google-cloud/bigquery';
 import { Query } from '@google-cloud/bigquery/build/src/bigquery';
 import { subDays } from 'date-fns';
 import { logger } from '../logger';
-import { RESUME_BUCKET_NAME } from '../config';
+import {
+  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  RESUME_BUCKET_NAME,
+} from '../config';
+import { isProd } from './utils';
+
+export const gcsBucketMap = {
+  resume: {
+    prefixedBlob: (blob: string) => (isProd ? blob : `resume/${blob}`),
+    bucketName: RESUME_BUCKET_NAME,
+  },
+  employmentAgreement: {
+    prefixedBlob: (blob: string) =>
+      isProd ? blob : `employment-agreement/${blob}`,
+    bucketName: EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  },
+};
 
 export const downloadFile = async ({
   url,
@@ -66,6 +83,20 @@ export const uploadResumeFromBuffer = async (
   return uploadFileFromBuffer({
     bucketName: RESUME_BUCKET_NAME,
     fileName,
+    file,
+    options,
+  });
+};
+
+export const uploadEmploymentAgreementFromBuffer = async (
+  fileName: string,
+  file: Buffer,
+  options?: SaveOptions,
+): Promise<string> => {
+  const { bucketName, prefixedBlob } = gcsBucketMap.employmentAgreement;
+  return uploadFileFromBuffer({
+    bucketName,
+    fileName: prefixedBlob(fileName),
     file,
     options,
   });
@@ -130,6 +161,48 @@ export const deleteResumeByUserId = async (
     );
     return false;
   }
+};
+
+export const deleteBlobFromGCS = async ({
+  blobName,
+  bucketName,
+  logger,
+}: {
+  blobName: string;
+  bucketName: string;
+  logger: FastifyBaseLogger;
+}): Promise<boolean> => {
+  try {
+    const storage = new Storage();
+    const bucket = storage.bucket(bucketName);
+
+    await deleteFileFromBucket(bucket, blobName);
+    return true;
+  } catch (_err) {
+    const err = _err as Error;
+    logger.error(
+      { err, bucketName, blobName },
+      'Failed to delete blob from GCS',
+    );
+
+    return false;
+  }
+};
+
+export const deleteEmploymentAgreementByUserId = async ({
+  userId,
+  logger,
+}: {
+  userId: string;
+  logger: FastifyBaseLogger;
+}): Promise<boolean> => {
+  const { bucketName, prefixedBlob } = gcsBucketMap.employmentAgreement;
+
+  return deleteBlobFromGCS({
+    blobName: prefixedBlob(userId),
+    bucketName,
+    logger,
+  });
 };
 
 export enum UserActiveState {

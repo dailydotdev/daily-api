@@ -46,6 +46,7 @@ import { uniqueifyObjectArray } from './utils';
 import {
   SourcePostModeration,
   SourcePostModerationStatus,
+  type CreatePollOption,
 } from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
 import { getMentions } from '../schema/comments';
@@ -58,6 +59,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { PollOption } from '../entity/polls/PollOption';
 import addDays from 'date-fns/addDays';
 import { PollPost } from '../entity/posts/PollPost';
+import { pollCreationSchema } from './schema/polls';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -245,14 +247,14 @@ interface CreateFreeformPostArgs {
 
 interface CreatePollPostArgs {
   con: DataSource | EntityManager;
-  ctx: AuthContext;
+  ctx?: AuthContext;
   args: {
     id: string;
     title: string;
     sourceId: string;
     authorId: string;
-    duration?: number;
-    pollOptions: PollOption[];
+    duration?: number | null;
+    pollOptions: CreatePollOption[];
   };
 }
 
@@ -281,33 +283,41 @@ export const createPollPost = async ({
     },
   });
 
-  const vordrStatus = await checkWithVordr(
-    {
-      id: createdPost.id,
-      type: VordrFilterType.Post,
-      content: createdPost.title || '',
-    },
-    { con, userId: args.authorId, req: ctx?.req },
-  );
+  if (ctx) {
+    const vordrStatus = await checkWithVordr(
+      {
+        id: createdPost.id,
+        type: VordrFilterType.Post,
+        content: createdPost.title || '',
+      },
+      { con, userId: args.authorId, req: ctx.req },
+    );
 
-  if (vordrStatus) {
-    createdPost.banned = true;
-    createdPost.showOnFeed = false;
+    if (vordrStatus) {
+      createdPost.banned = true;
+      createdPost.showOnFeed = false;
 
-    createdPost.flags = {
-      ...createdPost.flags,
-      banned: true,
-      showOnFeed: false,
-    };
+      createdPost.flags = {
+        ...createdPost.flags,
+        banned: true,
+        showOnFeed: false,
+      };
+    }
+
+    createdPost.flags.vordr = vordrStatus;
   }
-
-  createdPost.flags.vordr = vordrStatus;
 
   return con.transaction(async (entityManager) => {
     const savedPost = await entityManager
       .getRepository(PollPost)
       .save(createdPost);
-    await entityManager.getRepository(PollOption).save(pollOptions);
+    await entityManager.getRepository(PollOption).save(
+      pollOptions.map(({ text, order }) => ({
+        text,
+        order,
+        postId: savedPost.id,
+      })),
+    );
     return savedPost;
   });
 };
@@ -345,18 +355,18 @@ export const createFreeformPost = async ({
   return con.getRepository(FreeformPost).save(createdPost);
 };
 
-export type CreateSourcePostModeration = Omit<
-  CreatePost,
-  'authorId' | 'content' | 'contentHtml' | 'id'
-> &
-  Pick<
-    SourcePostModeration,
-    'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
-  > & {
-    contentHtml?: string;
-    externalLink?: string | null;
-    postId?: string;
-  };
+export interface CreateSourcePostModeration
+  extends Omit<CreatePost, 'authorId' | 'content' | 'contentHtml' | 'id'>,
+    Pick<
+      SourcePostModeration,
+      'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
+    > {
+  contentHtml?: string;
+  externalLink?: string | null;
+  postId?: string;
+  pollOptions?: CreatePollOption[];
+  duration?: number | null;
+}
 
 interface CreateSourcePostModerationProps {
   ctx: AuthContext;
@@ -409,6 +419,8 @@ export interface CreateSourcePostModerationArgs
   externalLink?: string | null;
   type: PostType;
   postId?: string;
+  pollOptions?: CreatePollOption[];
+  duration?: number;
 }
 
 export interface EditPostArgs
@@ -652,7 +664,29 @@ export const processApprovedModeratedPost = async (
     titleHtml,
     externalLink,
     sharedPostId,
+    pollOptions,
+    duration,
   } = moderated;
+
+  if (moderated.type === PostType.Poll) {
+    const id = await generateShortId();
+
+    const options =
+      typeof pollOptions === 'string' ? JSON.parse(pollOptions) : pollOptions;
+
+    const post = await createPollPost({
+      con,
+      args: {
+        id,
+        title: title!,
+        sourceId,
+        authorId: createdById,
+        duration,
+        pollOptions: options,
+      },
+    });
+    return { ...moderated, postId: post.id };
+  }
 
   if (moderated.type === PostType.Freeform) {
     const id = await generateShortId();
@@ -740,9 +774,11 @@ export const validateSourcePostModeration = async (
     sharedPostId,
     imageUrl,
     externalLink,
+    pollOptions,
+    duration,
   }: CreateSourcePostModerationArgs,
 ): Promise<CreateSourcePostModeration> => {
-  if (![PostType.Share, PostType.Freeform].includes(type)) {
+  if (![PostType.Share, PostType.Freeform, PostType.Poll].includes(type)) {
     throw new ValidationError('Invalid post type!');
   }
 
@@ -756,6 +792,22 @@ export const validateSourcePostModeration = async (
     externalLink,
     createdById: userId,
   };
+
+  if (type === PostType.Poll) {
+    const parsedArgs = pollCreationSchema.safeParse({
+      title,
+      duration,
+      options: pollOptions,
+      sourceId,
+    });
+
+    if (!parsedArgs.success) {
+      throw new ValidationError(parsedArgs.error.issues[0].message);
+    }
+
+    pendingPost.pollOptions = pollOptions;
+    pendingPost.duration = duration || null; // to clear if left empty (no duration),
+  }
 
   const mentions = await getMentions(con, content, userId, sourceId);
 

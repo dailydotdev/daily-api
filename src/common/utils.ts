@@ -30,6 +30,10 @@ export const systemUser = {
   name: 'System',
 };
 
+export const demoCompany = {
+  id: 'e8c7a930-ca69-4cba-b26c-b6c810d6ab7d',
+};
+
 interface GetTimezonedIsoWeekProps {
   date: Date;
   timezone: string;

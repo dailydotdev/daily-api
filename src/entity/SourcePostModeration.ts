@@ -10,6 +10,7 @@ import {
 import type { Post, PostType } from './posts';
 import type { Source } from './Source';
 import type { User } from './user';
+import type { PollOption } from './polls/PollOption';
 
 export enum SourcePostModerationStatus {
   Approved = 'approved',
@@ -48,6 +49,8 @@ export const rejectReason: Record<PostModerationReason, string> = {
 export type SourcePostModerationFlags = Partial<{
   vordr: boolean;
 }>;
+
+export type CreatePollOption = Pick<PollOption, 'text' | 'order'>;
 
 @Entity()
 @Index(['sourceId'])
@@ -140,4 +143,10 @@ export class SourcePostModeration {
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_post_moderation_flags_vordr', { synchronize: false })
   flags: SourcePostModerationFlags;
+
+  @Column({ type: 'jsonb', default: [] })
+  pollOptions?: CreatePollOption[];
+
+  @Column({ type: 'integer', default: null })
+  duration?: number | null;
 }

@@ -1,3 +1,4 @@
+import type z from 'zod';
 import {
   Column,
   Entity,
@@ -9,15 +10,26 @@ import {
 } from 'typeorm';
 import type { User } from './User';
 import { CandidateStatus } from '@dailydotdev/schema';
-import { EmploymentType, LocationType } from '@dailydotdev/schema';
-import type { CompanySize, CompanyStage, Location } from '@dailydotdev/schema';
+import {
+  CompanySize,
+  CompanyStage,
+  EmploymentType,
+  LocationType,
+} from '@dailydotdev/schema';
+import type { Location } from '@dailydotdev/schema';
 import type {
+  GCSBlob,
   salaryExpectationSchema,
   UserCandidateCV,
 } from '../../common/schema/userCandidate';
-import type z from 'zod';
+import { listAllProtoEnumValues } from '../../common';
 
 export type SalaryExpectation = z.infer<typeof salaryExpectationSchema>;
+
+const defaultEmploymentTypes = listAllProtoEnumValues(EmploymentType);
+const defaultLocationTypes = listAllProtoEnumValues(LocationType);
+const defaultCompanyStages = listAllProtoEnumValues(CompanyStage);
+const defaultCompanySizes = listAllProtoEnumValues(CompanySize);
 
 @Entity()
 export class UserCandidatePreference {
@@ -36,76 +48,74 @@ export class UserCandidatePreference {
   status: CandidateStatus = CandidateStatus.OPEN_TO_OFFERS;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt: Date = new Date();
 
-  @Column({ type: 'jsonb', default: '{}' })
-  cv: UserCandidateCV;
+  @Column({ type: 'jsonb', default: {} })
+  cv: UserCandidateCV = {};
 
-  @Column({ type: 'jsonb', default: '{}' })
-  cvParsed: unknown;
+  @Column({ type: 'jsonb', default: {} })
+  cvParsed: Record<string, unknown> = {};
+
+  @Column({ type: 'jsonb', default: {} })
+  employmentAgreement: GCSBlob = {};
 
   @Column({ type: 'text', default: null })
-  role: string;
+  role?: string;
 
   @Column({ type: 'float8', default: 0.5 })
-  roleType: number;
+  roleType: number = 0.5;
 
   @Column({
     type: 'integer',
     array: true,
     comment: 'EmploymentType from protobuf schema',
-    default: [
-      EmploymentType.FULL_TIME,
-      EmploymentType.PART_TIME,
-      EmploymentType.CONTRACT,
-      EmploymentType.INTERNSHIP,
-    ],
+    default: defaultEmploymentTypes,
   })
-  employmentType: Array<EmploymentType>;
+  employmentType: Array<EmploymentType> = defaultEmploymentTypes;
 
   @Column({
     type: 'jsonb',
     default: {},
     comment: 'Salary from protobuf schema',
   })
-  salaryExpectation: SalaryExpectation;
+  salaryExpectation: SalaryExpectation = {};
 
   @Column({
     type: 'jsonb',
     default: [],
     comment: 'Location from protobuf schema',
   })
-  location: Location[];
+  location: Array<Location> = [];
 
   @Column({
     type: 'integer',
     array: true,
     comment: 'LocationType from protobuf schema',
-    default: [LocationType.REMOTE, LocationType.OFFICE, LocationType.HYBRID],
+    default: defaultLocationTypes,
   })
-  locationType: Array<LocationType>;
+  locationType: Array<LocationType> = defaultLocationTypes;
 
   @Column({
     type: 'integer',
     array: true,
-    default: [],
     comment: 'CompanyStage from protobuf schema',
+    default: defaultCompanyStages,
   })
-  companyStage: Array<CompanyStage>;
+  companyStage: Array<CompanyStage> = defaultCompanyStages;
 
   @Column({
     type: 'integer',
     array: true,
-    default: [],
     comment: 'CompanySize from protobuf schema',
+    default: defaultCompanySizes,
   })
-  companySize: Array<CompanySize>;
+  companySize: Array<CompanySize> = defaultCompanySizes;
 
   @Column({
     type: 'boolean',
     default: false,
   })
-  customKeywords: boolean;
+  customKeywords: boolean = false;
 
   @OneToOne('User', (user: User) => user.candidatePreference, {
     lazy: true,

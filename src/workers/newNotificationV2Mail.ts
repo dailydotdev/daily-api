@@ -62,6 +62,7 @@ import type { JsonValue } from '@bufbuild/protobuf';
 import { isNullOrUndefined } from '../common/object';
 import { generateCampaignPostEmail } from '../common/campaign/post';
 import { generateCampaignSquadEmail } from '../common/campaign/source';
+import { PollPost } from '../entity/posts/PollPost';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -121,6 +122,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   campaign_squad_first_milestone: '82',
   new_opportunity_match: '',
   post_analytics: '',
+  poll_result: '84',
+  poll_result_author: '84',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1054,6 +1057,48 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   post_analytics: async () => {
     return null;
+  },
+  poll_result: async (con, _, notif) => {
+    const poll = await con.getRepository(PollPost).findOneBy({
+      id: notif.referenceId,
+    });
+
+    if (!poll) {
+      return null;
+    }
+
+    return {
+      post_link: addNotificationEmailUtm(notif.targetUrl, notif.type),
+      analytics_link: addNotificationEmailUtm(
+        notif.targetUrl + '/analytics',
+        notif.type,
+      ),
+      post_title: poll.title,
+      title: 'The poll you voted on has ended',
+      subtitle:
+        'Thanks for voting! The poll is now closed. Curious to see how others voted?',
+    };
+  },
+  poll_result_author: async (con, _, notif) => {
+    const poll = await con.getRepository(PollPost).findOneBy({
+      id: notif.referenceId,
+    });
+
+    if (!poll) {
+      return null;
+    }
+
+    return {
+      post_link: addNotificationEmailUtm(notif.targetUrl, notif.type),
+      analytics_link: addNotificationEmailUtm(
+        notif.targetUrl + '/analytics',
+        notif.type,
+      ),
+      post_title: poll.title,
+      title: 'Your poll has ended',
+      subtitle:
+        'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
+    };
   },
 };
 

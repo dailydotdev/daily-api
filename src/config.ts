@@ -1,3 +1,4 @@
+import process from 'node:process';
 import dotenv from 'dotenv';
 
 const env = process.env.NODE_ENV || 'development';
@@ -11,6 +12,8 @@ export const fallbackImages = {
   organization:
     'https://media.daily.dev/image/upload/s--yc7EcfBs--/f_auto,q_auto/v1/public/organization_fallback',
 };
+
+export const GQL_MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MiB
 
 export const REDIS_BANNER_KEY = 'boot:latest_banner';
 
@@ -26,7 +29,9 @@ export const submissionAccessThreshold = parseInt(
     DEFAULT_SUBMISSION_ACCESS_THRESHOLD,
 );
 
-export const RESUME_BUCKET_NAME = 'daily-dev-resumes';
+export const RESUME_BUCKET_NAME = process.env.RESUME_BUCKET_NAME;
+export const EMPLOYMENT_AGREEMENT_BUCKET_NAME =
+  process.env.EMPLOYMENT_AGREEMENT_BUCKET_NAME;
 
 export enum StorageTopic {
   Boot = 'boot',

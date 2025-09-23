@@ -35,6 +35,7 @@ export enum CioUnsubscribeTopic {
   InAppPurchases = '25',
   UserPostAdded = '26',
   JobOpportunities = '27',
+  PollResult = '28',
 }
 import { getShortGenericInviteLink } from './common/links';
 import {
@@ -108,6 +109,7 @@ const CIO_TOPIC_TO_NOTIFICATION_MAP: Record<string, NotificationType> = {
   [CioUnsubscribeTopic.Announcements]: NotificationType.Announcements,
   [CioUnsubscribeTopic.InAppPurchases]: NotificationType.InAppPurchases,
   [CioUnsubscribeTopic.JobOpportunities]: NotificationType.NewOpportunityMatch,
+  [CioUnsubscribeTopic.PollResult]: NotificationType.PollResult,
 };
 
 export async function identifyUserStreak({

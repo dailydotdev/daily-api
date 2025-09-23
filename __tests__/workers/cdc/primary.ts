@@ -65,9 +65,13 @@ import {
   type CampaignPost,
   type CampaignSource,
 } from '../../../src/entity';
+import { PollPost } from '../../../src/entity/posts/PollPost';
+import { PollOption } from '../../../src/entity/polls/PollOption';
+import { addDays, isSameDay } from 'date-fns';
 import {
   DayOfWeek,
   debeziumTimeToDate,
+  demoCompany,
   notifyBannerCreated,
   notifyBannerRemoved,
   notifyCommentCommented,
@@ -177,6 +181,10 @@ import {
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import type z from 'zod';
 import type { entityReminderSchema } from '../../../src/common/schema/reminders';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../../../src/entity/contentPreference/ContentPreferenceOrganization';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -5434,6 +5442,101 @@ describe('source_post_moderation', () => {
         { post: { ...afterProps, postId: after.id } },
       ]);
     });
+
+    it('should create poll post with options and duration', async () => {
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(1);
+
+      const pollOptions = [
+        { text: 'Option 1', order: 0 },
+        { text: 'Option 2', order: 1 },
+        { text: 'Option 3', order: 2 },
+      ];
+
+      const after = {
+        ...base,
+        type: PostType.Poll,
+        status: SourcePostModerationStatus.Approved,
+        title: 'What is your favorite tech stack?',
+        pollOptions,
+        duration: 7,
+      };
+
+      await mockUpdate(after);
+
+      const poll = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as PollPost;
+
+      expect(poll).toBeTruthy();
+      expect(poll.type).toEqual(PostType.Poll);
+      expect(poll.title).toEqual('What is your favorite tech stack?');
+      expect(poll.endsAt).toBeTruthy();
+      expect(
+        isSameDay(new Date(poll.endsAt!), addDays(new Date(), 7)),
+      ).toBeTruthy();
+
+      // Verify poll options were created
+      const options = await con.getRepository(PollOption).find({
+        where: { postId: poll.id },
+        order: { order: 'ASC' },
+      });
+
+      expect(options).toHaveLength(3);
+      expect(options[0].text).toEqual('Option 1');
+      expect(options[0].order).toEqual(0);
+      expect(options[1].text).toEqual('Option 2');
+      expect(options[1].order).toEqual(1);
+      expect(options[2].text).toEqual('Option 3');
+      expect(options[2].order).toEqual(2);
+
+      expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+        'api.v1.source-post-moderation-approved',
+        { post: { ...after, postId: poll.id } },
+      ]);
+    });
+
+    it('should create poll post without duration (no end date)', async () => {
+      const repo = con.getRepository(Post);
+      const before = await repo.find();
+      expect(before.length).toEqual(1);
+
+      const pollOptions = [
+        { text: 'Yes', order: 0 },
+        { text: 'No', order: 1 },
+      ];
+
+      const after = {
+        ...base,
+        type: PostType.Poll,
+        status: SourcePostModerationStatus.Approved,
+        title: 'Do you like polls?',
+        pollOptions,
+        // duration not specified
+      };
+
+      await mockUpdate(after);
+
+      const poll = (await repo.findOneBy({
+        sourceId: 'a',
+      })) as PollPost;
+
+      expect(poll).toBeTruthy();
+      expect(poll.type).toEqual(PostType.Poll);
+      expect(poll.title).toEqual('Do you like polls?');
+      expect(poll.endsAt).toBeNull();
+
+      // Verify poll options were created
+      const options = await con.getRepository(PollOption).find({
+        where: { postId: poll.id },
+        order: { order: 'ASC' },
+      });
+
+      expect(options).toHaveLength(2);
+      expect(options[0].text).toEqual('Yes');
+      expect(options[1].text).toEqual('No');
+    });
   });
 });
 
@@ -5664,6 +5767,62 @@ describe('opportunity', () => {
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
     );
+  });
+
+  it('should trigger opportunity job for demo company', async () => {
+    await con.getRepository(Feed).save([
+      { id: '1', userId: '1' },
+      { id: '2', userId: '2' },
+    ]);
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        feedId: '1',
+        userId: '1',
+        referenceId: demoCompany.id,
+        organizationId: demoCompany.id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Free,
+        createdAt: new Date(),
+      },
+      {
+        feedId: '2',
+        userId: '2',
+        referenceId: demoCompany.id,
+        organizationId: demoCompany.id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Plus,
+        createdAt: new Date(),
+      },
+    ]);
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440005',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: demoCompany.id,
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'gondul.v1.candidate-opportunity-match',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][2].userId).toEqual('1');
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'gondul.v1.candidate-opportunity-match',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][2].userId).toEqual('2');
   });
 
   it('should not trigger on new opportunity when state is not live', async () => {
@@ -6365,5 +6524,68 @@ describe('campaign post', () => {
 
     expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(0);
     expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+  });
+});
+
+describe('poll post', () => {
+  it('should schedule entity reminder workflow for poll creation', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000; // Convert to debezium microseconds
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+        },
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: pollId,
+      entityTableName: 'post',
+      scheduledAtMs: 0,
+      delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
+    });
+  });
+
+  it('should cancel entity reminder workflow when poll is deleted', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000; // Convert to debezium microseconds
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        before: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          deleted: false,
+        },
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          deleted: true,
+        },
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: pollId,
+      entityTableName: 'post',
+      scheduledAtMs: 0,
+      delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
+    });
   });
 });
