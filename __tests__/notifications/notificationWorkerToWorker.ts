@@ -18,7 +18,8 @@ import { buildPostContext } from '../../src/workers/notifications/utils';
 import { NotificationType } from '../../src/notifications/common';
 import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { notificationV2Fixture } from '../fixture/notifications';
-import { TypedNotificationWorker } from '../../src/workers/worker';
+import { Message, TypedNotificationWorker } from '../../src/workers/worker';
+import { Message as ProtobufMessage } from '@bufbuild/protobuf/dist/esm/message';
 
 let con: DataSource;
 
@@ -52,13 +53,22 @@ const baseWorker: TypedNotificationWorker<any> = {
       },
     ];
   },
-  parseMessage: (message) => message,
+};
+
+const message = (data) => {
+  const messageData = Buffer.from(JSON.stringify(data), 'utf-8');
+
+  const message: Message = {
+    data: messageData,
+    messageId: '1',
+  };
+  return message;
 };
 
 describe('notificationWorkerToWorker', () => {
   it('should create notifications v2', async () => {
     const worker = notificationWorkerToWorker(baseWorker);
-    await worker.handler(null, con, null, null);
+    await worker.handler(message({}), con, null, null);
     const avatars = await con
       .getRepository(NotificationAvatarV2)
       .find({ order: { referenceId: 'ASC' } });
@@ -149,7 +159,7 @@ describe('notificationWorkerToWorker', () => {
       title: 'P1',
       type: NotificationAttachmentType.Post,
     });
-    await worker.handler(null, con, null, null);
+    await worker.handler(message({}), con, null, null);
     const avatars = await con
       .getRepository(NotificationAvatarV2)
       .find({ order: { referenceId: 'ASC' } });
@@ -186,7 +196,7 @@ describe('notificationWorkerToWorker', () => {
         ];
       },
     });
-    await worker.handler(null, con, null, null);
+    await worker.handler(message({}), con, null, null);
     const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications.length).toEqual(1);
     expect(notifications[0].public).toEqual(false);
@@ -205,7 +215,7 @@ describe('notificationWorkerToWorker', () => {
       uniqueKey: '2',
     });
     const worker = notificationWorkerToWorker(baseWorker);
-    await worker.handler(null, con, null, null);
+    await worker.handler(message({}), con, null, null);
     const notifications = await con.getRepository(NotificationV2).find();
     expect(notifications.length).toEqual(1);
     const userNotifications = await con.getRepository(UserNotification).find();
