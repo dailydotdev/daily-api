@@ -68,6 +68,7 @@ import { ContentPreference } from '../../src/entity/contentPreference/ContentPre
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { articleNewCommentCommentCommented } from '../../src/workers/notifications/articleNewCommentCommentCommented';
 import { articleNewCommentPostCommented } from '../../src/workers/notifications/articleNewCommentPostCommented';
+import { articleAnalytics } from '../../src/workers/notifications/articleAnalytics';
 
 let con: DataSource;
 
@@ -1692,9 +1693,6 @@ it('should add article report approved notification for every reporter', async (
 });
 
 it('should add article analytics notification for scout and author', async () => {
-  const worker = await import(
-    '../../src/workers/notifications/articleAnalytics'
-  );
   await con.getRepository(Post).update(
     { id: 'p1' },
     {
@@ -1702,9 +1700,12 @@ it('should add article analytics notification for scout and author', async () =>
       scoutId: '3',
     },
   );
-  const actual = await invokeNotificationWorker(worker.default, {
-    postId: 'p1',
-  });
+  const actual = await invokeTypedNotificationWorker<'send-analytics-report'>(
+    articleAnalytics,
+    {
+      postId: 'p1',
+    },
+  );
   expect(actual.length).toEqual(1);
   expect(actual[0].type).toEqual('article_analytics');
   expect(actual[0].ctx.userIds).toIncludeSameMembers(['3', '1']);
