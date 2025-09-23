@@ -1,35 +1,32 @@
-import { messageToJson } from '../worker';
-import { NotificationWorker } from './worker';
+import { messageToJson, TypedNotificationWorker } from '../worker';
 import { buildPostContext, uniquePostOwners } from './utils';
 import { NotificationType } from '../../notifications/common';
 import { queryReadReplica } from '../../common/queryReadReplica';
 
-interface Data {
-  postId: string;
-}
+export const articleAnalytics: TypedNotificationWorker<'send-analytics-report'> =
+  {
+    subscription: 'api.article-analytics-notification',
+    handler: async ({ postId }, con) => {
+      const ctx = await queryReadReplica(con, ({ queryRunner }) => {
+        return buildPostContext(queryRunner.manager, postId);
+      });
 
-const worker: NotificationWorker = {
-  subscription: 'api.article-analytics-notification',
-  handler: async (message, con) => {
-    const data: Data = messageToJson(message);
-    const ctx = await queryReadReplica(con, ({ queryRunner }) => {
-      return buildPostContext(queryRunner.manager, data.postId);
-    });
-
-    if (!ctx) {
-      return;
-    }
-    const users = uniquePostOwners(ctx.post);
-    if (!users.length) {
-      return;
-    }
-    return [
-      {
-        type: NotificationType.ArticleAnalytics,
-        ctx: { ...ctx, userIds: users },
-      },
-    ];
-  },
-};
-
-export default worker;
+      if (!ctx) {
+        return;
+      }
+      const users = uniquePostOwners(ctx.post);
+      if (!users.length) {
+        return;
+      }
+      return [
+        {
+          type: NotificationType.ArticleAnalytics,
+          ctx: { ...ctx, userIds: users },
+        },
+      ];
+    },
+    parseMessage(message) {
+      // TODO: Clean this once we move all workers to TypedWorkers
+      return messageToJson(message);
+    },
+  };

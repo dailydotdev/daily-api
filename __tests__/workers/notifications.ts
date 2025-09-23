@@ -67,6 +67,8 @@ import {
 import { ContentPreference } from '../../src/entity/contentPreference/ContentPreference';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { articleNewCommentCommentCommented } from '../../src/workers/notifications/articleNewCommentCommentCommented';
+import { articleNewCommentPostCommented } from '../../src/workers/notifications/articleNewCommentPostCommented';
+import { articleAnalytics } from '../../src/workers/notifications/articleAnalytics';
 
 let con: DataSource;
 
@@ -1183,9 +1185,6 @@ describe('streak reset restore', () => {
 
 describe('article new comment', () => {
   it('should add notification for scout and author', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentPostCommented'
-    );
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -1193,11 +1192,15 @@ describe('article new comment', () => {
         authorId: '3',
       },
     );
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      commentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'post-commented'>(
+      articleNewCommentPostCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        commentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
     expect(bundle.type).toEqual('article_new_comment');
@@ -1211,9 +1214,6 @@ describe('article new comment', () => {
   });
 
   it('should add one notification when scout and author are the same', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentPostCommented'
-    );
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -1221,19 +1221,20 @@ describe('article new comment', () => {
         authorId: '1',
       },
     );
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      commentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'post-commented'>(
+      articleNewCommentPostCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        commentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds).toEqual(['1']);
   });
 
   it('should not add notification when the author commented', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentPostCommented'
-    );
     await con.getRepository(Post).update(
       { id: 'p1' },
       {
@@ -1246,11 +1247,15 @@ describe('article new comment', () => {
         userId: '1',
       },
     );
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      commentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'post-commented'>(
+      articleNewCommentPostCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        commentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual).toBeFalsy();
   });
 
@@ -1441,9 +1446,6 @@ describe('article new comment', () => {
   });
 
   it('should not add notification for new squad comment when author is not par of the squad anymore', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentPostCommented'
-    );
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
@@ -1451,18 +1453,19 @@ describe('article new comment', () => {
       .getRepository(SourceMember)
       .delete({ sourceId: 'a', userId: '1' });
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      commentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'post-commented'>(
+      articleNewCommentPostCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        commentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual).toBeFalsy();
   });
 
   it('should add notification for new squad comment', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentPostCommented'
-    );
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
@@ -1479,11 +1482,15 @@ describe('article new comment', () => {
       createdAt: new Date(),
       referralToken: randomUUID(),
     });
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      commentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'post-commented'>(
+      articleNewCommentPostCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        commentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual.length).toEqual(1);
     actual.forEach((bundle) => {
       expect(bundle.type).toEqual('squad_new_comment');
@@ -1501,9 +1508,6 @@ describe('article new comment', () => {
   });
 
   it('should add notification for new squad comment but ignore muted users', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/articleNewCommentPostCommented'
-    );
     await con
       .getRepository(Source)
       .update({ id: 'a' }, { type: SourceType.Squad });
@@ -1527,11 +1531,15 @@ describe('article new comment', () => {
       status: NotificationPreferenceStatus.Muted,
       notificationType: NotificationType.SquadNewComment,
     });
-    const actual = await invokeNotificationWorker(worker.default, {
-      userId: '1',
-      postId: 'p1',
-      commentId: 'c1',
-    });
+    const actual = await invokeTypedNotificationWorker<'post-commented'>(
+      articleNewCommentPostCommented,
+      {
+        userId: '1',
+        postId: 'p1',
+        commentId: 'c1',
+        contentHtml: '<p>Test</p>',
+      },
+    );
     expect(actual).toBeFalsy();
   });
 });
@@ -1685,9 +1693,6 @@ it('should add article report approved notification for every reporter', async (
 });
 
 it('should add article analytics notification for scout and author', async () => {
-  const worker = await import(
-    '../../src/workers/notifications/articleAnalytics'
-  );
   await con.getRepository(Post).update(
     { id: 'p1' },
     {
@@ -1695,9 +1700,12 @@ it('should add article analytics notification for scout and author', async () =>
       scoutId: '3',
     },
   );
-  const actual = await invokeNotificationWorker(worker.default, {
-    postId: 'p1',
-  });
+  const actual = await invokeTypedNotificationWorker<'send-analytics-report'>(
+    articleAnalytics,
+    {
+      postId: 'p1',
+    },
+  );
   expect(actual.length).toEqual(1);
   expect(actual[0].type).toEqual('article_analytics');
   expect(actual[0].ctx.userIds).toIncludeSameMembers(['3', '1']);
