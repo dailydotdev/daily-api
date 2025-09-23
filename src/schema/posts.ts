@@ -436,6 +436,10 @@ export const typeDefs = /* GraphQL */ `
     Moderator of the post
     """
     moderatedBy: User
+    """
+    Poll options for poll posts
+    """
+    pollOptions: [CreatePollOption!]
   }
 
   type TocItem {
@@ -927,6 +931,11 @@ export const typeDefs = /* GraphQL */ `
   }
 
   input PollOptionInput {
+    text: String!
+    order: Int!
+  }
+
+  type CreatePollOption {
     text: String!
     order: Int!
   }
