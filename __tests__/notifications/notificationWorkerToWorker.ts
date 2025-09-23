@@ -32,6 +32,7 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
 });
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const baseWorker: TypedNotificationWorker<any> = {
   subscription: 'sub',
   handler: async (message, con) => {
