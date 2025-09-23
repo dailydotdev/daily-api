@@ -187,6 +187,10 @@ export type PubSubSchema = {
   'send-analytics-report': {
     postId: string;
   };
+  'post-banned-or-removed': {
+    post: ChangeObject<Post>;
+    method: 'hard' | 'soft';
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

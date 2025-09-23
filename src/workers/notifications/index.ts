@@ -5,7 +5,7 @@ import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
 import { articleNewCommentPostCommented } from './articleNewCommentPostCommented';
 import articleUpvoteMilestone from './articleUpvoteMilestone';
-import articleReportApproved from './articleReportApproved';
+import { articleReportApproved } from './articleReportApproved';
 import { articleAnalytics } from './articleAnalytics';
 import sourceRequest from './sourceRequest';
 import commentMention from './commentMention';
