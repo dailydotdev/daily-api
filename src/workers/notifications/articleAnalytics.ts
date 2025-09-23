@@ -1,4 +1,4 @@
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { buildPostContext, uniquePostOwners } from './utils';
 import { NotificationType } from '../../notifications/common';
 import { queryReadReplica } from '../../common/queryReadReplica';
@@ -24,9 +24,5 @@ export const articleAnalytics: TypedNotificationWorker<'send-analytics-report'> 
           ctx: { ...ctx, userIds: users },
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

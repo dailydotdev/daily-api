@@ -1,31 +1,24 @@
-import { messageToJson } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { SourceMember, SourceType, UserPost } from '../../entity';
 import {
   NotificationPostContext,
   NotificationUpvotersContext,
 } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
-import { NotificationWorker } from './worker';
 import { buildPostContext, uniquePostOwners, UPVOTE_MILESTONES } from './utils';
 import { In, Not } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { UserVote } from '../../types';
 
-interface Data {
-  userId: string;
-  postId: string;
-}
-
-const worker: NotificationWorker = {
+export const articleUpvoteMilestone: TypedNotificationWorker<'post-upvoted'> = {
   subscription: 'api.article-upvote-milestone-notification',
-  handler: async (message, con) => {
-    const data: Data = messageToJson(message);
-    const postCtx = await buildPostContext(con, data.postId);
+  handler: async ({ postId, userId }, con) => {
+    const postCtx = await buildPostContext(con, postId);
     if (!postCtx) {
       return;
     }
     const { post, source } = postCtx;
-    const users = uniquePostOwners(post, [data.userId]);
+    const users = uniquePostOwners(post, [userId]);
     if (!users.length || !UPVOTE_MILESTONES.includes(post.upvotes.toString())) {
       return;
     }
@@ -72,5 +65,3 @@ const worker: NotificationWorker = {
     ];
   },
 };
-
-export default worker;

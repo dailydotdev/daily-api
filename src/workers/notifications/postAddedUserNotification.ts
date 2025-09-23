@@ -18,7 +18,7 @@ import { buildPostContext } from './utils';
 import { Post, PostType } from '../../entity/posts/Post';
 import { NotificationPreferenceUser } from '../../entity';
 import { Brackets } from 'typeorm';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 const sendQueueConcurrency = 10;
 
@@ -131,9 +131,5 @@ export const postAddedUserNotification: TypedNotificationWorker<'api.v1.post-vis
       );
 
       return Array.from(notificationResult.values());
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

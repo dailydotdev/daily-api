@@ -23,10 +23,7 @@ import { Logger } from 'pino';
 import { createMercuriusTestClient } from 'mercurius-integration-testing';
 import appFunc from '../src';
 import createOrGetConnection from '../src/db';
-import {
-  NotificationHandlerReturn,
-  NotificationWorker,
-} from '../src/workers/notifications/worker';
+import { NotificationHandlerReturn } from '../src/workers/notifications/worker';
 import {
   generateNotificationV2,
   NotificationBaseContext,
@@ -247,14 +244,6 @@ export const expectSuccessfulBackground = (
   worker: Worker,
   data: Record<string, unknown>,
 ): Promise<void> => invokeBackground(worker, data);
-
-export const invokeNotificationWorker = async <T>(
-  worker: NotificationWorker<T>,
-  data: Record<string, unknown>,
-): Promise<NotificationHandlerReturn> => {
-  const con = await createOrGetConnection();
-  return worker.handler(mockMessage(data).message, con, logger);
-};
 
 export const invokeTypedNotificationWorker = async <
   T extends keyof PubSubSchema,

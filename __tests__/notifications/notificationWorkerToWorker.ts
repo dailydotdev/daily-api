@@ -17,8 +17,8 @@ import { notificationWorkerToWorker } from '../../src/workers/notifications';
 import { buildPostContext } from '../../src/workers/notifications/utils';
 import { NotificationType } from '../../src/notifications/common';
 import { UserNotification } from '../../src/entity/notifications/UserNotification';
-import { NotificationWorker } from '../../src/workers/notifications/worker';
 import { notificationV2Fixture } from '../fixture/notifications';
+import { TypedNotificationWorker } from '../../src/workers/worker';
 
 let con: DataSource;
 
@@ -32,7 +32,7 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
 });
 
-const baseWorker: NotificationWorker = {
+const baseWorker: TypedNotificationWorker<any> = {
   subscription: 'sub',
   handler: async (message, con) => {
     const postCtx = await buildPostContext(con, 'p1');
@@ -51,6 +51,7 @@ const baseWorker: NotificationWorker = {
       },
     ];
   },
+  parseMessage: (message) => message,
 };
 
 describe('notificationWorkerToWorker', () => {

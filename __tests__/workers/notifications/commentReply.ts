@@ -1,11 +1,11 @@
 import { DataSource } from 'typeorm';
-import worker, { Data } from '../../../src/workers/notifications/commentReply';
+import { commentReply } from '../../../src/workers/notifications/commentReply';
 import createOrGetConnection from '../../../src/db';
 import { Comment, Post, Source, User } from '../../../src/entity';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../../fixture';
 import { postsFixture } from '../../fixture/post';
 import { workers } from '../../../src/workers';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 
 let con: DataSource;
 
@@ -43,22 +43,22 @@ beforeEach(async () => {
 describe('commentReply', () => {
   it('should be registered', () => {
     const registeredWorker = workers.find(
-      (item) => item.subscription === worker.subscription,
+      (item) => item.subscription === commentReply.subscription,
     );
 
     expect(registeredWorker).toBeDefined();
   });
 
   it('should not send notification when the comment is prevented by vordr', async () => {
-    const payload: Data = {
-      userId: '1',
-      childCommentId: 'c2',
-      postId: 'p1',
-    };
-
-    const result = await invokeNotificationWorker(
-      worker,
-      payload as unknown as Record<string, unknown>,
+    const result = await invokeTypedNotificationWorker<'comment-commented'>(
+      commentReply,
+      {
+        postId: 'p1',
+        userId: '1',
+        parentCommentId: 'c0',
+        childCommentId: 'c2',
+        contentHtml: '<p>Test</p>',
+      },
     );
 
     expect(result).toBeUndefined();
