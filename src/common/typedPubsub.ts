@@ -184,6 +184,9 @@ export type PubSubSchema = {
   'gondul.v1.candidate-opportunity-match': MatchedCandidate;
   'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
   'api.v1.delayed-notification-reminder': z.infer<typeof entityReminderSchema>;
+  'send-analytics-report': {
+    postId: string;
+  };
   'post-banned-or-removed': {
     post: ChangeObject<Post>;
     method: 'hard' | 'soft';

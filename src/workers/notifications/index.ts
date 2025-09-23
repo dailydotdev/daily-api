@@ -6,7 +6,7 @@ import communityPicksGranted from './communityPicksGranted';
 import articleNewCommentPostCommented from './articleNewCommentPostCommented';
 import articleUpvoteMilestone from './articleUpvoteMilestone';
 import { articleReportApproved } from './articleReportApproved';
-import articleAnalytics from './articleAnalytics';
+import { articleAnalytics } from './articleAnalytics';
 import sourceRequest from './sourceRequest';
 import commentMention from './commentMention';
 import commentReply from './commentReply';
