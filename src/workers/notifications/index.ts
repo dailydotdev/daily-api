@@ -3,7 +3,7 @@ import { messageToJson, TypedNotificationWorker, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';
 import communityPicksFailed from './communityPicksFailed';
 import communityPicksGranted from './communityPicksGranted';
-import articleNewCommentPostCommented from './articleNewCommentPostCommented';
+import { articleNewCommentPostCommented } from './articleNewCommentPostCommented';
 import articleUpvoteMilestone from './articleUpvoteMilestone';
 import { articleReportApproved } from './articleReportApproved';
 import { articleAnalytics } from './articleAnalytics';
