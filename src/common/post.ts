@@ -385,10 +385,9 @@ interface CreateSourcePostModerationProps {
   }>;
 }
 
-const checkForDuplicatedPostByDedupKey = async (
+const hasDuplicatedPostBy = async (
   con: DataSource,
-  dedupKey?: string,
-  sourceId?: string,
+  { dedupKey, sourceId }: Partial<Record<'dedupKey' | 'sourceId', string>>,
 ): Promise<boolean> => {
   if (!dedupKey) return false;
 
@@ -436,11 +435,20 @@ const getModerationWarningFlag = async ({
   if (!dedupKey) {
     return;
   }
-  if (await checkForDuplicatedPostByDedupKey(con, dedupKey, sourceId)) {
+  const isDuplicatedInSameSquad = await hasDuplicatedPostBy(con, {
+    dedupKey,
+    sourceId,
+  });
+
+  if (isDuplicatedInSameSquad) {
     return WarningReason.DuplicatedInSameSquad;
   }
 
-  if (await checkForDuplicatedPostByDedupKey(con, dedupKey)) {
+  const isDuplicatedAcrossSquads = await hasDuplicatedPostBy(con, {
+    dedupKey,
+  });
+
+  if (isDuplicatedAcrossSquads) {
     return WarningReason.MultipleSquadPost;
   }
 
