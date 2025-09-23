@@ -19,7 +19,6 @@ import { NotificationType } from '../../src/notifications/common';
 import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { notificationV2Fixture } from '../fixture/notifications';
 import { Message, TypedNotificationWorker } from '../../src/workers/worker';
-import { Message as ProtobufMessage } from '@bufbuild/protobuf/dist/esm/message';
 
 let con: DataSource;
 
