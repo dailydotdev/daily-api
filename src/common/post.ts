@@ -89,6 +89,7 @@ export interface GQLSourcePostModeration {
   source: Source;
   post?: Post;
   postId?: string;
+  pollOptions?: CreatePollOption[];
 }
 
 const POST_MODERATION_PAGE_SIZE = 15;

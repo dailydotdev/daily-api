@@ -3,7 +3,7 @@ import { PostAnalytics } from '../../entity/posts/PostAnalytics';
 import { User } from '../../entity/user/User';
 import type { NotificationPostAnalyticsContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { buildPostContext } from './utils';
 
 const impressionsThreshold = 10_000;
@@ -76,9 +76,5 @@ export const campaignPostAnalyticsNotification: TypedNotificationWorker<'api.v1.
           ctx: notificationContext,
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

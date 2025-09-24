@@ -6,7 +6,7 @@ import {
   NotificationPostContext,
 } from '../../notifications';
 import { queryReadReplica } from '../../common/queryReadReplica';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 const worker: TypedNotificationWorker<'api.v1.post-bookmark-reminder'> = {
   subscription: 'api.post-bookmark-reminder-notification',
@@ -36,10 +36,6 @@ const worker: TypedNotificationWorker<'api.v1.post-bookmark-reminder'> = {
     };
 
     return [{ type: NotificationType.PostBookmarkReminder, ctx }];
-  },
-  parseMessage(message) {
-    // TODO: Clean this once we move all workers to TypedWorkers
-    return messageToJson(message);
   },
 };
 

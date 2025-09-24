@@ -1,11 +1,11 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { Comment, Post, Source, User } from '../../../src/entity';
-import worker from '../../../src/workers/notifications/postAdded';
+import { postAdded } from '../../../src/workers/notifications/postAdded';
 import { badUsersFixture, sourcesFixture, usersFixture } from '../../fixture';
 import { postsFixture } from '../../fixture/post';
 import { workers } from '../../../src/workers/notifications';
-import { invokeNotificationWorker, saveFixtures } from '../../helpers';
+import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 
 let con: DataSource;
 
@@ -42,7 +42,7 @@ beforeEach(async () => {
 describe('vordrPostCommentPrevented', () => {
   it('should be registered', () => {
     const registeredWorker = workers.find(
-      (item) => item.subscription === worker.subscription,
+      (item) => item.subscription === postAdded.subscription,
     );
 
     expect(registeredWorker).toBeDefined();
@@ -50,38 +50,34 @@ describe('vordrPostCommentPrevented', () => {
 
   describe('vordr', () => {
     it('should not send notification when the comment is prevented by vordr', async () => {
-      const payload = {
-        post: {
-          id: 'p1',
-        },
-      };
-
       await con
         .getRepository(Post)
         .update('p1', { authorId: '1', flags: { vordr: true } });
 
-      const result = await invokeNotificationWorker(
-        worker,
-        payload as unknown as Record<string, unknown>,
+      const result = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+        postAdded,
+        {
+          post: {
+            id: 'p1',
+          },
+        },
       );
 
       expect(result).toBeUndefined();
     });
 
     it('should send notification when the comment is not prevented by vordr', async () => {
-      const payload = {
-        post: {
-          id: 'p1',
-        },
-      };
-
       await con
         .getRepository(Post)
         .update('p1', { authorId: '1', flags: { vordr: false } });
 
-      const result = await invokeNotificationWorker(
-        worker,
-        payload as unknown as Record<string, unknown>,
+      const result = await invokeTypedNotificationWorker<'api.v1.post-visible'>(
+        postAdded,
+        {
+          post: {
+            id: 'p1',
+          },
+        },
       );
 
       expect(result?.length).toEqual(1);

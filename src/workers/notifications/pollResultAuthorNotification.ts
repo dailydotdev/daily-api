@@ -1,7 +1,7 @@
 import { PollPost } from '../../entity/posts/PollPost';
 import { NotificationType } from '../../notifications/common';
 import type { NotificationPostContext } from '../../notifications';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { buildPostContext } from './utils';
 
 export const pollResultAuthorNotification: TypedNotificationWorker<'api.v1.delayed-notification-reminder'> =
@@ -39,9 +39,5 @@ export const pollResultAuthorNotification: TypedNotificationWorker<'api.v1.delay
           ctx: notificationCtx,
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

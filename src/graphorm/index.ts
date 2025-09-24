@@ -329,6 +329,11 @@ const obj = new GraphORM({
   },
   SourcePostModeration: {
     requiredColumns: ['id'],
+    fields: {
+      pollOptions: {
+        jsonType: true,
+      },
+    },
   },
   UserStreak: {
     requiredColumns: ['lastViewAt'],

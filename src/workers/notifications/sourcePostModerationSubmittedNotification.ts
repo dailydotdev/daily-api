@@ -1,4 +1,4 @@
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { In } from 'typeorm';
 import { SourceMemberRoles } from '../../roles';
 import { NotificationType } from '../../notifications/common';
@@ -46,10 +46,6 @@ const worker: TypedNotificationWorker<'api.v1.source-post-moderation-submitted'>
           );
         }
       }
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };
 

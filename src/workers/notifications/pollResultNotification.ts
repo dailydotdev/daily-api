@@ -2,7 +2,7 @@ import { PollPost } from '../../entity/posts/PollPost';
 import { UserPost } from '../../entity/user/UserPost';
 import { NotificationType } from '../../notifications/common';
 import type { NotificationPostContext } from '../../notifications';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { buildPostContext } from './utils';
 import { IsNull, Not } from 'typeorm';
 
@@ -54,9 +54,5 @@ export const pollResultNotification: TypedNotificationWorker<'api.v1.delayed-not
           ctx: notificationCtx,
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

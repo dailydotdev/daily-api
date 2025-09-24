@@ -1,6 +1,6 @@
 import { Campaign, Source } from '../../entity';
 import { NotificationType } from '../../notifications/common';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import {
   type NotificationCampaignContext,
   type NotificationCampaignSourceContext,
@@ -52,10 +52,6 @@ const worker: TypedNotificationWorker<'skadi.v2.campaign-updated'> = {
 
       throw err;
     }
-  },
-  parseMessage(message) {
-    // TODO: Clean this once we move all workers to TypedWorkers
-    return messageToJson(message);
   },
 };
 
