@@ -3602,30 +3602,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ) => {
       const { sourceIds, ...postArgs } = args;
-      const createdPosts = [];
+      const createdPosts: Array<{
+        id: string;
+        sourceId: string;
+        type: MultiplePostItemType;
+      }> = [];
       const isMultiplePosting =
         sourceIds.filter((id) => id !== ctx.userId).length > 1;
 
-      await ctx.con.transaction(async () => {
-        for (const sourceId of sourceIds) {
-          const canUserPosts = await ensureSourcePermissions(
-            ctx,
-            sourceId,
-            SourcePermissions.Post,
-          );
+      await ctx.con.transaction(async ({ queryRunner }) => {
+        if (!queryRunner) return;
 
-          if (canUserPosts) {
-            // directly post on squad
-            const { id } = await createFreeformPost(ctx, {
-              ...postArgs,
+        const addedPosts = await Promise.all(
+          sourceIds.map(async (sourceId) => {
+            const canUserPosts = await ensureSourcePermissions(
+              { userId: ctx.userId, con: queryRunner.manager },
               sourceId,
-            });
-            createdPosts.push({
-              id,
-              sourceId,
-              type: MultiplePostItemType.Post,
-            });
-          } else {
+              SourcePermissions.Post,
+            );
+
+            if (canUserPosts) {
+              // directly post on squad
+              const { id } = await createFreeformPost(ctx, {
+                ...postArgs,
+                sourceId,
+              });
+              return { id, sourceId, type: MultiplePostItemType.Post };
+            }
+
             // OR create a pending post instead
             const pendingPost = await validateSourcePostModeration(ctx, {
               ...postArgs,
@@ -3637,16 +3641,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               args: pendingPost,
               options: { isMultiplePosting },
             });
-            createdPosts.push({
+            return {
               id,
               sourceId,
               type: MultiplePostItemType.ModerationItem,
-            });
-          }
-        }
+            };
+          }),
+        );
+        createdPosts.push(...addedPosts);
       });
 
-      return null;
+      return createdPosts;
     },
   },
   Subscription: {

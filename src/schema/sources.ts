@@ -1034,7 +1034,7 @@ const hasPermissionCheck = (
 export const sourceTypesWithMembers = ['squad'];
 
 export const canAccessSource = async (
-  ctx: Context,
+  con: DataSource | EntityManager,
   source: Source,
   member: SourceMember | null,
   permission: SourcePermissions,
@@ -1043,9 +1043,7 @@ export const canAccessSource = async (
   if (permission === SourcePermissions.View && !source.private) {
     if (sourceTypesWithMembers.includes(source.type)) {
       const isMemberBlocked = member?.role === SourceMemberRoles.Blocked;
-      const canAccess = !isMemberBlocked;
-
-      return canAccess;
+      return !isMemberBlocked;
     }
 
     return true;
@@ -1056,7 +1054,7 @@ export const canAccessSource = async (
   }
 
   const sourceId = source.id;
-  const repo = ctx.getRepository(SourceMember);
+  const repo = con.getRepository(SourceMember);
   const validateRankAgainst = await (requireGreaterAccessPrivilege[permission]
     ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
     : Promise.resolve(undefined));
@@ -1190,7 +1188,7 @@ const validateSquadData = async (
 const postPermissions = [SourcePermissions.Post, SourcePermissions.PostRequest];
 
 export const ensureSourcePermissions = async (
-  ctx: Context,
+  ctx: { userId?: string; con: DataSource | EntityManager },
   sourceId: string | undefined,
   permission: SourcePermissions = SourcePermissions.View,
   validateRankAgainstId?: string,
@@ -1214,7 +1212,7 @@ export const ensureSourcePermissions = async (
       : null;
 
     const canAccess = await canAccessSource(
-      ctx,
+      ctx.con,
       source,
       sourceMember,
       permission,
