@@ -2,7 +2,7 @@ import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import {
   expectSuccessfulBackground,
-  invokeNotificationWorker,
+  invokeTypedNotificationWorker,
   saveFixtures,
 } from '../../helpers';
 import { collectionUpdated as worker } from '../../../src/workers/notifications/collectionUpdated';
@@ -194,13 +194,17 @@ describe('collectionUpdated worker', () => {
   });
 
   it('should notify when a collection is updated', async () => {
-    const actual = await invokeNotificationWorker(worker, {
-      post: {
-        id: 'cup1',
-        title: 'My collection',
-        content_type: PostType.Collection,
-      },
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.post-collection-updated'>(
+        worker,
+        {
+          post: {
+            id: 'cup1',
+            title: 'My collection',
+            type: PostType.Collection,
+          },
+        },
+      );
 
     expect(actual.length).toEqual(1);
 
@@ -223,7 +227,7 @@ describe('collectionUpdated worker', () => {
       post: {
         id: 'cup1',
         title: 'My collection',
-        content_type: PostType.Collection,
+        type: PostType.Collection,
       },
     });
 
@@ -274,26 +278,34 @@ describe('collectionUpdated worker', () => {
   });
 
   it('should not notify when a collection is updated but the user is muted', async () => {
-    const actual = await invokeNotificationWorker(worker, {
-      post: {
-        id: 'cup1',
-        title: 'My collection',
-        content_type: PostType.Collection,
-      },
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.post-collection-updated'>(
+        worker,
+        {
+          post: {
+            id: 'cup1',
+            title: 'My collection',
+            type: PostType.Collection,
+          },
+        },
+      );
 
     expect(actual.length).toEqual(1);
     expect(actual[0].ctx.userIds.includes('4')).toBeFalsy();
   });
 
   it('should notify when a collection is updated but the no sources are found', async () => {
-    const actual = await invokeNotificationWorker(worker, {
-      post: {
-        id: 'cup2',
-        title: 'My collection',
-        content_type: PostType.Collection,
-      },
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.post-collection-updated'>(
+        worker,
+        {
+          post: {
+            id: 'cup2',
+            title: 'My collection',
+            type: PostType.Collection,
+          },
+        },
+      );
 
     expect(actual.length).toEqual(1);
     expect((actual[0].ctx as NotificationCollectionContext).total).toEqual(0);
@@ -307,13 +319,17 @@ describe('collectionUpdated worker', () => {
         type: PostRelationType.Collection,
       },
     ]);
-    const actual = await invokeNotificationWorker(worker, {
-      post: {
-        id: 'cup1',
-        title: 'My collection',
-        content_type: PostType.Collection,
-      },
-    });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.post-collection-updated'>(
+        worker,
+        {
+          post: {
+            id: 'cup1',
+            title: 'My collection',
+            type: PostType.Collection,
+          },
+        },
+      );
 
     expect(actual.length).toEqual(1);
     expect((actual[0].ctx as NotificationCollectionContext).total).toEqual('5');

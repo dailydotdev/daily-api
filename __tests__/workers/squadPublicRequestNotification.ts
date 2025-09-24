@@ -8,7 +8,7 @@ import {
   UserAction,
   UserActionType,
 } from '../../src/entity';
-import { invokeNotificationWorker } from '../helpers';
+import { invokeTypedNotificationWorker } from '../helpers';
 import {
   NotificationPostContext,
   NotificationSquadRequestContext,
@@ -17,6 +17,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { sourcesFixture, usersFixture } from '../fixture';
 import { postsFixture } from '../fixture/post';
+import { squadPublicRequestNotification } from '../../src/workers/notifications/squadPublicRequestNotification';
 
 let con: DataSource;
 
@@ -45,15 +46,16 @@ beforeEach(async () => {
 
 describe('squad public request', () => {
   it('should add notification for approved squad public request', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadPublicRequestNotification'
-    );
     const request = await con.getRepository(SquadPublicRequest).save({
       sourceId: 'a',
       requestorId: '1',
       status: SquadPublicRequestStatus.Approved,
     });
-    const actual = await invokeNotificationWorker(worker.default, { request });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-public-request'>(
+        squadPublicRequestNotification,
+        { request },
+      );
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
     expect(bundle.type).toEqual('squad_public_approved');
@@ -65,15 +67,16 @@ describe('squad public request', () => {
   });
 
   it('should add notification for rejected squad public request', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadPublicRequestNotification'
-    );
     const request = await con.getRepository(SquadPublicRequest).save({
       sourceId: 'a',
       requestorId: '1',
       status: SquadPublicRequestStatus.Rejected,
     });
-    const actual = await invokeNotificationWorker(worker.default, { request });
+    const actual =
+      await invokeTypedNotificationWorker<'api.v1.squad-public-request'>(
+        squadPublicRequestNotification,
+        { request },
+      );
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
     expect(bundle.type).toEqual('squad_public_rejected');

@@ -2,7 +2,7 @@ import { JsonContains } from 'typeorm';
 import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
 import { NotificationType } from '../../notifications/common';
 import { OrganizationMemberRole } from '../../roles';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 export const organizationUserJoined: TypedNotificationWorker<'api.v1.organization-user-joined'> =
   {
@@ -51,9 +51,5 @@ export const organizationUserJoined: TypedNotificationWorker<'api.v1.organizatio
           },
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };
