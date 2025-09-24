@@ -1,24 +1,23 @@
-import { NotificationWorker } from './worker';
 import { messageToJson, TypedNotificationWorker, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';
-import communityPicksFailed from './communityPicksFailed';
-import communityPicksGranted from './communityPicksGranted';
-import articleNewCommentPostCommented from './articleNewCommentPostCommented';
-import articleUpvoteMilestone from './articleUpvoteMilestone';
-import articleReportApproved from './articleReportApproved';
-import articleAnalytics from './articleAnalytics';
-import sourceRequest from './sourceRequest';
-import commentMention from './commentMention';
-import commentReply from './commentReply';
-import commentUpvoteMilestone from './commentUpvoteMilestone';
-import postAdded from './postAdded';
-import memberJoinedSource from './squadMemberJoined';
-import sourceMemberRoleChanged from './sourceMemberRoleChanged';
-import squadPublicRequestNotification from './squadPublicRequestNotification';
+import { communityPicksFailed } from './communityPicksFailed';
+import { communityPicksGranted } from './communityPicksGranted';
+import { articleNewCommentPostCommented } from './articleNewCommentPostCommented';
+import { articleUpvoteMilestone } from './articleUpvoteMilestone';
+import { articleReportApproved } from './articleReportApproved';
+import { articleAnalytics } from './articleAnalytics';
+import { sourceRequest } from './sourceRequest';
+import { commentMention } from './commentMention';
+import { commentReply } from './commentReply';
+import { commentUpvoteMilestone } from './commentUpvoteMilestone';
+import { postAdded } from './postAdded';
+import { squadMemberJoined } from './squadMemberJoined';
+import { sourceMemberRoleChanged } from './sourceMemberRoleChanged';
+import { squadPublicRequestNotification } from './squadPublicRequestNotification';
 import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
-import postMention from './postMention';
+import { postMention } from './postMention';
 import { collectionUpdated } from './collectionUpdated';
-import devCardUnlocked from './devCardUnlocked';
+import { devCardUnlocked } from './devCardUnlocked';
 import postBookmarkReminder from './postBookmarkReminder';
 import userStreakResetNotification from './userStreakResetNotification';
 import userGiftedPlusNotification from './userGiftedPlusNotification';
@@ -39,17 +38,17 @@ import { pollResultAuthorNotification } from './pollResultAuthorNotification';
 import { pollResultNotification } from './pollResultNotification';
 import { articleNewCommentCommentCommented } from './articleNewCommentCommentCommented';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyNotificationWorker = NotificationWorker | TypedNotificationWorker<any>;
-
 export function notificationWorkerToWorker(
-  worker: AnyNotificationWorker,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  worker: TypedNotificationWorker<any>,
 ): Worker {
   return {
     ...worker,
     handler: async (message, con, logger) => {
       const args = await worker.handler(
-        worker.parseMessage ? worker.parseMessage(message) : message,
+        worker.parseMessage
+          ? worker.parseMessage(message)
+          : messageToJson(message),
         con,
         logger,
       );
@@ -87,7 +86,8 @@ export function notificationWorkerToWorker(
   };
 }
 
-const notificationWorkers: AnyNotificationWorker[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const notificationWorkers: TypedNotificationWorker<any>[] = [
   communityPicksFailed,
   communityPicksGranted,
   articleNewCommentPostCommented,
@@ -101,7 +101,7 @@ const notificationWorkers: AnyNotificationWorker[] = [
   commentReply,
   commentUpvoteMilestone,
   postAdded,
-  memberJoinedSource,
+  squadMemberJoined,
   sourceMemberRoleChanged,
   squadPublicRequestNotification,
   collectionUpdated,

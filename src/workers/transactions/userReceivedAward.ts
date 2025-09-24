@@ -7,7 +7,7 @@ import {
 } from '../../entity/user/UserTransaction';
 import { NotificationType } from '../../notifications/common';
 import { isSpecialUser } from '../../common';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 export const userReceivedAward: TypedNotificationWorker<'api.v1.user-transaction'> =
   {
@@ -80,9 +80,5 @@ export const userReceivedAward: TypedNotificationWorker<'api.v1.user-transaction
           },
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

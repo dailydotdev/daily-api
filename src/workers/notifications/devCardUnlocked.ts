@@ -1,34 +1,24 @@
-import { messageToJson } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { NotificationBaseContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
-import { NotificationWorker } from './worker';
-import { ChangeObject } from '../../types';
-import { User } from '../../entity';
 
 export const DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD = 20;
 
-interface Data {
-  user: ChangeObject<User>;
-  userAfter: ChangeObject<User>;
-}
+export const devCardUnlocked: TypedNotificationWorker<'user-reputation-updated'> =
+  {
+    subscription: 'api.user-reputation-updated-notification',
+    handler: async ({ user, userAfter }) => {
+      if (
+        user.reputation > DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD ||
+        userAfter.reputation < DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD
+      ) {
+        return;
+      }
 
-const worker: NotificationWorker = {
-  subscription: 'api.user-reputation-updated-notification',
-  handler: async (message) => {
-    const data: Data = messageToJson(message);
-    if (
-      data.user.reputation > DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD ||
-      data.userAfter.reputation < DEFAULT_DEV_CARD_UNLOCKED_THRESHOLD
-    ) {
-      return;
-    }
+      const ctx: NotificationBaseContext = {
+        userIds: [userAfter.id],
+      };
 
-    const ctx: NotificationBaseContext = {
-      userIds: [data.userAfter.id],
-    };
-
-    return [{ type: NotificationType.DevCardUnlocked, ctx }];
-  },
-};
-
-export default worker;
+      return [{ type: NotificationType.DevCardUnlocked, ctx }];
+    },
+  };

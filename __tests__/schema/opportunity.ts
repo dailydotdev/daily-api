@@ -39,6 +39,7 @@ import {
   LocationType,
   OpportunityState,
   SalaryPeriod,
+  SeniorityLevel,
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
@@ -50,6 +51,7 @@ import { deleteRedisKey } from '../../src/redis';
 import { rateLimiterName } from '../../src/directive/rateLimit';
 import { fileTypeFromBuffer } from '../setup';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
+import { RoleType } from '../../src/common/schema/userCandidate';
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 const uploadEmploymentAgreementFromBuffer = jest.spyOn(
@@ -1736,5 +1738,246 @@ describe('mutation uploadEmploymentAgreement', () => {
       'File content does not match file extension',
     );
     expect(extensions.issues[0].path).toEqual(['file', 'buffer']);
+  });
+});
+
+describe('mutation editOpportunity', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation EditOpportunity($id: ID!, $payload: OpportunityEditInput!) {
+      editOpportunity(id: $id, payload: $payload) {
+        id
+        title
+        tldr
+        content {
+          overview {
+            content
+            html
+          }
+          requirements {
+            content
+            html
+          }
+        }
+        meta {
+          roleType
+          teamSize
+          seniorityLevel
+          employmentType
+          salary {
+            min
+            max
+            period
+          }
+        }
+        location {
+          city
+          country
+          type
+        }
+        keywords {
+          keyword
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: { title: 'New Title' },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw error when user is not a recruiter for opportunity', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: { title: 'Illegal edit' },
+        },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+  });
+
+  it('should throw error when opportunity does not exist', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '660e8400-e29b-41d4-a716-446655440999',
+          payload: { title: 'Does not matter' },
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should edit opportunity', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          title: 'Updated Senior Full Stack Developer',
+          tldr: 'Updated TLDR',
+          location: [{ country: 'Germany', type: LocationType.REMOTE }],
+          meta: {
+            employmentType: EmploymentType.INTERNSHIP,
+            teamSize: 100,
+            salary: { min: 100, max: 200, period: SalaryPeriod.HOURLY },
+            seniorityLevel: SeniorityLevel.VP,
+            roleType: RoleType.Managerial,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity).toMatchObject({
+      id: opportunitiesFixture[0].id,
+      title: 'Updated Senior Full Stack Developer',
+      tldr: 'Updated TLDR',
+      location: [{ country: 'Germany', city: null, type: 1 }],
+      meta: {
+        employmentType: EmploymentType.INTERNSHIP,
+        teamSize: 100,
+        salary: {
+          min: 100,
+          max: 200,
+          period: SalaryPeriod.HOURLY,
+        },
+        seniorityLevel: SeniorityLevel.VP,
+        roleType: RoleType.Managerial,
+      },
+    });
+  });
+
+  it('should edit opportunity keywords', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          keywords: [
+            { keyword: ' ios  ' },
+            { keyword: 'webdev' },
+            { keyword: 'ps5  ' },
+            { keyword: 'android' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.keywords).toEqual(
+      expect.arrayContaining([
+        { keyword: 'ios' },
+        { keyword: 'webdev' },
+        { keyword: 'ps5' },
+        { keyword: 'android' },
+      ]),
+    );
+
+    const afterKeywords = await con
+      .getRepository(OpportunityKeyword)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(afterKeywords.map((k) => k.keyword)).toEqual(
+      expect.arrayContaining(['ios', 'webdev', 'ps5', 'android']),
+    );
+  });
+
+  it('should edit opportunity content without overwriting existing fields', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          content: {
+            requirements: 'Updated requirements *italic*',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.content).toEqual({
+      overview: {
+        content: 'We are looking for a Senior Full Stack Developer...',
+        html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+      },
+      requirements: {
+        content: 'Updated requirements *italic*',
+        html: '<p>Updated requirements <em>italic</em></p>\n',
+      },
+    });
+
+    const afterContent = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunitiesFixture[0].id });
+    expect(afterContent.content).toEqual({
+      overview: {
+        content: 'We are looking for a Senior Full Stack Developer...',
+        html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+      },
+      requirements: {
+        content: 'Updated requirements *italic*',
+        html: '<p>Updated requirements <em>italic</em></p>\n',
+      },
+    });
+  });
+
+  it('should support partial update without overwriting unspecified content/meta and keywords', async () => {
+    loggedUser = '1';
+
+    const before = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunitiesFixture[0].id });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          title: 'Partially Updated Title',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.title).toEqual('Partially Updated Title');
+
+    const after = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunitiesFixture[0].id });
+
+    expect(after.meta).toEqual(before.meta);
+    expect(after.content).toEqual(before.content); // unchanged
+
+    // keywords remain same from previous test
+    const keywords = await con
+      .getRepository(OpportunityKeyword)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+
+    expect(keywords.map((k) => k.keyword)).toEqual(
+      expect.arrayContaining(['webdev', 'fullstack', 'Fortune 500']),
+    );
   });
 });

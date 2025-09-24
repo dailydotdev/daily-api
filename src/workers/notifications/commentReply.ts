@@ -1,4 +1,4 @@
-import { messageToJson } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import {
   Comment,
   NotificationPreferenceComment,
@@ -10,22 +10,14 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../notifications/common';
-import { NotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 import { In } from 'typeorm';
 
-export interface Data {
-  userId: string;
-  childCommentId: string;
-  postId: string;
-}
-
-const worker: NotificationWorker = {
+export const commentReply: TypedNotificationWorker<'comment-commented'> = {
   subscription: 'api.comment-reply-notification',
-  handler: async (message, con) => {
-    const data: Data = messageToJson(message);
+  handler: async ({ childCommentId }, con) => {
     const comment = await con.getRepository(Comment).findOne({
-      where: { id: data.childCommentId },
+      where: { id: childCommentId },
       relations: ['parent', 'user'],
     });
     if (!comment || comment.flags?.vordr) {
@@ -75,5 +67,3 @@ const worker: NotificationWorker = {
     ];
   },
 };
-
-export default worker;

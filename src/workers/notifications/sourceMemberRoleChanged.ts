@@ -1,16 +1,9 @@
-import { messageToJson } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { NotificationSourceContext } from '../../notifications';
-import { NotificationWorker } from './worker';
-import { ChangeObject } from '../../types';
-import { Source, SourceMember } from '../../entity';
+import { Source } from '../../entity';
 import { SourceMemberRoles } from '../../roles';
 import { NotificationType } from '../../notifications/common';
 import { queryReadReplica } from '../../common/queryReadReplica';
-
-interface Data {
-  previousRole: SourceMemberRoles;
-  sourceMember: ChangeObject<SourceMember>;
-}
 
 const previousRoleToNewRole: Partial<
   Record<
@@ -35,46 +28,44 @@ const previousRoleToNewRole: Partial<
   },
 };
 
-const worker: NotificationWorker = {
-  subscription: 'api.source-member-role-changed-notification',
-  handler: async (message, con, logger) => {
-    const { previousRole, sourceMember: member }: Data = messageToJson(message);
-    const logDetails = { member, messageId: message.messageId };
+export const sourceMemberRoleChanged: TypedNotificationWorker<'api.v1.source-member-role-changed'> =
+  {
+    subscription: 'api.source-member-role-changed-notification',
+    handler: async ({ previousRole, sourceMember: member }, con, logger) => {
+      const logDetails = { member };
 
-    const source = await queryReadReplica(con, ({ queryRunner }) => {
-      return queryRunner.manager
-        .getRepository(Source)
-        .findOneBy({ id: member.sourceId });
-    });
+      const source = await queryReadReplica(con, ({ queryRunner }) => {
+        return queryRunner.manager
+          .getRepository(Source)
+          .findOneBy({ id: member.sourceId });
+      });
 
-    if (!source) {
-      logger.info(logDetails, 'source does not exist');
+      if (!source) {
+        logger.info(logDetails, 'source does not exist');
 
-      return;
-    }
+        return;
+      }
 
-    const baseCtx: NotificationSourceContext = {
-      userIds: [member.userId],
-      source,
-    };
+      const baseCtx: NotificationSourceContext = {
+        userIds: [member.userId],
+        source,
+      };
 
-    const roleToNotificationMap =
-      previousRoleToNewRole[previousRole]?.[member.role];
+      const roleToNotificationMap =
+        previousRoleToNewRole[previousRole]?.[member.role];
 
-    switch (roleToNotificationMap) {
-      case 'demoted_to_member':
-        return [
-          {
-            type: roleToNotificationMap,
-            ctx: { ...baseCtx, role: previousRole },
-          },
-        ];
-      case 'promoted_to_admin':
-      case 'promoted_to_moderator':
-      case 'squad_blocked':
-        return [{ type: roleToNotificationMap, ctx: baseCtx }];
-    }
-  },
-};
-
-export default worker;
+      switch (roleToNotificationMap) {
+        case 'demoted_to_member':
+          return [
+            {
+              type: roleToNotificationMap,
+              ctx: { ...baseCtx, role: previousRole },
+            },
+          ];
+        case 'promoted_to_admin':
+        case 'promoted_to_moderator':
+        case 'squad_blocked':
+          return [{ type: roleToNotificationMap, ctx: baseCtx }];
+      }
+    },
+  };

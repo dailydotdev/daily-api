@@ -3,7 +3,7 @@ import {
   type ChangeMessage,
   type ContentLanguage,
 } from '../types';
-import type {
+import {
   Post,
   SourceRequest,
   SquadPublicRequest,
@@ -15,6 +15,11 @@ import type {
   PostTranslation,
   Organization,
   ReputationEvent,
+  CollectionPost,
+  CommentMention,
+  Submission,
+  PostMention,
+  SourceMember,
 } from '../entity';
 import {
   type EventLogger,
@@ -38,6 +43,7 @@ import { z } from 'zod';
 import type { postMetricsUpdatedTopic } from './schema/topics';
 import type { CampaignUpdateEventArgs } from './campaign/common';
 import type { entityReminderSchema } from './schema/reminders';
+import { SourceMemberRoles } from '../roles';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -184,6 +190,37 @@ export type PubSubSchema = {
   'gondul.v1.candidate-opportunity-match': MatchedCandidate;
   'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
   'api.v1.delayed-notification-reminder': z.infer<typeof entityReminderSchema>;
+  'send-analytics-report': {
+    postId: string;
+  };
+  'post-banned-or-removed': {
+    post: ChangeObject<Post>;
+    method: 'hard' | 'soft';
+  };
+  'api.v1.post-collection-updated': {
+    post: ChangeObject<CollectionPost>;
+  };
+  'api.v1.new-comment-mention': {
+    commentMention: ChangeObject<CommentMention>;
+  };
+  'community-link-rejected': ChangeObject<Submission>;
+  'community-link-access': {
+    userId: string;
+  };
+  'user-reputation-updated': {
+    user: ChangeObject<User>;
+    userAfter: ChangeObject<User>;
+  };
+  'api.v1.new-post-mention': {
+    postMention: ChangeObject<PostMention>;
+  };
+  'api.v1.source-member-role-changed': {
+    previousRole: SourceMemberRoles;
+    sourceMember: ChangeObject<SourceMember>;
+  };
+  'api.v1.member-joined-source': {
+    sourceMember: ChangeObject<SourceMember>;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

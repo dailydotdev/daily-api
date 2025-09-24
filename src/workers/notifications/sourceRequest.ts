@@ -1,31 +1,23 @@
-import { messageToJson } from '../worker';
-import { Source, SourceRequest } from '../../entity';
+import { TypedNotificationWorker } from '../worker';
+import { Source } from '../../entity';
 import { NotificationSourceRequestContext } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
-import { NotificationWorker } from './worker';
 import { NotificationReason } from '../../common';
-import { ChangeObject } from '../../types';
 import { queryReadReplica } from '../../common/queryReadReplica';
 
-type Data = {
-  reason: NotificationReason;
-  sourceRequest: ChangeObject<SourceRequest>;
-};
-
-const worker: NotificationWorker = {
+export const sourceRequest: TypedNotificationWorker<'pub-request'> = {
   subscription: 'api.source-request-notification',
-  handler: async (message, con) => {
-    const data: Data = messageToJson(message);
+  handler: async ({ reason, sourceRequest }, con) => {
     const ctx: NotificationSourceRequestContext = {
-      userIds: [data.sourceRequest.userId],
-      sourceRequest: data.sourceRequest,
+      userIds: [sourceRequest.userId],
+      sourceRequest,
     };
-    switch (data.reason) {
+    switch (reason) {
       case NotificationReason.Publish: {
         const source = await queryReadReplica(con, ({ queryRunner }) => {
           return queryRunner.manager
             .getRepository(Source)
-            .findOneBy({ id: data.sourceRequest.sourceId });
+            .findOneBy({ id: sourceRequest.sourceId });
         });
         return [
           { type: NotificationType.SourceApproved, ctx: { ...ctx, source } },
@@ -40,5 +32,3 @@ const worker: NotificationWorker = {
     }
   },
 };
-
-export default worker;
