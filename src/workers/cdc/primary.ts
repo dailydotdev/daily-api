@@ -557,11 +557,12 @@ const onPostChange = async (
     if (data.payload.after!.type === PostType.Poll) {
       const poll = data as ChangeMessage<PollPost>;
       const after = poll.payload.after!;
+      const endsAt = after.endsAt as number | undefined;
 
       const createdDate = debeziumTimeToDate(after.createdAt).getTime();
-      const notificationTime =
-        after.endsAt?.getTime() ||
-        new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
+      const notificationTime = endsAt
+        ? debeziumTimeToDate(endsAt).getTime()
+        : new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
 
       await runEntityReminderWorkflow({
         entityId: after!.id,
@@ -597,11 +598,12 @@ const onPostChange = async (
     ) {
       const poll = data as ChangeMessage<PollPost>;
       const after = poll.payload.after!;
+      const endsAt = after.endsAt as number | undefined;
 
       const createdDate = debeziumTimeToDate(after.createdAt).getTime();
-      const notificationTime =
-        after!.endsAt?.getTime() ||
-        new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
+      const notificationTime = endsAt
+        ? debeziumTimeToDate(endsAt).getTime()
+        : new Date(createdDate + 14 * 24 * 60 * 60 * 1000).getTime();
 
       await cancelEntityReminderWorkflow({
         entityId: data.payload.after!.id,
