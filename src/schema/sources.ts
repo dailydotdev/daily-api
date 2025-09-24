@@ -1113,7 +1113,6 @@ export const isPrivilegedMember = async (
 type PostPermissions = SourcePermissions.Post | SourcePermissions.PostRequest;
 
 export const canPostToSquad = (
-  ctx: Context,
   squad: SquadSource,
   sourceMember: SourceMember | null,
   permission: PostPermissions = SourcePermissions.Post,
@@ -1230,7 +1229,6 @@ export const ensureSourcePermissions = async (
       source.type === SourceType.Squad &&
       postPermissions.includes(permission) &&
       !canPostToSquad(
-        ctx,
         source as SquadSource,
         sourceMember,
         permission as PostPermissions,

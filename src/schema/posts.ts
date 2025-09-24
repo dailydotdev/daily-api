@@ -3603,11 +3603,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const { sourceIds, ...postArgs } = args;
       const createdPosts = [];
-      // const isPostingInMultipleSources =
-      //   sourceIds.filter((id) => id !== ctx.userId).length > 1;
+      const isMultiplePosting =
+        sourceIds.filter((id) => id !== ctx.userId).length > 1;
 
-      await ctx.con.transaction(async ({ queryRunner }) => {
-        console.log(queryRunner);
+      await ctx.con.transaction(async () => {
         for (const sourceId of sourceIds) {
           const canUserPosts = await ensureSourcePermissions(
             ctx,
@@ -3616,13 +3615,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
 
           if (canUserPosts) {
-            const id = await createFreeformPost(ctx, { ...postArgs, sourceId });
+            // directly post on squad
+            const { id } = await createFreeformPost(ctx, {
+              ...postArgs,
+              sourceId,
+            });
             createdPosts.push({
               id,
               sourceId,
               type: MultiplePostItemType.Post,
             });
           } else {
+            // OR create a pending post instead
             const pendingPost = await validateSourcePostModeration(ctx, {
               ...postArgs,
               sourceId,
@@ -3631,6 +3635,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             const { id } = await createSourcePostModeration({
               ctx,
               args: pendingPost,
+              options: { isMultiplePosting },
             });
             createdPosts.push({
               id,
