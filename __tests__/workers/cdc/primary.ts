@@ -6658,14 +6658,14 @@ describe('poll post', () => {
           id: pollId,
           type: PostType.Poll,
           createdAt,
-          endsAt: endsAt
+          endsAt: endsAt,
           deleted: false,
         },
         after: {
           id: pollId,
           type: PostType.Poll,
           createdAt,
-          endsAt: endsAt
+          endsAt: endsAt,
           deleted: true,
         },
         op: 'u',
