@@ -5676,26 +5676,6 @@ describe('opportunity match', () => {
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
   });
 
-  it('should not notify when status changes from candidate accepted to something else', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      status: OpportunityMatchStatus.RecruiterAccepted,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: {
-          ...base,
-          status: OpportunityMatchStatus.CandidateAccepted,
-        },
-        op: 'u',
-        table: 'opportunity_match',
-      }),
-    );
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
-  });
-
   it('should not notify when status stays the same', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
@@ -5721,6 +5701,72 @@ describe('opportunity match', () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       status: OpportunityMatchStatus.CandidateAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should notify on recruiter accepted candidate match', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.RecruiterAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.any(Object),
+      'api.v1.recruiter-accepted-candidate-match',
+      expect.objectContaining({
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '1',
+      }),
+    );
+  });
+
+  it('should not notify when recruiter accepted status stays the same', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.RecruiterAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: {
+          ...base,
+          status: OpportunityMatchStatus.RecruiterAccepted,
+        },
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not notify when opportunity match is not found for recruiter acceptance', async () => {
+    await con.getRepository(OpportunityMatch).delete({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: '1',
+    });
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.RecruiterAccepted,
     };
     await expectSuccessfulBackground(
       worker,
