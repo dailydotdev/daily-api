@@ -5476,6 +5476,7 @@ describe('source_post_moderation', () => {
       expect(
         isSameDay(new Date(poll.endsAt!), addDays(new Date(), 7)),
       ).toBeTruthy();
+      expect(poll.contentCuration).toEqual(['poll']);
 
       // Verify poll options were created
       const options = await con.getRepository(PollOption).find({
@@ -5526,6 +5527,7 @@ describe('source_post_moderation', () => {
       expect(poll.type).toEqual(PostType.Poll);
       expect(poll.title).toEqual('Do you like polls?');
       expect(poll.endsAt).toBeNull();
+      expect(poll.contentCuration).toEqual(['poll']);
 
       // Verify poll options were created
       const options = await con.getRepository(PollOption).find({
