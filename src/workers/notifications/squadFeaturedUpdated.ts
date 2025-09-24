@@ -1,5 +1,5 @@
 import { NotificationType } from '../../notifications/common';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { NotificationSourceContext } from '../../notifications';
 import { SourceMemberRoles } from '../../roles';
 import { In } from 'typeorm';
@@ -34,10 +34,6 @@ const worker: TypedNotificationWorker<'api.v1.squad-featured-updated'> = {
     };
 
     return [{ type: NotificationType.SquadFeatured, ctx }];
-  },
-  parseMessage(message) {
-    // TODO: Clean this once we move all workers to TypedWorkers
-    return messageToJson(message);
   },
 };
 

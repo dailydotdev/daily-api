@@ -1,4 +1,4 @@
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import { PostReport } from '../../entity';
 import { buildPostContext } from './utils';
 import { NotificationType } from '../../notifications/common';
@@ -30,5 +30,4 @@ export const articleReportApproved: TypedNotificationWorker<'post-banned-or-remo
         },
       ];
     },
-    parseMessage: (message) => messageToJson(message), // TODO: Clean this once we move all workers to TypedWorkers
   };

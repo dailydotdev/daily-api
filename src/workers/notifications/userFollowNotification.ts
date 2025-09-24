@@ -2,7 +2,7 @@ import { whereNotUserBlocked } from '../../common/contentPreference';
 import { whereVordrFilter } from '../../common/vordr';
 import { User } from '../../entity/user/User';
 import { NotificationType } from '../../notifications/common';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 export const userFollowNotification: TypedNotificationWorker<'api.v1.user-follow'> =
   {
@@ -39,9 +39,5 @@ export const userFollowNotification: TypedNotificationWorker<'api.v1.user-follow
           },
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

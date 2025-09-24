@@ -3,7 +3,7 @@ import { NotificationPostContext } from '../../notifications';
 import { buildPostContext } from './utils';
 import { SourcePostModerationStatus } from '../../entity/SourcePostModeration';
 import { queryReadReplica } from '../../common/queryReadReplica';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 const worker: TypedNotificationWorker<'api.v1.source-post-moderation-approved'> =
   {
@@ -29,10 +29,6 @@ const worker: TypedNotificationWorker<'api.v1.source-post-moderation-approved'> 
       };
 
       return [{ type: NotificationType.SourcePostApproved, ctx }];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };
 

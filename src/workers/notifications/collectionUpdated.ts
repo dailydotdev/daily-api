@@ -1,14 +1,11 @@
-import { messageToJson } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import {
   NotificationPreferencePost,
-  Post,
   PostRelationType,
   PostType,
   Source,
   getAllSourcesBaseQuery,
 } from '../../entity';
-import { ChangeObject } from '../../types';
-import { NotificationWorker } from './worker';
 import { buildPostContext } from './utils';
 import { NotificationCollectionContext } from '../../notifications';
 import {
@@ -17,64 +14,59 @@ import {
 } from '../../notifications/common';
 import { queryReadReplica } from '../../common/queryReadReplica';
 
-interface Data {
-  post: ChangeObject<Post>;
-}
+export const collectionUpdated: TypedNotificationWorker<'api.v1.post-collection-updated'> =
+  {
+    subscription: 'api.post-collection-updated-notification',
+    handler: async ({ post }, con) => {
+      const baseCtx = await queryReadReplica(con, ({ queryRunner }) => {
+        return buildPostContext(queryRunner.manager, post.id);
+      });
 
-export const collectionUpdated: NotificationWorker = {
-  subscription: 'api.post-collection-updated-notification',
-  handler: async (message, con) => {
-    const data: Data = messageToJson(message);
+      if (!baseCtx) {
+        return;
+      }
 
-    const baseCtx = await queryReadReplica(con, ({ queryRunner }) => {
-      return buildPostContext(queryRunner.manager, data.post.id);
-    });
+      if (post.type !== PostType.Collection) {
+        return;
+      }
 
-    if (!baseCtx) {
-      return;
-    }
+      const [sources, members] = await queryReadReplica(
+        con,
+        ({ queryRunner }) => {
+          return Promise.all([
+            getAllSourcesBaseQuery({
+              con: queryRunner.manager,
+              postId: post.id,
+              relationType: PostRelationType.Collection,
+            })
+              .select(
+                's.id as id, s."name" as name, s."image" as image, count(s."id") OVER() AS total, s."handle" as handle',
+              )
+              .limit(3)
+              .getRawMany<Source & { total: number }>(),
+            queryRunner.manager
+              .getRepository(NotificationPreferencePost)
+              .findBy({
+                notificationType: NotificationType.CollectionUpdated,
+                referenceId: post.id,
+                status: NotificationPreferenceStatus.Subscribed,
+              }),
+          ]);
+        },
+      );
 
-    const { post } = baseCtx;
+      const numTotalAvatars = sources[0]?.total || 0;
 
-    if (post.type !== PostType.Collection) {
-      return;
-    }
-
-    const [sources, members] = await queryReadReplica(
-      con,
-      ({ queryRunner }) => {
-        return Promise.all([
-          getAllSourcesBaseQuery({
-            con: queryRunner.manager,
-            postId: post.id,
-            relationType: PostRelationType.Collection,
-          })
-            .select(
-              's.id as id, s."name" as name, s."image" as image, count(s."id") OVER() AS total, s."handle" as handle',
-            )
-            .limit(3)
-            .getRawMany<Source & { total: number }>(),
-          queryRunner.manager.getRepository(NotificationPreferencePost).findBy({
-            notificationType: NotificationType.CollectionUpdated,
-            referenceId: post.id,
-            status: NotificationPreferenceStatus.Subscribed,
-          }),
-        ]);
-      },
-    );
-
-    const numTotalAvatars = sources[0]?.total || 0;
-
-    return [
-      {
-        type: NotificationType.CollectionUpdated,
-        ctx: {
-          ...baseCtx,
-          sources,
-          total: numTotalAvatars,
-          userIds: members.map(({ userId }) => userId),
-        } as NotificationCollectionContext,
-      },
-    ];
-  },
-};
+      return [
+        {
+          type: NotificationType.CollectionUpdated,
+          ctx: {
+            ...baseCtx,
+            sources,
+            total: numTotalAvatars,
+            userIds: members.map(({ userId }) => userId),
+          } as NotificationCollectionContext,
+        },
+      ];
+    },
+  };

@@ -5,7 +5,7 @@ import { uploadFile, UploadPreset } from '../../common';
 import { Readable } from 'stream';
 import { NotificationType } from '../../notifications/common';
 import { WEBAPP_MAGIC_IMAGE_PREFIX } from '../../config';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 export const userTopReaderAdded: TypedNotificationWorker<'api.v1.user-top-reader'> =
   {
@@ -91,9 +91,5 @@ export const userTopReaderAdded: TypedNotificationWorker<'api.v1.user-top-reader
           },
         },
       ];
-    },
-    parseMessage(message) {
-      // TODO: Clean this once we move all workers to TypedWorkers
-      return messageToJson(message);
     },
   };

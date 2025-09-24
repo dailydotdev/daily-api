@@ -6,7 +6,7 @@ import { queryReadReplica } from '../../common/queryReadReplica';
 import { PLUS_MEMBER_SQUAD_ID } from '../userUpdatedPlusSubscriptionSquad';
 import { CioTransactionalMessageTemplateId, sendEmail } from '../../common';
 import { logger } from '../../logger';
-import { messageToJson, TypedNotificationWorker } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 
 async function sendNotificationEmailToGifter(ctx: NotificationGiftPlusContext) {
   const message_data = {
@@ -80,10 +80,6 @@ const worker: TypedNotificationWorker<'user-updated'> = {
     await sendNotificationEmailToGifter(ctx);
 
     return [{ type: NotificationType.UserGiftedPlus, ctx }];
-  },
-  parseMessage(message) {
-    // TODO: Clean this once we move all workers to TypedWorkers
-    return messageToJson(message);
   },
 };
 

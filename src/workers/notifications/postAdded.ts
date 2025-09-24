@@ -1,7 +1,6 @@
-import { messageToJson } from '../worker';
+import { TypedNotificationWorker } from '../worker';
 import {
   NotificationPreferenceSource,
-  Post,
   PostFlags,
   PostMention,
   PostType,
@@ -20,24 +19,18 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../notifications/common';
-import { NotificationHandlerReturn, NotificationWorker } from './worker';
-import { ChangeObject } from '../../types';
+import { NotificationHandlerReturn } from './worker';
 import { buildPostContext, getOptInSubscribedMembers } from './utils';
 import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { In, Not } from 'typeorm';
 
-interface Data {
-  post: ChangeObject<Post>;
-}
-
 const blockedTypes = Object.freeze([PostType.Welcome, PostType.Brief]);
 
-const worker: NotificationWorker = {
+export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
   subscription: 'api.post-added-notification-v2',
-  handler: async (message, con) => {
-    const data: Data = messageToJson(message);
-    const baseCtx = await buildPostContext(con, data.post.id);
+  handler: async ({ post: inputPost }, con) => {
+    const baseCtx = await buildPostContext(con, inputPost.id);
     if (!baseCtx) {
       return;
     }
@@ -170,5 +163,3 @@ const worker: NotificationWorker = {
     return notifs;
   },
 };
-
-export default worker;
