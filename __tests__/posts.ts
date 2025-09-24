@@ -9654,6 +9654,12 @@ describe('mutate polls', () => {
     expect(res.data.createPollPost.title).toEqual('My poll');
     expect(res.data.createPollPost.type).toEqual(PostType.Poll);
     expect(res.data.createPollPost.pollOptions.length).toEqual(3);
+
+    // Verify contentCuration in database
+    const createdPost = await con.getRepository(Post).findOneByOrFail({
+      id: res.data.createPollPost.id,
+    });
+    expect(createdPost.contentCuration).toEqual(['poll']);
   });
 
   it('should fail to create a poll without at least two options', async () => {
