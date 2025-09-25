@@ -3242,9 +3242,9 @@ describe('mutation createMultipleSourcePosts', () => {
           where: { id: addedModerationItem.id },
           select: ['flags', 'createdBy', 'sourceId'],
         });
-      expect(moderationItem.flags.warningReason).not.toEqual(
-        WarningReason.MultipleSquadPost,
-      );
+      expect(moderationItem.flags.warningReason).toBeFalsy();
+      expect(moderationItem.createdBy).toEqual('1');
+      expect(moderationItem.sourceId).toEqual('m');
     });
   });
 });
