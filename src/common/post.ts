@@ -562,7 +562,7 @@ const MAX_CONTENT_LENGTH = 10_000;
 export const multipleSourcePostArgsSchema = z.object({
   title: z.string().max(MAX_TITLE_LENGTH).optional(),
   content: z.string().max(MAX_CONTENT_LENGTH).optional(),
-  image: z.custom<Promise<FileUpload>>().optional(),
+  image: z.custom<Promise<FileUpload>>(),
   sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
   sharedPostId: z.string().optional(),
 });
