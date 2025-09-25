@@ -715,13 +715,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         if (Array.isArray(questions)) {
           const questionIds = questions.map((item) => item.id).filter(Boolean);
 
-          const questionsFromOtherOpportunity = await entityManager
+          const hasQuestionsFromOtherOpportunity = await entityManager
             .getRepository(QuestionScreening)
-            .find({
+            .exists({
               where: { id: In(questionIds), opportunityId: Not(id) },
             });
 
-          if (questionsFromOtherOpportunity.length > 0) {
+          if (hasQuestionsFromOtherOpportunity) {
             throw new ConflictError('Not allowed to edit some questions!');
           }
 
