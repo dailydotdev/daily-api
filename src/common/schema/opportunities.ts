@@ -48,5 +48,15 @@ export const opportunityEditSchema = z
         interviewProcess: opportunityContentSchema,
       })
       .partial(),
+    questions: z
+      .array(
+        z.object({
+          id: z.uuid().optional(),
+          title: z.string().nonempty().max(240),
+          placeholder: z.string().nonempty().max(480).nullable().optional(),
+        }),
+      )
+      .min(1)
+      .max(3),
   })
   .partial();
