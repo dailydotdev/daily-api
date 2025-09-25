@@ -4455,6 +4455,10 @@ describe('query sourcePostModeration', () => {
         id
         title
         type
+        pollOptions {
+          text
+          order
+        }
       }
     }
   }
@@ -4547,6 +4551,42 @@ describe('query sourcePostModeration', () => {
     });
     expect(res.errors).toBeUndefined();
     expect(res.data.sourcePostModerations.edges.length).toEqual(3);
+  });
+
+  it('should return pollOptions when querying poll moderation items', async () => {
+    loggedUser = '4';
+
+    const pollOptions = [
+      { text: 'Option A', order: 0 },
+      { text: 'Option B', order: 1 },
+    ];
+
+    const pollModeration = await con.getRepository(SourcePostModeration).save({
+      sourceId: 'm',
+      title: 'Test Poll',
+      type: PostType.Poll,
+      pollOptions: pollOptions,
+      status: SourcePostModerationStatus.Pending,
+      createdById: '4',
+    });
+
+    const queryRes = await client.query(queryAllForSource, {
+      variables: { sourceId: 'm' },
+    });
+
+    expect(queryRes.errors).toBeUndefined();
+
+    const pollModerationItem = queryRes.data.sourcePostModerations.edges.find(
+      (edge) => edge.node.id === pollModeration.id,
+    );
+
+    expect(pollModerationItem).toBeTruthy();
+    expect(pollModerationItem.node.pollOptions).toBeDefined();
+    expect(pollModerationItem.node.pollOptions).toHaveLength(2);
+    expect(pollModerationItem.node.pollOptions).toEqual([
+      { text: 'Option A', order: 0 },
+      { text: 'Option B', order: 1 },
+    ]);
   });
 
   it('should not have access because user is not member of source', async () => {
@@ -9614,6 +9654,12 @@ describe('mutate polls', () => {
     expect(res.data.createPollPost.title).toEqual('My poll');
     expect(res.data.createPollPost.type).toEqual(PostType.Poll);
     expect(res.data.createPollPost.pollOptions.length).toEqual(3);
+
+    // Verify contentCuration in database
+    const createdPost = await con.getRepository(Post).findOneByOrFail({
+      id: res.data.createPollPost.id,
+    });
+    expect(createdPost.contentCuration).toEqual(['poll']);
   });
 
   it('should fail to create a poll without at least two options', async () => {

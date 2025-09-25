@@ -33,6 +33,7 @@ import {
   ContentUpdatedMessage,
   MatchedCandidate,
   type OpportunityMessage,
+  RecruiterAcceptedCandidateMatchMessage,
   type TransferResponse,
   type UserBriefingRequest,
 } from '@dailydotdev/schema';
@@ -221,6 +222,7 @@ export type PubSubSchema = {
   'api.v1.member-joined-source': {
     sourceMember: ChangeObject<SourceMember>;
   };
+  'api.v1.recruiter-accepted-candidate-match': RecruiterAcceptedCandidateMatchMessage;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

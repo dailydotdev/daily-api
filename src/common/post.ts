@@ -80,6 +80,7 @@ export interface GQLSourcePostModeration {
   source: Source;
   post?: Post;
   postId?: string;
+  pollOptions?: CreatePollOption[];
 }
 
 const POST_MODERATION_PAGE_SIZE = 15;
@@ -277,6 +278,7 @@ export const createPollPost = async ({
     private: privacy,
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
+    contentCuration: ['poll'],
     flags: {
       visible: true,
       private: privacy,

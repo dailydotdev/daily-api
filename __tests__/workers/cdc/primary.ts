@@ -5476,6 +5476,7 @@ describe('source_post_moderation', () => {
       expect(
         isSameDay(new Date(poll.endsAt!), addDays(new Date(), 7)),
       ).toBeTruthy();
+      expect(poll.contentCuration).toEqual(['poll']);
 
       // Verify poll options were created
       const options = await con.getRepository(PollOption).find({
@@ -5526,6 +5527,7 @@ describe('source_post_moderation', () => {
       expect(poll.type).toEqual(PostType.Poll);
       expect(poll.title).toEqual('Do you like polls?');
       expect(poll.endsAt).toBeNull();
+      expect(poll.contentCuration).toEqual(['poll']);
 
       // Verify poll options were created
       const options = await con.getRepository(PollOption).find({
@@ -5676,26 +5678,6 @@ describe('opportunity match', () => {
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
   });
 
-  it('should not notify when status changes from candidate accepted to something else', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      status: OpportunityMatchStatus.RecruiterAccepted,
-    };
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: {
-          ...base,
-          status: OpportunityMatchStatus.CandidateAccepted,
-        },
-        op: 'u',
-        table: 'opportunity_match',
-      }),
-    );
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
-  });
-
   it('should not notify when status stays the same', async () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
@@ -5721,6 +5703,72 @@ describe('opportunity match', () => {
     const after: ChangeObject<ObjectType> = {
       ...base,
       status: OpportunityMatchStatus.CandidateAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should notify on recruiter accepted candidate match', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.RecruiterAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: base,
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.any(Object),
+      'api.v1.recruiter-accepted-candidate-match',
+      expect.objectContaining({
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '1',
+      }),
+    );
+  });
+
+  it('should not notify when recruiter accepted status stays the same', async () => {
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.RecruiterAccepted,
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<ObjectType>({
+        after,
+        before: {
+          ...base,
+          status: OpportunityMatchStatus.RecruiterAccepted,
+        },
+        op: 'u',
+        table: 'opportunity_match',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not notify when opportunity match is not found for recruiter acceptance', async () => {
+    await con.getRepository(OpportunityMatch).delete({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: '1',
+    });
+    const after: ChangeObject<ObjectType> = {
+      ...base,
+      status: OpportunityMatchStatus.RecruiterAccepted,
     };
     await expectSuccessfulBackground(
       worker,
@@ -6586,6 +6634,100 @@ describe('poll post', () => {
       entityTableName: 'post',
       scheduledAtMs: 0,
       delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default poll duration)
+    });
+  });
+
+  it('should schedule entity reminder workflow for poll creation with specific endsAt', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000;
+    const endsAt = new Date('2021-09-25T07:15:51.247Z').getTime() * 1000; // 3 days later, as debezium microseconds
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          endsAt: endsAt,
+        },
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: pollId,
+      entityTableName: 'post',
+      scheduledAtMs: 0,
+      delayMs: 3 * 24 * 60 * 60 * 1000, // 3 days in milliseconds
+    });
+  });
+
+  it('should handle poll with null endsAt field correctly', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000;
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          endsAt: null,
+        },
+        op: 'c',
+        table: 'post',
+      }),
+    );
+
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(runEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: pollId,
+      entityTableName: 'post',
+      scheduledAtMs: 0,
+      delayMs: 14 * 24 * 60 * 60 * 1000, // 14 days in milliseconds (default when endsAt is null)
+    });
+  });
+
+  it('should cancel entity reminder workflow when poll with specific endsAt is deleted', async () => {
+    const pollId = randomUUID();
+    const createdAt = new Date('2021-09-22T07:15:51.247Z').getTime() * 1000; // Convert to debezium microseconds
+    const endsAt = new Date('2021-09-25T07:15:51.247Z').getTime() * 1000; // 3 days later, as debezium microseconds
+
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<PollPost>({
+        before: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          endsAt: endsAt,
+          deleted: false,
+        },
+        after: {
+          id: pollId,
+          type: PostType.Poll,
+          createdAt,
+          endsAt: endsAt,
+          deleted: true,
+        },
+        op: 'u',
+        table: 'post',
+      }),
+    );
+
+    expect(runEntityReminderWorkflow).toHaveBeenCalledTimes(0);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledTimes(1);
+    expect(cancelEntityReminderWorkflow).toHaveBeenCalledWith({
+      entityId: pollId,
+      entityTableName: 'post',
+      scheduledAtMs: 0,
+      delayMs: 3 * 24 * 60 * 60 * 1000, // 3 days in milliseconds (based on endsAt)
     });
   });
 });
