@@ -2847,7 +2847,7 @@ describe('marketing cta', () => {
       })),
     );
 
-    usersFixture.forEach(async (user) => {
+    for (const user of usersFixture) {
       await setRedisObject(
         generateStorageKey(
           StorageTopic.Boot,
@@ -2857,7 +2857,7 @@ describe('marketing cta', () => {
         // Don't really care about the value in these tests
         'not null',
       );
-    });
+    }
   });
 
   describe('on create', () => {
