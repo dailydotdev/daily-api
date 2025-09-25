@@ -2935,6 +2935,12 @@ describe('mutation createMultipleSourcePosts', () => {
     ]);
   });
 
+  afterEach(async () => {
+    await con.getRepository(Post).deleteAll();
+    await con.getRepository(SourcePostModeration).deleteAll();
+    await con.getRepository(SourceMember).deleteAll();
+  });
+
   describe('authorization', () => {
     it('should not authorize when not logged in', () =>
       testMutationErrorCode(
