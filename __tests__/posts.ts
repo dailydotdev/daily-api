@@ -2889,16 +2889,22 @@ describe('mutation createMultipleSourcePosts', () => {
     mutation CreateMultipleSourcePosts(
       $sourceIds: [ID!]!
       $title: String
+      $commentary: String
+      $imageUrl: String
       $content: String
       $image: Upload
       $sharedPostId: ID
+      $externalLink: String
     ) {
       createMultipleSourcePosts(
         sourceIds: $sourceIds
         title: $title
+        commentary: $commentary
+        imageUrl: $imageUrl
         content: $content
         image: $image
         sharedPostId: $sharedPostId
+        externalLink: $externalLink
       ) {
         id
         sourceId
@@ -3240,10 +3246,10 @@ describe('mutation createMultipleSourcePosts', () => {
         .getRepository(SourcePostModeration)
         .findOneOrFail({
           where: { id: addedModerationItem.id },
-          select: ['flags', 'createdBy', 'sourceId'],
+          select: ['flags', 'createdById', 'sourceId'],
         });
       expect(moderationItem.flags.warningReason).toBeFalsy();
-      expect(moderationItem.createdBy).toEqual('1');
+      expect(moderationItem.createdById).toEqual('1');
       expect(moderationItem.sourceId).toEqual('m');
     });
   });
