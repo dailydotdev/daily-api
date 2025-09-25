@@ -115,69 +115,75 @@ export const syncSubscription = async function (
     { ids: userIds },
   );
 
+  if (!Array.isArray(userAttributes?.customers)) {
+    return;
+  }
+
+  if (userAttributes.customers.length === 0) {
+    return;
+  }
+
   await con.transaction(async (manager) => {
-    userAttributes?.customers.forEach(
-      async (customer: {
-        id: string;
-        attributes: { cio_subscription_preferences: string };
-        unsubscribed: boolean;
-      }) => {
-        const subs = JSON.parse(
-          customer?.attributes?.cio_subscription_preferences || '{}',
+    for (const customer of userAttributes.customers as {
+      id: string;
+      attributes: { cio_subscription_preferences: string };
+      unsubscribed: boolean;
+    }[]) {
+      const subs = JSON.parse(
+        customer?.attributes?.cio_subscription_preferences || '{}',
+      );
+      const unsubscribed = customer?.unsubscribed;
+      const digest =
+        isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
+
+      const user = await manager.getRepository(User).findOne({
+        where: { id: customer.id },
+        select: ['notificationFlags'],
+      });
+
+      const existingFlags = {
+        ...DEFAULT_NOTIFICATION_SETTINGS,
+        ...(user?.notificationFlags || {}),
+      };
+
+      const mergedNotificationFlags = getCioTopicsToNotificationFlags(
+        subs,
+        existingFlags,
+      );
+
+      const validation = notificationFlagsSchema.safeParse(
+        mergedNotificationFlags,
+      );
+      if (validation.success) {
+        await manager.getRepository(User).update(
+          { id: customer.id },
+          {
+            acceptedMarketing:
+              mergedNotificationFlags.marketing?.email === 'subscribed',
+            notificationFlags: mergedNotificationFlags,
+          },
         );
-        const unsubscribed = customer?.unsubscribed;
-        const digest =
-          isSubscribed(subs, CioUnsubscribeTopic.Digest) && !unsubscribed;
-
-        const user = await manager.getRepository(User).findOne({
-          where: { id: customer.id },
-          select: ['notificationFlags'],
-        });
-
-        const existingFlags = {
-          ...DEFAULT_NOTIFICATION_SETTINGS,
-          ...(user?.notificationFlags || {}),
-        };
-
-        const mergedNotificationFlags = getCioTopicsToNotificationFlags(
-          subs,
-          existingFlags,
-        );
-
-        const validation = notificationFlagsSchema.safeParse(
-          mergedNotificationFlags,
-        );
-        if (validation.success) {
-          await manager.getRepository(User).update(
-            { id: customer.id },
-            {
-              acceptedMarketing:
-                mergedNotificationFlags.marketing?.email === 'subscribed',
-              notificationFlags: mergedNotificationFlags,
-            },
-          );
-        } else {
-          logger.error(
-            {
-              userId: customer.id,
-              errors: validation.error.issues,
-              flags: mergedNotificationFlags,
-            },
-            'Failed to validate merged notification flags from CIO sync, skipping notification flags update',
-          );
-        }
-
-        if (!digest) {
-          await manager.getRepository(UserPersonalizedDigest).delete({
+      } else {
+        logger.error(
+          {
             userId: customer.id,
-            type: In([
-              UserPersonalizedDigestType.Digest,
-              UserPersonalizedDigestType.Brief,
-            ]),
-          });
-        }
-      },
-    );
+            errors: validation.error.issues,
+            flags: mergedNotificationFlags,
+          },
+          'Failed to validate merged notification flags from CIO sync, skipping notification flags update',
+        );
+      }
+
+      if (!digest) {
+        await manager.getRepository(UserPersonalizedDigest).delete({
+          userId: customer.id,
+          type: In([
+            UserPersonalizedDigestType.Digest,
+            UserPersonalizedDigestType.Brief,
+          ]),
+        });
+      }
+    }
   });
 };
 
