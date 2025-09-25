@@ -52,6 +52,7 @@ import { rateLimiterName } from '../../src/directive/rateLimit';
 import { fileTypeFromBuffer } from '../setup';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
 import { RoleType } from '../../src/common/schema/userCandidate';
+import { QuestionType } from '../../src/entity/questions/types';
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 const uploadEmploymentAgreementFromBuffer = jest.spyOn(
@@ -1777,6 +1778,10 @@ describe('mutation editOpportunity', () => {
         keywords {
           keyword
         }
+        questions {
+          title
+          placeholder
+        }
       }
     }
   `;
@@ -1978,6 +1983,115 @@ describe('mutation editOpportunity', () => {
 
     expect(keywords.map((k) => k.keyword)).toEqual(
       expect.arrayContaining(['webdev', 'fullstack', 'Fortune 500']),
+    );
+  });
+
+  it('should edit opportunity questions', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          questions: [
+            {
+              title: 'Who are you?',
+              placeholder: 'Describe yourself',
+            },
+            {
+              title: 'What is your favorite programming language?',
+              placeholder: 'E.g., JavaScript, Python, etc.',
+            },
+            {
+              title: 'Describe a challenging project you worked on.',
+              placeholder: null,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.editOpportunity.questions).toEqual([
+      {
+        title: 'Who are you?',
+        placeholder: 'Describe yourself',
+      },
+      {
+        title: 'What is your favorite programming language?',
+        placeholder: 'E.g., JavaScript, Python, etc.',
+      },
+      {
+        title: 'Describe a challenging project you worked on.',
+        placeholder: null,
+      },
+    ]);
+
+    const afterQuestions = await con.getRepository(QuestionScreening).find({
+      where: {
+        opportunityId: opportunitiesFixture[0].id,
+      },
+      order: { questionOrder: 'ASC' },
+    });
+    expect(afterQuestions).toEqual([
+      {
+        id: expect.any(String),
+        type: QuestionType.Screening,
+        opportunityId: opportunitiesFixture[0].id,
+        title: 'Who are you?',
+        placeholder: 'Describe yourself',
+        questionOrder: 0,
+      },
+      {
+        id: expect.any(String),
+        type: QuestionType.Screening,
+        opportunityId: opportunitiesFixture[0].id,
+        title: 'What is your favorite programming language?',
+        placeholder: 'E.g., JavaScript, Python, etc.',
+        questionOrder: 1,
+      },
+      {
+        id: expect.any(String),
+        type: QuestionType.Screening,
+        opportunityId: opportunitiesFixture[0].id,
+        title: 'Describe a challenging project you worked on.',
+        placeholder: null,
+        questionOrder: 2,
+      },
+    ]);
+  });
+
+  it('should throw if more then 3 questions are provided', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: {
+            questions: [
+              { title: 'Q1' },
+              { title: 'Q2' },
+              { title: 'Q3' },
+              { title: 'Q4' },
+            ],
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Zod validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('too_big');
+        expect(extensions.issues[0].message).toEqual(
+          'Too big: expected array to have <=3 items',
+        );
+        expect(extensions.issues[0].path).toEqual(['questions']);
+      },
     );
   });
 });
