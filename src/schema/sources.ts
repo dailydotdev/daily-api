@@ -1188,7 +1188,7 @@ const validateSquadData = async (
 const postPermissions = [SourcePermissions.Post, SourcePermissions.PostRequest];
 
 export const ensureSourcePermissions = async (
-  ctx: { userId?: string; con: DataSource | EntityManager },
+  ctx: Context,
   sourceId: string | undefined,
   permission: SourcePermissions = SourcePermissions.View,
   validateRankAgainstId?: string,

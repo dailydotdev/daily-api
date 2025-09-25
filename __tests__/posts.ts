@@ -83,6 +83,7 @@ import {
   PostModerationReason,
   SourcePostModeration,
   SourcePostModerationStatus,
+  WarningReason,
 } from '../src/entity/SourcePostModeration';
 import { generateUUID } from '../src/ids';
 import { GQLResponse } from 'mercurius-integration-testing';
@@ -2880,6 +2881,365 @@ describe('mutation editSharePost', () => {
         `<style>html { color: red !important; }</style>`,
       ),
     );
+  });
+});
+
+describe('mutation createMultipleSourcePosts', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CreateMultipleSourcePosts(
+      $sourceIds: [ID!]!
+      $title: String
+      $content: String
+      $image: Upload
+      $sharedPostId: ID
+    ) {
+      createMultipleSourcePosts(
+        sourceIds: $sourceIds
+        title: $title
+        content: $content
+        image: $image
+        sharedPostId: $sharedPostId
+      ) {
+        id
+        sourceId
+        type
+      }
+    }
+  `;
+
+  const freeformParams = {
+    sourceIds: ['squad', 'm'],
+    title: 'Multi-squad post title',
+    content: 'This is a multi-squad post content',
+  };
+
+  const shareParams = {
+    sourceIds: ['squad', 'm'],
+    sharedPostId: 'p1', // sharing existing post
+  };
+
+  beforeEach(async () => {
+    await con.getRepository(SourceMember).save([
+      {
+        userId: '1',
+        sourceId: 'squad',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt1-s',
+      },
+      {
+        userId: '1',
+        sourceId: 'm',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt1-m',
+      },
+    ]);
+  });
+
+  describe('authorization', () => {
+    it('should not authorize when not logged in', () =>
+      testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: freeformParams },
+        'UNAUTHENTICATED',
+      ));
+
+    it('should throw error when user has no permission to post in any of the sources', async () => {
+      loggedUser = '2'; // user not a member of any sources
+      return testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: freeformParams },
+        'FORBIDDEN',
+      );
+    });
+
+    it('should handle mixed permissions with some sources allowed, others require moderation', async () => {
+      loggedUser = '1';
+      const mixedParams = {
+        sourceIds: ['squad', 'm'],
+        title: 'Mixed permissions post',
+        content: 'Testing mixed permissions',
+      };
+
+      const res = await client.mutate<
+        {
+          createMultipleSourcePosts: [
+            {
+              id: string;
+              sourceId: string;
+              type: PostType;
+            },
+          ];
+        },
+        typeof mixedParams
+      >(MUTATION, { variables: mixedParams });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createMultipleSourcePosts).toHaveLength(2);
+
+      // Check that one is a direct post and one is a moderation item
+      const results = res.data.createMultipleSourcePosts;
+      const postTypes = results.map((r) => r.type).sort();
+      expect(postTypes).toEqual(['moderationItem', 'post']);
+    });
+  });
+
+  describe('input validation', () => {
+    it('should throw error when sourceIds array is empty', async () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: { ...freeformParams, sourceIds: [] } },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should throw error when sourceIds is null', async () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...freeformParams, sourceIds: null },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should throw error when title exceeds maximum length', async () => {
+      loggedUser = '1';
+      const longTitle = 'a'.repeat(251); // exceeds 250 character limit
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...freeformParams, title: longTitle },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should throw error when content exceeds maximum length', async () => {
+      loggedUser = '1';
+      const longContent = 'a'.repeat(10001); // exceeds 10000 character limit
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...freeformParams, content: longContent },
+        },
+        'GRAPHQL_VALIDATION_FAILED',
+      );
+    });
+
+    it('should throw error when trying to share non-existent post', async () => {
+      loggedUser = '1';
+      return testMutationErrorCode(
+        client,
+        {
+          mutation: MUTATION,
+          variables: { ...shareParams, sharedPostId: 'nonexistent' },
+        },
+        'NOT_FOUND',
+      );
+    });
+
+    it('should handle source not found error', async () => {
+      loggedUser = '1';
+      const invalidParams = {
+        sourceIds: ['nonexistent'],
+        title: 'Test post',
+        content: 'Test content',
+      };
+
+      return testMutationErrorCode(
+        client,
+        { mutation: MUTATION, variables: invalidParams },
+        'FORBIDDEN',
+      );
+    });
+  });
+
+  describe('freeform post creation', () => {
+    it('should successfully create freeform posts in multiple squads', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, { variables: freeformParams });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createMultipleSourcePosts).toHaveLength(2);
+
+      const [first, second] = res.data.createMultipleSourcePosts;
+      expect(first.type).toBe('post');
+      expect(first.sourceId).toBe('squad');
+      expect(second.type).toBe('moderationItem');
+      expect(second.sourceId).toBe('m');
+
+      // Verify posts were actually created
+      const [post, moderationItem] = await Promise.all([
+        await con.getRepository(FreeformPost).findOneByOrFail({ id: first.id }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sourceId', 'createdById', 'title', 'content', 'status'],
+          where: { id: second.id },
+        }),
+      ]);
+
+      expect(post).toStrictEqual(
+        expect.objectContaining({
+          sourceId: 'squad',
+          authorId: '1',
+          title: freeformParams.title,
+          content: freeformParams.content,
+        }),
+      );
+      expect(moderationItem).toStrictEqual(
+        expect.objectContaining({
+          sourceId: 'm',
+          createdById: '1',
+          title: freeformParams.title,
+          content: freeformParams.content,
+          status: SourcePostModerationStatus.Pending,
+        }),
+      );
+    });
+
+    it('should handle single squad posting', async () => {
+      loggedUser = '1';
+      const singleParams = { ...freeformParams, sourceIds: ['squad'] };
+      const res = await client.mutate(MUTATION, { variables: singleParams });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createMultipleSourcePosts).toHaveLength(1);
+      const [post] = res.data.createMultipleSourcePosts;
+      expect(post.sourceId).toBe('squad');
+      expect(post.type).toBe('post');
+    });
+  });
+
+  describe('share post creation', () => {
+    it('should successfully share post to multiple squads', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, { variables: shareParams });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createMultipleSourcePosts).toHaveLength(2);
+
+      const [first, second] = res.data.createMultipleSourcePosts;
+      expect(first.type).toBe('post');
+      expect(second.type).toBe('moderationItem');
+
+      // Verify posts were actually created
+      const [post, moderationItem] = await Promise.all([
+        await con.getRepository(SharePost).findOneOrFail({
+          where: { id: first.id },
+          select: ['sourceId', 'authorId', 'sharedPostId'],
+        }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sourceId', 'createdById', 'status', 'sharedPostId'],
+          where: { id: second.id },
+        }),
+      ]);
+
+      expect(post).toEqual({
+        sourceId: 'squad',
+        authorId: '1',
+        sharedPostId: 'p1',
+      });
+      expect(moderationItem).toEqual(
+        expect.objectContaining({
+          sourceId: 'm',
+          createdById: '1',
+          sharedPostId: 'p1',
+          status: SourcePostModerationStatus.Pending,
+        }),
+      );
+    });
+
+    it('should handle share post with commentary', async () => {
+      loggedUser = '1';
+      const title = 'My comment';
+      const shareWithCommentary = {
+        ...shareParams,
+        title,
+      };
+      const res = await client.mutate(MUTATION, {
+        variables: shareWithCommentary,
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const [first, second] = res.data.createMultipleSourcePosts;
+      expect(first.type).toBe('post');
+      expect(second.type).toBe('moderationItem');
+
+      // Verify posts were actually created
+      const [post, moderationItem] = await Promise.all([
+        await con.getRepository(SharePost).findOneOrFail({
+          where: { id: first.id },
+          select: ['sourceId', 'authorId', 'sharedPostId', 'title'],
+        }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: [
+            'sourceId',
+            'createdById',
+            'title',
+            'status',
+            'sharedPostId',
+          ],
+          where: { id: second.id },
+        }),
+      ]);
+
+      expect(post).toEqual({
+        sourceId: 'squad',
+        authorId: '1',
+        sharedPostId: 'p1',
+        title,
+      });
+      expect(moderationItem).toEqual(
+        expect.objectContaining({
+          sourceId: 'm',
+          createdById: '1',
+          sharedPostId: 'p1',
+          status: SourcePostModerationStatus.Pending,
+          title,
+        }),
+      );
+    });
+  });
+
+  describe('warning reasons', () => {
+    it('should add warning reason when posting in multiple squads', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, { variables: freeformParams });
+      const addedModerationItem = res.data.createMultipleSourcePosts
+        .filter((item: { type: string }) => item.type === 'moderationItem')
+        .at(0);
+
+      const moderationItem = await con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id: addedModerationItem.id },
+          select: ['flags', 'createdBy', 'sourceId'],
+        });
+
+      expect(moderationItem.flags.warningReason).toEqual(
+        WarningReason.MultipleSquadPost,
+      );
+    });
+
+    it('should not add warning reason when posting in single squad', async () => {
+      loggedUser = '1';
+      const singleParams = { ...freeformParams, sourceIds: ['m'] };
+      const res = await client.mutate(MUTATION, { variables: singleParams });
+      const [addedModerationItem] = res.data.createMultipleSourcePosts;
+      const moderationItem = await con
+        .getRepository(SourcePostModeration)
+        .findOneOrFail({
+          where: { id: addedModerationItem.id },
+          select: ['flags', 'createdBy', 'sourceId'],
+        });
+      expect(moderationItem.flags.warningReason).not.toEqual(
+        WarningReason.MultipleSquadPost,
+      );
+    });
   });
 });
 

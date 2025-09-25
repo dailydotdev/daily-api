@@ -149,6 +149,7 @@ export class SourcePostModeration {
 
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_post_moderation_flags_vordr', { synchronize: false })
+  @Index('IDX_source_post_moderation_flags_dedupKey', { synchronize: false })
   flags: SourcePostModerationFlags;
 
   @Column({ type: 'jsonb', default: [] })

@@ -69,6 +69,7 @@ import {
 } from '../schema/sources';
 import { ensurePostRateLimit } from './rateLimit';
 import { generateDeduplicationKey } from '../entity/posts/hooks';
+import { z } from 'zod';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -393,28 +394,32 @@ const hasDuplicatedPostBy = async (
   if (!dedupKey) return false;
 
   return await queryReadReplica(con, async ({ queryRunner }) => {
-    const pendingQuery = queryRunner.manager
-      .getRepository(SourcePostModeration)
-      .createQueryBuilder('moderation')
-      .where({
-        status: SourcePostModerationStatus.Pending,
-      })
-      .andWhere(`moderation.flags.dedupKey = :dedupKey`, { dedupKey });
-    const postQuery = queryRunner.manager
-      .getRepository(Post)
-      .createQueryBuilder('post')
-      .where(`post.flags.dedupKey = :dedupKey`, { dedupKey });
+    const [pendingExists, postExists] = await Promise.all([
+      queryRunner.manager
+        .getRepository(SourcePostModeration)
+        .createQueryBuilder('p')
+        .where({
+          status: SourcePostModerationStatus.Pending,
+        })
+        .where(`p.flags::jsonb ->> 'dedupKey' = :dedupKey`, { dedupKey })
+        .andWhere(sourceId ? `p.sourceId = :sourceId` : '1=1', {
+          sourceId,
+        })
+        .limit(1)
+        .getOne(),
 
-    if (sourceId) {
-      postQuery.andWhere(`post.sourceId = :sourceId`, { sourceId });
-      pendingQuery.andWhere(`moderation.sourceId = :sourceId`, { sourceId });
-    }
+      queryRunner.manager
+        .getRepository(Post)
+        .createQueryBuilder('p')
+        .where(`p.flags::jsonb ->> 'dedupKey' = :dedupKey`, { dedupKey })
+        .andWhere(sourceId ? `p.sourceId = :sourceId` : '1=1', {
+          sourceId,
+        })
+        .limit(1)
+        .getOne(),
+    ]);
 
-    const duplicates = await queryRunner.manager.query(
-      `SELECT EXISTS (${pendingQuery.getQuery()} UNION ${postQuery.getQuery()})`,
-    );
-
-    return !!duplicates;
+    return !!(pendingExists || postExists);
   });
 };
 
@@ -436,6 +441,7 @@ const getModerationWarningFlag = async ({
   if (!dedupKey) {
     return;
   }
+
   const isDuplicatedInSameSquad = await hasDuplicatedPostBy(con, {
     dedupKey,
     sourceId,
@@ -543,11 +549,22 @@ export interface CreatePollPostProps
 
 export interface CreateMultipleSourcePostProps
   extends Omit<CreatePostArgs, 'sourceId'> {
+  sharedPostId?: string;
   sourceIds: string[];
 }
 
+const MAX_MULTIPLE_POST_SOURCE_LIMIT = 4;
+
 const MAX_TITLE_LENGTH = 250;
 const MAX_CONTENT_LENGTH = 10_000;
+
+export const multipleSourcePostArgsSchema = z.object({
+  title: z.string().max(MAX_TITLE_LENGTH).optional(),
+  content: z.string().max(MAX_CONTENT_LENGTH).optional(),
+  image: z.custom<Promise<FileUpload>>(),
+  sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
+  sharedPostId: z.string().optional(),
+});
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 
