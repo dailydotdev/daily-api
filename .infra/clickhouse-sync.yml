@@ -25,7 +25,7 @@ schema.include.list: "public"
 plugin.name: "pgoutput"
 
 # table.include.list: An optional list of regular expressions that match fully-qualified table identifiers for tables to be monitored;
-table.include.list: "public.post,public.source,public.keyword,public.user,public.content_preference,public.post_keyword,public.comment,public.campaign"
+table.include.list: "public.post,public.source,public.keyword,public.user,public.content_preference,public.post_keyword,public.comment,public.campaign,public.post_relation"
 
 column.exclude.list: "public\\.user\\.(email|name)"
 
