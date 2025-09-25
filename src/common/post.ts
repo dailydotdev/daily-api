@@ -288,6 +288,7 @@ export const createPollPost = async ({
     private: privacy,
     visibleAt: new Date(),
     origin: PostOrigin.UserGenerated,
+    contentCuration: ['poll'],
     flags: {
       visible: true,
       private: privacy,

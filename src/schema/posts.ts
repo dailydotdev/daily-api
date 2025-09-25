@@ -3757,6 +3757,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
       return undefined;
     },
+    endsAt: (post: GQLPost): Date | null => {
+      if (!post.endsAt) return null;
+      return new Date(post.endsAt);
+    },
   },
   LinkPreview: {
     image: (preview: ExternalLinkPreview) =>
