@@ -1779,6 +1779,7 @@ describe('mutation editOpportunity', () => {
           keyword
         }
         questions {
+          id
           title
           placeholder
         }
@@ -2015,14 +2016,17 @@ describe('mutation editOpportunity', () => {
 
     expect(res.data.editOpportunity.questions).toEqual([
       {
+        id: expect.any(String),
         title: 'Who are you?',
         placeholder: 'Describe yourself',
       },
       {
+        id: expect.any(String),
         title: 'What is your favorite programming language?',
         placeholder: 'E.g., JavaScript, Python, etc.',
       },
       {
+        id: expect.any(String),
         title: 'Describe a challenging project you worked on.',
         placeholder: null,
       },
@@ -2092,6 +2096,79 @@ describe('mutation editOpportunity', () => {
         );
         expect(extensions.issues[0].path).toEqual(['questions']);
       },
+    );
+  });
+
+  it('should upsert existing question by id', async () => {
+    loggedUser = '1';
+
+    const question = await con.getRepository(QuestionScreening).save({
+      title: 'Test question',
+      opportunityId: opportunitiesFixture[0].id,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          questions: [
+            {
+              id: question.id,
+              title: 'Test question updated',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.editOpportunity.questions).toEqual([
+      {
+        id: question.id,
+        title: 'Test question updated',
+        placeholder: null,
+      },
+    ]);
+
+    const afterQuestions = await con.getRepository(QuestionScreening).find({
+      where: {
+        opportunityId: opportunitiesFixture[0].id,
+      },
+      order: { questionOrder: 'ASC' },
+    });
+    expect(afterQuestions).toEqual([
+      {
+        id: question.id,
+        type: QuestionType.Screening,
+        opportunityId: opportunitiesFixture[0].id,
+        title: 'Test question updated',
+        placeholder: null,
+        questionOrder: 0,
+      },
+    ]);
+  });
+
+  it('should throw if question provided does not belong to opportunity', async () => {
+    loggedUser = '1';
+
+    const question = await con.getRepository(QuestionScreening).save({
+      title: 'Test question',
+      opportunityId: opportunitiesFixture[1].id,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: {
+            questions: [{ id: question.id, title: 'Q1' }],
+          },
+        },
+      },
+      'CONFLICT',
     );
   });
 });

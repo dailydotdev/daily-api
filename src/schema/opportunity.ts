@@ -37,6 +37,7 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
+import { In, Not } from 'typeorm';
 
 export interface GQLOpportunity
   extends Pick<
@@ -234,6 +235,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   input OpportunityScreeningQuestionInput {
+    id: ID
     title: String!
     placeholder: String
   }
@@ -711,19 +713,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         if (Array.isArray(questions)) {
+          const questionIds = questions.map((item) => item.id).filter(Boolean);
+
+          const questionsFromOtherOpportunity = await entityManager
+            .getRepository(QuestionScreening)
+            .find({
+              where: { id: In(questionIds), opportunityId: Not(id) },
+            });
+
+          if (questionsFromOtherOpportunity.length > 0) {
+            throw new ConflictError('Not allowed to edit some questions!');
+          }
+
           await entityManager.getRepository(QuestionScreening).delete({
+            id: Not(In(questionIds)),
             opportunityId: id,
           });
 
-          await entityManager.getRepository(QuestionScreening).insert(
+          await entityManager.getRepository(QuestionScreening).upsert(
             questions.map((question, index) => {
               return entityManager.getRepository(QuestionScreening).create({
+                id: question.id,
                 opportunityId: id,
                 title: question.title,
                 placeholder: question.placeholder,
                 questionOrder: index,
               });
             }),
+            { conflictPaths: ['id'] },
           );
         }
       });
