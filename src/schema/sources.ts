@@ -1043,9 +1043,7 @@ export const canAccessSource = async (
   if (permission === SourcePermissions.View && !source.private) {
     if (sourceTypesWithMembers.includes(source.type)) {
       const isMemberBlocked = member?.role === SourceMemberRoles.Blocked;
-      const canAccess = !isMemberBlocked;
-
-      return canAccess;
+      return !isMemberBlocked;
     }
 
     return true;
@@ -1056,7 +1054,7 @@ export const canAccessSource = async (
   }
 
   const sourceId = source.id;
-  const repo = ctx.getRepository(SourceMember);
+  const repo = ctx.con.getRepository(SourceMember);
   const validateRankAgainst = await (requireGreaterAccessPrivilege[permission]
     ? repo.findOneByOrFail({ sourceId, userId: validateRankAgainstId })
     : Promise.resolve(undefined));
@@ -1113,7 +1111,6 @@ export const isPrivilegedMember = async (
 type PostPermissions = SourcePermissions.Post | SourcePermissions.PostRequest;
 
 export const canPostToSquad = (
-  ctx: Context,
   squad: SquadSource,
   sourceMember: SourceMember | null,
   permission: PostPermissions = SourcePermissions.Post,
@@ -1230,7 +1227,6 @@ export const ensureSourcePermissions = async (
       source.type === SourceType.Squad &&
       postPermissions.includes(permission) &&
       !canPostToSquad(
-        ctx,
         source as SquadSource,
         sourceMember,
         permission as PostPermissions,

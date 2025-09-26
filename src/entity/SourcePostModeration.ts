@@ -46,8 +46,15 @@ export const rejectReason: Record<PostModerationReason, string> = {
   [PostModerationReason.Other]: 'Other',
 };
 
+export enum WarningReason {
+  MultipleSquadPost = 'multiple_squad_post',
+  DuplicatedInSameSquad = 'duplicated_in_squad',
+}
+
 export type SourcePostModerationFlags = Partial<{
   vordr: boolean;
+  warningReason: WarningReason;
+  dedupKey: string;
 }>;
 
 export type CreatePollOption = Pick<PollOption, 'text' | 'order'>;
@@ -142,6 +149,7 @@ export class SourcePostModeration {
 
   @Column({ type: 'jsonb', default: {} })
   @Index('IDX_source_post_moderation_flags_vordr', { synchronize: false })
+  @Index('IDX_source_post_moderation_flags_dedupKey', { synchronize: false })
   flags: SourcePostModerationFlags;
 
   @Column({ type: 'jsonb', default: [] })
