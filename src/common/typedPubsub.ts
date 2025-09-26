@@ -30,6 +30,7 @@ import {
 import {
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
+  CandidateRejectedOpportunityMessage,
   ContentUpdatedMessage,
   MatchedCandidate,
   type OpportunityMessage,
@@ -223,6 +224,7 @@ export type PubSubSchema = {
     sourceMember: ChangeObject<SourceMember>;
   };
   'api.v1.recruiter-accepted-candidate-match': RecruiterAcceptedCandidateMatchMessage;
+  'api.v1.candidate-rejected-opportunity': CandidateRejectedOpportunityMessage;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

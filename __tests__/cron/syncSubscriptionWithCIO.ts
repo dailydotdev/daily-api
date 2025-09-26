@@ -37,9 +37,9 @@ describe('syncSubscriptionWithCIO cron', () => {
   });
 
   it('should sync subscriptions with customer.io', async () => {
-    usersFixture.forEach(async (user) => {
+    for (const user of usersFixture) {
       await pushToRedisList(redisKey, user.id as string);
-    });
+    }
     expect(await getRedisListLength(redisKey)).not.toEqual(0);
 
     await expectSuccessfulCron(cron);
@@ -55,10 +55,10 @@ describe('syncSubscriptionWithCIO cron', () => {
   });
 
   it('should remove duplicates before calling syncSubscription', async () => {
-    usersFixture.forEach(async (user) => {
+    for (const user of usersFixture) {
       await pushToRedisList(redisKey, user.id as string);
       await pushToRedisList(redisKey, user.id as string);
-    });
+    }
     expect(await getRedisListLength(redisKey)).not.toEqual(0);
 
     await expectSuccessfulCron(cron);

@@ -8,6 +8,7 @@ export const getClickHouseClient = () => {
       url: process.env.CLICKHOUSE_URL,
       username: process.env.CLICKHOUSE_USER,
       password: process.env.CLICKHOUSE_PASSWORD,
+      request_timeout: 90_000,
     });
   }
 
