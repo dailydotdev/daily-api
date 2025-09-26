@@ -364,6 +364,7 @@ describe('userGenerateBrief worker', () => {
               {
                 title: 'OpenAI gets a DoD contract, Microsoft gets salty',
                 body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+                postIds: [],
               },
             ],
           },
@@ -533,6 +534,7 @@ describe('userGenerateBrief worker', () => {
               {
                 title: 'OpenAI gets a DoD contract, Microsoft gets salty',
                 body: 'OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI’s previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.',
+                postIds: [],
               },
             ],
           },
