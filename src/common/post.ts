@@ -395,29 +395,28 @@ const hasDuplicatedPostBy = async (
   if (!dedupKey) return false;
 
   return await queryReadReplica(con, async ({ queryRunner }) => {
-    const [pendingExists, postExists] = await Promise.all([
-      queryRunner.manager
-        .getRepository(SourcePostModeration)
-        .createQueryBuilder('p')
-        .where({
-          status: SourcePostModerationStatus.Pending,
-        })
-        .andWhere(`p.flags::jsonb ->> 'dedupKey' = :dedupKey`, { dedupKey })
-        .andWhere(sourceId ? `p.sourceId = :sourceId` : '1=1', {
-          sourceId,
-        })
-        .limit(1)
-        .getOne(),
+    const pendingQb = queryRunner.manager
+      .getRepository(SourcePostModeration)
+      .createQueryBuilder('p')
+      .where({
+        status: SourcePostModerationStatus.Pending,
+      })
+      .andWhere(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey })
+      .limit(1);
+    const postQb = queryRunner.manager
+      .getRepository(Post)
+      .createQueryBuilder('p')
+      .where(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey })
+      .limit(1);
 
-      queryRunner.manager
-        .getRepository(Post)
-        .createQueryBuilder('p')
-        .where(`p.flags::jsonb ->> 'dedupKey' = :dedupKey`, { dedupKey })
-        .andWhere(sourceId ? `p.sourceId = :sourceId` : '1=1', {
-          sourceId,
-        })
-        .limit(1)
-        .getOne(),
+    if (sourceId) {
+      pendingQb.andWhere(`p.sourceId = :sourceId`, { sourceId });
+      postQb.andWhere(`p.sourceId = :sourceId`, { sourceId });
+    }
+
+    const [pendingExists, postExists] = await Promise.all([
+      pendingQb.getOne(),
+      postQb.getOne(),
     ]);
 
     return !!(pendingExists || postExists);
