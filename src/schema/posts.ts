@@ -873,7 +873,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Total number of votes in the poll
     """
-    numPollVotes: Int!
+    numPollVotes: Int
   }
 
   type PostConnection {
