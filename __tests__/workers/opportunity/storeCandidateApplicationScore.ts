@@ -94,9 +94,13 @@ describe('storeCandidateApplicationScore worker', () => {
       description: 'Test description',
     });
 
-    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
-      worker,
-      applicationScoreData,
+    await expect(
+      expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+        worker,
+        applicationScoreData,
+      ),
+    ).rejects.toThrow(
+      'Missing userId or opportunityId in candidate application score',
     );
 
     const matches = await con.getRepository(OpportunityMatch).find();
@@ -111,11 +115,15 @@ describe('storeCandidateApplicationScore worker', () => {
       description: 'Test description',
     });
 
-    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
-      worker,
-      applicationScoreData,
+    await expect(
+      expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+        worker,
+        applicationScoreData,
+      ),
+    ).rejects.toThrow(
+      'Missing userId or opportunityId in candidate application score',
     );
-
+    
     const matches = await con.getRepository(OpportunityMatch).find();
     expect(matches).toHaveLength(0);
   });
