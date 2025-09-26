@@ -1541,7 +1541,7 @@ describe('poll result notifications', () => {
       );
 
     expect(result).toHaveLength(1);
-    expect(result![0].type).toBe(NotificationType.PollResult);
+    expect(result![0].type).toBe(NotificationType.PollResultAuthor);
     expect(result![0].ctx.userIds).toEqual(['1']);
   });
 
