@@ -47,7 +47,5 @@ export const storeCandidateApplicationScore: TypedWorker<'gondul.v1.candidate-ap
         throw err;
       }
     },
-    parseMessage: (message) => {
-      return ApplicationScored.fromBinary(message.data);
-    },
+    parseMessage: (message) => ApplicationScored.fromBinary(message.data),
   };

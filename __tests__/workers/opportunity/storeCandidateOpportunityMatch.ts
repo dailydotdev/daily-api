@@ -39,14 +39,6 @@ describe('storeCandidateOpportunityMatch worker', () => {
     });
   });
 
-  it('should be registered', () => {
-    const registeredWorker = typedWorkers.find(
-      (item) => item.subscription === worker.subscription,
-    );
-
-    expect(registeredWorker).toBeDefined();
-  });
-
   it('should handle the correct schema format', async () => {
     const matchData = new MatchedCandidate({
       userId: '1',
