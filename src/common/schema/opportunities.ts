@@ -6,7 +6,17 @@ export const opportunityMatchDescriptionSchema = z.object({
   matchScore: z.number(),
 });
 
-export const opportunityContentSchema = z.string().max(1440);
+export const createOpportunityEditContentSchema = ({
+  optional = false,
+}: {
+  optional?: boolean;
+} = {}) => {
+  const contentSchema = z.string().max(1440);
+
+  return z.object({
+    content: optional ? contentSchema.optional() : contentSchema.nonempty(),
+  });
+};
 
 export const opportunityEditSchema = z
   .object({
@@ -41,11 +51,13 @@ export const opportunityEditSchema = z
     }),
     content: z
       .object({
-        overview: opportunityContentSchema,
-        responsibilities: opportunityContentSchema,
-        requirements: opportunityContentSchema,
-        whatYoullDo: opportunityContentSchema,
-        interviewProcess: opportunityContentSchema,
+        overview: createOpportunityEditContentSchema(),
+        responsibilities: createOpportunityEditContentSchema(),
+        requirements: createOpportunityEditContentSchema(),
+        whatYoullDo: createOpportunityEditContentSchema({ optional: true }),
+        interviewProcess: createOpportunityEditContentSchema({
+          optional: true,
+        }),
       })
       .partial(),
     questions: z

@@ -226,12 +226,16 @@ export const typeDefs = /* GraphQL */ `
     keyword: String!
   }
 
+  input OpportunityContentBlockInput {
+    content: String
+  }
+
   input OpportunityContentInput {
-    overview: String
-    responsibilities: String
-    requirements: String
-    whatYoullDo: String
-    interviewProcess: String
+    overview: OpportunityContentBlockInput
+    responsibilities: OpportunityContentBlockInput
+    requirements: OpportunityContentBlockInput
+    whatYoullDo: OpportunityContentBlockInput
+    interviewProcess: OpportunityContentBlockInput
   }
 
   input OpportunityScreeningQuestionInput {
@@ -680,9 +684,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         > = {};
 
         Object.entries(content || {}).forEach(([key, value]) => {
+          if (typeof value.content !== 'string') {
+            return;
+          }
+
           renderedContent[key] = {
-            content: value.replace(/'/g, "''"),
-            html: markdown.render(value).replace(/'/g, "''"),
+            content: value.content.replace(/'/g, "''"),
+            html: markdown.render(value.content).replace(/'/g, "''"),
           };
         });
 
