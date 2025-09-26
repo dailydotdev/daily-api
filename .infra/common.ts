@@ -421,6 +421,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.delayed-notification-reminder',
     subscription: 'api.poll-result-notification',
   },
+  {
+    topic: 'gondul.v1.candidate-application-scored',
+    subscription: 'api.store-candidate-application-score',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

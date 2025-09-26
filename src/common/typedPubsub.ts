@@ -28,6 +28,7 @@ import {
   pubsub,
 } from './pubsub';
 import {
+  ApplicationScored,
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
   CandidateRejectedOpportunityMessage,
@@ -37,6 +38,7 @@ import {
   RecruiterAcceptedCandidateMatchMessage,
   type TransferResponse,
   type UserBriefingRequest,
+  WarmIntro,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
@@ -225,6 +227,8 @@ export type PubSubSchema = {
   };
   'api.v1.recruiter-accepted-candidate-match': RecruiterAcceptedCandidateMatchMessage;
   'api.v1.candidate-rejected-opportunity': CandidateRejectedOpportunityMessage;
+  'gondul.v1.candidate-application-scored': ApplicationScored;
+  'gondul.v1.warm-intro-generated': WarmIntro;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
