@@ -2,7 +2,6 @@ import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
 import { storeCandidateApplicationScore as worker } from '../../../src/workers/opportunity/storeCandidateApplicationScore';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { typedWorkers } from '../../../src/workers';
 import { User, Organization } from '../../../src/entity';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
@@ -26,7 +25,7 @@ describe('storeCandidateApplicationScore worker', () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
   });
-  
+
   it('should successfully store candidate application score', async () => {
     const applicationScoreData = new ApplicationScored({
       userId: '1',
