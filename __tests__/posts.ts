@@ -3000,7 +3000,7 @@ describe('mutation createMultipleSourcePosts', () => {
       return testMutationErrorCode(
         client,
         { mutation: MUTATION, variables: { ...freeformParams, sourceIds: [] } },
-        'GRAPHQL_VALIDATION_FAILED',
+        'ZOD_VALIDATION_ERROR',
       );
     });
 
@@ -3025,7 +3025,7 @@ describe('mutation createMultipleSourcePosts', () => {
           mutation: MUTATION,
           variables: { ...freeformParams, title: longTitle },
         },
-        'GRAPHQL_VALIDATION_FAILED',
+        'ZOD_VALIDATION_ERROR',
       );
     });
 
@@ -3038,7 +3038,7 @@ describe('mutation createMultipleSourcePosts', () => {
           mutation: MUTATION,
           variables: { ...freeformParams, content: longContent },
         },
-        'GRAPHQL_VALIDATION_FAILED',
+        'ZOD_VALIDATION_ERROR',
       );
     });
 

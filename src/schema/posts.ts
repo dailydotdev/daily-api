@@ -3614,14 +3614,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         type: MultiplePostItemType;
       }>
     > => {
-      const { error: inputErrors, data: args } =
-        multipleSourcePostArgsSchema.safeParse(input);
-
-      if (inputErrors) {
-        throw new ValidationError(
-          `Error '${inputErrors.issues[0].path}': ${inputErrors.issues[0].message}`,
-        );
-      }
+      const args = multipleSourcePostArgsSchema.parse(input);
 
       const { sourceIds, sharedPostId, ...postArgs } = args;
       const isSharingPost = !!sharedPostId;
