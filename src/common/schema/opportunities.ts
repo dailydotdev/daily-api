@@ -6,6 +6,11 @@ export const opportunityMatchDescriptionSchema = z.object({
   matchScore: z.number(),
 });
 
+export const applicationScoreSchema = z.object({
+  score: z.number().min(0).max(100),
+  description: z.string(),
+});
+
 export const opportunityContentSchema = z.string().max(1440);
 
 export const opportunityEditSchema = z
