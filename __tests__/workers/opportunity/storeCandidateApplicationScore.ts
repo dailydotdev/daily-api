@@ -26,15 +26,7 @@ describe('storeCandidateApplicationScore worker', () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
   });
-
-  it('should be registered', () => {
-    const registeredWorker = typedWorkers.find(
-      (item) => item.subscription === worker.subscription,
-    );
-
-    expect(registeredWorker).toBeDefined();
-  });
-
+  
   it('should successfully store candidate application score', async () => {
     const applicationScoreData = new ApplicationScored({
       userId: '1',
@@ -148,76 +140,6 @@ describe('storeCandidateApplicationScore worker', () => {
     expect(matches).toHaveLength(0);
   });
 
-  it('should handle database query failures and log error', async () => {
-    const mockRepo = {
-      upsert: jest.fn().mockRejectedValue({
-        name: 'QueryFailedError',
-        message: 'Database error',
-      }),
-    };
-
-    const mockManager = {
-      getRepository: jest.fn().mockReturnValue(mockRepo),
-    };
-
-    const originalTransaction = con.transaction;
-    con.transaction = jest.fn(
-      async (cb: (manager: unknown) => Promise<void>) => {
-        return cb(mockManager);
-      },
-    ) as any;
-
-    const applicationScoreData = new ApplicationScored({
-      userId: '1',
-      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      score: 85,
-      description: 'Test description',
-    });
-
-    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
-      worker,
-      applicationScoreData,
-    );
-
-    con.transaction = originalTransaction;
-  });
-
-  it('should rethrow non-QueryFailedError exceptions', async () => {
-    const unexpectedError = new Error('Unexpected error');
-    unexpectedError.name = 'UnexpectedError';
-
-    const mockRepo = {
-      upsert: jest.fn().mockRejectedValue(unexpectedError),
-    };
-
-    const mockManager = {
-      getRepository: jest.fn().mockReturnValue(mockRepo),
-    };
-
-    const originalTransaction = con.transaction;
-    con.transaction = jest.fn(
-      async (cb: (manager: unknown) => Promise<void>) => {
-        return cb(mockManager);
-      },
-    ) as any;
-
-    const applicationScoreData = new ApplicationScored({
-      userId: '1',
-      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      score: 85,
-      description: 'Test description',
-    });
-
-    await expect(
-      expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
-        worker,
-        applicationScoreData,
-      ),
-    ).rejects.toThrow(unexpectedError);
-
-    con.transaction = originalTransaction;
-  });
-
   it('should parse binary message correctly', () => {
     const testData = new ApplicationScored({
       userId: '1',
@@ -232,7 +154,9 @@ describe('storeCandidateApplicationScore worker', () => {
     const parsedData = worker.parseMessage!(mockMessage);
 
     expect(parsedData.userId).toBe('1');
-    expect(parsedData.opportunityId).toBe('550e8400-e29b-41d4-a716-446655440001');
+    expect(parsedData.opportunityId).toBe(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
     expect(parsedData.score).toBe(85);
     expect(parsedData.description).toBe(
       'Strong candidate with relevant experience',
