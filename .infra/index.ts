@@ -28,7 +28,6 @@ import {
   ApplicationSuiteArgs,
   AdditionalSecret,
 } from '@dailydotdev/pulumi-common';
-import { getSecretVersionOutput } from '@pulumi/gcp/secretmanager/getSecretVersion';
 
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
@@ -77,25 +76,12 @@ if (isAdhocEnv) {
   });
   dependsOn.push(db);
 
-  const serviceAccountKey = getSecretVersionOutput({
-    secret: 'adhoc-daly-api-sa-key',
-  });
-
-  additionalSecrets.push({
-    name: 'api-gcloud-creds',
-    data: {
-      'application_default_credentials.json': serviceAccountKey.apply(
-        (secret) => Buffer.from(secret.secretData).toString('base64'),
-      ),
-    },
-  });
-
   vols.volumes.push({
-    name: 'gcloud-creds',
-    secret: { secretName: 'api-gcloud-creds' },
+    name: 'adhoc-fylla-gcloud-credentials',
+    secret: { secretName: 'adhoc-fylla-gcloud-credentials' },
   });
   vols.volumeMounts.push({
-    name: 'gcloud-creds',
+    name: 'adhoc-fylla-gcloud-credentials',
     mountPath: '/root/.config/gcloud',
   });
 }
