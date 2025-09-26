@@ -402,7 +402,13 @@ describe('query campaignById', () => {
       state: null,
       createdAt: null,
       endedAt: new Date('2023-12-31').toISOString(),
-      flags: null, // No sensitive data for non-owners
+      flags: {
+        budget: null,
+        clicks: null,
+        impressions: null,
+        spend: null,
+        users: null,
+      },
       post: {
         id: 'p1',
         title: 'P1',
@@ -426,7 +432,13 @@ describe('query campaignById', () => {
       state: null,
       createdAt: null,
       endedAt: new Date('2023-12-31').toISOString(),
-      flags: null, // No sensitive data for unauthenticated users
+      flags: {
+        budget: null,
+        clicks: null,
+        impressions: null,
+        spend: null,
+        users: null,
+      }, // No sensitive data for unauthenticated users
       post: {
         id: 'p1',
         title: 'P1',
