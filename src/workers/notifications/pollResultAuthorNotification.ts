@@ -35,7 +35,7 @@ export const pollResultAuthorNotification: TypedNotificationWorker<'api.v1.delay
 
       return [
         {
-          type: NotificationType.PollResult,
+          type: NotificationType.PollResultAuthor,
           ctx: notificationCtx,
         },
       ];

@@ -3,6 +3,7 @@ import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
+  CandidateRejectedOpportunityMessage,
   MatchedCandidate,
   OpportunityMessage,
   RecruiterAcceptedCandidateMatchMessage,
@@ -203,6 +204,59 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
     logger.error(
       { err, message },
       'failed to send recruiter accepted candidate match event',
+    );
+  }
+};
+
+export const notifyCandidateOpportunityMatchRejected = async ({
+  con,
+  logger,
+  data,
+}: {
+  con: DataSource;
+  logger: FastifyBaseLogger;
+  data: ChangeObject<OpportunityMatch> | null;
+}) => {
+  if (!data) {
+    logger.warn(
+      'No data provided for candidate opportunity match accepted notification',
+    );
+    return;
+  }
+
+  const match = await queryReadReplica(con, async ({ queryRunner }) => {
+    return queryRunner.manager.getRepository(OpportunityMatch).findOne({
+      select: ['opportunityId', 'userId'],
+      where: { opportunityId: data.opportunityId, userId: data.userId },
+    });
+  });
+
+  if (!match) {
+    logger.warn(
+      { opportunityId: data.opportunityId, userId: data.userId },
+      'Opportunity match not found for candidate rejected match notification',
+    );
+    return;
+  }
+
+  const message = new CandidateRejectedOpportunityMessage({
+    opportunityId: match.opportunityId,
+    userId: match.userId,
+    createdAt: getSecondsTimestamp(match.createdAt),
+    updatedAt: getSecondsTimestamp(match.updatedAt),
+  });
+
+  try {
+    await triggerTypedEvent(
+      logger,
+      'api.v1.candidate-rejected-opportunity',
+      message,
+    );
+  } catch (_err) {
+    const err = _err as Error;
+    logger.error(
+      { err, message },
+      'failed to send candidate rejected match event',
     );
   }
 };
