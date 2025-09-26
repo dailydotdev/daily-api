@@ -23,19 +23,17 @@ export const storeCandidateApplicationScore: TypedWorker<'gondul.v1.candidate-ap
           description,
         });
 
-        await con.transaction(async (manager) => {
-          await manager.getRepository(OpportunityMatch).upsert(
-            {
-              userId,
-              opportunityId,
-              applicationRank,
-            },
-            {
-              conflictPaths: ['userId', 'opportunityId'],
-              skipUpdateIfNoValuesChanged: true,
-            },
-          );
-        });
+        await con.getRepository(OpportunityMatch).upsert(
+          {
+            userId,
+            opportunityId,
+            applicationRank,
+          },
+          {
+            conflictPaths: ['userId', 'opportunityId'],
+            skipUpdateIfNoValuesChanged: true,
+          },
+        );
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
         if (err?.name === 'QueryFailedError') {
