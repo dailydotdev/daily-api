@@ -471,6 +471,7 @@ export const createSharePost = async ({
         private: privacy,
         visible,
       },
+      type: PostType.Share,
     } as DeepPartial<SharePost>);
 
     // Apply vordr checks before saving

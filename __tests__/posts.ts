@@ -3252,6 +3252,77 @@ describe('mutation createMultipleSourcePosts', () => {
       expect(moderationItem.createdById).toEqual('1');
       expect(moderationItem.sourceId).toEqual('m');
     });
+
+    it('should add warning reason when the same post is shared twice in the same squad', async () => {
+      loggedUser = '1';
+      const variables = {
+        sourceIds: ['m'],
+        sharedPostId: 'p1',
+      };
+      // add it once
+      const res1 = await client.mutate(MUTATION, { variables });
+      expect(res1.errors).toBeFalsy();
+      const firstId = res1.data.createMultipleSourcePosts[0].id;
+
+      await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+      // add it again
+      const res2 = await client.mutate(MUTATION, { variables });
+      expect(res2.errors).toBeFalsy();
+      const secondId = res2.data.createMultipleSourcePosts[0].id;
+
+      expect(firstId).not.toBe(secondId);
+      const [firstPost, secondPost] = await Promise.all([
+        await con
+          .getRepository(SourcePostModeration)
+          .findOneByOrFail({ id: firstId, sourceId: 'm' }),
+        await con
+          .getRepository(SourcePostModeration)
+          .findOneByOrFail({ id: secondId, sourceId: 'm' }),
+      ]);
+
+      expect(firstPost.flags.warningReason).toBeFalsy();
+      expect(secondPost.flags.warningReason).toBe(
+        WarningReason.DuplicatedInSameSquad,
+      );
+    });
+
+    it('should add warning reason when the same post is shared twice in the different squads', async () => {
+      loggedUser = '1';
+      const variables = {
+        sourceIds: ['m'],
+        sharedPostId: 'p1',
+      };
+      // add it once
+      const res1 = await client.mutate(MUTATION, {
+        variables: { ...variables, sourceIds: ['squad'] },
+      });
+      expect(res1.errors).toBeFalsy();
+      const firstId = res1.data.createMultipleSourcePosts[0].id;
+
+      await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+      // add it again
+      const res2 = await client.mutate(MUTATION, { variables });
+      expect(res2.errors).toBeFalsy();
+      const secondId = res2.data.createMultipleSourcePosts[0].id;
+
+      expect(firstId).not.toBe(secondId);
+      const [firstPost, secondPost] = await Promise.all([
+        await con
+          .getRepository(SharePost)
+          .findOneByOrFail({ id: firstId, sourceId: 'squad' }),
+        await con
+          .getRepository(SourcePostModeration)
+          .findOneByOrFail({ id: secondId, sourceId: 'm' }),
+      ]);
+
+      expect(firstPost.flags.dedupKey).toBe('p1');
+      expect(secondPost.flags.dedupKey).toBe('p1');
+      expect(secondPost.flags.warningReason).toBe(
+        WarningReason.MultipleSquadPost,
+      );
+    });
   });
 });
 

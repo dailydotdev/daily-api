@@ -402,7 +402,7 @@ const hasDuplicatedPostBy = async (
         .where({
           status: SourcePostModerationStatus.Pending,
         })
-        .where(`p.flags::jsonb ->> 'dedupKey' = :dedupKey`, { dedupKey })
+        .andWhere(`p.flags::jsonb ->> 'dedupKey' = :dedupKey`, { dedupKey })
         .andWhere(sourceId ? `p.sourceId = :sourceId` : '1=1', {
           sourceId,
         })
@@ -447,7 +447,6 @@ const getModerationWarningFlag = async ({
     dedupKey,
     sourceId,
   });
-
   if (isDuplicatedInSameSquad) {
     return WarningReason.DuplicatedInSameSquad;
   }
@@ -455,7 +454,6 @@ const getModerationWarningFlag = async ({
   const isDuplicatedAcrossSquads = await hasDuplicatedPostBy(con, {
     dedupKey,
   });
-
   if (isDuplicatedAcrossSquads) {
     return WarningReason.MultipleSquadPost;
   }
@@ -509,6 +507,7 @@ export const createSourcePostModeration = async ({
   newModerationEntry.flags = {
     warningReason,
     vordr,
+    dedupKey,
   };
 
   return await con.getRepository(SourcePostModeration).save(newModerationEntry);
