@@ -148,6 +148,7 @@ import type { ContentPreferenceUser } from '../../entity/contentPreference/Conte
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import {
+  notifyCandidateOpportunityMatchRejected,
   notifyCandidatePreferenceChange,
   notifyOpportunityMatchAccepted,
   notifyRecruiterCandidateMatchAccepted,
@@ -1279,6 +1280,16 @@ const onOpportunityMatchChange = async (
       data?.payload.before?.status !== OpportunityMatchStatus.RecruiterAccepted
     ) {
       await notifyRecruiterCandidateMatchAccepted({
+        con,
+        logger,
+        data: data.payload.after!,
+      });
+    }
+    if (
+      data.payload.after?.status === OpportunityMatchStatus.CandidateRejected &&
+      data?.payload.before?.status !== OpportunityMatchStatus.CandidateRejected
+    ) {
+      await notifyCandidateOpportunityMatchRejected({
         con,
         logger,
         data: data.payload.after!,
