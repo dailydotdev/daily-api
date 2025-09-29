@@ -2183,6 +2183,7 @@ describe('mutation editOpportunity', () => {
         payload: {
           content: {
             requirements: {
+              // state is a column in opportunity table so typeorm usually adds quotes breaking the query
               content: 'Test state test',
             },
           },
