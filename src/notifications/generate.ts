@@ -538,7 +538,7 @@ export const generateNotificationMap: Record<
       .referenceOpportunity(ctx)
       .uniqueKey(ctx.userIds[0])
       .description(
-        `<span class="text-accent-cabbage-default"><strong>Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
+        `<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
       )
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
