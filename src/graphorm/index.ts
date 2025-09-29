@@ -1407,7 +1407,7 @@ const obj = new GraphORM({
             return flag;
           }
 
-          return null;
+          return {};
         },
       },
       createdAt: {

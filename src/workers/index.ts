@@ -69,6 +69,7 @@ import { postAnalyticsUpdate } from './postAnalytics/postAnalyticsUpdate';
 import { postAuthorReputationEvent } from './postAnalytics/postAuthorReputationEvent';
 import { postAuthorCoresEarned } from './postAnalytics/postAuthorCoresEarned';
 import { storeCandidateOpportunityMatch } from './opportunity/storeCandidateOpportunityMatch';
+import { storeCandidateApplicationScore } from './opportunity/storeCandidateApplicationScore';
 
 export { Worker } from './worker';
 
@@ -141,6 +142,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   campaignUpdatedAction,
   campaignUpdatedSlack,
   storeCandidateOpportunityMatch,
+  storeCandidateApplicationScore,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
