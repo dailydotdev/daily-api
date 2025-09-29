@@ -2173,4 +2173,23 @@ describe('mutation editOpportunity', () => {
       'CONFLICT',
     );
   });
+
+  it('should avoid query quotes for column keywords', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          content: {
+            requirements: {
+              content: 'Test state test',
+            },
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+  });
 });
