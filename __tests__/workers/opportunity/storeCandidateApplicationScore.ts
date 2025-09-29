@@ -123,7 +123,7 @@ describe('storeCandidateApplicationScore worker', () => {
     ).rejects.toThrow(
       'Missing userId or opportunityId in candidate application score',
     );
-    
+
     const matches = await con.getRepository(OpportunityMatch).find();
     expect(matches).toHaveLength(0);
   });

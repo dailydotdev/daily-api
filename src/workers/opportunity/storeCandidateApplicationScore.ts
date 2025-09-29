@@ -13,7 +13,7 @@ export const storeCandidateApplicationScore: TypedWorker<'gondul.v1.candidate-ap
           'Missing userId or opportunityId in candidate application score',
         );
       }
- 
+
       const applicationRank = applicationScoreSchema.parse({
         score,
         description,
