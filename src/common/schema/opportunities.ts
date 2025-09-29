@@ -17,6 +17,10 @@ export const createOpportunityEditContentSchema = ({
     content: optional ? contentSchema.optional() : contentSchema.nonempty(),
   });
 };
+export const applicationScoreSchema = z.object({
+  score: z.number().min(0).max(100),
+  description: z.string(),
+});
 
 export const opportunityEditSchema = z
   .object({
