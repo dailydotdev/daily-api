@@ -62,12 +62,6 @@ import { PollOption } from '../entity/polls/PollOption';
 import addDays from 'date-fns/addDays';
 import { PollPost } from '../entity/posts/PollPost';
 import { pollCreationSchema } from './schema/polls';
-import {
-  ensureSourcePermissions,
-  ensureUserSourceExists,
-  SourcePermissions,
-} from '../schema/sources';
-import { ensurePostRateLimit } from './rateLimit';
 import { generateDeduplicationKey } from '../entity/posts/hooks';
 import { z } from 'zod';
 
