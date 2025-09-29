@@ -19,6 +19,7 @@ import {
   clearPostTranslations,
   Comment,
   Feed,
+  FeedType,
   FreeformPost,
   Post,
   PostMention,
@@ -2884,9 +2885,9 @@ describe('mutation editSharePost', () => {
   });
 });
 
-describe('mutation createMultipleSourcePosts', () => {
+describe('mutation createMultipleSourcesPost', () => {
   const MUTATION = /* GraphQL */ `
-    mutation CreateMultipleSourcePosts(
+    mutation CreateMultipleSourcesPost(
       $sourceIds: [ID!]!
       $title: String
       $commentary: String
@@ -2896,7 +2897,7 @@ describe('mutation createMultipleSourcePosts', () => {
       $sharedPostId: ID
       $externalLink: String
     ) {
-      createMultipleSourcePosts(
+      createMultipleSourcesPost(
         sourceIds: $sourceIds
         title: $title
         commentary: $commentary
@@ -2914,17 +2915,22 @@ describe('mutation createMultipleSourcePosts', () => {
   `;
 
   const freeformParams = {
-    sourceIds: ['squad', 'm'],
+    sourceIds: ['squad', 'm', '1'],
     title: 'Multi-squad post title',
     content: 'This is a multi-squad post content',
   };
 
   const shareParams = {
-    sourceIds: ['squad', 'm'],
+    sourceIds: ['squad', 'm', 'm2'],
     sharedPostId: 'p1', // sharing existing post
   };
 
   beforeEach(async () => {
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+      type: FeedType.Main,
+    });
     await con.getRepository(SourceMember).save([
       {
         userId: '1',
@@ -2937,6 +2943,12 @@ describe('mutation createMultipleSourcePosts', () => {
         sourceId: 'm',
         role: SourceMemberRoles.Member,
         referralToken: 'rt1-m',
+      },
+      {
+        userId: '1',
+        sourceId: 'm2',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt1-m2',
       },
     ]);
   });
@@ -2974,7 +2986,7 @@ describe('mutation createMultipleSourcePosts', () => {
 
       const res = await client.mutate<
         {
-          createMultipleSourcePosts: [
+          createMultipleSourcesPost: [
             {
               id: string;
               sourceId: string;
@@ -2985,10 +2997,10 @@ describe('mutation createMultipleSourcePosts', () => {
         typeof mixedParams
       >(MUTATION, { variables: mixedParams });
       expect(res.errors).toBeFalsy();
-      expect(res.data.createMultipleSourcePosts).toHaveLength(2);
+      expect(res.data.createMultipleSourcesPost).toHaveLength(2);
 
       // Check that one is a direct post and one is a moderation item
-      const results = res.data.createMultipleSourcePosts;
+      const results = res.data.createMultipleSourcesPost;
       const postTypes = results.map((r) => r.type).sort();
       expect(postTypes).toEqual(['moderationItem', 'post']);
     });
@@ -3076,20 +3088,24 @@ describe('mutation createMultipleSourcePosts', () => {
       const res = await client.mutate(MUTATION, { variables: freeformParams });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.createMultipleSourcePosts).toHaveLength(2);
+      expect(res.data.createMultipleSourcesPost).toHaveLength(3);
 
-      const [first, second] = res.data.createMultipleSourcePosts;
+      const [first, second, third] = res.data.createMultipleSourcesPost;
       expect(first.type).toBe('post');
       expect(first.sourceId).toBe('squad');
       expect(second.type).toBe('moderationItem');
       expect(second.sourceId).toBe('m');
 
       // Verify posts were actually created
-      const [post, moderationItem] = await Promise.all([
+      const [post, moderationItem, userSourcePost] = await Promise.all([
         await con.getRepository(FreeformPost).findOneByOrFail({ id: first.id }),
         await con.getRepository(SourcePostModeration).findOneOrFail({
           select: ['sourceId', 'createdById', 'title', 'content', 'status'],
           where: { id: second.id },
+        }),
+        await con.getRepository(FreeformPost).findOneByOrFail({
+          id: third.id,
+          sourceId: '1',
         }),
       ]);
 
@@ -3110,6 +3126,13 @@ describe('mutation createMultipleSourcePosts', () => {
           status: SourcePostModerationStatus.Pending,
         }),
       );
+      expect(userSourcePost).toStrictEqual(
+        expect.objectContaining({
+          sourceId: '1',
+          authorId: '1',
+          title: freeformParams.title,
+        }),
+      );
     });
 
     it('should handle single squad posting', async () => {
@@ -3118,8 +3141,8 @@ describe('mutation createMultipleSourcePosts', () => {
       const res = await client.mutate(MUTATION, { variables: singleParams });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.createMultipleSourcePosts).toHaveLength(1);
-      const [post] = res.data.createMultipleSourcePosts;
+      expect(res.data.createMultipleSourcesPost).toHaveLength(1);
+      const [post] = res.data.createMultipleSourcesPost;
       expect(post.sourceId).toBe('squad');
       expect(post.type).toBe('post');
     });
@@ -3131,9 +3154,9 @@ describe('mutation createMultipleSourcePosts', () => {
       const res = await client.mutate(MUTATION, { variables: shareParams });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.createMultipleSourcePosts).toHaveLength(2);
+      expect(res.data.createMultipleSourcesPost).toHaveLength(3);
 
-      const [first, second] = res.data.createMultipleSourcePosts;
+      const [first, second] = res.data.createMultipleSourcesPost;
       expect(first.type).toBe('post');
       expect(second.type).toBe('moderationItem');
 
@@ -3177,7 +3200,7 @@ describe('mutation createMultipleSourcePosts', () => {
 
       expect(res.errors).toBeFalsy();
 
-      const [first, second] = res.data.createMultipleSourcePosts;
+      const [first, second] = res.data.createMultipleSourcesPost;
       expect(first.type).toBe('post');
       expect(second.type).toBe('moderationItem');
 
@@ -3221,7 +3244,7 @@ describe('mutation createMultipleSourcePosts', () => {
     it('should add warning reason when posting in multiple squads', async () => {
       loggedUser = '1';
       const res = await client.mutate(MUTATION, { variables: freeformParams });
-      const addedModerationItem = res.data.createMultipleSourcePosts
+      const addedModerationItem = res.data.createMultipleSourcesPost
         .filter((item: { type: string }) => item.type === 'moderationItem')
         .at(0);
 
@@ -3241,7 +3264,7 @@ describe('mutation createMultipleSourcePosts', () => {
       loggedUser = '1';
       const singleParams = { ...freeformParams, sourceIds: ['m'] };
       const res = await client.mutate(MUTATION, { variables: singleParams });
-      const [addedModerationItem] = res.data.createMultipleSourcePosts;
+      const [addedModerationItem] = res.data.createMultipleSourcesPost;
       const moderationItem = await con
         .getRepository(SourcePostModeration)
         .findOneOrFail({
@@ -3262,14 +3285,14 @@ describe('mutation createMultipleSourcePosts', () => {
       // add it once
       const res1 = await client.mutate(MUTATION, { variables });
       expect(res1.errors).toBeFalsy();
-      const firstId = res1.data.createMultipleSourcePosts[0].id;
+      const firstId = res1.data.createMultipleSourcesPost[0].id;
 
       await deleteKeysByPattern(`${rateLimiterName}:*`);
 
       // add it again
       const res2 = await client.mutate(MUTATION, { variables });
       expect(res2.errors).toBeFalsy();
-      const secondId = res2.data.createMultipleSourcePosts[0].id;
+      const secondId = res2.data.createMultipleSourcesPost[0].id;
 
       expect(firstId).not.toBe(secondId);
       const [firstPost, secondPost] = await Promise.all([
@@ -3298,14 +3321,14 @@ describe('mutation createMultipleSourcePosts', () => {
         variables: { ...variables, sourceIds: ['squad'] },
       });
       expect(res1.errors).toBeFalsy();
-      const firstId = res1.data.createMultipleSourcePosts[0].id;
+      const firstId = res1.data.createMultipleSourcesPost[0].id;
 
       await deleteKeysByPattern(`${rateLimiterName}:*`);
 
       // add it again
       const res2 = await client.mutate(MUTATION, { variables });
       expect(res2.errors).toBeFalsy();
-      const secondId = res2.data.createMultipleSourcePosts[0].id;
+      const secondId = res2.data.createMultipleSourcesPost[0].id;
 
       expect(firstId).not.toBe(secondId);
       const [firstPost, secondPost] = await Promise.all([

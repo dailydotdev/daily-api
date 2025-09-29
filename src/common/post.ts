@@ -385,6 +385,7 @@ interface CreateSourcePostModerationProps {
   args: CreateSourcePostModeration;
   options?: Partial<{
     isMultiplePosting: boolean;
+    entityManager: EntityManager;
   }>;
 }
 
@@ -461,11 +462,10 @@ const getModerationWarningFlag = async ({
 };
 
 export const createSourcePostModeration = async ({
-  ctx,
+  ctx: { userId, con, req },
   args,
   options = {},
 }: CreateSourcePostModerationProps) => {
-  const { con } = ctx;
   const { isMultiplePosting = false } = options;
 
   if (args.postId) {
@@ -499,7 +499,7 @@ export const createSourcePostModeration = async ({
         type: VordrFilterType.PostModeration,
         content,
       },
-      { con, userId: ctx.userId, req: ctx.req },
+      { con, userId, req },
     ),
   ]);
 
@@ -509,7 +509,9 @@ export const createSourcePostModeration = async ({
     dedupKey,
   };
 
-  return await con.getRepository(SourcePostModeration).save(newModerationEntry);
+  return await (options?.entityManager || con)
+    .getRepository(SourcePostModeration)
+    .save(newModerationEntry);
 };
 
 export interface CreateSourcePostModerationArgs
@@ -1224,6 +1226,7 @@ export const ensurePostAnalyticsPermissions = async ({
 export const createFreeformPost = async (
   ctx: AuthContext,
   args: CreatePostArgs,
+  options?: Partial<{ entityManager: EntityManager }>,
 ) => {
   const { sourceId, image } = args;
   const { con, userId } = ctx;
@@ -1234,15 +1237,7 @@ export const createFreeformPost = async (
     throw new ValidationError('Title can not be an empty string!');
   }
 
-  if (sourceId === userId) {
-    await ensureUserSourceExists(userId, con);
-  }
-
-  await Promise.all([
-    ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
-    ensurePostRateLimit(ctx.con, ctx.userId),
-  ]);
-  await con.transaction(async (manager) => {
+  await (options?.entityManager || con).transaction(async (manager) => {
     const mentions = await getMentions(manager, content, userId, sourceId);
     const contentHtml = markdown.render(content, { mentions });
     const params: CreatePost = {
