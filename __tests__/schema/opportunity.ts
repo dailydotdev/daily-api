@@ -1918,7 +1918,9 @@ describe('mutation editOpportunity', () => {
         id: opportunitiesFixture[0].id,
         payload: {
           content: {
-            requirements: 'Updated requirements *italic*',
+            requirements: {
+              content: 'Updated requirements *italic*',
+            },
           },
         },
       },
