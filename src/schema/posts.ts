@@ -25,6 +25,7 @@ import {
   createPollPost,
   type CreatePollPostProps,
   CreatePostArgs,
+  createPostIntoSourceId,
   createSourcePostModeration,
   CreateSourcePostModerationArgs,
   DEFAULT_POST_TITLE,
@@ -3629,7 +3630,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const { sourceIds, sharedPostId, ...postArgs } = args;
       const detectedPostType = getMultipleSourcesPostType(args);
-      const isMultiPost = sourceIds.length > 1;
 
       await ensurePostRateLimit(ctx.con, ctx.userId);
       const isPostingToSelfSource = sourceIds.includes(ctx.userId);
@@ -3645,80 +3645,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               sourceId,
               userId: ctx.userId,
             });
-          const postData: Pick<MultipleSourcesPostResult, 'id' | 'type'> = {
-            id: '',
-            type: MultipleSourcesPostItemType.Post,
-          };
 
           if (canUserPostDirectly) {
-            let post: Pick<Post, 'id'>;
             // directly post on squad
-            switch (detectedPostType) {
-              case PostType.Share: {
-                await ctx.con
-                  .getRepository(Post)
-                  .findOneByOrFail({ id: sharedPostId });
-                post = await createSharePost({
-                  con: entityManager,
-                  ctx,
-                  args: {
-                    authorId: ctx.userId,
-                    sourceId,
-                    postId: sharedPostId!,
-                    commentary: args.title,
-                  },
-                });
-                break;
-              }
-              case PostType.Poll: {
-                const id = await generateShortId();
-                const { options, ...pollArgs } = postArgs;
-                post = await createPollPost({
-                  con: entityManager,
-                  ctx,
-                  args: {
-                    ...pollArgs,
-                    id,
-                    sourceId,
-                    title: `${postArgs.title}`,
-                    authorId: ctx.userId,
-                    pollOptions: options!.map((option) =>
-                      ctx.con.getRepository(PollOption).create({
-                        text: option.text,
-                        numVotes: 0,
-                        order: option.order,
-                        postId: id!,
-                      }),
-                    ),
-                  },
-                });
-                break;
-              }
-              default: {
-                post = await createFreeformPost(
-                  ctx,
-                  {
-                    ...postArgs,
-                    sourceId,
-                  },
-                  { entityManager },
-                );
-              }
-            }
-
-            if (post?.id) {
-              output.push({
-                id: post.id,
-                type: MultipleSourcesPostItemType.Post,
-                sourceId,
-              });
-            }
+            const { id } = await createPostIntoSourceId(
+              ctx,
+              sourceId,
+              args,
+              entityManager,
+            );
+            output.push({
+              id,
+              type: MultipleSourcesPostItemType.Post,
+              sourceId,
+            });
 
             continue;
           }
 
           // OR create a pending post instead
-          postData.type = MultipleSourcesPostItemType.ModerationItem;
+          const isMultiPost = sourceIds.length > 1;
           const { options, ...pendingArgs } = postArgs;
           const pendingPost = await validateSourcePostModeration(ctx, {
             ...pendingArgs,
@@ -3727,17 +3673,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             type: detectedPostType,
             pollOptions: options,
           });
-          const post = await createSourcePostModeration({
+          const { id } = await createSourcePostModeration({
             ctx,
             args: pendingPost,
             options: { isMultiPost, entityManager },
           });
           output.push({
-            id: post.id,
+            id,
             type: MultipleSourcesPostItemType.ModerationItem,
             sourceId,
           });
         }
+
         return output;
       });
     },

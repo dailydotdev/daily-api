@@ -613,6 +613,66 @@ export const checkIfUserPostInSourceDirectlyOrThrow = async (
   return canPostToSquad(source as SquadSource, squadMember);
 };
 
+export const createPostIntoSourceId = async (
+  ctx: AuthContext,
+  sourceId: string,
+  args: z.infer<typeof postInMultipleSourcesArgsSchema>,
+  entityManager?: EntityManager,
+): Promise<Pick<Post, 'id'>> => {
+  const type = getMultipleSourcesPostType(args);
+  const con = entityManager || ctx.con;
+  switch (type) {
+    case PostType.Share: {
+      await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: args.sharedPostId });
+      return await createSharePost({
+        con,
+        ctx,
+        args: {
+          authorId: ctx.userId,
+          sourceId,
+          postId: args.sharedPostId!,
+          commentary: args.title,
+        },
+      });
+    }
+    case PostType.Poll: {
+      const id = await generateShortId();
+      const { options, ...pollArgs } = args;
+      return await createPollPost({
+        con,
+        ctx,
+        args: {
+          ...pollArgs,
+          id,
+          sourceId,
+          title: `${args.title}`,
+          authorId: ctx.userId,
+          pollOptions: options!.map((option) =>
+            ctx.con.getRepository(PollOption).create({
+              text: option.text,
+              numVotes: 0,
+              order: option.order,
+              postId: id!,
+            }),
+          ),
+        },
+      });
+    }
+    default: {
+      return await createFreeformPost(
+        ctx,
+        {
+          ...args,
+          sourceId,
+        },
+        { entityManager },
+      );
+    }
+  }
+};
+
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 
 export const validatePost = (
