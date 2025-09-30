@@ -93,12 +93,18 @@ describe('plus subscription gift', () => {
       ctx: NotificationGiftPlusContext;
     }>;
     expect(actual).toBeTruthy();
-    expect(actual.length).toEqual(1);
-    expect(actual[0].type).toEqual(NotificationType.UserGiftedPlus);
+    expect(actual.length).toEqual(2);
 
-    const notification = actual[0].ctx;
-    expect(notification.recipient.id).toEqual(base.id);
-    expect(notification.gifter.id).toEqual('2');
-    expect(notification.squad.id).toEqual(PLUS_MEMBER_SQUAD_ID);
+    const [gifted, gifter] = actual;
+    expect(gifted.type).toEqual(NotificationType.UserGiftedPlus);
+    expect(gifter.type).toEqual(NotificationType.UserGiftedPlus);
+
+    expect(gifted.ctx.recipient.id).toEqual(base.id);
+    expect(gifted.ctx.gifter.id).toEqual('2');
+    expect(gifted.ctx.squad.id).toEqual(PLUS_MEMBER_SQUAD_ID);
+
+    expect(gifter.ctx.recipient.id).toEqual(base.id);
+    expect(gifter.ctx.gifter.id).toEqual('2');
+    expect(gifter.ctx.squad.id).toEqual(PLUS_MEMBER_SQUAD_ID);
   });
 });
