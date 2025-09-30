@@ -2188,6 +2188,10 @@ describe('mutation editOpportunity', () => {
 });
 
 describe('mutation recommendOpportunityScreeningQuestions', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+  });
+
   const MUTATION = /* GraphQL */ `
     mutation RecommendOpportunityScreeningQuestions($id: ID!) {
       recommendOpportunityScreeningQuestions(id: $id) {
@@ -2244,10 +2248,26 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
     loggedUser = '1';
 
     const opportunity = await con.getRepository(OpportunityJob).save(
-      con.getRepository(Opportunity).create({
+      con.getRepository(OpportunityJob).create({
         title: 'Opportunity without questions',
         tldr: 'TLDR',
         state: OpportunityState.DRAFT,
+        location: [
+          {
+            type: LocationType.HYBRID,
+            city: 'Varaždin',
+            subdivision: 'Varaždinska',
+            country: 'Croatia',
+          },
+        ],
+        meta: {
+          seniorityLevel: SeniorityLevel.SENIOR,
+          employmentType: EmploymentType.PART_TIME,
+        },
+        content: {
+          requirements: { content: 'Requirements', html: '' },
+          responsibilities: { content: 'Responsibilities', html: '' },
+        },
       }),
     );
 
@@ -2257,12 +2277,18 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
       type: OpportunityUserType.Recruiter,
     });
 
+    let clientSpy: jest.SpyInstance | undefined;
+
     jest
       .spyOn(gondulModule, 'getGondulClient')
       .mockImplementationOnce((): ServiceClient<typeof GondulService> => {
         const transport = createMockGondulTransport();
+        const client = createClient(GondulService, transport);
+
+        clientSpy = jest.spyOn(client, 'screeningQuestions');
+
         return {
-          instance: createClient(GondulService, transport),
+          instance: client,
           garmr: createGarmrMock(),
         };
       });
@@ -2272,6 +2298,23 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
     });
 
     expect(res.errors).toBeFalsy();
+
+    expect(clientSpy).toHaveBeenCalledTimes(1);
+    expect(clientSpy).toHaveBeenCalledWith({
+      jobOpportunity: `**Location:** HYBRID, Varaždin, Varaždinska, Croatia
+**Job Type:** PART_TIME
+**Seniority Level:** SENIOR
+
+### Overview ###
+TLDR
+
+### Responsibilities ###
+Responsibilities
+
+### Requirements ###
+Requirements`,
+    });
+
     expect(res.data.recommendOpportunityScreeningQuestions).toHaveLength(3);
 
     const result: GQLOpportunityScreeningQuestion[] =

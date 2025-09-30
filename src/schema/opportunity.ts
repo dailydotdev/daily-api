@@ -40,6 +40,7 @@ import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
 import { getGondulClient } from '../common/gondul';
+import { createOpportunityPrompt } from '../common/opportunity/prompt';
 
 export interface GQLOpportunity
   extends Pick<
@@ -797,18 +798,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ConflictError('Opportunity already has questions!');
       }
 
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+          },
+        });
+
       const gondulClient = getGondulClient();
 
       const result = await gondulClient.garmr.execute(async () => {
         return gondulClient.instance.screeningQuestions(
           new ScreeningQuestionsRequest({
-            jobOpportunity: `
-              Senior frontend role at Linear (issue tracking startup). React/TS stack, $140k-$180k, remote- first, Series B stage. Build dev tools used by top companies. Strong culture, great benefits, perfect match for your skills and preferences.
-
-              Join Linear's frontend team to build the next generation of issue tracking and project management tools. You'll work on performance-critical features, design systems, and collaborate closely with design and product teams.
-
-              As a Senior Frontend Developer at Linear, your day will be centered around crafting high-quality user experiences using React and TypeScript. You'll collaborate closely with product designers and backend engineers to ship clean, maintainable code across the app. Your mornings might start with async stand-ups or pairing sessions (remote-friendly, timezone-aligned), followed by deep focus time for building new features, refining UX, or improving performance. You'll participate in thoughtful code reviews, contribute to architecture decisions, and help shape internal tooling and frontend infrastructure. Expect a product-minded culture with minimal process overhead, where autonomy and craftsmanship are highly valued.
-            `,
+            jobOpportunity: createOpportunityPrompt({ opportunity }),
           }),
         );
       });
