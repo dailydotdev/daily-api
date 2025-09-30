@@ -154,8 +154,12 @@ export const notificationTitleMap: Record<
   },
   source_post_submitted: (ctx: NotificationPostModerationContext) =>
     `${ctx.user.name} just posted in ${ctx.source.name}. This post is waiting for your review before it gets published on the squad.`,
-  user_gifted_plus: (ctx: NotificationGiftPlusContext) =>
-    `Surprise! 🎁 ${ctx.gifter.username} thought of you and gifted you a one-year daily.dev Plus membership! How’s that for a thoughtful surprise?`,
+  user_gifted_plus: (ctx: NotificationGiftPlusContext) => {
+    const isGifterTarget = ctx.userIds.includes(ctx.gifter.id);
+    return isGifterTarget
+      ? `You've made someone's day! 🎉 Your Plus membership gift to ${ctx.recipient.username} has been delivered successfully.`
+      : `Surprise! 🎁 ${ctx.gifter.username} thought of you and gifted you a one-year daily.dev Plus membership! How’s that for a thoughtful surprise?`;
+  },
   user_received_award: (ctx: NotificationAwardContext) => {
     if (ctx.source) {
       if (ctx.transaction.valueIncFees === 0) {
