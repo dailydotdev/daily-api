@@ -5,7 +5,7 @@ import { ApplicationService as GondulService } from '@dailydotdev/schema';
 import type { ServiceClient } from '../types';
 
 const transport = createGrpcTransport({
-  baseUrl: 'http://host.docker.internal:9021',
+  baseUrl: process.env.GONDUL_ORIGIN,
   httpVersion: '2',
 });
 
