@@ -5,6 +5,7 @@ import {
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
+  invokeTypedNotificationWorker,
   MockContext,
   saveFixtures,
   testMutationError,
@@ -68,11 +69,11 @@ import { randomUUID } from 'crypto';
 import nock from 'nock';
 import {
   deleteKeysByPattern,
+  deleteRedisKey,
   getRedisObject,
   getRedisObjectExpiry,
   ioRedisPool,
   setRedisObject,
-  deleteRedisKey,
 } from '../src/redis';
 import { checkHasMention, markdown } from '../src/common/markdown';
 import { generateStorageKey, StorageTopic } from '../src/config';
@@ -90,7 +91,13 @@ import { generateUUID } from '../src/ids';
 import { GQLResponse } from 'mercurius-integration-testing';
 import type { GQLPostSmartTitle } from '../src/schema/posts';
 import { TransferError } from '../src/errors';
-import { TransferStatus, TransferType } from '@dailydotdev/schema';
+import {
+  Credits,
+  TransferResult,
+  TransferStatus,
+  TransferType,
+  UserBriefingRequest,
+} from '@dailydotdev/schema';
 import { SubscriptionCycles } from '../src/paddle';
 import { remoteConfig } from '../src/remoteConfig';
 import {
@@ -106,11 +113,6 @@ import {
 } from '../src/entity/user/UserTransaction';
 import { Product, ProductType } from '../src/entity/Product';
 import { BriefingModel, BriefingType } from '../src/integrations/feed';
-import {
-  Credits,
-  TransferResult,
-  UserBriefingRequest,
-} from '@dailydotdev/schema';
 import { addDays, format, subDays } from 'date-fns';
 import { PostAnalytics } from '../src/entity/posts/PostAnalytics';
 import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
@@ -120,6 +122,12 @@ import { createClient } from '@connectrpc/connect';
 import isSameDay from 'date-fns/isSameDay';
 import { PollPost } from '../src/entity/posts/PollPost';
 import { PollOption } from '../src/entity/polls/PollOption';
+import { postAdded } from '../src/workers/notifications/postAdded';
+import {
+  generateUserNotificationUniqueKey,
+  NotificationType,
+} from '../src/notifications/common';
+import { NotificationPostContext } from '../src/notifications';
 
 jest.mock('../src/common/pubsub', () => ({
   ...(jest.requireActual('../src/common/pubsub') as Record<string, unknown>),
@@ -3344,6 +3352,57 @@ describe('mutation createMultipleSourcesPost', () => {
       expect(secondPost.flags.dedupKey).toBe('p1');
       expect(secondPost.flags.warningReason).toBe(
         WarningReason.MultipleSquadPost,
+      );
+    });
+  });
+
+  describe('notifications', () => {
+    it('should set same uniqueKey for detected duplicated posts', async () => {
+      loggedUser = '1';
+      await con.getRepository(SquadSource).save({
+        id: 's1',
+        handle: 's1',
+        name: 'Squad',
+        private: true,
+      });
+      await con.getRepository(SourceMember).save({
+        userId: '1',
+        sourceId: 's1',
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt1-s1',
+      });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { ...shareParams, sourceIds: ['s1', 'squad'] },
+      });
+      expect(res.errors).toBeFalsy();
+      const [first, second] = res.data.createMultipleSourcesPost;
+      const [firstPost, secondPost] = await Promise.all([
+        con.getRepository(SharePost).findOneByOrFail({ id: first.id }),
+        con.getRepository(SharePost).findOneByOrFail({ id: second.id }),
+      ]);
+      const actual1 =
+        await invokeTypedNotificationWorker<'api.v1.post-visible'>(postAdded, {
+          post: firstPost,
+        });
+      const actual2 =
+        await invokeTypedNotificationWorker<'api.v1.post-visible'>(postAdded, {
+          post: secondPost,
+        });
+
+      expect(actual1).toHaveLength(1);
+      expect(actual1![0].ctx.dedupKey).toBe(shareParams.sharedPostId);
+      expect(actual2).toHaveLength(0);
+
+      const uniqueKey = generateUserNotificationUniqueKey({
+        type: NotificationType.SquadPostAdded,
+        dedupKey: actual1![0].ctx.dedupKey,
+        referenceId: (actual1![0].ctx as NotificationPostContext).post.id,
+        referenceType: 'post',
+      });
+
+      expect(uniqueKey).toBe(
+        `post_added:dedup_${actual1![0].ctx.dedupKey}:post`,
       );
     });
   });

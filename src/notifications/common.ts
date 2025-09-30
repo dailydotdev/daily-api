@@ -494,7 +494,11 @@ export const generateUserNotificationUniqueKey = ({
     return null;
   }
 
-  return [uniqueKey, referenceId, referenceType, dedupKey]
+  return [
+    uniqueKey,
+    dedupKey ? `dedup_${dedupKey}` : referenceId,
+    referenceType,
+  ]
     .filter(Boolean)
     .join(':');
 };
