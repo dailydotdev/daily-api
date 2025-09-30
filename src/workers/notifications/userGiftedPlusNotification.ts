@@ -83,11 +83,6 @@ const worker: TypedNotificationWorker<'user-updated'> = {
       userIds: [recipient.id],
     };
 
-    console.log('Gifting plus to', {
-      gifterCtx,
-      recipientCtx,
-    });
-
     await sendNotificationEmailToGifter(gifterCtx);
 
     return [
