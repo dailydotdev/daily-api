@@ -1461,7 +1461,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Create multiple source posts
     """
-    createMultipleSourcesPost(
+    createPostInMultipleSources(
       """
       Ids of the Sources to post into
       """
@@ -3615,7 +3615,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return getPostById(ctx, info, args.postId);
     },
-    createMultipleSourcesPost: async (
+    createPostInMultipleSources: async (
       _,
       input: CreateMultipleSourcePostProps,
       ctx: AuthContext,
