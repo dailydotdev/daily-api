@@ -810,7 +810,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const gondulClient = getGondulClient();
 
       const result = await gondulClient.garmr.execute(async () => {
-        return gondulClient.instance.screeningQuestions(
+        return await gondulClient.instance.screeningQuestions(
           new ScreeningQuestionsRequest({
             jobOpportunity: createOpportunityPrompt({ opportunity }),
           }),
