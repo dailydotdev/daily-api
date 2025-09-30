@@ -170,6 +170,8 @@ config:
       secure: AAABAP/5px9eOttfTK97ljmZ5PS5aVJcFGjhahnko+DJKBmbJgVcGA4V11ZLxVP1QA==
     employmentAgreementBucketName:
       secure: AAABALYmrJB/AIJh7SXF/2vStsA+vCbPUZ3GVJH/JgIxRg9azoA5A/BZkpSUYHwbVGMLP4yNZpc9Js3/2ISG
+    gondulOrigin:
+      secure: AAABANvfb9iJDOmbRPpMpkPzBLpeKTHsLCsFkNfU38yn53ZKUmeP0PA34uVGPZp+y4luHmEFXRE/jy/4rFwr9ZoVtufE59aa7J5AtVJcYY1VlumIY6P5olg=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

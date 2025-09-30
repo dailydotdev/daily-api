@@ -7,6 +7,7 @@ import {
   Opportunity,
   OpportunityContent,
   OpportunityState,
+  ScreeningQuestionsRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
@@ -38,6 +39,7 @@ import {
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
+import { getGondulClient } from '../common/gondul';
 
 export interface GQLOpportunity
   extends Pick<
@@ -58,6 +60,13 @@ export interface GQLUserCandidatePreference
   > {
   keywords?: Array<{ keyword: string }>;
 }
+
+export type GQLOpportunityScreeningQuestion = Pick<
+  QuestionScreening,
+  'id' | 'title' | 'placeholder' | 'opportunityId'
+> & {
+  order: number;
+};
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -321,6 +330,13 @@ export const typeDefs = /* GraphQL */ `
       """
       payload: OpportunityEditInput!
     ): Opportunity! @auth
+
+    recommendOpportunityScreeningQuestions(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): [OpportunityScreeningQuestion!]! @auth
   }
 `;
 
@@ -757,6 +773,63 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.queryBuilder.where({ id });
 
         return builder;
+      });
+    },
+    recommendOpportunityScreeningQuestions: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunityScreeningQuestion[]> => {
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.Edit,
+      });
+
+      const hasQuestionsAlready = await ctx.con
+        .getRepository(QuestionScreening)
+        .exists({
+          where: { opportunityId: id },
+        });
+
+      if (hasQuestionsAlready) {
+        throw new ConflictError('Opportunity already has questions!');
+      }
+
+      const gondulClient = getGondulClient();
+
+      const result = await gondulClient.garmr.execute(async () => {
+        return gondulClient.instance.screeningQuestions(
+          new ScreeningQuestionsRequest({
+            jobOpportunity: `
+              Senior frontend role at Linear (issue tracking startup). React/TS stack, $140k-$180k, remote- first, Series B stage. Build dev tools used by top companies. Strong culture, great benefits, perfect match for your skills and preferences.
+
+              Join Linear's frontend team to build the next generation of issue tracking and project management tools. You'll work on performance-critical features, design systems, and collaborate closely with design and product teams.
+
+              As a Senior Frontend Developer at Linear, your day will be centered around crafting high-quality user experiences using React and TypeScript. You'll collaborate closely with product designers and backend engineers to ship clean, maintainable code across the app. Your mornings might start with async stand-ups or pairing sessions (remote-friendly, timezone-aligned), followed by deep focus time for building new features, refining UX, or improving performance. You'll participate in thoughtful code reviews, contribute to architecture decisions, and help shape internal tooling and frontend infrastructure. Expect a product-minded culture with minimal process overhead, where autonomy and craftsmanship are highly valued.
+            `,
+          }),
+        );
+      });
+
+      const savedQuestions = await ctx.con
+        .getRepository(QuestionScreening)
+        .save(
+          result.screening.map((question, index) => {
+            return ctx.con.getRepository(QuestionScreening).create({
+              opportunityId: id,
+              title: question,
+              questionOrder: index,
+            });
+          }),
+        );
+
+      return savedQuestions.map((question) => {
+        return {
+          ...question,
+          order: question.questionOrder,
+        };
       });
     },
   },
