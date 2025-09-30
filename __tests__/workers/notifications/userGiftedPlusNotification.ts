@@ -95,16 +95,19 @@ describe('plus subscription gift', () => {
     expect(actual).toBeTruthy();
     expect(actual.length).toEqual(2);
 
-    const [gifted, gifter] = actual;
+    const [gifter, gifted] = actual;
     expect(gifted.type).toEqual(NotificationType.UserGiftedPlus);
     expect(gifter.type).toEqual(NotificationType.UserGiftedPlus);
 
-    expect(gifted.ctx.recipient.id).toEqual(base.id);
-    expect(gifted.ctx.gifter.id).toEqual('2');
-    expect(gifted.ctx.squad.id).toEqual(PLUS_MEMBER_SQUAD_ID);
+    // 2 is the gifter, 1 is the recipient
+    expect(gifted.ctx.recipient.id).toEqual('1');
+    expect(gifted.ctx.recipient.id).toEqual(gifter.ctx.recipient.id);
 
-    expect(gifter.ctx.recipient.id).toEqual(base.id);
-    expect(gifter.ctx.gifter.id).toEqual('2');
-    expect(gifter.ctx.squad.id).toEqual(PLUS_MEMBER_SQUAD_ID);
+    expect(gifted.ctx.gifter.id).toEqual('2');
+    expect(gifted.ctx.gifter.id).toEqual(gifter.ctx.gifter.id);
+
+    // notification should be sent to both users
+    expect(gifter.ctx.userIds).toStrictEqual(['2']); // we send gifter notification to 2
+    expect(gifted.ctx.userIds).toStrictEqual(['1']); // we send gifted notification to 1
   });
 });
