@@ -64,6 +64,7 @@ import { PollPost } from '../entity/posts/PollPost';
 import { pollCreationSchema } from './schema/polls';
 import { generateDeduplicationKey } from '../entity/posts/hooks';
 import { z } from 'zod';
+import { canPostToSquad } from '../schema/sources';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -543,7 +544,8 @@ export interface CreatePollPostProps
 }
 
 export interface CreateMultipleSourcePostProps
-  extends Omit<CreatePostArgs, 'sourceId'> {
+  extends Omit<CreatePostArgs, 'sourceId'>,
+    Pick<CreatePollPostProps, 'options' | 'duration'> {
   sharedPostId?: string;
   sourceIds: string[];
 }
@@ -553,13 +555,63 @@ const MAX_MULTIPLE_POST_SOURCE_LIMIT = 4;
 const MAX_TITLE_LENGTH = 250;
 const MAX_CONTENT_LENGTH = 10_000;
 
-export const multipleSourcePostArgsSchema = z.object({
-  title: z.string().max(MAX_TITLE_LENGTH).optional(),
-  content: z.string().max(MAX_CONTENT_LENGTH).optional(),
-  image: z.custom<Promise<FileUpload>>(),
-  sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
-  sharedPostId: z.string().optional(),
-});
+export const postInMultipleSourcesArgsSchema = z
+  .object({
+    title: z.string().max(MAX_TITLE_LENGTH).optional(),
+    content: z.string().max(MAX_CONTENT_LENGTH).optional(),
+    image: z.custom<Promise<FileUpload>>(),
+    sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
+    sharedPostId: z.string().optional(),
+  })
+  .extend(
+    pollCreationSchema
+      .pick({
+        options: true,
+        duration: true,
+      })
+      .partial().shape,
+  );
+
+export const getMultipleSourcesPostType = (
+  args: z.infer<typeof postInMultipleSourcesArgsSchema>,
+): PostType => {
+  if (args.options?.length) {
+    return PostType.Poll;
+  }
+
+  if (args.sharedPostId) {
+    return PostType.Share;
+  }
+
+  return PostType.Freeform;
+};
+
+export const checkIfUserPostInSourceDirectlyOrThrow = async (
+  con: DataSource,
+  { sourceId, userId }: Record<'sourceId' | 'userId', string>,
+) => {
+  const isSameUserSource = sourceId === userId;
+
+  if (isSameUserSource) {
+    return true;
+  }
+
+  const [source, squadMember] = await Promise.all([
+    con.getRepository(Source).findOneBy({
+      id: sourceId,
+    }),
+    con.getRepository(SourceMember).findOneBy({
+      userId,
+      sourceId,
+    }),
+  ]);
+
+  if (!source || !squadMember || source?.type !== SourceType.Squad) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  return canPostToSquad(source as SquadSource, squadMember);
+};
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 

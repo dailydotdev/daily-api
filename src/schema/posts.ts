@@ -9,7 +9,6 @@ import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, In, MoreThan, type QueryBuilder } from 'typeorm';
 import {
   canModeratePosts,
-  canPostToSquad,
   ensureSourcePermissions,
   ensureUserSourceExists,
   GQLSource,
@@ -20,6 +19,7 @@ import {
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  checkIfUserPostInSourceDirectlyOrThrow,
   createFreeformPost,
   CreateMultipleSourcePostProps,
   createPollPost,
@@ -38,17 +38,18 @@ import {
   getLimit,
   getModerationItemsAsAdminForSource,
   getModerationItemsByUserForSource,
+  getMultipleSourcesPostType,
   getPostSmartTitle,
   getPostTranslatedTitle,
   getTranslationRecord,
   type GQLSourcePostModeration,
   isValidHttpUrl,
   mapCloudinaryUrl,
-  multipleSourcePostArgsSchema,
   notifyView,
   ONE_MINUTE_IN_SECONDS,
   parseBigInt,
   pickImageUrl,
+  postInMultipleSourcesArgsSchema,
   type SourcePostModerationArgs,
   standardizeURL,
   systemUser,
@@ -81,10 +82,6 @@ import {
   preparePostForUpdate,
   Settings,
   SharePost,
-  Source,
-  SourceMember,
-  SourceType,
-  SquadSource,
   SubmitExternalLinkArgs,
   Toc,
   updateSharePost,
@@ -1494,6 +1491,14 @@ export const typeDefs = /* GraphQL */ `
       External link of the post
       """
       externalLink: String
+      """
+      Poll options
+      """
+      options: [PollOptionInput!]
+      """
+      Duration in days
+      """
+      duration: Int
     ): [MultiplePostItem]! @auth @rateLimit(limit: 1, duration: 30)
 
     """
@@ -3620,10 +3625,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       input: CreateMultipleSourcePostProps,
       ctx: AuthContext,
     ): Promise<Array<MultipleSourcesPostResult>> => {
-      const args = multipleSourcePostArgsSchema.parse(input);
+      const args = postInMultipleSourcesArgsSchema.parse(input);
 
       const { sourceIds, sharedPostId, ...postArgs } = args;
-      const isSharingPost = !!sharedPostId;
+      const detectedPostType = getMultipleSourcesPostType(args);
       const isMultiPost = sourceIds.length > 1;
 
       await ensurePostRateLimit(ctx.con, ctx.userId);
@@ -3635,86 +3640,103 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return await ctx.con.transaction(async (entityManager) => {
         const output: Array<MultipleSourcesPostResult> = [];
         for (const sourceId of sourceIds) {
-          const isSameUserSource = sourceId === ctx.userId;
+          const canUserPostDirectly =
+            await checkIfUserPostInSourceDirectlyOrThrow(ctx.con, {
+              sourceId,
+              userId: ctx.userId,
+            });
           const postData: Pick<MultipleSourcesPostResult, 'id' | 'type'> = {
             id: '',
             type: MultipleSourcesPostItemType.Post,
           };
 
-          let canUserPostDirectly = isSameUserSource;
-
-          if (!isSameUserSource) {
-            const [source, squadMember] = await Promise.all([
-              ctx.con.getRepository(Source).findOneBy({
-                id: sourceId,
-              }),
-              ctx.con.getRepository(SourceMember).findOneBy({
-                userId: ctx.userId,
-                sourceId,
-              }),
-            ]);
-
-            if (!source || !squadMember || source?.type !== SourceType.Squad) {
-              throw new ForbiddenError('Access denied!');
-            }
-
-            canUserPostDirectly =
-              isSameUserSource ||
-              canPostToSquad(source as SquadSource, squadMember);
-          }
-
           if (canUserPostDirectly) {
+            let post: Pick<Post, 'id'>;
             // directly post on squad
-            if (isSharingPost) {
-              await ctx.con
-                .getRepository(Post)
-                .findOneByOrFail({ id: sharedPostId });
-              postData.id = (
-                await createSharePost({
+            switch (detectedPostType) {
+              case PostType.Share: {
+                await ctx.con
+                  .getRepository(Post)
+                  .findOneByOrFail({ id: sharedPostId });
+                post = await createSharePost({
                   con: entityManager,
                   ctx,
                   args: {
                     authorId: ctx.userId,
                     sourceId,
-                    postId: sharedPostId,
+                    postId: sharedPostId!,
                     commentary: args.title,
                   },
-                })
-              )?.id;
-            } else {
-              postData.id = (
-                await createFreeformPost(
+                });
+                break;
+              }
+              case PostType.Poll: {
+                const id = await generateShortId();
+                const { options, ...pollArgs } = postArgs;
+                post = await createPollPost({
+                  con: entityManager,
+                  ctx,
+                  args: {
+                    ...pollArgs,
+                    id,
+                    sourceId,
+                    title: `${postArgs.title}`,
+                    authorId: ctx.userId,
+                    pollOptions: options!.map((option) =>
+                      ctx.con.getRepository(PollOption).create({
+                        text: option.text,
+                        numVotes: 0,
+                        order: option.order,
+                        postId: id!,
+                      }),
+                    ),
+                  },
+                });
+                break;
+              }
+              default: {
+                post = await createFreeformPost(
                   ctx,
                   {
                     ...postArgs,
                     sourceId,
                   },
                   { entityManager },
-                )
-              )?.id;
+                );
+              }
             }
-          } else {
-            // OR create a pending post instead
-            postData.type = MultipleSourcesPostItemType.ModerationItem;
 
-            const pendingPost = await validateSourcePostModeration(ctx, {
-              ...postArgs,
-              sourceId,
-              sharedPostId,
-              type: sharedPostId ? PostType.Share : PostType.Freeform,
-            });
-            postData.id = (
-              await createSourcePostModeration({
-                ctx,
-                args: pendingPost,
-                options: { isMultiPost, entityManager },
-              })
-            )?.id;
+            if (post?.id) {
+              output.push({
+                id: post.id,
+                type: MultipleSourcesPostItemType.Post,
+                sourceId,
+              });
+            }
+
+            continue;
           }
 
-          if (postData.id) {
-            output.push({ ...postData, sourceId });
-          }
+          // OR create a pending post instead
+          postData.type = MultipleSourcesPostItemType.ModerationItem;
+          const { options, ...pendingArgs } = postArgs;
+          const pendingPost = await validateSourcePostModeration(ctx, {
+            ...pendingArgs,
+            sourceId,
+            sharedPostId,
+            type: detectedPostType,
+            pollOptions: options,
+          });
+          const post = await createSourcePostModeration({
+            ctx,
+            args: pendingPost,
+            options: { isMultiPost, entityManager },
+          });
+          output.push({
+            id: post.id,
+            type: MultipleSourcesPostItemType.ModerationItem,
+            sourceId,
+          });
         }
         return output;
       });

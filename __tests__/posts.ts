@@ -2895,7 +2895,7 @@ describe('mutation editSharePost', () => {
 
 describe('mutation createPostInMultipleSources', () => {
   const MUTATION = /* GraphQL */ `
-    mutation createPostInMultipleSources(
+    mutation CreatePostInMultipleSources(
       $sourceIds: [ID!]!
       $title: String
       $commentary: String
@@ -2904,6 +2904,8 @@ describe('mutation createPostInMultipleSources', () => {
       $image: Upload
       $sharedPostId: ID
       $externalLink: String
+      $options: [PollOptionInput!]
+      $duration: Int
     ) {
       createPostInMultipleSources(
         sourceIds: $sourceIds
@@ -2914,6 +2916,8 @@ describe('mutation createPostInMultipleSources', () => {
         image: $image
         sharedPostId: $sharedPostId
         externalLink: $externalLink
+        options: $options
+        duration: $duration
       ) {
         id
         sourceId
@@ -3246,6 +3250,79 @@ describe('mutation createPostInMultipleSources', () => {
         }),
       );
     });
+  });
+
+  describe('poll post creation', () => {
+    const pollParams = {
+      sourceIds: ['1', 'squad', 'm'],
+      title: 'Poll post',
+      options: [
+        { text: 'Option 1', order: 1 },
+        { text: 'Option 2', order: 2 },
+      ],
+      duration: 3,
+    };
+
+    it('should successfully create poll post in multiple squads', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, { variables: pollParams });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(3);
+
+      const [first, second, third] = res.data.createPostInMultipleSources;
+      expect(first.type).toBe('post');
+      expect(first.sourceId).toBe('1');
+      expect(second.type).toBe('post');
+      expect(second.sourceId).toBe('squad');
+      expect(third.type).toBe('moderationItem');
+      expect(third.sourceId).toBe('m');
+
+      // Verify posts were actually created
+      const [userSourcePost, post, moderationItem] = await Promise.all([
+        await con
+          .getRepository(PollPost)
+          .findOneByOrFail({ id: first.id, sourceId: '1' }),
+        await con.getRepository(PollPost).findOneByOrFail({
+          id: second.id,
+          sourceId: 'squad',
+        }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sourceId', 'createdById', 'title', 'pollOptions', 'status'],
+          where: { id: third.id },
+        }),
+      ]);
+
+      expect(userSourcePost).toStrictEqual(
+        expect.objectContaining({
+          sourceId: '1',
+          authorId: '1',
+          title: pollParams.title,
+        }),
+      );
+      const firstOptions = await userSourcePost.pollOptions;
+      expect(firstOptions).toHaveLength(2);
+
+      expect(post).toStrictEqual(
+        expect.objectContaining({
+          sourceId: 'squad',
+        }),
+      );
+      const secondOptions = await post.pollOptions;
+      expect(secondOptions).toHaveLength(2);
+
+      expect(moderationItem).toStrictEqual(
+        expect.objectContaining({
+          sourceId: 'm',
+          createdById: '1',
+          title: pollParams.title,
+          status: 'pending',
+        }),
+      );
+      expect(moderationItem.pollOptions).toHaveLength(2);
+    });
+
+    it('should handle single squad posting', async () => {});
   });
 
   describe('warning reasons', () => {
