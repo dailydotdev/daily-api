@@ -378,7 +378,7 @@ interface CreateSourcePostModerationProps {
   ctx: AuthContext;
   args: CreateSourcePostModeration;
   options?: Partial<{
-    isMultiplePosting: boolean;
+    isMultiPost: boolean;
     entityManager: EntityManager;
   }>;
 }
@@ -420,16 +420,16 @@ const hasDuplicatedPostBy = async (
 
 const getModerationWarningFlag = async ({
   con,
-  isMultiplePosting = false,
+  isMultiPost = false,
   dedupKey,
   sourceId,
 }: {
   con: DataSource;
-  isMultiplePosting?: boolean;
+  isMultiPost?: boolean;
   dedupKey?: string;
   sourceId?: string;
 }): Promise<WarningReason | undefined> => {
-  if (isMultiplePosting) {
+  if (isMultiPost) {
     return WarningReason.MultipleSquadPost;
   }
 
@@ -460,7 +460,7 @@ export const createSourcePostModeration = async ({
   args,
   options = {},
 }: CreateSourcePostModerationProps) => {
-  const { isMultiplePosting = false } = options;
+  const { isMultiPost = false } = options;
 
   if (args.postId) {
     const post = await con
@@ -483,7 +483,7 @@ export const createSourcePostModeration = async ({
   const [warningReason, vordr] = await Promise.all([
     getModerationWarningFlag({
       con,
-      isMultiplePosting,
+      isMultiPost,
       dedupKey,
       sourceId: args.sourceId,
     }),

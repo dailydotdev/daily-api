@@ -3624,7 +3624,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const { sourceIds, sharedPostId, ...postArgs } = args;
       const isSharingPost = !!sharedPostId;
-      const isMultiplePosting = sourceIds.length > 1;
+      const isMultiPost = sourceIds.length > 1;
 
       await ensurePostRateLimit(ctx.con, ctx.userId);
       const isPostingToSelfSource = sourceIds.includes(ctx.userId);
@@ -3707,7 +3707,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               await createSourcePostModeration({
                 ctx,
                 args: pendingPost,
-                options: { isMultiplePosting, entityManager },
+                options: { isMultiPost, entityManager },
               })
             )?.id;
           }
