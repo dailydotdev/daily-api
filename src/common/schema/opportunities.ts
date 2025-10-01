@@ -1,3 +1,4 @@
+import { OpportunityState } from '@dailydotdev/schema';
 import z from 'zod';
 
 export const opportunityMatchDescriptionSchema = z.object({
@@ -46,11 +47,13 @@ export const opportunityEditSchema = z
     meta: z.object({
       employmentType: z.coerce.number().min(1),
       teamSize: z.number().int().nonnegative().min(1).max(1_000_000),
-      salary: z.object({
-        min: z.number().int().nonnegative().max(100_000_000),
-        max: z.number().int().nonnegative().max(100_000_000),
-        period: z.number(),
-      }),
+      salary: z
+        .object({
+          min: z.number().int().nonnegative().max(100_000_000),
+          max: z.number().int().nonnegative().max(100_000_000),
+          period: z.number(),
+        })
+        .partial(),
       seniorityLevel: z.number(),
       roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
     }),
@@ -77,3 +80,10 @@ export const opportunityEditSchema = z
       .max(3),
   })
   .partial();
+
+export const opportunityStateLiveSchema = opportunityEditSchema.required();
+
+export const opportunityUpdateStateSchema = z.object({
+  id: z.uuid(),
+  state: z.enum(OpportunityState),
+});
