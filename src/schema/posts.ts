@@ -978,6 +978,11 @@ export const typeDefs = /* GraphQL */ `
     totalSpend: Int!
   }
 
+  type GenerateBriefingResponse {
+    postId: String!
+    balance: UserBalance
+  }
+
   type PostAnalytics {
     id: ID!
     impressions: Int!
