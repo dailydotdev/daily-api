@@ -69,7 +69,7 @@ export const opportunityEditSchema = z
       .array(
         z.object({
           id: z.uuid().optional(),
-          title: z.string().nonempty().max(240),
+          title: z.string().nonempty().max(480),
           placeholder: z.string().max(480).nullable().optional(),
         }),
       )

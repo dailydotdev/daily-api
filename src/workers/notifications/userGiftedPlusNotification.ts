@@ -27,8 +27,6 @@ async function sendNotificationEmailToGifter(ctx: NotificationGiftPlusContext) {
 const worker: TypedNotificationWorker<'user-updated'> = {
   subscription: 'api.user-gifted-plus-notification',
   handler: async ({ user, newProfile: recipient }, con) => {
-    const { id: userId } = user;
-
     const beforeSubscriptionFlags: Partial<UserSubscriptionFlags> = JSON.parse(
       (user.subscriptionFlags as string) || '{}',
     );
@@ -70,16 +68,27 @@ const worker: TypedNotificationWorker<'user-updated'> = {
       return;
     }
 
-    const ctx: NotificationGiftPlusContext = {
-      userIds: [userId, gifter.id],
+    const sharedCtx: Omit<NotificationGiftPlusContext, 'userIds'> = {
       gifter,
       recipient,
       squad,
     };
 
-    await sendNotificationEmailToGifter(ctx);
+    const gifterCtx: NotificationGiftPlusContext = {
+      ...sharedCtx,
+      userIds: [gifter.id],
+    };
+    const recipientCtx: NotificationGiftPlusContext = {
+      ...sharedCtx,
+      userIds: [recipient.id],
+    };
 
-    return [{ type: NotificationType.UserGiftedPlus, ctx }];
+    await sendNotificationEmailToGifter(gifterCtx);
+
+    return [
+      { type: NotificationType.UserGiftedPlus, ctx: gifterCtx },
+      { type: NotificationType.UserGiftedPlus, ctx: recipientCtx },
+    ];
   },
 };
 
