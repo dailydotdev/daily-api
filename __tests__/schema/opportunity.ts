@@ -299,7 +299,7 @@ describe('query opportunityById', () => {
     );
   });
 
-  it('should return null for non-live opportunity', async () => {
+  it('should return null for non-live opportunity when user is not a recruiter', async () => {
     await con
       .getRepository(Opportunity)
       .update(
@@ -325,6 +325,33 @@ describe('query opportunityById', () => {
         variables: { id: '660e8400-e29b-41d4-a716-446655440000' },
       },
       'NOT_FOUND',
+    );
+  });
+
+  it('should return non-live opportunity if user is a recruiter', async () => {
+    loggedUser = '3';
+
+    await con.getRepository(OpportunityUser).save({
+      userId: '3',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con
+      .getRepository(Opportunity)
+      .update(
+        { id: '550e8400-e29b-41d4-a716-446655440001' },
+        { state: OpportunityState.DRAFT },
+      );
+
+    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.opportunityById.id).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
     );
   });
 });
