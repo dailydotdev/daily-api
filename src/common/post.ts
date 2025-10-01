@@ -333,7 +333,7 @@ export const insertFreeformPost = async ({
   con,
   args,
   ctx,
-}: CreateFreeformPostArgs) => {
+}: CreateFreeformPostArgs): Promise<FreeformPost> => {
   const { private: privacy } = await con.getRepository(Source).findOneByOrFail({
     id: args.sourceId,
     type: In([SourceType.Squad, SourceType.User]),
@@ -618,7 +618,7 @@ export const createPostIntoSourceId = async (
   sourceId: string,
   args: z.infer<typeof postInMultipleSourcesArgsSchema>,
   entityManager?: EntityManager,
-): Promise<Pick<Post, 'id'>> => {
+): Promise<Pick<Post, 'id' | 'slug'>> => {
   const type = getMultipleSourcesPostType(args);
   const con = entityManager || ctx.con;
   switch (type) {
@@ -1343,7 +1343,7 @@ export const createFreeformPost = async (
     throw new ValidationError('Title can not be an empty string!');
   }
 
-  await (options?.entityManager || con).transaction(async (manager) => {
+  return await (options?.entityManager || con).transaction(async (manager) => {
     const mentions = await getMentions(manager, content, userId, sourceId);
     const contentHtml = markdown.render(content, { mentions });
     const params: CreatePost = {
@@ -1365,9 +1365,13 @@ export const createFreeformPost = async (
       params.image = coverImageUrl;
     }
 
-    await insertFreeformPost({ con: manager, ctx, args: params });
+    const post = await insertFreeformPost({
+      con: manager,
+      ctx,
+      args: params,
+    });
     await saveMentions(manager, id, userId, mentions, PostMention);
-  });
 
-  return { id };
+    return post;
+  });
 };

@@ -381,6 +381,7 @@ export const typeDefs = /* GraphQL */ `
     type: MultiplePostItemType!
     sourceId: ID!
     id: ID!
+    slug: String
   }
 
   """
@@ -3648,7 +3649,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (canUserPostDirectly) {
             // directly post on squad
-            const { id } = await createPostIntoSourceId(
+            const { id, slug } = await createPostIntoSourceId(
               ctx,
               sourceId,
               args,
@@ -3658,6 +3659,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               id,
               type: MultipleSourcesPostItemType.Post,
               sourceId,
+              slug,
             });
 
             continue;

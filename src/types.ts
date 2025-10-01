@@ -294,4 +294,5 @@ export interface MultipleSourcesPostResult {
   id: string;
   type: MultipleSourcesPostItemType;
   sourceId: string;
+  slug?: string;
 }
