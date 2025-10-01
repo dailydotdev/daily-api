@@ -1,7 +1,7 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { AuthContext, BaseContext } from '../Context';
+import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
   Opportunity,
@@ -23,7 +23,7 @@ import { Alerts } from '../entity';
 import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
-import { ConflictError } from '../errors';
+import { ConflictError, NotFoundError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
@@ -349,15 +349,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     opportunityById: async (
       _,
       { id }: { id: string },
-      ctx: AuthContext,
+      ctx: Context,
       info,
-    ): Promise<GQLOpportunity> =>
-      graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder
-          .where({ id })
-          .andWhere({ state: OpportunityState.LIVE });
-        return builder;
-      }),
+    ): Promise<GQLOpportunity> => {
+      const opportunity = await graphorm.queryOneOrFail<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ id });
+
+          builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
+
+          return builder;
+        },
+      );
+
+      if (opportunity.state !== OpportunityState.LIVE) {
+        if (!ctx.userId) {
+          throw new NotFoundError('Not found!');
+        }
+
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId,
+          opportunityId: id,
+          permission: OpportunityPermissions.Edit,
+        });
+      }
+
+      return opportunity;
+    },
     getOpportunityMatch: async (
       _,
       { id }: { id: string },
