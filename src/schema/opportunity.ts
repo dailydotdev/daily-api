@@ -713,16 +713,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityContent = new OpportunityContent(renderedContent);
 
-        await entityManager.getRepository(OpportunityJob).update(
-          { id },
-          {
+        await entityManager
+          .getRepository(OpportunityJob)
+          .createQueryBuilder()
+          .update({
             ...opportunityUpdate,
-            content: opportunityContent
-              ? () => `content || '${opportunityContent.toJsonString()}'`
-              : undefined,
-            meta: () => `meta || '${JSON.stringify(opportunity.meta || {})}'`,
-          },
-        );
+            content: () => `content || :contentJson`,
+            meta: () => `meta || :metaJson`,
+          })
+          .where({ id })
+          .setParameter('contentJson', opportunityContent.toJsonString())
+          .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
+          .execute();
 
         if (Array.isArray(keywords)) {
           await entityManager.getRepository(OpportunityKeyword).delete({
