@@ -4,17 +4,7 @@ import {
   SeniorityLevel,
 } from '@dailydotdev/schema';
 import type { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
-
-const extractTextFromEnum = <T extends Record<string, unknown>>(
-  enumObj: T,
-  value: number | string | undefined,
-  defaultValue = 'Not specified',
-): string => {
-  return (
-    Object.entries(enumObj).find(([, enumValue]) => enumValue === value)?.[0] ??
-    defaultValue
-  );
-};
+import { textFromEnumValue } from '../protobuf';
 
 export const createOpportunityPrompt = ({
   opportunity,
@@ -22,18 +12,18 @@ export const createOpportunityPrompt = ({
   opportunity: OpportunityJob;
 }) => {
   const promptData = {
-    locationType: extractTextFromEnum(
+    locationType: textFromEnumValue(
       LocationType,
       opportunity.location?.[0]?.type,
     ),
     city: opportunity.location?.[0]?.city,
     subdivision: opportunity.location?.[0]?.subdivision,
     country: opportunity.location?.[0]?.country,
-    jobType: extractTextFromEnum(
+    jobType: textFromEnumValue(
       EmploymentType,
       opportunity.meta?.employmentType,
     ),
-    seniorityLevel: extractTextFromEnum(
+    seniorityLevel: textFromEnumValue(
       SeniorityLevel,
       opportunity.meta?.seniorityLevel,
     ),

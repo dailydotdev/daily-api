@@ -55,3 +55,23 @@ export const listAllProtoEnumValues = <T>(
     .filter((v) => !isNaN(Number(v)))
     .filter((v) => includeUnspecified || v !== 0) as number[];
 };
+
+export /**
+ * Extract the text name from a protobuf enum value.
+ *
+ * @template T
+ * @param {T} enumObj
+ * @param {(number | string | undefined)} value
+ * @param {string} [defaultValue='Not specified']
+ * @return {*}  {string}
+ */
+const textFromEnumValue = <T extends Record<string, unknown>>(
+  enumObj: T,
+  value: number | string | undefined,
+  defaultValue = 'Not specified',
+): string => {
+  return (
+    Object.entries(enumObj).find(([, enumValue]) => enumValue === value)?.[0] ??
+    defaultValue
+  );
+};
