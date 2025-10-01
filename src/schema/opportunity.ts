@@ -7,6 +7,7 @@ import {
   Opportunity,
   OpportunityContent,
   OpportunityState,
+  ScreeningQuestionsRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
@@ -38,6 +39,8 @@ import {
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
+import { getGondulClient } from '../common/gondul';
+import { createOpportunityPrompt } from '../common/opportunity/prompt';
 
 export interface GQLOpportunity
   extends Pick<
@@ -58,6 +61,13 @@ export interface GQLUserCandidatePreference
   > {
   keywords?: Array<{ keyword: string }>;
 }
+
+export type GQLOpportunityScreeningQuestion = Pick<
+  QuestionScreening,
+  'id' | 'title' | 'placeholder' | 'opportunityId'
+> & {
+  order: number;
+};
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -321,6 +331,13 @@ export const typeDefs = /* GraphQL */ `
       """
       payload: OpportunityEditInput!
     ): Opportunity! @auth
+
+    recommendOpportunityScreeningQuestions(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): [OpportunityScreeningQuestion!]! @auth
   }
 `;
 
@@ -759,6 +776,66 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.queryBuilder.where({ id });
 
         return builder;
+      });
+    },
+    recommendOpportunityScreeningQuestions: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunityScreeningQuestion[]> => {
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.Edit,
+      });
+
+      const hasQuestionsAlready = await ctx.con
+        .getRepository(QuestionScreening)
+        .exists({
+          where: { opportunityId: id },
+        });
+
+      if (hasQuestionsAlready) {
+        throw new ConflictError('Opportunity already has questions!');
+      }
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+          },
+        });
+
+      const gondulClient = getGondulClient();
+
+      const result = await gondulClient.garmr.execute(async () => {
+        return await gondulClient.instance.screeningQuestions(
+          new ScreeningQuestionsRequest({
+            jobOpportunity: createOpportunityPrompt({ opportunity }),
+          }),
+        );
+      });
+
+      const savedQuestions = await ctx.con
+        .getRepository(QuestionScreening)
+        .save(
+          result.screening.map((question, index) => {
+            return ctx.con.getRepository(QuestionScreening).create({
+              opportunityId: id,
+              title: question,
+              questionOrder: index,
+            });
+          }),
+        );
+
+      return savedQuestions.map((question) => {
+        return {
+          ...question,
+          order: question.questionOrder,
+        };
       });
     },
   },

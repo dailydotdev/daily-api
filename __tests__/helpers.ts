@@ -35,13 +35,16 @@ import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
 import { createRouterTransport } from '@connectrpc/connect';
 import {
+  ApplicationService as GondulService,
   Credits,
   TransferType,
   type TransferStatus,
+  ScreeningQuestionsResponse,
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
 import { Message as ProtobufMessage } from '@bufbuild/protobuf';
+import { GarmrService } from '../src/integrations/garmr';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -565,5 +568,39 @@ export const mockClickhouseQueryJSONOnce = <T>(
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
+  });
+};
+
+export const createMockGondulTransport = ({
+  screeningQuestions,
+}: {
+  screeningQuestions?: string[];
+} = {}) => {
+  return createRouterTransport(({ service }) => {
+    service(GondulService, {
+      screeningQuestions: () => {
+        return new ScreeningQuestionsResponse({
+          screening: screeningQuestions ?? [
+            `You're tasked with optimizing a React component that renders a list of 1000+ issues in Linear's interface, but users are experiencing lag when scrolling. Walk me through your approach to diagnosing and solving this performance problem, including what specific techniques you'd consider and how you'd measure success.`,
+            `Describe a time when you had to make a significant architectural decision for a frontend codebase that would impact other developers. What was the decision, what factors did you weigh, and how did you ensure buy-in from your team while maintaining code quality and developer experience?`,
+            `Linear's design system needs to support both light and dark themes while maintaining consistent spacing, typography, and component behavior across the entire application. How would you structure the CSS-in-JS or styling approach in a React/TypeScript codebase to make this scalable and maintainable for a growing team?`,
+          ],
+        });
+      },
+    });
+  });
+};
+
+export const createGarmrMock = () => {
+  return new GarmrService({
+    service: 'mock',
+    breakerOpts: {
+      halfOpenAfter: Infinity,
+      threshold: 1,
+      duration: 0,
+    },
+    retryOpts: {
+      maxAttempts: Infinity,
+    },
   });
 };

@@ -9,6 +9,7 @@ import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
 import createOrGetConnection from '../../src/db';
 import {
   authorizeRequest,
+  createGarmrMock,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -43,7 +44,10 @@ import {
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
-import type { GQLOpportunity } from '../../src/schema/opportunity';
+import type {
+  GQLOpportunity,
+  GQLOpportunityScreeningQuestion,
+} from '../../src/schema/opportunity';
 import { UserCandidateKeyword } from '../../src/entity/user/UserCandidateKeyword';
 import * as googleCloud from '../../src/common/googleCloud';
 import { Bucket } from '@google-cloud/storage';
@@ -53,6 +57,14 @@ import { fileTypeFromBuffer } from '../setup';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
 import { RoleType } from '../../src/common/schema/userCandidate';
 import { QuestionType } from '../../src/entity/questions/types';
+import type { FastifyInstance } from 'fastify';
+import type { Context } from '../../src/Context';
+import { createMockGondulTransport } from '../helpers';
+import { createClient } from '@connectrpc/connect';
+import { ApplicationService as GondulService } from '@dailydotdev/schema';
+import * as gondulModule from '../../src/common/gondul';
+import type { ServiceClient } from '../../src/types';
+import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 const uploadEmploymentAgreementFromBuffer = jest.spyOn(
@@ -64,12 +76,12 @@ let con: DataSource;
 let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
-let loggedUser: string = null;
+let loggedUser: string | null = null;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () => new MockContext(con, loggedUser) as unknown as Context,
   );
   client = state.client;
   app = state.app;
@@ -2192,5 +2204,158 @@ describe('mutation editOpportunity', () => {
     });
 
     expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('mutation recommendOpportunityScreeningQuestions', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+  });
+
+  const MUTATION = /* GraphQL */ `
+    mutation RecommendOpportunityScreeningQuestions($id: ID!) {
+      recommendOpportunityScreeningQuestions(id: $id) {
+        id
+        title
+        order
+        placeholder
+        opportunityId
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunitiesFixture[0].id },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw error when user is not a recruiter for opportunity', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+        },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+  });
+
+  it('should throw error when opportunity already has questions', async () => {
+    loggedUser = '1'; // user 1 is recruiter for opportunitiesFixture[0]
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunitiesFixture[0].id },
+      },
+      'CONFLICT',
+    );
+  });
+
+  it('should recommend and persist screening questions', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save(
+      con.getRepository(OpportunityJob).create({
+        title: 'Opportunity without questions',
+        tldr: 'TLDR',
+        state: OpportunityState.DRAFT,
+        location: [
+          {
+            type: LocationType.HYBRID,
+            city: 'Varaždin',
+            subdivision: 'Varaždinska',
+            country: 'Croatia',
+          },
+        ],
+        meta: {
+          seniorityLevel: SeniorityLevel.SENIOR,
+          employmentType: EmploymentType.PART_TIME,
+        },
+        content: {
+          requirements: { content: 'Requirements', html: '' },
+          responsibilities: { content: 'Responsibilities', html: '' },
+        },
+      }),
+    );
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    let clientSpy: jest.SpyInstance | undefined;
+
+    jest
+      .spyOn(gondulModule, 'getGondulClient')
+      .mockImplementationOnce((): ServiceClient<typeof GondulService> => {
+        const transport = createMockGondulTransport();
+        const client = createClient(GondulService, transport);
+
+        clientSpy = jest.spyOn(client, 'screeningQuestions');
+
+        return {
+          instance: client,
+          garmr: createGarmrMock(),
+        };
+      });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: opportunity.id },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(clientSpy).toHaveBeenCalledTimes(1);
+    expect(clientSpy).toHaveBeenCalledWith({
+      jobOpportunity: `**Location:** HYBRID, Varaždin, Varaždinska, Croatia
+**Job Type:** PART_TIME
+**Seniority Level:** SENIOR
+
+### Overview ###
+TLDR
+
+### Responsibilities ###
+Responsibilities
+
+### Requirements ###
+Requirements`,
+    });
+
+    expect(res.data.recommendOpportunityScreeningQuestions).toHaveLength(3);
+
+    const result: GQLOpportunityScreeningQuestion[] =
+      res.data.recommendOpportunityScreeningQuestions;
+
+    expect(result).toHaveLength(3);
+
+    result.forEach((question, index) => {
+      expect(question).toEqual({
+        id: expect.any(String),
+        title: expect.any(String),
+        placeholder: null,
+        opportunityId: opportunity.id,
+        order: index,
+      });
+    });
+
+    const saved = await con
+      .getRepository(QuestionScreening)
+      .findBy({ opportunityId: opportunity.id });
+
+    expect(saved).toHaveLength(3);
   });
 });
