@@ -1,12 +1,10 @@
 import {
   Connection as ConnectionRelay,
   ConnectionArguments,
-  cursorToOffset,
-  offsetToCursor,
 } from 'graphql-relay';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import { DataSource, In, MoreThan, type QueryBuilder } from 'typeorm';
+import { DataSource, In, MoreThan } from 'typeorm';
 import {
   canModeratePosts,
   ensureSourcePermissions,
@@ -54,13 +52,9 @@ import {
   parseBigInt,
   findPostByUrl,
   ensurePostAnalyticsPermissions,
-  getLimit,
   type CreatePollPostProps,
 } from '../common';
 import {
-  Campaign,
-  CampaignPost,
-  CampaignState,
   ContentImage,
   createExternalLink,
   createSharePost,
@@ -133,23 +127,9 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
-import type {
-  BoostedPostConnection,
-  CampaignForV1,
-  GQLBoostedPost,
-} from '../common/campaign/post';
-import {
-  checkPostAlreadyBoosted,
-  getAdjustedReach,
-  getFormattedBoostedPost,
-  startCampaignPost,
-  stopCampaignPost,
-  validatePostBoostPermissions,
-} from '../common/campaign/post';
 import {
   type GetBalanceResult,
   throwUserTransactionError,
-  type TransactionCreated,
   transferCores,
 } from '../common/njord';
 import { randomUUID } from 'crypto';
@@ -159,16 +139,8 @@ import {
   UserTransactionStatus,
   UserTransactionType,
 } from '../entity/user/UserTransaction';
-import { skadiApiClientV1 } from '../integrations/skadi/api/v1/clients';
-import type { CampaignReach } from '../integrations/skadi/api/common';
 import graphorm from '../graphorm';
 import { BriefingType } from '../integrations/feed';
-import { coresToUsd } from '../common/number';
-import {
-  getUserCampaignStats,
-  type StartCampaignArgs,
-  validateCampaignArgs,
-} from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
 import type { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 import {
@@ -317,49 +289,6 @@ export type GQLPostAnalyticsHistory = Omit<
   PostAnalyticsHistory,
   'post' | 'createdAt'
 >;
-
-const formatCampaignV2toV1 = (campaign: CampaignForV1) => ({
-  post: getFormattedBoostedPost(campaign.post),
-  campaign: {
-    budget: campaign.flags.budget ?? 0,
-    clicks: campaign.flags.clicks ?? 0,
-    users: campaign.flags.users ?? 0,
-    spend: campaign.flags.spend ?? 0,
-    impressions: campaign.flags.impressions ?? 0,
-    campaignId: campaign.id,
-    postId: campaign.referenceId,
-    endedAt: campaign.endedAt,
-    startedAt: campaign.createdAt,
-    status: campaign.state,
-  },
-});
-
-const builderForCampaignV1 = (builder: QueryBuilder<CampaignPost>) =>
-  builder
-    .select('c.id', 'id')
-    .addSelect('c.referenceId', 'referenceId')
-    .addSelect('c.createdAt', 'createdAt')
-    .addSelect('c.endedAt', 'endedAt')
-    .addSelect('c.state', 'state')
-    .addSelect('c.flags', 'flags')
-    .addSelect(
-      `(
-        SELECT json_build_object(
-          'id', p1.id,
-          'shortId', p1."shortId",
-          'slug', p1.slug,
-          'image', p1.image,
-          'title', p1.title,
-          'type', p1.type,
-          'sharedTitle', p2.title,
-          'sharedImage', p2.image
-        )
-        FROM post p1
-        LEFT JOIN post p2 ON p1."sharedPostId" = p2.id
-        WHERE p1.id = c."postId"
-      )`,
-      'post',
-    );
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(BriefingType, 'BriefingType')}
@@ -1049,25 +978,6 @@ export const typeDefs = /* GraphQL */ `
     totalSpend: Int!
   }
 
-  type BoostedPost {
-    post: Post!
-    campaign: CampaignPost!
-  }
-
-  type BoostedPostEdge {
-    node: BoostedPost!
-    """
-    Used in before and after args
-    """
-    cursor: String!
-  }
-
-  type BoostedPostConnection {
-    pageInfo: PageInfo!
-    edges: [BoostedPostEdge]!
-    stats: CampaignData
-  }
-
   type GenerateBriefingResponse {
     postId: String!
     balance: UserBalance
@@ -1276,54 +1186,6 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): PostBalance!
-
-    """
-    Estimate the reach for a post boost campaign
-    """
-    boostEstimatedReach(
-      """
-      ID of the post to boost
-      """
-      postId: ID!
-    ): BoostEstimate! @auth
-
-    """
-    Estimate the daily reach for a post boost campaign with specific budget and duration
-    """
-    boostEstimatedReachDaily(
-      """
-      ID of the post to boost
-      """
-      postId: ID!
-
-      """
-      Cores budget per day
-      """
-      budget: Int!
-
-      """
-      Amount of days to run the campaign
-      """
-      duration: Int!
-    ): BoostEstimate! @auth
-
-    postCampaignById(
-      """
-      ID of the campaign to fetch
-      """
-      id: ID!
-    ): BoostedPost! @auth
-
-    postCampaigns(
-      """
-      Paginate after opaque cursor
-      """
-      after: String
-      """
-      Paginate first
-      """
-      first: Int
-    ): BoostedPostConnection! @auth
 
     """
     Get user briefing posts
@@ -1610,34 +1472,6 @@ export const typeDefs = /* GraphQL */ `
     Toggles post's title between clickbait and non-clickbait
     """
     clickbaitPost(id: ID!): EmptyResponse @auth(requires: [MODERATOR])
-
-    """
-    Start a post boost campaign
-    """
-    startPostBoost(
-      """
-      ID of the post to boost
-      """
-      postId: ID!
-      """
-      Duration of the boost in days (1-30)
-      """
-      duration: Int!
-      """
-      Budget for the boost in cores (1000-100000, must be divisible by 1000)
-      """
-      budget: Int!
-    ): TransactionCreated @auth
-
-    """
-    Cancel an existing post boost campaign
-    """
-    cancelPostBoost(
-      """
-      ID of the post to cancel boost for
-      """
-      postId: ID!
-    ): TransactionCreated @auth
 
     """
     Fetch external link's title and image preview
@@ -2377,123 +2211,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return result;
     },
-    boostEstimatedReach: async (
-      _,
-      args: { postId: string },
-      ctx: AuthContext,
-    ): Promise<CampaignReach> => {
-      const { postId } = args;
-      const post = await validatePostBoostPermissions(ctx, postId);
-      checkPostAlreadyBoosted(post);
-
-      const { users } = await skadiApiClientV1.estimatePostBoostReach({
-        postId,
-        userId: ctx.userId,
-      });
-
-      return getAdjustedReach(users);
-    },
-    boostEstimatedReachDaily: async (
-      _,
-      args: { postId: string; budget: number; duration: number },
-      ctx: AuthContext,
-    ): Promise<CampaignReach> => {
-      const { postId, budget, duration } = args;
-      const post = await validatePostBoostPermissions(ctx, postId);
-      checkPostAlreadyBoosted(post);
-      validateCampaignArgs({ budget, duration });
-
-      const { minImpressions, maxImpressions } =
-        await skadiApiClientV1.estimatePostBoostReachDaily({
-          postId,
-          userId: ctx.userId,
-          budget: coresToUsd(budget),
-          durationInDays: duration,
-        });
-
-      if (minImpressions === maxImpressions) {
-        return getAdjustedReach(maxImpressions);
-      }
-
-      const min = Math.max(minImpressions, 0);
-      const max = Math.max(maxImpressions, min);
-
-      return { min, max };
-    },
-    postCampaignById: async (
-      _,
-      { id }: { id: string },
-      ctx: Context,
-    ): Promise<GQLBoostedPost> => {
-      const campaign = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        builderForCampaignV1(
-          queryRunner.manager
-            .getRepository(CampaignPost)
-            .createQueryBuilder('c'),
-        )
-          .where('c.id = :id', { id })
-          .andWhere('c."userId" = :user', { user: ctx.userId })
-          .getRawOne<CampaignForV1>(),
-      );
-
-      if (!campaign) {
-        throw new NotFoundError('Campaign does not exist!');
-      }
-
-      return formatCampaignV2toV1(campaign);
-    },
-    postCampaigns: async (
-      _,
-      args: ConnectionArguments,
-      ctx: AuthContext,
-    ): Promise<BoostedPostConnection> => {
-      const { first, after } = args;
-      const isFirstRequest = !after;
-      const offset = after ? cursorToOffset(after) : 0;
-      const paginated = await graphorm.queryPaginatedIntegration(
-        () => !!after,
-        (nodeSize) => nodeSize === first,
-        (_, i) => offsetToCursor(offset + i + 1),
-        async () => {
-          const campaigns = await queryReadReplica(
-            ctx.con,
-            ({ queryRunner }) => {
-              const builder = builderForCampaignV1(
-                queryRunner.manager
-                  .getRepository(CampaignPost)
-                  .createQueryBuilder('c'),
-              );
-
-              builder
-                .andWhere(`c."userId" = :campaignUserId`, {
-                  campaignUserId: ctx.userId,
-                })
-                .orderBy(`CASE WHEN c."state" = :active THEN 0 ELSE 1 END`)
-                .addOrderBy('c."createdAt"', 'DESC')
-                .limit(getLimit({ limit: first ?? 20 }))
-                .setParameter('active', CampaignState.Active);
-
-              if (offset) {
-                builder.offset(offset);
-              }
-
-              return builder.getRawMany<CampaignForV1>();
-            },
-          );
-
-          return campaigns.map(formatCampaignV2toV1);
-        },
-      );
-
-      const stats = await getUserCampaignStats(ctx);
-
-      return {
-        ...paginated,
-        stats: isFirstRequest
-          ? { ...stats, totalSpend: stats.spend, engagements: 0 }
-          : undefined,
-      };
-    },
     briefingPosts: async (
       _,
       args: ConnectionArguments,
@@ -3000,37 +2717,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           contentQuality,
         },
       );
-    },
-    startPostBoost: async (
-      _,
-      args: Pick<StartCampaignArgs, 'budget' | 'duration'> & { postId: string },
-      ctx: AuthContext,
-    ): Promise<TransactionCreated> => {
-      validateCampaignArgs(args);
-
-      return startCampaignPost({
-        ctx,
-        args: {
-          value: args.postId,
-          budget: args.budget,
-          duration: args.duration,
-        },
-      });
-    },
-    cancelPostBoost: async (
-      _,
-      { postId }: { postId: string },
-      ctx: AuthContext,
-    ): Promise<TransactionCreated> => {
-      const campaign = await ctx.con.getRepository(Campaign).findOneOrFail({
-        where: {
-          referenceId: postId,
-          userId: ctx.userId,
-          state: CampaignState.Active,
-        },
-      });
-
-      return stopCampaignPost({ campaign, ctx });
     },
     checkLinkPreview: async (
       _,

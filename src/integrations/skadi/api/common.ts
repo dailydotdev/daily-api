@@ -1,8 +1,3 @@
-export interface CampaignReach {
-  min: number;
-  max: number;
-}
-
 export interface CancelCampaignArgs {
   campaignId: string;
   userId: string;
