@@ -9,6 +9,7 @@ import {
   ProjectLinkType,
   UserExperienceType,
   WorkEmploymentType,
+  WorkLocationType,
   WorkVerificationStatus,
 } from '../entity/user/experiences/types';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -28,7 +29,6 @@ import {
 } from '../common/userExperience';
 import { GQLEmptyResponse } from './common';
 import { toGQLEnum } from '../common';
-import { WorkLocationType } from '../entity/user/UserJobPreferences';
 
 // Common fields for all user experience types
 const baseUserExperienceFields = `

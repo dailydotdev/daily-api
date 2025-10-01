@@ -50,7 +50,6 @@ import {
 } from '../common/datePageGenerator';
 import {
   checkAndClearUserStreak,
-  checkJobPreferenceParamsValidity,
   CioTransactionalMessageTemplateId,
   clearFile,
   DayOfWeek,
@@ -64,7 +63,6 @@ import {
   GQLUserStreak,
   GQLUserStreakTz,
   type GQLUserTopReader,
-  isProfileCompleteById,
   mapCloudinaryUrl,
   parseBigInt,
   playwrightUser,
@@ -166,11 +164,6 @@ import {
 import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 import { syncNotificationFlagsToCio } from '../cio';
-import {
-  UserCompensation,
-  UserJobPreferences,
-  WorkLocationType,
-} from '../entity/user/UserJobPreferences';
 import { completeVerificationForExperienceByUserCompany } from '../common/userExperience';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 
@@ -307,16 +300,6 @@ export interface SendReportArgs {
   comment?: string;
   tags?: string[];
 }
-
-export interface GQLUserJobPreferences {
-  openToOpportunities: boolean;
-  preferredRoles: string[];
-  preferredLocationType: WorkLocationType | null;
-  openToRelocation: boolean;
-  currentTotalComp: Partial<UserCompensation>;
-}
-
-type UserJobPreferencesInput = GQLUserJobPreferences;
 
 export const typeDefs = /* GraphQL */ `
   type Company {
@@ -533,32 +516,6 @@ export const typeDefs = /* GraphQL */ `
     Amount of the salary preference
     """
     amount: Int
-  }
-
-  """
-  User job preferences
-  """
-  type UserJobPreferences {
-    """
-    Whether the user is open to opportunities
-    """
-    openToOpportunities: Boolean!
-    """
-    Preferred roles of the user
-    """
-    preferredRoles: [String!]!
-    """
-    Preferred location type of the user
-    """
-    preferredLocationType: String
-    """
-    Whether the user is open to relocation
-    """
-    openToRelocation: Boolean!
-    """
-    Current total compensation of the user
-    """
-    currentTotalComp: UserTotalCompensation!
   }
 
   """
@@ -1083,11 +1040,6 @@ export const typeDefs = /* GraphQL */ `
     Get current user's notification preferences
     """
     notificationSettings: JSON @auth
-
-    """
-    Get job preferences for the current user
-    """
-    userJobPreferences: UserJobPreferences @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1305,32 +1257,6 @@ export const typeDefs = /* GraphQL */ `
     Update user's notification preferences
     """
     updateNotificationSettings(notificationFlags: JSON!): EmptyResponse @auth
-
-    """
-    Update job preferences for the current user
-    """
-    updateUserJobPreferences(
-      """
-      Whether the user is open to opportunities
-      """
-      openToOpportunities: Boolean!
-      """
-      Preferred roles of the user
-      """
-      preferredRoles: [String!]!
-      """
-      Preferred location type of the user
-      """
-      preferredLocationType: String
-      """
-      Whether the user is open to relocation
-      """
-      openToRelocation: Boolean!
-      """
-      Current total compensation of the user
-      """
-      currentTotalComp: UserTotalCompensationInput!
-    ): UserJobPreferences @auth
   }
 `;
 
@@ -2243,20 +2169,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...user?.notificationFlags,
       };
     },
-    userJobPreferences: async (
-      _,
-      __,
-      ctx: AuthContext,
-      info: GraphQLResolveInfo,
-    ): Promise<GQLUserJobPreferences> => {
-      return graphorm.queryOneOrFail<GQLUserJobPreferences>(
-        ctx,
-        info,
-        (builder) => builder,
-        UserJobPreferences,
-        true,
-      );
-    },
   },
   Mutation: {
     clearImage: async (
@@ -3068,42 +2980,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { _: true };
-    },
-    updateUserJobPreferences: async (
-      _,
-      params: UserJobPreferencesInput,
-      ctx: AuthContext,
-    ) => {
-      const { data: preferences, success: isValid } =
-        checkJobPreferenceParamsValidity(params);
-
-      if (!isValid) {
-        throw new ValidationError(
-          'Invalid job preferences data. Please check your input.',
-        );
-      }
-
-      const isProfileComplete = await isProfileCompleteById(
-        ctx.con,
-        ctx.userId,
-      );
-
-      if (!isProfileComplete && preferences.openToOpportunities) {
-        throw new ValidationError(
-          'Open to opportunities can only be set if the profile is complete',
-        );
-      }
-
-      await ctx.con
-        .getRepository(UserJobPreferences)
-        .upsert({ ...preferences, userId: ctx.userId }, ['userId']);
-
-      return {
-        ...preferences,
-        userId: ctx.userId,
-        openToOpportunities:
-          preferences.openToOpportunities && isProfileComplete,
-      };
     },
   },
   User: {

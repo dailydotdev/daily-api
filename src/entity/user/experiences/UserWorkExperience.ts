@@ -1,11 +1,11 @@
 import { ChildEntity, Column, JoinColumn, ManyToOne } from 'typeorm';
 import { UserExperience } from './UserExperience';
 import type { Company } from '../../Company';
-import { WorkLocationType } from '../UserJobPreferences';
 import {
   UserExperienceType,
   WorkEmploymentType,
   WorkVerificationStatus,
+  type WorkLocationType,
 } from './types';
 
 @ChildEntity(UserExperienceType.Work)

@@ -4,9 +4,9 @@ import {
   ProjectLinkType,
   UserExperienceType,
   WorkEmploymentType,
+  WorkLocationType,
   WorkVerificationStatus,
 } from '../../entity/user/experiences/types';
-import { WorkLocationType } from '../../entity/user/UserJobPreferences';
 
 export const baseUserExperienceSchema = z.object({
   id: z.uuid().optional(), // Optional for creation
