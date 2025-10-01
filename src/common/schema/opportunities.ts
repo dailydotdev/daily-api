@@ -53,7 +53,8 @@ export const opportunityEditSchema = z
           max: z.number().int().nonnegative().max(100_000_000),
           period: z.number(),
         })
-        .partial(),
+        .partial()
+        .optional(),
       seniorityLevel: z.number(),
       roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
     }),
