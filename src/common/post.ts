@@ -621,13 +621,12 @@ export const checkIfUserPostInSourceDirectlyOrThrow = async (
 };
 
 export const createPostIntoSourceId = async (
+  con: DataSource | EntityManager,
   ctx: AuthContext,
   sourceId: string,
   args: CreatePostInSourceArgs,
-  entityManager?: EntityManager,
 ): Promise<Pick<Post, 'id'>> => {
   const type = getMultipleSourcesPostType(args);
-  const con = entityManager || ctx.con;
   switch (type) {
     case PostType.Share: {
       await ctx.con
@@ -668,14 +667,10 @@ export const createPostIntoSourceId = async (
       });
     }
     case PostType.Freeform: {
-      return await createFreeformPost(
-        ctx,
-        {
-          ...args,
-          sourceId,
-        },
-        { entityManager },
-      );
+      return await createFreeformPost(con, ctx, {
+        ...args,
+        sourceId,
+      });
     }
     default: {
       throw new Error('Invalid post type detected');
@@ -1374,12 +1369,12 @@ export const ensurePostAnalyticsPermissions = async ({
 };
 
 export const createFreeformPost = async (
+  con: EntityManager | DataSource,
   ctx: AuthContext,
   args: CreatePostArgs,
-  options?: Partial<{ entityManager: EntityManager }>,
 ) => {
   const { sourceId, image } = args;
-  const { con, userId } = ctx;
+  const { userId } = ctx;
   const id = await generateShortId();
   const { title, content } = validatePost(args);
 
@@ -1387,7 +1382,7 @@ export const createFreeformPost = async (
     throw new ValidationError('Title can not be an empty string!');
   }
 
-  await (options?.entityManager || con).transaction(async (manager) => {
+  await con.transaction(async (manager) => {
     const mentions = await getMentions(manager, content, userId, sourceId);
     const contentHtml = markdown.render(content, { mentions });
     const params: CreatePost = {

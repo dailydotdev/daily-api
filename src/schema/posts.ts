@@ -2598,7 +2598,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
 
-      const { id } = await createFreeformPost(ctx, args);
+      const { id } = await createFreeformPost(ctx.con, ctx, args);
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
         ...builder,
@@ -3342,10 +3342,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           if (canUserPostDirectly) {
             // directly post on squad
             const { id } = await createPostIntoSourceId(
+              entityManager,
               ctx,
               sourceId,
               postArgs,
-              entityManager,
             );
             output.push({
               id,
