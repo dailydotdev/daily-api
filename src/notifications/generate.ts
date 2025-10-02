@@ -32,7 +32,7 @@ import {
   type NotificationUserTopReaderContext,
   NotificationOpportunityMatchContext,
   type NotificationPostAnalyticsContext,
-  NotificationWarmIntroContext,
+  type NotificationWarmIntroContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
