@@ -132,6 +132,7 @@ export const typeDefs = /* GraphQL */ `
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
+    state: ProtoEnumValue!
     title: String!
     tldr: String
     content: OpportunityContent!
@@ -726,6 +727,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       await ctx.con.transaction(async (entityManager) => {
+        const isDraft = await entityManager
+          .getRepository(OpportunityJob)
+          .exists({
+            where: { id, state: OpportunityState.DRAFT },
+          });
+
+        if (!isDraft) {
+          throw new ConflictError(
+            'Only opportunities in draft state can be edited',
+          );
+        }
+
         const { keywords, content, questions, ...opportunityUpdate } =
           opportunity;
 
