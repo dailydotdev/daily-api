@@ -427,7 +427,7 @@ export const workers: Worker[] = [
   },
   {
     topic: 'gondul.v1.warm-intro-generated',
-    subscription: 'api.warm-intro-notification',
+    subscription: 'api.recruiter-warm-intro-notification',
   },
 ];
 

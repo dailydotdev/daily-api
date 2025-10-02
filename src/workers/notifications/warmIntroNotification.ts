@@ -7,7 +7,7 @@ import { WarmIntro } from '@dailydotdev/schema';
 
 export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intro-generated'> =
   {
-    subscription: 'api.warm-intro-notification',
+    subscription: 'api.recruiter-warm-intro-notification',
     handler: async ({ userId, opportunityId, description }, con) => {
       const opportunity = await con.getRepository(OpportunityJob).findOne({
         where: {
