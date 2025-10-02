@@ -1327,13 +1327,10 @@ const onOpportunityChange = async (
     data.payload.after?.type === OpportunityType.JOB &&
     data.payload.after?.state === OpportunityState.LIVE
   ) {
-    const isUpdate = data.payload.op === 'u';
-
     await notifyJobOpportunity({
       con,
       logger,
       opportunityId: data.payload.after!.id,
-      isUpdate,
     });
   }
 
@@ -1398,7 +1395,6 @@ const onOrganizationChange = async (
           con,
           logger,
           opportunityId: opportunity.id,
-          isUpdate: true,
         });
       }),
     );

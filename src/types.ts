@@ -1,6 +1,9 @@
 import type { Roles } from './roles';
 import type { AccessToken } from './auth';
 import type { opentelemetry } from './telemetry';
+import type { GarmrService } from './integrations/garmr';
+import { type Client } from '@connectrpc/connect';
+import type { ServiceType } from '@bufbuild/protobuf';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -75,6 +78,7 @@ declare global {
       GEOIP_PATH?: string;
       RESUME_BUCKET_NAME: string;
       EMPLOYMENT_AGREEMENT_BUCKET_NAME: string;
+      GONDUL_ORIGIN: string;
     }
   }
 }
@@ -295,3 +299,8 @@ export interface MultipleSourcesPostResult {
   type: MultipleSourcesPostItemType;
   sourceId: string;
 }
+
+export type ServiceClient<T extends ServiceType> = {
+  instance: Client<T>;
+  garmr: GarmrService;
+};

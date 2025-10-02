@@ -5,19 +5,10 @@ import {
   CampaignState,
   CampaignType,
   Post,
-  PostType,
   type ConnectionManager,
   type FreeformPost,
   type SharePost,
 } from '../../entity';
-import { getPostPermalink } from '../../schema/posts';
-import {
-  type GetCampaignListResponse,
-  type GetCampaignResponse,
-} from '../../integrations/skadi';
-import type { Connection } from 'graphql-relay';
-import { mapCloudinaryUrl } from '../cloudinary';
-import { pickImageUrl } from '../post';
 import { systemUser, updateFlagsStatement } from '../utils';
 import { getDiscussionLink, notificationsLink } from '../links';
 import { usdToCores } from '../number';
@@ -44,17 +35,6 @@ import { formatMailDate, addNotificationEmailUtm } from '../mailing';
 import { truncatePostToTweet } from '../twitter';
 import type { TemplateDataFunc } from '../../workers/newNotificationV2Mail';
 
-export interface GQLPromotedPost
-  extends Omit<
-    GetCampaignResponse,
-    'spend' | 'budget' | 'startedAt' | 'endedAt'
-  > {
-  spend: number;
-  budget: number;
-  startedAt: Date;
-  endedAt: Date;
-}
-
 export const validatePostBoostPermissions = async (
   ctx: AuthContext,
   postId: string,
@@ -76,59 +56,6 @@ export const checkPostAlreadyBoosted = (post: Pick<Post, 'flags'>): void => {
   }
 };
 
-interface CampaignBoostedPost
-  extends Pick<Post, 'id' | 'shortId' | 'title' | 'slug'> {
-  image: string;
-  permalink: string;
-  commentsPermalink?: string;
-  engagements: number;
-}
-
-export interface GQLBoostedPost {
-  campaign: GQLPromotedPost;
-  post: CampaignBoostedPost;
-}
-
-interface GetBoostedPost extends CampaignBoostedPost {
-  type: PostType;
-  sharedTitle?: string;
-  sharedImage?: string;
-}
-
-export const getFormattedBoostedPost = (
-  post: GetBoostedPost,
-): GQLBoostedPost['post'] => {
-  const { id, shortId, sharedImage, sharedTitle, slug } = post;
-  let image: string | undefined = post.image;
-  let title = post.title;
-
-  if (post.type === PostType.Share) {
-    image = sharedImage;
-    title = title || sharedTitle;
-  }
-
-  return {
-    id,
-    slug,
-    shortId,
-    title,
-    image: mapCloudinaryUrl(image) ?? pickImageUrl({ createdAt: new Date() }),
-    permalink: getPostPermalink({ shortId }),
-    commentsPermalink: post.slug ? getDiscussionLink(post.slug) : undefined,
-    engagements: 0, // for backwards compat - we don't really use this property anymore
-  };
-};
-
-export interface BoostedPostStats
-  extends Pick<GetCampaignListResponse, 'clicks' | 'impressions' | 'users'> {
-  engagements: number;
-  totalSpend: number;
-}
-
-export interface BoostedPostConnection extends Connection<GQLBoostedPost> {
-  stats?: Partial<BoostedPostStats>;
-}
-
 export const getAdjustedReach = (value: number) => {
   // We do plus-minus 8% of the generated value
   const difference = Math.floor(value * 0.08);
@@ -140,14 +67,6 @@ export const getAdjustedReach = (value: number) => {
 
   return estimatedReach;
 };
-
-export interface CampaignForV1
-  extends Pick<
-    CampaignPost,
-    'id' | 'referenceId' | 'createdAt' | 'endedAt' | 'state' | 'flags'
-  > {
-  post: GetBoostedPost;
-}
 
 export const startCampaignPost = async (props: StartCampaignMutationArgs) => {
   const { ctx, args } = props;

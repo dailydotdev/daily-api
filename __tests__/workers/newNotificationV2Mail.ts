@@ -101,13 +101,6 @@ jest.mock('../../src/common/mailing', () => ({
   sendEmail: jest.fn(),
 }));
 
-// Mock the skadiApiClientV1
-jest.mock('../../src/integrations/skadi/api/v1/clients', () => ({
-  skadiApiClientV1: {
-    getCampaignById: jest.fn(),
-  },
-}));
-
 let con: DataSource;
 let source: Source;
 

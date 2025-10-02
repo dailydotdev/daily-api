@@ -1,12 +1,13 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { AuthContext, BaseContext } from '../Context';
+import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
   Opportunity,
   OpportunityContent,
   OpportunityState,
+  ScreeningQuestionsRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum } from '../common';
@@ -22,14 +23,18 @@ import { Alerts } from '../entity';
 import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
-import { ConflictError } from '../errors';
+import { ConflictError, NotFoundError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
   deleteEmploymentAgreementByUserId,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
-import { opportunityEditSchema } from '../common/schema/opportunities';
+import {
+  opportunityEditSchema,
+  opportunityStateLiveSchema,
+  opportunityUpdateStateSchema,
+} from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
   ensureOpportunityPermissions,
@@ -38,6 +43,8 @@ import {
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
+import { getGondulClient } from '../common/gondul';
+import { createOpportunityPrompt } from '../common/opportunity/prompt';
 
 export interface GQLOpportunity
   extends Pick<
@@ -58,6 +65,13 @@ export interface GQLUserCandidatePreference
   > {
   keywords?: Array<{ keyword: string }>;
 }
+
+export type GQLOpportunityScreeningQuestion = Pick<
+  QuestionScreening,
+  'id' | 'title' | 'placeholder' | 'opportunityId'
+> & {
+  order: number;
+};
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -321,6 +335,22 @@ export const typeDefs = /* GraphQL */ `
       """
       payload: OpportunityEditInput!
     ): Opportunity! @auth
+
+    recommendOpportunityScreeningQuestions(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): [OpportunityScreeningQuestion!]! @auth
+
+    updateOpportunityState(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      state: ProtoEnumValue!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -332,15 +362,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     opportunityById: async (
       _,
       { id }: { id: string },
-      ctx: AuthContext,
+      ctx: Context,
       info,
-    ): Promise<GQLOpportunity> =>
-      graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder
-          .where({ id })
-          .andWhere({ state: OpportunityState.LIVE });
-        return builder;
-      }),
+    ): Promise<GQLOpportunity> => {
+      const opportunity = await graphorm.queryOneOrFail<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ id });
+
+          builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
+
+          return builder;
+        },
+      );
+
+      if (opportunity.state !== OpportunityState.LIVE) {
+        if (!ctx.userId) {
+          throw new NotFoundError('Not found!');
+        }
+
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId,
+          opportunityId: id,
+          permission: OpportunityPermissions.Edit,
+        });
+      }
+
+      return opportunity;
+    },
     getOpportunityMatch: async (
       _,
       { id }: { id: string },
@@ -696,16 +747,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityContent = new OpportunityContent(renderedContent);
 
-        await entityManager.getRepository(OpportunityJob).update(
-          { id },
-          {
+        await entityManager
+          .getRepository(OpportunityJob)
+          .createQueryBuilder()
+          .update({
             ...opportunityUpdate,
-            content: opportunityContent
-              ? () => `content || '${opportunityContent.toJsonString()}'`
-              : undefined,
-            meta: () => `meta || '${JSON.stringify(opportunity.meta || {})}'`,
-          },
-        );
+            content: () => `content || :contentJson`,
+            meta: () => `meta || :metaJson`,
+          })
+          .where({ id })
+          .setParameter('contentJson', opportunityContent.toJsonString())
+          .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
+          .execute();
 
         if (Array.isArray(keywords)) {
           await entityManager.getRepository(OpportunityKeyword).delete({
@@ -758,6 +811,116 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         return builder;
       });
+    },
+    recommendOpportunityScreeningQuestions: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunityScreeningQuestion[]> => {
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.Edit,
+      });
+
+      const hasQuestionsAlready = await ctx.con
+        .getRepository(QuestionScreening)
+        .exists({
+          where: { opportunityId: id },
+        });
+
+      if (hasQuestionsAlready) {
+        throw new ConflictError('Opportunity already has questions!');
+      }
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+          },
+        });
+
+      const gondulClient = getGondulClient();
+
+      const result = await gondulClient.garmr.execute(async () => {
+        return await gondulClient.instance.screeningQuestions(
+          new ScreeningQuestionsRequest({
+            jobOpportunity: createOpportunityPrompt({ opportunity }),
+          }),
+        );
+      });
+
+      const savedQuestions = await ctx.con
+        .getRepository(QuestionScreening)
+        .save(
+          result.screening.map((question, index) => {
+            return ctx.con.getRepository(QuestionScreening).create({
+              opportunityId: id,
+              title: question,
+              questionOrder: index,
+            });
+          }),
+        );
+
+      return savedQuestions.map((question) => {
+        return {
+          ...question,
+          order: question.questionOrder,
+        };
+      });
+    },
+    updateOpportunityState: async (
+      _,
+      payload,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, state } = opportunityUpdateStateSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.Edit,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+            keywords: true,
+            questions: true,
+          },
+        });
+
+      switch (state) {
+        case OpportunityState.LIVE: {
+          if (opportunity.state === OpportunityState.CLOSED) {
+            throw new ConflictError(`Opportunity is closed`);
+          }
+
+          opportunityStateLiveSchema.parse({
+            ...opportunity,
+            organization: await opportunity.organization,
+            keywords: await opportunity.keywords,
+            questions: await opportunity.questions,
+          });
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
+        }
+        default:
+          throw new ConflictError('Invalid state transition');
+      }
+
+      return {
+        _: true,
+      };
     },
   },
 });

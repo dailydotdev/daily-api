@@ -157,6 +157,13 @@ export type NotificationOpportunityMatchContext = NotificationBaseContext & {
   reasoningShort: string;
 };
 
+export type NotificationWarmIntroContext = NotificationBaseContext & {
+  description: string;
+  opportunityId: string;
+  recruiter: Reference<User>;
+  organization: Reference<Organization>;
+};
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
