@@ -899,16 +899,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       switch (state) {
         case OpportunityState.LIVE: {
+          if (opportunity.state === OpportunityState.CLOSED) {
+            throw new ConflictError(`Opportunity is closed`);
+          }
+
           opportunityStateLiveSchema.parse({
             ...opportunity,
             organization: await opportunity.organization,
             keywords: await opportunity.keywords,
             questions: await opportunity.questions,
           });
-
-          if (opportunity.state === OpportunityState.CLOSED) {
-            throw new ConflictError(`Opportunity is closed`);
-          }
 
           await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
 

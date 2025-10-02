@@ -2492,6 +2492,16 @@ describe('mutation updateOpportunityState', () => {
       title: 'Tell us about a recent project',
       questionOrder: 0,
     });
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+      },
+    );
 
     const before = await con
       .getRepository(Opportunity)
