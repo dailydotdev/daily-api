@@ -268,7 +268,6 @@ export const notifyJobOpportunity = async ({
 }: {
   con: DataSource;
   logger: FastifyBaseLogger;
-  isUpdate: boolean;
   opportunityId: string;
 }) => {
   const [opportunity, organization, keywords] = await queryReadReplica(
