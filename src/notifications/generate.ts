@@ -196,7 +196,7 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
-  new_opportunity_match: () => `New opportunity waiting for you in daily.dev`,
+  new_opportunity_match: () => `New opportunity waiting for you`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
   },
@@ -590,7 +590,7 @@ export const generateNotificationMap: Record<
       .avatarOrganization(ctx.organization)
       .avatarUser(ctx.recruiter)
       .description(
-        `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="" class="text-text-link">contact us</a></span>`,
+        `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
       );
   },
 };
