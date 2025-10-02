@@ -1,21 +1,39 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { UserWorkExperience } from './UserWorkExperience';
+import type { UserSkill } from '../UserSkill';
+
+const compositePrimaryKeyName =
+  'PK_COMPOSITE_user_experience_skill_slug_experienceId';
 
 @Entity()
 export class UserExperienceSkill {
-  @PrimaryColumn({ type: 'text' })
+  @ManyToOne('UserSkill', { lazy: true, onDelete: 'CASCADE' })
+  @JoinColumn({
+    name: 'slug',
+    foreignKeyConstraintName: 'FK_user_experience_skill_user_skill_slug',
+  })
+  skill: Promise<UserSkill>;
+
+  @PrimaryColumn({
+    type: 'text',
+    primaryKeyConstraintName: compositePrimaryKeyName,
+  })
   slug: string;
 
-  @Column({ type: 'text', unique: true })
+  @PrimaryColumn({
+    type: 'text',
+    primaryKeyConstraintName: compositePrimaryKeyName,
+  })
   experienceId: string;
 
   @ManyToOne(
     'UserExperience',
     (experience: UserWorkExperience) => experience.skills,
-    {
-      lazy: true,
-      onDelete: 'CASCADE',
-    },
+    { lazy: true, onDelete: 'CASCADE' },
   )
+  @JoinColumn({
+    foreignKeyConstraintName:
+      'FK_user_experience_skill_user_experience_experienceId',
+  })
   experience: Promise<UserWorkExperience>;
 }
