@@ -24,6 +24,18 @@ export const applicationScoreSchema = z.object({
   description: z.string(),
 });
 
+export const opportunityContentSchema = z.object({
+  overview: createOpportunityEditContentSchema(),
+  responsibilities: createOpportunityEditContentSchema(),
+  requirements: createOpportunityEditContentSchema(),
+  whatYoullDo: createOpportunityEditContentSchema({
+    optional: true,
+  }).optional(),
+  interviewProcess: createOpportunityEditContentSchema({
+    optional: true,
+  }).optional(),
+});
+
 export const opportunityEditSchema = z
   .object({
     title: z.string().nonempty().max(240),
@@ -58,17 +70,7 @@ export const opportunityEditSchema = z
       seniorityLevel: z.number(),
       roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
     }),
-    content: z
-      .object({
-        overview: createOpportunityEditContentSchema(),
-        responsibilities: createOpportunityEditContentSchema(),
-        requirements: createOpportunityEditContentSchema(),
-        whatYoullDo: createOpportunityEditContentSchema({ optional: true }),
-        interviewProcess: createOpportunityEditContentSchema({
-          optional: true,
-        }),
-      })
-      .partial(),
+    content: opportunityContentSchema.partial(),
     questions: z
       .array(
         z.object({
@@ -82,7 +84,9 @@ export const opportunityEditSchema = z
   })
   .partial();
 
-export const opportunityStateLiveSchema = opportunityEditSchema.required();
+export const opportunityStateLiveSchema = opportunityEditSchema.extend({
+  content: opportunityContentSchema,
+});
 
 export const opportunityUpdateStateSchema = z.object({
   id: z.uuid(),

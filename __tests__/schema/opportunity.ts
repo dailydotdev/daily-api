@@ -2463,6 +2463,9 @@ describe('mutation updateOpportunityState', () => {
           'meta.teamSize',
           'meta.seniorityLevel',
           'meta.roleType',
+          'content.overview',
+          'content.responsibilities',
+          'content.requirements',
           'questions',
         ]);
       },
