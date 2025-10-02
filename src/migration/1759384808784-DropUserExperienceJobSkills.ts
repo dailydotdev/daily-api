@@ -7,6 +7,12 @@ export class DropUserExperienceJobSkills1759384808784
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
+      `ALTER TABLE "user_experience" DROP COLUMN "links"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "user_experience" ADD "links" text array DEFAULT '{}'`,
+    );
+    await queryRunner.query(
       `ALTER TABLE "user_experience_skills" DROP CONSTRAINT "FK_148b0c2faa3d2d6571c0f8f0c3b"`,
     );
     await queryRunner.query(
@@ -89,6 +95,12 @@ export class DropUserExperienceJobSkills1759384808784
     );
     await queryRunner.query(
       `ALTER TABLE "user_experience_skills" ADD CONSTRAINT "FK_148b0c2faa3d2d6571c0f8f0c3b" FOREIGN KEY ("skillSlug") REFERENCES "user_skill"("slug") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "user_experience" DROP COLUMN "links"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "user_experience" ADD "links" jsonb DEFAULT '[]'`,
     );
   }
 }

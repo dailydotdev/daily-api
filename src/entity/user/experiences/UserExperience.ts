@@ -50,9 +50,7 @@ export class UserExperience {
   @Column({ type: 'timestamp', nullable: true })
   endedAt: Date | null;
 
-  @Column({
-    type: 'text',
-    nullable: false,
-  })
+  @Column({ type: 'text', nullable: false })
+  @Index('IDX_user_experience_type')
   type: UserExperienceType;
 }
