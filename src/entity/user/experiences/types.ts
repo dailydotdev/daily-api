@@ -3,14 +3,6 @@ export enum UserExperienceType {
   Education = 'education',
   Project = 'project',
   Certification = 'certification',
-  Award = 'award',
-  Publication = 'publication',
-  Course = 'course',
-}
-
-export enum ExperienceStatus {
-  Draft = 'draft',
-  Published = 'published',
 }
 
 export enum WorkEmploymentType {

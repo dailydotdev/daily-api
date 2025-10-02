@@ -1,46 +1,29 @@
-import { ChildEntity, Column, JoinColumn, ManyToOne } from 'typeorm';
+import { ChildEntity, Column, OneToMany } from 'typeorm';
 import { UserExperience } from './UserExperience';
-import type { Company } from '../../Company';
-import {
-  UserExperienceType,
-  WorkEmploymentType,
-  WorkVerificationStatus,
-  type WorkLocationType,
-} from './types';
+import { UserExperienceType } from './types';
+import { EmploymentType } from '@dailydotdev/schema';
+import { listAllProtoEnumValues } from '../../../common';
+import type { UserExperienceSkill } from './UserExperienceSkill';
+
+const defaultEmploymentTypes = listAllProtoEnumValues(EmploymentType);
 
 @ChildEntity(UserExperienceType.Work)
 export class UserWorkExperience extends UserExperience {
-  @Column()
-  companyId: string;
-
-  @ManyToOne('Company')
-  @JoinColumn({ name: 'companyId' })
-  company: Promise<Company>;
-
   @Column({
-    type: 'text',
+    type: 'integer',
+    array: true,
+    comment: 'EmploymentType from protobuf schema',
+    default: defaultEmploymentTypes,
   })
-  employmentType: WorkEmploymentType;
+  employmentType: Array<EmploymentType> = defaultEmploymentTypes;
 
-  @Column({ type: 'text', nullable: true })
-  location: string;
+  @Column({ default: false })
+  verified: boolean;
 
-  @Column({
-    type: 'text',
-    nullable: true,
-  })
-  locationType: WorkLocationType;
-
-  @Column({ type: 'text', array: true, default: [] })
-  achievements: string[];
-
-  // todo: never send this field to FE while implementing MI-958
-  @Column({ type: 'text', nullable: true })
-  verificationEmail: string;
-
-  @Column({
-    type: 'text',
-    nullable: true,
-  })
-  verificationStatus: WorkVerificationStatus;
+  @OneToMany(
+    'UserExperienceSkill',
+    (skill: UserExperienceSkill) => skill.experience,
+    { lazy: true },
+  )
+  skills: Promise<UserExperienceSkill>;
 }
