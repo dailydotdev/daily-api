@@ -547,6 +547,7 @@ export interface CreateMultipleSourcePostProps
   extends Omit<CreatePostArgs, 'sourceId'>,
     Pick<CreatePollPostProps, 'options' | 'duration'> {
   sharedPostId?: string;
+  externalLink?: string;
   sourceIds: string[];
 }
 
@@ -562,6 +563,7 @@ export const postInMultipleSourcesArgsSchema = z
     image: z.custom<Promise<FileUpload>>(),
     sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
     sharedPostId: z.string().optional(),
+    externalLink: z.httpUrl().optional(),
   })
   .extend(
     pollCreationSchema
@@ -572,8 +574,13 @@ export const postInMultipleSourcesArgsSchema = z
       .partial().shape,
   );
 
+type CreatePostInSourceArgs = Omit<
+  z.infer<typeof postInMultipleSourcesArgsSchema>,
+  'sourceIds'
+>;
+
 export const getMultipleSourcesPostType = (
-  args: z.infer<typeof postInMultipleSourcesArgsSchema>,
+  args: CreatePostInSourceArgs,
 ): PostType => {
   if (args.options?.length) {
     return PostType.Poll;
@@ -616,7 +623,7 @@ export const checkIfUserPostInSourceDirectlyOrThrow = async (
 export const createPostIntoSourceId = async (
   ctx: AuthContext,
   sourceId: string,
-  args: z.infer<typeof postInMultipleSourcesArgsSchema>,
+  args: CreatePostInSourceArgs,
   entityManager?: EntityManager,
 ): Promise<Pick<Post, 'id'>> => {
   const type = getMultipleSourcesPostType(args);
@@ -660,7 +667,7 @@ export const createPostIntoSourceId = async (
         },
       });
     }
-    default: {
+    case PostType.Freeform: {
       return await createFreeformPost(
         ctx,
         {
@@ -670,7 +677,44 @@ export const createPostIntoSourceId = async (
         { entityManager },
       );
     }
+    default: {
+      throw new Error('Invalid post type detected');
+    }
   }
+};
+
+export const getPostIdFromUrlOrCreateOne = async (
+  ctx: AuthContext,
+  args: CreatePostInSourceArgs,
+): Promise<Pick<Post, 'id'>> => {
+  if (!args.externalLink) {
+    throw new Error('External link is required');
+  }
+
+  const { url, canonicalUrl } = standardizeURL(args.externalLink!);
+  const existingPost = await getExistingPost(ctx.con, { url, canonicalUrl });
+
+  if (existingPost?.visible && !existingPost?.deleted) {
+    return existingPost;
+  }
+
+  const id = await generateShortId();
+  await createExternalLink({
+    con: ctx.con,
+    ctx,
+    args: {
+      id,
+      authorId: ctx.userId,
+      url,
+      canonicalUrl,
+      title: args.title,
+      image: await args.image,
+      commentary: args.content,
+      originalUrl: args.externalLink,
+    },
+  });
+
+  return { id };
 };
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
@@ -980,7 +1024,7 @@ export const processApprovedModeratedPost = async (
         originalUrl: externalLink,
       },
     });
-    return { ...moderated, postId: post.id };
+    return { ...moderated, postId: post?.id };
   }
 
   logger.error({ moderated }, 'unable to process moderated post');

@@ -3252,6 +3252,97 @@ describe('mutation createPostInMultipleSources', () => {
     });
   });
 
+  describe('submit link post creation', () => {
+    it('should successfully create link post in multiple squads', async () => {
+      loggedUser = '1';
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          ...freeformParams,
+          externalLink: 'https://www.google.com',
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(3);
+      expect(res.data.createPostInMultipleSources).toEqual([
+        expect.objectContaining({ type: 'post', sourceId: 'squad' }),
+        expect.objectContaining({ type: 'moderationItem', sourceId: 'm' }),
+        expect.objectContaining({ type: 'post', sourceId: '1' }),
+      ]);
+      const [first, second, third] = res.data.createPostInMultipleSources;
+
+      // Verify posts were actually created
+      const [post, moderationItem, userSourcePost] = await Promise.all([
+        await con.getRepository(SharePost).findOneByOrFail({ id: first.id }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sourceId', 'sharedPostId'],
+          where: { id: second.id, status: SourcePostModerationStatus.Pending },
+        }),
+        await con.getRepository(SharePost).findOneByOrFail({
+          id: third.id,
+          sourceId: '1',
+        }),
+      ]);
+
+      expect(post.sharedPostId).toBe(moderationItem.sharedPostId);
+      expect(post.sharedPostId).toBe(userSourcePost.sharedPostId);
+      expect(post.sharedPostId).toBeTruthy();
+    });
+
+    it('should share post when already existing url is submitted', async () => {
+      loggedUser = '1';
+      // Get one existent URL from the database
+      const existingArticle = await con
+        .getRepository(ArticlePost)
+        .findOneOrFail({
+          select: ['id', 'url', 'sourceId'],
+          where: { url: Not('NULL') },
+        });
+      const { url } = existingArticle;
+      // ensure user is a member in that source
+      await con.getRepository(SourceMember).save({
+        userId: '1',
+        sourceId: existingArticle.sourceId,
+        role: SourceMemberRoles.Member,
+        referralToken: 'rt1-existing',
+      });
+
+      // create multiple post with same URL
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          ...freeformParams,
+          externalLink: url,
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(3);
+      expect(res.data.createPostInMultipleSources).toEqual([
+        expect.objectContaining({ type: 'post', sourceId: 'squad' }),
+        expect.objectContaining({ type: 'moderationItem', sourceId: 'm' }),
+        expect.objectContaining({ type: 'post', sourceId: '1' }),
+      ]);
+      const [first, second, third] = res.data.createPostInMultipleSources;
+
+      // Verify posts were actually created
+      const [post, moderationItem, userSourcePost] = await Promise.all([
+        await con.getRepository(SharePost).findOneByOrFail({ id: first.id }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sharedPostId'],
+          where: { id: second.id },
+        }),
+        await con.getRepository(SharePost).findOneByOrFail({
+          id: third.id,
+          sourceId: '1',
+        }),
+      ]);
+
+      expect(post.sharedPostId).toBe(existingArticle.id);
+      expect(moderationItem.sharedPostId).toBe(existingArticle.id);
+      expect(userSourcePost.sharedPostId).toBe(existingArticle.id);
+    });
+  });
+
   describe('poll post creation', () => {
     const pollParams = {
       sourceIds: ['1', 'squad', 'm'],

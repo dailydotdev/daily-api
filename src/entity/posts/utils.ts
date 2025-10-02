@@ -35,10 +35,10 @@ import { logger } from '../../logger';
 import { FastifyRequest } from 'fastify';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
-  applyVordrHook,
-  applyVordrHookForUpdate,
   applyDeduplicationHook,
   applyDeduplicationHookForUpdate,
+  applyVordrHook,
+  applyVordrHookForUpdate,
 } from './hooks';
 
 export type PostStats = {
@@ -281,13 +281,14 @@ interface CreateExternalLinkArgs {
   con: ConnectionManager;
   ctx?: AuthContext;
   args: {
+    id?: string;
     title?: string | null;
     commentary?: string | null;
     url: string;
     canonicalUrl?: string;
     image?: string | null;
     authorId: string;
-    sourceId: string;
+    sourceId?: string;
     originalUrl: string;
   };
 }
@@ -337,8 +338,9 @@ export const createExternalLink = async ({
   con,
   ctx,
   args,
-}: CreateExternalLinkArgs): Promise<Post> => {
+}: CreateExternalLinkArgs): Promise<Post | null> => {
   const {
+    id = await generateShortId(),
     title,
     url,
     canonicalUrl,
@@ -349,7 +351,6 @@ export const createExternalLink = async ({
     originalUrl,
   } = args;
   validateCommentary(commentary!);
-  const id = await generateShortId();
   const isVisible = !!title;
 
   return con.transaction(async (entityManager) => {
@@ -382,24 +383,28 @@ export const createExternalLink = async ({
     });
 
     await entityManager.getRepository(ArticlePost).insert(postData);
-    const post = await createSharePost({
-      con: entityManager,
-      ctx,
-      args: {
-        authorId,
-        postId: id,
-        sourceId,
-        commentary,
-        visible: isVisible,
-      },
-    });
+
     await notifyContentRequested(ctx?.log || logger, {
       id,
       url,
       origin: PostOrigin.Squad,
     });
 
-    return post;
+    if (sourceId) {
+      return await createSharePost({
+        con: entityManager,
+        ctx,
+        args: {
+          authorId,
+          postId: id,
+          sourceId,
+          commentary,
+          visible: isVisible,
+        },
+      });
+    }
+
+    return null;
   });
 };
 

@@ -17,46 +17,47 @@ import {
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  checkIfUserPostInSourceDirectlyOrThrow,
   createFreeformPost,
+  CreateMultipleSourcePostProps,
   createPollPost,
+  type CreatePollPostProps,
   CreatePostArgs,
+  createPostIntoSourceId,
   createSourcePostModeration,
   CreateSourcePostModerationArgs,
   DEFAULT_POST_TITLE,
   EditablePost,
   EditPostArgs,
+  ensurePostAnalyticsPermissions,
   fetchLinkPreview,
+  findPostByUrl,
+  getAllModerationItemsAsAdmin,
   getDiscussionLink,
+  getModerationItemsAsAdminForSource,
+  getModerationItemsByUserForSource,
+  getMultipleSourcesPostType,
+  getPostIdFromUrlOrCreateOne,
+  getPostSmartTitle,
+  getPostTranslatedTitle,
+  getTranslationRecord,
+  type GQLSourcePostModeration,
   isValidHttpUrl,
   mapCloudinaryUrl,
   notifyView,
   ONE_MINUTE_IN_SECONDS,
+  parseBigInt,
   pickImageUrl,
+  postInMultipleSourcesArgsSchema,
+  type SourcePostModerationArgs,
   standardizeURL,
+  systemUser,
   toGQLEnum,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
   validateSourcePostModeration,
-  getPostTranslatedTitle,
-  getPostSmartTitle,
-  getModerationItemsAsAdminForSource,
-  getModerationItemsByUserForSource,
-  type GQLSourcePostModeration,
-  type SourcePostModerationArgs,
-  getAllModerationItemsAsAdmin,
-  getTranslationRecord,
-  systemUser,
-  parseBigInt,
-  findPostByUrl,
-  ensurePostAnalyticsPermissions,
-  type CreatePollPostProps,
-  CreateMultipleSourcePostProps,
-  postInMultipleSourcesArgsSchema,
-  getMultipleSourcesPostType,
-  checkIfUserPostInSourceDirectlyOrThrow,
-  createPostIntoSourceId,
 } from '../common';
 import {
   ContentImage,
@@ -3314,13 +3315,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<Array<MultipleSourcesPostResult>> => {
       const args = postInMultipleSourcesArgsSchema.parse(input);
 
-      const { sourceIds, sharedPostId, ...postArgs } = args;
+      const { sourceIds, ...postArgs } = args;
       const detectedPostType = getMultipleSourcesPostType(args);
 
       await ensurePostRateLimit(ctx.con, ctx.userId);
       const isPostingToSelfSource = sourceIds.includes(ctx.userId);
       if (isPostingToSelfSource) {
         await ensureUserSourceExists(ctx.userId, ctx.con);
+      }
+
+      const hasExternalLink = !!postArgs.externalLink;
+      if (hasExternalLink) {
+        const { id } = await getPostIdFromUrlOrCreateOne(ctx, postArgs);
+        postArgs.sharedPostId = id;
       }
 
       return await ctx.con.transaction(async (entityManager) => {
@@ -3337,7 +3344,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             const { id } = await createPostIntoSourceId(
               ctx,
               sourceId,
-              args,
+              postArgs,
               entityManager,
             );
             output.push({
@@ -3355,8 +3362,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           const pendingPost = await validateSourcePostModeration(ctx, {
             ...pendingArgs,
             sourceId,
-            sharedPostId,
-            type: detectedPostType,
+            type:
+              detectedPostType === PostType.Article
+                ? PostType.Share
+                : detectedPostType,
             pollOptions: options,
           });
           const { id } = await createSourcePostModeration({
