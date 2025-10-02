@@ -30,7 +30,11 @@ import {
   deleteEmploymentAgreementByUserId,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
-import { opportunityEditSchema } from '../common/schema/opportunities';
+import {
+  opportunityEditSchema,
+  opportunityStateLiveSchema,
+  opportunityUpdateStateSchema,
+} from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
   ensureOpportunityPermissions,
@@ -338,6 +342,15 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): [OpportunityScreeningQuestion!]! @auth
+
+    updateOpportunityState(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      state: ProtoEnumValue!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -858,6 +871,56 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           order: question.questionOrder,
         };
       });
+    },
+    updateOpportunityState: async (
+      _,
+      payload,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, state } = opportunityUpdateStateSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.Edit,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+            keywords: true,
+            questions: true,
+          },
+        });
+
+      switch (state) {
+        case OpportunityState.LIVE: {
+          if (opportunity.state === OpportunityState.CLOSED) {
+            throw new ConflictError(`Opportunity is closed`);
+          }
+
+          opportunityStateLiveSchema.parse({
+            ...opportunity,
+            organization: await opportunity.organization,
+            keywords: await opportunity.keywords,
+            questions: await opportunity.questions,
+          });
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
+        }
+        default:
+          throw new ConflictError('Invalid state transition');
+      }
+
+      return {
+        _: true,
+      };
     },
   },
 });
