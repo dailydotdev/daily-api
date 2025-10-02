@@ -387,7 +387,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           con: ctx.con.manager,
           userId: ctx.userId,
           opportunityId: id,
-          permission: OpportunityPermissions.Edit,
+          permission: OpportunityPermissions.ViewDraft,
         });
       }
 
@@ -727,18 +727,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       await ctx.con.transaction(async (entityManager) => {
-        const isDraft = await entityManager
-          .getRepository(OpportunityJob)
-          .exists({
-            where: { id, state: OpportunityState.DRAFT },
-          });
-
-        if (!isDraft) {
-          throw new ConflictError(
-            'Only opportunities in draft state can be edited',
-          );
-        }
-
         const { keywords, content, questions, ...opportunityUpdate } =
           opportunity;
 
@@ -896,7 +884,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         con: ctx.con.manager,
         userId: ctx.userId,
         opportunityId: id,
-        permission: OpportunityPermissions.Edit,
+        permission: OpportunityPermissions.UpdateState,
       });
 
       const opportunity = await ctx.con
