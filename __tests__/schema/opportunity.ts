@@ -125,6 +125,7 @@ describe('query opportunityById', () => {
       opportunityById(id: $id) {
         id
         type
+        state
         title
         tldr
         content {
@@ -202,6 +203,7 @@ describe('query opportunityById', () => {
     expect(res.data.opportunityById).toEqual({
       id: '550e8400-e29b-41d4-a716-446655440001',
       type: 1,
+      state: 2,
       title: 'Senior Full Stack Developer',
       tldr: 'Join our team as a Senior Full Stack Developer',
       content: {
@@ -1782,6 +1784,17 @@ describe('mutation uploadEmploymentAgreement', () => {
 });
 
 describe('mutation editOpportunity', () => {
+  beforeEach(async () => {
+    await con.getRepository(OpportunityJob).update(
+      {
+        id: opportunitiesFixture[0].id,
+      },
+      {
+        state: OpportunityState.DRAFT,
+      },
+    );
+  });
+
   const MUTATION = /* GraphQL */ `
     mutation EditOpportunity($id: ID!, $payload: OpportunityEditInput!) {
       editOpportunity(id: $id, payload: $payload) {
@@ -2231,6 +2244,30 @@ describe('mutation editOpportunity', () => {
     });
 
     expect(res.errors).toBeFalsy();
+  });
+
+  it('should throw error when opportunity is not draft', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(OpportunityJob)
+      .update(
+        { id: opportunitiesFixture[0].id },
+        { state: OpportunityState.LIVE },
+      );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: { title: 'Does not matter' },
+        },
+      },
+      'CONFLICT',
+      'Only opportunities in draft state can be edited',
+    );
   });
 });
 
