@@ -1224,7 +1224,7 @@ describe('generateNotification', () => {
     expect(actual.notification.uniqueKey).toEqual(userId);
     expect(actual.notification.icon).toEqual('Opportunity');
     expect(actual.notification.title).toEqual(
-      'New opportunity waiting for you in daily.dev',
+      'New opportunity waiting for you',
     );
     expect(actual.notification.description).toEqual(
       '<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> Based on your React and TypeScript skills</span>',
@@ -2064,5 +2064,66 @@ describe('poll result notifications', () => {
     expect(actual.notification.title).toEqual(
       '<b>Your poll has ended!</b> Check the results for: <b>What is your favorite programming language?</b>',
     );
+  });
+});
+
+describe('warm intro notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should generate warm_intro notification', async () => {
+    const type = NotificationType.WarmIntro;
+    const recruiter = usersFixture[1] as Reference<User>;
+    const organization = {
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: 'Daily Dev Inc',
+      image: 'https://example.com/logo.png',
+    };
+
+    const ctx = {
+      userIds: ['1'],
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      description: 'Warm introduction for opportunity',
+      recruiter,
+      organization,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
+    expect(actual.notification.referenceType).toEqual('opportunity');
+    expect(actual.notification.icon).toEqual('Opportunity');
+    expect(actual.notification.title).toEqual(
+      `We just sent an intro email to you and <b>${recruiter.name}</b> from <b>${organization.name}</b>!`,
+    );
+    expect(actual.notification.description).toEqual(
+      `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
+    );
+    expect(actual.notification.targetUrl).toEqual('system');
+    expect(actual.notification.uniqueKey).toEqual('1');
+    expect(actual.avatars).toEqual([
+      {
+        image: organization.image,
+        name: organization.name,
+        referenceId: organization.id,
+        targetUrl:
+          'http://localhost:5002/settings/organization/550e8400-e29b-41d4-a716-446655440000',
+        type: 'organization',
+      },
+      {
+        image: recruiter.image,
+        name: recruiter.name,
+        referenceId: recruiter.id,
+        targetUrl: `http://localhost:5002/${recruiter.username}`,
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
   });
 });
