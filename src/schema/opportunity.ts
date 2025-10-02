@@ -741,8 +741,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }
 
           renderedContent[key] = {
-            content: value.content.replace(/'/g, "''"),
-            html: markdown.render(value.content).replace(/'/g, "''"),
+            content: value.content,
+            html: markdown.render(value.content),
           };
         });
 
