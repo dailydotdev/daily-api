@@ -124,6 +124,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   post_analytics: '',
   poll_result: '84',
   poll_result_author: '84',
+  warm_intro: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1100,6 +1101,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
     };
   },
+  warm_intro: async () => null,
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
