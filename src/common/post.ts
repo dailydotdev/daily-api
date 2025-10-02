@@ -397,13 +397,11 @@ const hasDuplicatedPostBy = async (
       .where({
         status: SourcePostModerationStatus.Pending,
       })
-      .andWhere(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey })
-      .limit(1);
+      .andWhere(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey });
     const postQb = queryRunner.manager
       .getRepository(Post)
       .createQueryBuilder('p')
-      .where(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey })
-      .limit(1);
+      .where(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey });
 
     if (sourceId) {
       pendingQb.andWhere(`p.sourceId = :sourceId`, { sourceId });
@@ -411,11 +409,11 @@ const hasDuplicatedPostBy = async (
     }
 
     const [pendingExists, postExists] = await Promise.all([
-      pendingQb.getOne(),
-      postQb.getOne(),
+      pendingQb.getExists(),
+      postQb.getExists(),
     ]);
 
-    return !!(pendingExists || postExists);
+    return pendingExists || postExists;
   });
 };
 
