@@ -999,7 +999,7 @@ describe('mutation saveOpportunityScreeningAnswers', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1252,7 +1252,7 @@ describe('mutation candidateAddKeywords', () => {
         variables: { keywords: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1278,7 +1278,7 @@ describe('mutation candidateAddKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1306,7 +1306,7 @@ describe('mutation candidateAddKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1422,7 +1422,7 @@ describe('mutation candidateRemoveKeywords', () => {
         variables: { keywords: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1448,7 +1448,7 @@ describe('mutation candidateRemoveKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1476,7 +1476,7 @@ describe('mutation candidateRemoveKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1698,7 +1698,7 @@ describe('mutation uploadEmploymentAgreement', () => {
     const extensions = body?.errors?.[0].extensions as unknown as ZodError;
 
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].message).toEqual('Validation error');
     expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(extensions.issues[0].code).toEqual('custom');
     expect(extensions.issues[0].message).toEqual('Unsupported file type');
@@ -1734,7 +1734,7 @@ describe('mutation uploadEmploymentAgreement', () => {
     const extensions = body?.errors?.[0].extensions as unknown as ZodError;
 
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].message).toEqual('Validation error');
     expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(extensions.issues[0].code).toEqual('custom');
     expect(extensions.issues[0].message).toEqual(
@@ -1771,7 +1771,7 @@ describe('mutation uploadEmploymentAgreement', () => {
     const extensions = body?.errors?.[0].extensions as unknown as ZodError;
 
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].message).toEqual('Validation error');
     expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(extensions.issues[0].code).toEqual('custom');
     expect(extensions.issues[0].message).toEqual(
@@ -2127,7 +2127,7 @@ describe('mutation editOpportunity', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
