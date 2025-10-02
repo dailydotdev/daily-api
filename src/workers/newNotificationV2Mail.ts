@@ -1101,9 +1101,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
     };
   },
-  warm_intro: async () => {
-    return null;
-  },
+  warm_intro: async () => null,
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {
