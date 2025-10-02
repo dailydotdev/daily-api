@@ -687,7 +687,7 @@ export const getPostIdFromUrlOrCreateOne = async (
   const { url, canonicalUrl } = standardizeURL(args.externalLink!);
   const existingPost = await getExistingPost(ctx.con, { url, canonicalUrl });
 
-  if (existingPost?.visible && !existingPost?.deleted) {
+  if (existingPost) {
     return existingPost;
   }
 
