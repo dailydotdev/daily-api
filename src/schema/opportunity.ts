@@ -10,7 +10,7 @@ import {
   ScreeningQuestionsRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { toGQLEnum } from '../common';
+import { isProd, toGQLEnum } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
@@ -843,6 +843,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             organization: true,
           },
         });
+
+      if (!isProd) {
+        return [];
+      }
 
       const gondulClient = getGondulClient();
 
