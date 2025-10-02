@@ -37,6 +37,7 @@ import { campaignPostAnalyticsNotification } from './campaignPostAnalyticsNotifi
 import { pollResultAuthorNotification } from './pollResultAuthorNotification';
 import { pollResultNotification } from './pollResultNotification';
 import { articleNewCommentCommentCommented } from './articleNewCommentCommentCommented';
+import { warmIntroNotification } from './warmIntroNotification';
 
 export function notificationWorkerToWorker(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,13 +46,10 @@ export function notificationWorkerToWorker(
   return {
     ...worker,
     handler: async (message, con, logger) => {
-      const args = await worker.handler(
-        worker.parseMessage
-          ? worker.parseMessage(message)
-          : messageToJson(message),
-        con,
-        logger,
-      );
+      const parsedMessage = worker.parseMessage
+        ? worker.parseMessage(message)
+        : messageToJson(message);
+      const args = await worker.handler(parsedMessage, con, logger);
 
       if (!args) {
         return;
@@ -62,10 +60,9 @@ export function notificationWorkerToWorker(
         });
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
-
         if (err?.code === TypeOrmError.NULL_VIOLATION) {
           logger.error(
-            { data: messageToJson(message), err },
+            { data: parsedMessage, err },
             'null violation when creating a notification',
           );
           return;
@@ -75,7 +72,7 @@ export function notificationWorkerToWorker(
           err?.constraint === TypeOrmError.USER_CONSTRAINT
         ) {
           logger.error(
-            { data: messageToJson(message), err },
+            { data: parsedMessage, err },
             'user constraint failed when creating a notification',
           );
           return;
@@ -124,6 +121,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   campaignPostAnalyticsNotification,
   pollResultAuthorNotification,
   pollResultNotification,
+  warmIntroNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];
