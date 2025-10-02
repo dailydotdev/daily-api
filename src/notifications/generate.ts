@@ -590,7 +590,7 @@ export const generateNotificationMap: Record<
       .avatarOrganization(ctx.organization)
       .avatarUser(ctx.recruiter)
       .description(
-        `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="" class="text-text-link">contact us</a></span>`,
+        `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
       );
   },
 };
