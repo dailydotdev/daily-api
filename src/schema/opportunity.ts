@@ -132,6 +132,7 @@ export const typeDefs = /* GraphQL */ `
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
+    state: ProtoEnumValue!
     title: String!
     tldr: String
     content: OpportunityContent!
@@ -386,7 +387,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           con: ctx.con.manager,
           userId: ctx.userId,
           opportunityId: id,
-          permission: OpportunityPermissions.Edit,
+          permission: OpportunityPermissions.ViewDraft,
         });
       }
 
@@ -883,7 +884,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         con: ctx.con.manager,
         userId: ctx.userId,
         opportunityId: id,
-        permission: OpportunityPermissions.Edit,
+        permission: OpportunityPermissions.UpdateState,
       });
 
       const opportunity = await ctx.con
