@@ -3343,6 +3343,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (hasExternalLink) {
         const { id } = await getPostIdFromUrlOrCreateOne(ctx, postArgs);
         postArgs.sharedPostId = id;
+        postArgs.title = postArgs.content; // when passing external link, content is the shared post commentary
       }
 
       return await ctx.con.transaction(async (entityManager) => {
