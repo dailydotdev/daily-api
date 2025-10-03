@@ -10,7 +10,7 @@ import {
   Salary,
   UserCV,
 } from '@dailydotdev/schema';
-import { demoCompany, triggerTypedEvent } from '../../common';
+import { demoCompany, triggerTypedEvent, uniqueifyArray } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { ChangeObject } from '../../types';
@@ -295,7 +295,7 @@ export const notifyJobOpportunity = async ({
   logger: FastifyBaseLogger;
   opportunityId: string;
 }) => {
-  const [opportunity, organization, keywords] = await queryReadReplica(
+  const [opportunity, organization, keywords, users] = await queryReadReplica(
     con,
     async ({ queryRunner }) => {
       const opportunity = await queryRunner.manager
@@ -305,15 +305,17 @@ export const notifyJobOpportunity = async ({
           relations: {
             organization: true,
             keywords: true,
+            users: true,
           },
         });
 
-      const [organization, keywords] = await Promise.all([
+      const [organization, keywords, users] = await Promise.all([
         opportunity.organization,
         opportunity.keywords,
+        opportunity.users,
       ]);
 
-      return [opportunity, organization, keywords];
+      return [opportunity, organization, keywords, users];
     },
   );
 
@@ -328,17 +330,18 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
+  const organizationMembers = await con
+    .getRepository(ContentPreferenceOrganization)
+    .find({
+      select: ['userId'],
+      where: { organizationId: organization.id },
+    });
+
   /**
    * Demo logic: if the company is the demo company we can omit using Gondul and simply return the users from that company as matched candidates
    */
   if (organization.id === demoCompany.id) {
-    const members = await con
-      .getRepository(ContentPreferenceOrganization)
-      .find({
-        select: ['userId'],
-        where: { organizationId: organization.id },
-      });
-    for (const { userId } of members) {
+    for (const { userId } of organizationMembers) {
       await triggerTypedEvent(
         logger,
         'gondul.v1.candidate-opportunity-match',
@@ -356,6 +359,11 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
+  const excludedUserIds = uniqueifyArray([
+    ...organizationMembers.map((m) => m.userId),
+    ...users.map((u) => u.userId),
+  ]);
+
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
@@ -368,6 +376,7 @@ export const notifyJobOpportunity = async ({
       createdAt: getSecondsTimestamp(organization.createdAt),
       updatedAt: getSecondsTimestamp(organization.updatedAt),
     },
+    excludedUserIds,
   });
 
   try {
