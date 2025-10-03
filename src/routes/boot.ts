@@ -252,10 +252,6 @@ const getSquads = async (
       .addSelect('role')
       .addSelect('"moderationRequired"')
       .addSelect('"memberPostingRank"')
-      .addSelect(
-        `COALESCE((sm.flags->>'hasUnreadPosts')::boolean, false)`,
-        'hasUnreadPosts',
-      )
       .from(SourceMember, 'sm')
       .innerJoin(
         SquadSource,
