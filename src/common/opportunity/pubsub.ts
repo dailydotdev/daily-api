@@ -1,4 +1,4 @@
-import { DataSource, type EntityManager, In } from 'typeorm';
+import { DataSource, type EntityManager } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
