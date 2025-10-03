@@ -41,7 +41,7 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
 
-      if (err?.name !== 'EntityNotFoundError') {
+      if (err?.name === 'EntityNotFoundError') {
         return;
       }
 
