@@ -47,6 +47,7 @@ import { uniqueifyObjectArray } from './utils';
 import {
   type CreatePollOption,
   SourcePostModeration,
+  SourcePostModerationFlags,
   SourcePostModerationStatus,
   WarningReason,
 } from '../entity/SourcePostModeration';
@@ -86,6 +87,7 @@ export interface GQLSourcePostModeration {
   post?: Post;
   postId?: string;
   pollOptions?: CreatePollOption[];
+  flags?: Pick<SourcePostModerationFlags, 'warningReason'>;
 }
 
 const POST_MODERATION_PAGE_SIZE = 15;

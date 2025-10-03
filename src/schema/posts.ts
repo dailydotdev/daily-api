@@ -315,6 +315,16 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  Pending Post flags
+  """
+  type SourcePostModerationFlags {
+    """
+    Warning reason
+    """
+    warningReason: String
+  }
+
+  """
   Post moderation item
   """
   type SourcePostModeration {
@@ -390,6 +400,10 @@ export const typeDefs = /* GraphQL */ `
     Poll options for poll posts
     """
     pollOptions: [CreatePollOption!]
+    """
+    flags
+    """
+    flags: SourcePostModerationFlags
   }
 
   type TocItem {
