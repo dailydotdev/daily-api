@@ -17,42 +17,47 @@ import {
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import {
+  checkIfUserPostInSourceDirectlyOrThrow,
   createFreeformPost,
+  CreateMultipleSourcePostProps,
   createPollPost,
-  CreatePost,
+  type CreatePollPostProps,
   CreatePostArgs,
+  createPostIntoSourceId,
   createSourcePostModeration,
   CreateSourcePostModerationArgs,
   DEFAULT_POST_TITLE,
   EditablePost,
   EditPostArgs,
+  ensurePostAnalyticsPermissions,
   fetchLinkPreview,
+  findPostByUrl,
+  getAllModerationItemsAsAdmin,
   getDiscussionLink,
+  getModerationItemsAsAdminForSource,
+  getModerationItemsByUserForSource,
+  getMultipleSourcesPostType,
+  getPostIdFromUrlOrCreateOne,
+  getPostSmartTitle,
+  getPostTranslatedTitle,
+  getTranslationRecord,
+  type GQLSourcePostModeration,
   isValidHttpUrl,
   mapCloudinaryUrl,
   notifyView,
   ONE_MINUTE_IN_SECONDS,
+  parseBigInt,
   pickImageUrl,
+  postInMultipleSourcesArgsSchema,
+  type SourcePostModerationArgs,
   standardizeURL,
+  systemUser,
   toGQLEnum,
   updateFlagsStatement,
   uploadPostFile,
   UploadPreset,
   validatePost,
   validateSourcePostModeration,
-  getPostTranslatedTitle,
-  getPostSmartTitle,
-  getModerationItemsAsAdminForSource,
-  getModerationItemsByUserForSource,
-  type GQLSourcePostModeration,
-  type SourcePostModerationArgs,
-  getAllModerationItemsAsAdmin,
-  getTranslationRecord,
-  systemUser,
-  parseBigInt,
-  findPostByUrl,
-  ensurePostAnalyticsPermissions,
-  type CreatePollPostProps,
 } from '../common';
 import {
   ContentImage,
@@ -116,7 +121,12 @@ import { generateStorageKey, StorageTopic } from '../config';
 import { isBefore, subDays } from 'date-fns';
 import { ReportReason } from '../entity/common';
 import { reportPost, saveHiddenPost } from '../common/reporting';
-import { PostCodeSnippetLanguage, UserVote } from '../types';
+import {
+  MultipleSourcesPostItemType,
+  MultipleSourcesPostResult,
+  PostCodeSnippetLanguage,
+  UserVote,
+} from '../types';
 import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import {
   SourcePostModeration,
@@ -292,6 +302,17 @@ export type GQLPostAnalyticsHistory = Omit<
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(BriefingType, 'BriefingType')}
+  ${toGQLEnum(MultipleSourcesPostItemType, 'MultiplePostItemType')}
+
+  """
+  Multiple post item
+  """
+  type MultiplePostItem {
+    type: MultiplePostItemType!
+    sourceId: ID!
+    id: ID!
+    slug: String
+  }
 
   """
   Post moderation item
@@ -1298,6 +1319,52 @@ export const typeDefs = /* GraphQL */ `
       """
       duration: Int
     ): SourcePostModeration! @auth @rateLimit(limit: 1, duration: 30)
+
+    """
+    Create multiple source posts
+    """
+    createPostInMultipleSources(
+      """
+      Ids of the Sources to post into
+      """
+      sourceIds: [ID!]!
+      """
+      content of the post
+      """
+      content: String
+      """
+      Commentary on the post
+      """
+      commentary: String
+      """
+      title of the post
+      """
+      title: String
+      """
+      Image to upload
+      """
+      image: Upload
+      """
+      Image URL to use
+      """
+      imageUrl: String
+      """
+      ID of the post to share
+      """
+      sharedPostId: ID
+      """
+      External link of the post
+      """
+      externalLink: String
+      """
+      Poll options
+      """
+      options: [PollOptionInput!]
+      """
+      Duration in days
+      """
+      duration: Int
+    ): [MultiplePostItem]! @auth @rateLimit(limit: 1, duration: 30)
 
     """
     Hide a post from all the user feeds
@@ -2515,19 +2582,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
     createFreeformPost: async (
-      source,
+      _,
       args: CreatePostArgs,
       ctx: AuthContext,
       info,
     ): Promise<GQLPost> => {
-      const { sourceId, image } = args;
+      const { sourceId } = args;
       const { con, userId } = ctx;
-      const id = await generateShortId();
-      const { title, content } = validatePost(args);
-
-      if (!title) {
-        throw new ValidationError('Title can not be an empty string!');
-      }
 
       if (sourceId === userId) {
         await ensureUserSourceExists(userId, con);
@@ -2537,31 +2598,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
-      await con.transaction(async (manager) => {
-        const mentions = await getMentions(manager, content, userId, sourceId);
-        const contentHtml = markdown.render(content, { mentions });
-        const params: CreatePost = {
-          id,
-          title,
-          content,
-          contentHtml,
-          authorId: userId,
-          sourceId,
-        };
 
-        if (image && process.env.CLOUDINARY_URL) {
-          const upload = await image;
-          const { url: coverImageUrl } = await uploadPostFile(
-            id,
-            upload.createReadStream(),
-            UploadPreset.PostBannerImage,
-          );
-          params.image = coverImageUrl;
-        }
-
-        await createFreeformPost({ con: manager, ctx, args: params });
-        await saveMentions(manager, id, userId, mentions, PostMention);
-      });
+      const { id } = await createFreeformPost(ctx.con, ctx, args);
 
       return graphorm.queryOneOrFail<GQLPost>(ctx, info, (builder) => ({
         ...builder,
@@ -2572,7 +2610,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }));
     },
     editPost: async (
-      source,
+      _,
       args: EditPostArgs,
       ctx: AuthContext,
       info,
@@ -3270,6 +3308,81 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return getPostById(ctx, info, args.postId);
+    },
+    createPostInMultipleSources: async (
+      _,
+      input: CreateMultipleSourcePostProps,
+      ctx: AuthContext,
+    ): Promise<Array<MultipleSourcesPostResult>> => {
+      const args = postInMultipleSourcesArgsSchema.parse(input);
+
+      const { sourceIds, ...postArgs } = args;
+      const detectedPostType = getMultipleSourcesPostType(args);
+
+      await ensurePostRateLimit(ctx.con, ctx.userId);
+      const isPostingToSelfSource = sourceIds.includes(ctx.userId);
+      if (isPostingToSelfSource) {
+        await ensureUserSourceExists(ctx.userId, ctx.con);
+      }
+
+      const hasExternalLink = !!postArgs.externalLink;
+      if (hasExternalLink) {
+        const { id } = await getPostIdFromUrlOrCreateOne(ctx, postArgs);
+        postArgs.sharedPostId = id;
+      }
+
+      return await ctx.con.transaction(async (entityManager) => {
+        const output: Array<MultipleSourcesPostResult> = [];
+        for (const sourceId of sourceIds) {
+          const canUserPostDirectly =
+            await checkIfUserPostInSourceDirectlyOrThrow(ctx.con, {
+              sourceId,
+              userId: ctx.userId,
+            });
+
+          if (canUserPostDirectly) {
+            // directly post on squad
+            const { id } = await createPostIntoSourceId(
+              entityManager,
+              ctx,
+              sourceId,
+              postArgs,
+            );
+            output.push({
+              id,
+              type: MultipleSourcesPostItemType.Post,
+              sourceId,
+            });
+
+            continue;
+          }
+
+          // OR create a pending post instead
+          const isMultiPost = sourceIds.length > 1;
+          const { options, ...pendingArgs } = postArgs;
+          const pendingPost = await validateSourcePostModeration(ctx, {
+            ...pendingArgs,
+            sourceId,
+            type:
+              detectedPostType === PostType.Article
+                ? PostType.Share
+                : detectedPostType,
+            pollOptions: options,
+          });
+          const { id } = await createSourcePostModeration({
+            ctx,
+            args: pendingPost,
+            options: { isMultiPost, entityManager },
+          });
+          output.push({
+            id,
+            type: MultipleSourcesPostItemType.ModerationItem,
+            sourceId,
+          });
+        }
+
+        return output;
+      });
     },
   },
   Subscription: {

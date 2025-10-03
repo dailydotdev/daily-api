@@ -289,6 +289,17 @@ export const clickhouseMigrationsDir = 'clickhouse/migrations';
 export const clickhouseMigrationFilenameMatch =
   /^(\d+)_([a-zA-Z_]+)\.(up|down)\.sql$/i;
 
+export enum MultipleSourcesPostItemType {
+  Post = 'post',
+  ModerationItem = 'moderationItem',
+}
+
+export interface MultipleSourcesPostResult {
+  id: string;
+  type: MultipleSourcesPostItemType;
+  sourceId: string;
+}
+
 export type ServiceClient<T extends ServiceType> = {
   instance: Client<T>;
   garmr: GarmrService;
