@@ -172,7 +172,10 @@ import {
 } from '../../../src/entity/contentPreference/types';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
-import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from '../../../src/entity/opportunities/types';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import {
   opportunitiesFixture,
@@ -185,6 +188,7 @@ import {
   ContentPreferenceOrganization,
   ContentPreferenceOrganizationStatus,
 } from '../../../src/entity/contentPreference/ContentPreferenceOrganization';
+import { OpportunityUser } from '../../../src/entity/opportunities/user';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -5643,6 +5647,13 @@ describe('opportunity match', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    await con.getRepository(User).update(
+      { id: usersFixture[0].id },
+      {
+        title: 'CTO',
+        bio: 'Here to break things',
+      },
+    );
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await con.getRepository(UserCandidatePreference).save({
@@ -5658,6 +5669,11 @@ describe('opportunity match', () => {
       description: {},
       screening: [],
       applicationRank: {},
+    });
+    await con.getRepository(OpportunityUser).save({
+      userId: usersFixture[0].id,
+      opportunityId: opportunitiesFixture[0].id,
+      type: OpportunityUserType.Recruiter,
     });
   });
 
@@ -5800,6 +5816,11 @@ describe('opportunity match', () => {
         expect.objectContaining({
           opportunityId: opportunitiesFixture[0].id,
           userId: '1',
+          recruiter: {
+            name: 'Ido',
+            role: 'CTO',
+            bio: 'Here to break things',
+          },
         }),
       );
     });
