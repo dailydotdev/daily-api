@@ -5093,6 +5093,7 @@ describe('query sourcePostModeration', () => {
         type: PostType.Freeform,
         status: SourcePostModerationStatus.Pending,
         content: 'Hello World',
+        flags: {},
       },
       {
         id: randomUUID(),
@@ -5138,6 +5139,9 @@ describe('query sourcePostModeration', () => {
   sourcePostModeration(id: $id) {
     title
     type
+    flags {
+      warningReason
+    }
   }
 }`;
 
@@ -5151,6 +5155,9 @@ describe('query sourcePostModeration', () => {
         pollOptions {
           text
           order
+        }
+        flags {
+          warningReason
         }
       }
     }
@@ -5179,6 +5186,9 @@ describe('query sourcePostModeration', () => {
       sourcePostModeration: {
         title: 'My First Moderated Post',
         type: 'freeform',
+        flags: {
+          warningReason: null,
+        },
       },
     });
   });
@@ -5193,6 +5203,9 @@ describe('query sourcePostModeration', () => {
       sourcePostModeration: {
         title: 'My First Moderated Post',
         type: 'freeform',
+        flags: {
+          warningReason: null,
+        },
       },
     });
   });
@@ -5293,6 +5306,35 @@ describe('query sourcePostModeration', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  it('should return warningReason if flagged', async () => {
+    loggedUser = '3';
+
+    // update pending post adding a flag
+    await con.getRepository(SourcePostModeration).update(
+      { id: firstPostUuid },
+      {
+        flags: updateFlagsStatement({
+          warningReason: WarningReason.MultipleSquadPost,
+        }),
+      },
+    );
+
+    const res = await client.query(queryOne, {
+      variables: { id: firstPostUuid },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data).toEqual({
+      sourcePostModeration: {
+        title: 'My First Moderated Post',
+        type: 'freeform',
+        flags: {
+          warningReason: WarningReason.MultipleSquadPost,
+        },
+      },
+    });
   });
 });
 
