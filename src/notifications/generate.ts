@@ -32,6 +32,7 @@ import {
   type NotificationUserTopReaderContext,
   NotificationOpportunityMatchContext,
   type NotificationPostAnalyticsContext,
+  type NotificationWarmIntroContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -195,7 +196,7 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
-  new_opportunity_match: () => `New opportunity waiting for you in daily.dev`,
+  new_opportunity_match: () => `New opportunity waiting for you`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
   },
@@ -203,6 +204,8 @@ export const notificationTitleMap: Record<
     `<b>Poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
   poll_result_author: (ctx: NotificationPostContext) =>
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
+  warm_intro: (ctx: NotificationWarmIntroContext) =>
+    `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
 };
 
 export const generateNotificationMap: Record<
@@ -539,7 +542,7 @@ export const generateNotificationMap: Record<
   new_opportunity_match: (builder, ctx: NotificationOpportunityMatchContext) =>
     builder
       .icon(NotificationIcon.Opportunity)
-      .referenceOpportunity(ctx)
+      .referenceOpportunity(ctx.opportunityId)
       .uniqueKey(ctx.userIds[0])
       .description(
         `<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
@@ -575,4 +578,19 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .referencePost(ctx.post),
+  warm_intro: (
+    builder: NotificationBuilder,
+    ctx: NotificationWarmIntroContext,
+  ) => {
+    return builder
+      .targetUrl('system')
+      .referenceOpportunity(ctx.opportunityId)
+      .uniqueKey(ctx.userIds[0])
+      .icon(NotificationIcon.Opportunity)
+      .avatarOrganization(ctx.organization)
+      .avatarUser(ctx.recruiter)
+      .description(
+        `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
+      );
+  },
 };

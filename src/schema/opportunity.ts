@@ -1,7 +1,7 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
-import { AuthContext, BaseContext } from '../Context';
+import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
   Opportunity,
@@ -23,14 +23,18 @@ import { Alerts } from '../entity';
 import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
-import { ConflictError } from '../errors';
+import { ConflictError, NotFoundError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
   deleteEmploymentAgreementByUserId,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
-import { opportunityEditSchema } from '../common/schema/opportunities';
+import {
+  opportunityEditSchema,
+  opportunityStateLiveSchema,
+  opportunityUpdateStateSchema,
+} from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
   ensureOpportunityPermissions,
@@ -128,6 +132,7 @@ export const typeDefs = /* GraphQL */ `
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
+    state: ProtoEnumValue!
     title: String!
     tldr: String
     content: OpportunityContent!
@@ -338,6 +343,15 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): [OpportunityScreeningQuestion!]! @auth
+
+    updateOpportunityState(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      state: ProtoEnumValue!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -349,15 +363,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     opportunityById: async (
       _,
       { id }: { id: string },
-      ctx: AuthContext,
+      ctx: Context,
       info,
-    ): Promise<GQLOpportunity> =>
-      graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder
-          .where({ id })
-          .andWhere({ state: OpportunityState.LIVE });
-        return builder;
-      }),
+    ): Promise<GQLOpportunity> => {
+      const opportunity = await graphorm.queryOneOrFail<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ id });
+
+          builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
+
+          return builder;
+        },
+      );
+
+      if (opportunity.state !== OpportunityState.LIVE) {
+        if (!ctx.userId) {
+          throw new NotFoundError('Not found!');
+        }
+
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId,
+          opportunityId: id,
+          permission: OpportunityPermissions.ViewDraft,
+        });
+      }
+
+      return opportunity;
+    },
     getOpportunityMatch: async (
       _,
       { id }: { id: string },
@@ -706,8 +741,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }
 
           renderedContent[key] = {
-            content: value.content.replace(/'/g, "''"),
-            html: markdown.render(value.content).replace(/'/g, "''"),
+            content: value.content,
+            html: markdown.render(value.content),
           };
         });
 
@@ -809,6 +844,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
+      if (process.env.NODE_ENV === 'development') {
+        return [];
+      }
+
       const gondulClient = getGondulClient();
 
       const result = await gondulClient.garmr.execute(async () => {
@@ -837,6 +876,56 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           order: question.questionOrder,
         };
       });
+    },
+    updateOpportunityState: async (
+      _,
+      payload,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, state } = opportunityUpdateStateSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.UpdateState,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+            keywords: true,
+            questions: true,
+          },
+        });
+
+      switch (state) {
+        case OpportunityState.LIVE: {
+          if (opportunity.state === OpportunityState.CLOSED) {
+            throw new ConflictError(`Opportunity is closed`);
+          }
+
+          opportunityStateLiveSchema.parse({
+            ...opportunity,
+            organization: await opportunity.organization,
+            keywords: await opportunity.keywords,
+            questions: await opportunity.questions,
+          });
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
+        }
+        default:
+          throw new ConflictError('Invalid state transition');
+      }
+
+      return {
+        _: true,
+      };
     },
   },
 });

@@ -1,5 +1,6 @@
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import {
+  ArticlePost,
   Comment,
   ConnectionManager,
   createExternalLink,
@@ -8,8 +9,11 @@ import {
   FreeformPost,
   generateTitleHtml,
   Post,
+  PostMention,
   PostOrigin,
+  type PostTranslation,
   PostType,
+  preparePostForInsert,
   Source,
   SourceMember,
   SourceType,
@@ -18,13 +22,10 @@ import {
   User,
   validateCommentary,
   WelcomePost,
-  type PostTranslation,
-  ArticlePost,
-  preparePostForInsert,
 } from '../entity';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { isValidHttpUrl, standardizeURL } from './links';
-import { findMarkdownTag, markdown } from './markdown';
+import { findMarkdownTag, markdown, saveMentions } from './markdown';
 import { generateShortId } from '../ids';
 import { GQLPost } from '../schema/posts';
 // @ts-expect-error - no types
@@ -37,16 +38,17 @@ import { PostCodeSnippet } from '../entity/posts/PostCodeSnippet';
 import { logger } from '../logger';
 import { downloadJsonFile } from './googleCloud';
 import {
-  ContentLanguage,
   type ChangeObject,
+  ContentLanguage,
   type I18nRecord,
   type PostCodeSnippetJsonFile,
 } from '../types';
 import { uniqueifyObjectArray } from './utils';
 import {
+  type CreatePollOption,
   SourcePostModeration,
   SourcePostModerationStatus,
-  type CreatePollOption,
+  WarningReason,
 } from '../entity/SourcePostModeration';
 import { mapCloudinaryUrl, uploadPostFile, UploadPreset } from './cloudinary';
 import { getMentions } from '../schema/comments';
@@ -60,6 +62,9 @@ import { PollOption } from '../entity/polls/PollOption';
 import addDays from 'date-fns/addDays';
 import { PollPost } from '../entity/posts/PollPost';
 import { pollCreationSchema } from './schema/polls';
+import { generateDeduplicationKey } from '../entity/posts/hooks';
+import { z } from 'zod';
+import { canPostToSquad } from '../schema/sources';
 
 export type SourcePostModerationArgs = ConnectionArguments & {
   sourceId: string;
@@ -324,7 +329,7 @@ export const createPollPost = async ({
   });
 };
 
-export const createFreeformPost = async ({
+export const insertFreeformPost = async ({
   con,
   args,
   ctx,
@@ -373,13 +378,90 @@ export interface CreateSourcePostModeration
 interface CreateSourcePostModerationProps {
   ctx: AuthContext;
   args: CreateSourcePostModeration;
+  options?: Partial<{
+    isMultiPost: boolean;
+    entityManager: EntityManager;
+  }>;
 }
 
+const getDuplicatedPostBy = async (
+  con: DataSource,
+  { dedupKey, sourceId }: Partial<Record<'dedupKey' | 'sourceId', string>>,
+): Promise<Post | SourcePostModeration | null> => {
+  if (!dedupKey) return null;
+
+  return await queryReadReplica(con, async ({ queryRunner }) => {
+    const pendingQb = queryRunner.manager
+      .getRepository(SourcePostModeration)
+      .createQueryBuilder('p')
+      .where({
+        status: SourcePostModerationStatus.Pending,
+      })
+      .andWhere(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey });
+    const postQb = queryRunner.manager
+      .getRepository(Post)
+      .createQueryBuilder('p')
+      .where(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey });
+
+    if (sourceId) {
+      pendingQb
+        .orderBy(`CASE WHEN p.sourceId = :sourceId THEN 0 ELSE 1 END`, 'ASC')
+        .addOrderBy('p.sourceId', 'ASC')
+        .setParameter('sourceId', sourceId);
+      postQb
+        .orderBy(`CASE WHEN p.sourceId = :sourceId THEN 0 ELSE 1 END`, 'ASC')
+        .addOrderBy('p.sourceId', 'ASC')
+        .setParameter('sourceId', sourceId);
+    }
+
+    const [pendingExists, postExists] = await Promise.all([
+      pendingQb.getOne(),
+      postQb.getOne(),
+    ]);
+
+    return postExists || pendingExists;
+  });
+};
+
+const getModerationWarningFlag = async ({
+  con,
+  isMultiPost = false,
+  dedupKey,
+  sourceId,
+}: {
+  con: DataSource;
+  isMultiPost?: boolean;
+  dedupKey?: string;
+  sourceId?: string;
+}): Promise<WarningReason | undefined> => {
+  if (isMultiPost) {
+    return WarningReason.MultipleSquadPost;
+  }
+
+  if (!dedupKey) {
+    return;
+  }
+
+  const duplicatedPost = await getDuplicatedPostBy(con, {
+    dedupKey,
+    sourceId,
+  });
+
+  if (!duplicatedPost) {
+    return;
+  }
+
+  return sourceId && duplicatedPost.sourceId === sourceId
+    ? WarningReason.DuplicatedInSameSquad
+    : WarningReason.MultipleSquadPost;
+};
+
 export const createSourcePostModeration = async ({
-  ctx,
+  ctx: { userId, con, req },
   args,
+  options = {},
 }: CreateSourcePostModerationProps) => {
-  const { con } = ctx;
+  const { isMultiPost = false } = options;
 
   if (args.postId) {
     const post = await con
@@ -397,19 +479,34 @@ export const createSourcePostModeration = async ({
   });
 
   const content = `${args.title} ${args.content}`.trim();
+  const dedupKey = generateDeduplicationKey(args);
 
-  newModerationEntry.flags = {
-    vordr: await checkWithVordr(
+  const [warningReason, vordr] = await Promise.all([
+    getModerationWarningFlag({
+      con,
+      isMultiPost,
+      dedupKey,
+      sourceId: args.sourceId,
+    }),
+    checkWithVordr(
       {
         id: newModerationEntry.id,
         type: VordrFilterType.PostModeration,
         content,
       },
-      { con, userId: ctx.userId, req: ctx.req },
+      { con, userId, req },
     ),
+  ]);
+
+  newModerationEntry.flags = {
+    warningReason,
+    vordr,
+    dedupKey,
   };
 
-  return await con.getRepository(SourcePostModeration).save(newModerationEntry);
+  return await (options?.entityManager || con)
+    .getRepository(SourcePostModeration)
+    .save(newModerationEntry);
 };
 
 export interface CreateSourcePostModerationArgs
@@ -446,8 +543,174 @@ export interface CreatePollPostProps
   duration: number;
 }
 
+export interface CreateMultipleSourcePostProps
+  extends Omit<CreatePostArgs, 'sourceId'>,
+    Pick<CreatePollPostProps, 'options' | 'duration'> {
+  sharedPostId?: string;
+  externalLink?: string;
+  sourceIds: string[];
+}
+
+const MAX_MULTIPLE_POST_SOURCE_LIMIT = 4;
+
 const MAX_TITLE_LENGTH = 250;
 const MAX_CONTENT_LENGTH = 10_000;
+
+export const postInMultipleSourcesArgsSchema = z
+  .object({
+    title: z.string().max(MAX_TITLE_LENGTH).optional(),
+    content: z.string().max(MAX_CONTENT_LENGTH).optional(),
+    image: z.custom<Promise<FileUpload>>(),
+    sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
+    sharedPostId: z.string().optional(),
+    externalLink: z.httpUrl().optional(),
+  })
+  .extend(
+    pollCreationSchema
+      .pick({
+        options: true,
+        duration: true,
+      })
+      .partial().shape,
+  );
+
+type CreatePostInSourceArgs = Omit<
+  z.infer<typeof postInMultipleSourcesArgsSchema>,
+  'sourceIds'
+>;
+
+export const getMultipleSourcesPostType = (
+  args: CreatePostInSourceArgs,
+): PostType => {
+  if (args.options?.length) {
+    return PostType.Poll;
+  }
+
+  if (args.sharedPostId) {
+    return PostType.Share;
+  }
+
+  return PostType.Freeform;
+};
+
+export const checkIfUserPostInSourceDirectlyOrThrow = async (
+  con: DataSource,
+  { sourceId, userId }: Record<'sourceId' | 'userId', string>,
+) => {
+  const isSameUserSource = sourceId === userId;
+
+  if (isSameUserSource) {
+    return true;
+  }
+
+  const [source, squadMember] = await Promise.all([
+    con.getRepository(Source).findOneBy({
+      id: sourceId,
+    }),
+    con.getRepository(SourceMember).findOneBy({
+      userId,
+      sourceId,
+    }),
+  ]);
+
+  if (!source || !squadMember || source?.type !== SourceType.Squad) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  return canPostToSquad(source as SquadSource, squadMember);
+};
+
+export const createPostIntoSourceId = async (
+  con: DataSource | EntityManager,
+  ctx: AuthContext,
+  sourceId: string,
+  args: CreatePostInSourceArgs,
+): Promise<Pick<Post, 'id'>> => {
+  const type = getMultipleSourcesPostType(args);
+  switch (type) {
+    case PostType.Share: {
+      await ctx.con
+        .getRepository(Post)
+        .findOneByOrFail({ id: args.sharedPostId });
+      return await createSharePost({
+        con,
+        ctx,
+        args: {
+          authorId: ctx.userId,
+          sourceId,
+          postId: args.sharedPostId!,
+          commentary: args.title,
+        },
+      });
+    }
+    case PostType.Poll: {
+      const id = await generateShortId();
+      const { options, ...pollArgs } = args;
+      return await createPollPost({
+        con,
+        ctx,
+        args: {
+          ...pollArgs,
+          id,
+          sourceId,
+          title: `${args.title}`,
+          authorId: ctx.userId,
+          pollOptions: options!.map((option) =>
+            ctx.con.getRepository(PollOption).create({
+              text: option.text,
+              numVotes: 0,
+              order: option.order,
+              postId: id!,
+            }),
+          ),
+        },
+      });
+    }
+    case PostType.Freeform: {
+      return await createFreeformPost(con, ctx, {
+        ...args,
+        sourceId,
+      });
+    }
+    default: {
+      throw new Error('Invalid post type detected');
+    }
+  }
+};
+
+export const getPostIdFromUrlOrCreateOne = async (
+  ctx: AuthContext,
+  args: CreatePostInSourceArgs,
+): Promise<Pick<Post, 'id'>> => {
+  if (!args.externalLink) {
+    throw new Error('External link is required');
+  }
+
+  const { url, canonicalUrl } = standardizeURL(args.externalLink!);
+  const existingPost = await getExistingPost(ctx.con, { url, canonicalUrl });
+
+  if (existingPost) {
+    return existingPost;
+  }
+
+  const id = await generateShortId();
+  await createExternalLink({
+    con: ctx.con,
+    ctx,
+    args: {
+      id,
+      authorId: ctx.userId,
+      url,
+      canonicalUrl,
+      title: args.title,
+      image: await args.image,
+      commentary: args.content,
+      originalUrl: args.externalLink,
+    },
+  });
+
+  return { id };
+};
 
 type ValidatePostArgs = Pick<EditPostArgs, 'title' | 'content'>;
 
@@ -702,7 +965,7 @@ export const processApprovedModeratedPost = async (
       sourceId,
       authorId: createdById,
     };
-    const post = await createFreeformPost({ con, args: params as CreatePost });
+    const post = await insertFreeformPost({ con, args: params as CreatePost });
     return { ...moderated, postId: post.id };
   }
 
@@ -756,7 +1019,7 @@ export const processApprovedModeratedPost = async (
         originalUrl: externalLink,
       },
     });
-    return { ...moderated, postId: post.id };
+    return { ...moderated, postId: post?.id };
   }
 
   logger.error({ moderated }, 'unable to process moderated post');
@@ -1103,4 +1366,47 @@ export const ensurePostAnalyticsPermissions = async ({
       'You do not have permission to view post analytics',
     );
   }
+};
+
+export const createFreeformPost = async (
+  con: EntityManager | DataSource,
+  ctx: AuthContext,
+  args: CreatePostArgs,
+) => {
+  const { sourceId, image } = args;
+  const { userId } = ctx;
+  const id = await generateShortId();
+  const { title, content } = validatePost(args);
+
+  if (!title) {
+    throw new ValidationError('Title can not be an empty string!');
+  }
+
+  await con.transaction(async (manager) => {
+    const mentions = await getMentions(manager, content, userId, sourceId);
+    const contentHtml = markdown.render(content, { mentions });
+    const params: CreatePost = {
+      id,
+      title,
+      content,
+      contentHtml,
+      authorId: userId,
+      sourceId,
+    };
+
+    if (image && process.env.CLOUDINARY_URL) {
+      const upload = await image;
+      const { url: coverImageUrl } = await uploadPostFile(
+        id,
+        upload.createReadStream(),
+        UploadPreset.PostBannerImage,
+      );
+      params.image = coverImageUrl;
+    }
+
+    await insertFreeformPost({ con: manager, ctx, args: params });
+    await saveMentions(manager, id, userId, mentions, PostMention);
+  });
+
+  return { id };
 };

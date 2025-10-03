@@ -38,6 +38,7 @@ export type NotificationBaseContext = {
   userIds: string[];
   initiatorId?: string | null;
   sendAtMs?: number;
+  dedupKey?: string;
 };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;
@@ -154,6 +155,13 @@ export interface NotificationCampaignSourceContext
 export type NotificationOpportunityMatchContext = NotificationBaseContext & {
   opportunityId: string;
   reasoningShort: string;
+};
+
+export type NotificationWarmIntroContext = NotificationBaseContext & {
+  description: string;
+  opportunityId: string;
+  recruiter: Reference<User>;
+  organization: Reference<Organization>;
 };
 
 declare module 'fs' {

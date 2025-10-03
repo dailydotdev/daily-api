@@ -421,6 +421,10 @@ export const workers: Worker[] = [
     topic: 'gondul.v1.candidate-application-scored',
     subscription: 'api.store-candidate-application-score',
   },
+  {
+    topic: 'gondul.v1.warm-intro-generated',
+    subscription: 'api.recruiter-warm-intro-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

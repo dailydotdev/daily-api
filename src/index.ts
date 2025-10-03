@@ -209,7 +209,7 @@ export default async function app(
                   code: 'GARMR_BROKEN_ERROR',
                 };
               } else if (error.originalError instanceof ZodError) {
-                newError.message = 'Zod validation error';
+                newError.message = 'Validation error';
                 newError.extensions = {
                   code: 'ZOD_VALIDATION_ERROR',
                   issues: error.originalError.issues,
