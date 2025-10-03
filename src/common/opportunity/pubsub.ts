@@ -186,7 +186,7 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
           where: { opportunityId: data.opportunityId, userId: data.userId },
         }),
         queryRunner.manager.getRepository(OpportunityUser).findOne({
-          select: ['user'],
+          select: ['userId', 'opportunityId', 'type'],
           relations: ['user'],
           where: {
             opportunityId: data.opportunityId,
@@ -195,6 +195,7 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
         }),
       ]),
   );
+  console.log('ou', opportunityUser);
 
   const recruiter = await opportunityUser?.user;
 
