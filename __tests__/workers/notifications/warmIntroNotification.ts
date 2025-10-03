@@ -2,7 +2,7 @@ import { DataSource } from 'typeorm';
 import { warmIntroNotification as worker } from '../../../src/workers/notifications/warmIntroNotification';
 import createOrGetConnection from '../../../src/db';
 
-import { Organization, User } from '../../../src/entity';
+import { Feature, FeatureType, Organization, User } from '../../../src/entity';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import { OpportunityUser } from '../../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../../src/entity/opportunities/types';
@@ -24,6 +24,11 @@ describe('warmIntroNotification worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
     await saveFixtures(con, User, usersFixture);
+    await con.getRepository(Feature).insert({
+      userId: '1',
+      feature: FeatureType.Team,
+      value: 1,
+    });
   });
 
   it('should be registered', () => {
