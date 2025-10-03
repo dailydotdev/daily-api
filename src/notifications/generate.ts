@@ -280,7 +280,7 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.Streak)
       .description('Click here if you wish to restore your streak')
-      .uniqueKey(ctx.restore.expiry.toString())
+      .uniqueKey(format(ctx.restore.expiry, 'dd-MM-yyyy HH:mm:ss'))
       .targetUrl(notificationsLink)
       .referenceStreak(ctx.streak)
       .setTargetUrlParameter([

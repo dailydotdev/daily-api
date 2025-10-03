@@ -75,6 +75,7 @@ import {
   SourcePostModerationStatus,
 } from '../../src/entity/SourcePostModeration';
 import { randomUUID } from 'crypto';
+import { format } from 'date-fns';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -562,9 +563,8 @@ describe('generateNotification', () => {
 
   it('should generate streak_reset_restore notification', () => {
     const type = NotificationType.StreakResetRestore;
-    const lastViewAt = new Date();
-    const expiry = new Date(lastViewAt);
-    expiry.setUTCHours(23, 59, 59, 999);
+    const lastViewAt = new Date('2024-10-03T10:00:00.000Z');
+    const expiry = new Date('2024-10-04T23:59:59.000Z');
 
     const streak = {
       userId,
@@ -591,9 +591,7 @@ describe('generateNotification', () => {
     expect(actual.notification.description).toEqual(
       'Click here if you wish to restore your streak',
     );
-    expect(actual.notification.uniqueKey).toEqual(
-      ctx.restore.expiry.toString(),
-    );
+    expect(actual.notification.uniqueKey).toEqual('04-10-2024 23:59:59');
   });
 
   it('should generate article_upvote_milestone notification', () => {
