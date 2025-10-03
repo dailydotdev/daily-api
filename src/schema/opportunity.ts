@@ -844,6 +844,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
+      if (process.env.NODE_ENV === 'development') {
+        return [];
+      }
+
       const gondulClient = getGondulClient();
 
       const result = await gondulClient.garmr.execute(async () => {
