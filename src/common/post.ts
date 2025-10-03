@@ -384,11 +384,11 @@ interface CreateSourcePostModerationProps {
   }>;
 }
 
-const hasDuplicatedPostBy = async (
+const getDuplicatedPostBy = async (
   con: DataSource,
   { dedupKey, sourceId }: Partial<Record<'dedupKey' | 'sourceId', string>>,
-): Promise<boolean> => {
-  if (!dedupKey) return false;
+): Promise<Post | SourcePostModeration | null> => {
+  if (!dedupKey) return null;
 
   return await queryReadReplica(con, async ({ queryRunner }) => {
     const pendingQb = queryRunner.manager
@@ -404,16 +404,22 @@ const hasDuplicatedPostBy = async (
       .where(`p.flags->> 'dedupKey' = :dedupKey`, { dedupKey });
 
     if (sourceId) {
-      pendingQb.andWhere(`p.sourceId = :sourceId`, { sourceId });
-      postQb.andWhere(`p.sourceId = :sourceId`, { sourceId });
+      pendingQb
+        .orderBy(`CASE WHEN p.sourceId = :sourceId THEN 0 ELSE 1 END`, 'ASC')
+        .addOrderBy('p.sourceId', 'ASC')
+        .setParameter('sourceId', sourceId);
+      postQb
+        .orderBy(`CASE WHEN p.sourceId = :sourceId THEN 0 ELSE 1 END`, 'ASC')
+        .addOrderBy('p.sourceId', 'ASC')
+        .setParameter('sourceId', sourceId);
     }
 
     const [pendingExists, postExists] = await Promise.all([
-      pendingQb.getExists(),
-      postQb.getExists(),
+      pendingQb.getOne(),
+      postQb.getOne(),
     ]);
 
-    return pendingExists || postExists;
+    return postExists || pendingExists;
   });
 };
 
@@ -436,22 +442,18 @@ const getModerationWarningFlag = async ({
     return;
   }
 
-  const isDuplicatedInSameSquad = await hasDuplicatedPostBy(con, {
+  const duplicatedPost = await getDuplicatedPostBy(con, {
     dedupKey,
     sourceId,
   });
-  if (isDuplicatedInSameSquad) {
-    return WarningReason.DuplicatedInSameSquad;
+
+  if (!duplicatedPost) {
+    return;
   }
 
-  const isDuplicatedAcrossSquads = await hasDuplicatedPostBy(con, {
-    dedupKey,
-  });
-  if (isDuplicatedAcrossSquads) {
-    return WarningReason.MultipleSquadPost;
-  }
-
-  return;
+  return sourceId && duplicatedPost.sourceId === sourceId
+    ? WarningReason.DuplicatedInSameSquad
+    : WarningReason.MultipleSquadPost;
 };
 
 export const createSourcePostModeration = async ({

@@ -311,6 +311,7 @@ export const typeDefs = /* GraphQL */ `
     type: MultiplePostItemType!
     sourceId: ID!
     id: ID!
+    slug: String
   }
 
   """
