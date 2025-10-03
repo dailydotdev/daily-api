@@ -41,10 +41,7 @@ const worker: TypedWorker<'skadi.v2.campaign-updated'> = {
     } catch (originalError) {
       const err = originalError as TypeORMQueryFailedError;
 
-      if (err?.name === 'EntityNotFoundError') {
-        // some campaigns do not exist on API so just warn in case we need to check later
-        logger.warn({ err, params }, 'could not find campaign');
-
+      if (err?.name !== 'EntityNotFoundError') {
         return;
       }
 
