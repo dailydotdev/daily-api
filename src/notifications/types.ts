@@ -38,6 +38,7 @@ export type NotificationBaseContext = {
   userIds: string[];
   initiatorId?: string | null;
   sendAtMs?: number;
+  dedupKey?: string;
 };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;

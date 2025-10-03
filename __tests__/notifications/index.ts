@@ -1672,6 +1672,51 @@ describe('storeNotificationBundle', () => {
     expect(notifications.length).toEqual(3);
   });
 
+  it('should not generate duplicate post added notifications for posts with same dedupKey', async () => {
+    await saveFixtures(con, User, usersFixture);
+
+    const dedupKey = 'p1';
+    const sharedCtx = {
+      userIds: [userId, '3', '4'],
+      source: sourcesFixture[0] as Reference<Source>,
+      user: usersFixture[1] as Reference<User>,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+    const ctx1 = {
+      ...sharedCtx,
+      post: postsFixture[1] as Reference<Post>,
+    };
+    const ctx2 = {
+      ...sharedCtx,
+      post: postsFixture[2] as Reference<Post>,
+    };
+
+    const notificationIds = await con.transaction(async (manager) => {
+      const results = await Promise.all([
+        storeNotificationBundleV2(
+          manager,
+          generateNotificationV2(NotificationType.SourcePostAdded, ctx1),
+          dedupKey,
+        ),
+        storeNotificationBundleV2(
+          manager,
+          generateNotificationV2(NotificationType.SquadPostAdded, ctx2),
+          dedupKey,
+        ),
+      ]);
+      return results.flat();
+    });
+
+    const notifications = await con.getRepository(UserNotification).findBy({
+      notificationId: In(notificationIds.map((item) => item.id)),
+    });
+
+    expect(notifications.length).toEqual(3);
+    const uniqueKeys = notifications.map((item) => item.uniqueKey);
+    expect(new Set(uniqueKeys).size).toEqual(1);
+    expect(uniqueKeys[0]).toEqual(`post_added:dedup_${dedupKey}:post`);
+  });
+
   it('should generate user_given_top_reader notification', async () => {
     const topReader = {
       id: 'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
