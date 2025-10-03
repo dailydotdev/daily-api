@@ -1,13 +1,13 @@
 import { NotificationType } from '../../notifications/common';
-import { NotificationStreakContext } from '../../notifications';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
-import { getRedisObject } from '../../redis';
+import { getRedisObject, getRedisObjectExpiryTime } from '../../redis';
 import { isNumber } from '../../common';
 import { Settings, User } from '../../entity';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { checkUserCoresAccess } from '../../common/user';
 import { CoresRole } from '../../types';
 import { TypedNotificationWorker } from '../worker';
+import type { NotificationStreakRestoreContext } from '../../notifications';
 
 const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
   subscription: 'api.user-streak-reset-notification',
@@ -19,7 +19,7 @@ const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
       userId,
     );
 
-    const [user, settings, lastStreak] = await Promise.all([
+    const [user, settings, lastStreak, redisExpiryTime] = await Promise.all([
       queryReadReplica(con, ({ queryRunner }) => {
         return queryRunner.manager.getRepository(User).findOneOrFail({
           select: ['id', 'coresRole'],
@@ -34,6 +34,7 @@ const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
           .findOne({ where: { userId }, select: ['optOutReadingStreak'] });
       }),
       getRedisObject(key),
+      getRedisObjectExpiryTime(key),
     ]);
 
     if (!user) {
@@ -48,12 +49,14 @@ const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
       return;
     }
 
-    const ctx: NotificationStreakContext = {
+    const restorationValidUntil = redisExpiryTime * 1000; // unix timestamp in ms
+
+    const ctx: NotificationStreakRestoreContext = {
       userIds: [userId],
-      streak: {
-        ...streak,
-        currentStreak: parseInt(lastStreak, 10),
-        lastViewAt: new Date(streak.lastViewAt!).getTime(),
+      streak,
+      restore: {
+        expiry: restorationValidUntil,
+        amount: parseInt(lastStreak, 10),
       },
     };
 

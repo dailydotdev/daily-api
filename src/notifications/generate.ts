@@ -23,7 +23,6 @@ import {
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
   NotificationSquadRequestContext,
-  NotificationStreakContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
@@ -33,6 +32,7 @@ import {
   NotificationOpportunityMatchContext,
   type NotificationPostAnalyticsContext,
   type NotificationWarmIntroContext,
+  type NotificationStreakRestoreContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -133,8 +133,8 @@ export const notificationTitleMap: Record<
     `<b>Congratulations! ${ctx.source.name} has successfully passed the review process and is now officially public!</b>`,
   squad_public_rejected: systemTitle,
   squad_public_submitted: systemTitle,
-  streak_reset_restore: (ctx: NotificationStreakContext) =>
-    `<b>Oh no! Your ${ctx.streak.currentStreak} day streak has been broken</b>`,
+  streak_reset_restore: (ctx: NotificationStreakRestoreContext) =>
+    `<b>Oh no! Your ${ctx.restore.amount} day streak has been broken</b>`,
   user_post_added: (ctx: NotificationUserContext) => {
     const userName = ctx.user.name || ctx.user.username;
 
@@ -276,15 +276,15 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .uniqueKey(ctx.bookmark.remindAt.toString())
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
-  streak_reset_restore: (builder, ctx: NotificationStreakContext) =>
+  streak_reset_restore: (builder, ctx: NotificationStreakRestoreContext) =>
     builder
       .icon(NotificationIcon.Streak)
       .description('Click here if you wish to restore your streak')
-      .uniqueKey(format(ctx.streak.lastViewAt!, 'dd-MM-yyyy'))
+      .uniqueKey(ctx.restore.expiry.toString())
       .targetUrl(notificationsLink)
       .referenceStreak(ctx.streak)
       .setTargetUrlParameter([
-        ['streak_restore', ctx.streak.currentStreak.toString()],
+        ['streak_restore', ctx.restore.amount.toString()],
       ]),
   article_upvote_milestone: (
     builder,

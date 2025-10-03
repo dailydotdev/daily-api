@@ -74,10 +74,16 @@ export type NotificationBookmarkContext = NotificationBaseContext & {
 };
 
 export type NotificationStreakContext = NotificationBaseContext & {
-  streak: Omit<Reference<UserStreak>, 'lastViewAt'> & {
-    lastViewAt: number;
-  };
+  streak: Reference<UserStreak>;
 };
+
+export interface NotificationStreakRestoreContext
+  extends NotificationStreakContext {
+  restore: {
+    expiry: number;
+    amount: number;
+  };
+}
 
 export type NotificationGiftPlusContext = NotificationBaseContext & {
   gifter: Reference<User>;

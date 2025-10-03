@@ -16,7 +16,7 @@ import {
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
-  NotificationStreakContext,
+  type NotificationStreakRestoreContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
@@ -68,7 +68,6 @@ import {
   NotificationChannel,
   NotificationType,
 } from '../../src/notifications/common';
-import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
 import {
   PostModerationReason,
@@ -564,15 +563,19 @@ describe('generateNotification', () => {
   it('should generate streak_reset_restore notification', () => {
     const type = NotificationType.StreakResetRestore;
     const lastViewAt = new Date();
+    const expiry = new Date(lastViewAt);
+    expiry.setUTCHours(23, 59, 59, 999);
+
     const streak = {
       userId,
       lastViewAt,
-      currentStreak: 10,
+      currentStreak: 5,
     } as Reference<UserStreak>;
-    const ctx: NotificationStreakContext = {
-      streak: {
-        ...streak,
-        lastViewAt: lastViewAt.getTime(),
+    const ctx: NotificationStreakRestoreContext = {
+      streak,
+      restore: {
+        expiry: expiry.getTime(),
+        amount: 10,
       },
       userIds: [userId],
     };
@@ -589,7 +592,7 @@ describe('generateNotification', () => {
       'Click here if you wish to restore your streak',
     );
     expect(actual.notification.uniqueKey).toEqual(
-      format(ctx.streak.lastViewAt, 'dd-MM-yyyy'),
+      ctx.restore.expiry.toString(),
     );
   });
 
