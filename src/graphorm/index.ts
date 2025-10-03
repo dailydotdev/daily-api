@@ -333,6 +333,9 @@ const obj = new GraphORM({
       pollOptions: {
         jsonType: true,
       },
+      flags: {
+        jsonType: true,
+      },
     },
   },
   UserStreak: {
