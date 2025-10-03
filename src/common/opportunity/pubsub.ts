@@ -195,7 +195,6 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
         }),
       ]),
   );
-  console.log('ou', opportunityUser);
 
   const recruiter = await opportunityUser?.user;
 
