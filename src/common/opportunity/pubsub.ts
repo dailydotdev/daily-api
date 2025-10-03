@@ -330,12 +330,17 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
-  const organizationMembers = await con
-    .getRepository(ContentPreferenceOrganization)
-    .find({
-      select: ['userId'],
-      where: { organizationId: organization.id },
-    });
+  const organizationMembers = await queryReadReplica(
+    con,
+    async ({ queryRunner }) => {
+      return await queryRunner.manager
+        .getRepository(ContentPreferenceOrganization)
+        .find({
+          select: ['userId'],
+          where: { organizationId: organization.id },
+        });
+    },
+  );
 
   /**
    * Demo logic: if the company is the demo company we can omit using Gondul and simply return the users from that company as matched candidates
