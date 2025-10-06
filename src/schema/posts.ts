@@ -817,6 +817,11 @@ export const typeDefs = /* GraphQL */ `
     Total number of votes in the poll
     """
     numPollVotes: Int
+
+    """
+    Post analytics
+    """
+    analytics: PostAnalyticsPublic
   }
 
   type PostConnection {
@@ -1038,6 +1043,11 @@ export const typeDefs = /* GraphQL */ `
     shares: Int!
     reachAds: Int!
     impressionsAds: Int!
+  }
+
+  type PostAnalyticsPublic {
+    id: ID!
+    impressions: Int!
   }
 
   type PostAnalyticsHistory {
