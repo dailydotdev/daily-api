@@ -126,4 +126,7 @@ export class UserCandidatePreference {
     foreignKeyConstraintName: 'FK_user_candidate_preference_user_id',
   })
   user: Promise<User>;
+
+  @Column({ type: 'text', default: null })
+  cvParsedMarkdown?: string;
 }
