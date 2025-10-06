@@ -21,10 +21,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
-import {
-  ExperienceStatus,
-  UserExperienceType,
-} from '../entity/user/experiences/types';
+import { UserExperienceType } from '../entity/user/experiences/types';
 
 export interface User {
   id: string;
@@ -657,7 +654,6 @@ export const isProfileCompleteById = async (
             where: {
               userId,
               type: In([UserExperienceType.Work, UserExperienceType.Education]),
-              status: ExperienceStatus.Published,
             },
           }),
         ]),

@@ -164,7 +164,6 @@ import {
 import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 import { syncNotificationFlagsToCio } from '../cio';
-import { completeVerificationForExperienceByUserCompany } from '../common/userExperience';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 
 export interface GQLUpdateUserInput {
@@ -2599,17 +2598,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         if (existingUserCompanyEmail.verified) {
-          // user has already verified this email, but want to verify work experience
-          const verifyUserCompany =
-            await completeVerificationForExperienceByUserCompany(
-              ctx.con,
-              existingUserCompanyEmail,
-            );
-
-          if (verifyUserCompany) {
-            return { _: true };
-          }
-
           throw new ValidationError('This email has already been verified');
         }
 
@@ -2674,17 +2662,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const updatedRecord = { ...userCompany, verified: true };
 
-      await ctx.con.transaction(async (manager) => {
-        await Promise.all([
-          // Save verified record
-          manager.getRepository(UserCompany).save(updatedRecord),
-          // Verify user experience if exists
-          completeVerificationForExperienceByUserCompany(
-            manager.connection,
-            updatedRecord,
-          ),
-        ]);
-      });
+      await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
       return await graphorm.queryOneOrFail<GQLUserCompany>(
         ctx,
