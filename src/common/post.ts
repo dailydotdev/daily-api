@@ -562,7 +562,9 @@ export const postInMultipleSourcesArgsSchema = z
   .object({
     title: z.string().max(MAX_TITLE_LENGTH).optional(),
     content: z.string().max(MAX_CONTENT_LENGTH).optional(),
+    commentary: z.string().max(MAX_TITLE_LENGTH).optional(),
     image: z.custom<Promise<FileUpload>>(),
+    imageUrl: z.httpUrl().optional(),
     sourceIds: z.array(z.string()).min(1).max(MAX_MULTIPLE_POST_SOURCE_LIMIT),
     sharedPostId: z.string().optional(),
     externalLink: z.httpUrl().optional(),
@@ -588,7 +590,7 @@ export const getMultipleSourcesPostType = (
     return PostType.Poll;
   }
 
-  if (args.sharedPostId) {
+  if (args.sharedPostId || args.externalLink) {
     return PostType.Share;
   }
 
@@ -634,14 +636,15 @@ export const createPostIntoSourceId = async (
       await ctx.con
         .getRepository(Post)
         .findOneByOrFail({ id: args.sharedPostId });
+      const { sharedPostId, commentary } = args;
       return await createSharePost({
         con,
         ctx,
         args: {
           authorId: ctx.userId,
           sourceId,
-          postId: args.sharedPostId!,
-          commentary: args.title,
+          postId: sharedPostId!,
+          commentary,
         },
       });
     }
@@ -705,7 +708,7 @@ export const getPostIdFromUrlOrCreateOne = async (
       url,
       canonicalUrl,
       title: args.title,
-      image: await args.image,
+      image: args.imageUrl,
       commentary: args.content,
       originalUrl: args.externalLink,
     },
