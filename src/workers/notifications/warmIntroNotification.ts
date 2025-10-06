@@ -38,7 +38,7 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         })
         .setParameter(
           'applicationRankJson',
-          JSON.stringify({ warmIntro: description || {} }),
+          JSON.stringify({ warmIntro: description }),
         )
         .execute();
 
