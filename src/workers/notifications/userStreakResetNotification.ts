@@ -45,7 +45,12 @@ const worker: TypedNotificationWorker<'api.v1.user-streak-updated'> = {
       return;
     }
 
-    if (settings?.optOutReadingStreak || !lastStreak || !isNumber(lastStreak)) {
+    if (
+      settings?.optOutReadingStreak ||
+      !lastStreak ||
+      !redisExpiryTime ||
+      !isNumber(lastStreak)
+    ) {
       return;
     }
 
