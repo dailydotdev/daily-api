@@ -49,7 +49,7 @@ export class OpportunityMatch {
   screening: Array<Screening>;
 
   @Column({ type: 'jsonb', default: '{}' })
-  applicationRank: z.infer<typeof applicationScoreSchema>;
+  applicationRank: z.infer<typeof applicationScoreSchema.partial>;
 
   @ManyToOne('Opportunity', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({

@@ -27,16 +27,21 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         return;
       }
 
-      await con.getRepository(OpportunityMatch).update(
-        {
+      await con
+        .getRepository(OpportunityMatch)
+        .createQueryBuilder()
+        .update({
+          applicationRank: () => `applicationRank || :applicationRankJson`,
+        })
+        .where({
           userId,
           opportunityId,
-        },
-        {
-          applicationRank: () =>
-            `applicationRank || '${JSON.stringify({ warmIntro: description })}'`,
-        },
-      );
+        })
+        .setParameter(
+          'applicationRankJson',
+          JSON.stringify({ warmIntro: description || {} }),
+        )
+        .execute();
 
       // TODO: Temporary until we happy to launch
       const isTeamMember = await con.getRepository(Feature).exists({
