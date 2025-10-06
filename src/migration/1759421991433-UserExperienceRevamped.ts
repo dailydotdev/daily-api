@@ -54,9 +54,13 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "user_experience_skill" ADD CONSTRAINT "FK_user_experience_skill_user_experience_experienceId" FOREIGN KEY ("experienceId") REFERENCES "user_experience"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "company" ADD "type" text NOT NULL DEFAULT 'company'`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`ALTER TABLE "company" DROP COLUMN "type"`);
     await queryRunner.query(
       `ALTER TABLE "user_experience_skill" DROP CONSTRAINT "FK_user_experience_skill_user_experience_experienceId"`,
     );
