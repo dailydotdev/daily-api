@@ -561,7 +561,11 @@ const MAX_CONTENT_LENGTH = 10_000;
 export const postInMultipleSourcesArgsSchema = z
   .object({
     title: z.string().max(MAX_TITLE_LENGTH).optional(),
-    content: z.string().max(MAX_CONTENT_LENGTH).optional(),
+    content: z
+      .string()
+      .max(MAX_CONTENT_LENGTH)
+      .nullish()
+      .transform((val) => val ?? ''),
     commentary: z.string().max(MAX_TITLE_LENGTH).optional(),
     image: z.custom<Promise<FileUpload>>(),
     imageUrl: z.httpUrl().optional(),
