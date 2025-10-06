@@ -4,9 +4,8 @@ import { logger } from '../../logger';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityUserType } from '../../entity/opportunities/types';
 import { WarmIntro } from '@dailydotdev/schema';
-import { Feature, FeatureType, Post } from '../../entity';
+import { Feature, FeatureType } from '../../entity';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
-import { updateFlagsStatement } from '../../common';
 
 export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intro-generated'> =
   {
