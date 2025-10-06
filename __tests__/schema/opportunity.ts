@@ -125,6 +125,7 @@ describe('query opportunityById', () => {
       opportunityById(id: $id) {
         id
         type
+        state
         title
         tldr
         content {
@@ -202,6 +203,7 @@ describe('query opportunityById', () => {
     expect(res.data.opportunityById).toEqual({
       id: '550e8400-e29b-41d4-a716-446655440001',
       type: 1,
+      state: 2,
       title: 'Senior Full Stack Developer',
       tldr: 'Join our team as a Senior Full Stack Developer',
       content: {
@@ -999,7 +1001,7 @@ describe('mutation saveOpportunityScreeningAnswers', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1252,7 +1254,7 @@ describe('mutation candidateAddKeywords', () => {
         variables: { keywords: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1278,7 +1280,7 @@ describe('mutation candidateAddKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1306,7 +1308,7 @@ describe('mutation candidateAddKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1422,7 +1424,7 @@ describe('mutation candidateRemoveKeywords', () => {
         variables: { keywords: ['   '] },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1448,7 +1450,7 @@ describe('mutation candidateRemoveKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1476,7 +1478,7 @@ describe('mutation candidateRemoveKeywords', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -1698,7 +1700,7 @@ describe('mutation uploadEmploymentAgreement', () => {
     const extensions = body?.errors?.[0].extensions as unknown as ZodError;
 
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].message).toEqual('Validation error');
     expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(extensions.issues[0].code).toEqual('custom');
     expect(extensions.issues[0].message).toEqual('Unsupported file type');
@@ -1734,7 +1736,7 @@ describe('mutation uploadEmploymentAgreement', () => {
     const extensions = body?.errors?.[0].extensions as unknown as ZodError;
 
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].message).toEqual('Validation error');
     expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(extensions.issues[0].code).toEqual('custom');
     expect(extensions.issues[0].message).toEqual(
@@ -1771,7 +1773,7 @@ describe('mutation uploadEmploymentAgreement', () => {
     const extensions = body?.errors?.[0].extensions as unknown as ZodError;
 
     expect(body.errors).toBeTruthy();
-    expect(body.errors[0].message).toEqual('Zod validation error');
+    expect(body.errors[0].message).toEqual('Validation error');
     expect(body.errors[0].extensions.code).toEqual('ZOD_VALIDATION_ERROR');
     expect(extensions.issues[0].code).toEqual('custom');
     expect(extensions.issues[0].message).toEqual(
@@ -1782,6 +1784,17 @@ describe('mutation uploadEmploymentAgreement', () => {
 });
 
 describe('mutation editOpportunity', () => {
+  beforeEach(async () => {
+    await con.getRepository(OpportunityJob).update(
+      {
+        id: opportunitiesFixture[0].id,
+      },
+      {
+        state: OpportunityState.DRAFT,
+      },
+    );
+  });
+
   const MUTATION = /* GraphQL */ `
     mutation EditOpportunity($id: ID!, $payload: OpportunityEditInput!) {
       editOpportunity(id: $id, payload: $payload) {
@@ -2127,7 +2140,7 @@ describe('mutation editOpportunity', () => {
         },
       },
       'ZOD_VALIDATION_ERROR',
-      'Zod validation error',
+      'Validation error',
       (errors) => {
         const extensions = errors[0].extensions as unknown as ZodError;
         expect(extensions.issues.length).toEqual(1);
@@ -2231,6 +2244,30 @@ describe('mutation editOpportunity', () => {
     });
 
     expect(res.errors).toBeFalsy();
+  });
+
+  it('should throw error when opportunity is not draft', async () => {
+    loggedUser = '1';
+
+    await con
+      .getRepository(OpportunityJob)
+      .update(
+        { id: opportunitiesFixture[0].id },
+        { state: OpportunityState.LIVE },
+      );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: { title: 'Does not matter' },
+        },
+      },
+      'CONFLICT',
+      'Only opportunities in draft state can be edited',
+    );
   });
 });
 
@@ -2384,5 +2421,166 @@ Requirements`,
       .findBy({ opportunityId: opportunity.id });
 
     expect(saved).toHaveLength(3);
+  });
+});
+
+describe('mutation updateOpportunityState', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation UpdateOpportunityState($id: ID!, $state: ProtoEnumValue!) {
+      updateOpportunityState(id: $id, state: $state) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[2].id,
+          state: OpportunityState.LIVE,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw if user is not a recruiter', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[2].id,
+          state: OpportunityState.LIVE,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return validation error when required data is missing for LIVE state', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      title: 'Test',
+      tldr: 'Test',
+      state: OpportunityState.DRAFT,
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunity.id,
+          state: OpportunityState.LIVE,
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      undefined,
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        const issues = extensions.issues.map((i) => i.path.join('.'));
+
+        expect(issues).toEqual([
+          'keywords',
+          'meta.employmentType',
+          'meta.teamSize',
+          'meta.seniorityLevel',
+          'meta.roleType',
+          'content.overview',
+          'content.responsibilities',
+          'content.requirements',
+          'questions',
+        ]);
+      },
+    );
+  });
+
+  it('should update state to LIVE when data is valid', async () => {
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[3].id;
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(OpportunityKeyword).save({
+      opportunityId,
+      keyword: 'typescript',
+    });
+    await con.getRepository(QuestionScreening).save({
+      opportunityId,
+      title: 'Tell us about a recent project',
+      questionOrder: 0,
+    });
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+      },
+    );
+
+    const before = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunityId });
+    expect(before.state).toBe(OpportunityState.DRAFT);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: opportunityId, state: OpportunityState.LIVE },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateOpportunityState).toEqual({ _: true });
+
+    const after = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunityId });
+    expect(after.state).toBe(OpportunityState.LIVE);
+  });
+
+  it('should throw conflict on LIVE transition if opportunity is CLOSED', async () => {
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[0].id; // already LIVE
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(Opportunity).save({
+      id: opportunityId,
+      state: OpportunityState.CLOSED,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunityId, state: OpportunityState.LIVE },
+      },
+      'CONFLICT',
+      'Opportunity is closed',
+    );
   });
 });

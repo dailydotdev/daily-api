@@ -16,7 +16,7 @@ import {
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
-  NotificationStreakContext,
+  type NotificationStreakRestoreContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
@@ -68,7 +68,6 @@ import {
   NotificationChannel,
   NotificationType,
 } from '../../src/notifications/common';
-import { format } from 'date-fns';
 import { saveFixtures } from '../helpers';
 import {
   PostModerationReason,
@@ -563,16 +562,19 @@ describe('generateNotification', () => {
 
   it('should generate streak_reset_restore notification', () => {
     const type = NotificationType.StreakResetRestore;
-    const lastViewAt = new Date();
+    const lastViewAt = new Date('2024-10-03T10:00:00.000Z');
+    const expiry = new Date('2024-10-04T23:59:59.000Z');
+
     const streak = {
       userId,
       lastViewAt,
-      currentStreak: 10,
+      currentStreak: 5,
     } as Reference<UserStreak>;
-    const ctx: NotificationStreakContext = {
-      streak: {
-        ...streak,
-        lastViewAt: lastViewAt.getTime(),
+    const ctx: NotificationStreakRestoreContext = {
+      streak,
+      restore: {
+        expiry: expiry.getTime(),
+        amount: 10,
       },
       userIds: [userId],
     };
@@ -588,9 +590,7 @@ describe('generateNotification', () => {
     expect(actual.notification.description).toEqual(
       'Click here if you wish to restore your streak',
     );
-    expect(actual.notification.uniqueKey).toEqual(
-      format(ctx.streak.lastViewAt, 'dd-MM-yyyy'),
-    );
+    expect(actual.notification.uniqueKey).toEqual('04-10-2024 23:59:59');
   });
 
   it('should generate article_upvote_milestone notification', () => {
@@ -1224,7 +1224,7 @@ describe('generateNotification', () => {
     expect(actual.notification.uniqueKey).toEqual(userId);
     expect(actual.notification.icon).toEqual('Opportunity');
     expect(actual.notification.title).toEqual(
-      'New opportunity waiting for you in daily.dev',
+      'New opportunity waiting for you',
     );
     expect(actual.notification.description).toEqual(
       '<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> Based on your React and TypeScript skills</span>',
@@ -1669,6 +1669,51 @@ describe('storeNotificationBundle', () => {
     expect(notifications.length).toEqual(3);
   });
 
+  it('should not generate duplicate post added notifications for posts with same dedupKey', async () => {
+    await saveFixtures(con, User, usersFixture);
+
+    const dedupKey = 'p1';
+    const sharedCtx = {
+      userIds: [userId, '3', '4'],
+      source: sourcesFixture[0] as Reference<Source>,
+      user: usersFixture[1] as Reference<User>,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+    const ctx1 = {
+      ...sharedCtx,
+      post: postsFixture[1] as Reference<Post>,
+    };
+    const ctx2 = {
+      ...sharedCtx,
+      post: postsFixture[2] as Reference<Post>,
+    };
+
+    const notificationIds = await con.transaction(async (manager) => {
+      const results = await Promise.all([
+        storeNotificationBundleV2(
+          manager,
+          generateNotificationV2(NotificationType.SourcePostAdded, ctx1),
+          dedupKey,
+        ),
+        storeNotificationBundleV2(
+          manager,
+          generateNotificationV2(NotificationType.SquadPostAdded, ctx2),
+          dedupKey,
+        ),
+      ]);
+      return results.flat();
+    });
+
+    const notifications = await con.getRepository(UserNotification).findBy({
+      notificationId: In(notificationIds.map((item) => item.id)),
+    });
+
+    expect(notifications.length).toEqual(3);
+    const uniqueKeys = notifications.map((item) => item.uniqueKey);
+    expect(new Set(uniqueKeys).size).toEqual(1);
+    expect(uniqueKeys[0]).toEqual(`post_added:dedup_${dedupKey}:post`);
+  });
+
   it('should generate user_given_top_reader notification', async () => {
     const topReader = {
       id: 'cdaac113-0e8b-4189-9a6b-ceea7b21de0e',
@@ -2064,5 +2109,66 @@ describe('poll result notifications', () => {
     expect(actual.notification.title).toEqual(
       '<b>Your poll has ended!</b> Check the results for: <b>What is your favorite programming language?</b>',
     );
+  });
+});
+
+describe('warm intro notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should generate warm_intro notification', async () => {
+    const type = NotificationType.WarmIntro;
+    const recruiter = usersFixture[1] as Reference<User>;
+    const organization = {
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: 'Daily Dev Inc',
+      image: 'https://example.com/logo.png',
+    };
+
+    const ctx = {
+      userIds: ['1'],
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      description: 'Warm introduction for opportunity',
+      recruiter,
+      organization,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
+    expect(actual.notification.referenceType).toEqual('opportunity');
+    expect(actual.notification.icon).toEqual('Opportunity');
+    expect(actual.notification.title).toEqual(
+      `We just sent an intro email to you and <b>${recruiter.name}</b> from <b>${organization.name}</b>!`,
+    );
+    expect(actual.notification.description).toEqual(
+      `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
+    );
+    expect(actual.notification.targetUrl).toEqual('system');
+    expect(actual.notification.uniqueKey).toEqual('1');
+    expect(actual.avatars).toEqual([
+      {
+        image: organization.image,
+        name: organization.name,
+        referenceId: organization.id,
+        targetUrl:
+          'http://localhost:5002/settings/organization/550e8400-e29b-41d4-a716-446655440000',
+        type: 'organization',
+      },
+      {
+        image: recruiter.image,
+        name: recruiter.name,
+        referenceId: recruiter.id,
+        targetUrl: `http://localhost:5002/${recruiter.username}`,
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
   });
 });

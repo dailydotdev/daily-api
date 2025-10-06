@@ -30,7 +30,11 @@ import {
   deleteEmploymentAgreementByUserId,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
-import { opportunityEditSchema } from '../common/schema/opportunities';
+import {
+  opportunityEditSchema,
+  opportunityStateLiveSchema,
+  opportunityUpdateStateSchema,
+} from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
   ensureOpportunityPermissions,
@@ -128,6 +132,7 @@ export const typeDefs = /* GraphQL */ `
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
+    state: ProtoEnumValue!
     title: String!
     tldr: String
     content: OpportunityContent!
@@ -338,6 +343,15 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): [OpportunityScreeningQuestion!]! @auth
+
+    updateOpportunityState(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      state: ProtoEnumValue!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -373,7 +387,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           con: ctx.con.manager,
           userId: ctx.userId,
           opportunityId: id,
-          permission: OpportunityPermissions.Edit,
+          permission: OpportunityPermissions.ViewDraft,
         });
       }
 
@@ -727,8 +741,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }
 
           renderedContent[key] = {
-            content: value.content.replace(/'/g, "''"),
-            html: markdown.render(value.content).replace(/'/g, "''"),
+            content: value.content,
+            html: markdown.render(value.content),
           };
         });
 
@@ -830,6 +844,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
+      if (process.env.NODE_ENV === 'development') {
+        return [];
+      }
+
       const gondulClient = getGondulClient();
 
       const result = await gondulClient.garmr.execute(async () => {
@@ -858,6 +876,56 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           order: question.questionOrder,
         };
       });
+    },
+    updateOpportunityState: async (
+      _,
+      payload,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, state } = opportunityUpdateStateSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.UpdateState,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+            keywords: true,
+            questions: true,
+          },
+        });
+
+      switch (state) {
+        case OpportunityState.LIVE: {
+          if (opportunity.state === OpportunityState.CLOSED) {
+            throw new ConflictError(`Opportunity is closed`);
+          }
+
+          opportunityStateLiveSchema.parse({
+            ...opportunity,
+            organization: await opportunity.organization,
+            keywords: await opportunity.keywords,
+            questions: await opportunity.questions,
+          });
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
+        }
+        default:
+          throw new ConflictError('Invalid state transition');
+      }
+
+      return {
+        _: true,
+      };
     },
   },
 });

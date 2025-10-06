@@ -10,6 +10,8 @@ import {
   Banner,
   Bookmark,
   CampaignCtaPlacement,
+  type CampaignPost,
+  type CampaignSource,
   CampaignState,
   CampaignType,
   ChecklistViewState,
@@ -62,12 +64,10 @@ import {
   UserStreakAction,
   UserStreakActionType,
   YouTubePost,
-  type CampaignPost,
-  type CampaignSource,
 } from '../../../src/entity';
 import { PollPost } from '../../../src/entity/posts/PollPost';
 import { PollOption } from '../../../src/entity/polls/PollOption';
-import { addDays, isSameDay } from 'date-fns';
+import { addDays, addYears, isSameDay } from 'date-fns';
 import {
   DayOfWeek,
   debeziumTimeToDate,
@@ -164,7 +164,6 @@ import {
 import { NotificationType } from '../../../src/notifications/common';
 import type { UserReport } from '../../../src/entity/UserReport';
 import { SubscriptionCycles } from '../../../src/paddle';
-import { addYears } from 'date-fns';
 import type { ContentPreferenceUser } from '../../../src/entity/contentPreference/ContentPreferenceUser';
 import {
   ContentPreferenceStatus,
@@ -172,7 +171,10 @@ import {
 } from '../../../src/entity/contentPreference/types';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { UserCandidatePreference } from '../../../src/entity/user/UserCandidatePreference';
-import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from '../../../src/entity/opportunities/types';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import {
   opportunitiesFixture,
@@ -185,6 +187,7 @@ import {
   ContentPreferenceOrganization,
   ContentPreferenceOrganizationStatus,
 } from '../../../src/entity/contentPreference/ContentPreferenceOrganization';
+import { OpportunityUser } from '../../../src/entity/opportunities/user';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -5643,6 +5646,13 @@ describe('opportunity match', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    await con.getRepository(User).update(
+      { id: usersFixture[0].id },
+      {
+        title: 'CTO',
+        bio: 'Here to break things',
+      },
+    );
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await con.getRepository(UserCandidatePreference).save({
@@ -5658,6 +5668,11 @@ describe('opportunity match', () => {
       description: {},
       screening: [],
       applicationRank: {},
+    });
+    await con.getRepository(OpportunityUser).save({
+      userId: usersFixture[0].id,
+      opportunityId: opportunitiesFixture[0].id,
+      type: OpportunityUserType.Recruiter,
     });
   });
 
@@ -5800,6 +5815,11 @@ describe('opportunity match', () => {
         expect.objectContaining({
           opportunityId: opportunitiesFixture[0].id,
           userId: '1',
+          recruiter: {
+            name: 'Ido',
+            role: 'CTO',
+            bio: 'Here to break things',
+          },
         }),
       );
     });
@@ -5852,6 +5872,36 @@ describe('opportunity', () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
+    await con.getRepository(Feed).save([
+      { id: usersFixture[0].id, userId: usersFixture[0].id },
+      {
+        id: usersFixture[1].id,
+        userId: usersFixture[1].id,
+      },
+    ]);
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        organizationId: organizationsFixture[0].id,
+        userId: usersFixture[0].id,
+        referenceId: usersFixture[0].id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Free,
+        feedId: usersFixture[0].id,
+      },
+      {
+        organizationId: organizationsFixture[0].id,
+        userId: usersFixture[1].id,
+        referenceId: usersFixture[1].id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Free,
+        feedId: usersFixture[0].id,
+      },
+    ]);
+    await con.getRepository(OpportunityUser).save({
+      userId: usersFixture[3].id,
+      opportunityId: opportunitiesFixture[0].id,
+      type: OpportunityUserType.Recruiter,
+    });
   });
 
   it('should trigger on new opportunity', async () => {
@@ -5868,7 +5918,7 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.LIVE,
-          organizationId: 'org-1',
+          organizationId: organizationsFixture[0].id,
         },
         op: 'c',
         table: 'opportunity',
@@ -5879,6 +5929,9 @@ describe('opportunity', () => {
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
     );
+    expect(
+      jest.mocked(triggerTypedEvent).mock.calls[0][2].excludedUserIds,
+    ).toEqual(['1', '2', '4']);
   });
 
   it('should trigger opportunity job for demo company', async () => {
@@ -6008,7 +6061,7 @@ describe('opportunity', () => {
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
-      'api.v1.opportunity-updated',
+      'api.v1.opportunity-added',
     );
   });
 
@@ -6486,10 +6539,10 @@ describe('organization', () => {
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
-      'api.v1.opportunity-updated',
+      'api.v1.opportunity-added',
     );
     expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
-      'api.v1.opportunity-updated',
+      'api.v1.opportunity-added',
     );
   });
 

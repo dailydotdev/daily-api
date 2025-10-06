@@ -10,7 +10,7 @@ import {
   Salary,
   UserCV,
 } from '@dailydotdev/schema';
-import { demoCompany, triggerTypedEvent } from '../../common';
+import { demoCompany, triggerTypedEvent, uniqueifyArray } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { ChangeObject } from '../../types';
@@ -24,6 +24,8 @@ import {
   ContentPreferenceType,
 } from '../../entity/contentPreference/types';
 import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
+import { OpportunityUser } from '../../entity/opportunities/user';
+import { OpportunityUserType } from '../../entity/opportunities/types';
 
 const fetchCandidateKeywords = async (
   manager: EntityManager,
@@ -171,14 +173,32 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
     return;
   }
 
-  const match = await queryReadReplica(con, async ({ queryRunner }) => {
-    return queryRunner.manager.getRepository(OpportunityMatch).findOne({
-      select: ['opportunityId', 'userId'],
-      where: { opportunityId: data.opportunityId, userId: data.userId },
-    });
-  });
+  /**
+   * TODO: For now this will simply fetch the first recruiter.
+   * Ideally this should maintain which recruiter accepted the match
+   */
+  const [match, opportunityUser] = await queryReadReplica(
+    con,
+    ({ queryRunner }) =>
+      Promise.all([
+        queryRunner.manager.getRepository(OpportunityMatch).findOne({
+          select: ['opportunityId', 'userId'],
+          where: { opportunityId: data.opportunityId, userId: data.userId },
+        }),
+        queryRunner.manager.getRepository(OpportunityUser).findOne({
+          select: ['userId', 'opportunityId', 'type'],
+          relations: ['user'],
+          where: {
+            opportunityId: data.opportunityId,
+            type: OpportunityUserType.Recruiter,
+          },
+        }),
+      ]),
+  );
 
-  if (!match) {
+  const recruiter = await opportunityUser?.user;
+
+  if (!match || !recruiter) {
     logger.warn(
       { opportunityId: data.opportunityId, userId: data.userId },
       'Opportunity match not found for recruiter accepted candidate notification',
@@ -191,6 +211,11 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
     userId: match.userId,
     createdAt: getSecondsTimestamp(match.createdAt),
     updatedAt: getSecondsTimestamp(match.updatedAt),
+    recruiter: {
+      name: recruiter.name,
+      role: recruiter?.title,
+      bio: recruiter?.bio,
+    },
   });
 
   try {
@@ -264,19 +289,13 @@ export const notifyCandidateOpportunityMatchRejected = async ({
 export const notifyJobOpportunity = async ({
   con,
   logger,
-  isUpdate,
   opportunityId,
 }: {
   con: DataSource;
   logger: FastifyBaseLogger;
-  isUpdate: boolean;
   opportunityId: string;
 }) => {
-  const topicName = isUpdate
-    ? 'api.v1.opportunity-updated'
-    : 'api.v1.opportunity-added';
-
-  const [opportunity, organization, keywords] = await queryReadReplica(
+  const [opportunity, organization, keywords, users] = await queryReadReplica(
     con,
     async ({ queryRunner }) => {
       const opportunity = await queryRunner.manager
@@ -286,15 +305,17 @@ export const notifyJobOpportunity = async ({
           relations: {
             organization: true,
             keywords: true,
+            users: true,
           },
         });
 
-      const [organization, keywords] = await Promise.all([
+      const [organization, keywords, users] = await Promise.all([
         opportunity.organization,
         opportunity.keywords,
+        opportunity.users,
       ]);
 
-      return [opportunity, organization, keywords];
+      return [opportunity, organization, keywords, users];
     },
   );
 
@@ -309,17 +330,23 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
+  const organizationMembers = await queryReadReplica(
+    con,
+    async ({ queryRunner }) => {
+      return await queryRunner.manager
+        .getRepository(ContentPreferenceOrganization)
+        .find({
+          select: ['userId'],
+          where: { organizationId: organization.id },
+        });
+    },
+  );
+
   /**
    * Demo logic: if the company is the demo company we can omit using Gondul and simply return the users from that company as matched candidates
    */
   if (organization.id === demoCompany.id) {
-    const members = await con
-      .getRepository(ContentPreferenceOrganization)
-      .find({
-        select: ['userId'],
-        where: { organizationId: organization.id },
-      });
-    for (const { userId } of members) {
+    for (const { userId } of organizationMembers) {
       await triggerTypedEvent(
         logger,
         'gondul.v1.candidate-opportunity-match',
@@ -337,6 +364,11 @@ export const notifyJobOpportunity = async ({
     return;
   }
 
+  const excludedUserIds = uniqueifyArray([
+    ...organizationMembers.map((m) => m.userId),
+    ...users.map((u) => u.userId),
+  ]);
+
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
@@ -349,10 +381,11 @@ export const notifyJobOpportunity = async ({
       createdAt: getSecondsTimestamp(organization.createdAt),
       updatedAt: getSecondsTimestamp(organization.updatedAt),
     },
+    excludedUserIds,
   });
 
   try {
-    await triggerTypedEvent(logger, topicName, message);
+    await triggerTypedEvent(logger, 'api.v1.opportunity-added', message);
   } catch (_err) {
     const err = _err as Error;
     logger.error({ err, message }, 'failed to send opportunity event');

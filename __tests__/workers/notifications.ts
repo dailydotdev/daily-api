@@ -39,7 +39,7 @@ import {
   NotificationPostContext,
   NotificationSourceContext,
   NotificationSourceRequestContext,
-  NotificationStreakContext,
+  type NotificationStreakRestoreContext,
   NotificationUpvotersContext,
   NotificationUserContext,
 } from '../../src/notifications';
@@ -47,13 +47,17 @@ import {
   NotificationPreferenceStatus,
   NotificationType,
 } from '../../src/notifications/common';
-import { createSquadWelcomePost, NotificationReason } from '../../src/common';
+import {
+  createSquadWelcomePost,
+  NotificationReason,
+  toChangeObject,
+} from '../../src/common';
 import { randomUUID } from 'crypto';
 import { CoresRole, UserVote } from '../../src/types';
 import { UserComment } from '../../src/entity/user/UserComment';
 import { workers } from '../../src/workers';
 import { generateStorageKey, StorageKey, StorageTopic } from '../../src/config';
-import { ioRedisPool, setRedisObject } from '../../src/redis';
+import { ioRedisPool, setRedisObjectWithExpiry } from '../../src/redis';
 import { ReportReason } from '../../src/entity/common';
 import { ContentPreferenceUser } from '../../src/entity/contentPreference/ContentPreferenceUser';
 import {
@@ -1109,21 +1113,20 @@ describe('streak reset restore', () => {
       StorageKey.Reset,
       streak.userId,
     );
-    const debeziumTime = streak.lastViewAt.getTime();
-    await setRedisObject(key, lastStreak.toString());
+    const expirySeconds = 86400; // 24 hours
+    await setRedisObjectWithExpiry(key, lastStreak.toString(), expirySeconds);
     const actual =
       await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
         worker.default,
-        {
-          streak: { ...streak, lastViewAt: debeziumTime },
-        },
+        { streak: toChangeObject<UserStreak>(streak) },
       );
     expect(actual.length).toEqual(1);
     const bundle = actual[0];
-    const ctx = bundle.ctx as NotificationStreakContext;
+    const ctx = bundle.ctx as NotificationStreakRestoreContext;
     expect(bundle.type).toEqual('streak_reset_restore');
-    expect(ctx.streak.currentStreak).toEqual(lastStreak);
-    expect(ctx.streak.lastViewAt).toEqual(debeziumTime);
+    expect(ctx.restore.amount).toEqual(lastStreak);
+    expect(ctx.restore.expiry).toBeGreaterThan(Date.now());
+    expect(ctx.streak.userId).toEqual('1-srrn');
   });
 
   it('should not add notification if the stored value has expired', async () => {
@@ -1158,7 +1161,8 @@ describe('streak reset restore', () => {
       StorageKey.Reset,
       streak.userId,
     );
-    await setRedisObject(key, lastStreak.toString());
+    const expirySeconds = 86400;
+    await setRedisObjectWithExpiry(key, lastStreak.toString(), expirySeconds);
     await con
       .getRepository(Settings)
       .save({ userId: '1-srrn', optOutReadingStreak: true });
@@ -1185,7 +1189,8 @@ describe('streak reset restore', () => {
       StorageKey.Reset,
       streak.userId,
     );
-    await setRedisObject(key, '1-srrntest');
+    const expirySeconds = 86400;
+    await setRedisObjectWithExpiry(key, '1-srrntest', expirySeconds);
     const actual =
       await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
         worker.default,
@@ -1216,14 +1221,14 @@ describe('streak reset restore', () => {
       StorageKey.Reset,
       streak.userId,
     );
-    const debeziumTime = streak.lastViewAt.getTime();
-    await setRedisObject(key, lastStreak.toString());
+    const expirySeconds = 86400;
+    await setRedisObjectWithExpiry(key, lastStreak.toString(), expirySeconds);
 
     const actual =
       await invokeTypedNotificationWorker<'api.v1.user-streak-updated'>(
         worker.default,
         {
-          streak: { ...streak, lastViewAt: debeziumTime },
+          streak,
         },
       );
 

@@ -38,6 +38,7 @@ export type NotificationBaseContext = {
   userIds: string[];
   initiatorId?: string | null;
   sendAtMs?: number;
+  dedupKey?: string;
 };
 export type NotificationSubmissionContext = NotificationBaseContext & {
   submission: Pick<Submission, 'id'>;
@@ -74,10 +75,16 @@ export type NotificationBookmarkContext = NotificationBaseContext & {
 };
 
 export type NotificationStreakContext = NotificationBaseContext & {
-  streak: Omit<Reference<UserStreak>, 'lastViewAt'> & {
-    lastViewAt: number;
-  };
+  streak: Reference<UserStreak>;
 };
+
+export interface NotificationStreakRestoreContext
+  extends NotificationStreakContext {
+  restore: {
+    expiry: number;
+    amount: number;
+  };
+}
 
 export type NotificationGiftPlusContext = NotificationBaseContext & {
   gifter: Reference<User>;
@@ -154,6 +161,13 @@ export interface NotificationCampaignSourceContext
 export type NotificationOpportunityMatchContext = NotificationBaseContext & {
   opportunityId: string;
   reasoningShort: string;
+};
+
+export type NotificationWarmIntroContext = NotificationBaseContext & {
+  description: string;
+  opportunityId: string;
+  recruiter: Reference<User>;
+  organization: Reference<Organization>;
 };
 
 declare module 'fs' {

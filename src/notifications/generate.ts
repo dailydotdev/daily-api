@@ -23,7 +23,6 @@ import {
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
   NotificationSquadRequestContext,
-  NotificationStreakContext,
   NotificationSubmissionContext,
   NotificationUpvotersContext,
   NotificationUserContext,
@@ -32,6 +31,8 @@ import {
   type NotificationUserTopReaderContext,
   NotificationOpportunityMatchContext,
   type NotificationPostAnalyticsContext,
+  type NotificationWarmIntroContext,
+  type NotificationStreakRestoreContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -132,8 +133,8 @@ export const notificationTitleMap: Record<
     `<b>Congratulations! ${ctx.source.name} has successfully passed the review process and is now officially public!</b>`,
   squad_public_rejected: systemTitle,
   squad_public_submitted: systemTitle,
-  streak_reset_restore: (ctx: NotificationStreakContext) =>
-    `<b>Oh no! Your ${ctx.streak.currentStreak} day streak has been broken</b>`,
+  streak_reset_restore: (ctx: NotificationStreakRestoreContext) =>
+    `<b>Oh no! Your ${ctx.restore.amount} day streak has been broken</b>`,
   user_post_added: (ctx: NotificationUserContext) => {
     const userName = ctx.user.name || ctx.user.username;
 
@@ -195,7 +196,7 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
-  new_opportunity_match: () => `New opportunity waiting for you in daily.dev`,
+  new_opportunity_match: () => `New opportunity waiting for you`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
   },
@@ -203,6 +204,8 @@ export const notificationTitleMap: Record<
     `<b>Poll you voted on has ended!</b> See the results for: <b>${ctx.post.title}</b>`,
   poll_result_author: (ctx: NotificationPostContext) =>
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
+  warm_intro: (ctx: NotificationWarmIntroContext) =>
+    `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
 };
 
 export const generateNotificationMap: Record<
@@ -273,15 +276,15 @@ export const generateNotificationMap: Record<
       .avatarSource(ctx.source)
       .uniqueKey(ctx.bookmark.remindAt.toString())
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
-  streak_reset_restore: (builder, ctx: NotificationStreakContext) =>
+  streak_reset_restore: (builder, ctx: NotificationStreakRestoreContext) =>
     builder
       .icon(NotificationIcon.Streak)
       .description('Click here if you wish to restore your streak')
-      .uniqueKey(format(ctx.streak.lastViewAt!, 'dd-MM-yyyy'))
+      .uniqueKey(format(ctx.restore.expiry, 'dd-MM-yyyy HH:mm:ss'))
       .targetUrl(notificationsLink)
       .referenceStreak(ctx.streak)
       .setTargetUrlParameter([
-        ['streak_restore', ctx.streak.currentStreak.toString()],
+        ['streak_restore', ctx.restore.amount.toString()],
       ]),
   article_upvote_milestone: (
     builder,
@@ -539,7 +542,7 @@ export const generateNotificationMap: Record<
   new_opportunity_match: (builder, ctx: NotificationOpportunityMatchContext) =>
     builder
       .icon(NotificationIcon.Opportunity)
-      .referenceOpportunity(ctx)
+      .referenceOpportunity(ctx.opportunityId)
       .uniqueKey(ctx.userIds[0])
       .description(
         `<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
@@ -575,4 +578,19 @@ export const generateNotificationMap: Record<
       .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .referencePost(ctx.post),
+  warm_intro: (
+    builder: NotificationBuilder,
+    ctx: NotificationWarmIntroContext,
+  ) => {
+    return builder
+      .targetUrl('system')
+      .referenceOpportunity(ctx.opportunityId)
+      .uniqueKey(ctx.userIds[0])
+      .icon(NotificationIcon.Opportunity)
+      .avatarOrganization(ctx.organization)
+      .avatarUser(ctx.recruiter)
+      .description(
+        `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
+      );
+  },
 };
