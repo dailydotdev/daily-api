@@ -20,8 +20,8 @@ export const createOpportunityEditContentSchema = ({
 };
 
 export const applicationScoreSchema = z.object({
-  score: z.number().min(0).max(100),
-  description: z.string(),
+  score: z.number().min(0).max(100).optional(),
+  description: z.string().optional(),
   warmIntro: z.string().optional(),
 });
 
