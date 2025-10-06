@@ -3343,8 +3343,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (hasExternalLink) {
         const { id } = await getPostIdFromUrlOrCreateOne(ctx, postArgs);
         postArgs.sharedPostId = id;
-        postArgs.title = postArgs.content; // when passing external link, content is the shared post commentary
-        delete postArgs.content;
       }
 
       return await ctx.con.transaction(async (entityManager) => {
@@ -3375,14 +3373,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           // OR create a pending post instead
           const isMultiPost = sourceIds.length > 1;
-          const { options, ...pendingArgs } = postArgs;
+          const { options, title, commentary, ...pendingArgs } = postArgs;
+          const type =
+            detectedPostType === PostType.Article
+              ? PostType.Share
+              : detectedPostType;
           const pendingPost = await validateSourcePostModeration(ctx, {
             ...pendingArgs,
             sourceId,
-            type:
-              detectedPostType === PostType.Article
-                ? PostType.Share
-                : detectedPostType,
+            type,
+            title: type === PostType.Share ? commentary : title,
             pollOptions: options,
           });
           const { id } = await createSourcePostModeration({

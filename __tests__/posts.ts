@@ -2937,6 +2937,11 @@ describe('mutation createPostInMultipleSources', () => {
     sharedPostId: 'p1', // sharing existing post
   };
 
+  const shareParamsWithCommentary = {
+    ...shareParams,
+    commentary: 'My comment',
+  };
+
   beforeEach(async () => {
     await con.getRepository(Feed).save({
       id: '1',
@@ -3201,13 +3206,8 @@ describe('mutation createPostInMultipleSources', () => {
 
     it('should handle share post with commentary', async () => {
       loggedUser = '1';
-      const title = 'My comment';
-      const shareWithCommentary = {
-        ...shareParams,
-        title,
-      };
       const res = await client.mutate(MUTATION, {
-        variables: shareWithCommentary,
+        variables: shareParamsWithCommentary,
       });
 
       expect(res.errors).toBeFalsy();
@@ -3238,7 +3238,7 @@ describe('mutation createPostInMultipleSources', () => {
         sourceId: 'squad',
         authorId: '1',
         sharedPostId: 'p1',
-        title,
+        title: shareParamsWithCommentary.commentary,
       });
       expect(moderationItem).toEqual(
         expect.objectContaining({
@@ -3246,7 +3246,7 @@ describe('mutation createPostInMultipleSources', () => {
           createdById: '1',
           sharedPostId: 'p1',
           status: SourcePostModerationStatus.Pending,
-          title,
+          title: shareParamsWithCommentary.commentary,
         }),
       );
     });
@@ -3291,12 +3291,12 @@ describe('mutation createPostInMultipleSources', () => {
 
     it('should handle share post with commentary', async () => {
       loggedUser = '1';
-
+      const commentary = 'My comment';
       const shareWithCommentary = {
         ...freeformParams,
         externalLink: 'https://www.google.com',
         title: 'article title', // actual article title
-        content: 'commentary', // shared post commentary
+        commentary, // shared post commentary
       };
 
       const existingLink = await con.getRepository(ArticlePost).findOneBy({
@@ -3330,9 +3330,10 @@ describe('mutation createPostInMultipleSources', () => {
         }),
       ]);
 
-      expect(post.title).toBe(shareWithCommentary.content);
-      expect(moderationItem.title).toBe(shareWithCommentary.content);
-      expect(userSourcePost.title).toBe(shareWithCommentary.content);
+      expect(post.title).toBe(shareWithCommentary.commentary);
+      expect(moderationItem.title).toBe(shareWithCommentary.commentary);
+      expect(moderationItem.content).toBeFalsy();
+      expect(userSourcePost.title).toBe(shareWithCommentary.commentary);
 
       const originalPost = await con
         .getRepository(ArticlePost)
