@@ -30,7 +30,8 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         {
           userId,
           opportunityId,
-          applicationRank: `applicationRank || '${JSON.stringify({ warmIntro: description })}'`,
+          applicationRank: () =>
+            `applicationRank || '${JSON.stringify({ warmIntro: description })}'`,
         },
         {
           conflictPaths: ['userId', 'opportunityId'],
