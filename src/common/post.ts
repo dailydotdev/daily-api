@@ -524,8 +524,8 @@ export interface CreateSourcePostModerationArgs
   duration?: number;
 }
 
-export interface EditPostArgs
-  extends Pick<GQLPost, 'id' | 'title' | 'content'> {
+export interface EditPostArgs extends Pick<GQLPost, 'id' | 'title'> {
+  content?: string | null;
   image: Promise<FileUpload>;
 }
 
@@ -561,7 +561,12 @@ const MAX_CONTENT_LENGTH = 10_000;
 export const postInMultipleSourcesArgsSchema = z
   .object({
     title: z.string().max(MAX_TITLE_LENGTH).optional(),
-    content: z.string().max(MAX_CONTENT_LENGTH).optional(),
+    content: z
+      .string()
+      .max(MAX_CONTENT_LENGTH)
+      .default('')
+      .nullable()
+      .optional(),
     commentary: z.string().max(MAX_TITLE_LENGTH).optional(),
     image: z.custom<Promise<FileUpload>>(),
     imageUrl: z.httpUrl().optional(),
@@ -1389,7 +1394,7 @@ export const createFreeformPost = async (
 
   await con.transaction(async (manager) => {
     const mentions = await getMentions(manager, content, userId, sourceId);
-    const contentHtml = markdown.render(content, { mentions });
+    const contentHtml = markdown.render(content || '', { mentions });
     const params: CreatePost = {
       id,
       title,

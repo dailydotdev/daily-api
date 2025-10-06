@@ -14,7 +14,7 @@ export class FreeformPost extends Post {
   image?: string;
 
   @Column({ type: 'text', nullable: true })
-  content: string;
+  content: string | null;
 
   @Column({ type: 'text', nullable: true })
   contentHtml: string;
