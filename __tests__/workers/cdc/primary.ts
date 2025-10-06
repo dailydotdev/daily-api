@@ -47,6 +47,8 @@ import {
   SourceMember,
   SourceRequest,
   SourceType,
+  SourceUser,
+  SQUAD_IMAGE_PLACEHOLDER,
   SquadPublicRequest,
   SquadPublicRequestStatus,
   SquadSource,
@@ -959,6 +961,165 @@ describe('user', () => {
       user: base,
       newProfile: after,
     } as unknown as PubSubSchema['user-updated']);
+  });
+
+  describe('update user source', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, SourceUser, [
+        { id: '1', userId: '1', handle: 'idoshamun', name: 'Ido' },
+      ]);
+    });
+
+    it('should update user source when name changed', async () => {
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'Ido',
+      });
+
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        name: 'New Ido Shamun',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'New Ido Shamun',
+      });
+    });
+
+    it('should update user source when image changed', async () => {
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        image: SQUAD_IMAGE_PLACEHOLDER,
+      });
+
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        image: 'https://daily.dev/new-image.jpg',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'Ido',
+        image: 'https://daily.dev/new-image.jpg',
+      });
+    });
+
+    it('fallback to username when no name', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        name: null,
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'idoshamun',
+      });
+    });
+
+    it('fallback to default image when no image', async () => {
+      await con
+        .getRepository(SourceUser)
+        .update({ userId: '1' }, { image: 'http://daily.dev/image.jpg' });
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        image: null,
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        image: SQUAD_IMAGE_PLACEHOLDER,
+      });
+    });
+
+    it('should do nothing if user source does not exist', async () => {
+      const before = { ...base, id: '2' };
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        id: '2',
+        name: 'New Ido Shamun',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: before,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).countBy({ userId: '2' }),
+      ).toEqual(0);
+    });
   });
 });
 

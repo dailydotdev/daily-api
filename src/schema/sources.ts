@@ -1265,8 +1265,9 @@ export const ensureUserSourceExists = async (
         id: user.id,
         userId: user.id,
         handle: user.id,
-        name: user.id,
+        name: user.name || user.username,
         type: SourceType.User,
+        image: user.image || undefined,
         private: false,
         flags: {
           publicThreshold:

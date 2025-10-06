@@ -2969,6 +2969,11 @@ describe('mutation createPostInMultipleSources', () => {
     sharedPostId: 'p1', // sharing existing post
   };
 
+  const shareParamsWithCommentary = {
+    ...shareParams,
+    commentary: 'My comment',
+  };
+
   beforeEach(async () => {
     await con.getRepository(Feed).save({
       id: '1',
@@ -3233,13 +3238,8 @@ describe('mutation createPostInMultipleSources', () => {
 
     it('should handle share post with commentary', async () => {
       loggedUser = '1';
-      const title = 'My comment';
-      const shareWithCommentary = {
-        ...shareParams,
-        title,
-      };
       const res = await client.mutate(MUTATION, {
-        variables: shareWithCommentary,
+        variables: shareParamsWithCommentary,
       });
 
       expect(res.errors).toBeFalsy();
@@ -3270,7 +3270,7 @@ describe('mutation createPostInMultipleSources', () => {
         sourceId: 'squad',
         authorId: '1',
         sharedPostId: 'p1',
-        title,
+        title: shareParamsWithCommentary.commentary,
       });
       expect(moderationItem).toEqual(
         expect.objectContaining({
@@ -3278,7 +3278,7 @@ describe('mutation createPostInMultipleSources', () => {
           createdById: '1',
           sharedPostId: 'p1',
           status: SourcePostModerationStatus.Pending,
-          title,
+          title: shareParamsWithCommentary.commentary,
         }),
       );
     });
@@ -3319,6 +3319,61 @@ describe('mutation createPostInMultipleSources', () => {
       expect(post.sharedPostId).toBe(moderationItem.sharedPostId);
       expect(post.sharedPostId).toBe(userSourcePost.sharedPostId);
       expect(post.sharedPostId).toBeTruthy();
+    });
+
+    it('should handle share post with commentary', async () => {
+      loggedUser = '1';
+      const commentary = 'My comment';
+      const shareWithCommentary = {
+        ...freeformParams,
+        externalLink: 'https://www.google.com',
+        title: 'article title', // actual article title
+        commentary, // shared post commentary
+      };
+
+      const existingLink = await con.getRepository(ArticlePost).findOneBy({
+        url: shareWithCommentary.externalLink,
+      });
+      expect(existingLink).toBeFalsy();
+
+      const res = await client.mutate(MUTATION, {
+        variables: shareWithCommentary,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(3);
+      expect(res.data.createPostInMultipleSources).toEqual([
+        expect.objectContaining({ type: 'post', sourceId: 'squad' }),
+        expect.objectContaining({ type: 'moderationItem', sourceId: 'm' }),
+        expect.objectContaining({ type: 'post', sourceId: '1' }),
+      ]);
+      const [first, second, third] = res.data.createPostInMultipleSources;
+
+      // Verify posts were actually created
+      const [post, moderationItem, userSourcePost] = await Promise.all([
+        await con.getRepository(SharePost).findOneByOrFail({ id: first.id }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sourceId', 'sharedPostId', 'title'],
+          where: { id: second.id, status: SourcePostModerationStatus.Pending },
+        }),
+        await con.getRepository(SharePost).findOneByOrFail({
+          id: third.id,
+          sourceId: '1',
+        }),
+      ]);
+
+      expect(post.title).toBe(shareWithCommentary.commentary);
+      expect(moderationItem.title).toBe(shareWithCommentary.commentary);
+      expect(moderationItem.content).toBeFalsy();
+      expect(userSourcePost.title).toBe(shareWithCommentary.commentary);
+
+      const originalPost = await con
+        .getRepository(ArticlePost)
+        .findOneByOrFail({
+          id: post.sharedPostId,
+        });
+      expect(originalPost.title).toBe(shareWithCommentary.title);
+      expect(originalPost.url).toBe(shareWithCommentary.externalLink);
     });
 
     it('should share post when already existing url is submitted', async () => {
