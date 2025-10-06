@@ -4,8 +4,9 @@ import { logger } from '../../logger';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityUserType } from '../../entity/opportunities/types';
 import { WarmIntro } from '@dailydotdev/schema';
-import { Feature, FeatureType } from '../../entity';
+import { Feature, FeatureType, Post } from '../../entity';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
+import { updateFlagsStatement } from '../../common';
 
 export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intro-generated'> =
   {
@@ -26,16 +27,14 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         return;
       }
 
-      await con.getRepository(OpportunityMatch).upsert(
+      await con.getRepository(OpportunityMatch).update(
         {
           userId,
           opportunityId,
-          applicationRank: () =>
-            `applicationRank || '${JSON.stringify({ warmIntro: description })}'`,
         },
         {
-          conflictPaths: ['userId', 'opportunityId'],
-          skipUpdateIfNoValuesChanged: true,
+          applicationRank: () =>
+            `applicationRank || '${JSON.stringify({ warmIntro: description })}'`,
         },
       );
 
