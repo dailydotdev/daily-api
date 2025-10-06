@@ -3184,6 +3184,22 @@ describe('mutation createPostInMultipleSources', () => {
       );
     });
 
+    it('should handle empty content', async () => {
+      loggedUser = '1';
+      const singleParams = {
+        ...freeformParams,
+        content: null,
+        sourceIds: ['squad'],
+      };
+      const res = await client.mutate(MUTATION, { variables: singleParams });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(1);
+      const [post] = res.data.createPostInMultipleSources;
+      expect(post.sourceId).toBe('squad');
+      expect(post.type).toBe('post');
+    });
+
     it('should handle single squad posting', async () => {
       loggedUser = '1';
       const singleParams = { ...freeformParams, sourceIds: ['squad'] };
