@@ -1427,7 +1427,6 @@ const obj = new GraphORM({
       },
     },
   },
-
   PostAnalytics: {
     requiredColumns: ['id', 'updatedAt'],
     fields: {
@@ -1487,6 +1486,19 @@ const obj = new GraphORM({
       updatedAt: {
         transform: transformDate,
       },
+      impressions: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.impressions + ${alias}."impressionsAds", 0)
+          `;
+        },
+      },
+    },
+  },
+  PostAnalyticsPublic: {
+    from: 'PostAnalytics',
+    fields: {
       impressions: {
         rawSelect: true,
         select: (_, alias) => {

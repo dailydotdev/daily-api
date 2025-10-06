@@ -1340,6 +1340,38 @@ describe('query post', () => {
       expect(res.data.post.clickbaitTitleDetected).toEqual(false);
     });
   });
+
+  describe('analytics field', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          id
+          analytics {
+            impressions
+          }
+        }
+      }
+    `;
+
+    it('should return public analytics', async () => {
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: { impressions: 420 },
+      });
+    });
+  });
 });
 
 describe('query postByUrl', () => {
