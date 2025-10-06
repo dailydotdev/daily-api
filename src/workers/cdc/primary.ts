@@ -31,6 +31,7 @@ import {
   SourceMember,
   SourceRequest,
   SourceUser,
+  SQUAD_IMAGE_PLACEHOLDER,
   SquadPublicRequest,
   SquadSource,
   Submission,
@@ -531,7 +532,7 @@ const onUserChange = async (
         { userId: newProfile.id },
         {
           name: newProfile.name || newProfile.username,
-          image: () => (newProfile.image ? `'${newProfile.image}'` : 'DEFAULT'),
+          image: newProfile.image || SQUAD_IMAGE_PLACEHOLDER,
         },
       );
     }
