@@ -72,9 +72,9 @@ export class UserExperience {
   @Column({
     type: 'integer',
     comment: 'LocationType from protobuf schema',
-    default: LocationType.UNSPECIFIED,
+    default: null,
   })
-  locationType: LocationType;
+  locationType: LocationType | null;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

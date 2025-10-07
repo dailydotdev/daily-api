@@ -9,9 +9,9 @@ export class UserExperienceWork extends UserExperience {
   @Column({
     type: 'integer',
     comment: 'EmploymentType from protobuf schema',
-    default: EmploymentType.UNSPECIFIED,
+    default: null,
   })
-  employmentType: EmploymentType;
+  employmentType: EmploymentType | null;
 
   @Column({ default: false })
   verified: boolean;
