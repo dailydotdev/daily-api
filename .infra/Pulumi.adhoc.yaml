@@ -95,6 +95,7 @@ config:
     validLanguagesFeatureKey: valid_languages
     resumeBucketName: adhoc-daily-api
     employmentAgreementBucketName: adhoc-daily-api
+    brokkrOrigin: http://brokkr-grpc:50051
   api:k8s:
     namespace: local
   api:temporal:

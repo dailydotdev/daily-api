@@ -33,13 +33,19 @@ import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
-import { createRouterTransport } from '@connectrpc/connect';
+import {
+  Code as ConnectCode,
+  ConnectError,
+  createRouterTransport,
+} from '@connectrpc/connect';
 import {
   ApplicationService as GondulService,
   Credits,
   TransferType,
   type TransferStatus,
   ScreeningQuestionsResponse,
+  BrokkrService,
+  ExtractMarkdownResponse,
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
@@ -424,6 +430,21 @@ export const doNotFake: FakeableAPI[] = [
   'setTimeout',
   'clearTimeout',
 ];
+
+export const createMockBrokkrTransport = () =>
+  createRouterTransport(({ service }) => {
+    service(BrokkrService, {
+      extractMarkdown: (request) => {
+        if (request.blobName === 'error.pdf') {
+          throw new ConnectError('Not found', ConnectCode.NotFound);
+        }
+
+        return new ExtractMarkdownResponse({
+          content: `# Extracted content for ${request.blobName} in ${request.bucketName}`,
+        });
+      },
+    });
+  });
 
 export const createMockNjordTransport = () => {
   return createRouterTransport(({ service }) => {
