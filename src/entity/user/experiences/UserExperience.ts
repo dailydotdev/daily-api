@@ -59,8 +59,8 @@ export class UserExperience {
   @Index('IDX_user_experience_type')
   type: UserExperienceType;
 
-  @Column()
-  locationId: string;
+  @Column({ type: 'text', default: null })
+  locationId: string | null;
 
   @ManyToOne('DatasetLocation', { lazy: true, onDelete: 'SET NULL' })
   @JoinColumn({
