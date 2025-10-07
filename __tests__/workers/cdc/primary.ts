@@ -10,6 +10,8 @@ import {
   Banner,
   Bookmark,
   CampaignCtaPlacement,
+  type CampaignPost,
+  type CampaignSource,
   CampaignState,
   CampaignType,
   ChecklistViewState,
@@ -45,6 +47,8 @@ import {
   SourceMember,
   SourceRequest,
   SourceType,
+  SourceUser,
+  SQUAD_IMAGE_PLACEHOLDER,
   SquadPublicRequest,
   SquadPublicRequestStatus,
   SquadSource,
@@ -62,12 +66,10 @@ import {
   UserStreakAction,
   UserStreakActionType,
   YouTubePost,
-  type CampaignPost,
-  type CampaignSource,
 } from '../../../src/entity';
 import { PollPost } from '../../../src/entity/posts/PollPost';
 import { PollOption } from '../../../src/entity/polls/PollOption';
-import { addDays, isSameDay } from 'date-fns';
+import { addDays, addYears, isSameDay } from 'date-fns';
 import {
   DayOfWeek,
   debeziumTimeToDate,
@@ -164,7 +166,6 @@ import {
 import { NotificationType } from '../../../src/notifications/common';
 import type { UserReport } from '../../../src/entity/UserReport';
 import { SubscriptionCycles } from '../../../src/paddle';
-import { addYears } from 'date-fns';
 import type { ContentPreferenceUser } from '../../../src/entity/contentPreference/ContentPreferenceUser';
 import {
   ContentPreferenceStatus,
@@ -960,6 +961,165 @@ describe('user', () => {
       user: base,
       newProfile: after,
     } as unknown as PubSubSchema['user-updated']);
+  });
+
+  describe('update user source', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, SourceUser, [
+        { id: '1', userId: '1', handle: 'idoshamun', name: 'Ido' },
+      ]);
+    });
+
+    it('should update user source when name changed', async () => {
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'Ido',
+      });
+
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        name: 'New Ido Shamun',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'New Ido Shamun',
+      });
+    });
+
+    it('should update user source when image changed', async () => {
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        image: SQUAD_IMAGE_PLACEHOLDER,
+      });
+
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        image: 'https://daily.dev/new-image.jpg',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'Ido',
+        image: 'https://daily.dev/new-image.jpg',
+      });
+    });
+
+    it('fallback to username when no name', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        name: null,
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        name: 'idoshamun',
+      });
+    });
+
+    it('fallback to default image when no image', async () => {
+      await con
+        .getRepository(SourceUser)
+        .update({ userId: '1' }, { image: 'http://daily.dev/image.jpg' });
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        image: null,
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: base,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).findOneBy({ userId: '1' }),
+      ).toMatchObject({
+        image: SQUAD_IMAGE_PLACEHOLDER,
+      });
+    });
+
+    it('should do nothing if user source does not exist', async () => {
+      const before = { ...base, id: '2' };
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        id: '2',
+        name: 'New Ido Shamun',
+      };
+
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          table: 'user',
+          op: 'u',
+        }),
+      );
+      expectTypedEvent('user-updated', {
+        user: before,
+        newProfile: after,
+      } as unknown as PubSubSchema['user-updated']);
+
+      expect(
+        await con.getRepository(SourceUser).countBy({ userId: '2' }),
+      ).toEqual(0);
+    });
   });
 });
 
@@ -5873,6 +6033,36 @@ describe('opportunity', () => {
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
+    await con.getRepository(Feed).save([
+      { id: usersFixture[0].id, userId: usersFixture[0].id },
+      {
+        id: usersFixture[1].id,
+        userId: usersFixture[1].id,
+      },
+    ]);
+    await con.getRepository(ContentPreferenceOrganization).save([
+      {
+        organizationId: organizationsFixture[0].id,
+        userId: usersFixture[0].id,
+        referenceId: usersFixture[0].id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Free,
+        feedId: usersFixture[0].id,
+      },
+      {
+        organizationId: organizationsFixture[0].id,
+        userId: usersFixture[1].id,
+        referenceId: usersFixture[1].id,
+        type: ContentPreferenceType.Organization,
+        status: ContentPreferenceOrganizationStatus.Free,
+        feedId: usersFixture[0].id,
+      },
+    ]);
+    await con.getRepository(OpportunityUser).save({
+      userId: usersFixture[3].id,
+      opportunityId: opportunitiesFixture[0].id,
+      type: OpportunityUserType.Recruiter,
+    });
   });
 
   it('should trigger on new opportunity', async () => {
@@ -5889,7 +6079,7 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.LIVE,
-          organizationId: 'org-1',
+          organizationId: organizationsFixture[0].id,
         },
         op: 'c',
         table: 'opportunity',
@@ -5900,6 +6090,9 @@ describe('opportunity', () => {
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
     );
+    expect(
+      jest.mocked(triggerTypedEvent).mock.calls[0][2].excludedUserIds,
+    ).toEqual(['1', '2', '4']);
   });
 
   it('should trigger opportunity job for demo company', async () => {

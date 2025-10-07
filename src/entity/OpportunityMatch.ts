@@ -12,7 +12,10 @@ import type { Opportunity } from './opportunities/Opportunity';
 import type { User } from './user';
 import { OpportunityMatchStatus } from './opportunities/types';
 import type z from 'zod';
-import type { opportunityMatchDescriptionSchema } from '../common/schema/opportunities';
+import {
+  applicationScoreSchema,
+  opportunityMatchDescriptionSchema,
+} from '../common/schema/opportunities';
 import type { Screening } from '@dailydotdev/schema';
 
 @Entity()
@@ -46,7 +49,7 @@ export class OpportunityMatch {
   screening: Array<Screening>;
 
   @Column({ type: 'jsonb', default: '{}' })
-  applicationRank: unknown;
+  applicationRank: z.infer<typeof applicationScoreSchema>;
 
   @ManyToOne('Opportunity', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({

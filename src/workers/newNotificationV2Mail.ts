@@ -63,6 +63,7 @@ import { isNullOrUndefined } from '../common/object';
 import { generateCampaignPostEmail } from '../common/campaign/post';
 import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
+import { OpportunityMatch } from '../entity/OpportunityMatch';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -124,7 +125,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   post_analytics: '',
   poll_result: '84',
   poll_result_author: '84',
-  warm_intro: '',
+  warm_intro: '85',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1101,7 +1102,28 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
     };
   },
-  warm_intro: async () => null,
+  warm_intro: async (con, user, notif) => {
+    const match = await con.getRepository(OpportunityMatch).findOne({
+      select: ['applicationRank'],
+      where: {
+        opportunityId: notif.referenceId,
+        userId: user.id,
+      },
+    });
+    if (!match) {
+      return null;
+    }
+
+    const warmIntro = match.applicationRank?.warmIntro;
+    if (!warmIntro) {
+      return null;
+    }
+
+    return {
+      title: `It's a match!`,
+      copy: warmIntro,
+    };
+  },
 };
 
 const formatTemplateDate = <T extends TemplateData>(data: T): T => {

@@ -1340,6 +1340,38 @@ describe('query post', () => {
       expect(res.data.post.clickbaitTitleDetected).toEqual(false);
     });
   });
+
+  describe('analytics field', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          id
+          analytics {
+            impressions
+          }
+        }
+      }
+    `;
+
+    it('should return public analytics', async () => {
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: { impressions: 420 },
+      });
+    });
+  });
 });
 
 describe('query postByUrl', () => {
@@ -2937,6 +2969,11 @@ describe('mutation createPostInMultipleSources', () => {
     sharedPostId: 'p1', // sharing existing post
   };
 
+  const shareParamsWithCommentary = {
+    ...shareParams,
+    commentary: 'My comment',
+  };
+
   beforeEach(async () => {
     await con.getRepository(Feed).save({
       id: '1',
@@ -3147,6 +3184,22 @@ describe('mutation createPostInMultipleSources', () => {
       );
     });
 
+    it('should handle empty content', async () => {
+      loggedUser = '1';
+      const singleParams = {
+        ...freeformParams,
+        content: null,
+        sourceIds: ['squad'],
+      };
+      const res = await client.mutate(MUTATION, { variables: singleParams });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(1);
+      const [post] = res.data.createPostInMultipleSources;
+      expect(post.sourceId).toBe('squad');
+      expect(post.type).toBe('post');
+    });
+
     it('should handle single squad posting', async () => {
       loggedUser = '1';
       const singleParams = { ...freeformParams, sourceIds: ['squad'] };
@@ -3201,13 +3254,8 @@ describe('mutation createPostInMultipleSources', () => {
 
     it('should handle share post with commentary', async () => {
       loggedUser = '1';
-      const title = 'My comment';
-      const shareWithCommentary = {
-        ...shareParams,
-        title,
-      };
       const res = await client.mutate(MUTATION, {
-        variables: shareWithCommentary,
+        variables: shareParamsWithCommentary,
       });
 
       expect(res.errors).toBeFalsy();
@@ -3238,7 +3286,7 @@ describe('mutation createPostInMultipleSources', () => {
         sourceId: 'squad',
         authorId: '1',
         sharedPostId: 'p1',
-        title,
+        title: shareParamsWithCommentary.commentary,
       });
       expect(moderationItem).toEqual(
         expect.objectContaining({
@@ -3246,7 +3294,7 @@ describe('mutation createPostInMultipleSources', () => {
           createdById: '1',
           sharedPostId: 'p1',
           status: SourcePostModerationStatus.Pending,
-          title,
+          title: shareParamsWithCommentary.commentary,
         }),
       );
     });
@@ -3287,6 +3335,61 @@ describe('mutation createPostInMultipleSources', () => {
       expect(post.sharedPostId).toBe(moderationItem.sharedPostId);
       expect(post.sharedPostId).toBe(userSourcePost.sharedPostId);
       expect(post.sharedPostId).toBeTruthy();
+    });
+
+    it('should handle share post with commentary', async () => {
+      loggedUser = '1';
+      const commentary = 'My comment';
+      const shareWithCommentary = {
+        ...freeformParams,
+        externalLink: 'https://www.google.com',
+        title: 'article title', // actual article title
+        commentary, // shared post commentary
+      };
+
+      const existingLink = await con.getRepository(ArticlePost).findOneBy({
+        url: shareWithCommentary.externalLink,
+      });
+      expect(existingLink).toBeFalsy();
+
+      const res = await client.mutate(MUTATION, {
+        variables: shareWithCommentary,
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(3);
+      expect(res.data.createPostInMultipleSources).toEqual([
+        expect.objectContaining({ type: 'post', sourceId: 'squad' }),
+        expect.objectContaining({ type: 'moderationItem', sourceId: 'm' }),
+        expect.objectContaining({ type: 'post', sourceId: '1' }),
+      ]);
+      const [first, second, third] = res.data.createPostInMultipleSources;
+
+      // Verify posts were actually created
+      const [post, moderationItem, userSourcePost] = await Promise.all([
+        await con.getRepository(SharePost).findOneByOrFail({ id: first.id }),
+        await con.getRepository(SourcePostModeration).findOneOrFail({
+          select: ['sourceId', 'sharedPostId', 'title'],
+          where: { id: second.id, status: SourcePostModerationStatus.Pending },
+        }),
+        await con.getRepository(SharePost).findOneByOrFail({
+          id: third.id,
+          sourceId: '1',
+        }),
+      ]);
+
+      expect(post.title).toBe(shareWithCommentary.commentary);
+      expect(moderationItem.title).toBe(shareWithCommentary.commentary);
+      expect(moderationItem.content).toBeFalsy();
+      expect(userSourcePost.title).toBe(shareWithCommentary.commentary);
+
+      const originalPost = await con
+        .getRepository(ArticlePost)
+        .findOneByOrFail({
+          id: post.sharedPostId,
+        });
+      expect(originalPost.title).toBe(shareWithCommentary.title);
+      expect(originalPost.url).toBe(shareWithCommentary.externalLink);
     });
 
     it('should share post when already existing url is submitted', async () => {
@@ -5093,6 +5196,7 @@ describe('query sourcePostModeration', () => {
         type: PostType.Freeform,
         status: SourcePostModerationStatus.Pending,
         content: 'Hello World',
+        flags: {},
       },
       {
         id: randomUUID(),
@@ -5138,6 +5242,9 @@ describe('query sourcePostModeration', () => {
   sourcePostModeration(id: $id) {
     title
     type
+    flags {
+      warningReason
+    }
   }
 }`;
 
@@ -5151,6 +5258,9 @@ describe('query sourcePostModeration', () => {
         pollOptions {
           text
           order
+        }
+        flags {
+          warningReason
         }
       }
     }
@@ -5179,6 +5289,9 @@ describe('query sourcePostModeration', () => {
       sourcePostModeration: {
         title: 'My First Moderated Post',
         type: 'freeform',
+        flags: {
+          warningReason: null,
+        },
       },
     });
   });
@@ -5193,6 +5306,9 @@ describe('query sourcePostModeration', () => {
       sourcePostModeration: {
         title: 'My First Moderated Post',
         type: 'freeform',
+        flags: {
+          warningReason: null,
+        },
       },
     });
   });
@@ -5293,6 +5409,35 @@ describe('query sourcePostModeration', () => {
       },
       'FORBIDDEN',
     );
+  });
+
+  it('should return warningReason if flagged', async () => {
+    loggedUser = '3';
+
+    // update pending post adding a flag
+    await con.getRepository(SourcePostModeration).update(
+      { id: firstPostUuid },
+      {
+        flags: updateFlagsStatement({
+          warningReason: WarningReason.MultipleSquadPost,
+        }),
+      },
+    );
+
+    const res = await client.query(queryOne, {
+      variables: { id: firstPostUuid },
+    });
+
+    expect(res.errors).toBeUndefined();
+    expect(res.data).toEqual({
+      sourcePostModeration: {
+        title: 'My First Moderated Post',
+        type: 'freeform',
+        flags: {
+          warningReason: WarningReason.MultipleSquadPost,
+        },
+      },
+    });
   });
 });
 

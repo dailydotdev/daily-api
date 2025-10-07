@@ -315,6 +315,16 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  Pending Post flags
+  """
+  type SourcePostModerationFlags {
+    """
+    Warning reason
+    """
+    warningReason: String
+  }
+
+  """
   Post moderation item
   """
   type SourcePostModeration {
@@ -390,6 +400,10 @@ export const typeDefs = /* GraphQL */ `
     Poll options for poll posts
     """
     pollOptions: [CreatePollOption!]
+    """
+    flags
+    """
+    flags: SourcePostModerationFlags
   }
 
   type TocItem {
@@ -803,6 +817,11 @@ export const typeDefs = /* GraphQL */ `
     Total number of votes in the poll
     """
     numPollVotes: Int
+
+    """
+    Post analytics
+    """
+    analytics: PostAnalyticsPublic
   }
 
   type PostConnection {
@@ -1024,6 +1043,11 @@ export const typeDefs = /* GraphQL */ `
     shares: Int!
     reachAds: Int!
     impressionsAds: Int!
+  }
+
+  type PostAnalyticsPublic {
+    id: ID!
+    impressions: Int!
   }
 
   type PostAnalyticsHistory {
@@ -3359,14 +3383,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           // OR create a pending post instead
           const isMultiPost = sourceIds.length > 1;
-          const { options, ...pendingArgs } = postArgs;
+          const { options, title, commentary, ...pendingArgs } = postArgs;
+          const type =
+            detectedPostType === PostType.Article
+              ? PostType.Share
+              : detectedPostType;
           const pendingPost = await validateSourcePostModeration(ctx, {
             ...pendingArgs,
             sourceId,
-            type:
-              detectedPostType === PostType.Article
-                ? PostType.Share
-                : detectedPostType,
+            type,
+            title: type === PostType.Share ? commentary : title,
             pollOptions: options,
           });
           const { id } = await createSourcePostModeration({
