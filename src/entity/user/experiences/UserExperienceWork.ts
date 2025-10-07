@@ -8,7 +8,7 @@ import type { UserExperienceSkill } from './UserExperienceSkill';
 const defaultEmploymentTypes = listAllProtoEnumValues(EmploymentType);
 
 @ChildEntity(UserExperienceType.Work)
-export class UserWorkExperience extends UserExperience {
+export class UserExperienceWork extends UserExperience {
   @Column({
     type: 'integer',
     array: true,
