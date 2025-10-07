@@ -61,30 +61,9 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "company" DROP COLUMN "type"`);
-    await queryRunner.query(
-      `ALTER TABLE "user_experience_skill" DROP CONSTRAINT "FK_user_experience_skill_user_experience_experienceId"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience_skill" DROP CONSTRAINT "FK_user_experience_skill_user_skill_slug"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_user_experience_dataset_location_locationId"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_user_experience_company_companyId"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_user_experience_user_userId"`,
-    );
     await queryRunner.query(`DROP TABLE "user_experience_skill"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_experience_type"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_experience_userId"`);
     await queryRunner.query(`DROP TABLE "user_experience"`);
-    await queryRunner.query(
-      `DROP INDEX "public"."IDX_location_country_subdivision_city_unique"`,
-    );
     await queryRunner.query(`DROP TABLE "dataset_location"`);
-    await queryRunner.query(`DROP INDEX "public"."IDX_user_skill_name"`);
     await queryRunner.query(`DROP TABLE "user_skill"`);
     await queryRunner.query(
       `DELETE FROM "public"."typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`,
