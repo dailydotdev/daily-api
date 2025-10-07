@@ -12,6 +12,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 17696,
@@ -25,6 +27,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 113560,
@@ -38,6 +42,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 19567,
@@ -51,6 +57,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 127620,
@@ -64,6 +72,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 63045,
@@ -77,6 +87,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 477010,
@@ -90,6 +102,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 134320,
@@ -103,6 +117,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 66124,
@@ -116,6 +132,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 104324,
@@ -129,6 +147,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 11333,
@@ -142,6 +162,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 140552,
@@ -155,6 +177,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 268722,
@@ -168,6 +192,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 12627,
@@ -181,6 +207,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 10201,
@@ -194,6 +222,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 10563,
@@ -207,6 +237,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 657683,
@@ -220,6 +252,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 14797,
@@ -233,6 +267,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 1126835,
@@ -246,6 +282,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 31653,
@@ -259,6 +297,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 0,
     reachAds: 0,
     reachAll: 0,
+    clicks: 0,
+    clicksAds: 0,
   },
   {
     impressions: 1526835,
@@ -272,6 +312,8 @@ export const postAnalyticsFixture = [
     impressionsAds: 4000835,
     reachAds: 101853,
     reachAll: 250853,
+    clicks: 2003,
+    clicksAds: 8999,
   },
   {
     impressions: 21653,
@@ -285,5 +327,7 @@ export const postAnalyticsFixture = [
     impressionsAds: 85232,
     reachAds: 25811,
     reachAll: 31999,
+    clicks: 1999,
+    clicksAds: 6377,
   },
 ];
