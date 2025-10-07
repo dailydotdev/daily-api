@@ -2,20 +2,16 @@ import { ChildEntity, Column, OneToMany } from 'typeorm';
 import { UserExperience } from './UserExperience';
 import { UserExperienceType } from './types';
 import { EmploymentType } from '@dailydotdev/schema';
-import { listAllProtoEnumValues } from '../../../common';
 import type { UserExperienceSkill } from './UserExperienceSkill';
-
-const defaultEmploymentTypes = listAllProtoEnumValues(EmploymentType);
 
 @ChildEntity(UserExperienceType.Work)
 export class UserExperienceWork extends UserExperience {
   @Column({
     type: 'integer',
-    array: true,
     comment: 'EmploymentType from protobuf schema',
-    default: defaultEmploymentTypes,
+    default: EmploymentType.UNSPECIFIED,
   })
-  employmentType: Array<EmploymentType> = defaultEmploymentTypes;
+  employmentType: EmploymentType;
 
   @Column({ default: false })
   verified: boolean;

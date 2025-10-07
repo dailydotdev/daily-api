@@ -13,10 +13,7 @@ import type { User } from '../User';
 import { UserExperienceType } from './types';
 import type { Company } from '../../Company';
 import { LocationType } from '@dailydotdev/schema';
-import { listAllProtoEnumValues } from '../../../common';
 import type { DatasetLocation } from '../../dataset/DatasetLocation';
-
-const defaultLocationTypes = listAllProtoEnumValues(LocationType);
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -74,11 +71,10 @@ export class UserExperience {
 
   @Column({
     type: 'integer',
-    array: true,
     comment: 'LocationType from protobuf schema',
-    default: defaultLocationTypes,
+    default: LocationType.UNSPECIFIED,
   })
-  locationType: Array<LocationType> = defaultLocationTypes;
+  locationType: LocationType;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
