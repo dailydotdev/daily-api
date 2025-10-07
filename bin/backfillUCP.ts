@@ -122,11 +122,12 @@ const ask = async (q: string) => {
 
     logger.info(`Updating ${updates.length} user candidate preferences...`);
     try {
-      await con.getRepository(UserCandidatePreference).insert(
+      await con.getRepository(UserCandidatePreference).upsert(
         updates.map((cv) => ({
           userId: cv.blob!,
           cv: cv,
         })),
+        ['userId'],
       );
     } catch (_err) {
       const err = _err as Error;
