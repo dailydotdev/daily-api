@@ -18,6 +18,12 @@ import { kvasir } from './private/kvasir';
 import snotra from './private/snotra';
 import rpc from './private/rpc';
 import { connectRpcPlugin } from '../common/connectRpc';
+import { Opportunity } from '../entity/opportunities/Opportunity';
+import { opportunityCreateSchema } from '../common/schema/opportunities';
+import { markdown } from '../common/markdown';
+import { OpportunityContent } from '@dailydotdev/schema';
+import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
+import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 
 interface SearchUsername {
   search: string;
@@ -71,6 +77,67 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(200).send(operationResult);
     },
   );
+  fastify.post<{ Body: Opportunity }>('/newOpportunity', async (req, res) => {
+    console.log('tying new opportunity', req.body);
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const opportunity = opportunityCreateSchema.safeParse(req.body);
+    console.log(opportunity);
+    if (opportunity.error) {
+      return res.status(500).send();
+    }
+
+    const con = await createOrGetConnection();
+    await con.transaction(async (entityManager) => {
+      const { keywords, content, ...opportunityUpdate } = opportunity.data;
+
+      const renderedContent: Record<string, { content: string; html: string }> =
+        {};
+
+      Object.entries(content || {}).forEach(([key, value]) => {
+        if (typeof value.content !== 'string') {
+          return;
+        }
+
+        renderedContent[key] = {
+          content: value.content,
+          html: markdown.render(value.content),
+        };
+      });
+
+      const opportunityContent = new OpportunityContent(renderedContent);
+      console.log(opportunityContent);
+
+      const opportunityJob = await entityManager
+        .getRepository(OpportunityJob)
+        .createQueryBuilder()
+        .insert()
+        .values({
+          ...opportunityUpdate,
+          content: () => `content || :contentJson`,
+          meta: () => `meta || :metaJson`,
+          state: 1,
+          type: 1,
+        })
+        .setParameter('contentJson', opportunityContent.toJsonString())
+        .setParameter('metaJson', JSON.stringify(opportunity.data.meta || {}))
+        .execute();
+
+      const id = opportunityJob.raw.id;
+
+      if (Array.isArray(keywords)) {
+        await entityManager.getRepository(OpportunityKeyword).insert(
+          keywords.map((keyword) => ({
+            opportunityId: id,
+            keyword: keyword.keyword,
+          })),
+        );
+      }
+    });
+    return res.status(200);
+  });
   fastify.get<{ Querystring: SearchUsername }>(
     '/checkUsername',
     async (req, res) => {
