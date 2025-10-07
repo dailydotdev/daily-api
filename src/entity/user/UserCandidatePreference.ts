@@ -128,5 +128,5 @@ export class UserCandidatePreference {
   user: Promise<User>;
 
   @Column({ type: 'text', default: null })
-  cvParsedMarkdown?: string;
+  cvParsedMarkdown: string | null;
 }

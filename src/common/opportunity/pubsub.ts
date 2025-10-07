@@ -139,6 +139,7 @@ export const notifyOpportunityMatchAccepted = async ({
       }),
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
       keywords: keywords,
+      cvParsedMarkdown: candidatePreference.cvParsedMarkdown || undefined,
     },
   });
 
@@ -443,6 +444,7 @@ export const notifyCandidatePreferenceChange = async ({
       updatedAt:
         getSecondsTimestamp(candidatePreference?.updatedAt) || undefined,
       keywords: keywords,
+      cvParsedMarkdown: candidatePreference.cvParsedMarkdown || undefined,
     },
   });
 
