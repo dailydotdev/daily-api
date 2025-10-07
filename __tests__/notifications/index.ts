@@ -2150,7 +2150,7 @@ describe('warm intro notifications', () => {
     expect(actual.notification.description).toEqual(
       `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
     );
-    expect(actual.notification.targetUrl).toEqual('system');
+    expect(actual.notification.targetUrl).toEqual('http://localhost:5002');
     expect(actual.notification.uniqueKey).toEqual('1');
     expect(actual.avatars).toEqual([
       {
