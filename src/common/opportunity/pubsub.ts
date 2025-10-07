@@ -183,7 +183,6 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
     ({ queryRunner }) =>
       Promise.all([
         queryRunner.manager.getRepository(OpportunityMatch).findOne({
-          select: ['opportunityId', 'userId'],
           where: { opportunityId: data.opportunityId, userId: data.userId },
         }),
         queryRunner.manager.getRepository(OpportunityUser).findOne({
