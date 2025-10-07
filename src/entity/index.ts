@@ -36,3 +36,4 @@ export * from './SquadPublicRequest';
 export * from './UserCompany';
 export * from './Organization';
 export * from './campaign';
+export * from './Autocomplete';

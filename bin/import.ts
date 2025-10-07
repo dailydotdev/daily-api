@@ -52,6 +52,7 @@ const viewsToRefresh = [
 
 const start = async (): Promise<void> => {
   const con = await createOrGetConnection();
+  await importEntity(con, 'Autocomplete');
   await importEntity(con, 'ExperimentVariant');
   await importEntity(con, 'AdvancedSettings');
   await importEntity(con, 'SourceCategory');
