@@ -7656,6 +7656,7 @@ describe('mutation clearResume', () => {
         userId: '1',
         cv: { blob: 'blobname' },
         cvParsed: { some: 'data' },
+        cvParsedMarkdown: '# Sample CV',
       },
     ]);
   });
@@ -7688,6 +7689,7 @@ describe('mutation clearResume', () => {
 
     expect(ucp.cv).toEqual({});
     expect(ucp.cvParsed).toEqual({});
+    expect(ucp.cvParsedMarkdown).toEqual(null);
   });
 
   it('should handle case when user has no candidate preferences', async () => {
