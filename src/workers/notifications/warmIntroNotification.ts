@@ -6,6 +6,7 @@ import { OpportunityUserType } from '../../entity/opportunities/types';
 import { WarmIntro } from '@dailydotdev/schema';
 import { Feature, FeatureType } from '../../entity';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
+import { markdown } from '../../common/markdown';
 
 export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intro-generated'> =
   {
@@ -38,7 +39,7 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         })
         .setParameter(
           'applicationRankJson',
-          JSON.stringify({ warmIntro: description }),
+          JSON.stringify({ warmIntro: markdown.render(description) }),
         )
         .execute();
 
