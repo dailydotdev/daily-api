@@ -583,7 +583,7 @@ export const generateNotificationMap: Record<
     ctx: NotificationWarmIntroContext,
   ) => {
     return builder
-      .targetUrl('system')
+      .targetUrl(process.env.COMMENTS_PREFIX)
       .referenceOpportunity(ctx.opportunityId)
       .uniqueKey(ctx.userIds[0])
       .icon(NotificationIcon.Opportunity)
