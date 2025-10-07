@@ -1,11 +1,13 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   TableInheritance,
+  UpdateDateColumn,
 } from 'typeorm';
 import type { User } from '../User';
 import { UserExperienceType } from './types';
@@ -77,4 +79,10 @@ export class UserExperience {
     default: defaultLocationTypes,
   })
   locationType: Array<LocationType> = defaultLocationTypes;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  updatedAt: Date;
 }
