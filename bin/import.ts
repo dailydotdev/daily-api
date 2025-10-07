@@ -52,6 +52,13 @@ const viewsToRefresh = [
 
 const start = async (): Promise<void> => {
   const con = await createOrGetConnection();
+  const entityParam = process.argv[2];
+
+  if (entityParam) {
+    await importEntity(con, entityParam);
+    return;
+  }
+
   await importEntity(con, 'Autocomplete');
   await importEntity(con, 'ExperimentVariant');
   await importEntity(con, 'AdvancedSettings');
