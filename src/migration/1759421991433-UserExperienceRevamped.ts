@@ -89,11 +89,17 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
           ON DELETE SET NULL
           ON UPDATE NO ACTION
       );
-      COMMENT ON COLUMN "user_experience"."locationType" IS 'LocationType from protobuf schema';
-      COMMENT ON COLUMN "user_experience"."employmentType" IS 'EmploymentType from protobuf schema'
     `);
 
-    await queryRunner.query(/* sql */ `
+    await queryRunner.query(/* sql */`
+      COMMENT ON COLUMN "user_experience"."locationType" IS 'LocationType from protobuf schema';
+    `);
+
+    await queryRunner.query(/* sql */`
+      COMMENT ON COLUMN "user_experience"."employmentType" IS 'EmploymentType from protobuf schema';
+    `);
+
+    await queryRunner.query(/* sql */`
       CREATE INDEX IF NOT EXISTS "IDX_user_experience_userId" ON "user_experience" ("userId")
     `);
 
