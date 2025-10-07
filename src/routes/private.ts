@@ -78,13 +78,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     },
   );
   fastify.post<{ Body: Opportunity }>('/newOpportunity', async (req, res) => {
-    console.log('tying new opportunity', req.body);
     if (!req.service) {
       return res.status(404).send();
     }
 
     const opportunity = opportunityCreateSchema.safeParse(req.body);
-    console.log(opportunity);
     if (opportunity.error) {
       return res.status(500).send();
     }
@@ -108,7 +106,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       });
 
       const opportunityContent = new OpportunityContent(renderedContent);
-      console.log(opportunityContent);
 
       const opportunityJob = await entityManager
         .getRepository(OpportunityJob)
@@ -116,16 +113,17 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         .insert()
         .values({
           ...opportunityUpdate,
-          content: () => `content || :contentJson`,
-          meta: () => `meta || :metaJson`,
+          content: opportunityContent.toJson(),
+          meta: opportunity.data.meta,
           state: 1,
           type: 1,
         })
-        .setParameter('contentJson', opportunityContent.toJsonString())
-        .setParameter('metaJson', JSON.stringify(opportunity.data.meta || {}))
         .execute();
 
-      const id = opportunityJob.raw.id;
+      const id = opportunityJob.raw?.[0]?.id;
+      if (!id) {
+        return res.status(500).send();
+      }
 
       if (Array.isArray(keywords)) {
         await entityManager.getRepository(OpportunityKeyword).insert(
@@ -136,7 +134,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
       }
     });
-    return res.status(200);
+
+    return res.status(200).send('');
   });
   fastify.get<{ Querystring: SearchUsername }>(
     '/checkUsername',

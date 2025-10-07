@@ -4,6 +4,7 @@ import { saveFixtures } from './helpers';
 import {
   ArticlePost,
   Feed,
+  Organization,
   Source,
   User,
   UserAction,
@@ -21,6 +22,10 @@ import { ContentLanguage, CoresRole } from '../src/types';
 import { postsFixture } from './fixture/post';
 import { DeletedUser } from '../src/entity/user/DeletedUser';
 import { getGeo } from '../src/common/geo';
+import { SubscriptionCycles } from '../src/paddle';
+import { SubscriptionStatus } from '../src/common/plus';
+import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
+import { OpportunityKeyword } from '../src/entity/OpportunityKeyword';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -1081,5 +1086,195 @@ describe('GET /p/actions/:user_id/:action_name', () => {
       found: true,
       completedAt: '2025-02-04T12:01:47.042Z',
     });
+  });
+});
+
+describe('POST /p/newOpportunity', () => {
+  beforeEach(async () => {
+    await saveFixtures(con, Organization, [
+      {
+        id: 'org-1',
+        seats: 1,
+        name: 'Organization 1',
+        subscriptionFlags: {
+          cycle: SubscriptionCycles.Yearly,
+          status: SubscriptionStatus.Active,
+        },
+      },
+    ]);
+  });
+
+  it('should return not found when not authorized', () => {
+    return request(app.server).post('/p/newOpportunity').expect(404);
+  });
+
+  it('should return 500 for invalid opportunity schema', async () => {
+    await request(app.server)
+      .post('/p/newOpportunity')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({})
+      .expect(500);
+  });
+
+  it('should return 500 when missing required fields', async () => {
+    await request(app.server)
+      .post('/p/newOpportunity')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        title: 'Test Opportunity',
+        // Missing other required fields
+      })
+      .expect(500);
+  });
+
+  it('should create opportunity with valid data', async () => {
+    const opportunityData = {
+      title: 'Senior Software Engineer',
+      tldr: 'Join our team to build amazing products',
+      organizationId: 'org-1',
+      keywords: [
+        { keyword: 'javascript' },
+        { keyword: 'typescript' },
+        { keyword: 'react' },
+      ],
+      meta: {
+        employmentType: 1,
+        teamSize: 50,
+        seniorityLevel: 3,
+        roleType: 1,
+      },
+      content: {
+        overview: {
+          content: 'We are looking for a senior engineer',
+        },
+        responsibilities: {
+          content: 'Build and maintain applications',
+        },
+        requirements: {
+          content: '5+ years of experience',
+        },
+      },
+    };
+
+    await request(app.server)
+      .post('/p/newOpportunity')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send(opportunityData)
+      .expect(200);
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: { title: 'Senior Software Engineer' },
+    });
+
+    expect(opportunity).not.toBeNull();
+    expect(opportunity?.title).toEqual('Senior Software Engineer');
+    expect(opportunity?.tldr).toEqual(
+      'Join our team to build amazing products',
+    );
+    expect(opportunity?.organizationId).toEqual('org-1');
+    expect(opportunity?.state).toEqual(1);
+    expect(opportunity?.type).toEqual(1);
+
+    // Verify markdown was rendered to HTML
+    const content = opportunity?.content as any;
+    expect(content.overview).toBeDefined();
+    expect(content.overview.content).toEqual(
+      'We are looking for a senior engineer',
+    );
+    expect(content.overview.html).toContain('<p>');
+    expect(content.responsibilities.html).toContain('<p>');
+    expect(content.requirements.html).toContain('<p>');
+
+    // Verify keywords were saved
+    const keywords = await con.getRepository(OpportunityKeyword).find({
+      where: { opportunityId: opportunity?.id },
+    });
+    expect(keywords).toHaveLength(3);
+    expect(keywords.map((k) => k.keyword).sort()).toEqual(
+      ['javascript', 'typescript', 'react'].sort(),
+    );
+  });
+
+  it('should create opportunity with keywords and render markdown content', async () => {
+    const opportunityData = {
+      title: 'Backend Engineer',
+      tldr: 'Work on distributed systems',
+      organizationId: 'org-1',
+      keywords: [{ keyword: 'golang' }, { keyword: 'kubernetes' }],
+      meta: {
+        employmentType: 1,
+        teamSize: 25,
+        seniorityLevel: 2,
+        roleType: 0.5,
+        salary: {
+          min: 100000,
+          max: 150000,
+          period: 1,
+        },
+      },
+      content: {
+        overview: {
+          content: '# Overview\nThis is **bold** text',
+        },
+        responsibilities: {
+          content: '- Design systems\n- Write code',
+        },
+        requirements: {
+          content: '3+ years experience',
+        },
+      },
+    };
+
+    await request(app.server)
+      .post('/p/newOpportunity')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send(opportunityData)
+      .expect(200);
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: { title: 'Backend Engineer' },
+    });
+
+    expect(opportunity).not.toBeNull();
+    expect(opportunity?.title).toEqual('Backend Engineer');
+    expect(opportunity?.tldr).toEqual('Work on distributed systems');
+
+    // Verify markdown was rendered to HTML with proper formatting
+    const content = opportunity?.content as any;
+    expect(content.overview).toBeDefined();
+    expect(content.overview.content).toEqual(
+      '# Overview\nThis is **bold** text',
+    );
+    expect(content.overview.html).toContain('<h1>');
+    expect(content.overview.html).toContain('<strong>');
+    expect(content.responsibilities.html).toContain('<li>');
+    expect(content.requirements.html).toContain('<p>');
+
+    // Verify meta data including salary
+    expect(opportunity?.meta).toMatchObject({
+      employmentType: 1,
+      teamSize: 25,
+      seniorityLevel: 2,
+      roleType: 0.5,
+      salary: {
+        min: 100000,
+        max: 150000,
+        period: 1,
+      },
+    });
+
+    // Verify keywords
+    const keywords = await con.getRepository(OpportunityKeyword).find({
+      where: { opportunityId: opportunity?.id },
+    });
+    expect(keywords).toHaveLength(2);
+    expect(keywords.map((k) => k.keyword).sort()).toEqual([
+      'golang',
+      'kubernetes',
+    ]);
   });
 });
