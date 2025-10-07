@@ -1353,7 +1353,11 @@ describe('query post', () => {
       }
     `;
 
-    it('should return public analytics', async () => {
+    it('should return public analytics for author', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(Post).update('p1', { authorId: '1' });
+
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
         impressions: 110,
@@ -1369,6 +1373,48 @@ describe('query post', () => {
       expect(res.data.post).toEqual({
         id: 'p1',
         analytics: { impressions: 420 },
+      });
+    });
+
+    it('should return public analytics for scout', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(Post).update('p1', { scoutId: '1' });
+
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: { impressions: 420 },
+      });
+    });
+
+    it('should return null if user is not author or scout', async () => {
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: null,
       });
     });
   });

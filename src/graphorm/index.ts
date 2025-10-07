@@ -656,6 +656,25 @@ const obj = new GraphORM({
           childColumn: 'postId',
         },
       },
+      analytics: {
+        transform: (value: number, ctx, parent): number | null => {
+          const post = parent as Post;
+
+          const isAuthor = post?.authorId && ctx.userId === post.authorId;
+
+          if (isAuthor) {
+            return value;
+          }
+
+          const isScout = post?.scoutId && ctx.userId === post.scoutId;
+
+          if (isScout) {
+            return value;
+          }
+
+          return null;
+        },
+      },
     },
   },
   SourceCategory: {
