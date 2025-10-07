@@ -1178,15 +1178,14 @@ describe('POST /p/newOpportunity', () => {
     expect(opportunity?.state).toEqual(1);
     expect(opportunity?.type).toEqual(1);
 
-    // Verify markdown was rendered to HTML
-    const content = opportunity?.content as any;
-    expect(content.overview).toBeDefined();
-    expect(content.overview.content).toEqual(
+    const content = opportunity?.content;
+    expect(content?.overview).toBeDefined();
+    expect(content?.overview?.content).toEqual(
       'We are looking for a senior engineer',
     );
-    expect(content.overview.html).toContain('<p>');
-    expect(content.responsibilities.html).toContain('<p>');
-    expect(content.requirements.html).toContain('<p>');
+    expect(content?.overview?.html).toContain('<p>');
+    expect(content?.responsibilities?.html).toContain('<p>');
+    expect(content?.requirements?.html).toContain('<p>');
 
     // Verify keywords were saved
     const keywords = await con.getRepository(OpportunityKeyword).find({
@@ -1243,16 +1242,15 @@ describe('POST /p/newOpportunity', () => {
     expect(opportunity?.title).toEqual('Backend Engineer');
     expect(opportunity?.tldr).toEqual('Work on distributed systems');
 
-    // Verify markdown was rendered to HTML with proper formatting
-    const content = opportunity?.content as any;
-    expect(content.overview).toBeDefined();
-    expect(content.overview.content).toEqual(
+    const content = opportunity?.content;
+    expect(content?.overview).toBeDefined();
+    expect(content?.overview?.content).toEqual(
       '# Overview\nThis is **bold** text',
     );
-    expect(content.overview.html).toContain('<h1>');
-    expect(content.overview.html).toContain('<strong>');
-    expect(content.responsibilities.html).toContain('<li>');
-    expect(content.requirements.html).toContain('<p>');
+    expect(content?.overview?.html).toContain('<h1>');
+    expect(content?.overview?.html).toContain('<strong>');
+    expect(content?.responsibilities?.html).toContain('<li>');
+    expect(content?.requirements?.html).toContain('<p>');
 
     // Verify meta data including salary
     expect(opportunity?.meta).toMatchObject({
