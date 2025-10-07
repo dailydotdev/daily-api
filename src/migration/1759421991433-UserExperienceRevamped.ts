@@ -37,7 +37,7 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
       `CREATE INDEX "IDX_user_experience_type" ON "user_experience" ("type") `,
     );
     await queryRunner.query(
-      `CREATE TABLE "user_experience_skill" ("slug" text NOT NULL, "experienceId" uuid NOT NULL, CONSTRAINT "PK_COMPOSITE_user_experience_skill_slug_experienceId" PRIMARY KEY ("slug", "experienceId"))`,
+      `CREATE TABLE "user_experience_skill" ("slug" text NOT NULL, "experienceId" uuid NOT NULL, CONSTRAINT "PK_user_experience_skill_slug_experienceId" PRIMARY KEY ("slug", "experienceId"))`,
     );
     await queryRunner.query(
       `ALTER TABLE "user_experience" ADD CONSTRAINT "FK_user_experience_user_userId" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`,

@@ -2,8 +2,7 @@ import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { UserWorkExperience } from './UserWorkExperience';
 import type { UserSkill } from '../UserSkill';
 
-const compositePrimaryKeyName =
-  'PK_COMPOSITE_user_experience_skill_slug_experienceId';
+const compositePrimaryKeyName = 'PK_user_experience_skill_slug_experienceId';
 
 @Entity()
 export class UserExperienceSkill {
