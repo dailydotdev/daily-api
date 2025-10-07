@@ -6,36 +6,6 @@ export class DropUserExperienceJobSkills1759384808784
   name = 'DropUserExperienceJobSkills1759384808784';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP COLUMN "links"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" ADD "links" text array DEFAULT '{}'`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience_skills" DROP CONSTRAINT "FK_148b0c2faa3d2d6571c0f8f0c3b"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience_skills" DROP CONSTRAINT "FK_81852914f77ecea988f419beb2d"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_48330737fafe752bb82eb638b8e"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_40370421b3ff16cb4c5074192e3"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_fc304c1e7340f2f6dcdd1df59ce"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_3f90b59b2b521e38d87c8f627dd"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_experience" DROP CONSTRAINT "FK_7566e52259026584992211a40df"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_job_preferences" DROP CONSTRAINT "FK_fadf8207a17a3e0a367266cf8c9"`,
-    );
     await queryRunner.query(`ALTER TABLE "company" DROP COLUMN "type"`);
     await queryRunner.query(`DROP TABLE "user_experience_skills"`);
     await queryRunner.query(`DROP TABLE "user_experience"`);
