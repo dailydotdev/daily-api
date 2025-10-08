@@ -69,14 +69,14 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+type FindLocation = FindOptionsWhere<DatasetLocation>;
+
 const getLocationCondition = (query: string) => {
   const [country, subdivision, city] = query
     .split(',')
     .reverse()
     .map((s) => s.trim());
-  const base: FindOptionsWhere<DatasetLocation>[] = [
-    { country: ILike(`%${country}%`) },
-  ];
+  const base: FindLocation[] = [{ country: ILike(`%${country}%`) }];
 
   if (country.length === 2) {
     base.push({ iso2: country.toUpperCase() });
@@ -99,16 +99,16 @@ const getLocationCondition = (query: string) => {
     }));
   }
 
-  const subdivisionCombination = base.map((conditions) => ({
+  const subdivisionCombination: FindLocation[] = base.map((conditions) => ({
     ...conditions,
     subdivision: ILike(`%${subdivision}%`),
   }));
-  const cityCombination = base.map((conditions) => ({
+  const cityCombination: FindLocation[] = base.map((conditions) => ({
     ...conditions,
     city: ILike(`%${subdivision}%`),
   }));
 
-  return base.concat(subdivisionCombination, cityCombination);
+  return subdivisionCombination.concat(cityCombination);
 };
 
 export const resolvers = traceResolvers<unknown, BaseContext>({
@@ -144,8 +144,6 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           take: limit,
           order: {
             ranking: 'DESC',
-            country: 'ASC',
-            subdivision: 'ASC',
             city: 'ASC',
           },
           where: conditions,
