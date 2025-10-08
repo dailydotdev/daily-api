@@ -2,12 +2,11 @@ import { UserExperience } from './UserExperience';
 import { ChildEntity, Column } from 'typeorm';
 import { UserExperienceType } from './types';
 
-@ChildEntity(UserExperienceType.Course)
-export class UserCourseExperience extends UserExperience {
+@ChildEntity(UserExperienceType.Certification)
+export class UserExperienceCertification extends UserExperience {
   @Column({ type: 'text', nullable: true })
-  courseNumber: string;
+  externalReferenceId: string | null;
 
-  // autocomplete
   @Column({ type: 'text', nullable: true })
-  institution: string;
+  url: string | null;
 }

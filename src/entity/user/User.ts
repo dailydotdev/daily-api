@@ -23,7 +23,6 @@ import type {
   SubscriptionProvider,
   SubscriptionStatus,
 } from '../../common/plus';
-import type { UserJobPreferences } from './UserJobPreferences';
 import type { UserExperience } from './experiences/UserExperience';
 import type { NotificationPreferenceStatus } from '../../notifications/common';
 import type { UserCandidatePreference } from './UserCandidatePreference';
@@ -307,15 +306,6 @@ export class User {
 
   @Column({ type: 'boolean', default: true })
   awardNotifications: boolean;
-
-  @OneToOne(
-    'UserJobPreferences',
-    (preferences: UserJobPreferences) => preferences.user,
-    {
-      onDelete: 'CASCADE',
-    },
-  )
-  jobPreferences: Promise<UserJobPreferences>;
 
   @OneToMany(
     'UserExperience',
