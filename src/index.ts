@@ -327,6 +327,9 @@ export default async function app(
           autocomplete: {
             ttl: 3600,
           },
+          autocompleteLocation: {
+            ttl: 3600,
+          },
         },
       },
     });
