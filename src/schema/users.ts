@@ -2614,6 +2614,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {
           cv: {},
           cvParsed: {},
+          cvParsedMarkdown: null,
         },
       );
       return { _: true };
