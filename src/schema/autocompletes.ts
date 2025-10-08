@@ -10,6 +10,7 @@ import {
   autocompleteSchema,
 } from '../common/schema/autocompletes';
 import type z from 'zod';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 
 interface AutocompleteData {
   result: string[];
@@ -18,6 +19,13 @@ interface AutocompleteData {
 interface GQLKeywordAutocomplete {
   keyword: string;
   title: string | null;
+}
+
+interface GQLLocation {
+  id: string;
+  country: string;
+  city: string | null;
+  subdivision: string | null;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -32,11 +40,25 @@ export const typeDefs = /* GraphQL */ `
     title: String
   }
 
+  type Location {
+    id: ID!
+    country: String!
+    city: String
+    subdivision: String
+  }
+
   extend type Query {
     """
     Get autocomplete based on type
     """
     autocomplete(type: AutocompleteType!, query: String!): AutocompleteData!
+      @auth
+      @cacheControl(maxAge: 3600)
+
+    """
+    Get autocomplete based on type
+    """
+    autocompleteLocation(query: String!): [Location]!
       @auth
       @cacheControl(maxAge: 3600)
 
@@ -65,6 +87,32 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       );
 
       return { result: result.map((a) => a.value) };
+    },
+    autocompleteLocation: async (
+      _,
+      payload: z.infer<typeof autocompleteSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLLocation[]> => {
+      const { query, limit } = autocompleteBaseSchema.parse(payload);
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(DatasetLocation).find({
+          select: { id: true, country: true, subdivision: true, city: true },
+          take: limit,
+          order: {
+            ranking: 'DESC',
+            country: 'ASC',
+            subdivision: 'ASC',
+            city: 'ASC',
+          },
+          where: {
+            country: ILike(`%${query}%`),
+            subdivision: ILike(`%${query}%`),
+            city: ILike(`%${query}%`),
+          },
+        }),
+      );
+
+      return result;
     },
     autocompleteKeywords: async (
       _,
