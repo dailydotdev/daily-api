@@ -956,14 +956,21 @@ describe('query autocompleteLocation', () => {
 
     expect(res.errors).toBeFalsy();
 
-    // Should search for "Fran" in city or subdivision fields for USA locations
-    // May return San Francisco if partial matching works
-    if (res.data.autocompleteLocation.length > 0) {
-      const usLocations = res.data.autocompleteLocation.filter(
-        (loc) => loc.country === 'United States',
-      );
-      expect(usLocations.length).toBeGreaterThan(0);
-    }
+    // Should search for "Fran" in city or subdivision fields AND country matches USA
+    // Should find San Francisco since it contains "Fran" and is in United States
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // All results should be from United States
+    const allUS = res.data.autocompleteLocation.every(
+      (loc) => loc.country === 'United States',
+    );
+    expect(allUS).toBe(true);
+
+    // Should include San Francisco
+    const hasSanFrancisco = res.data.autocompleteLocation.some(
+      (loc) => loc.city === 'San Francisco',
+    );
+    expect(hasSanFrancisco).toBe(true);
   });
 
   it('should handle queries with extra spaces around commas', async () => {
@@ -1024,23 +1031,56 @@ describe('query autocompleteLocation', () => {
   it('should handle comma-separated query with partial subdivision (Brit, Canada)', async () => {
     loggedUser = '1';
 
+    // Add "Great Britain" location in UK to verify it's NOT returned for "Brit, Canada"
+    await saveFixtures(con, DatasetLocation, [
+      {
+        country: 'United Kingdom',
+        city: 'Great Britain',
+        subdivision: 'England',
+        iso2: 'GB',
+        iso3: 'GBR',
+        timezone: 'Europe/London',
+        ranking: 50,
+        externalId: 'uk-eng-gb',
+      },
+    ]);
+
     const res = await client.query(QUERY, {
       variables: { query: 'Brit, Canada' },
     });
 
     expect(res.errors).toBeFalsy();
 
-    // Should find Vancouver in British Columbia, Canada
-    if (res.data.autocompleteLocation.length > 0) {
-      const bcLocations = res.data.autocompleteLocation.filter(
-        (loc) =>
-          loc.country === 'Canada' && loc.subdivision?.includes('British'),
-      );
-      expect(bcLocations.length).toBeGreaterThan(0);
-    }
+    // Should find locations where subdivision/city contains "Brit" AND country is Canada
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // All results should be from Canada ONLY
+    const allCanada = res.data.autocompleteLocation.every(
+      (loc) => loc.country === 'Canada',
+    );
+    expect(allCanada).toBe(true);
+
+    // Should match "British Columbia" (partial: "Brit" matches "British")
+    const bcLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.subdivision === 'British Columbia',
+    );
+    expect(bcLocations.length).toBeGreaterThan(0);
+
+    // Should include Vancouver specifically (city in British Columbia)
+    const hasVancouver = res.data.autocompleteLocation.some(
+      (loc) => loc.city === 'Vancouver' && loc.subdivision === 'British Columbia',
+    );
+    expect(hasVancouver).toBe(true);
+
+    // Should NOT match "Great Britain" even though it contains "Brit"
+    // because it's in United Kingdom, not Canada (tests AND logic)
+    const greatBritain = res.data.autocompleteLocation.filter(
+      (loc) => loc.city === 'Great Britain',
+    );
+    expect(greatBritain.length).toBe(0);
   });
 
-  it('should NOT return Paris when searching for "California, France"', async () => {
+  it('should return NO results when searching for "California, France"', async () => {
     loggedUser = '1';
 
     const res = await client.query(QUERY, {
@@ -1049,15 +1089,13 @@ describe('query autocompleteLocation', () => {
 
     expect(res.errors).toBeFalsy();
 
-    // Should NOT find Paris, France because California is not in France
+    // Should return ZERO results - California doesn't exist in France
     // This tests the AND logic - both country AND subdivision must match
-    const parisResults = res.data.autocompleteLocation.filter(
-      (loc) => loc.country === 'France' && loc.city === 'Paris',
-    );
-    expect(parisResults.length).toBe(0);
+    expect(res.data.autocompleteLocation).toEqual([]);
+    expect(res.data.autocompleteLocation.length).toBe(0);
   });
 
-  it('should NOT return London when searching for "California, United Kingdom"', async () => {
+  it('should return NO results when searching for "California, United Kingdom"', async () => {
     loggedUser = '1';
 
     const res = await client.query(QUERY, {
@@ -1066,12 +1104,10 @@ describe('query autocompleteLocation', () => {
 
     expect(res.errors).toBeFalsy();
 
-    // Should NOT find UK locations since California is in the US, not UK
+    // Should return ZERO results - California doesn't exist in United Kingdom
     // This demonstrates the AND logic working correctly
-    const ukResults = res.data.autocompleteLocation.filter(
-      (loc) => loc.country === 'United Kingdom',
-    );
-    expect(ukResults.length).toBe(0);
+    expect(res.data.autocompleteLocation).toEqual([]);
+    expect(res.data.autocompleteLocation.length).toBe(0);
   });
 
   it('should only return California cities when searching "California, United States"', async () => {
@@ -1194,17 +1230,23 @@ describe('query autocompleteLocation', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
 
-    // Should find York in UK, not New York in US
-    const ukYork = res.data.autocompleteLocation.filter(
+    // ALL results should be from United Kingdom only
+    const allUK = res.data.autocompleteLocation.every(
       (loc) => loc.country === 'United Kingdom',
     );
-    expect(ukYork.length).toBeGreaterThan(0);
+    expect(allUK).toBe(true);
 
-    // Should NOT find New York, US
-    const nyUS = res.data.autocompleteLocation.filter(
-      (loc) => loc.country === 'United States' && loc.city === 'New York',
+    // Should find York in UK
+    const hasYork = res.data.autocompleteLocation.some(
+      (loc) => loc.city === 'York',
     );
-    expect(nyUS.length).toBe(0);
+    expect(hasYork).toBe(true);
+
+    // Should NOT find any US locations at all
+    const usResults = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United States',
+    );
+    expect(usResults.length).toBe(0);
   });
 
   describe('performance and edge cases', () => {
