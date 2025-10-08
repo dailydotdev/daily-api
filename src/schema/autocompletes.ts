@@ -71,7 +71,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       payload: z.infer<typeof autocompleteBaseSchema>,
       ctx: AuthContext,
     ): Promise<GQLKeywordAutocomplete[]> => {
-      const data = autocompleteKeywordsSchema.parse(payload);
+      const data = autocompleteBaseSchema.parse(payload);
 
       const status = !!ctx.userId
         ? [KeywordStatus.Allow, KeywordStatus.Synonym]
