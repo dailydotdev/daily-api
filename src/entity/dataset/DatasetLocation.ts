@@ -1,0 +1,38 @@
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity()
+@Index(
+  'IDX_location_country_subdivision_city_unique',
+  ['country', 'subdivision', 'city'],
+  { unique: true },
+)
+export class DatasetLocation {
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_dataset_location_id',
+  })
+  id: string;
+
+  @Column()
+  country: string;
+
+  @Column({ type: 'text', nullable: true })
+  subdivision: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  city: string | null;
+
+  @Column()
+  iso2: string;
+
+  @Column()
+  iso3: string;
+
+  @Column()
+  timezone: string;
+
+  @Column({ default: 0 })
+  ranking: number;
+
+  @Column({ type: 'text', nullable: true })
+  externalId: string | null;
+}
