@@ -6,6 +6,9 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
   ['country', 'subdivision', 'city'],
   { unique: true },
 )
+@Index('IDX_dataset_location_country_trgm', { synchronize: false })
+@Index('IDX_dataset_location_city_trgm', { synchronize: false })
+@Index('IDX_dataset_location_subdivision_trgm', { synchronize: false })
 export class DatasetLocation {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_dataset_location_id',
