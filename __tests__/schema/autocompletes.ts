@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { User } from '../../src/entity';
+import { Keyword, User } from '../../src/entity';
 import createOrGetConnection from '../../src/db';
 import {
   disposeGraphQLTesting,
