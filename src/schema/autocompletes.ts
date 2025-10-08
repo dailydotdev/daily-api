@@ -79,9 +79,9 @@ const getLocationCondition = (query: string) => {
   ];
 
   if (country.length === 2) {
-    base.push({ iso2: ILike(`%${country}%`) }, { iso3: ILike(`%${country}%`) });
+    base.push({ iso2: country.toUpperCase() });
   } else if (country.length === 3) {
-    base.push({ iso3: ILike(`%${country}%`) });
+    base.push({ iso3: country.toUpperCase() });
   }
 
   if (!subdivision) {

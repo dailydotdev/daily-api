@@ -9,8 +9,6 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 @Index('IDX_dataset_location_country_trgm', { synchronize: false })
 @Index('IDX_dataset_location_city_trgm', { synchronize: false })
 @Index('IDX_dataset_location_subdivision_trgm', { synchronize: false })
-@Index('IDX_dataset_location_iso2_trgm', { synchronize: false })
-@Index('IDX_dataset_location_iso3_trgm', { synchronize: false })
 export class DatasetLocation {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_dataset_location_id',
@@ -27,9 +25,11 @@ export class DatasetLocation {
   city: string | null;
 
   @Column()
+  @Index('IDX_dataset_location_iso2')
   iso2: string;
 
   @Column()
+  @Index('IDX_dataset_location_iso3')
   iso3: string;
 
   @Column()
