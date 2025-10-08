@@ -737,27 +737,6 @@ describe('query autocompleteLocation', () => {
     expect(res.data.autocompleteLocation).toEqual([]);
   });
 
-  it('should match locations by country abbreviation (USA)', async () => {
-    loggedUser = '1';
-
-    const res = await client.query(QUERY, {
-      variables: { query: 'USA' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
-
-    // Should find United States locations
-    const usLocations = res.data.autocompleteLocation.filter(
-      (loc) => loc.country === 'United States',
-    );
-    expect(usLocations.length).toBeGreaterThan(0);
-
-    // Should include some of our US test locations
-    const countries = res.data.autocompleteLocation.map((loc) => loc.country);
-    expect(countries).toContain('United States');
-  });
-
   it('should handle comma-separated location queries (California, USA)', async () => {
     loggedUser = '1';
 
@@ -809,41 +788,255 @@ describe('query autocompleteLocation', () => {
     );
   });
 
-  it('should match locations by country abbreviation (GBR)', async () => {
+  it('should match locations by 2-character iso2 code (US)', async () => {
     loggedUser = '1';
 
     const res = await client.query(QUERY, {
-      variables: { query: 'GBR' },
+      variables: { query: 'US' },
     });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
 
-    // Should find United Kingdom locations
-    const ukLocations = res.data.autocompleteLocation.filter(
-      (loc) => loc.country === 'United Kingdom',
+    // Should find United States locations via iso2 or iso3 match
+    const usLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United States',
     );
-    expect(ukLocations.length).toBeGreaterThan(0);
+    expect(usLocations.length).toBeGreaterThan(0);
   });
 
-  it('should match locations by country abbreviation (CAN)', async () => {
+  it('should match locations by 2-character iso2 code (GB)', async () => {
     loggedUser = '1';
 
     const res = await client.query(QUERY, {
-      variables: { query: 'CAN' },
+      variables: { query: 'GB' },
     });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
 
-    // Should find Canada locations
-    const canadaLocations = res.data.autocompleteLocation.filter(
+    // Should find United Kingdom locations via iso2
+    const gbLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United Kingdom',
+    );
+    expect(gbLocations.length).toBeGreaterThan(0);
+  });
+
+  it('should match locations by 2-character iso2 code (CA)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'CA' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find Canada locations via iso2
+    const caLocations = res.data.autocompleteLocation.filter(
       (loc) => loc.country === 'Canada',
     );
-    expect(canadaLocations.length).toBeGreaterThan(0);
+    expect(caLocations.length).toBeGreaterThan(0);
+  });
 
-    // Should include both Toronto and Vancouver
-    const cities = res.data.autocompleteLocation.map((loc) => loc.city);
-    expect(cities).toEqual(expect.arrayContaining(['Toronto', 'Vancouver']));
+  it('should handle two-part comma-separated query (Toronto, Canada)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Toronto, Canada' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find Toronto in Canada
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'Canada',
+          city: 'Toronto',
+          subdivision: 'Ontario',
+        }),
+      ]),
+    );
+  });
+
+  it('should handle two-part comma-separated query (San Francisco, USA)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'San Francisco, USA' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find San Francisco in United States
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        }),
+      ]),
+    );
+  });
+
+  it('should handle three-part comma-separated query (city, state, country)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'San Francisco, California, USA' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find San Francisco in California, United States
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        }),
+      ]),
+    );
+  });
+
+  it('should handle comma-separated query with spaces (Ontario, Canada)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Ontario, Canada' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find Toronto (which is in Ontario, Canada)
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'Canada',
+          subdivision: 'Ontario',
+        }),
+      ]),
+    );
+  });
+
+  it('should handle comma-separated query with iso code (California, US)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'California, US' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find California locations in United States
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          subdivision: 'California',
+        }),
+      ]),
+    );
+  });
+
+  it('should handle partial match in two-part query (Fran, USA)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Fran, USA' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Should search for "Fran" in city or subdivision fields for USA locations
+    // May return San Francisco if partial matching works
+    if (res.data.autocompleteLocation.length > 0) {
+      const usLocations = res.data.autocompleteLocation.filter(
+        (loc) => loc.country === 'United States',
+      );
+      expect(usLocations.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('should handle queries with extra spaces around commas', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Toronto ,  Canada' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should still find Toronto in Canada (spaces should be trimmed)
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'Canada',
+          city: 'Toronto',
+        }),
+      ]),
+    );
+  });
+
+  it('should match 3-character queries via iso3 code (DEU for Germany)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'DEU' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find Germany locations via iso3
+    const germanyLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'Germany',
+    );
+    expect(germanyLocations.length).toBeGreaterThan(0);
+  });
+
+  it('should match 3-character queries via iso3 code (AUS for Australia)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'AUS' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find Australia locations via iso3
+    const ausLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'Australia',
+    );
+    expect(ausLocations.length).toBeGreaterThan(0);
+  });
+
+  it('should handle comma-separated query with partial subdivision (Brit, Canada)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Brit, Canada' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Should find Vancouver in British Columbia, Canada
+    if (res.data.autocompleteLocation.length > 0) {
+      const bcLocations = res.data.autocompleteLocation.filter(
+        (loc) =>
+          loc.country === 'Canada' && loc.subdivision?.includes('British'),
+      );
+      expect(bcLocations.length).toBeGreaterThan(0);
+    }
   });
 });

@@ -78,6 +78,12 @@ const getLocationCondition = (query: string) => {
     { country: ILike(`%${country}%`) },
   ];
 
+  if (country.length === 2) {
+    base.push({ iso2: ILike(`%${country}%`) }, { iso3: ILike(`%${country}%`) });
+  } else if (query.length === 3) {
+    base.push({ iso3: ILike(`%${country}%`) });
+  }
+
   if (!subdivision && !city) {
     return base.concat([
       { subdivision: ILike(`%${query}%`) },
@@ -124,15 +130,6 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
     ): Promise<GQLLocation[]> => {
       const { query, limit } = autocompleteBaseSchema.parse(payload);
       const conditions = getLocationCondition(query);
-
-      if (query.length === 2) {
-        conditions.push(
-          { iso2: ILike(`%${query}%`) },
-          { iso3: ILike(`%${query}%`) },
-        );
-      } else if (query.length === 3) {
-        conditions.push({ iso3: ILike(`%${query}%`) });
-      }
 
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(DatasetLocation).find({
