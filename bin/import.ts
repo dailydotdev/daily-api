@@ -12,8 +12,8 @@ import { TrendingPost } from '../src/entity/TrendingPost';
 import { TrendingSource } from '../src/entity/TrendingSource';
 import { TrendingTag } from '../src/entity/TrendingTag';
 import { UserStats } from '../src/entity/user/UserStats';
-import { parseArgs } from 'util';
 import z from 'zod';
+import { zodToParseArgs } from './common';
 
 const importEntity = async (
   con: DataSource,
@@ -54,25 +54,16 @@ const viewsToRefresh = [
 
 const paramsSchema = z.object({
   // if the user wants to run the script for a specific entity
-  entity: z.string().optional(),
+  entity: z.string().optional().meta({ short: 'e' }),
 });
 
 const start = async (): Promise<void> => {
-  const { values } = parseArgs({
-    options: {
-      entity: {
-        type: 'string',
-        short: 'e',
-      },
-    },
-  });
-  const params = paramsSchema.parse(values);
+  const params = zodToParseArgs(paramsSchema);
   const con = await createOrGetConnection();
 
   if (params.entity) {
     console.log('importing specific entity for: ', params.entity);
-    await importEntity(con, params.entity);
-    return;
+    return await importEntity(con, params.entity);
   }
 
   await importEntity(con, 'Autocomplete');
