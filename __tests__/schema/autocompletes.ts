@@ -13,6 +13,7 @@ import {
 import { usersFixture } from '../fixture/user';
 import { keywordsFixture } from '../fixture/keywords';
 import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -356,5 +357,383 @@ describe('query autocompleteKeywords', () => {
     expect(res.data.autocompleteKeywords).toEqual([
       { keyword: 'development', title: null },
     ]);
+  });
+});
+
+describe('query autocompleteLocation', () => {
+  const QUERY = /* GraphQL */ `
+    query AutocompleteLocation($query: String!) {
+      autocompleteLocation(query: $query) {
+        id
+        country
+        city
+        subdivision
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, DatasetLocation, [
+      {
+        country: 'United States',
+        city: 'New York',
+        subdivision: 'New York',
+        iso2: 'US',
+        iso3: 'USA',
+        timezone: 'America/New_York',
+        ranking: 100,
+        externalId: 'us-ny-nyc',
+      },
+      {
+        country: 'United States',
+        city: 'San Francisco',
+        subdivision: 'California',
+        iso2: 'US',
+        iso3: 'USA',
+        timezone: 'America/Los_Angeles',
+        ranking: 90,
+        externalId: 'us-ca-sf',
+      },
+      {
+        country: 'United States',
+        city: 'Los Angeles',
+        subdivision: 'California',
+        iso2: 'US',
+        iso3: 'USA',
+        timezone: 'America/Los_Angeles',
+        ranking: 95,
+        externalId: 'us-ca-la',
+      },
+      {
+        country: 'United Kingdom',
+        city: 'London',
+        subdivision: 'England',
+        iso2: 'GB',
+        iso3: 'GBR',
+        timezone: 'Europe/London',
+        ranking: 85,
+        externalId: 'uk-eng-london',
+      },
+      {
+        country: 'Canada',
+        city: 'Toronto',
+        subdivision: 'Ontario',
+        iso2: 'CA',
+        iso3: 'CAN',
+        timezone: 'America/Toronto',
+        ranking: 80,
+        externalId: 'ca-on-tor',
+      },
+      {
+        country: 'Canada',
+        city: 'Vancouver',
+        subdivision: 'British Columbia',
+        iso2: 'CA',
+        iso3: 'CAN',
+        timezone: 'America/Vancouver',
+        ranking: 75,
+        externalId: 'ca-bc-van',
+      },
+      {
+        country: 'Germany',
+        city: 'Berlin',
+        subdivision: null,
+        iso2: 'DE',
+        iso3: 'DEU',
+        timezone: 'Europe/Berlin',
+        ranking: 70,
+        externalId: 'de-berlin',
+      },
+      {
+        country: 'France',
+        city: 'Paris',
+        subdivision: 'Île-de-France',
+        iso2: 'FR',
+        iso3: 'FRA',
+        timezone: 'Europe/Paris',
+        ranking: 65,
+        externalId: 'fr-idf-paris',
+      },
+      {
+        country: 'Australia',
+        city: 'Sydney',
+        subdivision: 'New South Wales',
+        iso2: 'AU',
+        iso3: 'AUS',
+        timezone: 'Australia/Sydney',
+        ranking: 60,
+        externalId: 'au-nsw-syd',
+      },
+      {
+        country: 'Japan',
+        city: 'Tokyo',
+        subdivision: null,
+        iso2: 'JP',
+        iso3: 'JPN',
+        timezone: 'Asia/Tokyo',
+        ranking: 55,
+        externalId: 'jp-tokyo',
+      },
+    ]);
+  });
+
+  it('should return unauthenticated when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { query: 'new york' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return matching locations by country, city, and subdivision', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'new' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          city: 'New York',
+          subdivision: 'New York',
+        }),
+        expect.objectContaining({
+          country: 'Australia',
+          city: 'Sydney',
+          subdivision: 'New South Wales',
+        }),
+      ]),
+    );
+  });
+
+  it('should be case insensitive', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'LONDON' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United Kingdom',
+          city: 'London',
+          subdivision: 'England',
+        }),
+      ]),
+    );
+  });
+
+  it('should match partial strings in city names', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'angeles' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          city: 'Los Angeles',
+          subdivision: 'California',
+        }),
+      ]),
+    );
+  });
+
+  it('should match partial strings in country names', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'kingdom' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United Kingdom',
+          city: 'London',
+          subdivision: 'England',
+        }),
+      ]),
+    );
+  });
+
+  it('should match partial strings in subdivision names', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'ontario' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'Canada',
+          city: 'Toronto',
+          subdivision: 'Ontario',
+        }),
+      ]),
+    );
+  });
+
+  it('should return locations ordered by ranking DESC, then alphabetically', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'california' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Los Angeles has ranking 95, San Francisco has ranking 90
+    // So Los Angeles should come first (higher ranking)
+    const cities = res.data.autocompleteLocation.map((loc) => loc.city);
+    const laIndex = cities.indexOf('Los Angeles');
+    const sfIndex = cities.indexOf('San Francisco');
+    expect(laIndex).toBeLessThan(sfIndex);
+  });
+
+  it('should handle locations with null subdivision', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'berlin' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'Germany',
+          city: 'Berlin',
+          subdivision: null,
+        }),
+      ]),
+    );
+  });
+
+  it('should return empty array when no matches found', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'nonexistentlocation' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual([]);
+  });
+
+  it('should handle queries with spaces', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'new york' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          city: 'New York',
+          subdivision: 'New York',
+        }),
+      ]),
+    );
+  });
+
+  it('should handle queries with special characters', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'île-de-france' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'France',
+          city: 'Paris',
+          subdivision: 'Île-de-France',
+        }),
+      ]),
+    );
+  });
+
+  it('should return all location fields including id', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'tokyo' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation[0]).toHaveProperty('id');
+    expect(res.data.autocompleteLocation[0]).toHaveProperty('country');
+    expect(res.data.autocompleteLocation[0]).toHaveProperty('city');
+    expect(res.data.autocompleteLocation[0]).toHaveProperty('subdivision');
+    expect(typeof res.data.autocompleteLocation[0].id).toBe('string');
+  });
+
+  it('should handle queries that match multiple locations', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'united' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(1);
+
+    const countries = res.data.autocompleteLocation.map((loc) => loc.country);
+    expect(countries).toContain('United States');
+    expect(countries).toContain('United Kingdom');
+  });
+
+  it('should return empty array for queries with only special characters', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: '!@#$%^&*()' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual([]);
+  });
+
+  it('should handle very long query strings', async () => {
+    loggedUser = '1';
+
+    const longQuery = 'a'.repeat(1000);
+    const res = await client.query(QUERY, {
+      variables: { query: longQuery },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual([]);
+  });
+
+  it('should return empty array for queries with emojis', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: '🌎🗺️' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual([]);
   });
 });
