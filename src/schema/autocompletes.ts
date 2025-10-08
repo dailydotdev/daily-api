@@ -1,5 +1,4 @@
-import { AutocompleteType, Autocomplete } from '../entity';
-
+import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
 import { ILike } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';

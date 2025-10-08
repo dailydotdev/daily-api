@@ -1,5 +1,5 @@
 import z from 'zod';
-import { AutocompleteType } from '../../entity';
+import { AutocompleteType } from '../../entity/Autocomplete';
 
 export const autocompleteSchema = z.object({
   type: z.enum(AutocompleteType),
