@@ -21,7 +21,7 @@ export class Autocomplete {
     type: 'text',
     primaryKeyConstraintName: compositePrimaryKeyName,
   })
-  type: string;
+  type: AutocompleteType;
 
   @Column({ type: 'timestamp', default: () => 'now()' })
   createdAt: Date;
