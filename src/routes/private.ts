@@ -21,7 +21,12 @@ import { connectRpcPlugin } from '../common/connectRpc';
 import { Opportunity } from '../entity/opportunities/Opportunity';
 import { opportunityCreateSchema } from '../common/schema/opportunities';
 import { markdown } from '../common/markdown';
-import { OpportunityContent, type OpportunityMeta } from '@dailydotdev/schema';
+import {
+  OpportunityContent,
+  OpportunityState,
+  OpportunityType,
+  type OpportunityMeta,
+} from '@dailydotdev/schema';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 
@@ -115,8 +120,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           ...opportunityUpdate,
           content: opportunityContent,
           meta: opportunity.data.meta as OpportunityMeta,
-          state: 1,
-          type: 1,
+          state: OpportunityState.DRAFT,
+          type: OpportunityType.JOB,
         })
         .execute();
 
