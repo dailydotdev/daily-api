@@ -21,24 +21,19 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
         return;
       }
 
-      try {
-        const markdown = await extractMarkdownFromCV(blobName, bucketName);
-        if (!markdown?.content) {
-          logger.warn(
-            { userId, blobName, bucketName },
-            'No markdown content extracted from CV',
-          );
-          return;
-        }
-
-        await con
-          .getRepository(UserCandidatePreference)
-          .update({ userId }, { cvParsedMarkdown: markdown.content });
-
-        logger.debug({ userId }, 'Extracted markdown');
-      } catch (_err) {
-        const err = _err as Error;
-        throw err;
+      const markdown = await extractMarkdownFromCV(blobName, bucketName);
+      if (!markdown?.content) {
+        logger.warn(
+          { userId, blobName, bucketName },
+          'No markdown content extracted from CV',
+        );
+        return;
       }
+
+      await con
+        .getRepository(UserCandidatePreference)
+        .update({ userId }, { cvParsedMarkdown: markdown.content });
+
+      logger.debug({ userId }, 'Extracted markdown');
     },
   };
