@@ -24,7 +24,7 @@ FROM
 WHERE
 	event_name IN ('share post', 'bookmark post', 'impression', 'share to squad', 'click', 'go to link')
 	AND target_id IS NOT NULL
-	AND server_timestamp > '2025-09-08 13:53:00'
+	AND server_timestamp > '2025-10-08 13:00:00'
 GROUP BY
 	target_id
 SETTINGS materialized_views_ignore_errors = 1;
@@ -44,7 +44,7 @@ ON
 WHERE
 	c."postId" != ''
 	AND c."postId" IS NOT NULL
-	AND event_timestamp > '2025-09-08 13:54:00'
+	AND event_timestamp > '2025-10-08 13:00:00'
 GROUP BY
 	c."postId"
 SETTINGS materialized_views_ignore_errors = 1;
