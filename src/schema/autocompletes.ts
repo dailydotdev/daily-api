@@ -1,7 +1,4 @@
-import {
-  Keyword,
-  KeywordStatus,
-} from '../entity';
+import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
 import { ILike } from 'typeorm';
