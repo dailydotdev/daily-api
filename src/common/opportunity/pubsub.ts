@@ -139,6 +139,7 @@ export const notifyOpportunityMatchAccepted = async ({
       }),
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
       keywords: keywords,
+      cvParsedMarkdown: candidatePreference.cvParsedMarkdown || undefined,
     },
   });
 
@@ -182,7 +183,6 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
     ({ queryRunner }) =>
       Promise.all([
         queryRunner.manager.getRepository(OpportunityMatch).findOne({
-          select: ['opportunityId', 'userId'],
           where: { opportunityId: data.opportunityId, userId: data.userId },
         }),
         queryRunner.manager.getRepository(OpportunityUser).findOne({
@@ -443,6 +443,7 @@ export const notifyCandidatePreferenceChange = async ({
       updatedAt:
         getSecondsTimestamp(candidatePreference?.updatedAt) || undefined,
       keywords: keywords,
+      cvParsedMarkdown: candidatePreference.cvParsedMarkdown || undefined,
     },
   });
 
