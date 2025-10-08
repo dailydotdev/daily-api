@@ -104,11 +104,11 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
             subdivision: 'ASC',
             city: 'ASC',
           },
-          where: {
-            country: ILike(`%${query}%`),
-            subdivision: ILike(`%${query}%`),
-            city: ILike(`%${query}%`),
-          },
+          where: [
+            { country: ILike(`%${query}%`) },
+            { subdivision: ILike(`%${query}%`) },
+            { city: ILike(`%${query}%`) },
+          ],
         }),
       );
 
