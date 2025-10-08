@@ -1,21 +1,29 @@
-import { AutocompleteType, Autocomplete } from '../entity';
+import {
+  AutocompleteType,
+  Autocomplete,
+  Keyword,
+  KeywordStatus,
+} from '../entity';
 
 import { traceResolvers } from './trace';
 import { ILike } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { toGQLEnum } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
-import { autocompleteSchema } from '../common/schema/autocompletes';
+import {
+  autocompleteBaseSchema,
+  autocompleteSchema,
+} from '../common/schema/autocompletes';
 import { ValidationError } from 'apollo-server-errors';
+import type z from 'zod';
 
 interface AutocompleteData {
   result: string[];
 }
 
-interface AutocompleteArgs {
-  type: AutocompleteType;
-  query: string;
-  limit?: number;
+interface GQLKeywordAutocomplete {
+  keyword: string;
+  title: string | null;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -25,6 +33,25 @@ export const typeDefs = /* GraphQL */ `
     result: [String]!
   }
 
+  """
+  Keyword search results
+  """
+  type KeywordSearchResults {
+    """
+    Query that was searched
+    """
+    query: String!
+    """
+    Search results
+    """
+    hits: [Keyword]!
+  }
+
+  type KeywordAutocomplete {
+    keyword: String!
+    title: String
+  }
+
   extend type Query {
     """
     Get autocomplete based on type
@@ -32,6 +59,17 @@ export const typeDefs = /* GraphQL */ `
     autocomplete(type: AutocompleteType!, query: String!): AutocompleteData!
       @auth
       @cacheControl(maxAge: 3600)
+
+    """
+    Search in the allowed keywords list
+    """
+    searchKeywords(query: String!): KeywordSearchResults
+      @auth(requires: [MODERATOR])
+
+    autocompleteKeywords(
+      query: String!
+      limit: Int = 20
+    ): [KeywordAutocomplete!]! @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -39,7 +77,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
   Query: {
     autocomplete: async (
       _,
-      payload: AutocompleteArgs,
+      payload: z.infer<typeof autocompleteSchema>,
       ctx: AuthContext,
     ): Promise<AutocompleteData> => {
       const { data, error } = autocompleteSchema.safeParse(payload);
@@ -58,6 +96,37 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       );
 
       return { result: result.map((a) => a.value) };
+    },
+    autocompleteKeywords: async (
+      _,
+      payload: z.infer<typeof autocompleteBaseSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLKeywordAutocomplete[]> => {
+      const { data, error } = autocompleteBaseSchema.safeParse(payload);
+      if (error) {
+        throw error;
+      }
+
+      const status = !!ctx.userId
+        ? [KeywordStatus.Allow, KeywordStatus.Synonym]
+        : [KeywordStatus.Allow];
+
+      return queryReadReplica(ctx.con, async ({ queryRunner }) =>
+        queryRunner.manager
+          .createQueryBuilder()
+          .select('k.value', 'keyword')
+          .addSelect(`COALESCE(k.flags->>'title', NULL)`, 'title')
+          .from(Keyword, 'k')
+          .where('k.status IN (:...status)', {
+            status: status,
+          })
+          .andWhere('k.value ILIKE :query', { query: `%${data.query}%` })
+          .orderBy(`(k.status <> '${KeywordStatus.Allow}')`, 'ASC')
+          .addOrderBy('k.occurrences', 'DESC')
+          .addOrderBy('k.value', 'ASC')
+          .limit(data.limit)
+          .getRawMany<{ keyword: string; title: string | null }>(),
+      );
     },
   },
 });

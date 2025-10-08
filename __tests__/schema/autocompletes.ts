@@ -1,5 +1,10 @@
 import { DataSource } from 'typeorm';
-import { Autocomplete, AutocompleteType, User } from '../../src/entity';
+import {
+  Autocomplete,
+  AutocompleteType,
+  Keyword,
+  User,
+} from '../../src/entity';
 import createOrGetConnection from '../../src/db';
 import {
   disposeGraphQLTesting,
@@ -11,6 +16,7 @@ import {
   testQueryErrorCode,
 } from '../helpers';
 import { usersFixture } from '../fixture/user';
+import { keywordsFixture } from '../fixture/keywords';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -210,6 +216,69 @@ describe('query autocomplete', () => {
     expect(res.data.autocomplete.result).toEqual([
       'Senior Software Engineer',
       'Software Engineer',
+    ]);
+  });
+});
+
+describe('query autocompleteKeywords', () => {
+  const QUERY = /* GraphQL */ `
+    query AutocompleteKeywords($query: String!, $limit: Int) {
+      autocompleteKeywords(query: $query, limit: $limit) {
+        keyword
+        title
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Keyword, keywordsFixture);
+  });
+
+  it('should return autocomplete allowed keywords when not logged in', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        query: 'dev',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteKeywords).toEqual(
+      expect.arrayContaining([
+        { keyword: 'webdev', title: 'Web Development' },
+        { keyword: 'development', title: null },
+      ]),
+    );
+  });
+
+  it('should return autocomplete results', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        query: 'dev',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteKeywords).toEqual(
+      expect.arrayContaining([
+        { keyword: 'webdev', title: 'Web Development' },
+        { keyword: 'web-development', title: null },
+        { keyword: 'development', title: null },
+      ]),
+    );
+  });
+
+  it('should limit autocomplete results', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: {
+        query: 'dev',
+        limit: 1,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteKeywords).toEqual([
+      { keyword: 'development', title: null },
     ]);
   });
 });
