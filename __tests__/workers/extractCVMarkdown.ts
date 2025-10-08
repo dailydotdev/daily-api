@@ -174,10 +174,12 @@ describe('extractCVMarkdown worker', () => {
       },
     });
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    await expect(
+      expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      ),
+    ).rejects.toThrow('[not_found] Not found');
 
     expect(
       await con

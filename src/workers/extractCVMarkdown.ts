@@ -42,6 +42,7 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
           { userId, blobName, bucketName, err },
           'Failed to extract markdown from CV',
         );
+        throw err;
       }
     },
   };
