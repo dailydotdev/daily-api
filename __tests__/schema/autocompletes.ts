@@ -1068,7 +1068,8 @@ describe('query autocompleteLocation', () => {
 
     // Should include Vancouver specifically (city in British Columbia)
     const hasVancouver = res.data.autocompleteLocation.some(
-      (loc) => loc.city === 'Vancouver' && loc.subdivision === 'British Columbia',
+      (loc) =>
+        loc.city === 'Vancouver' && loc.subdivision === 'British Columbia',
     );
     expect(hasVancouver).toBe(true);
 
