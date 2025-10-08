@@ -79,6 +79,7 @@ declare global {
       RESUME_BUCKET_NAME: string;
       EMPLOYMENT_AGREEMENT_BUCKET_NAME: string;
       GONDUL_ORIGIN: string;
+      BROKKR_ORIGIN: string;
     }
   }
 }

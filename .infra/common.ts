@@ -425,6 +425,10 @@ export const workers: Worker[] = [
     topic: 'gondul.v1.warm-intro-generated',
     subscription: 'api.recruiter-warm-intro-notification',
   },
+  {
+    topic: 'api.v1.candidate-preference-updated',
+    subscription: 'api.extract-cv-markdown',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
