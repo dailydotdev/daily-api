@@ -31,6 +31,7 @@ export const typeDefs = /* GraphQL */ `
     """
     autocomplete(type: AutocompleteType!, query: String!): AutocompleteData!
       @auth
+      @cacheControl(maxAge: 3600)
   }
 `;
 
