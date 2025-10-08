@@ -6,7 +6,6 @@ import { AuthContext, BaseContext } from '../Context';
 import { toGQLEnum } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { autocompleteSchema } from '../common/schema/autocompletes';
-import { ValidationError } from 'apollo-server-errors';
 import type z from 'zod';
 
 interface AutocompleteData {
@@ -37,13 +36,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       payload: z.infer<typeof autocompleteSchema>,
       ctx: AuthContext,
     ): Promise<AutocompleteData> => {
-      const { data, error } = autocompleteSchema.safeParse(payload);
-
-      if (!data || error) {
-        throw new ValidationError(error.message);
-      }
-
-      const { type, query, limit } = data;
+      const { type, query, limit } = autocompleteSchema.parse(payload);
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(Autocomplete).find({
           select: { value: true },
