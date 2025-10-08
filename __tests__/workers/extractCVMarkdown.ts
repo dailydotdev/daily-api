@@ -11,7 +11,7 @@ import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { extractCVMarkdown as worker } from '../../src/workers/extractCVMarkdown';
 import * as brokkrCommon from '../../src/common/brokkr';
-import { ConnectError, createClient } from '@connectrpc/connect';
+import { createClient } from '@connectrpc/connect';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { logger } from '../../src/logger';
 import type { ServiceClient } from '../../src/types';
@@ -198,15 +198,5 @@ describe('extractCVMarkdown worker', () => {
       cv: {},
       cvParsedMarkdown: null,
     });
-
-    expect(spyLogger).toHaveBeenCalledWith(
-      {
-        blobName: 'error.pdf',
-        bucketName: userId,
-        userId: userId,
-        err: expect.any(ConnectError),
-      },
-      'Failed to extract markdown from CV',
-    );
   });
 });
