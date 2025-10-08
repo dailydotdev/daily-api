@@ -83,6 +83,20 @@ export const typeDefs = /* GraphQL */ `
     synonym: String
   }
 
+  """
+  Keyword search results
+  """
+  type KeywordSearchResults {
+    """
+    Query that was searched
+    """
+    query: String!
+    """
+    Search results
+    """
+    hits: [Keyword]!
+  }
+
   extend type Query {
     """
     Get a random pending keyword
@@ -92,6 +106,11 @@ export const typeDefs = /* GraphQL */ `
     Count the number of pending keywords
     """
     countPendingKeywords: Int @auth(requires: [MODERATOR])
+    """
+    Search in the allowed keywords list
+    """
+    searchKeywords(query: String!): KeywordSearchResults
+      @auth(requires: [MODERATOR])
     """
     Get a keyword
     """

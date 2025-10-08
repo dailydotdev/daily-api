@@ -33,20 +33,6 @@ export const typeDefs = /* GraphQL */ `
     result: [String]!
   }
 
-  """
-  Keyword search results
-  """
-  type KeywordSearchResults {
-    """
-    Query that was searched
-    """
-    query: String!
-    """
-    Search results
-    """
-    hits: [Keyword]!
-  }
-
   type KeywordAutocomplete {
     keyword: String!
     title: String
@@ -59,12 +45,6 @@ export const typeDefs = /* GraphQL */ `
     autocomplete(type: AutocompleteType!, query: String!): AutocompleteData!
       @auth
       @cacheControl(maxAge: 3600)
-
-    """
-    Search in the allowed keywords list
-    """
-    searchKeywords(query: String!): KeywordSearchResults
-      @auth(requires: [MODERATOR])
 
     autocompleteKeywords(
       query: String!
