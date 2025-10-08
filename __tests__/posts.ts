@@ -10303,7 +10303,7 @@ describe('query post analytics', () => {
 
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.postAnalytics).toMatchObject({
+    expect(res.data.postAnalytics).toEqual({
       id: 'p1-paq',
       impressions: 35,
       reach: 12,
