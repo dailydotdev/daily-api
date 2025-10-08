@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
 export enum AutocompleteType {
   FieldOfStudy = 'field_of_study',
@@ -9,6 +9,7 @@ export enum AutocompleteType {
 const compositePrimaryKeyName = 'PK_autocomplete_value_type';
 
 @Entity()
+@Index('IDX_autocomplete_value_enabled_trgm', { synchronize: false })
 export class Autocomplete {
   @PrimaryColumn({
     type: 'text',
@@ -20,7 +21,7 @@ export class Autocomplete {
     type: 'text',
     primaryKeyConstraintName: compositePrimaryKeyName,
   })
-  type: string;
+  type: AutocompleteType;
 
   @Column({ type: 'timestamp', default: () => 'now()' })
   createdAt: Date;

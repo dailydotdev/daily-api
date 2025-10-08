@@ -1,9 +1,8 @@
 import z from 'zod';
-import { normalizeContentForDeduplication } from '../../entity/posts/hooks';
-import { AutocompleteType } from '../../entity';
+import { AutocompleteType } from '../../entity/Autocomplete';
 
 export const autocompleteBaseSchema = z.object({
-  query: z.string().transform(normalizeContentForDeduplication),
+  query: z.string().trim().min(1).toLowerCase().normalize(),
   limit: z.number().min(1).max(50).default(20),
 });
 

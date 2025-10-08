@@ -1,10 +1,5 @@
 import { DataSource } from 'typeorm';
-import {
-  Autocomplete,
-  AutocompleteType,
-  Keyword,
-  User,
-} from '../../src/entity';
+import { User } from '../../src/entity';
 import createOrGetConnection from '../../src/db';
 import {
   disposeGraphQLTesting,
@@ -17,6 +12,7 @@ import {
 } from '../helpers';
 import { usersFixture } from '../fixture/user';
 import { keywordsFixture } from '../fixture/keywords';
+import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -87,6 +83,11 @@ beforeEach(async () => {
     },
     {
       value: 'Data Engineer',
+      type: AutocompleteType.Role,
+      enabled: true,
+    },
+    {
+      value: 'Full Stack Developer',
       type: AutocompleteType.Role,
       enabled: true,
     },
@@ -217,6 +218,81 @@ describe('query autocomplete', () => {
       'Senior Software Engineer',
       'Software Engineer',
     ]);
+  });
+
+  it('should handle queries with spaces', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'role', query: 'full stack' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['Full Stack Developer']);
+  });
+
+  it('should return empty array for queries with emojis', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'role', query: '🚀' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should return error for empty string query', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'role', query: '' },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should return error for query with only spaces', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'role', query: '   ' },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should return empty array for query with only special characters', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'role', query: '!@#$%^&*()' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should handle very long query strings', async () => {
+    loggedUser = '1';
+
+    const longQuery = 'a'.repeat(1000);
+    const res = await client.query(QUERY, {
+      variables: { type: 'role', query: longQuery },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should return error for invalid autocomplete type', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'invalid_type', query: 'test' },
+    });
+
+    expect(res.errors).toBeTruthy();
   });
 });
 
