@@ -29,6 +29,7 @@ import {
 } from '@dailydotdev/schema';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
+import { logger } from '../logger';
 
 interface SearchUsername {
   search: string;
@@ -89,7 +90,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     const opportunity = opportunityCreateSchema.safeParse(req.body);
     if (opportunity.error) {
-      req.log.error(
+      logger.error(
         {
           opportunity,
         },
