@@ -89,6 +89,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     const opportunity = opportunityCreateSchema.safeParse(req.body);
     if (opportunity.error) {
+      req.log.error(
+        {
+          opportunity,
+        },
+        'failed to store opportunity',
+      );
       return res.status(500).send();
     }
 

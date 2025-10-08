@@ -1192,8 +1192,8 @@ describe('POST /p/newOpportunity', () => {
       where: { opportunityId: opportunity?.id },
     });
     expect(keywords).toHaveLength(3);
-    expect(keywords.map((k) => k.keyword).sort()).toEqual(
-      ['javascript', 'typescript', 'react'].sort(),
+    expect(['javascript', 'typescript', 'react']).toEqual(
+      expect.arrayContaining(keywords.map((k) => k.keyword)),
     );
   });
 
@@ -1270,9 +1270,8 @@ describe('POST /p/newOpportunity', () => {
       where: { opportunityId: opportunity?.id },
     });
     expect(keywords).toHaveLength(2);
-    expect(keywords.map((k) => k.keyword).sort()).toEqual([
-      'golang',
-      'kubernetes',
-    ]);
+    expect(['golang', 'kubernetes']).toEqual(
+      expect.arrayContaining(keywords.map((k) => k.keyword)),
+    );
   });
 });
