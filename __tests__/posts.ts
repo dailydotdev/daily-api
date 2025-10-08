@@ -10219,6 +10219,7 @@ describe('query post analytics', () => {
         shares
         reachAds
         impressionsAds
+        clicks
       }
     }
   `;
@@ -10277,6 +10278,7 @@ describe('query post analytics', () => {
           reachAds: 7,
           reachAll: 12,
           impressionsAds: 25,
+          clicks: 11,
         });
       }),
     );
@@ -10319,6 +10321,7 @@ describe('query post analytics', () => {
       awards: 2,
       reachAds: 7,
       impressionsAds: 25,
+      clicks: 11,
     });
   });
 
