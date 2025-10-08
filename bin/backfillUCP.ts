@@ -35,12 +35,13 @@ const getExtension = (contentType: string) => {
   });
 
   const schema = z.object({
-    maxResults: z.int().positive(),
+    maxResults: z.coerce.number().positive(),
   });
 
   const { error, data } = schema.safeParse(values);
   if (error) {
-    throw error;
+    logger.error({ err: error }, 'Invalid arguments');
+    process.exit(1);
   }
   const con = await createOrGetConnection();
   const { maxResults } = data;
