@@ -12,12 +12,12 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
       const blobName = cv?.blob;
       const bucketName = cv?.bucket;
       if (!!cvParsedMarkdown) {
-        logger.info('CV markdown already extracted, skipping');
+        logger.debug('CV markdown already extracted, skipping');
         return;
       }
 
       if (!blobName || !bucketName) {
-        logger.warn({ userId, blobName, bucketName }, 'No CV found, skipping');
+        logger.debug({ userId, blobName, bucketName }, 'No CV found, skipping');
         return;
       }
 
@@ -35,7 +35,7 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
           .getRepository(UserCandidatePreference)
           .update({ userId }, { cvParsedMarkdown: markdown.content });
 
-        logger.info({ userId }, 'Extracted markdown');
+        logger.debug({ userId }, 'Extracted markdown');
       } catch (_err) {
         const err = _err as Error;
         logger.error(

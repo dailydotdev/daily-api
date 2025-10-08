@@ -46,7 +46,7 @@ describe('extractCVMarkdown worker', () => {
 
   it('should extract markdown from CV and update user candidate preference', async () => {
     const userId = '1';
-    jest.spyOn(logger, 'info').mockImplementation(spyLogger);
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
     const payload = new CandidatePreferenceUpdated({
       payload: {
         userId: userId,
@@ -87,7 +87,7 @@ describe('extractCVMarkdown worker', () => {
 
   it('should return early when markdown is already extracted', async () => {
     const userId = '2';
-    jest.spyOn(logger, 'info').mockImplementation(spyLogger);
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
     const payload = new CandidatePreferenceUpdated({
       payload: {
         userId: userId,
