@@ -736,4 +736,114 @@ describe('query autocompleteLocation', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.autocompleteLocation).toEqual([]);
   });
+
+  it('should match locations by country abbreviation (USA)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'USA' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find United States locations
+    const usLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United States',
+    );
+    expect(usLocations.length).toBeGreaterThan(0);
+
+    // Should include some of our US test locations
+    const countries = res.data.autocompleteLocation.map((loc) => loc.country);
+    expect(countries).toContain('United States');
+  });
+
+  it('should handle comma-separated location queries (California, USA)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'California, USA' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find California locations in United States
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        }),
+        expect.objectContaining({
+          country: 'United States',
+          city: 'Los Angeles',
+          subdivision: 'California',
+        }),
+      ]),
+    );
+  });
+
+  it('should match locations when query is just a state/subdivision name', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'California' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        }),
+        expect.objectContaining({
+          country: 'United States',
+          city: 'Los Angeles',
+          subdivision: 'California',
+        }),
+      ]),
+    );
+  });
+
+  it('should match locations by country abbreviation (GBR)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'GBR' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find United Kingdom locations
+    const ukLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United Kingdom',
+    );
+    expect(ukLocations.length).toBeGreaterThan(0);
+  });
+
+  it('should match locations by country abbreviation (CAN)', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'CAN' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find Canada locations
+    const canadaLocations = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'Canada',
+    );
+    expect(canadaLocations.length).toBeGreaterThan(0);
+
+    // Should include both Toronto and Vancouver
+    const cities = res.data.autocompleteLocation.map((loc) => loc.city);
+    expect(cities).toEqual(expect.arrayContaining(['Toronto', 'Vancouver']));
+  });
 });

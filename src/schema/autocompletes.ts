@@ -1,7 +1,7 @@
 import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
-import { ILike } from 'typeorm';
+import { ILike, type FindOptionsWhere } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { toGQLEnum } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -69,6 +69,35 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+const getLocationCondition = (query: string) => {
+  const [country, subdivision, city] = query
+    .split(',')
+    .reverse()
+    .map((s) => s.trim());
+  const base: FindOptionsWhere<DatasetLocation>[] = [
+    { country: ILike(`%${country}%`) },
+  ];
+
+  if (!subdivision && !city) {
+    return base.concat([
+      { subdivision: ILike(`%${query}%`) },
+      { city: ILike(`%${query}%`) },
+    ]);
+  }
+
+  if (!city) {
+    return base.concat([
+      { subdivision: ILike(`%${subdivision}%`) },
+      { city: ILike(`%${subdivision}%`) },
+    ]);
+  }
+
+  return base.concat([
+    { subdivision: ILike(`%${subdivision}%`) },
+    { city: ILike(`%${city}%`) },
+  ]);
+};
+
 export const resolvers = traceResolvers<unknown, BaseContext>({
   Query: {
     autocomplete: async (
@@ -94,6 +123,17 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       ctx: AuthContext,
     ): Promise<GQLLocation[]> => {
       const { query, limit } = autocompleteBaseSchema.parse(payload);
+      const conditions = getLocationCondition(query);
+
+      if (query.length === 2) {
+        conditions.push(
+          { iso2: ILike(`%${query}%`) },
+          { iso3: ILike(`%${query}%`) },
+        );
+      } else if (query.length === 3) {
+        conditions.push({ iso3: ILike(`%${query}%`) });
+      }
+
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(DatasetLocation).find({
           select: { id: true, country: true, subdivision: true, city: true },
@@ -104,11 +144,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
             subdivision: 'ASC',
             city: 'ASC',
           },
-          where: [
-            { country: ILike(`%${query}%`) },
-            { subdivision: ILike(`%${query}%`) },
-            { city: ILike(`%${query}%`) },
-          ],
+          where: conditions,
         }),
       );
 
