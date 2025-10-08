@@ -38,10 +38,6 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
         logger.debug({ userId }, 'Extracted markdown');
       } catch (_err) {
         const err = _err as Error;
-        logger.error(
-          { userId, blobName, bucketName, err },
-          'Failed to extract markdown from CV',
-        );
         throw err;
       }
     },

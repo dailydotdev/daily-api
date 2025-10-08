@@ -3,6 +3,7 @@ import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import { BrokkrService } from '@dailydotdev/schema';
 import { GarmrService } from '../integrations/garmr';
+import type { ServiceClient } from '../types';
 
 const garmBrokkrService = new GarmrService({
   service: 'brokkr',
@@ -21,13 +22,17 @@ const transport = createGrpcTransport({
   httpVersion: '2',
 });
 
-export const getBrokkrClient = (clientTransport = transport) =>
-  createClient<typeof BrokkrService>(BrokkrService, clientTransport);
+export const getBrokkrClient = (
+  clientTransport = transport,
+): ServiceClient<typeof BrokkrService> => ({
+  instance: createClient<typeof BrokkrService>(BrokkrService, clientTransport),
+  garmr: garmBrokkrService,
+});
 
 export const extractMarkdownFromCV = async (
   blobName: string,
   bucketName: string,
 ) =>
   garmBrokkrService.execute(async () =>
-    getBrokkrClient().extractMarkdown({ blobName, bucketName }),
+    getBrokkrClient().instance.extractMarkdown({ blobName, bucketName }),
   );

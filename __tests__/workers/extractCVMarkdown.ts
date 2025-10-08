@@ -2,6 +2,7 @@ import type { DataSource } from 'typeorm';
 import { BrokkrService, CandidatePreferenceUpdated } from '@dailydotdev/schema';
 import createOrGetConnection from '../../src/db';
 import {
+  createGarmrMock,
   createMockBrokkrTransport,
   expectSuccessfulTypedBackground,
   saveFixtures,
@@ -13,6 +14,7 @@ import * as brokkrCommon from '../../src/common/brokkr';
 import { ConnectError, createClient } from '@connectrpc/connect';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { logger } from '../../src/logger';
+import type { ServiceClient } from '../../src/types';
 
 let con: DataSource;
 
@@ -24,10 +26,16 @@ beforeEach(async () => {
   jest.clearAllMocks();
   await saveFixtures(con, User, usersFixture);
 
-  const mockTransport = createMockBrokkrTransport();
   jest
     .spyOn(brokkrCommon, 'getBrokkrClient')
-    .mockImplementation(() => createClient(BrokkrService, mockTransport));
+    .mockImplementation((): ServiceClient<typeof BrokkrService> => {
+      const transport = createMockBrokkrTransport();
+
+      return {
+        instance: createClient(BrokkrService, transport),
+        garmr: createGarmrMock(),
+      };
+    });
 });
 
 describe('extractCVMarkdown worker', () => {
