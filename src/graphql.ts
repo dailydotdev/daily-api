@@ -29,7 +29,6 @@ import * as prompts from './schema/prompts';
 import * as paddle from './schema/paddle';
 import * as njord from './schema/njord';
 import * as organizations from './schema/organizations';
-import * as userExperience from './schema/userExperience';
 import * as campaigns from './schema/campaigns';
 import * as opportunity from './schema/opportunity';
 import { makeExecutableSchema } from '@graphql-tools/schema';
@@ -77,7 +76,6 @@ export const schema = urlDirective.transformer(
               paddle.typeDefs,
               njord.typeDefs,
               organizations.typeDefs,
-              userExperience.typeDefs,
               campaigns.typeDefs,
               opportunity.typeDefs,
             ],
@@ -108,7 +106,6 @@ export const schema = urlDirective.transformer(
               paddle.resolvers,
               njord.resolvers,
               organizations.resolvers,
-              userExperience.resolvers,
               campaigns.resolvers,
               opportunity.resolvers,
             ),
