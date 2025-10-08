@@ -5,6 +5,8 @@ import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityUserType } from '../../entity/opportunities/types';
 import { WarmIntro } from '@dailydotdev/schema';
 import { Feature, FeatureType } from '../../entity';
+import { OpportunityMatch } from '../../entity/OpportunityMatch';
+import { markdown } from '../../common/markdown';
 
 export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intro-generated'> =
   {
@@ -24,6 +26,22 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         );
         return;
       }
+
+      await con
+        .getRepository(OpportunityMatch)
+        .createQueryBuilder()
+        .update({
+          applicationRank: () => `applicationRank || :applicationRankJson`,
+        })
+        .where({
+          userId,
+          opportunityId,
+        })
+        .setParameter(
+          'applicationRankJson',
+          JSON.stringify({ warmIntro: markdown.render(description) }),
+        )
+        .execute();
 
       // TODO: Temporary until we happy to launch
       const isTeamMember = await con.getRepository(Feature).exists({

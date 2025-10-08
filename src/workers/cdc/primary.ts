@@ -30,6 +30,8 @@ import {
   SourceFeed,
   SourceMember,
   SourceRequest,
+  SourceUser,
+  SQUAD_IMAGE_PLACEHOLDER,
   SquadPublicRequest,
   SquadSource,
   Submission,
@@ -516,6 +518,23 @@ const onUserChange = async (
     }
     if (data.payload.before!.readme !== data.payload.after!.readme) {
       await notifyUserReadmeUpdated(logger, data.payload.after!);
+    }
+
+    if (
+      isChanged(data.payload.before!, data.payload.after!, [
+        'name',
+        'username',
+        'image',
+      ])
+    ) {
+      const newProfile = data.payload.after!;
+      await con.getRepository(SourceUser).update(
+        { userId: newProfile.id },
+        {
+          name: newProfile.name || newProfile.username,
+          image: newProfile.image || SQUAD_IMAGE_PLACEHOLDER,
+        },
+      );
     }
   }
   if (data.payload.op === 'd') {

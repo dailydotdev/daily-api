@@ -1340,6 +1340,84 @@ describe('query post', () => {
       expect(res.data.post.clickbaitTitleDetected).toEqual(false);
     });
   });
+
+  describe('analytics field', () => {
+    const LOCAL_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          id
+          analytics {
+            impressions
+          }
+        }
+      }
+    `;
+
+    it('should return public analytics for author', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(Post).update('p1', { authorId: '1' });
+
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: { impressions: 420 },
+      });
+    });
+
+    it('should return public analytics for scout', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(Post).update('p1', { scoutId: '1' });
+
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: { impressions: 420 },
+      });
+    });
+
+    it('should return null if user is not author or scout', async () => {
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: null,
+      });
+    });
+  });
 });
 
 describe('query postByUrl', () => {
@@ -3150,6 +3228,22 @@ describe('mutation createPostInMultipleSources', () => {
           title: freeformParams.title,
         }),
       );
+    });
+
+    it('should handle empty content', async () => {
+      loggedUser = '1';
+      const singleParams = {
+        ...freeformParams,
+        content: null,
+        sourceIds: ['squad'],
+      };
+      const res = await client.mutate(MUTATION, { variables: singleParams });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.createPostInMultipleSources).toHaveLength(1);
+      const [post] = res.data.createPostInMultipleSources;
+      expect(post.sourceId).toBe('squad');
+      expect(post.type).toBe('post');
     });
 
     it('should handle single squad posting', async () => {

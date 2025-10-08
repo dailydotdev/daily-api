@@ -322,10 +322,6 @@ export const typeDefs = /* GraphQL */ `
     Whether the source pinned posts are collapsed or not
     """
     collapsePinnedPosts: Boolean
-    """
-    Whether the source has unread posts for member
-    """
-    hasUnreadPosts: Boolean
   }
 
   type SourceMember {
@@ -912,16 +908,6 @@ export const typeDefs = /* GraphQL */ `
       """
       sourceId: ID!
     ): EmptyResponse! @auth
-
-    """
-    Clear unread posts flag for user
-    """
-    clearUnreadPosts(
-      """
-      Source id to clear unread posts in
-      """
-      sourceId: ID!
-    ): EmptyResponse! @auth
   }
 `;
 
@@ -1265,8 +1251,9 @@ export const ensureUserSourceExists = async (
         id: user.id,
         userId: user.id,
         handle: user.id,
-        name: user.id,
+        name: user.name || user.username,
         type: SourceType.User,
+        image: user.image || undefined,
         private: false,
         flags: {
           publicThreshold:
@@ -2639,26 +2626,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ) => {
       return togglePinnedPosts(ctx, sourceId, false);
-    },
-    clearUnreadPosts: async (
-      _,
-      { sourceId }: { sourceId: string },
-      ctx: AuthContext,
-    ) => {
-      const source = await ensureSourcePermissions(ctx, sourceId);
-
-      const result = await ctx.con.getRepository(SourceMember).update(
-        { sourceId: source.id, userId: ctx.userId },
-        {
-          flags: updateFlagsStatement<SourceMember>({
-            hasUnreadPosts: false,
-          }),
-        },
-      );
-
-      return {
-        _: !!result.affected,
-      };
     },
   },
   Source: {

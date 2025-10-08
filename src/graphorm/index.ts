@@ -651,6 +651,25 @@ const obj = new GraphORM({
           childColumn: 'postId',
         },
       },
+      analytics: {
+        transform: (value: number, ctx, parent): number | null => {
+          const post = parent as Post;
+
+          const isAuthor = post?.authorId && ctx.userId === post.authorId;
+
+          if (isAuthor) {
+            return value;
+          }
+
+          const isScout = post?.scoutId && ctx.userId === post.scoutId;
+
+          if (isScout) {
+            return value;
+          }
+
+          return null;
+        },
+      },
     },
   },
   SourceCategory: {
@@ -1379,7 +1398,6 @@ const obj = new GraphORM({
       },
     },
   },
-
   PostAnalytics: {
     requiredColumns: ['id', 'updatedAt'],
     fields: {
@@ -1439,6 +1457,19 @@ const obj = new GraphORM({
       updatedAt: {
         transform: transformDate,
       },
+      impressions: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.impressions + ${alias}."impressionsAds", 0)
+          `;
+        },
+      },
+    },
+  },
+  PostAnalyticsPublic: {
+    from: 'PostAnalytics',
+    fields: {
       impressions: {
         rawSelect: true,
         select: (_, alias) => {
