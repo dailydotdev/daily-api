@@ -80,28 +80,35 @@ const getLocationCondition = (query: string) => {
 
   if (country.length === 2) {
     base.push({ iso2: ILike(`%${country}%`) }, { iso3: ILike(`%${country}%`) });
-  } else if (query.length === 3) {
+  } else if (country.length === 3) {
     base.push({ iso3: ILike(`%${country}%`) });
   }
 
-  if (!subdivision && !city) {
+  if (!subdivision) {
     return base.concat([
       { subdivision: ILike(`%${query}%`) },
       { city: ILike(`%${query}%`) },
     ]);
   }
 
-  if (!city) {
-    return base.concat([
-      { subdivision: ILike(`%${subdivision}%`) },
-      { city: ILike(`%${subdivision}%`) },
-    ]);
+  if (city) {
+    return base.map((conditions) => ({
+      ...conditions,
+      city: ILike(`%${city}%`),
+      subdivision: ILike(`%${subdivision}%`),
+    }));
   }
 
-  return base.concat([
-    { subdivision: ILike(`%${subdivision}%`) },
-    { city: ILike(`%${city}%`) },
-  ]);
+  const subdivisionCombination = base.map((conditions) => ({
+    ...conditions,
+    subdivision: ILike(`%${subdivision}%`),
+  }));
+  const cityCombination = base.map((conditions) => ({
+    ...conditions,
+    city: ILike(`%${subdivision}%`),
+  }));
+
+  return base.concat(subdivisionCombination, cityCombination);
 };
 
 export const resolvers = traceResolvers<unknown, BaseContext>({

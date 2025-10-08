@@ -145,6 +145,16 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
         ON "public"."dataset_location"
         USING gin (subdivision gin_trgm_ops)
     `);
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_dataset_location_iso2_trgm"
+        ON "public"."dataset_location"
+        USING gin (iso2 gin_trgm_ops)
+    `);
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_dataset_location_iso3_trgm"
+        ON "public"."dataset_location"
+        USING gin (iso3 gin_trgm_ops)
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

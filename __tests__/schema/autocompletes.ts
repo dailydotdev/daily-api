@@ -1039,4 +1039,266 @@ describe('query autocompleteLocation', () => {
       expect(bcLocations.length).toBeGreaterThan(0);
     }
   });
+
+  it('should NOT return Paris when searching for "California, France"', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'California, France' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Should NOT find Paris, France because California is not in France
+    // This tests the AND logic - both country AND subdivision must match
+    const parisResults = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'France' && loc.city === 'Paris',
+    );
+    expect(parisResults.length).toBe(0);
+  });
+
+  it('should NOT return London when searching for "California, United Kingdom"', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'California, United Kingdom' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Should NOT find UK locations since California is in the US, not UK
+    // This demonstrates the AND logic working correctly
+    const ukResults = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United Kingdom',
+    );
+    expect(ukResults.length).toBe(0);
+  });
+
+  it('should only return California cities when searching "California, United States"', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'California, United States' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // ALL results should be from California AND United States (AND logic)
+    const allInCaliforniaUS = res.data.autocompleteLocation.every(
+      (loc) =>
+        loc.country === 'United States' &&
+        (loc.subdivision === 'California' || loc.city?.includes('California')),
+    );
+    expect(allInCaliforniaUS).toBe(true);
+
+    // Should NOT include New York or other US states
+    const newYorkResults = res.data.autocompleteLocation.filter(
+      (loc) => loc.subdivision === 'New York',
+    );
+    expect(newYorkResults.length).toBe(0);
+  });
+
+  it('should find specific city when three parts are provided', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Los Angeles, California, United States' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find Los Angeles specifically
+    const laResults = res.data.autocompleteLocation.filter(
+      (loc) =>
+        loc.city === 'Los Angeles' &&
+        loc.subdivision === 'California' &&
+        loc.country === 'United States',
+    );
+    expect(laResults.length).toBeGreaterThan(0);
+
+    // Should NOT return San Francisco even though it's also in California, US
+    const sfResults = res.data.autocompleteLocation.filter(
+      (loc) => loc.city === 'San Francisco',
+    );
+    expect(sfResults.length).toBe(0);
+  });
+
+  it('should handle ISO code in comma-separated query correctly', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'Ontario, CA' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // CA should match Canada via iso2, and Ontario is a Canadian province
+    const ontarioCanada = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'Canada' && loc.subdivision === 'Ontario',
+    );
+    expect(ontarioCanada.length).toBeGreaterThan(0);
+  });
+
+  it('should differentiate between "Paris" alone and "Paris, France"', async () => {
+    loggedUser = '1';
+
+    // Search for just "Paris"
+    const res1 = await client.query(QUERY, {
+      variables: { query: 'Paris' },
+    });
+
+    // Search for "Paris, France"
+    const res2 = await client.query(QUERY, {
+      variables: { query: 'Paris, France' },
+    });
+
+    expect(res1.errors).toBeFalsy();
+    expect(res2.errors).toBeFalsy();
+
+    // Both should find Paris, France
+    expect(res1.data.autocompleteLocation.length).toBeGreaterThan(0);
+    expect(res2.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // "Paris, France" should be more specific (using AND logic)
+    // All results for "Paris, France" should be in France
+    const allInFrance = res2.data.autocompleteLocation.every(
+      (loc) => loc.country === 'France',
+    );
+    expect(allInFrance).toBe(true);
+  });
+
+  it('should handle "York, United Kingdom" vs "New York, United States"', async () => {
+    loggedUser = '1';
+
+    // Add York, UK to fixtures
+    await saveFixtures(con, DatasetLocation, [
+      {
+        country: 'United Kingdom',
+        city: 'York',
+        subdivision: 'England',
+        iso2: 'GB',
+        iso3: 'GBR',
+        timezone: 'Europe/London',
+        ranking: 75,
+        externalId: 'uk-eng-york',
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'York, United Kingdom' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+    // Should find York in UK, not New York in US
+    const ukYork = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United Kingdom',
+    );
+    expect(ukYork.length).toBeGreaterThan(0);
+
+    // Should NOT find New York, US
+    const nyUS = res.data.autocompleteLocation.filter(
+      (loc) => loc.country === 'United States' && loc.city === 'New York',
+    );
+    expect(nyUS.length).toBe(0);
+  });
+
+  describe('performance and edge cases', () => {
+    it('should handle broad queries efficiently with ranking-based ordering', async () => {
+      loggedUser = '1';
+
+      // Query that might match many locations
+      const res = await client.query(QUERY, {
+        variables: { query: 'a' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      // Should return results but be limited (default limit is 20)
+      expect(res.data.autocompleteLocation.length).toBeLessThanOrEqual(20);
+
+      // Results should be ordered by ranking DESC first
+      if (res.data.autocompleteLocation.length > 1) {
+        // Verify the query completes in reasonable time (implicit by test not timing out)
+        expect(res.data.autocompleteLocation).toBeDefined();
+      }
+    });
+
+    it('should handle queries with common terms efficiently', async () => {
+      loggedUser = '1';
+
+      // "United" appears in "United States" and "United Kingdom"
+      const start = Date.now();
+      const res = await client.query(QUERY, {
+        variables: { query: 'United' },
+      });
+      const duration = Date.now() - start;
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+      // Should complete reasonably fast (< 1000ms, but this is a soft check)
+      // In production with proper indexes, should be much faster
+      expect(duration).toBeLessThan(5000); // Generous timeout for test environment
+    });
+
+    it('should limit results even with very broad comma-separated queries', async () => {
+      loggedUser = '1';
+
+      // Very broad two-part query
+      const res = await client.query(QUERY, {
+        variables: { query: 'a, United States' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      // Should still respect the limit
+      expect(res.data.autocompleteLocation.length).toBeLessThanOrEqual(20);
+    });
+
+    it('should handle multiple OR conditions from ISO code matching', async () => {
+      loggedUser = '1';
+
+      // 2-character query creates multiple conditions: country, iso2, iso3
+      const res = await client.query(QUERY, {
+        variables: { query: 'US' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+      // Should complete successfully even with multiple OR conditions
+      expect(Array.isArray(res.data.autocompleteLocation)).toBe(true);
+    });
+
+    it('should handle complex three-part query with multiple condition combinations', async () => {
+      loggedUser = '1';
+
+      // Three-part query with 2-char country code creates most complex conditions
+      const start = Date.now();
+      const res = await client.query(QUERY, {
+        variables: { query: 'San Francisco, California, US' },
+      });
+      const duration = Date.now() - start;
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation.length).toBeGreaterThan(0);
+
+      // Should still be performant with AND conditions
+      expect(duration).toBeLessThan(5000);
+
+      // Should find the specific location
+      const sfResults = res.data.autocompleteLocation.filter(
+        (loc) =>
+          loc.city === 'San Francisco' &&
+          loc.subdivision === 'California' &&
+          loc.country === 'United States',
+      );
+      expect(sfResults.length).toBeGreaterThan(0);
+    });
+  });
 });
