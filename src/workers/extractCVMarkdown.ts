@@ -2,6 +2,7 @@ import { CandidatePreferenceUpdated } from '@dailydotdev/schema';
 import type { TypedWorker } from './worker';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { extractMarkdownFromCV } from '../common/brokkr';
+import { ConnectError } from '@connectrpc/connect';
 
 export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated'> =
   {
@@ -21,18 +22,27 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
         return;
       }
 
-      const markdown = await extractMarkdownFromCV(blobName, bucketName);
-      if (!markdown?.content) {
-        logger.warn(
-          { userId, blobName, bucketName },
-          'No markdown content extracted from CV',
-        );
-        return;
-      }
+      try {
+        const markdown = await extractMarkdownFromCV(blobName, bucketName);
+        if (!markdown?.content) {
+          logger.warn(
+            { userId, blobName, bucketName },
+            'No markdown content extracted from CV',
+          );
+          return;
+        }
 
-      await con
-        .getRepository(UserCandidatePreference)
-        .update({ userId }, { cvParsedMarkdown: markdown.content });
+        await con
+          .getRepository(UserCandidatePreference)
+          .update({ userId }, { cvParsedMarkdown: markdown.content });
+      } catch (err) {
+        if (err instanceof ConnectError) {
+          logger.error({ err }, 'ConnectError when extracting CV markdown');
+          return;
+        }
+
+        throw err;
+      }
 
       logger.debug({ userId }, 'Extracted markdown');
     },

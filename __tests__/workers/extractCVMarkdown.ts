@@ -11,7 +11,7 @@ import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { extractCVMarkdown as worker } from '../../src/workers/extractCVMarkdown';
 import * as brokkrCommon from '../../src/common/brokkr';
-import { createClient } from '@connectrpc/connect';
+import { ConnectError, createClient } from '@connectrpc/connect';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { logger } from '../../src/logger';
 import type { ServiceClient } from '../../src/types';
@@ -182,12 +182,10 @@ describe('extractCVMarkdown worker', () => {
       },
     });
 
-    await expect(
-      expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-        worker,
-        payload,
-      ),
-    ).rejects.toThrow('[not_found] Not found');
+    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
+      worker,
+      payload,
+    );
 
     expect(
       await con
@@ -198,5 +196,9 @@ describe('extractCVMarkdown worker', () => {
       cv: {},
       cvParsedMarkdown: null,
     });
+    expect(spyLogger).toHaveBeenCalledWith(
+      { err: expect.any(ConnectError) },
+      'ConnectError when extracting CV markdown',
+    );
   });
 });
