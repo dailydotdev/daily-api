@@ -7,15 +7,10 @@ import { toGQLEnum } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { autocompleteSchema } from '../common/schema/autocompletes';
 import { ValidationError } from 'apollo-server-errors';
+import type z from 'zod';
 
 interface AutocompleteData {
   result: string[];
-}
-
-interface AutocompleteArgs {
-  type: AutocompleteType;
-  query: string;
-  limit?: number;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -39,7 +34,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
   Query: {
     autocomplete: async (
       _,
-      payload: AutocompleteArgs,
+      payload: z.infer<typeof autocompleteSchema>,
       ctx: AuthContext,
     ): Promise<AutocompleteData> => {
       const { data, error } = autocompleteSchema.safeParse(payload);
@@ -51,6 +46,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       const { type, query, limit } = data;
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(Autocomplete).find({
+          select: { value: true },
           take: limit,
           order: { value: 'ASC' },
           where: { enabled: true, type, value: ILike(`%${query}%`) },
