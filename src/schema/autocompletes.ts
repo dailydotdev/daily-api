@@ -69,6 +69,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       const { type, query, limit } = data;
       const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(Autocomplete).find({
+          select: { value: true },
           take: limit,
           order: { value: 'ASC' },
           where: { enabled: true, type, value: ILike(`%${query}%`) },
