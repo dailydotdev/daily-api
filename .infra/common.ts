@@ -428,7 +428,7 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.candidate-preference-updated',
     subscription: 'api.extract-cv-markdown'
-  }
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
