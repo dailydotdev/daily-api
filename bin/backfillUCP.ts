@@ -1,5 +1,5 @@
-import { createInterface } from 'node:readline/promises';
-import { stdin as input, stdout as output } from 'node:process';
+import { parseArgs } from 'node:util';
+import z from 'zod';
 
 import { acceptedResumeFiles } from '../src/common/schema/files';
 import type { UserCandidateCV } from '../src/common/schema/userCandidate';
@@ -24,30 +24,26 @@ const getExtension = (contentType: string) => {
   }
 };
 
-const ask = async (q: string) => {
-  const rl = createInterface({ input, output });
-  try {
-    const answer = await rl.question(q);
-    return answer.trim();
-  } finally {
-    rl.close();
-  }
-};
-
 (async () => {
   console.log('Starting script...');
-  const con = await createOrGetConnection();
 
   const bucketName = 'daily-dev-resumes';
   const bucket = storage.bucket(bucketName);
 
-  const maxResults = parseInt(
-    process.argv[2] || (await ask('Enter maxResults: ')),
-  );
-  if (isNaN(maxResults) || maxResults <= 0) {
-    console.error('A positive number is required.');
-    process.exit(1);
+  const { values } = parseArgs({
+    options: { maxResults: { type: 'string', short: 'm' } },
+  });
+
+  const schema = z.object({
+    maxResults: z.int().positive(),
+  });
+
+  const { error, data } = schema.safeParse(values);
+  if (error) {
+    throw error;
   }
+  const con = await createOrGetConnection();
+  const { maxResults } = data;
 
   const options: GetFilesOptions = {
     autoPaginate: false,
@@ -136,7 +132,9 @@ const ask = async (q: string) => {
     }
 
     pageToken = nextQuery?.pageToken;
+    logger.info({ pageToken }, `Page token for next iteration...`);
   } while (pageToken);
 
+  con.destroy();
   process.exit(0);
 })();
