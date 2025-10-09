@@ -18,6 +18,7 @@ import type { GraphQLResolveInfo } from 'graphql';
 import { UserExperienceSkill } from '../entity/user/experiences/UserExperienceSkill';
 import { toSkillSlug, UserSkill } from '../entity/user/UserSkill';
 import { In } from 'typeorm';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 
 interface GQLUserExperience {
   id: string;
@@ -135,17 +136,19 @@ const userExperiencesPageGenerator = offsetPageGenerator<GQLUserExperience>(
   500,
 );
 
-interface ExperienceMutationArgs {
-  input: z.infer<typeof userExperienceInputBaseSchema>;
+type BaseInputSchema = typeof userExperienceInputBaseSchema;
+
+interface ExperienceMutationArgs<T extends BaseInputSchema = BaseInputSchema> {
+  input: z.infer<T>;
   id?: string;
 }
 
-const generateExperienceToSave = async (
+const generateExperienceToSave = async <T extends BaseInputSchema>(
   ctx: AuthContext,
-  { id, input }: ExperienceMutationArgs,
+  { id, input }: ExperienceMutationArgs<T>,
 ): Promise<{
   userExperience: Partial<UserExperience>;
-  parsedInput: ExperienceMutationArgs['input'];
+  parsedInput: ExperienceMutationArgs<T>['input'];
 }> => {
   const schema = getExperienceSchema(input.type);
   const { customCompanyName, companyId, ...values } = schema.parse(input);
@@ -269,11 +272,18 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
     },
     upsertUserWorkExperience: async (
       _,
-      args: ExperienceMutationArgs,
+      args: ExperienceMutationArgs<typeof userExperienceWorkSchema>,
       ctx,
       info,
     ): Promise<GQLUserExperience> => {
       const result = await generateExperienceToSave(ctx, args);
+
+      if (result.parsedInput.locationId) {
+        await ctx.con.getRepository(DatasetLocation).findOneOrFail({
+          where: { id: result.parsedInput.locationId },
+        });
+      }
+
       const entity = await ctx.con.transaction(async (con) => {
         const repo = con.getRepository(UserExperience);
 
