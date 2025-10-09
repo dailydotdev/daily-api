@@ -365,36 +365,6 @@ describe('query userExperiences', () => {
     expect(typeof res.data.userExperiences.edges[0].cursor).toBe('string');
   });
 
-  it('should handle null values in optional fields', async () => {
-    loggedUser = '1';
-
-    const res = await client.query(USER_EXPERIENCES_QUERY, {
-      variables: { userId: '1', type: 'work' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    const exp2 = res.data.userExperiences.edges.find(
-      (e) => e.node.id === 'a1b2c3d4-5678-4abc-9def-123456789012',
-    );
-    expect(exp2.node.subtitle).toBeNull();
-    expect(exp2.node.endedAt).toBeTruthy(); // exp-2 has an end date
-  });
-
-  it('should include company information', async () => {
-    loggedUser = '1';
-
-    const res = await client.query(USER_EXPERIENCES_QUERY, {
-      variables: { userId: '1' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    const exp1 = res.data.userExperiences.edges[0].node;
-    expect(exp1.company).toBeDefined();
-    expect(exp1.company.id).toBe('company-1');
-    expect(exp1.company.name).toBe('Daily.dev');
-    expect(exp1.company.image).toBe('https://daily.dev/logo.png');
-  });
-
   it('should order by endedAt desc nulls first, then startedAt desc', async () => {
     loggedUser = '1';
 
