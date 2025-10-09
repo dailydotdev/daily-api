@@ -1494,6 +1494,14 @@ const obj = new GraphORM({
           `;
         },
       },
+      clicks: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.clicks + ${alias}."clicksAds", 0)
+          `;
+        },
+      },
     },
   },
   PostAnalyticsHistory: {
