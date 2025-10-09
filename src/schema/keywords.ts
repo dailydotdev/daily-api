@@ -1,4 +1,3 @@
-import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
@@ -12,8 +11,6 @@ import graphorm from '../graphorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { GQLEmptyResponse } from './common';
 import { MoreThanOrEqual } from 'typeorm';
-import { queryReadReplica } from '../common/queryReadReplica';
-import { autocompleteKeywordsSchema } from '../common/schema/keywords';
 
 export interface GQLKeyword {
   value: string;
@@ -36,11 +33,6 @@ interface GQLKeywordArgs {
 interface GQLSynonymKeywordArgs {
   keywordToUpdate: string;
   originalKeyword: string;
-}
-
-interface GQLKeywordAutocomplete {
-  keyword: string;
-  title: string | null;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -105,11 +97,6 @@ export const typeDefs = /* GraphQL */ `
     hits: [Keyword]!
   }
 
-  type KeywordAutocomplete {
-    keyword: String!
-    title: String
-  }
-
   extend type Query {
     """
     Get a random pending keyword
@@ -124,11 +111,6 @@ export const typeDefs = /* GraphQL */ `
     """
     searchKeywords(query: String!): KeywordSearchResults
       @auth(requires: [MODERATOR])
-
-    autocompleteKeywords(
-      query: String!
-      limit: Int = 20
-    ): [KeywordAutocomplete!]! @cacheControl(maxAge: 3600)
     """
     Get a keyword
     """
@@ -226,37 +208,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         query,
         hits,
       };
-    },
-    autocompleteKeywords: async (
-      _,
-      payload: z.infer<typeof autocompleteKeywordsSchema>,
-      ctx: AuthContext,
-    ): Promise<GQLKeywordAutocomplete[]> => {
-      const { data, error } = autocompleteKeywordsSchema.safeParse(payload);
-      if (error) {
-        throw error;
-      }
-
-      const status = !!ctx.userId
-        ? [KeywordStatus.Allow, KeywordStatus.Synonym]
-        : [KeywordStatus.Allow];
-
-      return queryReadReplica(ctx.con, async ({ queryRunner }) =>
-        queryRunner.manager
-          .createQueryBuilder()
-          .select('k.value', 'keyword')
-          .addSelect(`COALESCE(k.flags->>'title', NULL)`, 'title')
-          .from(Keyword, 'k')
-          .where('k.status IN (:...status)', {
-            status: status,
-          })
-          .andWhere('k.value ILIKE :query', { query: `%${data.query}%` })
-          .orderBy(`(k.status <> '${KeywordStatus.Allow}')`, 'ASC')
-          .addOrderBy('k.occurrences', 'DESC')
-          .addOrderBy('k.value', 'ASC')
-          .limit(data.limit)
-          .getRawMany<{ keyword: string; title: string | null }>(),
-      );
     },
     keyword: async (
       source,
