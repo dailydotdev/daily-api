@@ -302,30 +302,43 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           return saved;
         }
 
-        const slugs = parsed.skills.map(toSkillSlug);
-        const existing = await con.getRepository(UserSkill).find({
+        const slugified = parsed.skills.map(toSkillSlug);
+        const slugs = [...new Set(slugified)];
+        const recognizedSlugs = await con.getRepository(UserSkill).find({
           where: { slug: In(slugs) },
+          select: ['slug'],
         });
-        const toCreate = parsed.skills.filter((skill) =>
-          existing.every((s) => s.slug !== toSkillSlug(skill)),
-        );
-        const notFound = slugs.filter((slug) =>
-          existing.every((s) => s.slug !== slug),
-        );
+        const userSlugs = await con.getRepository(UserExperienceSkill).find({
+          where: { experienceId: saved.id },
+          select: ['slug'],
+        });
 
-        if (notFound.length) {
-          await con
-            .getRepository(UserExperienceSkill)
-            .delete({ experienceId: saved.id, slug: In(notFound) });
-        }
+        const toCreate = parsed.skills.filter((skill) =>
+          recognizedSlugs.every((s) => s.slug !== toSkillSlug(skill)),
+        );
+        const toLink = slugs.filter((slug) =>
+          userSlugs.every((s) => s.slug !== slug),
+        );
+        const toDrop = userSlugs
+          .filter(({ slug }) => !slugs.includes(slug))
+          .map(({ slug }) => slug);
 
         if (toCreate.length) {
           await con
             .getRepository(UserSkill)
             .save(toCreate.map((name) => ({ name })));
+        }
+
+        if (toLink.length) {
           await con
             .getRepository(UserExperienceSkill)
             .save(slugs.map((slug) => ({ experienceId: saved.id, slug })));
+        }
+
+        if (toDrop.length) {
+          await con
+            .getRepository(UserExperienceSkill)
+            .delete({ experienceId: saved.id, slug: In(toDrop) });
         }
 
         return saved;
