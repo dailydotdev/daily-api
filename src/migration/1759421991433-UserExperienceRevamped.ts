@@ -56,7 +56,8 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
       CREATE TABLE "user_experience" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "userId" character varying NOT NULL,
-        "companyId" text NOT NULL,
+        "companyId" text,
+        "customCompanyName" text,
         "title" text NOT NULL,
         "subtitle" text,
         "description" text,
