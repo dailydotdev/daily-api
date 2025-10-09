@@ -25,6 +25,7 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
         "slug" text GENERATED ALWAYS AS (trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(name,100),''))), '[^a-z0-9-]+', '-', 'gi'))) STORED NOT NULL,
         "name" text NOT NULL,
         "description" text,
+        "valid" boolean NOT NULL DEFAULT false,
         CONSTRAINT "PK_user_skill_slug" PRIMARY KEY ("slug")
       )
     `);
@@ -112,7 +113,6 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
       CREATE TABLE "user_experience_skill" (
         "slug" text NOT NULL,
         "experienceId" uuid NOT NULL,
-        "valid" boolean NOT NULL DEFAULT false,
         CONSTRAINT "PK_user_experience_skill_slug_experienceId" PRIMARY KEY ("slug", "experienceId"),
         CONSTRAINT "FK_user_experience_skill_user_skill_slug"
           FOREIGN KEY ("slug")
