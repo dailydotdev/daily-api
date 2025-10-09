@@ -47,7 +47,6 @@ const baseExperienceInput = /* GraphQL */ `
   companyId: ID
   customCompanyName: String
 `;
-type: UserExperienceType;
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(UserExperienceType, 'UserExperienceType')}
