@@ -545,3 +545,627 @@ describe('query userExperienceById', () => {
     expect(res.data.userExperienceById.title).toBe('Product Manager');
   });
 });
+
+describe('mutation upsertUserGeneralExperience', () => {
+  const UPSERT_USER_GENERAL_EXPERIENCE_MUTATION = /* GraphQL */ `
+    mutation UpsertUserGeneralExperience(
+      $input: UserGeneralExperienceInput!
+      $id: ID
+    ) {
+      upsertUserGeneralExperience(input: $input, id: $id) {
+        id
+        type
+        title
+        subtitle
+        description
+        startedAt
+        endedAt
+        createdAt
+        url
+        grade
+        externalReferenceId
+        customCompanyName
+        company {
+          id
+          name
+          image
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'AWS Certified',
+            startedAt: new Date('2023-01-01'),
+          },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should create a new certification experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'certification',
+          title: 'AWS Certified Solutions Architect',
+          subtitle: 'Professional',
+          description: 'Advanced AWS certification',
+          startedAt: new Date('2023-01-01'),
+          endedAt: new Date('2026-01-01'),
+          companyId: 'company-1',
+          url: 'https://aws.amazon.com/certification',
+          externalReferenceId: 'AWS-123456',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
+    expect(res.data.upsertUserGeneralExperience.type).toBe('certification');
+    expect(res.data.upsertUserGeneralExperience.title).toBe(
+      'AWS Certified Solutions Architect',
+    );
+    expect(res.data.upsertUserGeneralExperience.subtitle).toBe('Professional');
+    expect(res.data.upsertUserGeneralExperience.description).toBe(
+      'Advanced AWS certification',
+    );
+    expect(res.data.upsertUserGeneralExperience.url).toBe(
+      'https://aws.amazon.com/certification',
+    );
+    expect(res.data.upsertUserGeneralExperience.externalReferenceId).toBe(
+      'AWS-123456',
+    );
+    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-1');
+    expect(res.data.upsertUserGeneralExperience.createdAt).toBeDefined();
+
+    // Verify it was saved
+    const saved = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: res.data.upsertUserGeneralExperience.id });
+    expect(saved.userId).toBe('1');
+    expect(saved.type).toBe(UserExperienceType.Certification);
+  });
+
+  it('should create a new education experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'education',
+          title: 'Master of Science',
+          subtitle: 'Computer Science',
+          description: 'Focus on Machine Learning and AI',
+          startedAt: new Date('2020-09-01'),
+          endedAt: new Date('2022-06-30'),
+          companyId: 'company-3',
+          grade: '3.9 GPA',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
+    expect(res.data.upsertUserGeneralExperience.type).toBe('education');
+    expect(res.data.upsertUserGeneralExperience.title).toBe(
+      'Master of Science',
+    );
+    expect(res.data.upsertUserGeneralExperience.grade).toBe('3.9 GPA');
+    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-3');
+  });
+
+  it('should create a new project experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'project',
+          title: 'Daily.dev Chrome Extension',
+          description: 'Built a popular browser extension for developers',
+          startedAt: new Date('2021-01-01'),
+          url: 'https://github.com/dailydotdev/extension',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
+    expect(res.data.upsertUserGeneralExperience.type).toBe('project');
+    expect(res.data.upsertUserGeneralExperience.title).toBe(
+      'Daily.dev Chrome Extension',
+    );
+    expect(res.data.upsertUserGeneralExperience.url).toBe(
+      'https://github.com/dailydotdev/extension',
+    );
+    expect(res.data.upsertUserGeneralExperience.endedAt).toBeNull();
+  });
+
+  it('should create experience with custom company name', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'certification',
+          title: 'Professional Scrum Master',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Scrum.org',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(res.data.upsertUserGeneralExperience.customCompanyName).toBe(
+      'Scrum.org',
+    );
+  });
+
+  it('should reuse existing company when custom company name matches (case-insensitive)', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'education',
+          title: 'PhD in Computer Science',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'GOOGLE', // Uppercase to test case-insensitive matching
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-2');
+    expect(res.data.upsertUserGeneralExperience.company.name).toBe('Google');
+  });
+
+  it('should update an existing experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123', // Existing education
+        input: {
+          type: 'education',
+          title: 'Computer Science - Updated',
+          subtitle: 'Master of Science',
+          description: 'Updated description',
+          startedAt: new Date('2016-09-01'),
+          endedAt: new Date('2020-06-30'),
+          companyId: 'company-3',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.id).toBe(
+      'b2c3d4e5-6789-4bcd-aef0-234567890123',
+    );
+    expect(res.data.upsertUserGeneralExperience.title).toBe(
+      'Computer Science - Updated',
+    );
+    expect(res.data.upsertUserGeneralExperience.subtitle).toBe(
+      'Master of Science',
+    );
+    expect(res.data.upsertUserGeneralExperience.description).toBe(
+      'Updated description',
+    );
+
+    // Verify it was updated
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
+    expect(updated.title).toBe('Computer Science - Updated');
+  });
+
+  it('should update company when updating an existing experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+        input: {
+          type: 'education',
+          title: 'Computer Science',
+          startedAt: new Date('2016-09-01'),
+          companyId: 'company-2', // Change from company-3 to company-2
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-2');
+
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
+    expect(updated.companyId).toBe('company-2');
+  });
+
+  it('should set company to null when companyId is explicitly null', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+        input: {
+          type: 'education',
+          title: 'Self-taught Developer',
+          startedAt: new Date('2020-01-01'),
+          companyId: null,
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
+    expect(updated.companyId).toBeNull();
+    expect(updated.customCompanyName).toBeNull(); // Should also be cleared
+  });
+
+  it('should fail when companyId does not exist', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'education',
+            title: 'Computer Science',
+            startedAt: new Date('2020-01-01'),
+            companyId: '999e4567-e89b-12d3-a456-426614174000',
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should fail when updating non-existent experience', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          id: '999e4567-e89b-12d3-a456-426614174000',
+          input: {
+            type: 'certification',
+            title: 'Test',
+            startedAt: new Date('2020-01-01'),
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it("should fail when trying to update another user's experience", async () => {
+    loggedUser = '1';
+
+    // Try to update user 2's experience
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          id: 'd4e5f6a7-89ab-4def-c012-456789012345', // Belongs to user 2
+          input: {
+            type: 'work',
+            title: 'Hacked Title',
+            startedAt: new Date('2021-01-01'),
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+
+    // Verify the experience was not modified
+    const unchanged = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: 'd4e5f6a7-89ab-4def-c012-456789012345' });
+    expect(unchanged.title).toBe('Product Manager');
+    expect(unchanged.userId).toBe('2');
+  });
+
+  it('should allow user to update their own experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'c3d4e5f6-789a-4cde-bf01-345678901234', // User 1's project
+        input: {
+          type: 'project',
+          title: 'Updated Project Title',
+          startedAt: new Date('2021-06-01'),
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.id).toBe(
+      'c3d4e5f6-789a-4cde-bf01-345678901234',
+    );
+    expect(res.data.upsertUserGeneralExperience.title).toBe(
+      'Updated Project Title',
+    );
+
+    // Verify it was updated
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: 'c3d4e5f6-789a-4cde-bf01-345678901234' });
+    expect(updated.title).toBe('Updated Project Title');
+    expect(updated.userId).toBe('1');
+  });
+
+  it('should fail when title exceeds max length', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'A'.repeat(1001), // Max is 1000
+            startedAt: new Date('2020-01-01'),
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when description exceeds max length', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'project',
+            title: 'Test Project',
+            description: 'A'.repeat(5001), // Max is 5000
+            startedAt: new Date('2020-01-01'),
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when endedAt is before startedAt', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'education',
+            title: 'Computer Science',
+            startedAt: new Date('2023-01-01'),
+            endedAt: new Date('2022-01-01'), // Before startedAt
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when url is not a valid URL for certification', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'Test Certification',
+            startedAt: new Date('2023-01-01'),
+            url: 'not-a-url',
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when url is not a valid URL for project', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'project',
+            title: 'Test Project',
+            startedAt: new Date('2023-01-01'),
+            url: 'invalid-url',
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when customCompanyName exceeds max length', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'education',
+            title: 'Computer Science',
+            startedAt: new Date('2023-01-01'),
+            customCompanyName: 'A'.repeat(101), // Max is 100
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should create experience without optional fields', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'project',
+          title: 'Minimal Project',
+          startedAt: new Date('2023-01-01'),
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
+    expect(res.data.upsertUserGeneralExperience.title).toBe('Minimal Project');
+    expect(res.data.upsertUserGeneralExperience.subtitle).toBeNull();
+    expect(res.data.upsertUserGeneralExperience.description).toBeNull();
+    expect(res.data.upsertUserGeneralExperience.endedAt).toBeNull();
+    expect(res.data.upsertUserGeneralExperience.url).toBeNull();
+    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+  });
+
+  it('should trim and normalize customCompanyName name', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'certification',
+          title: 'Test Certification',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: '  Test Company  ', // With extra whitespace
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+
+    // Verify customCompanyName was trimmed and stored
+    const saved = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: res.data.upsertUserGeneralExperience.id });
+    expect(saved.customCompanyName).toBe('Test Company'); // Trimmed by zod
+  });
+
+  it('should update experience from custom company name to real company', async () => {
+    loggedUser = '1';
+
+    // First create with custom company name
+    const created = await client.mutate(
+      UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+      {
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'Test Certification',
+            startedAt: new Date('2023-01-01'),
+            customCompanyName: 'Custom Company',
+          },
+        },
+      },
+    );
+
+    expect(created.errors).toBeFalsy();
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Verify custom company name was set
+    const savedBefore = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: experienceId });
+    expect(savedBefore.customCompanyName).toBe('Custom Company');
+    expect(savedBefore.companyId).toBeNull();
+
+    // Now update to use a real company
+    const updated = await client.mutate(
+      UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+      {
+        variables: {
+          id: experienceId,
+          input: {
+            type: 'certification',
+            title: 'Test Certification',
+            startedAt: new Date('2023-01-01'),
+            companyId: 'company-1',
+          },
+        },
+      },
+    );
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience.company.id).toBe(
+      'company-1',
+    );
+
+    // Verify the update - customCompanyName should be cleared when companyId is set
+    const savedAfter = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: experienceId });
+    expect(savedAfter.companyId).toBe('company-1');
+    expect(savedAfter.customCompanyName).toBeNull(); // Should be cleared
+  });
+
+  it('should update experience from real company to custom company name', async () => {
+    loggedUser = '1';
+
+    // Update existing experience (that has a real company) to use custom company name
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123', // Has company-3
+        input: {
+          type: 'education',
+          title: 'Computer Science',
+          startedAt: new Date('2016-09-01'),
+          customCompanyName: 'My Custom University',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
+    expect(updated.customCompanyName).toBe('My Custom University');
+    expect(updated.companyId).toBeNull();
+  });
+});
