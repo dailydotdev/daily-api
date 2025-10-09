@@ -5,8 +5,8 @@ import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
   getExperienceSchema,
+  userExperiencesSchema,
   type userExperienceInputBaseSchema,
-  type userExperiencesSchema,
   type userExperienceWorkSchema,
 } from '../common/schema/profile';
 import graphorm from '../graphorm';
@@ -205,7 +205,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       ctx,
       info,
     ): Promise<Connection<GQLUserExperience>> => {
-      const { userId, type } = args;
+      const { userId, type } = userExperiencesSchema.parse(args);
       const page = userExperiencesPageGenerator.connArgsToPage(args);
 
       return graphorm.queryPaginated(

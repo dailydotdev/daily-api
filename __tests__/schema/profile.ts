@@ -488,7 +488,7 @@ describe('query userExperienceById', () => {
       client,
       {
         query: USER_EXPERIENCE_BY_ID_QUERY,
-        variables: { id: 'non-existent' },
+        variables: { id: 'f47ac10b-58cc-4372-a567-3e02b2c3d479' }, // manually adjusted to be unique
       },
       'NOT_FOUND',
     );
