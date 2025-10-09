@@ -71,7 +71,7 @@ export const typeDefs = /* GraphQL */ `
 
 type FindLocation = FindOptionsWhere<DatasetLocation>;
 
-const getLocationCondition = (query: string) => {
+const getLocationCondition = (query: string): FindLocation[] => {
   const [country, subdivision, city] = query
     .split(',')
     .reverse()
