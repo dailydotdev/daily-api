@@ -91,15 +91,15 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
       );
     `);
 
-    await queryRunner.query(/* sql */`
+    await queryRunner.query(/* sql */ `
       COMMENT ON COLUMN "user_experience"."locationType" IS 'LocationType from protobuf schema';
     `);
 
-    await queryRunner.query(/* sql */`
+    await queryRunner.query(/* sql */ `
       COMMENT ON COLUMN "user_experience"."employmentType" IS 'EmploymentType from protobuf schema';
     `);
 
-    await queryRunner.query(/* sql */`
+    await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_user_experience_userId" ON "user_experience" ("userId")
     `);
 
@@ -128,6 +128,30 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       ALTER TABLE "company"
         ADD "type" text NOT NULL DEFAULT 'company'
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_dataset_location_country_trgm"
+        ON "public"."dataset_location"
+        USING gin (country gin_trgm_ops)
+    `);
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_dataset_location_city_trgm"
+        ON "public"."dataset_location"
+        USING gin (city gin_trgm_ops)
+    `);
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_dataset_location_subdivision_trgm"
+        ON "public"."dataset_location"
+        USING gin (subdivision gin_trgm_ops)
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_dataset_location_iso2" ON "dataset_location" ("iso2")
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_dataset_location_iso3" ON "dataset_location" ("iso3")
     `);
   }
 
