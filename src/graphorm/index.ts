@@ -1604,6 +1604,9 @@ const obj = new GraphORM({
       },
     },
   },
+  Location: {
+    from: 'DatasetLocation',
+  },
 });
 
 export default obj;
