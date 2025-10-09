@@ -43,9 +43,9 @@ export const typeDefs = /* GraphQL */ `
     grade: String
     externalReferenceId: String
     subtitle: String
-    employmentType: Int
+    employmentType: ProtoEnumValue
     location: Location
-    locationType: Int
+    locationType: ProtoEnumValue
   }
 
   type UserExperienceConnection {
@@ -57,7 +57,7 @@ export const typeDefs = /* GraphQL */ `
     node: UserExperience!
 
     """
-    Used in \`before\` and \`after\` args
+    Used in 'before' and 'after' args
     """
     cursor: String!
   }
