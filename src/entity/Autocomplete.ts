@@ -1,4 +1,10 @@
-import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryColumn,
+} from 'typeorm';
 
 export enum AutocompleteType {
   FieldOfStudy = 'field_of_study',
@@ -23,7 +29,7 @@ export class Autocomplete {
   })
   type: AutocompleteType;
 
-  @Column({ type: 'timestamp', default: () => 'now()' })
+  @CreateDateColumn()
   createdAt: Date;
 
   @Column({ default: true })
