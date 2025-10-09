@@ -3,7 +3,7 @@ import { type AuthContext } from '../Context';
 import { toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
-import type { userExperiencesSchema } from '../common/schema/profile';
+import { userExperiencesSchema } from '../common/schema/profile';
 import graphorm from '../graphorm';
 import { offsetPageGenerator } from './common';
 import type { Connection } from 'graphql-relay';
@@ -92,7 +92,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       ctx,
       info,
     ): Promise<Connection<GQLUserExperience>> => {
-      const { userId, type } = args;
+      const { userId, type } = userExperiencesSchema.parse(args);
       const page = userExperiencesPageGenerator.connArgsToPage(args);
 
       return graphorm.queryPaginated(
