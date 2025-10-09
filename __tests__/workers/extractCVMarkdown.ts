@@ -194,7 +194,7 @@ describe('extractCVMarkdown worker', () => {
     ).toMatchObject({
       userId: userId,
       cv: {},
-      cvParsedMarkdown: null,
+      cvParsedMarkdown: '@@ConnectError',
     });
     expect(spyLogger).toHaveBeenCalledWith(
       { err: expect.any(ConnectError) },
