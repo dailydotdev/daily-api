@@ -76,6 +76,8 @@ export interface GraphORMType {
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
   requiredColumns?: (string | RequiredColumnConfig)[];
+  // Only allowed columns when the user is not authenticated
+  anonymousAllowedColumns?: (string | RequiredColumnConfig)[];
   // Define a function to manipulate the query every time
   additionalQuery?: (
     ctx: Context,
@@ -331,7 +333,15 @@ export class GraphORM {
     const randomStr = Math.random().toString(36).substring(2, 5);
     const alias = `${tableName.toLowerCase()}_${randomStr}`;
     let newBuilder = builder.from(tableName, alias).select([]);
+    const anonColumns = this.mappings?.[type]?.anonymousAllowedColumns || [];
+    const isRestrictedColumn = (col: string) =>
+      !ctx.userId && anonColumns.length && !anonColumns.includes(col);
+
     fields.forEach((field) => {
+      if (isRestrictedColumn(field.name)) {
+        return;
+      }
+
       newBuilder = this.selectField(
         ctx,
         newBuilder,
@@ -345,6 +355,10 @@ export class GraphORM {
       newBuilder = this.mappings[type].additionalQuery(ctx, alias, newBuilder);
     }
     (this.mappings?.[type]?.requiredColumns ?? []).forEach((col) => {
+      if (isRestrictedColumn(typeof col === 'string' ? col : col.column)) {
+        return;
+      }
+
       const columnOptions =
         typeof col === 'object'
           ? col

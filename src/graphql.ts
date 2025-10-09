@@ -32,6 +32,7 @@ import * as organizations from './schema/organizations';
 import * as campaigns from './schema/campaigns';
 import * as opportunity from './schema/opportunity';
 import * as autocompletes from './schema/autocompletes';
+import * as profile from './schema/profile';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -80,6 +81,7 @@ export const schema = urlDirective.transformer(
               campaigns.typeDefs,
               opportunity.typeDefs,
               autocompletes.typeDefs,
+              profile.typeDefs,
             ],
             resolvers: merge(
               common.resolvers,
@@ -111,6 +113,7 @@ export const schema = urlDirective.transformer(
               campaigns.resolvers,
               opportunity.resolvers,
               autocompletes.resolvers,
+              profile.resolvers,
             ),
           }),
         ),
