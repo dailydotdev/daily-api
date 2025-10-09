@@ -49,7 +49,17 @@ export const userExperienceWorkSchema = z
     employmentType: z.number().nullable().optional().default(null),
     locationType: z.number().nullable().optional().default(null),
     locationId: z.uuidv4().optional(),
-    skills: z.array(z.string().max(100)).optional(),
+    skills: z
+      .array(z.string().lowercase().max(100))
+      .optional()
+      .default([])
+      .refine(
+        (arr) => {
+          const uniqueSkills = new Set(arr);
+          return uniqueSkills.size === arr.length;
+        },
+        { message: 'Skills must be unique from each other' },
+      ),
   })
   .extend(userExperienceInputBaseSchema.shape);
 

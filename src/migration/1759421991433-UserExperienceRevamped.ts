@@ -112,6 +112,7 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
       CREATE TABLE "user_experience_skill" (
         "slug" text NOT NULL,
         "experienceId" uuid NOT NULL,
+        "valid" boolean NOT NULL DEFAULT false,
         CONSTRAINT "PK_user_experience_skill_slug_experienceId" PRIMARY KEY ("slug", "experienceId"),
         CONSTRAINT "FK_user_experience_skill_user_skill_slug"
           FOREIGN KEY ("slug")

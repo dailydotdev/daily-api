@@ -7,12 +7,17 @@ import {
   getExperienceSchema,
   type userExperienceInputBaseSchema,
   type userExperiencesSchema,
+  type userExperienceWorkSchema,
 } from '../common/schema/profile';
 import graphorm from '../graphorm';
 import { offsetPageGenerator } from './common';
 import type { Connection } from 'graphql-relay';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { Company } from '../entity/Company';
+import type { GraphQLResolveInfo } from 'graphql';
+import { UserExperienceSkill } from '../entity/user/experiences/UserExperienceSkill';
+import { toSkillSlug, UserSkill } from '../entity/user/UserSkill';
+import { In } from 'typeorm';
 
 interface GQLUserExperience {
   id: string;
@@ -135,6 +140,63 @@ interface ExperienceMutationArgs {
   id?: string;
 }
 
+const generateExperienceToSave = async (
+  ctx: AuthContext,
+  { id, input }: ExperienceMutationArgs,
+): Promise<{
+  userExperience: Partial<UserExperience>;
+  parsedInput: ExperienceMutationArgs['input'];
+}> => {
+  const schema = getExperienceSchema(input.type);
+  const { customCompanyName, companyId, ...values } = schema.parse(input);
+
+  const toUpdate = id
+    ? await ctx.con
+        .getRepository(UserExperience)
+        .findOneOrFail({ where: { id, userId: ctx.userId! } })
+    : await Promise.resolve({});
+
+  const toSave: Partial<UserExperience> = { ...values, companyId };
+
+  if (companyId) {
+    await ctx.con.getRepository(Company).findOneOrFail({
+      where: { id: companyId },
+    });
+    toSave.customCompanyName = null;
+  }
+
+  if (customCompanyName) {
+    const existingCompany = await ctx.con
+      .getRepository(Company)
+      .createQueryBuilder('c')
+      .where('LOWER(c.name) = :name', { name: customCompanyName.toLowerCase() })
+      .getOne();
+
+    if (existingCompany) {
+      toSave.customCompanyName = null;
+      toSave.companyId = existingCompany.id;
+    } else {
+      toSave.customCompanyName = customCompanyName;
+      toSave.companyId = null;
+    }
+  }
+
+  return { userExperience: { ...toUpdate, ...toSave }, parsedInput: input };
+};
+
+const getUserExperience = (
+  ctx: AuthContext,
+  info: GraphQLResolveInfo,
+  id: string,
+): Promise<GQLUserExperience> =>
+  graphorm.queryOneOrFail(ctx, info, (builder) => {
+    builder.queryBuilder.where(`${builder.alias}."id" = :id`, {
+      id,
+    });
+
+    return builder;
+  });
+
 export const resolvers = traceResolvers<unknown, AuthContext>({
   Query: {
     userExperiences: async (
@@ -182,75 +244,85 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       { id }: { id: string },
       ctx,
       info,
-    ): Promise<GQLUserExperience> => {
-      return graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where(`${builder.alias}."id" = :id`, { id });
-
-        return builder;
-      });
-    },
+    ): Promise<GQLUserExperience> => getUserExperience(ctx, info, id),
   },
   Mutation: {
     upsertUserGeneralExperience: async (
       _,
-      { input, id }: ExperienceMutationArgs,
+      args: ExperienceMutationArgs,
       ctx,
       info,
     ): Promise<GQLUserExperience> => {
-      const schema = getExperienceSchema(input.type);
-      const { customCompanyName, type, companyId, ...values } =
-        schema.parse(input);
-
-      const toUpdate = id
-        ? await ctx.con
-            .getRepository(UserExperience)
-            .findOneOrFail({ where: { id, userId: ctx.userId! } })
-        : await Promise.resolve(undefined);
-
-      const toSave: Partial<UserExperience> = { ...values, companyId };
-
-      if (companyId) {
-        await ctx.con.getRepository(Company).findOneOrFail({
-          where: { id: companyId },
-        });
-        toSave.customCompanyName = null;
-      }
-
-      if (customCompanyName) {
-        const existingCompany = await ctx.con
-          .getRepository(Company)
-          .createQueryBuilder('c')
-          .where('LOWER(c.name) = :name', {
-            name: customCompanyName.toLowerCase(),
-          })
-          .getOne();
-
-        if (existingCompany) {
-          toSave.customCompanyName = null;
-          toSave.companyId = existingCompany.id;
-        } else {
-          toSave.customCompanyName = customCompanyName;
-          toSave.companyId = null;
-        }
-      }
+      const { userExperience } = await generateExperienceToSave(ctx, args);
 
       const entity = await ctx.con.transaction(async (con) => {
         const repo = con.getRepository(UserExperience);
 
-        if (toUpdate) {
-          return repo.save({ ...toUpdate, ...toSave, type });
+        return repo.save({
+          ...userExperience,
+          userId: ctx.userId!,
+          type: args.input.type,
+        });
+      });
+
+      return getUserExperience(ctx, info, entity.id);
+    },
+    upsertUserWorkExperience: async (
+      _,
+      args: ExperienceMutationArgs,
+      ctx,
+      info,
+    ): Promise<GQLUserExperience> => {
+      const result = await generateExperienceToSave(ctx, args);
+      const entity = await ctx.con.transaction(async (con) => {
+        const repo = con.getRepository(UserExperience);
+
+        const saved = await repo.save({
+          ...result.userExperience,
+          userId: ctx.userId!,
+          type: args.input.type,
+        });
+        const parsed = result.parsedInput as z.infer<
+          typeof userExperienceWorkSchema
+        >;
+
+        if (!parsed.skills.length) {
+          await con
+            .getRepository(UserExperienceSkill)
+            .delete({ experienceId: saved.id });
+          return saved;
         }
 
-        return repo.save(repo.create({ ...toSave, userId: ctx.userId!, type }));
-      });
-
-      return graphorm.queryOneOrFail(ctx, info, (builder) => {
-        builder.queryBuilder.where(`${builder.alias}."id" = :id`, {
-          id: entity.id,
+        const slugs = parsed.skills.map(toSkillSlug);
+        const existing = await con.getRepository(UserSkill).find({
+          where: { slug: In(slugs) },
         });
+        const toCreate = parsed.skills.filter((skill) =>
+          existing.every((s) => s.slug !== toSkillSlug(skill)),
+        );
+        const notFound = slugs.filter((slug) =>
+          existing.every((s) => s.slug !== slug),
+        );
 
-        return builder;
+        if (notFound.length) {
+          await con
+            .getRepository(UserExperienceSkill)
+            .delete({ experienceId: saved.id, slug: In(notFound) });
+        }
+
+        if (toCreate.length) {
+          await con
+            .getRepository(UserSkill)
+            .save(toCreate.map((name) => ({ name })));
+          await con
+            .getRepository(UserExperienceSkill)
+            .save(slugs.map((slug) => ({ experienceId: saved.id, slug })));
+        }
+
+        return saved;
       });
+
+      return getUserExperience(ctx, info, entity.id);
     },
   },
 });

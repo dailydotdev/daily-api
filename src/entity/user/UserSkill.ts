@@ -1,5 +1,13 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
+export const toSkillSlug = (name: string) =>
+  name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 100);
+
 @Entity()
 export class UserSkill {
   @PrimaryColumn({
@@ -19,4 +27,7 @@ export class UserSkill {
 
   @Column({ type: 'text', nullable: true })
   description: string;
+
+  @Column({ default: false })
+  valid: boolean;
 }

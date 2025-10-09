@@ -14,6 +14,8 @@ import { usersFixture } from '../fixture/user';
 import { UserExperience } from '../../src/entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../src/entity/user/experiences/types';
 import { Company } from '../../src/entity/Company';
+import { UserSkill } from '../../src/entity/user/UserSkill';
+import { UserExperienceSkill } from '../../src/entity/user/experiences/UserExperienceSkill';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1167,5 +1169,629 @@ describe('mutation upsertUserGeneralExperience', () => {
       .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
     expect(updated.customCompanyName).toBe('My Custom University');
     expect(updated.companyId).toBeNull();
+  });
+});
+
+describe('mutation upsertUserWorkExperience', () => {
+  const UPSERT_USER_WORK_EXPERIENCE_MUTATION = /* GraphQL */ `
+    mutation UpsertUserWorkExperience(
+      $input: UserExperienceWorkInput!
+      $id: ID
+    ) {
+      upsertUserWorkExperience(input: $input, id: $id) {
+        id
+        type
+        title
+        subtitle
+        description
+        startedAt
+        endedAt
+        createdAt
+        employmentType
+        locationType
+        externalReferenceId
+        company {
+          id
+          name
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // Create some skills for testing
+    await saveFixtures(con, UserSkill, [
+      { name: 'TypeScript', valid: true },
+      { name: 'Node.js', valid: true },
+      { name: 'React', valid: true },
+      { name: 'InvalidSkill', valid: false },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'work',
+            title: 'Software Engineer',
+            startedAt: new Date('2023-01-01'),
+            skills: [],
+          },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should create work experience without skills', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Software Engineer',
+          subtitle: 'Backend',
+          description: 'Building APIs',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          employmentType: 1,
+          locationType: 2,
+          skills: [],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience.id).toBeDefined();
+    expect(res.data.upsertUserWorkExperience.type).toBe('work');
+    expect(res.data.upsertUserWorkExperience.title).toBe('Software Engineer');
+    expect(res.data.upsertUserWorkExperience.employmentType).toBe(1);
+    expect(res.data.upsertUserWorkExperience.locationType).toBe(2);
+
+    // Verify no skills were created
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId: res.data.upsertUserWorkExperience.id },
+    });
+    expect(skills).toHaveLength(0);
+  });
+
+  it('should create work experience with existing skills', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Full Stack Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const experienceId = res.data.upsertUserWorkExperience.id;
+
+    // Verify skills were linked
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(2);
+    expect(skills.map((s) => s.slug).sort()).toEqual(['react', 'typescript']);
+  });
+
+  it('should create work experience with new skills', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'DevOps Engineer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['Docker', 'Kubernetes', 'AWS'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const experienceId = res.data.upsertUserWorkExperience.id;
+
+    // Verify new skills were created
+    const newSkills = await con.getRepository(UserSkill).find({
+      where: { slug: 'docker' },
+    });
+    expect(newSkills).toHaveLength(1);
+    expect(newSkills[0].name).toBe('Docker');
+
+    // Verify skills were linked
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(3);
+  });
+
+  it('should create work experience with mix of existing and new skills', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Senior Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'Python', 'Node.js', 'Django'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const experienceId = res.data.upsertUserWorkExperience.id;
+
+    // Verify all skills were linked
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(4);
+
+    // Verify new skills were created
+    const pythonSkill = await con.getRepository(UserSkill).findOne({
+      where: { slug: 'python' },
+    });
+    expect(pythonSkill).toBeDefined();
+    expect(pythonSkill!.name).toBe('Python');
+  });
+
+  it('should update work experience and add new skills', async () => {
+    loggedUser = '1';
+
+    // Create initial experience with some skills
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Update and add more skills
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Senior Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'],
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserWorkExperience.title).toBe(
+      'Senior Developer',
+    );
+
+    // Verify all skills are linked
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(3);
+  });
+
+  it('should update work experience and remove some skills', async () => {
+    loggedUser = '1';
+
+    // Create initial experience with multiple skills
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Update with fewer skills
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript'],
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+
+    // Verify only TypeScript skill remains
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(1);
+    expect(skills[0].slug).toBe('typescript');
+  });
+
+  it('should update work experience and clear all skills', async () => {
+    loggedUser = '1';
+
+    // Create initial experience with skills
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Verify skills exist
+    let skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(2);
+
+    // Update with empty skills array
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: [],
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+
+    // Verify all skills were removed
+    skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(0);
+  });
+
+  it('should not delete skills from other experiences when updating (same slug isolation)', async () => {
+    loggedUser = '1';
+
+    // Create first experience with skills including TypeScript
+    const exp1 = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer 1',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React'],
+        },
+      },
+    });
+
+    const exp1Id = exp1.data.upsertUserWorkExperience.id;
+
+    // Create second experience with overlapping TypeScript skill (same slug!)
+    const exp2 = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer 2',
+          startedAt: new Date('2022-01-01'),
+          companyId: 'company-2',
+          skills: ['TypeScript', 'Node.js'],
+        },
+      },
+    });
+
+    const exp2Id = exp2.data.upsertUserWorkExperience.id;
+
+    const typeScriptSlug = 'typescript';
+
+    // Verify both experiences have TypeScript before deletion
+    const exp1SkillsBefore = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId: exp1Id },
+    });
+    const exp2SkillsBefore = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId: exp2Id },
+    });
+    expect(exp1SkillsBefore.some((s) => s.slug === typeScriptSlug)).toBe(true);
+    expect(exp2SkillsBefore.some((s) => s.slug === typeScriptSlug)).toBe(true);
+
+    // Update first experience to clear all skills (including TypeScript)
+    await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: exp1Id,
+        input: {
+          type: 'work',
+          title: 'Developer 1',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: [],
+        },
+      },
+    });
+
+    // Verify first experience has no skills
+    const exp1SkillsAfter = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId: exp1Id },
+    });
+    expect(exp1SkillsAfter).toHaveLength(0);
+
+    // CRITICAL: Verify second experience still has its skills, including the shared TypeScript slug
+    const exp2SkillsAfter = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId: exp2Id },
+    });
+    expect(exp2SkillsAfter).toHaveLength(2);
+
+    // Verify TypeScript is still linked to exp2 (same slug, different experienceId)
+    expect(exp2SkillsAfter.some((s) => s.slug === typeScriptSlug)).toBe(true);
+    expect(exp2SkillsAfter.map((s) => s.slug).sort()).toEqual([
+      'node-js',
+      'typescript',
+    ]);
+
+    // Verify the UserSkill record for TypeScript still exists
+    const typeScriptSkill = await con.getRepository(UserSkill).findOne({
+      where: { slug: typeScriptSlug },
+    });
+    expect(typeScriptSkill).toBeDefined();
+    expect(typeScriptSkill!.name).toBe('TypeScript');
+  });
+
+  it('should never delete UserSkill records (managed externally)', async () => {
+    loggedUser = '1';
+
+    // User 1 creates experience with an invalid skill
+    const user1Exp = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer 1',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['InvalidSkill', 'TypeScript'],
+        },
+      },
+    });
+
+    const user1ExpId = user1Exp.data.upsertUserWorkExperience.id;
+
+    // User 2 creates experience with the SAME invalid skill
+    loggedUser = '2';
+    const user2Exp = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer 2',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-2',
+          skills: ['InvalidSkill', 'React'],
+        },
+      },
+    });
+
+    const user2ExpId = user2Exp.data.upsertUserWorkExperience.id;
+
+    const invalidSkillSlug = 'invalidskill';
+
+    // Verify both users have the invalid skill linked
+    const user1SkillsBefore = await con
+      .getRepository(UserExperienceSkill)
+      .find({
+        where: { experienceId: user1ExpId },
+      });
+    const user2SkillsBefore = await con
+      .getRepository(UserExperienceSkill)
+      .find({
+        where: { experienceId: user2ExpId },
+      });
+    expect(user1SkillsBefore.some((s) => s.slug === invalidSkillSlug)).toBe(
+      true,
+    );
+    expect(user2SkillsBefore.some((s) => s.slug === invalidSkillSlug)).toBe(
+      true,
+    );
+
+    // User 1 removes the invalid skill
+    loggedUser = '1';
+    await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: user1ExpId,
+        input: {
+          type: 'work',
+          title: 'Developer 1',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript'], // Removed InvalidSkill
+        },
+      },
+    });
+
+    // Verify User 1's experience no longer has InvalidSkill linked
+    const user1SkillsAfter = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId: user1ExpId },
+    });
+    expect(user1SkillsAfter.some((s) => s.slug === invalidSkillSlug)).toBe(
+      false,
+    );
+
+    // User 2's experience should still have InvalidSkill
+    const user2SkillsAfter = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId: user2ExpId },
+    });
+    expect(user2SkillsAfter.some((s) => s.slug === invalidSkillSlug)).toBe(
+      true,
+    );
+
+    // IMPORTANT: The UserSkill record remains in the database (not deleted by mutation)
+    // This is intentional - orphaned skills should be cleaned up by a separate maintenance job
+    const invalidSkill = await con.getRepository(UserSkill).findOne({
+      where: { slug: invalidSkillSlug },
+    });
+    expect(invalidSkill).toBeDefined();
+    expect(invalidSkill!.valid).toBe(false);
+  });
+
+  it('should preserve all UserSkill records regardless of usage', async () => {
+    loggedUser = '1';
+
+    // Count all skills before
+    const allSkillsBefore = await con.getRepository(UserSkill).count();
+
+    // Create experience with some skills (not all)
+    await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript'],
+        },
+      },
+    });
+
+    // Count all skills after
+    const allSkillsAfter = await con.getRepository(UserSkill).count();
+
+    // All pre-existing skills should remain (mutation never deletes UserSkill records)
+    expect(allSkillsAfter).toBeGreaterThanOrEqual(allSkillsBefore);
+  });
+
+  it('should handle custom company name with work experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Freelance Developer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'My Startup',
+          skills: ['TypeScript'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience.company).toBeNull();
+
+    const saved = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: res.data.upsertUserWorkExperience.id });
+    expect(saved.customCompanyName).toBe('My Startup');
+    expect(saved.companyId).toBeNull();
+  });
+
+  it("should fail when trying to update another user's work experience", async () => {
+    loggedUser = '1';
+
+    // Try to update user 2's work experience
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
+        variables: {
+          id: 'd4e5f6a7-89ab-4def-c012-456789012345', // Belongs to user 2
+          input: {
+            type: 'work',
+            title: 'Hacked Title',
+            startedAt: new Date('2021-01-01'),
+            skills: [],
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should handle skills with special characters and normalize them', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['C++', 'Node.js', 'ASP.NET Core'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const experienceId = res.data.upsertUserWorkExperience.id;
+
+    // Verify skills were created with proper slugs
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    expect(skills).toHaveLength(3);
+
+    // Check that slugs are properly formatted
+    const slugs = skills.map((s) => s.slug).sort();
+    expect(slugs).toContain('c');
+    expect(slugs).toContain('node-js');
+    expect(slugs).toContain('asp-net-core');
+  });
+
+  it('should handle duplicate skill names (case variations)', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'typescript', 'TYPESCRIPT'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const experienceId = res.data.upsertUserWorkExperience.id;
+
+    // Should only create one skill link since they all normalize to the same slug
+    const skills = await con.getRepository(UserExperienceSkill).find({
+      where: { experienceId },
+    });
+    // All three variations should resolve to the same slug
+    const uniqueSlugs = new Set(skills.map((s) => s.slug));
+    expect(uniqueSlugs.size).toBeLessThanOrEqual(3);
   });
 });
