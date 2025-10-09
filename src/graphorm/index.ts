@@ -1616,7 +1616,6 @@ const obj = new GraphORM({
     from: 'DatasetLocation',
   },
   UserExperience: {
-    requiredColumns: ['id', 'userId', 'companyId', 'type'],
     anonymousAllowedColumns: ['id', 'type', 'title', 'company'],
     fields: {
       startedAt: {

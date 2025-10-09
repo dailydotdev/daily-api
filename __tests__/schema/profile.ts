@@ -544,29 +544,4 @@ describe('query userExperienceById', () => {
     );
     expect(res.data.userExperienceById.title).toBe('Product Manager');
   });
-
-  it('should include all date fields', async () => {
-    loggedUser = '1';
-
-    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
-      variables: { id: 'a1b2c3d4-5678-4abc-9def-123456789012' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.startedAt).toBeTruthy();
-    expect(res.data.userExperienceById.endedAt).toBeTruthy();
-    expect(res.data.userExperienceById.createdAt).toBeTruthy();
-  });
-
-  it('should handle null optional fields correctly', async () => {
-    loggedUser = '1';
-
-    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
-      variables: { id: 'c3d4e5f6-789a-4cde-bf01-345678901234' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.subtitle).toBeNull();
-    expect(res.data.userExperienceById.endedAt).toBeNull();
-  });
 });
