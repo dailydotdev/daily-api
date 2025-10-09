@@ -29,6 +29,9 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
             { userId, blobName, bucketName },
             'No markdown content extracted from CV',
           );
+          await con
+            .getRepository(UserCandidatePreference)
+            .update({ userId }, { cvParsedMarkdown: '@@NoMarkdownContent' });
           return;
         }
 
@@ -38,6 +41,9 @@ export const extractCVMarkdown: TypedWorker<'api.v1.candidate-preference-updated
       } catch (err) {
         if (err instanceof ConnectError) {
           logger.error({ err }, 'ConnectError when extracting CV markdown');
+          await con
+            .getRepository(UserCandidatePreference)
+            .update({ userId }, { cvParsedMarkdown: '@@ConnectError' });
           return;
         }
 
