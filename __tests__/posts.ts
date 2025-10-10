@@ -24,6 +24,7 @@ import {
   FreeformPost,
   Post,
   PostMention,
+  PostOrigin,
   PostQuestion,
   PostRelation,
   PostRelationType,
@@ -3906,7 +3907,11 @@ describe('mutation submitExternalLink', () => {
     expect(articlePost.url).toEqual('https://daily.dev');
     expect(articlePost.visible).toEqual(visible);
 
-    expect(notifyContentRequested).toBeCalledTimes(1);
+    // When creating a new external link without title/summary, notifyContentRequested is called:
+    // 1. Once when creating the external link (createExternalLink)
+    // 2. Once when sharing it (createSharePost) if both title and summary are missing
+    const expectedCalls = visible ? 1 : 2; // visible=true means title exists, so only 1 call
+    expect(notifyContentRequested).toBeCalledTimes(expectedCalls);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
       { id: articlePost.id, url: variables.url, origin: articlePost.origin },
     ]);
@@ -3951,6 +3956,49 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should trigger content request when sharing existing post without title and summary', async () => {
+    loggedUser = '1';
+
+    // Create a post without title and summary
+    await con.getRepository(ArticlePost).save({
+      id: 'p_no_metadata',
+      shortId: 'p_no_metadata',
+      url: 'http://example.com/no-metadata',
+      canonicalUrl: 'http://example.com/no-metadata',
+      image: 'https://daily.dev/image.jpg',
+      sourceId: 'a',
+      title: null,
+      summary: null,
+      visible: false,
+      createdAt: new Date(),
+      type: PostType.Article,
+      private: false,
+      origin: PostOrigin.Squad,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://example.com/no-metadata' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      {
+        id: 'p_no_metadata',
+        url: 'http://example.com/no-metadata',
+        origin: PostOrigin.Squad,
+      },
+    ]);
+
+    // Verify share post was created
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p_no_metadata' });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
   });
 
   it('should share existing post by redirector link', async () => {
