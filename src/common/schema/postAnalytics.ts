@@ -17,6 +17,7 @@ export const postAnalyticsClickhouseSchema = z.strictObject({
   reachAll: z.coerce.number().nonnegative(),
   clicks: z.coerce.number().nonnegative(),
   clicksAds: z.coerce.number().nonnegative(),
+  goToLink: z.coerce.number().nonnegative(),
 });
 
 export const postAnalyticsHistoryClickhouseSchema = z.strictObject({

@@ -24,6 +24,9 @@ GROUP BY
 SETTINGS materialized_views_ignore_errors = 1;
 
 ALTER TABLE api.post_analytics
+    DROP COLUMN IF EXISTS go_to_link;
+
+ALTER TABLE api.post_analytics
     DROP COLUMN IF EXISTS clicks_ads;
 
 ALTER TABLE api.post_analytics_history

@@ -77,6 +77,9 @@ export class PostAnalytics {
   @Column({ default: 0 })
   clicksAds: number;
 
+  @Column({ default: 0 })
+  goToLink: number;
+
   //  not added to migration because raw events data has some invalid post ids
   @OneToOne('Post', {
     lazy: true,

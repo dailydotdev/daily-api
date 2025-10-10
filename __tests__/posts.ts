@@ -10327,6 +10327,7 @@ describe('query post analytics', () => {
           reachAll: 12,
           impressionsAds: 25,
           clicks: 11,
+          goToLink: 5,
         });
       }),
     );
@@ -10369,7 +10370,7 @@ describe('query post analytics', () => {
       awards: 2,
       reachAds: 7,
       impressionsAds: 25,
-      clicks: 11,
+      clicks: 16,
     });
   });
 

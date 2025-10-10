@@ -12,7 +12,7 @@ export const createOpportunityEditContentSchema = ({
 }: {
   optional?: boolean;
 } = {}) => {
-  const contentSchema = z.string().max(1440);
+  const contentSchema = z.string().max(2000);
 
   return z.object({
     content: optional ? contentSchema.optional() : contentSchema.nonempty(),
