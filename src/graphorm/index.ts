@@ -1660,6 +1660,28 @@ const obj = new GraphORM({
       },
     },
   },
+  TrendingUserSource: {
+    fields: {
+      handle: {
+        customQuery: (_, alias, qb) =>
+          qb
+            .select('u.username')
+            .from(User, 'u')
+            .where(`u.id = ${alias}."sourceId"`),
+      },
+    },
+  },
+  PopularUserSource: {
+    fields: {
+      handle: {
+        customQuery: (_, alias, qb) =>
+          qb
+            .select('u.username')
+            .from(User, 'u')
+            .where(`u.id = ${alias}."sourceId"`),
+      },
+    },
+  },
 });
 
 export default obj;
