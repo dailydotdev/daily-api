@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { toGQLEnum } from '../common';
+import { getLimit, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import { userExperiencesSchema } from '../common/schema/profile';
@@ -119,7 +119,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           builder.queryBuilder
             .orderBy(`${builder.alias}."endedAt"`, 'DESC', 'NULLS FIRST')
             .addOrderBy(`${builder.alias}."startedAt"`, 'DESC')
-            .limit(!ctx.userId ? 1 : page.limit)
+            .limit(!ctx.userId ? 1 : getLimit({ limit: page.limit }))
             .offset(!ctx.userId ? 0 : page.offset);
 
           return builder;

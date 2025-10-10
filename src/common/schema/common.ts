@@ -12,7 +12,7 @@ export const paginationSchema = z.object({
   /**
    * Number of items to return (first N items)
    */
-  first: z.number().max(500).optional().default(100),
+  first: z.number().max(100).optional().default(10),
 });
 
 export type PaginationArgs = z.infer<typeof paginationSchema>;
