@@ -1205,6 +1205,7 @@ describe('mutation upsertUserWorkExperience', () => {
         employmentType
         locationType
         externalReferenceId
+        skills
         company {
           id
           name
@@ -1412,13 +1413,12 @@ describe('mutation upsertUserWorkExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    const experienceId = res.data.upsertUserWorkExperience.id;
-
-    // Verify experience was created with skills
-    const saved = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: experienceId });
-    expect(saved).toBeDefined();
+    expect(res.data.upsertUserWorkExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'work',
+      title: 'Full Stack Developer',
+      skills: ['TypeScript', 'React', 'Node.js'],
+    });
   });
 
   it('should remove skills when updating with fewer skills', async () => {
@@ -1439,6 +1439,11 @@ describe('mutation upsertUserWorkExperience', () => {
 
     const experienceId = created.data.upsertUserWorkExperience.id;
 
+    // Verify initial skills
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: ['TypeScript', 'React', 'Node.js'],
+    });
+
     // Update with only one skill (should remove React and Node.js)
     const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
       variables: {
@@ -1454,7 +1459,11 @@ describe('mutation upsertUserWorkExperience', () => {
     });
 
     expect(updated.errors).toBeFalsy();
-    expect(updated.data.upsertUserWorkExperience.id).toBe(experienceId);
+    // Verify only TypeScript remains (React and Node.js removed)
+    expect(updated.data.upsertUserWorkExperience).toMatchObject({
+      id: experienceId,
+      skills: ['TypeScript'],
+    });
   });
 
   it('should handle mix of adding, removing, and keeping skills', async () => {
@@ -1475,6 +1484,11 @@ describe('mutation upsertUserWorkExperience', () => {
 
     const experienceId = created.data.upsertUserWorkExperience.id;
 
+    // Verify initial skills
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: ['TypeScript', 'React', 'MongoDB'],
+    });
+
     // Update: keep TypeScript, remove React and MongoDB, add Node.js and Python
     const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
       variables: {
@@ -1490,7 +1504,11 @@ describe('mutation upsertUserWorkExperience', () => {
     });
 
     expect(updated.errors).toBeFalsy();
-    expect(updated.data.upsertUserWorkExperience.id).toBe(experienceId);
+    // Verify skills were updated correctly: TypeScript kept, React and MongoDB removed, Node.js and Python added
+    expect(updated.data.upsertUserWorkExperience).toMatchObject({
+      id: experienceId,
+      skills: ['TypeScript', 'Node.js', 'Python'],
+    });
   });
 
   it('should use formatted skill value from autocomplete when slug matches', async () => {
@@ -1518,10 +1536,12 @@ describe('mutation upsertUserWorkExperience', () => {
 
     expect(res.errors).toBeFalsy();
 
-    // The system should use "TypeScript" (formatted value from autocomplete)
-    // even though user typed "typescript"
-    const experienceId = res.data.upsertUserWorkExperience.id;
-    expect(experienceId).toBeDefined();
+    // CRITICAL: Should return "TypeScript" (formatted from autocomplete), not "typescript" (user input)
+    expect(res.data.upsertUserWorkExperience).toMatchObject({
+      id: expect.any(String),
+      title: 'Developer',
+      skills: ['TypeScript'], // Formatted value from autocomplete
+    });
   });
 
   it('should clear all skills when updating with empty array', async () => {
@@ -1542,6 +1562,11 @@ describe('mutation upsertUserWorkExperience', () => {
 
     const experienceId = created.data.upsertUserWorkExperience.id;
 
+    // Verify initial skills exist
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: ['TypeScript', 'React'],
+    });
+
     // Update with empty skills array
     const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
       variables: {
@@ -1557,6 +1582,10 @@ describe('mutation upsertUserWorkExperience', () => {
     });
 
     expect(updated.errors).toBeFalsy();
-    expect(updated.data.upsertUserWorkExperience.id).toBe(experienceId);
+    // Verify all skills were cleared
+    expect(updated.data.upsertUserWorkExperience).toMatchObject({
+      id: experienceId,
+      skills: [],
+    });
   });
 });

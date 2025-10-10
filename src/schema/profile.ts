@@ -70,6 +70,7 @@ export const typeDefs = /* GraphQL */ `
     employmentType: ProtoEnumValue
     location: Location
     locationType: ProtoEnumValue
+    skills: [String]
   }
 
   type UserExperienceConnection {
