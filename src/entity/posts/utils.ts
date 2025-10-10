@@ -493,15 +493,18 @@ export const createSharePost = async ({
     }
 
     // Check if original post is an ArticlePost and missing title and summary
-    const originalPost = await con
-      .getRepository(ArticlePost)
-      .findOne({
-        where: { id: postId },
-        select: ['id', 'title', 'summary', 'url', 'origin'],
-      });
+    const originalPost = await con.getRepository(ArticlePost).findOne({
+      where: { id: postId },
+      select: ['id', 'title', 'summary', 'url', 'origin'],
+    });
 
     // If original post is an ArticlePost missing title and summary, request content
-    if (originalPost && !originalPost.title && !originalPost.summary && originalPost.url) {
+    if (
+      originalPost &&
+      !originalPost.title &&
+      !originalPost.summary &&
+      originalPost.url
+    ) {
       await notifyContentRequested(ctx?.log || logger, {
         id: originalPost.id,
         url: originalPost.url,
