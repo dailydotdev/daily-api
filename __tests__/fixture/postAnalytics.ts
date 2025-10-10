@@ -14,6 +14,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 17696,
@@ -29,6 +30,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 113560,
@@ -44,6 +46,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 19567,
@@ -59,6 +62,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 127620,
@@ -74,6 +78,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 63045,
@@ -89,6 +94,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 477010,
@@ -104,6 +110,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 134320,
@@ -119,6 +126,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 66124,
@@ -134,6 +142,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 104324,
@@ -149,6 +158,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 11333,
@@ -164,6 +174,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 140552,
@@ -179,6 +190,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 268722,
@@ -194,6 +206,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 12627,
@@ -209,6 +222,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 10201,
@@ -224,6 +238,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 10563,
@@ -239,6 +254,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 657683,
@@ -254,6 +270,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 14797,
@@ -269,6 +286,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 1126835,
@@ -284,6 +302,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 31653,
@@ -299,6 +318,7 @@ export const postAnalyticsFixture = [
     reachAll: 0,
     clicks: 0,
     clicksAds: 0,
+    goToLink: 0,
   },
   {
     impressions: 1526835,
@@ -314,6 +334,7 @@ export const postAnalyticsFixture = [
     reachAll: 250853,
     clicks: 2003,
     clicksAds: 8999,
+    goToLink: 1500,
   },
   {
     impressions: 21653,
@@ -329,5 +350,6 @@ export const postAnalyticsFixture = [
     reachAll: 31999,
     clicks: 1999,
     clicksAds: 6377,
+    goToLink: 1000,
   },
 ];
