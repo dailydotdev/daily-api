@@ -294,10 +294,10 @@ describe('query userExperiences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperiences.edges).toHaveLength(1);
-    expect(res.data.userExperiences.edges[0].node.id).toBe(
-      'c3d4e5f6-789a-4cde-bf01-345678901234',
-    );
-    expect(res.data.userExperiences.edges[0].node.type).toBe('project');
+    expect(res.data.userExperiences.edges[0].node).toMatchObject({
+      id: 'c3d4e5f6-789a-4cde-bf01-345678901234',
+      type: 'project',
+    });
   });
 
   it('should support pagination with first parameter', async () => {
@@ -357,9 +357,9 @@ describe('query userExperiences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperiences.edges).toHaveLength(1);
-    expect(res.data.userExperiences.edges[0].node.id).toBe(
-      'd4e5f6a7-89ab-4def-c012-456789012345',
-    );
+    expect(res.data.userExperiences.edges[0].node).toMatchObject({
+      id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+    });
   });
 
   it('should return cursor for each edge', async () => {

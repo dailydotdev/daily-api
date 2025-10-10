@@ -155,7 +155,7 @@ const generateExperienceToSave = async <T extends BaseInputSchema>(
   const toUpdate = id
     ? await ctx.con
         .getRepository(UserExperience)
-        .findOneOrFail({ where: { id, userId: ctx.userId! } })
+        .findOneOrFail({ where: { id, userId: ctx.userId } })
     : await Promise.resolve({});
 
   const toSave: Partial<UserExperience> = { ...values, companyId };
