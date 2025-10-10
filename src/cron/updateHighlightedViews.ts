@@ -8,6 +8,10 @@ import { TrendingSource } from '../entity/TrendingSource';
 import { TrendingTag } from '../entity/TrendingTag';
 import { PopularVideoPost } from '../entity/PopularVideoPost';
 import { UserStats } from '../entity';
+import { TrendingUserPost } from '../entity/TrendingUserPost';
+import { TrendingUserSource } from '../entity/TrendingUserSource';
+import { PopularUserPost } from '../entity/PopularUserPost';
+import { PopularUserSource } from '../entity/PopularUserSource';
 
 const cron: Cron = {
   name: 'update-highlighted-views',
@@ -15,9 +19,13 @@ const cron: Cron = {
     const viewsToRefresh = [
       TrendingPost,
       TrendingSource,
+      TrendingUserPost,
+      TrendingUserSource,
       TrendingTag,
       PopularPost,
       PopularSource,
+      PopularUserPost,
+      PopularUserSource,
       PopularTag,
       PopularVideoPost,
       PopularVideoSource,
