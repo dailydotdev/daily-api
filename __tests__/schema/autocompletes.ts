@@ -297,20 +297,11 @@ describe('query autocomplete', () => {
 
     expect(res.errors).toBeTruthy();
   });
-});
 
-describe('query autocomplete - skill type', () => {
-  const QUERY = `
-    query Autocomplete($type: AutocompleteType!, $query: String!) {
-      autocomplete(type: $type, query: $query) {
-        result
-      }
-    }
-  `;
-
-  beforeEach(async () => {
-    // Set up test user skill data
-    await saveFixtures(con, UserSkill, [
+  describe('skill type', () => {
+    beforeEach(async () => {
+      // Set up test user skill data
+      await saveFixtures(con, UserSkill, [
       {
         name: 'JavaScript',
         description: 'Programming language',
