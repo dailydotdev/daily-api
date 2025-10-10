@@ -137,6 +137,7 @@
     "reflect-metadata": "^0.2.2",
     "retry": "^0.13.1",
     "rss": "^1.2.2",
+    "slugify": "^1.6.6",
     "typeorm": "0.3.26",
     "ua-parser-js": "^2.0.5",
     "uuid": "^11.1.0",

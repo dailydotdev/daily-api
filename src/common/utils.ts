@@ -5,6 +5,7 @@ import { isNullOrUndefined } from './object';
 import { remoteConfig } from '../remoteConfig';
 import { ChangeObject } from '../types';
 import { logger } from '../logger';
+import slugify from 'slugify';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
@@ -308,3 +309,12 @@ export const getBufferFromStream = async (
     stream.on('error', (err) => reject(err));
   });
 };
+
+export const textToSlug = (text: string): string =>
+  slugify(text, {
+    lower: true,
+    strict: true,
+    trim: true,
+    locale: 'en',
+    replacement: '-',
+  }).substring(0, 100);

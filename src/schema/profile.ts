@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { toGQLEnum } from '../common';
+import { textToSlug, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
@@ -16,7 +16,7 @@ import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { Company } from '../entity/Company';
 import type { GraphQLResolveInfo } from 'graphql';
 import { UserExperienceSkill } from '../entity/user/experiences/UserExperienceSkill';
-import { toSkillSlug, UserSkill } from '../entity/user/UserSkill';
+import { UserSkill } from '../entity/user/UserSkill';
 import { In } from 'typeorm';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { capitalize } from 'lodash';
@@ -309,7 +309,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           return saved;
         }
 
-        const slugified = parsed.skills.map(toSkillSlug);
+        const slugified = parsed.skills.map(textToSlug);
         const slugs = [...new Set(slugified)];
         const [knownSlugs, userSlugs] = await Promise.all([
           con.getRepository(UserSkill).find({
