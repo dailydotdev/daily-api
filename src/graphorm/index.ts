@@ -1616,7 +1616,13 @@ const obj = new GraphORM({
     from: 'DatasetLocation',
   },
   UserExperience: {
-    anonymousAllowedColumns: ['id', 'type', 'title', 'company'],
+    anonymousAllowedColumns: [
+      'id',
+      'type',
+      'title',
+      'company',
+      'customCompanyName',
+    ],
     fields: {
       startedAt: {
         transform: transformDate,

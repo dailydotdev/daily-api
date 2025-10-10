@@ -1,8 +1,7 @@
-import { ChildEntity, Column, OneToMany } from 'typeorm';
+import { ChildEntity, Column } from 'typeorm';
 import { UserExperience } from './UserExperience';
 import { UserExperienceType } from './types';
 import { EmploymentType } from '@dailydotdev/schema';
-import type { UserExperienceSkill } from './UserExperienceSkill';
 
 @ChildEntity(UserExperienceType.Work)
 export class UserExperienceWork extends UserExperience {
@@ -16,10 +15,6 @@ export class UserExperienceWork extends UserExperience {
   @Column({ default: false })
   verified: boolean;
 
-  @OneToMany(
-    'UserExperienceSkill',
-    (skill: UserExperienceSkill) => skill.experience,
-    { lazy: true },
-  )
-  skills: Promise<UserExperienceSkill>;
+  @Column({ type: 'jsonb', default: [] })
+  skills: string[];
 }

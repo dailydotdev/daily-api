@@ -31,8 +31,11 @@ export class UserExperience {
   @JoinColumn({ foreignKeyConstraintName: 'FK_user_experience_user_userId' })
   user: Promise<User>;
 
-  @Column()
-  companyId: string;
+  @Column({ type: 'text', nullable: true, default: null })
+  customCompanyName: string | null;
+
+  @Column({ nullable: true, default: null })
+  companyId: string | null;
 
   @ManyToOne('Company', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({

@@ -4,35 +4,6 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
   name = 'UserExperienceRevamped1759421991433';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      /* sql */ `
-      INSERT INTO "public"."typeorm_metadata"
-        ("database", "schema", "table", "type", "name", "value")
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `,
-      [
-        'api',
-        'public',
-        'user_skill',
-        'GENERATED_COLUMN',
-        'slug',
-        "trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(name,100),''))), '[^a-z0-9-]+', '-', 'gi'))",
-      ],
-    );
-
-    await queryRunner.query(/* sql */ `
-      CREATE TABLE "user_skill" (
-        "slug" text GENERATED ALWAYS AS (trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(name,100),''))), '[^a-z0-9-]+', '-', 'gi'))) STORED NOT NULL,
-        "name" text NOT NULL,
-        "description" text,
-        CONSTRAINT "PK_user_skill_slug" PRIMARY KEY ("slug")
-      )
-    `);
-
-    await queryRunner.query(/* sql */ `
-      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_user_skill_name" ON "user_skill" ("name")
-    `);
-
     await queryRunner.query(/* sql */ `
       CREATE TABLE "dataset_location" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -56,7 +27,8 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
       CREATE TABLE "user_experience" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "userId" character varying NOT NULL,
-        "companyId" text NOT NULL,
+        "companyId" text,
+        "customCompanyName" text,
         "title" text NOT NULL,
         "subtitle" text,
         "description" text,
@@ -72,6 +44,7 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
         "url" text,
         "grade" text,
         "externalReferenceId" text,
+        "skills" jsonb DEFAULT '[]',
         CONSTRAINT "PK_user_experience_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_user_experience_user_userId"
           FOREIGN KEY ("userId")
@@ -105,24 +78,6 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
 
     await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_user_experience_type" ON "user_experience" ("type")
-    `);
-
-    await queryRunner.query(/* sql */ `
-      CREATE TABLE "user_experience_skill" (
-        "slug" text NOT NULL,
-        "experienceId" uuid NOT NULL,
-        CONSTRAINT "PK_user_experience_skill_slug_experienceId" PRIMARY KEY ("slug", "experienceId"),
-        CONSTRAINT "FK_user_experience_skill_user_skill_slug"
-          FOREIGN KEY ("slug")
-          REFERENCES "user_skill"("slug")
-          ON DELETE CASCADE
-          ON UPDATE NO ACTION,
-        CONSTRAINT "FK_user_experience_skill_user_experience_experienceId"
-          FOREIGN KEY ("experienceId")
-          REFERENCES "user_experience"("id")
-          ON DELETE CASCADE
-          ON UPDATE NO ACTION
-      )
     `);
 
     await queryRunner.query(/* sql */ `
@@ -162,31 +117,11 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
-      DROP TABLE "user_experience_skill"
-    `);
-
-    await queryRunner.query(/* sql */ `
       DROP TABLE "user_experience"
     `);
 
     await queryRunner.query(/* sql */ `
       DROP TABLE "dataset_location"
     `);
-
-    await queryRunner.query(/* sql */ `
-      DROP TABLE "user_skill"
-    `);
-
-    await queryRunner.query(
-      /* sql */ `
-      DELETE FROM "public"."typeorm_metadata"
-      WHERE "type" = $1
-        AND "name" = $2
-        AND "database" = $3
-        AND "schema" = $4
-        AND "table" = $5
-      `,
-      ['GENERATED_COLUMN', 'slug', 'api', 'public', 'user_skill'],
-    );
   }
 }
