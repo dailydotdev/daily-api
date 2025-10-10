@@ -627,23 +627,19 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
-    expect(res.data.upsertUserGeneralExperience.type).toBe('certification');
-    expect(res.data.upsertUserGeneralExperience.title).toBe(
-      'AWS Certified Solutions Architect',
-    );
-    expect(res.data.upsertUserGeneralExperience.subtitle).toBe('Professional');
-    expect(res.data.upsertUserGeneralExperience.description).toBe(
-      'Advanced AWS certification',
-    );
-    expect(res.data.upsertUserGeneralExperience.url).toBe(
-      'https://aws.amazon.com/certification',
-    );
-    expect(res.data.upsertUserGeneralExperience.externalReferenceId).toBe(
-      'AWS-123456',
-    );
-    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-1');
-    expect(res.data.upsertUserGeneralExperience.createdAt).toBeDefined();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'certification',
+      title: 'AWS Certified Solutions Architect',
+      subtitle: 'Professional',
+      description: 'Advanced AWS certification',
+      url: 'https://aws.amazon.com/certification',
+      externalReferenceId: 'AWS-123456',
+      createdAt: expect.any(String),
+      company: {
+        id: 'company-1',
+      },
+    });
 
     // Verify it was saved
     const saved = await con
@@ -672,13 +668,15 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
-    expect(res.data.upsertUserGeneralExperience.type).toBe('education');
-    expect(res.data.upsertUserGeneralExperience.title).toBe(
-      'Master of Science',
-    );
-    expect(res.data.upsertUserGeneralExperience.grade).toBe('3.9 GPA');
-    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-3');
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'education',
+      title: 'Master of Science',
+      grade: '3.9 GPA',
+      company: {
+        id: 'company-3',
+      },
+    });
   });
 
   it('should create a new project experience', async () => {
@@ -697,15 +695,13 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
-    expect(res.data.upsertUserGeneralExperience.type).toBe('project');
-    expect(res.data.upsertUserGeneralExperience.title).toBe(
-      'Daily.dev Chrome Extension',
-    );
-    expect(res.data.upsertUserGeneralExperience.url).toBe(
-      'https://github.com/dailydotdev/extension',
-    );
-    expect(res.data.upsertUserGeneralExperience.endedAt).toBeNull();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'project',
+      title: 'Daily.dev Chrome Extension',
+      url: 'https://github.com/dailydotdev/extension',
+      endedAt: null,
+    });
   });
 
   it('should create experience with custom company name', async () => {
@@ -1067,13 +1063,15 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.id).toBeDefined();
-    expect(res.data.upsertUserGeneralExperience.title).toBe('Minimal Project');
-    expect(res.data.upsertUserGeneralExperience.subtitle).toBeNull();
-    expect(res.data.upsertUserGeneralExperience.description).toBeNull();
-    expect(res.data.upsertUserGeneralExperience.endedAt).toBeNull();
-    expect(res.data.upsertUserGeneralExperience.url).toBeNull();
-    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      title: 'Minimal Project',
+      subtitle: null,
+      description: null,
+      endedAt: null,
+      url: null,
+      company: null,
+    });
   });
 
   it('should trim and normalize customCompanyName name', async () => {
@@ -1260,11 +1258,13 @@ describe('mutation upsertUserWorkExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserWorkExperience.id).toBeDefined();
-    expect(res.data.upsertUserWorkExperience.type).toBe('work');
-    expect(res.data.upsertUserWorkExperience.title).toBe('Software Engineer');
-    expect(res.data.upsertUserWorkExperience.employmentType).toBe(1);
-    expect(res.data.upsertUserWorkExperience.locationType).toBe(2);
+    expect(res.data.upsertUserWorkExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'work',
+      title: 'Software Engineer',
+      employmentType: 1,
+      locationType: 2,
+    });
 
     // Verify no skills were created
     const skills = await con.getRepository(UserExperienceSkill).find({
@@ -1359,8 +1359,10 @@ describe('mutation upsertUserWorkExperience', () => {
     const pythonSkill = await con.getRepository(UserSkill).findOne({
       where: { slug: 'python' },
     });
-    expect(pythonSkill).toBeDefined();
-    expect(pythonSkill!.name).toBe('Python');
+    expect(pythonSkill).toMatchObject({
+      name: 'Python',
+      slug: 'python',
+    });
   });
 
   it('should update work experience and add new skills', async () => {
@@ -1593,8 +1595,10 @@ describe('mutation upsertUserWorkExperience', () => {
     const typeScriptSkill = await con.getRepository(UserSkill).findOne({
       where: { slug: typeScriptSlug },
     });
-    expect(typeScriptSkill).toBeDefined();
-    expect(typeScriptSkill!.name).toBe('TypeScript');
+    expect(typeScriptSkill).toMatchObject({
+      name: 'TypeScript',
+      slug: 'typescript',
+    });
   });
 
   it('should never delete UserSkill records (managed externally)', async () => {
@@ -1687,8 +1691,10 @@ describe('mutation upsertUserWorkExperience', () => {
     const invalidSkill = await con.getRepository(UserSkill).findOne({
       where: { slug: invalidSkillSlug },
     });
-    expect(invalidSkill).toBeDefined();
-    expect(invalidSkill!.valid).toBe(false);
+    expect(invalidSkill).toMatchObject({
+      slug: 'invalidskill',
+      valid: false,
+    });
   });
 
   it('should preserve all UserSkill records regardless of usage', async () => {
