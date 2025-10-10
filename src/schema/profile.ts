@@ -293,16 +293,15 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         const repo = con.getRepository(UserExperienceWork);
         const skills = result.parsedInput.skills;
         const slugifieds = skills.map(textToSlug);
-
-        const saved = await repo.save({
+        const experience = {
           ...result.userExperience,
           type: args.input.type,
           userId: ctx.userId,
           skills,
-        });
+        };
 
         if (!skills.length) {
-          return saved;
+          return repo.save({ ...experience, skills });
         }
 
         const known = await con
@@ -323,7 +322,9 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           );
         }
 
-        return saved;
+        const finalSkills = known.map(({ value }) => value).concat(toCreate);
+
+        return repo.save({ ...experience, finalSkills });
       });
 
       return getUserExperience(ctx, info, entity.id);
