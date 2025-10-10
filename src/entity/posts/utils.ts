@@ -492,6 +492,23 @@ export const createSharePost = async ({
       await saveMentions(con, post.id, userId, mentions, PostMention);
     }
 
+    // Check if original post is an ArticlePost and missing title and summary
+    const originalPost = await con
+      .getRepository(ArticlePost)
+      .findOne({
+        where: { id: postId },
+        select: ['id', 'title', 'summary', 'url', 'origin'],
+      });
+
+    // If original post is an ArticlePost missing title and summary, request content
+    if (originalPost && !originalPost.title && !originalPost.summary && originalPost.url) {
+      await notifyContentRequested(ctx?.log || logger, {
+        id: originalPost.id,
+        url: originalPost.url,
+        origin: PostOrigin.Squad, // set a squad origin to bypass some filters
+      });
+    }
+
     return post;
   } catch (originalError) {
     const err = originalError as TypeORMQueryFailedError;
