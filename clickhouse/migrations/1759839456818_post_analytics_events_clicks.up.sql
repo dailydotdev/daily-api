@@ -6,6 +6,9 @@ ALTER TABLE api.post_analytics
 ALTER TABLE api.post_analytics
     ADD COLUMN IF NOT EXISTS clicks_ads SimpleAggregateFunction(sum, UInt64) DEFAULT 0;
 
+ALTER TABLE api.post_analytics
+    ADD COLUMN IF NOT EXISTS go_to_link SimpleAggregateFunction(sum, UInt64) DEFAULT 0;
+
 ALTER TABLE api.post_analytics_events_mv
 MODIFY QUERY
 SELECT

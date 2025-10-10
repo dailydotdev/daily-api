@@ -54,7 +54,8 @@ export const postAnalyticsClickhouseCron: Cron = {
             uniqMerge(reach_ads) AS "reachAds",
             uniqMerge(reach_all) AS "reachAll",
             sum(clicks) AS clicks,
-            sum(clicks_ads) AS "clicksAds"
+            sum(clicks_ads) AS "clicksAds",
+            sum(go_to_link) AS "goToLink"
         FROM api.post_analytics
         FINAL
         GROUP BY id
