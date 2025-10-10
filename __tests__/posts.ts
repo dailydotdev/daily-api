@@ -3922,6 +3922,7 @@ describe('mutation submitExternalLink', () => {
 
   it('should share to squad without title to support backwards compatibility', async () => {
     loggedUser = '1';
+    variables.summary = 'My summary'; // to not trigger the empty post check
     await checkSharedPostExpectation(false);
   });
 
@@ -3980,7 +3981,6 @@ describe('mutation submitExternalLink', () => {
 
     expect(res.errors).toBeFalsy();
 
-    // Verify notifyContentRequested was called for the original post
     expect(notifyContentRequested).toBeCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
       {
