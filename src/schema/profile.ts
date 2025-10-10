@@ -192,13 +192,17 @@ const getUserExperience = (
   info: GraphQLResolveInfo,
   id: string,
 ): Promise<GQLUserExperience> =>
-  graphorm.queryOneOrFail(ctx, info, (builder) => {
-    builder.queryBuilder.where(`${builder.alias}."id" = :id`, {
-      id,
-    });
+  queryOneOrFail(
+    ctx,
+    info,
+    (builder) => {
+      builder.queryBuilder.where(`${builder.alias}."id" = :id`, { id });
 
-    return builder;
-  });
+      return builder;
+    },
+    undefined,
+    true,
+  );
 
 export const resolvers = traceResolvers<unknown, AuthContext>({
   Query: {
@@ -220,14 +224,16 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         (node, index) =>
           userExperiencesPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          builder.queryBuilder.where(`${builder.alias}."userId" = :userId`, {
-            userId,
-          });
+          builder.queryBuilder.where(
+            `${builder.alias}."userId" = :userExperienceId`,
+            { userExperienceId: userId },
+          );
 
           if (type) {
-            builder.queryBuilder.andWhere(`${builder.alias}."type" = :type`, {
-              type,
-            });
+            builder.queryBuilder.andWhere(
+              `${builder.alias}."type" = :userExperienceType`,
+              { userExperienceType: type },
+            );
           }
 
           builder.queryBuilder
@@ -239,7 +245,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           return builder;
         },
         undefined,
-        false,
+        true,
       );
     },
     userExperienceById: async (
