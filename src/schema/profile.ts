@@ -192,7 +192,7 @@ const getUserExperience = (
   info: GraphQLResolveInfo,
   id: string,
 ): Promise<GQLUserExperience> =>
-  queryOneOrFail(
+  graphorm.queryOneOrFail(
     ctx,
     info,
     (builder) => {
