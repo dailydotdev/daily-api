@@ -1,5 +1,11 @@
 import z from 'zod';
-import { AutocompleteType } from '../../entity/Autocomplete';
+
+export enum AutocompleteType {
+  FieldOfStudy = 'field_of_study',
+  Degree = 'degree',
+  Role = 'role',
+  Skill = 'skill',
+}
 
 export const autocompleteBaseSchema = z.object({
   query: z.string().trim().min(1).toLowerCase().normalize(),

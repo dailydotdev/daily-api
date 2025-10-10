@@ -1,16 +1,18 @@
 import { Keyword, KeywordStatus } from '../entity';
-import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
+import { Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
-import { ILike, type FindOptionsWhere } from 'typeorm';
+import { ILike, type DataSource, type FindOptionsWhere } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { toGQLEnum } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
   autocompleteBaseSchema,
   autocompleteSchema,
+  AutocompleteType,
 } from '../common/schema/autocompletes';
 import type z from 'zod';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { toSkillSlug, UserSkill } from '../entity/user/UserSkill';
 
 interface AutocompleteData {
   result: string[];
@@ -111,6 +113,43 @@ const getLocationCondition = (query: string): FindLocation[] => {
   return subdivisionCombination.concat(cityCombination);
 };
 
+type AutocompleteFn = (
+  con: DataSource,
+  payload: z.infer<typeof autocompleteSchema>,
+) => Promise<AutocompleteData>;
+
+const getGenericAutocomplete: AutocompleteFn = async (
+  con,
+  { type, query, limit },
+) => {
+  const result = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(Autocomplete).find({
+      select: { value: true },
+      take: limit,
+      order: { value: 'ASC' },
+      where: { enabled: true, type, value: ILike(`%${query}%`) },
+    }),
+  );
+
+  return { result: result.map((a) => a.value) };
+};
+
+const getSkillAutocomplete: AutocompleteFn = async (con, { query, limit }) => {
+  const result = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(UserSkill).find({
+      select: { name: true },
+      take: limit,
+      order: { name: 'ASC' },
+      where: [
+        { valid: true, slug: toSkillSlug(query) },
+        { valid: true, name: ILike(`%${query}%`) },
+      ],
+    }),
+  );
+
+  return { result: result.map((a) => a.name) };
+};
+
 export const resolvers = traceResolvers<unknown, BaseContext>({
   Query: {
     autocomplete: async (
@@ -118,17 +157,12 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       payload: z.infer<typeof autocompleteSchema>,
       ctx: AuthContext,
     ): Promise<AutocompleteData> => {
-      const { type, query, limit } = autocompleteSchema.parse(payload);
-      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(Autocomplete).find({
-          select: { value: true },
-          take: limit,
-          order: { value: 'ASC' },
-          where: { enabled: true, type, value: ILike(`%${query}%`) },
-        }),
-      );
-
-      return { result: result.map((a) => a.value) };
+      switch (payload.type) {
+        case AutocompleteType.Skill:
+          return getSkillAutocomplete(ctx.con, payload);
+        default:
+          return getGenericAutocomplete(ctx.con, payload);
+      }
     },
     autocompleteLocation: async (
       _,

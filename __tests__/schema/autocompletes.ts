@@ -12,8 +12,10 @@ import {
 } from '../helpers';
 import { usersFixture } from '../fixture/user';
 import { keywordsFixture } from '../fixture/keywords';
-import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
+import { Autocomplete } from '../../src/entity/Autocomplete';
 import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import { UserSkill } from '../../src/entity/user/UserSkill';
+import { AutocompleteType } from '../../src/common/schema/autocompletes';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -294,6 +296,354 @@ describe('query autocomplete', () => {
     });
 
     expect(res.errors).toBeTruthy();
+  });
+});
+
+describe('query autocomplete - skill type', () => {
+  const QUERY = `
+    query Autocomplete($type: AutocompleteType!, $query: String!) {
+      autocomplete(type: $type, query: $query) {
+        result
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // Set up test user skill data
+    await saveFixtures(con, UserSkill, [
+      {
+        name: 'JavaScript',
+        description: 'Programming language',
+        valid: true,
+      },
+      {
+        name: 'TypeScript',
+        description: 'Programming language',
+        valid: true,
+      },
+      {
+        name: 'React',
+        description: 'Frontend library',
+        valid: true,
+      },
+      {
+        name: 'Node.js',
+        description: 'Runtime environment',
+        valid: true,
+      },
+      {
+        name: 'Python',
+        description: 'Programming language',
+        valid: true,
+      },
+      {
+        name: 'Java',
+        description: 'Programming language',
+        valid: true,
+      },
+      {
+        name: 'C++',
+        description: 'Programming language',
+        valid: true,
+      },
+      {
+        name: 'Go',
+        description: 'Programming language',
+        valid: true,
+      },
+      {
+        name: 'Rust',
+        description: 'Programming language',
+        valid: true,
+      },
+      {
+        name: 'SQL',
+        description: 'Query language',
+        valid: true,
+      },
+      {
+        name: 'GraphQL',
+        description: 'Query language',
+        valid: true,
+      },
+      {
+        name: 'Docker',
+        description: 'Containerization',
+        valid: true,
+      },
+      {
+        name: 'Kubernetes',
+        description: 'Container orchestration',
+        valid: true,
+      },
+      {
+        name: 'Invalid Skill',
+        description: 'Should not appear',
+        valid: false,
+      },
+    ]);
+  });
+
+  it('should return unauthenticated when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { type: 'skill', query: 'javascript' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return matching skills by name', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'javascript' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['JavaScript']);
+  });
+
+  it('should return matching skills by slug', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'node-js' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['Node.js']);
+  });
+
+  it('should be case insensitive', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'TYPESCRIPT' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['TypeScript']);
+  });
+
+  it('should not return invalid skills', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'invalid' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should return results in alphabetical order', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'script' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['JavaScript', 'TypeScript']);
+  });
+
+  it('should return empty array when no matches found', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'nonexistent' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should match partial strings anywhere in the skill name', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'type' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['TypeScript']);
+  });
+
+  it('should handle queries with special characters', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'c++' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['C++']);
+  });
+
+  it('should handle queries with dots', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'node.js' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['Node.js']);
+  });
+
+  it('should match skills containing query string', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'ql' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['GraphQL', 'SQL']);
+  });
+
+  it('should return multiple matching skills', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'java' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['Java', 'JavaScript']);
+  });
+
+  it('should handle single character queries', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'g' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toContain('Go');
+    expect(res.data.autocomplete.result).toContain('GraphQL');
+  });
+
+  it('should return empty array for queries with emojis', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: '🚀' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should return error for empty string query', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: '' },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should return error for query with only spaces', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: '   ' },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should return empty array for query with only special characters', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: '!@#$%^&*()' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should handle very long query strings', async () => {
+    loggedUser = '1';
+
+    const longQuery = 'a'.repeat(1000);
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: longQuery },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual([]);
+  });
+
+  it('should match by slug when query contains hyphens', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'graph-ql' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['GraphQL']);
+  });
+
+  it('should handle queries with mixed case and special characters', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'Node.JS' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['Node.js']);
+  });
+
+  it('should prefer slug match over name match', async () => {
+    loggedUser = '1';
+
+    // Add a skill with similar slug
+    await saveFixtures(con, UserSkill, [
+      {
+        name: 'React Native',
+        description: 'Mobile framework',
+        valid: true,
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'react' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toContain('React');
+    expect(res.data.autocomplete.result).toContain('React Native');
+  });
+
+  it('should handle queries with leading/trailing spaces', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: '  rust  ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['Rust']);
+  });
+
+  it('should handle container-related skills', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, {
+      variables: { type: 'skill', query: 'kuber' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocomplete.result).toEqual(['Kubernetes']);
   });
 });
 

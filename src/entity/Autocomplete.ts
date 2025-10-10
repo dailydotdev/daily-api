@@ -5,12 +5,7 @@ import {
   Index,
   PrimaryColumn,
 } from 'typeorm';
-
-export enum AutocompleteType {
-  FieldOfStudy = 'field_of_study',
-  Degree = 'degree',
-  Role = 'role',
-}
+import type { AutocompleteType } from '../common/schema/autocompletes';
 
 const compositePrimaryKeyName = 'PK_autocomplete_value_type';
 

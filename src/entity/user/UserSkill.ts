@@ -9,6 +9,7 @@ export const toSkillSlug = (name: string) =>
     .substring(0, 100);
 
 @Entity()
+@Index('IDX_user_skill_name_valid_trgm', { synchronize: false })
 export class UserSkill {
   @PrimaryColumn({
     type: 'text',

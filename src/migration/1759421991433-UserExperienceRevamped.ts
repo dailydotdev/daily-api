@@ -133,6 +133,13 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_user_skill_name_valid_trgm"
+        ON "public"."user_skill"
+        USING gin (name gin_trgm_ops)
+        WHERE valid = true
+    `);
+
+    await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_dataset_location_country_trgm"
         ON "public"."dataset_location"
         USING gin (country gin_trgm_ops)
