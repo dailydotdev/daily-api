@@ -15,7 +15,6 @@ import {
 } from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { kvasir } from './private/kvasir';
-import snotra from './private/snotra';
 import rpc from './private/rpc';
 import { connectRpcPlugin } from '../common/connectRpc';
 import { Opportunity } from '../entity/opportunities/Opportunity';
@@ -261,7 +260,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.register(kvasir, { prefix: '/kvasir' });
-  fastify.register(snotra, { prefix: '/snotra' });
   fastify.register(connectRpcPlugin, {
     routes: rpc,
     prefix: '/rpc',
