@@ -19,6 +19,7 @@ import { UserExperienceSkill } from '../entity/user/experiences/UserExperienceSk
 import { toSkillSlug, UserSkill } from '../entity/user/UserSkill';
 import { In } from 'typeorm';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { capitalize } from 'lodash';
 
 interface GQLUserExperience {
   id: string;
@@ -313,12 +314,12 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           select: ['slug'],
         });
 
-        const toCreate = parsed.skills.filter((skill) =>
-          recognizedSlugs.every((s) => s.slug !== toSkillSlug(skill)),
+        const toCreate = slugs.filter((skill) =>
+          recognizedSlugs.every(({ slug }) => slug !== toSkillSlug(skill)),
         );
 
-        const toLink = slugs.filter((slug) =>
-          userSlugs.every((s) => s.slug !== slug),
+        const toLink = slugs.filter((skill) =>
+          userSlugs.every(({ slug }) => slug !== skill),
         );
 
         const toDrop = userSlugs
@@ -328,7 +329,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         if (toCreate.length) {
           await con
             .getRepository(UserSkill)
-            .save(toCreate.map((name) => ({ name })));
+            .save(toCreate.map((name) => ({ name: capitalize(name) })));
         }
 
         if (toLink.length) {
