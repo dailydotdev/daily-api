@@ -176,13 +176,13 @@ describe('query userExperiences', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperiences.edges).toHaveLength(4);
     // First should be most recent active experience (ordered by null endedAt first, then startedAt desc)
-    expect(res.data.userExperiences.edges[0].node.id).toBe(
-      'f47ac10b-58cc-4372-a567-0e02b2c3d479', // exp-1: Started 2022-01-01, active
-    );
-    expect(res.data.userExperiences.edges[0].node.endedAt).toBeNull();
-    expect(res.data.userExperiences.edges[0].node.company.name).toBe(
-      'Daily.dev',
-    );
+    expect(res.data.userExperiences.edges[0].node).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479', // exp-1: Started 2022-01-01, active
+      endedAt: null,
+      company: {
+        name: 'Daily.dev',
+      },
+    });
     expect(res.data.userExperiences.pageInfo.hasNextPage).toBe(false);
   });
 
