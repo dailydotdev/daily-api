@@ -15,11 +15,10 @@ import type { Connection } from 'graphql-relay';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { Company } from '../entity/Company';
 import type { GraphQLResolveInfo } from 'graphql';
-import { UserExperienceSkill } from '../entity/user/experiences/UserExperienceSkill';
-import { UserSkill } from '../entity/user/UserSkill';
 import { In } from 'typeorm';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { capitalize } from 'lodash';
+import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
+import { Autocomplete, AutocompleteType } from '../entity/Autocomplete';
 
 interface GQLUserExperience {
   id: string;
@@ -291,63 +290,37 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       }
 
       const entity = await ctx.con.transaction(async (con) => {
-        const repo = con.getRepository(UserExperience);
+        const repo = con.getRepository(UserExperienceWork);
+        const skills = result.parsedInput.skills;
+        const slugifieds = skills.map(textToSlug);
 
         const saved = await repo.save({
           ...result.userExperience,
-          userId: ctx.userId,
           type: args.input.type,
+          userId: ctx.userId,
+          skills,
         });
-        const parsed = result.parsedInput as z.infer<
-          typeof userExperienceWorkSchema
-        >;
 
-        if (!parsed.skills.length) {
-          await con
-            .getRepository(UserExperienceSkill)
-            .delete({ experienceId: saved.id });
+        if (!skills.length) {
           return saved;
         }
 
-        const slugified = parsed.skills.map(textToSlug);
-        const slugs = [...new Set(slugified)];
-        const [knownSlugs, userSlugs] = await Promise.all([
-          con.getRepository(UserSkill).find({
-            where: { slug: In(slugs) },
-            select: ['slug'],
-          }),
-          con.getRepository(UserExperienceSkill).find({
-            where: { experienceId: saved.id },
-            select: ['slug'],
-          }),
-        ]);
+        const known = await con
+          .getRepository(Autocomplete)
+          .findBy({ type: AutocompleteType.Skill, slug: In(slugifieds) });
 
-        const knownSlugsSet = new Set(knownSlugs.map(({ slug }) => slug));
-        const userSlugsSet = new Set(userSlugs.map(({ slug }) => slug));
-        const slugsSet = new Set(slugs);
-
-        const toCreate = slugs.filter((skill) => !knownSlugsSet.has(skill));
-        const toLink = slugs.filter((skill) => !userSlugsSet.has(skill));
-        const toDrop = userSlugs
-          .filter(({ slug }) => !slugsSet.has(slug))
-          .map(({ slug }) => slug);
+        const toCreate = skills.filter(
+          (skill) => !known.find(({ slug }) => slug === textToSlug(skill)),
+        );
 
         if (toCreate.length) {
-          await con
-            .getRepository(UserSkill)
-            .save(toCreate.map((name) => ({ name: capitalize(name) })));
-        }
-
-        if (toLink.length) {
-          await con
-            .getRepository(UserExperienceSkill)
-            .save(slugs.map((slug) => ({ experienceId: saved.id, slug })));
-        }
-
-        if (toDrop.length) {
-          await con
-            .getRepository(UserExperienceSkill)
-            .delete({ experienceId: saved.id, slug: In(toDrop) });
+          await con.getRepository(Autocomplete).save(
+            toCreate.map((value) => ({
+              type: AutocompleteType.Skill,
+              slug: textToSlug(value),
+              value,
+            })),
+          );
         }
 
         return saved;

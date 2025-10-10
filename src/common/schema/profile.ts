@@ -50,7 +50,8 @@ export const userExperienceWorkSchema = z
     locationType: z.number().nullable().optional().default(null),
     locationId: z.uuidv4().nullable().optional().default(null),
     skills: z
-      .array(z.string().toLowerCase().trim().normalize().nonempty().max(100))
+      .array(z.string().trim().normalize().nonempty().max(100))
+      .max(50)
       .optional()
       .default([]),
   })
