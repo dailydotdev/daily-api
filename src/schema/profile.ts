@@ -316,9 +316,11 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         const toCreate = parsed.skills.filter((skill) =>
           recognizedSlugs.every((s) => s.slug !== toSkillSlug(skill)),
         );
+
         const toLink = slugs.filter((slug) =>
           userSlugs.every((s) => s.slug !== slug),
         );
+
         const toDrop = userSlugs
           .filter(({ slug }) => !slugs.includes(slug))
           .map(({ slug }) => slug);
