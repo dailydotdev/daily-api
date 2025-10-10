@@ -21,12 +21,7 @@ import { queryReadReplica } from './queryReadReplica';
 import { logger } from '../logger';
 import type { GQLKeyword } from '../schema/keywords';
 import type { GQLUser } from '../schema/users';
-import {
-  ExperienceStatus,
-  UserExperienceType,
-} from '../entity/user/experiences/types';
-import { z } from 'zod';
-import { WorkLocationType } from '../entity/user/UserJobPreferences';
+import { UserExperienceType } from '../entity/user/experiences/types';
 
 export interface User {
   id: string;
@@ -659,7 +654,6 @@ export const isProfileCompleteById = async (
             where: {
               userId,
               type: In([UserExperienceType.Work, UserExperienceType.Education]),
-              status: ExperienceStatus.Published,
             },
           }),
         ]),
@@ -673,37 +667,4 @@ export const isProfileCompleteById = async (
   } catch {
     return false;
   }
-};
-
-const jobPreferenceUpdateValidation = z.object({
-  openToOpportunities: z.boolean().optional().prefault(false),
-  preferredRoles: z
-    .array(
-      z
-        .string()
-        .min(3, 'Preferred roles must be at least 3 characters long')
-        .max(50, 'Preferred roles must be at most 50 characters long'),
-    )
-    .max(5, 'Preferred roles can have a maximum of 5 items')
-    .optional()
-    .prefault([]),
-  preferredLocationType: z.enum(WorkLocationType).optional(),
-  openToRelocation: z.boolean().optional().prefault(false),
-  currentTotalComp: z
-    .object({
-      currency: z.string().length(3),
-      amount: z.int().positive(),
-    })
-    .partial()
-    .prefault({}),
-});
-export const checkJobPreferenceParamsValidity = (params: unknown) => {
-  const result = jobPreferenceUpdateValidation.safeParse(params);
-  if (!result.success) {
-    logger.error(
-      { error: result.error, params },
-      'Invalid job preference update parameters',
-    );
-  }
-  return result;
 };

@@ -6,8 +6,13 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+/*
+  CompanyType.Company looks awkward today
+  but this is supposed to be for Organization entity which will have Company and School as types
+  We will eventually deprecate this table and move to Organization entity
+*/
 export enum CompanyType {
-  Business = 'business',
+  Company = 'company',
   School = 'school',
 }
 
@@ -33,7 +38,7 @@ export class Company {
 
   @Column({
     type: 'text',
-    default: CompanyType.Business,
+    default: CompanyType.Company,
   })
-  type = CompanyType.Business;
+  type = CompanyType.Company;
 }
