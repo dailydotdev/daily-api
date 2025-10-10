@@ -15,11 +15,11 @@ import { SourceType } from './Source';
       .where(
         'not p.private and p."createdAt" > now() - interval \'60 day\' and p.upvotes > p.downvotes',
       )
-      .andWhere('s.type != :type', { type: SourceType.User })
+      .andWhere('s.type = :type', { type: SourceType.User })
       .orderBy('r', 'DESC')
       .limit(1000),
 })
-export class PopularPost {
+export class PopularUserPost {
   @ViewColumn()
   sourceId: string;
 
