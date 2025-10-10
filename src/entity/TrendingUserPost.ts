@@ -9,17 +9,20 @@ import { SourceType } from './Source';
       .select('p."sourceId"')
       .addSelect('p."tagsStr"')
       .addSelect('p."createdAt"')
-      .addSelect('p.upvotes - p.downvotes', 'r')
+      .addSelect(
+        `log(10, p.upvotes - p.downvotes) + extract(epoch from (p."createdAt" - now() + interval '7 days')) / 200000`,
+        'r',
+      )
       .from('post', 'p')
       .innerJoin('source', 's', 's.id = p."sourceId"')
       .where(
-        'not p.private and p."createdAt" > now() - interval \'60 day\' and p.upvotes > p.downvotes',
+        `not p.private and p."createdAt" > now() - interval '7 day' and p.upvotes > p.downvotes`,
       )
-      .andWhere('s.type != :type', { type: SourceType.User })
+      .andWhere('s.type = :type', { type: SourceType.User })
       .orderBy('r', 'DESC')
-      .limit(1000),
+      .limit(100),
 })
-export class PopularPost {
+export class TrendingUserPost {
   @ViewColumn()
   sourceId: string;
 
