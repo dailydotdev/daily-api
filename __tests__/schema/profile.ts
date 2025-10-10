@@ -208,12 +208,15 @@ describe('query userExperiences', () => {
     const experience = res.data.userExperiences.edges[0].node;
 
     // Allowed columns for anonymous users
-    expect(experience.id).toBeDefined();
-    expect(experience.type).toBeDefined();
-    expect(experience.title).toBeDefined();
-    expect(experience.company).toBeDefined();
-    expect(experience.company.id).toBeDefined();
-    expect(experience.company.name).toBeDefined();
+    expect(experience).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      type: 'work',
+      title: 'Senior Software Engineer',
+      company: {
+        id: 'company-1',
+        name: 'Daily.dev',
+      },
+    });
 
     // Restricted columns should be null for anonymous users
     expect(experience.subtitle).toBeNull();
@@ -236,14 +239,20 @@ describe('query userExperiences', () => {
     const experience = res.data.userExperiences.edges[0].node;
 
     // All columns should be available for logged-in users
-    expect(experience.id).toBeDefined();
-    expect(experience.type).toBeDefined();
-    expect(experience.title).toBeDefined();
-    expect(experience.company).toBeDefined();
-    expect(experience.subtitle).toBeDefined(); // exp-1 has subtitle
-    expect(experience.description).toBeDefined(); // exp-1 has description
-    expect(experience.startedAt).toBeDefined();
-    expect(experience.createdAt).toBeDefined();
+    expect(experience).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      type: 'work',
+      title: 'Senior Software Engineer',
+      subtitle: 'Backend Team',
+      description: 'Working on API infrastructure',
+      startedAt: '2022-01-01T00:00:00.000Z',
+      createdAt: '2022-01-01T00:00:00.000Z',
+      company: {
+        id: 'company-1',
+        name: 'Daily.dev',
+        image: 'https://daily.dev/logo.png',
+      },
+    });
     // endedAt can be null for active experiences, so we just check it's present in the response
   });
 
@@ -517,11 +526,14 @@ describe('query userExperienceById', () => {
     const experience = res.data.userExperienceById;
 
     // Allowed columns for anonymous users
-    expect(experience.id).toBe('f47ac10b-58cc-4372-a567-0e02b2c3d479');
-    expect(experience.type).toBe('work');
-    expect(experience.title).toBe('Senior Software Engineer');
-    expect(experience.company).toBeDefined();
-    expect(experience.company.name).toBe('Daily.dev');
+    expect(experience).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      type: 'work',
+      title: 'Senior Software Engineer',
+      company: {
+        name: 'Daily.dev',
+      },
+    });
 
     // Restricted columns should be null for anonymous users
     expect(experience.subtitle).toBeNull();
