@@ -47,7 +47,6 @@ declare global {
       SENDGRID_WEBHOOK_ANALYTICS_KEY: string;
       SCRAPER_URL: string;
       NODE_ENV: 'development' | 'production' | 'test';
-      SNOTRA_ORIGIN: string;
       LOFN_ORIGIN: string;
       INTERNAL_FEED: string;
       ROASTER_URL: string;

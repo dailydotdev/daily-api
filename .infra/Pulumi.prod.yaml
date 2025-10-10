@@ -116,7 +116,6 @@ config:
       secure: AAABABnP+xVyOkzYEXf/7ImrzhbJzc0k+eH5JI03jdJZYBWNUt9cwLHXJ5uyzFmA8mD2x4adt1DawYGNDhM0J/ukvQBPqzdAOjvW4AY8ykqHTSXzxbJojMeOuSO+4YeopZhv2J7xa+gTxipkvZR5hhA=
     slackWebhook:
       secure: AAABANMRr419hiCx/eBF5NJvKB8LDGb8GffeQzg5PxXoD5A9iQn7cPM30aB0jl3cWTKX65VrDShNl+GO86zvRIq4nXvwpjSdi/ToCHDBxyg7sIIQvngrlJuPQ9da+fj426VWkg5fFnwg02QuxMoHqrM=
-    snotraOrigin: http://snotra-user-api.snotra
     submitArticleThreshold: 250
     temporalAddress:
       secure: AAABANwsKzHI+0YqeyYAYySZLL0vAIPZaiKEofEpe8cyj9foEnhVI1rhGT/t4uhvGv94kXHsa34jaQ==

@@ -15,7 +15,6 @@ import {
   Options,
   SimpleFeedConfigGenerator,
 } from './configs';
-import { SnotraClient } from '../snotra';
 import { LofnClient } from '../lofn';
 import { GarmrService } from '../garmr';
 
@@ -67,7 +66,6 @@ const garmLofnService = new GarmrService({
   },
 });
 
-export const snotraClient = new SnotraClient();
 export const feedClient = new FeedClient(process.env.INTERNAL_FEED, {
   garmr: garmFeedService,
 });
