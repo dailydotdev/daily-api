@@ -269,7 +269,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
 
         return repo.save({
           ...userExperience,
-          userId: ctx.userId!,
+          userId: ctx.userId,
           type: args.input.type,
         });
       });
@@ -295,7 +295,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
 
         const saved = await repo.save({
           ...result.userExperience,
-          userId: ctx.userId!,
+          userId: ctx.userId,
           type: args.input.type,
         });
         const parsed = result.parsedInput as z.infer<
