@@ -279,10 +279,10 @@ describe('query userExperiences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperiences.edges).toHaveLength(1);
-    expect(res.data.userExperiences.edges[0].node.id).toBe(
-      'b2c3d4e5-6789-4bcd-aef0-234567890123',
-    );
-    expect(res.data.userExperiences.edges[0].node.type).toBe('education');
+    expect(res.data.userExperiences.edges[0].node).toMatchObject({
+      id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+      type: 'education',
+    });
   });
 
   it('should filter by project type', async () => {
@@ -443,17 +443,17 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    );
-    expect(res.data.userExperienceById.type).toBe('work');
-    expect(res.data.userExperienceById.title).toBe('Senior Software Engineer');
-    expect(res.data.userExperienceById.subtitle).toBe('Backend Team');
-    expect(res.data.userExperienceById.description).toBe(
-      'Working on API infrastructure',
-    );
-    expect(res.data.userExperienceById.endedAt).toBeNull();
-    expect(res.data.userExperienceById.company.name).toBe('Daily.dev');
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      type: 'work',
+      title: 'Senior Software Engineer',
+      subtitle: 'Backend Team',
+      description: 'Working on API infrastructure',
+      endedAt: null,
+      company: {
+        name: 'Daily.dev',
+      },
+    });
   });
 
   it('should return education experience by id', async () => {
@@ -464,14 +464,14 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'b2c3d4e5-6789-4bcd-aef0-234567890123',
-    );
-    expect(res.data.userExperienceById.type).toBe('education');
-    expect(res.data.userExperienceById.title).toBe('Computer Science');
-    expect(res.data.userExperienceById.company.name).toBe(
-      'University of Example',
-    );
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+      type: 'education',
+      title: 'Computer Science',
+      company: {
+        name: 'University of Example',
+      },
+    });
   });
 
   it('should return project experience by id', async () => {
@@ -482,11 +482,11 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'c3d4e5f6-789a-4cde-bf01-345678901234',
-    );
-    expect(res.data.userExperienceById.type).toBe('project');
-    expect(res.data.userExperienceById.title).toBe('Open Source Contributor');
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'c3d4e5f6-789a-4cde-bf01-345678901234',
+      type: 'project',
+      title: 'Open Source Contributor',
+    });
   });
 
   it('should return error when experience does not exist', async () => {
@@ -510,9 +510,9 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    );
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    });
   });
 
   it('should restrict fields for anonymous users when fetching by id', async () => {
@@ -552,10 +552,10 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'd4e5f6a7-89ab-4def-c012-456789012345',
-    );
-    expect(res.data.userExperienceById.title).toBe('Product Manager');
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+      title: 'Product Manager',
+    });
   });
 });
 
@@ -718,10 +718,10 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
-    expect(res.data.upsertUserGeneralExperience.customCompanyName).toBe(
-      'Scrum.org',
-    );
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+      customCompanyName: 'Scrum.org',
+    });
   });
 
   it('should reuse existing company when custom company name matches (case-insensitive)', async () => {
@@ -739,8 +739,12 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-2');
-    expect(res.data.upsertUserGeneralExperience.company.name).toBe('Google');
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: {
+        id: 'company-2',
+        name: 'Google',
+      },
+    });
   });
 
   it('should update an existing experience', async () => {
@@ -762,18 +766,12 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.id).toBe(
-      'b2c3d4e5-6789-4bcd-aef0-234567890123',
-    );
-    expect(res.data.upsertUserGeneralExperience.title).toBe(
-      'Computer Science - Updated',
-    );
-    expect(res.data.upsertUserGeneralExperience.subtitle).toBe(
-      'Master of Science',
-    );
-    expect(res.data.upsertUserGeneralExperience.description).toBe(
-      'Updated description',
-    );
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+      title: 'Computer Science - Updated',
+      subtitle: 'Master of Science',
+      description: 'Updated description',
+    });
 
     // Verify it was updated
     const updated = await con
@@ -798,7 +796,11 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.company.id).toBe('company-2');
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: {
+        id: 'company-2',
+      },
+    });
 
     const updated = await con
       .getRepository(UserExperience)
@@ -822,7 +824,9 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+    });
 
     const updated = await con
       .getRepository(UserExperience)
@@ -914,12 +918,10 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.id).toBe(
-      'c3d4e5f6-789a-4cde-bf01-345678901234',
-    );
-    expect(res.data.upsertUserGeneralExperience.title).toBe(
-      'Updated Project Title',
-    );
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: 'c3d4e5f6-789a-4cde-bf01-345678901234',
+      title: 'Updated Project Title',
+    });
 
     // Verify it was updated
     const updated = await con
@@ -1088,7 +1090,9 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+    });
 
     // Verify customCompanyName was trimmed and stored
     const saved = await con
@@ -1171,7 +1175,9 @@ describe('mutation upsertUserGeneralExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+    });
 
     const updated = await con
       .getRepository(UserExperience)
@@ -1335,7 +1341,9 @@ describe('mutation upsertUserWorkExperience', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserWorkExperience.company).toBeNull();
+    expect(res.data.upsertUserWorkExperience).toMatchObject({
+      company: null,
+    });
 
     const saved = await con
       .getRepository(UserExperience)
