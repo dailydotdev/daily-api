@@ -3396,9 +3396,12 @@ describe('mutation updateUserProfile', () => {
         id
         name
         image
+        cover
         username
         permalink
         bio
+        readme
+        readmeHtml
         twitter
         github
         hashnode
@@ -3734,6 +3737,58 @@ describe('mutation updateUserProfile', () => {
     expect(res.errors?.length).toBeFalsy();
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser!.language).toEqual(language);
+  });
+
+  it('should update user profile and set readme with generated readmeHtml', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const readme =
+      '# Hello World\n\nThis is my **readme** with [a link](https://example.com).';
+    expect(user!.readme).toBeNull();
+    expect(user!.readmeHtml).toBeNull();
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { readme, username: 'uuu1', name: user!.name },
+      },
+    });
+
+    expect(res.errors?.length).toBeFalsy();
+    expect(res.data.updateUserProfile.readme).toEqual(readme);
+    expect(res.data.updateUserProfile.readmeHtml).toBeTruthy();
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser!.readme).toEqual(readme);
+    expect(updatedUser!.readmeHtml).toContain('<h1>');
+    expect(updatedUser!.readmeHtml).toContain('Hello World');
+    expect(updatedUser!.readmeHtml).toContain('<strong>');
+    expect(updatedUser!.readmeHtml).toContain('readme');
+    expect(updatedUser!.readmeHtml).toContain('<a href="https://example.com"');
+  });
+
+  it('should update user profile and set cover', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(User);
+    const user = await repo.findOneBy({ id: loggedUser });
+
+    const cover = 'https://example.com/cover.jpg';
+    expect(user!.cover).toBeNull();
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { cover, username: 'uuu1', name: user!.name },
+      },
+    });
+
+    expect(res.errors?.length).toBeFalsy();
+    expect(res.data.updateUserProfile.cover).toEqual(cover);
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser!.cover).toEqual(cover);
   });
 
   it('should not update user profile if language is invalid', async () => {

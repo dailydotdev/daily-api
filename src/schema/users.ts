@@ -171,9 +171,11 @@ export interface GQLUpdateUserInput {
   email?: string;
   username?: string;
   bio?: string;
+  readme?: string;
   company?: string;
   title: string;
   image?: string;
+  cover?: string;
   twitter?: string;
   github?: string;
   roadmap?: string;
@@ -200,6 +202,7 @@ export interface GQLUpdateUserInput {
 interface GQLUserParameters {
   data: GQLUpdateUserInput;
   upload: Promise<FileUpload>;
+  coverUpload: Promise<FileUpload>;
 }
 
 export interface GQLUser {
@@ -548,6 +551,10 @@ export const typeDefs = /* GraphQL */ `
     """
     image: String
     """
+    Cover image of the user
+    """
+    cover: String
+    """
     Username (handle) of the user
     """
     username: String
@@ -555,6 +562,10 @@ export const typeDefs = /* GraphQL */ `
     Bio of the user
     """
     bio: String
+    """
+    User about markdown
+    """
+    readme: String
     """
     Twitter handle of the user
     """
@@ -1059,7 +1070,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Update user profile information
     """
-    updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
+    updateUserProfile(
+      data: UpdateUserInput
+      upload: Upload
+      coverUpload: Upload
+    ): User @auth
 
     """
     Hide user's read history
@@ -2192,7 +2207,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     // add mutation to clear images
     updateUserProfile: async (
       _,
-      { data, upload }: GQLUserParameters,
+      { data, upload, coverUpload }: GQLUserParameters,
       ctx: AuthContext,
     ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
@@ -2214,8 +2229,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
           : data.image || user.image;
 
+      const cover =
+        !!coverUpload && process.env.CLOUDINARY_URL
+          ? (
+              await uploadAvatar(
+                user.id,
+                (await coverUpload).createReadStream(),
+              )
+            ).url
+          : data.cover || user.cover;
+
+      const readmeHtml = markdown.render(data.readme || '');
+
       try {
-        const updatedUser = { ...user, ...data, image: avatar };
+        const updatedUser = {
+          ...user,
+          ...data,
+          image: avatar,
+          cover,
+          readmeHtml,
+        };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
         const marketingFlag = updatedUser.acceptedMarketing

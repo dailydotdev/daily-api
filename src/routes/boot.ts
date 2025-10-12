@@ -452,6 +452,7 @@ const getUser = (
       'infoConfirmed',
       'reputation',
       'bio',
+      'readme',
       'twitter',
       'bluesky',
       'github',
