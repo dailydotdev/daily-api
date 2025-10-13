@@ -477,7 +477,6 @@ const getUser = (
       'flags',
       'coresRole',
       'locationId',
-      'readme',
     ],
   });
 
