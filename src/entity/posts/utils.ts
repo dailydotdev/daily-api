@@ -495,20 +495,21 @@ export const createSharePost = async ({
     // Check if original post is an ArticlePost and missing title and summary
     const originalPost = await con.getRepository(ArticlePost).findOne({
       where: { id: postId },
-      select: ['id', 'title', 'summary', 'url', 'origin'],
+      select: ['id', 'title', 'summary', 'url', 'origin', 'yggdrasilId'],
     });
 
-    // If original post is an ArticlePost missing title and summary, request content
+    // If original post is an ArticlePost missing title and summary but with yggdrasilId, request rescrape
     if (
       originalPost &&
       !originalPost.title &&
       !originalPost.summary &&
-      originalPost.url
+      originalPost.url &&
+      originalPost.yggdrasilId
     ) {
       await notifyContentRequested(ctx?.log || logger, {
         id: originalPost.id,
         url: originalPost.url,
-        origin: PostOrigin.Squad, // set a squad origin to bypass some filters
+        origin: PostOrigin.Squad, // squad origin to bypass filters
       });
     }
 

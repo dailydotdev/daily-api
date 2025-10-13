@@ -3907,11 +3907,7 @@ describe('mutation submitExternalLink', () => {
     expect(articlePost.url).toEqual('https://daily.dev');
     expect(articlePost.visible).toEqual(visible);
 
-    // When creating a new external link without title/summary, notifyContentRequested is called:
-    // 1. Once when creating the external link (createExternalLink)
-    // 2. Once when sharing it (createSharePost) if both title and summary are missing
-    const expectedCalls = visible ? 1 : 2; // visible=true means title exists, so only 1 call
-    expect(notifyContentRequested).toBeCalledTimes(expectedCalls);
+    expect(notifyContentRequested).toBeCalledTimes(1);
     expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
       { id: articlePost.id, url: variables.url, origin: articlePost.origin },
     ]);
