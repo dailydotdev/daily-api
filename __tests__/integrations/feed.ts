@@ -5,7 +5,6 @@ import {
   FeedConfigName,
   FeedPreferencesConfigGenerator,
   FeedResponse,
-  SimpleFeedConfigGenerator,
 } from '../../src/integrations/feed';
 import { MockContext, saveFixtures } from '../helpers';
 import { deleteKeysByPattern } from '../../src/redis';
@@ -18,7 +17,6 @@ import {
   AdvancedSettings,
   Feed,
   FeedAdvancedSettings,
-  FeedOrderBy,
   Keyword,
   PostType,
   postTypes,
@@ -29,15 +27,7 @@ import {
 import { SourceMemberRoles } from '../../src/roles';
 import { sourcesFixture } from '../fixture/source';
 import { userCreatedDate, usersFixture } from '../fixture/user';
-import {
-  ISnotraClient,
-  SnotraClient,
-  UserState,
-} from '../../src/integrations/snotra';
-import {
-  FeedLofnConfigGenerator,
-  FeedUserStateConfigGenerator,
-} from '../../src/integrations/feed/configs';
+import { FeedLofnConfigGenerator } from '../../src/integrations/feed/configs';
 import { ILofnClient } from '../../src/integrations/lofn';
 import { ContentPreferenceSource } from '../../src/entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../../src/entity/contentPreference/ContentPreferenceKeyword';
@@ -487,117 +477,6 @@ describe('FeedPreferencesConfigGenerator', () => {
         user_id: '1',
         allowed_tags: expect.arrayContaining(['python', 'java']),
       },
-    });
-  });
-});
-
-describe('FeedUserStateConfigGenerator', () => {
-  const generators: Record<UserState, FeedConfigGenerator> = {
-    personalised: new SimpleFeedConfigGenerator({
-      feed_config_name: FeedConfigName.Vector,
-    }),
-    non_personalised: new SimpleFeedConfigGenerator({
-      feed_config_name: FeedConfigName.Personalise,
-    }),
-  };
-
-  it('should generate config based on user state', async () => {
-    const mockClient = mock<ISnotraClient>();
-    mockClient.fetchUserState.mockResolvedValueOnce({
-      personalise: { state: 'personalised' },
-    });
-    const generator: FeedConfigGenerator = new FeedUserStateConfigGenerator(
-      mockClient,
-      generators,
-    );
-    const actual = await generator.generate(ctx, {
-      user_id: '1',
-      page_size: 2,
-      offset: 3,
-    });
-    expect(actual.config).toBeTruthy();
-    expect(actual.config.user_id).toEqual('1');
-    expect(actual.config.feed_config_name).toEqual('vector');
-    expect(mockClient.fetchUserState).toBeCalledWith({
-      user_id: '1',
-      providers: { personalise: {} },
-    });
-  });
-
-  it('should generate config based on user state', async () => {
-    const mockClient = mock<ISnotraClient>();
-    mockClient.fetchUserState.mockResolvedValueOnce({
-      personalise: { state: 'non_personalised' },
-    });
-    const generator: FeedConfigGenerator = new FeedUserStateConfigGenerator(
-      mockClient,
-      generators,
-    );
-    const actual = await generator.generate(ctx, {
-      user_id: '1',
-      page_size: 2,
-      offset: 3,
-    });
-    expect(actual.config.feed_config_name).toEqual('personalise');
-  });
-
-  it('should send proper parameters to snotra', async () => {
-    const client = new SnotraClient();
-    nock('http://localhost:6001')
-      .post('/api/v1/user/profile', {
-        user_id: '1',
-        providers: {
-          personalise: {},
-        },
-        post_rank_count: 8,
-      })
-      .reply(200, { personalise: { state: 'personalised' } });
-    const generator: FeedConfigGenerator = new FeedUserStateConfigGenerator(
-      client,
-      generators,
-      8,
-    );
-    await generator.generate(ctx, {
-      user_id: '1',
-      page_size: 2,
-      offset: 3,
-    });
-  });
-
-  it('should generate config based on flags filters', async () => {
-    await con.getRepository(Feed).save({
-      id: 'cff1',
-      userId: '1',
-      flags: {
-        name: 'Custom feed',
-        orderBy: FeedOrderBy.Downvotes,
-        disableEngagementFilter: true,
-        minDayRange: 7,
-        minUpvotes: 10,
-        minViews: 1,
-      },
-    });
-    const mockClient = mock<ISnotraClient>();
-    mockClient.fetchUserState.mockResolvedValueOnce({
-      personalise: { state: 'personalised' },
-    });
-    const generator: FeedConfigGenerator = new FeedPreferencesConfigGenerator(
-      config,
-      {
-        feedId: 'cff1',
-      },
-    );
-    const actual = await generator.generate(ctx, {
-      user_id: '1',
-      page_size: 2,
-      offset: 3,
-    });
-    expect(actual.config.disable_engagement_filter).toBeTruthy();
-    expect(actual.config.order_by).toEqual(FeedOrderBy.Downvotes);
-    expect(actual.config.min_day_range).toEqual(7);
-    expect(actual.config.min_thresholds).toEqual({
-      upvotes: 10,
-      views: 1,
     });
   });
 });
