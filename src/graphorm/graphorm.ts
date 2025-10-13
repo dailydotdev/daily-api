@@ -76,8 +76,8 @@ export interface GraphORMType {
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
   requiredColumns?: (string | RequiredColumnConfig)[];
-  // Only allowed columns when the user is not authenticated
-  anonymousAllowedColumns?: (string | RequiredColumnConfig)[];
+  // Restricted columns when the user is not authenticated
+  anonymousRestrictedColumns?: (string | RequiredColumnConfig)[];
   // Define a function to manipulate the query every time
   additionalQuery?: (
     ctx: Context,
@@ -93,22 +93,22 @@ export interface GraphORMMapping {
 
 const checkConflictingRequiredColumns = (
   required: (string | RequiredColumnConfig)[],
-  anonColumns: (string | RequiredColumnConfig)[],
+  restrictedColumns: (string | RequiredColumnConfig)[],
 ): void => {
   const requiredColumnNames = required.map((col) =>
     typeof col === 'string' ? col : col.column,
   );
-  const anonColumnNames = anonColumns.map((col) =>
+  const restrictedColumnNames = restrictedColumns.map((col) =>
     typeof col === 'string' ? col : col.column,
   );
 
-  const conflicts = requiredColumnNames.filter(
-    (col) => !anonColumnNames.includes(col),
+  const conflicts = requiredColumnNames.filter((col) =>
+    restrictedColumnNames.includes(col),
   );
   if (conflicts.length > 0) {
     const conflictedColumns = conflicts.join(', ');
     throw new Error(
-      `You can't have required columns outside of anonymous allowed columns: ${conflictedColumns}`,
+      `You can't have required columns that are also restricted for anonymous users: ${conflictedColumns}`,
     );
   }
 };
@@ -121,10 +121,10 @@ export class GraphORM {
 
     if (this.mappings) {
       Object.values(this.mappings).forEach((type) => {
-        if (type.anonymousAllowedColumns && type.requiredColumns) {
+        if (type.anonymousRestrictedColumns && type.requiredColumns) {
           checkConflictingRequiredColumns(
             type.requiredColumns,
-            type.anonymousAllowedColumns,
+            type.anonymousRestrictedColumns,
           );
         }
       });
@@ -345,8 +345,17 @@ export class GraphORM {
   }
 
   checkIsColumnRestricted(type: string, column: string): boolean {
-    const anonColumns = this.mappings?.[type]?.anonymousAllowedColumns || [];
-    return !!anonColumns.length && !anonColumns.includes(column);
+    const restrictedColumns =
+      this.mappings?.[type]?.anonymousRestrictedColumns || [];
+    const columnNames = restrictedColumns.map((col) =>
+      typeof col === 'string' ? col : col.column,
+    );
+
+    if (columnNames.length === 0) {
+      return false;
+    }
+
+    return columnNames.includes(column);
   }
 
   /**
