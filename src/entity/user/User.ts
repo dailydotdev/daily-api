@@ -28,6 +28,7 @@ import type { NotificationPreferenceStatus } from '../../notifications/common';
 import type { UserCandidatePreference } from './UserCandidatePreference';
 import type { UserCandidateKeyword } from './UserCandidateKeyword';
 import type { UserCandidateAnswer } from './UserCandidateAnswer';
+import type { DatasetLocation } from '../dataset/DatasetLocation';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -339,4 +340,10 @@ export class User {
     { lazy: true },
   )
   candidateAnswers: Promise<UserCandidateAnswer[]>;
+
+  @Column({ type: 'text', default: null })
+  locationId: string | null;
+
+  @ManyToOne('DatasetLocation', { lazy: true })
+  location: Promise<DatasetLocation>;
 }

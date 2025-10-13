@@ -23,6 +23,7 @@ import {
   SquadSource,
   User,
 } from '../entity';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import {
   getPermissionsForMember,
   GQLSource,
@@ -72,7 +73,7 @@ import {
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
-import { maxFeedsPerUser, type CoresRole } from '../types';
+import { maxFeedsPerUser, type CoresRole, type Location } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
@@ -146,6 +147,7 @@ export type LoggedInBoot = BaseBoot & {
     canSubmitArticle: boolean;
     balance: GetBalanceResult;
     coresRole: CoresRole;
+    location?: Location | null;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
@@ -474,6 +476,7 @@ const getUser = (
       'defaultFeedId',
       'flags',
       'coresRole',
+      'locationId',
     ],
   });
 
@@ -490,6 +493,32 @@ const getBalanceBoot: typeof getBalance = async ({ userId }) => {
       amount: 0,
     };
   }
+};
+
+const getLocation = async (
+  con: DataSource | QueryRunner,
+  userId: string | null,
+): Promise<Pick<
+  DatasetLocation,
+  'id' | 'city' | 'subdivision' | 'country'
+> | null> => {
+  if (!userId) {
+    return null;
+  }
+
+  const location = await con.manager
+    .createQueryBuilder(DatasetLocation, 'location')
+    .innerJoin(User, 'user', 'user.locationId = location.id')
+    .select([
+      'location.id',
+      'location.city',
+      'location.subdivision',
+      'location.country',
+    ])
+    .where('user.id = :userId', { userId })
+    .getOne();
+
+  return location;
 };
 
 const loggedInBoot = async ({
@@ -518,7 +547,15 @@ const loggedInBoot = async ({
       roles,
       extra,
       [alerts, settings, marketingCta],
-      [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
+      [
+        user,
+        squads,
+        lastBanner,
+        exp,
+        feeds,
+        unreadNotificationsCount,
+        location,
+      ],
       balance,
       clickbaitTries,
     ] = await Promise.all([
@@ -540,6 +577,7 @@ const loggedInBoot = async ({
           getExperimentation({ userId, con: queryRunner, ...geo }),
           getFeeds({ con: queryRunner, userId }),
           getUnreadNotificationsCount(queryRunner, userId),
+          getLocation(queryRunner, userId),
         ]);
       }),
       getBalanceBoot({ userId }),
@@ -548,6 +586,7 @@ const loggedInBoot = async ({
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+
     const hasLocationSet = !!user.flags?.location?.lastStored;
     const isTeamMember = exp?.a?.team === 1;
     const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
@@ -573,6 +612,7 @@ const loggedInBoot = async ({
           'cover',
           'subscriptionFlags',
           'flags',
+          'locationId',
         ]),
         providers: [null],
         roles,
@@ -595,6 +635,7 @@ const loggedInBoot = async ({
         },
         clickbaitTries,
         hasLocationSet,
+        location,
       },
       visit,
       alerts: {
