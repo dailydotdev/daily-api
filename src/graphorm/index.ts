@@ -1615,6 +1615,30 @@ const obj = new GraphORM({
   Location: {
     from: 'DatasetLocation',
   },
+  UserExperience: {
+    anonymousRestrictedColumns: [
+      'user',
+      'subtitle',
+      'description',
+      'startedAt',
+      'endedAt',
+      'location',
+      'locationType',
+      'createdAt',
+      'updatedAt',
+    ],
+    fields: {
+      startedAt: {
+        transform: transformDate,
+      },
+      endedAt: {
+        transform: transformDate,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
 });
 
 export default obj;
