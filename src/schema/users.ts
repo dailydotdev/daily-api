@@ -197,6 +197,7 @@ export interface GQLUpdateUserInput {
   defaultFeedId?: string;
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
+  locationId?: string;
 }
 
 interface GQLUserParameters {
@@ -658,6 +659,10 @@ export const typeDefs = /* GraphQL */ `
     Flags for the user
     """
     flags: UserFlagsPublic
+    """
+    id of the location selected by the user
+    """
+    locationId: String
   }
 
   type TagsReadingStatus {
@@ -2224,20 +2229,44 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
       data = await validateUserUpdate(user, data, ctx.con);
 
-      const avatar =
-        !!upload && process.env.CLOUDINARY_URL
-          ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
-          : data.image || user.image;
+      const filesToClear = [];
 
-      const cover =
-        !!coverUpload && process.env.CLOUDINARY_URL
-          ? (
-              await uploadAvatar(
-                user.id,
-                (await coverUpload).createReadStream(),
-              )
-            ).url
-          : data.cover || user.cover;
+      if ((!data.image || !!upload) && user.image) {
+        filesToClear.push(
+          clearFile({ referenceId: user.id, preset: UploadPreset.Avatar }),
+        );
+      }
+
+      if ((!data.cover || !!coverUpload) && user.cover) {
+        filesToClear.push(
+          clearFile({
+            referenceId: user.id,
+            preset: UploadPreset.ProfileCover,
+          }),
+        );
+      }
+
+      await Promise.all(filesToClear);
+
+      const cloudinaryUrl = process.env.CLOUDINARY_URL || null;
+
+      const [avatar, cover] = await Promise.all([
+        (async () => {
+          if (upload && cloudinaryUrl) {
+            const file = await upload;
+            return (await uploadAvatar(user.id, file.createReadStream())).url;
+          }
+          return data.image || null;
+        })(),
+        (async () => {
+          if (coverUpload && cloudinaryUrl) {
+            const file = await coverUpload;
+            return (await uploadProfileCover(user.id, file.createReadStream()))
+              .url;
+          }
+          return data.cover || null;
+        })(),
+      ]);
 
       const readmeHtml = markdown.render(data.readme || '');
 
