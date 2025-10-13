@@ -66,6 +66,7 @@ const start = async (): Promise<void> => {
     return await importEntity(con, params.entity);
   }
 
+  await importEntity(con, 'DatasetLocation');
   await importEntity(con, 'Autocomplete');
   await importEntity(con, 'ExperimentVariant');
   await importEntity(con, 'AdvancedSettings');
