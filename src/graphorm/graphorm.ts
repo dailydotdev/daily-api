@@ -76,6 +76,8 @@ export interface GraphORMType {
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
   requiredColumns?: (string | RequiredColumnConfig)[];
+  // Restricted columns when the user is not authenticated
+  anonymousRestrictedColumns?: (string | RequiredColumnConfig)[];
   // Define a function to manipulate the query every time
   additionalQuery?: (
     ctx: Context,
@@ -89,11 +91,44 @@ export interface GraphORMMapping {
   [name: string]: GraphORMType;
 }
 
+const checkConflictingRequiredColumns = (
+  required: (string | RequiredColumnConfig)[],
+  restrictedColumns: (string | RequiredColumnConfig)[],
+): void => {
+  const requiredColumnNames = required.map((col) =>
+    typeof col === 'string' ? col : col.column,
+  );
+  const restrictedColumnNames = restrictedColumns.map((col) =>
+    typeof col === 'string' ? col : col.column,
+  );
+
+  const conflicts = requiredColumnNames.filter((col) =>
+    restrictedColumnNames.includes(col),
+  );
+  if (conflicts.length > 0) {
+    const conflictedColumns = conflicts.join(', ');
+    throw new Error(
+      `You can't have required columns that are also restricted for anonymous users: ${conflictedColumns}`,
+    );
+  }
+};
+
 export class GraphORM {
   mappings: GraphORMMapping | null;
 
   constructor(mappings?: GraphORMMapping) {
     this.mappings = mappings || null;
+
+    if (this.mappings) {
+      Object.values(this.mappings).forEach((type) => {
+        if (type.anonymousRestrictedColumns && type.requiredColumns) {
+          checkConflictingRequiredColumns(
+            type.requiredColumns,
+            type.anonymousRestrictedColumns,
+          );
+        }
+      });
+    }
   }
 
   /**
@@ -309,6 +344,25 @@ export class GraphORM {
     return builder;
   }
 
+  checkIsColumnRestricted(ctx: Context, type: string, column: string): boolean {
+    if (ctx.userId || !this.mappings || !this.mappings[type]) {
+      return false;
+    }
+
+    const restrictedColumns =
+      this.mappings[type].anonymousRestrictedColumns || [];
+
+    const columnNames = restrictedColumns.map((col) =>
+      typeof col === 'string' ? col : col.column,
+    );
+
+    if (columnNames.length === 0) {
+      return false;
+    }
+
+    return columnNames.includes(column);
+  }
+
   /**
    * Adds a selection of a given type to the query builder
    * @param ctx GraphQL context of the request
@@ -331,7 +385,12 @@ export class GraphORM {
     const randomStr = Math.random().toString(36).substring(2, 5);
     const alias = `${tableName.toLowerCase()}_${randomStr}`;
     let newBuilder = builder.from(tableName, alias).select([]);
+
     fields.forEach((field) => {
+      if (this.checkIsColumnRestricted(ctx, type, field.name)) {
+        return;
+      }
+
       newBuilder = this.selectField(
         ctx,
         newBuilder,
@@ -345,6 +404,11 @@ export class GraphORM {
       newBuilder = this.mappings[type].additionalQuery(ctx, alias, newBuilder);
     }
     (this.mappings?.[type]?.requiredColumns ?? []).forEach((col) => {
+      const colName = typeof col === 'string' ? col : col.column;
+      if (this.checkIsColumnRestricted(ctx, type, colName)) {
+        return;
+      }
+
       const columnOptions =
         typeof col === 'object'
           ? col
