@@ -17,7 +17,7 @@ export enum AutocompleteType {
 const compositePrimaryKeyName = 'PK_autocomplete_type_slug';
 
 @Entity()
-@Index('IDX_autocomplete_slug_enabled_trgm', { synchronize: false })
+@Index('IDX_autocomplete_value_enabled_trgm', { synchronize: false })
 export class Autocomplete {
   @PrimaryColumn({
     type: 'text',
@@ -31,7 +31,7 @@ export class Autocomplete {
     insert: false,
     nullable: false,
     generatedType: 'STORED',
-    asExpression: `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(name,100),''))), '[^a-z0-9-]+', '-', 'gi'))`,
+    asExpression: `slugify(value)`,
     primaryKeyConstraintName: compositePrimaryKeyName,
   })
   slug: string;

@@ -1410,6 +1410,60 @@ describe('mutation upsertUserWorkExperience', () => {
     });
   });
 
+  it('should treat skills with different casing as the same skill', async () => {
+    loggedUser = '1';
+
+    // Create with lowercase skill
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['typescript', 'react'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Verify initial skills
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: [{ value: 'typescript' }, { value: 'react' }],
+    });
+
+    // Update with different casing - should replace, not duplicate
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'], // Different casing + new skill
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    // Should have exactly 3 skills, not 5 (no duplicates with different casing)
+    expect(updated.data.upsertUserWorkExperience.skills).toHaveLength(3);
+
+    // Should have the new casing versions, not both
+    const skillValues = updated.data.upsertUserWorkExperience.skills.map(
+      (s) => s.value,
+    );
+    expect(skillValues).toContain('typescript');
+    expect(skillValues).toContain('react');
+    expect(skillValues).toContain('Node.js');
+
+    // Should NOT have the old casing versions
+    expect(skillValues).not.toContain('TypeScript');
+    expect(skillValues).not.toContain('React');
+  });
+
   it('should handle mix of adding, removing, and keeping skills', async () => {
     loggedUser = '1';
 

@@ -23,6 +23,7 @@ import {
 } from '../entity/Autocomplete';
 import {
   dropSkillsExcept,
+  getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
 
@@ -322,7 +323,9 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
 
         await dropSkillsExcept(con, saved.id, slugified);
         await insertOrIgnoreAutocomplete(con, AutocompleteType.Skill, skills);
-        await insertOrIgnoreUserExperienceSkills(con, saved.id, skills);
+
+        const toCreate = await getNonExistingSkills(con, saved.id, skills);
+        await insertOrIgnoreUserExperienceSkills(con, saved.id, toCreate);
 
         return saved;
       });

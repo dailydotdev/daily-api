@@ -1,6 +1,7 @@
 import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { UserExperienceWork } from './UserExperienceWork';
 import type { ConnectionManager } from '../../posts';
+import { textToSlug } from '../../../common';
 
 const compositePrimaryKeyName = 'PK_user_experience_value_experienceId';
 
@@ -54,6 +55,32 @@ export const insertOrIgnoreUserExperienceSkills = async (
     .execute();
 };
 
+export const getNonExistingSkills = async (
+  con: ConnectionManager,
+  experienceId: string,
+  skills: string[],
+): Promise<string[]> => {
+  if (!skills.length) {
+    return [];
+  }
+
+  const slugified = skills.map(textToSlug);
+  const existing = await con
+    .getRepository(UserExperienceSkill)
+    .createQueryBuilder('ues')
+    .select('DISTINCT ues.value', 'value')
+    .where('ues."experienceId" = :experienceId', {
+      experienceId,
+    })
+    .andWhere('slugify(ues.value) = ANY(:skills)', { skills: slugified })
+    .getRawMany<{ value: string }>();
+
+  return skills.filter(
+    (skill) =>
+      !existing.find(({ value }) => textToSlug(value) === textToSlug(skill)),
+  );
+};
+
 export const dropSkillsExcept = async (
   con: ConnectionManager,
   experienceId: string,
@@ -72,7 +99,7 @@ export const dropSkillsExcept = async (
   return await qb
     .andWhere(
       // this would be better with postgresql function
-      `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(value,100),''))), '[^a-z0-9-]+', '-', 'gi')) NOT IN (:...skills)`,
+      `slugify(value) NOT IN (:...skills)`,
       { skills },
     )
     .execute();
