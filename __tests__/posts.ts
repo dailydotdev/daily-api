@@ -3972,6 +3972,7 @@ describe('mutation submitExternalLink', () => {
       type: PostType.Article,
       private: false,
       origin: PostOrigin.Squad,
+      yggdrasilId: randomUUID(),
     });
 
     const res = await client.mutate(MUTATION, {
