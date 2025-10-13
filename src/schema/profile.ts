@@ -99,8 +99,11 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         ctx,
         info,
         (nodeSize) =>
+          !!ctx.userId &&
           userExperiencesPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => userExperiencesPageGenerator.hasNextPage(page, nodeSize),
+        (nodeSize) =>
+          !!ctx.userId &&
+          userExperiencesPageGenerator.hasNextPage(page, nodeSize),
         (node, index) =>
           userExperiencesPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {

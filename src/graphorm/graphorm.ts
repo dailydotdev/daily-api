@@ -344,9 +344,14 @@ export class GraphORM {
     return builder;
   }
 
-  checkIsColumnRestricted(type: string, column: string): boolean {
+  checkIsColumnRestricted(ctx: Context, type: string, column: string): boolean {
+    if (ctx.userId || !this.mappings || !this.mappings[type]) {
+      return false;
+    }
+
     const restrictedColumns =
-      this.mappings?.[type]?.anonymousRestrictedColumns || [];
+      this.mappings[type].anonymousRestrictedColumns || [];
+
     const columnNames = restrictedColumns.map((col) =>
       typeof col === 'string' ? col : col.column,
     );
@@ -382,7 +387,7 @@ export class GraphORM {
     let newBuilder = builder.from(tableName, alias).select([]);
 
     fields.forEach((field) => {
-      if (!ctx.userId && this.checkIsColumnRestricted(type, field.name)) {
+      if (this.checkIsColumnRestricted(ctx, type, field.name)) {
         return;
       }
 
@@ -400,7 +405,7 @@ export class GraphORM {
     }
     (this.mappings?.[type]?.requiredColumns ?? []).forEach((col) => {
       const colName = typeof col === 'string' ? col : col.column;
-      if (!ctx.userId && this.checkIsColumnRestricted(type, colName)) {
+      if (this.checkIsColumnRestricted(ctx, type, colName)) {
         return;
       }
 
