@@ -344,6 +344,11 @@ export class GraphORM {
     return builder;
   }
 
+  checkIsColumnRestricted(type: string, column: string): boolean {
+    const anonColumns = this.mappings?.[type]?.anonymousAllowedColumns || [];
+    return !!anonColumns.length && !anonColumns.includes(column);
+  }
+
   /**
    * Adds a selection of a given type to the query builder
    * @param ctx GraphQL context of the request
@@ -366,12 +371,9 @@ export class GraphORM {
     const randomStr = Math.random().toString(36).substring(2, 5);
     const alias = `${tableName.toLowerCase()}_${randomStr}`;
     let newBuilder = builder.from(tableName, alias).select([]);
-    const anonColumns = this.mappings?.[type]?.anonymousAllowedColumns || [];
-    const isRestrictedColumn = (col: string) =>
-      !ctx.userId && anonColumns.length && !anonColumns.includes(col);
 
     fields.forEach((field) => {
-      if (isRestrictedColumn(field.name)) {
+      if (!ctx.userId && this.checkIsColumnRestricted(type, field.name)) {
         return;
       }
 
@@ -388,7 +390,8 @@ export class GraphORM {
       newBuilder = this.mappings[type].additionalQuery(ctx, alias, newBuilder);
     }
     (this.mappings?.[type]?.requiredColumns ?? []).forEach((col) => {
-      if (isRestrictedColumn(typeof col === 'string' ? col : col.column)) {
+      const colName = typeof col === 'string' ? col : col.column;
+      if (!ctx.userId && this.checkIsColumnRestricted(type, colName)) {
         return;
       }
 
