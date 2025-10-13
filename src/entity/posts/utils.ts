@@ -506,7 +506,7 @@ export const createSharePost = async ({
       originalPost.url &&
       originalPost.yggdrasilId
     ) {
-      await notifyContentRequested(ctx?.log || logger, {
+      await notifyContentRequested(logger, {
         id: originalPost.id,
         url: originalPost.url,
         origin: PostOrigin.Squad, // squad origin to bypass filters
