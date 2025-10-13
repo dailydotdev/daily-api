@@ -156,15 +156,19 @@ interface ExperienceMutationArgs<T extends BaseInputSchema = BaseInputSchema> {
   id?: string;
 }
 
-const generateExperienceToSave = async <T extends BaseInputSchema>(
+const generateExperienceToSave = async <
+  T extends BaseInputSchema,
+  R extends z.core.output<T>,
+>(
   ctx: AuthContext,
   { id, input }: ExperienceMutationArgs<T>,
 ): Promise<{
   userExperience: Partial<UserExperience>;
-  parsedInput: ExperienceMutationArgs<T>['input'];
+  parsedInput: R;
 }> => {
   const schema = getExperienceSchema(input.type);
-  const { customCompanyName, companyId, ...values } = schema.parse(input);
+  const parsed = schema.parse(input) as R;
+  const { customCompanyName, companyId, ...values } = parsed;
 
   const toUpdate = id
     ? await ctx.con
@@ -197,7 +201,7 @@ const generateExperienceToSave = async <T extends BaseInputSchema>(
     }
   }
 
-  return { userExperience: { ...toUpdate, ...toSave }, parsedInput: input };
+  return { userExperience: { ...toUpdate, ...toSave }, parsedInput: parsed };
 };
 
 const getUserExperience = (
