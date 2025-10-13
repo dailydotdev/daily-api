@@ -22,8 +22,8 @@ import {
   insertOrIgnoreAutocomplete,
 } from '../entity/Autocomplete';
 import {
+  dropSkillsExcept,
   insertOrIgnoreUserExperienceSkills,
-  UserExperienceSkill,
 } from '../entity/user/experiences/UserExperienceSkill';
 
 interface GQLUserExperience {
@@ -320,28 +320,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           userId: ctx.userId,
         });
 
-        if (!skills.length) {
-          await con.getRepository(UserExperienceSkill).delete({
-            experienceId: saved.id,
-          });
-
-          return saved;
-        }
-
-        const userSkills = await con
-          .getRepository(UserExperienceSkill)
-          .findBy({ experienceId: saved.id });
-
-        const existingSkillsToDrop = userSkills.filter(
-          ({ value }) => !slugified.includes(textToSlug(value)),
-        );
-
-        if (existingSkillsToDrop.length) {
-          await con
-            .getRepository(UserExperienceSkill)
-            .remove(existingSkillsToDrop);
-        }
-
+        await dropSkillsExcept(con, saved.id, slugified);
         await insertOrIgnoreAutocomplete(con, AutocompleteType.Skill, skills);
         await insertOrIgnoreUserExperienceSkills(con, saved.id, skills);
 

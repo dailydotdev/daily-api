@@ -53,3 +53,27 @@ export const insertOrIgnoreUserExperienceSkills = async (
     .orIgnore()
     .execute();
 };
+
+export const dropSkillsExcept = async (
+  con: ConnectionManager,
+  experienceId: string,
+  skills: string[],
+) => {
+  const qb = con
+    .getRepository(UserExperienceSkill)
+    .createQueryBuilder()
+    .delete()
+    .where('experienceId = :experienceId', { experienceId });
+
+  if (!skills.length) {
+    return await qb.execute();
+  }
+
+  return await qb
+    .andWhere(
+      // this would be better with postgresql function
+      `trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT(value,100),''))), '[^a-z0-9-]+', '-', 'gi')) NOT IN (:...skills)`,
+      { skills },
+    )
+    .execute();
+};
