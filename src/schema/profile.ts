@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { textToSlug, getLimit, toGQLEnum } from '../common';
+import { getLimit, textToSlug, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
@@ -15,10 +15,16 @@ import type { Connection } from 'graphql-relay';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { Company } from '../entity/Company';
 import type { GraphQLResolveInfo } from 'graphql';
-import { In } from 'typeorm';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
-import { Autocomplete, AutocompleteType } from '../entity/Autocomplete';
+import {
+  AutocompleteType,
+  insertOrIgnoreAutocomplete,
+} from '../entity/Autocomplete';
+import {
+  insertOrIgnoreUserExperienceSkills,
+  UserExperienceSkill,
+} from '../entity/user/experiences/UserExperienceSkill';
 
 interface GQLUserExperience {
   id: string;
@@ -51,6 +57,13 @@ const baseExperienceInput = /* GraphQL */ `
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(UserExperienceType, 'UserExperienceType')}
 
+  """
+  There is only one column for now, but this is expected to grow
+  """
+  type UserExperienceSkill {
+    value: String!
+  }
+
   type UserExperience {
     id: ID!
     type: UserExperienceType!
@@ -70,7 +83,7 @@ export const typeDefs = /* GraphQL */ `
     employmentType: ProtoEnumValue
     location: Location
     locationType: ProtoEnumValue
-    skills: [String]
+    skills: [UserExperienceSkill]
   }
 
   type UserExperienceConnection {
@@ -296,38 +309,39 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       const entity = await ctx.con.transaction(async (con) => {
         const repo = con.getRepository(UserExperienceWork);
         const skills = result.parsedInput.skills;
-        const slugifieds = skills.map(textToSlug);
-        const experience = {
+        const slugified = skills.map(textToSlug);
+        const saved = await repo.save({
           ...result.userExperience,
           type: args.input.type,
           userId: ctx.userId,
-        };
+        });
 
         if (!skills.length) {
-          return repo.save({ ...experience, skills: [] });
+          await con.getRepository(UserExperienceSkill).delete({
+            experienceId: saved.id,
+          });
+
+          return saved;
         }
 
-        const known = await con
-          .getRepository(Autocomplete)
-          .findBy({ type: AutocompleteType.Skill, slug: In(slugifieds) });
+        const userSkills = await con
+          .getRepository(UserExperienceSkill)
+          .findBy({ experienceId: saved.id });
 
-        const toCreate = skills.filter(
-          (skill) => !known.find(({ slug }) => slug === textToSlug(skill)),
+        const existingSkillsToDrop = userSkills.filter(
+          ({ value }) => !slugified.includes(textToSlug(value)),
         );
 
-        if (toCreate.length) {
-          await con.getRepository(Autocomplete).save(
-            toCreate.map((value) => ({
-              type: AutocompleteType.Skill,
-              slug: textToSlug(value),
-              value,
-            })),
-          );
+        if (existingSkillsToDrop.length) {
+          await con
+            .getRepository(UserExperienceSkill)
+            .remove(existingSkillsToDrop);
         }
 
-        const finalSkills = known.map(({ value }) => value).concat(toCreate);
+        await insertOrIgnoreAutocomplete(con, AutocompleteType.Skill, skills);
+        await insertOrIgnoreUserExperienceSkills(con, saved.id, skills);
 
-        return repo.save({ ...experience, skills: finalSkills });
+        return saved;
       });
 
       return getUserExperience(ctx, info, entity.id);

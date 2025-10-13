@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryColumn,
 } from 'typeorm';
+import type { ConnectionManager } from './posts';
 
 export enum AutocompleteType {
   FieldOfStudy = 'field_of_study',
@@ -44,3 +45,27 @@ export class Autocomplete {
   @Column({ default: false })
   enabled: boolean;
 }
+
+export const insertOrIgnoreAutocomplete = async (
+  con: ConnectionManager,
+  type: AutocompleteType,
+  values: string[],
+): Promise<void> => {
+  if (!values.length) {
+    return;
+  }
+
+  // slug will throw an error for any duplicates which will be ignored
+  await con
+    .getRepository(Autocomplete)
+    .createQueryBuilder()
+    .insert()
+    .orIgnore()
+    .values(
+      values.map((value) => ({
+        type,
+        value,
+      })),
+    )
+    .execute();
+};

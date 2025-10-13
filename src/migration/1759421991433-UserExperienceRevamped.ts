@@ -44,7 +44,6 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
         "url" text,
         "grade" text,
         "externalReferenceId" text,
-        "skills" jsonb DEFAULT '[]',
         CONSTRAINT "PK_user_experience_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_user_experience_user_userId"
           FOREIGN KEY ("userId")
@@ -81,6 +80,19 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
+      CREATE TABLE "user_experience_skill" (
+        "value" text NOT NULL,
+        "experienceId" uuid NOT NULL,
+        CONSTRAINT "PK_user_experience_value_experienceId" PRIMARY KEY ("value", "experienceId"),
+        CONSTRAINT "FK_user_experience_skill_user_experience_experienceId"
+          FOREIGN KEY ("experienceId")
+          REFERENCES "user_experience"("id")
+          ON DELETE CASCADE
+          ON UPDATE NO ACTION
+      )
+    `);
+
+    await queryRunner.query(/* sql */ `
       ALTER TABLE "company"
         ADD "type" text NOT NULL DEFAULT 'company'
     `);
@@ -114,6 +126,10 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       ALTER TABLE "company"
         DROP COLUMN "type"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP TABLE "user_experience_skill"
     `);
 
     await queryRunner.query(/* sql */ `

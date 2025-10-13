@@ -14,7 +14,6 @@ import { usersFixture } from '../fixture/user';
 import { UserExperience } from '../../src/entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../src/entity/user/experiences/types';
 import { Company } from '../../src/entity/Company';
-import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1205,7 +1204,9 @@ describe('mutation upsertUserWorkExperience', () => {
         employmentType
         locationType
         externalReferenceId
-        skills
+        skills {
+          value
+        }
         company {
           id
           name
@@ -1417,7 +1418,11 @@ describe('mutation upsertUserWorkExperience', () => {
       id: expect.any(String),
       type: 'work',
       title: 'Full Stack Developer',
-      skills: ['TypeScript', 'React', 'Node.js'],
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'React' },
+        { value: 'Node.js' },
+      ],
     });
   });
 
@@ -1441,7 +1446,11 @@ describe('mutation upsertUserWorkExperience', () => {
 
     // Verify initial skills
     expect(created.data.upsertUserWorkExperience).toMatchObject({
-      skills: ['TypeScript', 'React', 'Node.js'],
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'React' },
+        { value: 'Node.js' },
+      ],
     });
 
     // Update with only one skill (should remove React and Node.js)
@@ -1462,7 +1471,7 @@ describe('mutation upsertUserWorkExperience', () => {
     // Verify only TypeScript remains (React and Node.js removed)
     expect(updated.data.upsertUserWorkExperience).toMatchObject({
       id: experienceId,
-      skills: ['TypeScript'],
+      skills: [{ value: 'TypeScript' }],
     });
   });
 
@@ -1486,7 +1495,11 @@ describe('mutation upsertUserWorkExperience', () => {
 
     // Verify initial skills
     expect(created.data.upsertUserWorkExperience).toMatchObject({
-      skills: ['TypeScript', 'React', 'MongoDB'],
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'React' },
+        { value: 'MongoDB' },
+      ],
     });
 
     // Update: keep TypeScript, remove React and MongoDB, add Node.js and Python
@@ -1507,40 +1520,11 @@ describe('mutation upsertUserWorkExperience', () => {
     // Verify skills were updated correctly: TypeScript kept, React and MongoDB removed, Node.js and Python added
     expect(updated.data.upsertUserWorkExperience).toMatchObject({
       id: experienceId,
-      skills: ['TypeScript', 'Node.js', 'Python'],
-    });
-  });
-
-  it('should use formatted skill value from autocomplete when slug matches', async () => {
-    loggedUser = '1';
-
-    // First, create an autocomplete entry with properly formatted value
-    await con.getRepository(Autocomplete).save({
-      type: AutocompleteType.Skill,
-      slug: 'typescript',
-      value: 'TypeScript', // Properly formatted
-    });
-
-    // User types lowercase "typescript" (malformed)
-    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
-      variables: {
-        input: {
-          type: 'work',
-          title: 'Developer',
-          startedAt: new Date('2023-01-01'),
-          companyId: 'company-1',
-          skills: ['typescript'], // User types lowercase (malformed)
-        },
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-
-    // CRITICAL: Should return "TypeScript" (formatted from autocomplete), not "typescript" (user input)
-    expect(res.data.upsertUserWorkExperience).toMatchObject({
-      id: expect.any(String),
-      title: 'Developer',
-      skills: ['TypeScript'], // Formatted value from autocomplete
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'Node.js' },
+        { value: 'Python' },
+      ],
     });
   });
 
@@ -1564,7 +1548,7 @@ describe('mutation upsertUserWorkExperience', () => {
 
     // Verify initial skills exist
     expect(created.data.upsertUserWorkExperience).toMatchObject({
-      skills: ['TypeScript', 'React'],
+      skills: [{ value: 'TypeScript' }, { value: 'React' }],
     });
 
     // Update with empty skills array
