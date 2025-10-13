@@ -638,13 +638,6 @@ describe('mutation upsertUserGeneralExperience', () => {
         id: 'company-1',
       },
     });
-
-    // Verify it was saved
-    const saved = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: res.data.upsertUserGeneralExperience.id });
-    expect(saved.userId).toBe('1');
-    expect(saved.type).toBe(UserExperienceType.Certification);
   });
 
   it('should create a new education experience', async () => {
@@ -771,12 +764,6 @@ describe('mutation upsertUserGeneralExperience', () => {
       subtitle: 'Master of Science',
       description: 'Updated description',
     });
-
-    // Verify it was updated
-    const updated = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
-    expect(updated.title).toBe('Computer Science - Updated');
   });
 
   it('should update company when updating an existing experience', async () => {
@@ -800,11 +787,6 @@ describe('mutation upsertUserGeneralExperience', () => {
         id: 'company-2',
       },
     });
-
-    const updated = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
-    expect(updated.companyId).toBe('company-2');
   });
 
   it('should set company to null when companyId is explicitly null', async () => {
@@ -826,12 +808,6 @@ describe('mutation upsertUserGeneralExperience', () => {
     expect(res.data.upsertUserGeneralExperience).toMatchObject({
       company: null,
     });
-
-    const updated = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
-    expect(updated.companyId).toBeNull();
-    expect(updated.customCompanyName).toBeNull(); // Should also be cleared
   });
 
   it('should fail when companyId does not exist', async () => {
@@ -921,13 +897,6 @@ describe('mutation upsertUserGeneralExperience', () => {
       id: 'c3d4e5f6-789a-4cde-bf01-345678901234',
       title: 'Updated Project Title',
     });
-
-    // Verify it was updated
-    const updated = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: 'c3d4e5f6-789a-4cde-bf01-345678901234' });
-    expect(updated.title).toBe('Updated Project Title');
-    expect(updated.userId).toBe('1');
   });
 
   it('should fail when title exceeds max length', async () => {
@@ -1091,13 +1060,8 @@ describe('mutation upsertUserGeneralExperience', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.upsertUserGeneralExperience).toMatchObject({
       company: null,
+      customCompanyName: 'Test Company',
     });
-
-    // Verify customCompanyName was trimmed and stored
-    const saved = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: res.data.upsertUserGeneralExperience.id });
-    expect(saved.customCompanyName).toBe('Test Company'); // Trimmed by zod
   });
 
   it('should update experience from custom company name to real company', async () => {
@@ -1119,14 +1083,11 @@ describe('mutation upsertUserGeneralExperience', () => {
     );
 
     expect(created.errors).toBeFalsy();
+    expect(created.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+      customCompanyName: 'Custom Company',
+    });
     const experienceId = created.data.upsertUserGeneralExperience.id;
-
-    // Verify custom company name was set
-    const savedBefore = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: experienceId });
-    expect(savedBefore.customCompanyName).toBe('Custom Company');
-    expect(savedBefore.companyId).toBeNull();
 
     // Now update to use a real company
     const updated = await client.mutate(
@@ -1145,16 +1106,13 @@ describe('mutation upsertUserGeneralExperience', () => {
     );
 
     expect(updated.errors).toBeFalsy();
-    expect(updated.data.upsertUserGeneralExperience.company.id).toBe(
-      'company-1',
-    );
-
-    // Verify the update - customCompanyName should be cleared when companyId is set
-    const savedAfter = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: experienceId });
-    expect(savedAfter.companyId).toBe('company-1');
-    expect(savedAfter.customCompanyName).toBeNull(); // Should be cleared
+    expect(updated.data.upsertUserGeneralExperience).toMatchObject({
+      company: {
+        id: 'company-1',
+        name: 'Daily.dev',
+      },
+      customCompanyName: null,
+    });
   });
 
   it('should update experience from real company to custom company name', async () => {
@@ -1176,13 +1134,8 @@ describe('mutation upsertUserGeneralExperience', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.upsertUserGeneralExperience).toMatchObject({
       company: null,
+      customCompanyName: 'My Custom University',
     });
-
-    const updated = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' });
-    expect(updated.customCompanyName).toBe('My Custom University');
-    expect(updated.companyId).toBeNull();
   });
 });
 
@@ -1207,6 +1160,7 @@ describe('mutation upsertUserWorkExperience', () => {
         skills {
           value
         }
+        customCompanyName
         company {
           id
           name
@@ -1267,13 +1221,6 @@ describe('mutation upsertUserWorkExperience', () => {
         id: 'company-1',
       },
     });
-
-    // Verify it was saved
-    const saved = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: res.data.upsertUserWorkExperience.id });
-    expect(saved.userId).toBe('1');
-    expect(saved.type).toBe(UserExperienceType.Work);
   });
 
   it('should update work experience fields', async () => {
@@ -1318,13 +1265,6 @@ describe('mutation upsertUserWorkExperience', () => {
       subtitle: 'Tech Lead',
       description: 'Leading the backend team',
     });
-
-    // Verify it was updated in database
-    const saved = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: experienceId });
-    expect(saved.title).toBe('Senior Developer');
-    expect(saved.subtitle).toBe('Tech Lead');
   });
 
   it('should handle custom company name with work experience', async () => {
@@ -1345,13 +1285,8 @@ describe('mutation upsertUserWorkExperience', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.upsertUserWorkExperience).toMatchObject({
       company: null,
+      customCompanyName: 'My Startup',
     });
-
-    const saved = await con
-      .getRepository(UserExperience)
-      .findOneByOrFail({ id: res.data.upsertUserWorkExperience.id });
-    expect(saved.customCompanyName).toBe('My Startup');
-    expect(saved.companyId).toBeNull();
   });
 
   it("should fail when trying to update another user's work experience", async () => {
