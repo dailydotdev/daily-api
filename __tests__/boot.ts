@@ -142,6 +142,7 @@ const LOGGED_IN_BODY = {
     youtube: null,
     linkedin: null,
     mastodon: null,
+    readme: null,
     language: undefined,
     isPlus: false,
     defaultFeedId: null,
