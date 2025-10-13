@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { textToSlug, toGQLEnum } from '../common';
+import { textToSlug, getLimit, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
@@ -219,8 +219,11 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         ctx,
         info,
         (nodeSize) =>
+          !!ctx.userId &&
           userExperiencesPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) => userExperiencesPageGenerator.hasNextPage(page, nodeSize),
+        (nodeSize) =>
+          !!ctx.userId &&
+          userExperiencesPageGenerator.hasNextPage(page, nodeSize),
         (node, index) =>
           userExperiencesPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
@@ -239,7 +242,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           builder.queryBuilder
             .orderBy(`${builder.alias}."endedAt"`, 'DESC', 'NULLS FIRST')
             .addOrderBy(`${builder.alias}."startedAt"`, 'DESC')
-            .limit(!ctx.userId ? 1 : page.limit)
+            .limit(!ctx.userId ? 1 : getLimit({ limit: page.limit }))
             .offset(!ctx.userId ? 0 : page.offset);
 
           return builder;
