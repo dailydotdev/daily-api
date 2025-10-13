@@ -477,6 +477,7 @@ const getUser = (
       'flags',
       'coresRole',
       'locationId',
+      'readme',
     ],
   });
 
@@ -613,6 +614,7 @@ const loggedInBoot = async ({
           'subscriptionFlags',
           'flags',
           'locationId',
+          'readmeHtml',
         ]),
         providers: [null],
         roles,
@@ -934,6 +936,8 @@ const getFunnelLoggedInData = async (
           'cover',
           'subscriptionFlags',
           'flags',
+          'locationId',
+          'readmeHtml',
         ]),
         providers: [null],
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
