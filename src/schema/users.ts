@@ -250,7 +250,7 @@ type FollowStats = { numFollowing: number; numFollowers: number };
 
 export type GQLUserStats = Omit<PostStats, 'numPostComments'> &
   CommentStats &
-  FollowStats;
+  FollowStats & { reputation?: number };
 
 export interface GQLReadingRank {
   rankThisWeek?: number;
@@ -669,6 +669,7 @@ export const typeDefs = /* GraphQL */ `
     numCommentUpvotes: Int
     numFollowers: Int
     numFollowing: Int
+    reputation: Int
   }
 
   type ReadingRank {
@@ -1512,7 +1513,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: { id: string },
       ctx: Context,
     ): Promise<GQLUserStats | null> => {
-      const [postStats, commentStats, numFollowing, numFollowers] =
+      const [postStats, commentStats, numFollowing, numFollowers, user] =
         await Promise.all([
           getAuthorPostStats(ctx.con, id),
           ctx.con
@@ -1546,6 +1547,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             })
             .andWhere('cp."feedId" = cp."userId"')
             .getCount(),
+          ctx.con.getRepository(User).findOne({
+            where: { id },
+            select: ['reputation'],
+          }),
         ]);
       return {
         numPosts: postStats?.numPosts ?? 0,
@@ -1555,6 +1560,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         numCommentUpvotes: commentStats?.numCommentUpvotes ?? 0,
         numFollowing,
         numFollowers,
+        reputation: user?.reputation,
       };
     },
     user: async (

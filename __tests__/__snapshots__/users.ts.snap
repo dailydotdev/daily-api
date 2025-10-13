@@ -41,6 +41,7 @@ Array [
 exports[`mutation updateUserProfile should update user profile 1`] = `
 Object {
   "bio": null,
+  "cover": null,
   "createdAt": Any<String>,
   "experienceLevel": null,
   "github": null,
@@ -51,6 +52,8 @@ Object {
   "language": null,
   "name": "Ido",
   "permalink": "http://localhost:5002/aaa1",
+  "readme": null,
+  "readmeHtml": "",
   "timezone": "Europe/London",
   "twitter": null,
   "username": "aaa1",
