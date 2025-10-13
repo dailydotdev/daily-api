@@ -91,11 +91,44 @@ export interface GraphORMMapping {
   [name: string]: GraphORMType;
 }
 
+const checkConflictingRequiredColumns = (
+  required: (string | RequiredColumnConfig)[],
+  anonColumns: (string | RequiredColumnConfig)[],
+): void => {
+  const requiredColumnNames = required.map((col) =>
+    typeof col === 'string' ? col : col.column,
+  );
+  const anonColumnNames = anonColumns.map((col) =>
+    typeof col === 'string' ? col : col.column,
+  );
+
+  const conflicts = requiredColumnNames.filter(
+    (col) => !anonColumnNames.includes(col),
+  );
+  if (conflicts.length > 0) {
+    const conflictedColumns = conflicts.join(', ');
+    throw new Error(
+      `You can't have required columns outside of anonymous allowed columns: ${conflictedColumns}`,
+    );
+  }
+};
+
 export class GraphORM {
   mappings: GraphORMMapping | null;
 
   constructor(mappings?: GraphORMMapping) {
     this.mappings = mappings || null;
+
+    if (this.mappings) {
+      Object.values(this.mappings).forEach((type) => {
+        if (type.anonymousAllowedColumns && type.requiredColumns) {
+          checkConflictingRequiredColumns(
+            type.requiredColumns,
+            type.anonymousAllowedColumns,
+          );
+        }
+      });
+    }
   }
 
   /**
