@@ -97,10 +97,6 @@ export const dropSkillsExcept = async (
   }
 
   return await qb
-    .andWhere(
-      // this would be better with postgresql function
-      `slugify(value) NOT IN (:...skills)`,
-      { skills },
-    )
+    .andWhere(`slugify(value) NOT IN (:...skills)`, { skills })
     .execute();
 };
