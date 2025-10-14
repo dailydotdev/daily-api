@@ -1634,15 +1634,15 @@ describe('query autocompleteCompany', () => {
 
   it('should handle queries with spaces', async () => {
     const res = await client.query(QUERY, {
-      variables: { query: 'meta facebook' },
+      variables: { query: 'of cali' },
     });
 
     expect(res.errors).toBeFalsy();
     expect(res.data.autocompleteCompany).toMatchObject([
       {
-        id: 'facebook',
-        name: 'Meta (Facebook)',
-        image: 'https://example.com/meta.png',
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
       },
     ]);
   });
