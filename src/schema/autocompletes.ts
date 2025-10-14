@@ -3,14 +3,16 @@ import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
 import { ILike, type FindOptionsWhere } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
-import { toGQLEnum } from '../common';
+import { toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
   autocompleteBaseSchema,
+  autocompleteCompanySchema,
   autocompleteSchema,
 } from '../common/schema/autocompletes';
 import type z from 'zod';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { Company } from '../entity/Company';
 
 interface AutocompleteData {
   result: string[];
@@ -66,6 +68,9 @@ export const typeDefs = /* GraphQL */ `
       query: String!
       limit: Int = 20
     ): [KeywordAutocomplete!]! @cacheControl(maxAge: 3600)
+
+    autocompleteCompany(query: String!, limit: Int): [Company]!
+      @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -178,6 +183,21 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           .addOrderBy('k.value', 'ASC')
           .limit(data.limit)
           .getRawMany<{ keyword: string; title: string | null }>(),
+      );
+    },
+    autocompleteCompany: async (
+      _,
+      payload: z.infer<typeof autocompleteCompanySchema>,
+      ctx: AuthContext,
+    ): Promise<GQLCompany[]> => {
+      const { type, query, limit } = autocompleteCompanySchema.parse(payload);
+
+      return await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(Company).find({
+          take: limit,
+          order: { name: 'ASC' },
+          where: { type, name: ILike(`%${query}%`) },
+        }),
       );
     },
   },

@@ -33,6 +33,12 @@ export class Autocomplete1759767544399 implements MigrationInterface {
         USING gin (value gin_trgm_ops)
         WHERE enabled = true
     `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_company_name_trgm"
+        ON "public"."company"
+        USING gin (name gin_trgm_ops)
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
