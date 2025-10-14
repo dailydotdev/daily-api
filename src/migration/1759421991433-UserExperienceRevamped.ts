@@ -5,6 +5,13 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
+      CREATE OR REPLACE FUNCTION slugify(text)
+      RETURNS text AS $$
+        SELECT trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT($1,100),''))), '[^a-z0-9-]+', '-', 'gi'))
+      $$ LANGUAGE SQL IMMUTABLE;
+    `);
+
+    await queryRunner.query(/* sql */ `
       CREATE TABLE "dataset_location" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "country" character varying NOT NULL,
@@ -93,6 +100,10 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_user_experience_skill_value_slugify" ON "public"."user_experience_skill" (slugify("value"))
+    `);
+
+    await queryRunner.query(/* sql */ `
       ALTER TABLE "company"
         ADD "type" text NOT NULL DEFAULT 'company'
     `);
@@ -138,6 +149,10 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
 
     await queryRunner.query(/* sql */ `
       DROP TABLE "dataset_location"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP FUNCTION IF EXISTS slugify(text);
     `);
   }
 }

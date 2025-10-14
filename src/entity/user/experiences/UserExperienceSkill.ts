@@ -1,4 +1,4 @@
-import { Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import type { UserExperienceWork } from './UserExperienceWork';
 import type { ConnectionManager } from '../../posts';
 import { textToSlug } from '../../../common';
@@ -6,6 +6,7 @@ import { textToSlug } from '../../../common';
 const compositePrimaryKeyName = 'PK_user_experience_value_experienceId';
 
 @Entity()
+@Index('IDX_user_experience_skill_value_slugify', { synchronize: false })
 export class UserExperienceSkill {
   @PrimaryColumn({
     type: 'text',
@@ -31,30 +32,6 @@ export class UserExperienceSkill {
   experience: Promise<UserExperienceWork>;
 }
 
-export const insertOrIgnoreUserExperienceSkills = async (
-  con: ConnectionManager,
-  experienceId: string,
-  skills: string[],
-): Promise<void> => {
-  if (!skills.length) {
-    return;
-  }
-
-  // experience id and skill value is composite primary key, if duplicates are found, it won't be inserted
-  await con
-    .getRepository(UserExperienceSkill)
-    .createQueryBuilder()
-    .insert()
-    .values(
-      skills.map((value) => ({
-        value,
-        experienceId,
-      })),
-    )
-    .orIgnore()
-    .execute();
-};
-
 export const getNonExistingSkills = async (
   con: ConnectionManager,
   experienceId: string,
@@ -79,6 +56,30 @@ export const getNonExistingSkills = async (
     (skill) =>
       !existing.find(({ value }) => textToSlug(value) === textToSlug(skill)),
   );
+};
+
+export const insertOrIgnoreUserExperienceSkills = async (
+  con: ConnectionManager,
+  experienceId: string,
+  skills: string[],
+): Promise<void> => {
+  if (!skills.length) {
+    return;
+  }
+
+  // experience id and skill value is composite primary key, if duplicates are found, it won't be inserted
+  await con
+    .getRepository(UserExperienceSkill)
+    .createQueryBuilder()
+    .insert()
+    .values(
+      skills.map((value) => ({
+        value,
+        experienceId,
+      })),
+    )
+    .orIgnore()
+    .execute();
 };
 
 export const dropSkillsExcept = async (

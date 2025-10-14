@@ -4,13 +4,6 @@ export class Autocomplete1759767544399 implements MigrationInterface {
   name = 'Autocomplete1759767544399';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(/* sql */ `
-      CREATE OR REPLACE FUNCTION slugify(text)
-      RETURNS text AS $$
-        SELECT trim(BOTH '-' FROM regexp_replace(lower(trim(COALESCE(LEFT($1,100),''))), '[^a-z0-9-]+', '-', 'gi'))
-      $$ LANGUAGE SQL IMMUTABLE;
-    `);
-
     await queryRunner.query(
       /* sql */ `
       INSERT INTO "public"."typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -51,10 +44,6 @@ export class Autocomplete1759767544399 implements MigrationInterface {
 
     await queryRunner.query(/* sql */ `
       DROP TABLE "autocomplete"
-    `);
-
-    await queryRunner.query(/* sql */ `
-      DROP FUNCTION IF EXISTS slugify(text);
     `);
   }
 }
