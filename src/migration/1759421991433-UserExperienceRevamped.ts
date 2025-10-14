@@ -135,9 +135,17 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_dataset_location_iso3" ON "dataset_location" ("iso3")
     `);
+
+    await queryRunner.query(
+      `ALTER TABLE "public"."comment" REPLICA IDENTITY FULL`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `ALTER TABLE "public"."comment" REPLICA IDENTITY DEFAULT`,
+    );
+
     await queryRunner.query(/* sql */ `
       DROP INDEX IF EXISTS "IDX_company_name_lower"
     `);
