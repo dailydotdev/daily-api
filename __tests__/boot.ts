@@ -156,7 +156,7 @@ const LOGGED_IN_BODY = {
     coresRole: CoresRole.None,
     clickbaitTries: null,
     hasLocationSet: false,
-    location: null,
+    location: undefined,
   },
   marketingCta: null,
   feeds: [],
@@ -446,7 +446,7 @@ describe('logged in boot', () => {
     });
   });
 
-  it('should return null location when user has no locationId', async () => {
+  it('should return undefined location when user has no locationId', async () => {
     mockLoggedIn();
     const res = await request(app.server)
       .get(BASE_PATH)
@@ -454,7 +454,7 @@ describe('logged in boot', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
 
-    expect(res.body.user.location).toBeNull();
+    expect(res.body.user.location).toBeUndefined();
   });
 
   it('should set kratos cookie expiration', async () => {

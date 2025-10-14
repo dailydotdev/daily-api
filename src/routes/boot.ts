@@ -23,7 +23,6 @@ import {
   SquadSource,
   User,
 } from '../entity';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import {
   getPermissionsForMember,
   GQLSource,
@@ -213,6 +212,8 @@ export const excludeProperties = <T, K extends keyof T>(
 
   properties.forEach((prop) => {
     delete clone[prop];
+    // @ts-expect-error remove internal relations property if exists
+    delete clone[`__${prop}__`];
   });
 
   return clone;
@@ -477,8 +478,10 @@ const getUser = (
       'defaultFeedId',
       'flags',
       'coresRole',
-      'locationId',
     ],
+    relations: {
+      location: true,
+    },
   });
 
 const getBalanceBoot: typeof getBalance = async ({ userId }) => {
@@ -494,32 +497,6 @@ const getBalanceBoot: typeof getBalance = async ({ userId }) => {
       amount: 0,
     };
   }
-};
-
-const getLocation = async (
-  con: DataSource | QueryRunner,
-  userId: string | null,
-): Promise<Pick<
-  DatasetLocation,
-  'id' | 'city' | 'subdivision' | 'country'
-> | null> => {
-  if (!userId) {
-    return null;
-  }
-
-  const location = await con.manager
-    .createQueryBuilder(DatasetLocation, 'location')
-    .innerJoin(User, 'user', 'user.locationId = location.id')
-    .select([
-      'location.id',
-      'location.city',
-      'location.subdivision',
-      'location.country',
-    ])
-    .where('user.id = :userId', { userId })
-    .getOne();
-
-  return location;
 };
 
 const loggedInBoot = async ({
@@ -548,15 +525,7 @@ const loggedInBoot = async ({
       roles,
       extra,
       [alerts, settings, marketingCta],
-      [
-        user,
-        squads,
-        lastBanner,
-        exp,
-        feeds,
-        unreadNotificationsCount,
-        location,
-      ],
+      [user, squads, lastBanner, exp, feeds, unreadNotificationsCount],
       balance,
       clickbaitTries,
     ] = await Promise.all([
@@ -578,7 +547,6 @@ const loggedInBoot = async ({
           getExperimentation({ userId, con: queryRunner, ...geo }),
           getFeeds({ con: queryRunner, userId }),
           getUnreadNotificationsCount(queryRunner, userId),
-          getLocation(queryRunner, userId),
         ]);
       }),
       getBalanceBoot({ userId }),
@@ -602,6 +570,9 @@ const loggedInBoot = async ({
       refreshToken || isPlus !== req.isPlus
         ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
         : req.accessToken;
+
+    const userLocation = await user.location; // preloaded via relation
+
     return {
       user: {
         ...excludeProperties(user, [
@@ -613,8 +584,8 @@ const loggedInBoot = async ({
           'cover',
           'subscriptionFlags',
           'flags',
-          'locationId',
           'readmeHtml',
+          'location',
         ]),
         providers: [null],
         roles,
@@ -637,7 +608,14 @@ const loggedInBoot = async ({
         },
         clickbaitTries,
         hasLocationSet,
-        location,
+        location: userLocation
+          ? {
+              id: userLocation.id,
+              city: userLocation.city,
+              subdivision: userLocation.subdivision,
+              country: userLocation.country,
+            }
+          : undefined,
       },
       visit,
       alerts: {
@@ -936,8 +914,8 @@ const getFunnelLoggedInData = async (
           'cover',
           'subscriptionFlags',
           'flags',
-          'locationId',
           'readmeHtml',
+          'location',
         ]),
         providers: [null],
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
