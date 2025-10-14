@@ -1494,9 +1494,26 @@ describe('query autocompleteCompany', () => {
 
     // Should only return companies, not schools (alphabetically sorted)
     expect(res.data.autocompleteCompany).toMatchObject([
-      { name: 'Amazon' },
-      { name: 'Apple Inc.' },
-      { name: 'Meta (Facebook)' },
+      {
+        id: 'amazon',
+        name: 'Amazon',
+        image: 'https://example.com/amazon.png',
+      },
+      {
+        id: 'apple',
+        name: 'Apple Inc.',
+        image: 'https://example.com/apple.png',
+      },
+      {
+        id: 'facebook',
+        name: 'Meta (Facebook)',
+        image: 'https://example.com/meta.png',
+      },
+      {
+        id: 'microsoft',
+        name: 'Microsoft Corporation',
+        image: 'https://example.com/microsoft.png',
+      },
     ]);
   });
 
@@ -1509,9 +1526,26 @@ describe('query autocompleteCompany', () => {
 
     // Should only return schools, not companies (alphabetically sorted)
     expect(res.data.autocompleteCompany).toMatchObject([
-      { name: 'Harvard University' },
-      { name: 'Massachusetts Institute of Technology' },
-      { name: 'Stanford University' },
+      {
+        id: 'harvard',
+        name: 'Harvard University',
+        image: 'https://example.com/harvard.png',
+      },
+      {
+        id: 'mit',
+        name: 'Massachusetts Institute of Technology',
+        image: 'https://example.com/mit.png',
+      },
+      {
+        id: 'stanford',
+        name: 'Stanford University',
+        image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
+      },
     ]);
   });
 
@@ -1524,12 +1558,46 @@ describe('query autocompleteCompany', () => {
 
     // Should return both companies and schools (alphabetically sorted)
     expect(res.data.autocompleteCompany).toMatchObject([
-      { name: 'Amazon' },
-      { name: 'Apple Inc.' },
-      { name: 'Harvard University' },
-      { name: 'Massachusetts Institute of Technology' },
-      { name: 'Meta (Facebook)' },
-      { name: 'Stanford University' },
+      {
+        id: 'amazon',
+        name: 'Amazon',
+        image: 'https://example.com/amazon.png',
+      },
+      {
+        id: 'apple',
+        name: 'Apple Inc.',
+        image: 'https://example.com/apple.png',
+      },
+      {
+        id: 'harvard',
+        name: 'Harvard University',
+        image: 'https://example.com/harvard.png',
+      },
+      {
+        id: 'mit',
+        name: 'Massachusetts Institute of Technology',
+        image: 'https://example.com/mit.png',
+      },
+      {
+        id: 'facebook',
+        name: 'Meta (Facebook)',
+        image: 'https://example.com/meta.png',
+      },
+      {
+        id: 'microsoft',
+        name: 'Microsoft Corporation',
+        image: 'https://example.com/microsoft.png',
+      },
+      {
+        id: 'stanford',
+        name: 'Stanford University',
+        image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
+      },
     ]);
   });
 
@@ -1542,9 +1610,7 @@ describe('query autocompleteCompany', () => {
     expect(res.data.autocompleteCompany.length).toBe(2);
 
     // Should still be alphabetically sorted
-    expect(res.data.autocompleteCompany[0].name).toBeLessThan(
-      res.data.autocompleteCompany[1].name,
-    );
+    expect(res.data.autocompleteCompany[0].name).toEqual('Amazon');
   });
 
   it('should use default limit of 20 when not specified', async () => {
