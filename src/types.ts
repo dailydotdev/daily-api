@@ -306,7 +306,7 @@ export type ServiceClient<T extends ServiceType> = {
   garmr: GarmrService;
 };
 
-export type Location = {
+export type TLocation = {
   id: string;
   country: string;
   subdivision: string | null;
