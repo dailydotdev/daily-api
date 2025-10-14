@@ -1480,6 +1480,12 @@ const onUserExperienceChange = async (
   const work = experience as ChangeObject<UserExperienceWork>;
 
   if (!work.companyId) {
+    if (work.verified) {
+      await con
+        .getRepository(UserExperienceWork)
+        .update({ id: work.id }, { verified: false });
+    }
+
     return;
   }
 
@@ -1499,13 +1505,6 @@ const onUserExperienceChange = async (
 
   if (data.payload.op === 'u') {
     if (data.payload.before?.companyId === work.companyId) {
-      return;
-    }
-
-    if (!work.companyId) {
-      await con
-        .getRepository(UserExperienceWork)
-        .update({ id: work.id }, { verified: false });
       return;
     }
 

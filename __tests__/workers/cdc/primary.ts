@@ -7207,6 +7207,16 @@ describe('user experience change', () => {
         companyId: null,
       };
 
+      // Create the experience
+      await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
       await expectSuccessfulBackground(
         worker,
         mockChangeMessage<ObjectType>({
@@ -7217,11 +7227,10 @@ describe('user experience change', () => {
         }),
       );
 
-      // No verification happens when companyId is null
       const experience = await con
         .getRepository(UserExperienceWork)
         .findOneBy({ userId: '1', title: 'Software Engineer' });
-      expect(experience).toBeNull();
+      expect(experience?.verified).toBe(false);
     });
 
     it('should not verify experience work when user company is not verified', async () => {
@@ -7434,6 +7443,7 @@ describe('user experience change', () => {
       const after: ChangeObject<UserExperienceWork> = {
         ...base,
         id: experienceId,
+        verified: true,
         companyId: 'comp2',
       };
 
@@ -7453,14 +7463,22 @@ describe('user experience change', () => {
       expect(experience?.verified).toBe(false);
     });
 
-    it('should not update verification when companyId is not set in after', async () => {
+    it('should unverify when companyId changed to null', async () => {
+      // First set experience as verified
+      await con
+        .getRepository(UserExperienceWork)
+        .update({ id: experienceId }, { verified: true });
+
       const before: ChangeObject<UserExperienceWork> = {
         ...base,
         id: experienceId,
+        companyId: 'comp1',
+        verified: true,
       };
       const after: ChangeObject<UserExperienceWork> = {
         ...base,
         id: experienceId,
+        verified: true,
         companyId: null,
       };
 
