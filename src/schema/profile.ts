@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { getLimit, textToSlug, toGQLEnum } from '../common';
+import { getLimit, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
@@ -314,14 +314,13 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       const entity = await ctx.con.transaction(async (con) => {
         const repo = con.getRepository(UserExperienceWork);
         const skills = result.parsedInput.skills;
-        const slugified = skills.map(textToSlug);
         const saved = await repo.save({
           ...result.userExperience,
           type: args.input.type,
           userId: ctx.userId,
         });
 
-        await dropSkillsExcept(con, saved.id, slugified);
+        await dropSkillsExcept(con, saved.id, skills);
         await insertOrIgnoreAutocomplete(con, AutocompleteType.Skill, skills);
 
         const toCreate = await getNonExistingSkills(con, saved.id, skills);

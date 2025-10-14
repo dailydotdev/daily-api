@@ -98,6 +98,8 @@ export const dropSkillsExcept = async (
   }
 
   return await qb
-    .andWhere(`slugify(value) NOT IN (:...skills)`, { skills })
+    .andWhere(`slugify(value) NOT IN (:...skills)`, {
+      skills: skills.map(textToSlug),
+    })
     .execute();
 };
