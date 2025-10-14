@@ -3,7 +3,7 @@ import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
 import { ILike, type FindOptionsWhere } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
-import { toGQLEnum, type GQLCompany } from '../common';
+import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
   autocompleteBaseSchema,
@@ -133,7 +133,10 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           select: { value: true },
           take: limit,
           order: { value: 'ASC' },
-          where: { enabled: true, type, value: ILike(`%${query}%`) },
+          where: [
+            { enabled: true, type, slug: textToSlug(query) },
+            { enabled: true, type, value: ILike(`%${query}%`) },
+          ],
         }),
       );
 
