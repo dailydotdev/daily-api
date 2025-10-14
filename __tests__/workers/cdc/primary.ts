@@ -193,6 +193,7 @@ import { OpportunityUser } from '../../../src/entity/opportunities/user';
 import { UserExperience } from '../../../src/entity/user/experiences/UserExperience';
 import { UserExperienceWork } from '../../../src/entity/user/experiences/UserExperienceWork';
 import { UserExperienceType } from '../../../src/entity/user/experiences/types';
+import { Company } from '../../../src/entity/Company';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -4966,6 +4967,15 @@ describe('user company approved', () => {
   describe('updates user experience work', () => {
     beforeEach(async () => {
       await saveFixtures(con, User, usersFixture);
+      // Create company records
+      await con.getRepository(Company).save({
+        id: 'comp1',
+        name: 'Test Company 1',
+        image: 'https://example.com/image.png',
+        domains: ['testcompany1.com'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
       // Create a user experience work entry
       await con.getRepository(UserExperienceWork).save({
         id: 'exp1',
@@ -7154,6 +7164,15 @@ describe('user experience change', () => {
 
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    // Create company records
+    await con.getRepository(Company).save({
+      id: 'comp1',
+      name: 'Test Company 1',
+      image: 'https://example.com/image.png',
+      domains: ['testcompany1.com'],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   });
 
   describe('on create', () => {
@@ -7281,6 +7300,16 @@ describe('user experience change', () => {
 
   describe('on update', () => {
     beforeEach(async () => {
+      // Create company records for comp2
+      await con.getRepository(Company).save({
+        id: 'comp2',
+        name: 'Test Company 2',
+        image: 'https://example.com/image2.png',
+        domains: ['testcompany2.com'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
       // Create verified user company for comp1
       await con.getRepository(UserCompany).save({
         userId: '1',
