@@ -109,6 +109,10 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_company_name_lower" ON "public"."company" (LOWER("name"))
+    `);
+
+    await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_dataset_location_country_trgm"
         ON "public"."dataset_location"
         USING gin (country gin_trgm_ops)
@@ -134,6 +138,10 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(/* sql */ `
+      DROP INDEX IF EXISTS "IDX_company_name_lower"
+    `);
+
     await queryRunner.query(/* sql */ `
       ALTER TABLE "company"
         DROP COLUMN "type"
