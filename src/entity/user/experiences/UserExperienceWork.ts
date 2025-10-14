@@ -21,5 +21,5 @@ export class UserExperienceWork extends UserExperience {
     (skill: UserExperienceSkill) => skill.experience,
     { lazy: true },
   )
-  skills: Promise<UserExperienceSkill>;
+  skills: Promise<UserExperienceSkill[]>;
 }

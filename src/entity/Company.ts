@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -17,6 +18,7 @@ export enum CompanyType {
 }
 
 @Entity()
+@Index('IDX_company_name_lower', { synchronize: false })
 export class Company {
   @PrimaryColumn({ type: 'text' })
   id: string;

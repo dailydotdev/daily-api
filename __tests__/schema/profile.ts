@@ -278,10 +278,10 @@ describe('query userExperiences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperiences.edges).toHaveLength(1);
-    expect(res.data.userExperiences.edges[0].node.id).toBe(
-      'b2c3d4e5-6789-4bcd-aef0-234567890123',
-    );
-    expect(res.data.userExperiences.edges[0].node.type).toBe('education');
+    expect(res.data.userExperiences.edges[0].node).toMatchObject({
+      id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+      type: 'education',
+    });
   });
 
   it('should filter by project type', async () => {
@@ -293,10 +293,10 @@ describe('query userExperiences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperiences.edges).toHaveLength(1);
-    expect(res.data.userExperiences.edges[0].node.id).toBe(
-      'c3d4e5f6-789a-4cde-bf01-345678901234',
-    );
-    expect(res.data.userExperiences.edges[0].node.type).toBe('project');
+    expect(res.data.userExperiences.edges[0].node).toMatchObject({
+      id: 'c3d4e5f6-789a-4cde-bf01-345678901234',
+      type: 'project',
+    });
   });
 
   it('should support pagination with first parameter', async () => {
@@ -356,9 +356,9 @@ describe('query userExperiences', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperiences.edges).toHaveLength(1);
-    expect(res.data.userExperiences.edges[0].node.id).toBe(
-      'd4e5f6a7-89ab-4def-c012-456789012345',
-    );
+    expect(res.data.userExperiences.edges[0].node).toMatchObject({
+      id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+    });
   });
 
   it('should return cursor for each edge', async () => {
@@ -442,17 +442,17 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    );
-    expect(res.data.userExperienceById.type).toBe('work');
-    expect(res.data.userExperienceById.title).toBe('Senior Software Engineer');
-    expect(res.data.userExperienceById.subtitle).toBe('Backend Team');
-    expect(res.data.userExperienceById.description).toBe(
-      'Working on API infrastructure',
-    );
-    expect(res.data.userExperienceById.endedAt).toBeNull();
-    expect(res.data.userExperienceById.company.name).toBe('Daily.dev');
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      type: 'work',
+      title: 'Senior Software Engineer',
+      subtitle: 'Backend Team',
+      description: 'Working on API infrastructure',
+      endedAt: null,
+      company: {
+        name: 'Daily.dev',
+      },
+    });
   });
 
   it('should return education experience by id', async () => {
@@ -463,14 +463,14 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'b2c3d4e5-6789-4bcd-aef0-234567890123',
-    );
-    expect(res.data.userExperienceById.type).toBe('education');
-    expect(res.data.userExperienceById.title).toBe('Computer Science');
-    expect(res.data.userExperienceById.company.name).toBe(
-      'University of Example',
-    );
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+      type: 'education',
+      title: 'Computer Science',
+      company: {
+        name: 'University of Example',
+      },
+    });
   });
 
   it('should return project experience by id', async () => {
@@ -481,11 +481,11 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'c3d4e5f6-789a-4cde-bf01-345678901234',
-    );
-    expect(res.data.userExperienceById.type).toBe('project');
-    expect(res.data.userExperienceById.title).toBe('Open Source Contributor');
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'c3d4e5f6-789a-4cde-bf01-345678901234',
+      type: 'project',
+      title: 'Open Source Contributor',
+    });
   });
 
   it('should return error when experience does not exist', async () => {
@@ -509,9 +509,9 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    );
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    });
   });
 
   it('should restrict fields for anonymous users when fetching by id', async () => {
@@ -551,9 +551,1014 @@ describe('query userExperienceById', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userExperienceById.id).toBe(
-      'd4e5f6a7-89ab-4def-c012-456789012345',
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+      title: 'Product Manager',
+    });
+  });
+});
+
+describe('mutation upsertUserGeneralExperience', () => {
+  const UPSERT_USER_GENERAL_EXPERIENCE_MUTATION = /* GraphQL */ `
+    mutation UpsertUserGeneralExperience(
+      $input: UserGeneralExperienceInput!
+      $id: ID
+    ) {
+      upsertUserGeneralExperience(input: $input, id: $id) {
+        id
+        type
+        title
+        subtitle
+        description
+        startedAt
+        endedAt
+        createdAt
+        url
+        grade
+        externalReferenceId
+        customCompanyName
+        company {
+          id
+          name
+          image
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'AWS Certified',
+            startedAt: new Date('2023-01-01'),
+          },
+        },
+      },
+      'UNAUTHENTICATED',
     );
-    expect(res.data.userExperienceById.title).toBe('Product Manager');
+  });
+
+  it('should create a new certification experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'certification',
+          title: 'AWS Certified Solutions Architect',
+          subtitle: 'Professional',
+          description: 'Advanced AWS certification',
+          startedAt: new Date('2023-01-01'),
+          endedAt: new Date('2026-01-01'),
+          companyId: 'company-1',
+          url: 'https://aws.amazon.com/certification',
+          externalReferenceId: 'AWS-123456',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'certification',
+      title: 'AWS Certified Solutions Architect',
+      subtitle: 'Professional',
+      description: 'Advanced AWS certification',
+      url: 'https://aws.amazon.com/certification',
+      externalReferenceId: 'AWS-123456',
+      createdAt: expect.any(String),
+      company: {
+        id: 'company-1',
+      },
+    });
+  });
+
+  it('should create a new education experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'education',
+          title: 'Master of Science',
+          subtitle: 'Computer Science',
+          description: 'Focus on Machine Learning and AI',
+          startedAt: new Date('2020-09-01'),
+          endedAt: new Date('2022-06-30'),
+          companyId: 'company-3',
+          grade: '3.9 GPA',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'education',
+      title: 'Master of Science',
+      grade: '3.9 GPA',
+      company: {
+        id: 'company-3',
+      },
+    });
+  });
+
+  it('should create a new project experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'project',
+          title: 'Daily.dev Chrome Extension',
+          description: 'Built a popular browser extension for developers',
+          startedAt: new Date('2021-01-01'),
+          url: 'https://github.com/dailydotdev/extension',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'project',
+      title: 'Daily.dev Chrome Extension',
+      url: 'https://github.com/dailydotdev/extension',
+      endedAt: null,
+    });
+  });
+
+  it('should create experience with custom company name', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'certification',
+          title: 'Professional Scrum Master',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Scrum.org',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+      customCompanyName: 'Scrum.org',
+    });
+  });
+
+  it('should reuse existing company when custom company name matches (case-insensitive)', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'education',
+          title: 'PhD in Computer Science',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'GOOGLE', // Uppercase to test case-insensitive matching
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: {
+        id: 'company-2',
+        name: 'Google',
+      },
+    });
+  });
+
+  it('should update an existing experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123', // Existing education
+        input: {
+          type: 'education',
+          title: 'Computer Science - Updated',
+          subtitle: 'Master of Science',
+          description: 'Updated description',
+          startedAt: new Date('2016-09-01'),
+          endedAt: new Date('2020-06-30'),
+          companyId: 'company-3',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+      title: 'Computer Science - Updated',
+      subtitle: 'Master of Science',
+      description: 'Updated description',
+    });
+  });
+
+  it('should update company when updating an existing experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+        input: {
+          type: 'education',
+          title: 'Computer Science',
+          startedAt: new Date('2016-09-01'),
+          companyId: 'company-2', // Change from company-3 to company-2
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: {
+        id: 'company-2',
+      },
+    });
+  });
+
+  it('should set company to null when companyId is explicitly null', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123',
+        input: {
+          type: 'education',
+          title: 'Self-taught Developer',
+          startedAt: new Date('2020-01-01'),
+          companyId: null,
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+    });
+  });
+
+  it('should fail when companyId does not exist', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'education',
+            title: 'Computer Science',
+            startedAt: new Date('2020-01-01'),
+            companyId: '999e4567-e89b-12d3-a456-426614174000',
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should fail when updating non-existent experience', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          id: '999e4567-e89b-12d3-a456-426614174000',
+          input: {
+            type: 'certification',
+            title: 'Test',
+            startedAt: new Date('2020-01-01'),
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it("should fail when trying to update another user's experience", async () => {
+    loggedUser = '1';
+
+    // Try to update user 2's experience
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          id: 'd4e5f6a7-89ab-4def-c012-456789012345', // Belongs to user 2
+          input: {
+            type: 'work',
+            title: 'Hacked Title',
+            startedAt: new Date('2021-01-01'),
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+
+    // Verify the experience was not modified
+    const unchanged = await con
+      .getRepository(UserExperience)
+      .findOneByOrFail({ id: 'd4e5f6a7-89ab-4def-c012-456789012345' });
+    expect(unchanged.title).toBe('Product Manager');
+    expect(unchanged.userId).toBe('2');
+  });
+
+  it('should allow user to update their own experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'c3d4e5f6-789a-4cde-bf01-345678901234', // User 1's project
+        input: {
+          type: 'project',
+          title: 'Updated Project Title',
+          startedAt: new Date('2021-06-01'),
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: 'c3d4e5f6-789a-4cde-bf01-345678901234',
+      title: 'Updated Project Title',
+    });
+  });
+
+  it('should fail when title exceeds max length', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'A'.repeat(1001), // Max is 1000
+            startedAt: new Date('2020-01-01'),
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when description exceeds max length', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'project',
+            title: 'Test Project',
+            description: 'A'.repeat(5001), // Max is 5000
+            startedAt: new Date('2020-01-01'),
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when endedAt is before startedAt', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'education',
+            title: 'Computer Science',
+            startedAt: new Date('2023-01-01'),
+            endedAt: new Date('2022-01-01'), // Before startedAt
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when url is not a valid URL for certification', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'Test Certification',
+            startedAt: new Date('2023-01-01'),
+            url: 'not-a-url',
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when url is not a valid URL for project', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'project',
+            title: 'Test Project',
+            startedAt: new Date('2023-01-01'),
+            url: 'invalid-url',
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should fail when customCompanyName exceeds max length', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'education',
+            title: 'Computer Science',
+            startedAt: new Date('2023-01-01'),
+            customCompanyName: 'A'.repeat(101), // Max is 100
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should create experience without optional fields', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'project',
+          title: 'Minimal Project',
+          startedAt: new Date('2023-01-01'),
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      title: 'Minimal Project',
+      subtitle: null,
+      description: null,
+      endedAt: null,
+      url: null,
+      company: null,
+    });
+  });
+
+  it('should trim and normalize customCompanyName name', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'certification',
+          title: 'Test Certification',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: '  Test Company  ', // With extra whitespace
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+      customCompanyName: 'Test Company',
+    });
+  });
+
+  it('should update experience from custom company name to real company', async () => {
+    loggedUser = '1';
+
+    // First create with custom company name
+    const created = await client.mutate(
+      UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+      {
+        variables: {
+          input: {
+            type: 'certification',
+            title: 'Test Certification',
+            startedAt: new Date('2023-01-01'),
+            customCompanyName: 'Custom Company',
+          },
+        },
+      },
+    );
+
+    expect(created.errors).toBeFalsy();
+    expect(created.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+      customCompanyName: 'Custom Company',
+    });
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Now update to use a real company
+    const updated = await client.mutate(
+      UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+      {
+        variables: {
+          id: experienceId,
+          input: {
+            type: 'certification',
+            title: 'Test Certification',
+            startedAt: new Date('2023-01-01'),
+            companyId: 'company-1',
+          },
+        },
+      },
+    );
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience).toMatchObject({
+      company: {
+        id: 'company-1',
+        name: 'Daily.dev',
+      },
+      customCompanyName: null,
+    });
+  });
+
+  it('should update experience from real company to custom company name', async () => {
+    loggedUser = '1';
+
+    // Update existing experience (that has a real company) to use custom company name
+    const res = await client.mutate(UPSERT_USER_GENERAL_EXPERIENCE_MUTATION, {
+      variables: {
+        id: 'b2c3d4e5-6789-4bcd-aef0-234567890123', // Has company-3
+        input: {
+          type: 'education',
+          title: 'Computer Science',
+          startedAt: new Date('2016-09-01'),
+          customCompanyName: 'My Custom University',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      company: null,
+      customCompanyName: 'My Custom University',
+    });
+  });
+});
+
+describe('mutation upsertUserWorkExperience', () => {
+  const UPSERT_USER_WORK_EXPERIENCE_MUTATION = /* GraphQL */ `
+    mutation UpsertUserWorkExperience(
+      $input: UserExperienceWorkInput!
+      $id: ID
+    ) {
+      upsertUserWorkExperience(input: $input, id: $id) {
+        id
+        type
+        title
+        subtitle
+        description
+        startedAt
+        endedAt
+        createdAt
+        employmentType
+        locationType
+        externalReferenceId
+        skills {
+          value
+        }
+        customCompanyName
+        company {
+          id
+          name
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'work',
+            title: 'Software Engineer',
+            startedAt: new Date('2023-01-01'),
+            skills: [],
+          },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should create work experience with all fields', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Software Engineer',
+          subtitle: 'Backend',
+          description: 'Building APIs',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          employmentType: 1,
+          locationType: 2,
+          skills: ['TypeScript', 'Node.js'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'work',
+      title: 'Software Engineer',
+      subtitle: 'Backend',
+      description: 'Building APIs',
+      employmentType: 1,
+      locationType: 2,
+      company: {
+        id: 'company-1',
+      },
+    });
+  });
+
+  it('should update work experience fields', async () => {
+    loggedUser = '1';
+
+    // Create initial experience
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Update title and other fields
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Senior Developer',
+          subtitle: 'Tech Lead',
+          description: 'Leading the backend team',
+          startedAt: new Date('2023-01-01'),
+          endedAt: new Date('2024-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'],
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserWorkExperience).toMatchObject({
+      id: experienceId,
+      title: 'Senior Developer',
+      subtitle: 'Tech Lead',
+      description: 'Leading the backend team',
+    });
+  });
+
+  it('should handle custom company name with work experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Freelance Developer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'My Startup',
+          skills: ['TypeScript'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience).toMatchObject({
+      company: null,
+      customCompanyName: 'My Startup',
+    });
+  });
+
+  it("should fail when trying to update another user's work experience", async () => {
+    loggedUser = '1';
+
+    // Try to update user 2's work experience
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
+        variables: {
+          id: 'd4e5f6a7-89ab-4def-c012-456789012345', // Belongs to user 2
+          input: {
+            type: 'work',
+            title: 'Hacked Title',
+            startedAt: new Date('2021-01-01'),
+            skills: [],
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should fail when locationId does not exist', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'work',
+            title: 'Remote Developer',
+            startedAt: new Date('2023-01-01'),
+            companyId: 'company-1',
+            locationId: 'd4e5f6a7-89ab-4dea-a012-456789012345', // Non-existent location UUID (v4 format)
+            skills: [],
+          },
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should add new skills when creating experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Full Stack Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'work',
+      title: 'Full Stack Developer',
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'React' },
+        { value: 'Node.js' },
+      ],
+    });
+  });
+
+  it('should remove skills when updating with fewer skills', async () => {
+    loggedUser = '1';
+
+    // Create with multiple skills
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Verify initial skills
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'React' },
+        { value: 'Node.js' },
+      ],
+    });
+
+    // Update with only one skill (should remove React and Node.js)
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript'],
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    // Verify only TypeScript remains (React and Node.js removed)
+    expect(updated.data.upsertUserWorkExperience).toMatchObject({
+      id: experienceId,
+      skills: [{ value: 'TypeScript' }],
+    });
+  });
+
+  it('should treat skills with different casing as the same skill', async () => {
+    loggedUser = '1';
+
+    // Create with lowercase skill
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['typescript', 'react'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Verify initial skills
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: [{ value: 'typescript' }, { value: 'react' }],
+    });
+
+    // Update with different casing - should replace, not duplicate
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'], // Different casing + new skill
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    // Should have exactly 3 skills, not 5 (no duplicates with different casing)
+    expect(updated.data.upsertUserWorkExperience.skills).toHaveLength(3);
+
+    // Should have the new casing versions, not both
+    const skillValues = updated.data.upsertUserWorkExperience.skills.map(
+      (s) => s.value,
+    );
+    expect(skillValues).toContain('typescript');
+    expect(skillValues).toContain('react');
+    expect(skillValues).toContain('Node.js');
+
+    // Should NOT have the old casing versions
+    expect(skillValues).not.toContain('TypeScript');
+    expect(skillValues).not.toContain('React');
+  });
+
+  it('should handle mix of adding, removing, and keeping skills', async () => {
+    loggedUser = '1';
+
+    // Create with initial skills
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'MongoDB'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Verify initial skills
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'React' },
+        { value: 'MongoDB' },
+      ],
+    });
+
+    // Update: keep TypeScript, remove React and MongoDB, add Node.js and Python
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'Node.js', 'Python'],
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    // Verify skills were updated correctly: TypeScript kept, React and MongoDB removed, Node.js and Python added
+    expect(updated.data.upsertUserWorkExperience).toMatchObject({
+      id: experienceId,
+      skills: [
+        { value: 'TypeScript' },
+        { value: 'Node.js' },
+        { value: 'Python' },
+      ],
+    });
+  });
+
+  it('should clear all skills when updating with empty array', async () => {
+    loggedUser = '1';
+
+    // Create with skills
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React'],
+        },
+      },
+    });
+
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Verify initial skills exist
+    expect(created.data.upsertUserWorkExperience).toMatchObject({
+      skills: [{ value: 'TypeScript' }, { value: 'React' }],
+    });
+
+    // Update with empty skills array
+    const updated = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: [],
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    // Verify all skills were cleared
+    expect(updated.data.upsertUserWorkExperience).toMatchObject({
+      id: experienceId,
+      skills: [],
+    });
   });
 });
