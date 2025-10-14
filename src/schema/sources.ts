@@ -88,6 +88,8 @@ import { remoteConfig } from '../remoteConfig';
 import { GQLCommentAwardArgs } from './comments';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { UserVote } from '../types';
+import { TrendingUserSource } from '../entity/TrendingUserSource';
+import { PopularUserSource } from '../entity/PopularUserSource';
 
 export interface GQLSourceCategory {
   id: string;
@@ -489,6 +491,26 @@ export const typeDefs = /* GraphQL */ `
     Get the most popular sources
     """
     popularSources(
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get the most trending user sources
+    """
+    trendingUserSources(
+      """
+      Limit the number of sources returned
+      """
+      limit: Int
+    ): [Source] @cacheControl(maxAge: 600)
+
+    """
+    Get the most popular user sources
+    """
+    popularUserSources(
       """
       Limit the number of sources returned
       """
@@ -1923,6 +1945,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       getFormattedSources(TrendingSource, args, ctx, info),
     popularSources: async (_, args, ctx: Context, info): Promise<GQLSource[]> =>
       getFormattedSources(PopularSource, args, ctx, info),
+    trendingUserSources: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> =>
+      getFormattedSources(TrendingUserSource, args, ctx, info),
+    popularUserSources: async (
+      _,
+      args,
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> =>
+      getFormattedSources(PopularUserSource, args, ctx, info),
     topVideoSources: async (
       _,
       args,
