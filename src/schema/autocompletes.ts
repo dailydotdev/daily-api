@@ -12,7 +12,7 @@ import {
 } from '../common/schema/autocompletes';
 import type z from 'zod';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { Company } from '../entity/Company';
+import { Company, CompanyType } from '../entity/Company';
 
 interface AutocompleteData {
   result: string[];
@@ -32,6 +32,7 @@ interface GQLLocation {
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AutocompleteType, 'AutocompleteType')}
+  ${toGQLEnum(CompanyType, 'CompanyType')}
 
   type AutocompleteData {
     result: [String]!
@@ -69,8 +70,11 @@ export const typeDefs = /* GraphQL */ `
       limit: Int = 20
     ): [KeywordAutocomplete!]! @cacheControl(maxAge: 3600)
 
-    autocompleteCompany(query: String!, limit: Int): [Company]!
-      @cacheControl(maxAge: 3600)
+    autocompleteCompany(
+      query: String!
+      limit: Int
+      type: CompanyType
+    ): [Company]! @cacheControl(maxAge: 3600)
   }
 `;
 
