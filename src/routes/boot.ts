@@ -73,7 +73,7 @@ import {
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
-import { maxFeedsPerUser, type CoresRole, type Location } from '../types';
+import { maxFeedsPerUser, type CoresRole, type TLocation } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
@@ -147,7 +147,7 @@ export type LoggedInBoot = BaseBoot & {
     canSubmitArticle: boolean;
     balance: GetBalanceResult;
     coresRole: CoresRole;
-    location?: Location | null;
+    location?: TLocation | null;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
