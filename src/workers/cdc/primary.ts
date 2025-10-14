@@ -1183,7 +1183,7 @@ const onUserStreakChange = async (
 };
 
 const onUserCompanyCompanyChange = async (
-  _: DataSource,
+  con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserCompany>,
 ) => {
@@ -1197,6 +1197,12 @@ const onUserCompanyCompanyChange = async (
     await triggerTypedEvent(logger, 'api.v1.user-company-approved', {
       userCompany: data.payload.after!,
     });
+
+    const { userId, companyId } = data.payload.after!;
+
+    await con
+      .getRepository(UserExperienceWork)
+      .update({ userId, companyId: companyId! }, { verified: true });
   }
 };
 
