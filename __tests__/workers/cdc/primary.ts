@@ -4965,6 +4965,8 @@ describe('user company approved', () => {
   });
 
   describe('updates user experience work', () => {
+    let experienceId: string;
+
     beforeEach(async () => {
       await saveFixtures(con, User, usersFixture);
       // Create company records
@@ -4977,17 +4979,15 @@ describe('user company approved', () => {
         updatedAt: new Date(),
       });
       // Create a user experience work entry
-      await con.getRepository(UserExperienceWork).save({
-        id: 'exp1',
+      const experience = await con.getRepository(UserExperienceWork).save({
         userId: '1',
         companyId: 'comp1',
         title: 'Software Engineer',
-        startDate: new Date('2020-01-01'),
+        startedAt: new Date('2020-01-01'),
         verified: false,
         type: UserExperienceType.Work,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
+      experienceId = experience.id;
     });
 
     it('should not update user experience work on creation when company id not set', async () => {
@@ -5004,7 +5004,7 @@ describe('user company approved', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(false);
     });
 
@@ -5022,7 +5022,7 @@ describe('user company approved', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(true);
     });
 
@@ -5040,7 +5040,7 @@ describe('user company approved', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(false);
     });
 
@@ -5058,22 +5058,19 @@ describe('user company approved', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(true);
     });
 
     it('should update all user experience work entries for the user and company', async () => {
       // Create another experience work entry for the same user and company
       await con.getRepository(UserExperienceWork).save({
-        id: 'exp2',
         userId: '1',
         companyId: 'comp1',
         title: 'Senior Software Engineer',
-        startDate: new Date('2022-01-01'),
+        startedAt: new Date('2022-01-01'),
         verified: false,
         type: UserExperienceType.Work,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       });
 
       const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
@@ -7148,18 +7145,23 @@ describe('poll post', () => {
 
 describe('user experience change', () => {
   type ObjectType = UserExperience;
+  let experienceId: string;
   const base: ChangeObject<UserExperienceWork> = {
-    id: 'exp1',
+    id: 'test-uuid',
     userId: '1',
     companyId: 'comp1',
     title: 'Software Engineer',
-    startDate: new Date('2020-01-01').getTime(),
+    startedAt: new Date('2020-01-01').getTime(),
     verified: false,
     type: UserExperienceType.Work,
     createdAt: new Date().getTime(),
     updatedAt: new Date().getTime(),
     description: null,
-    endDate: null,
+    endedAt: null,
+    subtitle: null,
+    customCompanyName: null,
+    locationId: null,
+    locationType: null,
   };
 
   beforeEach(async () => {
@@ -7192,10 +7194,10 @@ describe('user experience change', () => {
         }),
       );
 
-      // No database operation should happen
+      // No database operation should happen since type is not Work
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ userId: '1', companyId: 'comp1' });
       expect(experience).toBeNull();
     });
 
@@ -7215,15 +7217,14 @@ describe('user experience change', () => {
         }),
       );
 
+      // No verification happens when companyId is null
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ userId: '1', title: 'Software Engineer' });
       expect(experience).toBeNull();
     });
 
     it('should not verify experience work when user company is not verified', async () => {
-      const after: ChangeObject<UserExperienceWork> = base;
-
       // Create unverified user company
       await con.getRepository(UserCompany).save({
         userId: '1',
@@ -7236,12 +7237,20 @@ describe('user experience change', () => {
       });
 
       // Create the experience
-      await con.getRepository(UserExperienceWork).save({
-        ...base,
-        startDate: new Date(base.startDate),
-        createdAt: new Date(base.createdAt),
-        updatedAt: new Date(base.updatedAt),
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: 'comp1',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
       });
+      experienceId = experience.id;
+
+      const after: ChangeObject<UserExperienceWork> = {
+        ...base,
+        id: experienceId,
+      };
 
       await expectSuccessfulBackground(
         worker,
@@ -7253,15 +7262,13 @@ describe('user experience change', () => {
         }),
       );
 
-      const experience = await con
+      const updatedExperience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
-      expect(experience?.verified).toBe(false);
+        .findOneBy({ id: experienceId });
+      expect(updatedExperience?.verified).toBe(false);
     });
 
     it('should verify experience work when user company is verified', async () => {
-      const after: ChangeObject<UserExperienceWork> = base;
-
       // Create verified user company
       await con.getRepository(UserCompany).save({
         userId: '1',
@@ -7274,12 +7281,20 @@ describe('user experience change', () => {
       });
 
       // Create the experience
-      await con.getRepository(UserExperienceWork).save({
-        ...base,
-        startDate: new Date(base.startDate),
-        createdAt: new Date(base.createdAt),
-        updatedAt: new Date(base.updatedAt),
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: 'comp1',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
       });
+      experienceId = experience.id;
+
+      const after: ChangeObject<UserExperienceWork> = {
+        ...base,
+        id: experienceId,
+      };
 
       await expectSuccessfulBackground(
         worker,
@@ -7291,10 +7306,10 @@ describe('user experience change', () => {
         }),
       );
 
-      const experience = await con
+      const updatedExperience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
-      expect(experience?.verified).toBe(true);
+        .findOneBy({ id: experienceId });
+      expect(updatedExperience?.verified).toBe(true);
     });
   });
 
@@ -7333,18 +7348,25 @@ describe('user experience change', () => {
       });
 
       // Create the experience
-      await con.getRepository(UserExperienceWork).save({
-        ...base,
-        startDate: new Date(base.startDate),
-        createdAt: new Date(base.createdAt),
-        updatedAt: new Date(base.updatedAt),
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: 'comp1',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
       });
+      experienceId = experience.id;
     });
 
     it('should not update verification when companyId has not changed', async () => {
-      const before: ChangeObject<UserExperienceWork> = base;
+      const before: ChangeObject<UserExperienceWork> = {
+        ...base,
+        id: experienceId,
+      };
       const after: ChangeObject<UserExperienceWork> = {
         ...base,
+        id: experienceId,
         title: 'Senior Software Engineer',
       };
 
@@ -7360,17 +7382,24 @@ describe('user experience change', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(false);
     });
 
     it('should verify when companyId changed to verified company', async () => {
+      // First update experience to point to comp2
+      await con
+        .getRepository(UserExperienceWork)
+        .update({ id: experienceId }, { companyId: 'comp2' });
+
       const before: ChangeObject<UserExperienceWork> = {
         ...base,
+        id: experienceId,
         companyId: 'comp2',
       };
       const after: ChangeObject<UserExperienceWork> = {
         ...base,
+        id: experienceId,
         companyId: 'comp1',
       };
 
@@ -7386,7 +7415,7 @@ describe('user experience change', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(true);
     });
 
@@ -7394,15 +7423,17 @@ describe('user experience change', () => {
       // First set experience as verified
       await con
         .getRepository(UserExperienceWork)
-        .update({ id: 'exp1' }, { verified: true });
+        .update({ id: experienceId }, { verified: true });
 
       const before: ChangeObject<UserExperienceWork> = {
         ...base,
+        id: experienceId,
         companyId: 'comp1',
         verified: true,
       };
       const after: ChangeObject<UserExperienceWork> = {
         ...base,
+        id: experienceId,
         companyId: 'comp2',
       };
 
@@ -7418,14 +7449,18 @@ describe('user experience change', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(false);
     });
 
     it('should not update verification when companyId is not set in after', async () => {
-      const before: ChangeObject<UserExperienceWork> = base;
+      const before: ChangeObject<UserExperienceWork> = {
+        ...base,
+        id: experienceId,
+      };
       const after: ChangeObject<UserExperienceWork> = {
         ...base,
+        id: experienceId,
         companyId: null,
       };
 
@@ -7441,7 +7476,7 @@ describe('user experience change', () => {
 
       const experience = await con
         .getRepository(UserExperienceWork)
-        .findOneBy({ id: 'exp1' });
+        .findOneBy({ id: experienceId });
       expect(experience?.verified).toBe(false);
     });
   });
