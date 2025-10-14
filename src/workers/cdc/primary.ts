@@ -1502,6 +1502,13 @@ const onUserExperienceChange = async (
       return;
     }
 
+    if (!work.companyId) {
+      await con
+        .getRepository(UserExperienceWork)
+        .update({ id: work.id }, { verified: false });
+      return;
+    }
+
     const isVerified = await con.getRepository(UserCompany).existsBy({
       companyId: work.companyId,
       userId: work.userId,
