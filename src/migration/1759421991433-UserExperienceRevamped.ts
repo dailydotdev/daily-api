@@ -137,13 +137,13 @@ export class UserExperienceRevamped1759421991433 implements MigrationInterface {
     `);
 
     await queryRunner.query(
-      `ALTER TABLE "public"."comment" REPLICA IDENTITY FULL`,
+      `ALTER TABLE "public"."user_experience" REPLICA IDENTITY FULL`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE "public"."comment" REPLICA IDENTITY DEFAULT`,
+      `ALTER TABLE "public"."user_experience" REPLICA IDENTITY DEFAULT`,
     );
 
     await queryRunner.query(/* sql */ `
