@@ -345,5 +345,10 @@ export class User {
   locationId: string | null;
 
   @ManyToOne('DatasetLocation', { lazy: true })
+  @JoinColumn({
+    name: 'locationId',
+    foreignKeyConstraintName: 'FK_user_locationId',
+  })
+  @Index('IDX_user_locationId')
   location: Promise<DatasetLocation>;
 }
