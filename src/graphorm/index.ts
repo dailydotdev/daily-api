@@ -1450,7 +1450,7 @@ const obj = new GraphORM({
         rawSelect: true,
         select: (_, alias) => {
           return `
-            GREATEST(${alias}.clicks + ${alias}."clicksAds", 0)
+            GREATEST(${alias}.clicks + ${alias}."clicksAds" + ${alias}."goToLink", 0)
           `;
         },
       },
