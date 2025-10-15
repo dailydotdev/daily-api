@@ -157,7 +157,7 @@ export default async function app(
 
   app.register(MercuriusGQLUpload, {
     maxFileSize: GQL_MAX_FILE_SIZE,
-    maxFiles: 1,
+    maxFiles: 2,
   });
 
   app.register(mercurius, {
