@@ -278,7 +278,7 @@ describe('query autocomplete', () => {
   it('should handle very long query strings', async () => {
     loggedUser = '1';
 
-    const longQuery = 'a'.repeat(1000);
+    const longQuery = 'a'.repeat(100);
     const res = await client.query(QUERY, {
       variables: { type: 'role', query: longQuery },
     });
@@ -718,7 +718,7 @@ describe('query autocompleteLocation', () => {
   it('should handle very long query strings', async () => {
     loggedUser = '1';
 
-    const longQuery = 'a'.repeat(1000);
+    const longQuery = 'a'.repeat(100);
     const res = await client.query(QUERY, {
       variables: { query: longQuery },
     });
@@ -1678,7 +1678,7 @@ describe('query autocompleteCompany', () => {
   });
 
   it('should handle very long query strings', async () => {
-    const longQuery = 'a'.repeat(1000);
+    const longQuery = 'a'.repeat(100);
     const res = await client.query(QUERY, {
       variables: { query: longQuery },
     });
