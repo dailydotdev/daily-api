@@ -1658,20 +1658,18 @@ describe('mutation removeUserExperience', () => {
     expect(skillsAfter).toHaveLength(0);
   });
 
-  it("should fail when trying to remove another user's experience", async () => {
+  it("should not remove another user's experience", async () => {
     loggedUser = '1';
 
     // Try to remove user 2's experience
-    await testQueryErrorCode(
-      client,
-      {
-        query: REMOVE_USER_EXPERIENCE_MUTATION,
-        variables: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' }, // Belongs to user 2
-      },
-      'NOT_FOUND',
-    );
+    const res = await client.mutate(REMOVE_USER_EXPERIENCE_MUTATION, {
+      variables: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' },
+    });
 
-    // Verify the experience still exists
+    // Should succeed without error
+    expect(res.errors).toBeFalsy();
+
+    // But the experience should still exist (not deleted)
     const stillExists = await con
       .getRepository(UserExperience)
       .findOne({ where: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' } });
@@ -1679,16 +1677,14 @@ describe('mutation removeUserExperience', () => {
     expect(stillExists?.userId).toBe('2');
   });
 
-  it('should fail when experience does not exist', async () => {
+  it('should succeed silently when experience does not exist', async () => {
     loggedUser = '1';
 
-    await testQueryErrorCode(
-      client,
-      {
-        query: REMOVE_USER_EXPERIENCE_MUTATION,
-        variables: { id: '999e4567-e89b-12d3-a456-426614174000' },
-      },
-      'NOT_FOUND',
-    );
+    const res = await client.mutate(REMOVE_USER_EXPERIENCE_MUTATION, {
+      variables: { id: '999e4567-e89b-12d3-a456-426614174000' },
+    });
+
+    // Should succeed without error
+    expect(res.errors).toBeFalsy();
   });
 });

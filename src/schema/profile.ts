@@ -332,11 +332,9 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       return getUserExperience(ctx, info, entity.id);
     },
     removeUserExperience: async (_, { id }: { id: string }, ctx) => {
-      const toRemove = await ctx.con
+      await ctx.con
         .getRepository(UserExperience)
-        .findOneOrFail({ where: { id, userId: ctx.userId } });
-
-      await ctx.con.getRepository(UserExperience).remove(toRemove);
+        .delete({ id, userId: ctx.userId });
 
       return { _: true };
     },
