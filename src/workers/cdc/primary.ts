@@ -160,8 +160,6 @@ import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { PollPost } from '../../entity/posts/PollPost';
 import { UserExperienceWork } from '../../entity/user/experiences/UserExperienceWork';
-import { UserExperience } from '../../entity/user/experiences/UserExperience';
-import { UserExperienceType } from '../../entity/user/experiences/types';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1466,60 +1464,6 @@ export const onCampaignChange = async (
   }
 };
 
-const onUserExperienceChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<UserExperience>,
-) => {
-  const experience = data.payload.after!;
-
-  if (experience.type !== UserExperienceType.Work) {
-    return;
-  }
-
-  const work = experience as ChangeObject<UserExperienceWork>;
-
-  if (!work.companyId) {
-    if (work.verified) {
-      await con
-        .getRepository(UserExperienceWork)
-        .update({ id: work.id }, { verified: false });
-    }
-
-    return;
-  }
-
-  if (data.payload.op === 'c') {
-    const isVerified = await con.getRepository(UserCompany).existsBy({
-      companyId: work.companyId,
-      userId: work.userId,
-      verified: true,
-    });
-
-    if (isVerified) {
-      await con
-        .getRepository(UserExperienceWork)
-        .update({ id: work.id }, { verified: true });
-    }
-  }
-
-  if (data.payload.op === 'u') {
-    if (data.payload.before?.companyId === work.companyId) {
-      return;
-    }
-
-    const isVerified = await con.getRepository(UserCompany).existsBy({
-      companyId: work.companyId,
-      userId: work.userId,
-      verified: true,
-    });
-
-    await con
-      .getRepository(UserExperienceWork)
-      .update({ id: work.id }, { verified: isVerified });
-  }
-};
-
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1650,9 +1594,6 @@ const worker: Worker = {
           break;
         case getTableName(con, Campaign):
           await onCampaignChange(con, logger, data);
-          break;
-        case getTableName(con, UserExperience):
-          await onUserExperienceChange(con, logger, data);
           break;
       }
     } catch (err) {
