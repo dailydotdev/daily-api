@@ -1647,6 +1647,21 @@ describe('query autocompleteCompany', () => {
     ]);
   });
 
+  it('should handle queries that returns result with special characters', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'meta facebook' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'facebook',
+        name: 'Meta (Facebook)',
+        image: 'https://example.com/meta.png',
+      },
+    ]);
+  });
+
   it('should handle queries with special characters', async () => {
     const res = await client.query(QUERY, {
       variables: { query: 'inc.' },

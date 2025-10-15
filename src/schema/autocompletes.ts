@@ -1,7 +1,7 @@
 import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
-import { ILike, type FindOptionsWhere } from 'typeorm';
+import { ILike, Raw, type FindOptionsWhere } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -198,12 +198,18 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       ctx: AuthContext,
     ): Promise<GQLCompany[]> => {
       const { type, query, limit } = autocompleteCompanySchema.parse(payload);
+      const slugQuery = Raw((alias) => `slugify(${alias}) = :slug`, {
+        slug: textToSlug(query),
+      });
 
       return await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(Company).find({
           take: limit,
           order: { name: 'ASC' },
-          where: { type, name: ILike(`%${query}%`) },
+          where: [
+            { type, name: slugQuery },
+            { type, name: ILike(`%${query}%`) },
+          ],
         }),
       );
     },

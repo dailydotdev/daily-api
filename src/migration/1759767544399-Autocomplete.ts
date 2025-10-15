@@ -39,9 +39,17 @@ export class Autocomplete1759767544399 implements MigrationInterface {
         ON "public"."company"
         USING gin (name gin_trgm_ops)
     `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_company_name_slugify" ON "public"."company" (slugify("name"))
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(/* sql */ `
+      DROP INDEX IF EXISTS "IDX_company_name_slugify"
+    `);
+
     await queryRunner.query(/* sql */ `
       DROP INDEX IF EXISTS "IDX_company_name_trgm"
     `);
