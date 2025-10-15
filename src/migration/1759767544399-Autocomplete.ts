@@ -33,17 +33,35 @@ export class Autocomplete1759767544399 implements MigrationInterface {
         USING gin (value gin_trgm_ops)
         WHERE enabled = true
     `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_company_name_trgm"
+        ON "public"."company"
+        USING gin (name gin_trgm_ops)
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_company_name_slugify" ON "public"."company" (slugify("name"))
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(/* sql */ `
+      DROP INDEX IF EXISTS "IDX_company_name_slugify"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP INDEX IF EXISTS "IDX_company_name_trgm"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP TABLE "autocomplete"
+    `);
+
     await queryRunner.query(
       /* sql */ `
       DELETE FROM "public"."typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`,
       ['GENERATED_COLUMN', 'slug', 'api', 'public', 'autocomplete'],
     );
-
-    await queryRunner.query(/* sql */ `
-      DROP TABLE "autocomplete"
-    `);
   }
 }
