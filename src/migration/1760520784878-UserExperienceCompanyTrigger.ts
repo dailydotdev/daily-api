@@ -56,7 +56,7 @@ export class UserExperienceCompanyTrigger1760520784878
         RETURN NEW;
         
       END;
-      $$ LANGUAGE plpgsql;  
+      $$ LANGUAGE plpgsql;
     `);
 
     // Create the trigger
