@@ -18,7 +18,9 @@ export enum CompanyType {
 }
 
 @Entity()
+@Index('IDX_company_name_trgm', { synchronize: false })
 @Index('IDX_company_name_lower', { synchronize: false })
+@Index('IDX_company_name_slugify', { synchronize: false })
 export class Company {
   @PrimaryColumn({ type: 'text' })
   id: string;

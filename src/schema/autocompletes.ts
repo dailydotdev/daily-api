@@ -1,16 +1,18 @@
 import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
-import { ILike, type FindOptionsWhere } from 'typeorm';
+import { ILike, Raw, type FindOptionsWhere } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
-import { toGQLEnum } from '../common';
+import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
   autocompleteBaseSchema,
+  autocompleteCompanySchema,
   autocompleteSchema,
 } from '../common/schema/autocompletes';
 import type z from 'zod';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { Company, CompanyType } from '../entity/Company';
 
 interface AutocompleteData {
   result: string[];
@@ -30,6 +32,7 @@ interface GQLLocation {
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AutocompleteType, 'AutocompleteType')}
+  ${toGQLEnum(CompanyType, 'CompanyType')}
 
   type AutocompleteData {
     result: [String]!
@@ -66,6 +69,12 @@ export const typeDefs = /* GraphQL */ `
       query: String!
       limit: Int = 20
     ): [KeywordAutocomplete!]! @cacheControl(maxAge: 3600)
+
+    autocompleteCompany(
+      query: String!
+      limit: Int
+      type: CompanyType
+    ): [Company]! @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -124,7 +133,10 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           select: { value: true },
           take: limit,
           order: { value: 'ASC' },
-          where: { enabled: true, type, value: ILike(`%${query}%`) },
+          where: [
+            { enabled: true, type, slug: textToSlug(query) },
+            { enabled: true, type, value: ILike(`%${query}%`) },
+          ],
         }),
       );
 
@@ -178,6 +190,27 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           .addOrderBy('k.value', 'ASC')
           .limit(data.limit)
           .getRawMany<{ keyword: string; title: string | null }>(),
+      );
+    },
+    autocompleteCompany: async (
+      _,
+      payload: z.infer<typeof autocompleteCompanySchema>,
+      ctx: AuthContext,
+    ): Promise<GQLCompany[]> => {
+      const { type, query, limit } = autocompleteCompanySchema.parse(payload);
+      const slugQuery = Raw((alias) => `slugify(${alias}) = :slug`, {
+        slug: textToSlug(query),
+      });
+
+      return await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(Company).find({
+          take: limit,
+          order: { name: 'ASC' },
+          where: [
+            { type, name: slugQuery },
+            { type, name: ILike(`%${query}%`) },
+          ],
+        }),
       );
     },
   },

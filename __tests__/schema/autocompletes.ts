@@ -14,6 +14,7 @@ import { usersFixture } from '../fixture/user';
 import { keywordsFixture } from '../fixture/keywords';
 import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
 import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import { Company, CompanyType } from '../../src/entity/Company';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1343,5 +1344,385 @@ describe('query autocompleteLocation', () => {
       );
       expect(sfResults.length).toBeGreaterThan(0);
     });
+  });
+});
+
+describe('query autocompleteCompany', () => {
+  const QUERY = /* GraphQL */ `
+    query AutocompleteCompany(
+      $query: String!
+      $limit: Int
+      $type: CompanyType
+    ) {
+      autocompleteCompany(query: $query, limit: $limit, type: $type) {
+        id
+        name
+        image
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Company, [
+      {
+        id: 'google',
+        name: 'Google',
+        image: 'https://example.com/google.png',
+        domains: ['google.com', 'alphabet.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'microsoft',
+        name: 'Microsoft Corporation',
+        image: 'https://example.com/microsoft.png',
+        domains: ['microsoft.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'facebook',
+        name: 'Meta (Facebook)',
+        image: 'https://example.com/meta.png',
+        domains: ['facebook.com', 'meta.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'apple',
+        name: 'Apple Inc.',
+        image: 'https://example.com/apple.png',
+        domains: ['apple.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'amazon',
+        name: 'Amazon',
+        image: 'https://example.com/amazon.png',
+        domains: ['amazon.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'mit',
+        name: 'Massachusetts Institute of Technology',
+        image: 'https://example.com/mit.png',
+        domains: ['mit.edu'],
+        type: CompanyType.School,
+      },
+      {
+        id: 'stanford',
+        name: 'Stanford University',
+        image: 'https://example.com/stanford.png',
+        domains: ['stanford.edu'],
+        type: CompanyType.School,
+      },
+      {
+        id: 'harvard',
+        name: 'Harvard University',
+        image: 'https://example.com/harvard.png',
+        domains: ['harvard.edu'],
+        type: CompanyType.School,
+      },
+      {
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
+        domains: ['berkeley.edu'],
+        type: CompanyType.School,
+      },
+    ]);
+  });
+
+  it('should be case insensitive', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'GOOGLE' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'google',
+        name: 'Google',
+        image: 'https://example.com/google.png',
+      },
+    ]);
+  });
+
+  it('should match partial strings', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'micro' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'microsoft',
+        name: 'Microsoft Corporation',
+        image: 'https://example.com/microsoft.png',
+      },
+    ]);
+  });
+
+  it('should match multiple records and return in alphabetical order', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'university' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'harvard',
+        name: 'Harvard University',
+        image: 'https://example.com/harvard.png',
+      },
+      {
+        id: 'stanford',
+        name: 'Stanford University',
+        image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
+      },
+    ]);
+  });
+
+  it('should filter by company type', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'a', type: 'company' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Should only return companies, not schools (alphabetically sorted)
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'amazon',
+        name: 'Amazon',
+        image: 'https://example.com/amazon.png',
+      },
+      {
+        id: 'apple',
+        name: 'Apple Inc.',
+        image: 'https://example.com/apple.png',
+      },
+      {
+        id: 'facebook',
+        name: 'Meta (Facebook)',
+        image: 'https://example.com/meta.png',
+      },
+      {
+        id: 'microsoft',
+        name: 'Microsoft Corporation',
+        image: 'https://example.com/microsoft.png',
+      },
+    ]);
+  });
+
+  it('should filter by school type', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'a', type: 'school' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Should only return schools, not companies (alphabetically sorted)
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'harvard',
+        name: 'Harvard University',
+        image: 'https://example.com/harvard.png',
+      },
+      {
+        id: 'mit',
+        name: 'Massachusetts Institute of Technology',
+        image: 'https://example.com/mit.png',
+      },
+      {
+        id: 'stanford',
+        name: 'Stanford University',
+        image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
+      },
+    ]);
+  });
+
+  it('should return all types when type is not specified', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'a' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Should return both companies and schools (alphabetically sorted)
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'amazon',
+        name: 'Amazon',
+        image: 'https://example.com/amazon.png',
+      },
+      {
+        id: 'apple',
+        name: 'Apple Inc.',
+        image: 'https://example.com/apple.png',
+      },
+      {
+        id: 'harvard',
+        name: 'Harvard University',
+        image: 'https://example.com/harvard.png',
+      },
+      {
+        id: 'mit',
+        name: 'Massachusetts Institute of Technology',
+        image: 'https://example.com/mit.png',
+      },
+      {
+        id: 'facebook',
+        name: 'Meta (Facebook)',
+        image: 'https://example.com/meta.png',
+      },
+      {
+        id: 'microsoft',
+        name: 'Microsoft Corporation',
+        image: 'https://example.com/microsoft.png',
+      },
+      {
+        id: 'stanford',
+        name: 'Stanford University',
+        image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
+      },
+    ]);
+  });
+
+  it('should respect limit parameter', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'a', limit: 2 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany.length).toBe(2);
+
+    // Should still be alphabetically sorted
+    expect(res.data.autocompleteCompany[0].name).toEqual('Amazon');
+  });
+
+  it('should use default limit of 20 when not specified', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'a' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    // Should return results but capped at default limit
+    expect(res.data.autocompleteCompany.length).toBeLessThanOrEqual(20);
+  });
+
+  it('should return empty array when no matches found', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'nonexistentcompany' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toEqual([]);
+  });
+
+  it('should handle queries with spaces', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'of cali' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'berkeley',
+        name: 'University of California, Berkeley',
+        image: 'https://example.com/berkeley.png',
+      },
+    ]);
+  });
+
+  it('should handle queries that returns result with special characters', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'meta facebook' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'facebook',
+        name: 'Meta (Facebook)',
+        image: 'https://example.com/meta.png',
+      },
+    ]);
+  });
+
+  it('should handle queries with special characters', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'inc.' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'apple',
+        name: 'Apple Inc.',
+        image: 'https://example.com/apple.png',
+      },
+    ]);
+  });
+
+  it('should handle very long query strings', async () => {
+    const longQuery = 'a'.repeat(1000);
+    const res = await client.query(QUERY, {
+      variables: { query: longQuery },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toEqual([]);
+  });
+
+  it('should return error for invalid company type', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'test', type: 'invalid_type' },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should return error for limit less than 1', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'test', limit: 0 },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should return error for limit greater than 50', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'test', limit: 51 },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should normalize query string (lowercase and trim)', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: '  GOOGLE  ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'google',
+        name: 'Google',
+        image: 'https://example.com/google.png',
+      },
+    ]);
   });
 });
