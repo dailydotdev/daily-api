@@ -72,7 +72,7 @@ import {
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';
 import { getUnreadNotificationsCount } from '../notifications/common';
-import { maxFeedsPerUser, type CoresRole } from '../types';
+import { maxFeedsPerUser, type CoresRole, type TLocation } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { queryDataSource } from '../common/queryDataSource';
 import { isPlusMember } from '../paddle';
@@ -146,6 +146,7 @@ export type LoggedInBoot = BaseBoot & {
     canSubmitArticle: boolean;
     balance: GetBalanceResult;
     coresRole: CoresRole;
+    location?: TLocation | null;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
@@ -211,6 +212,8 @@ export const excludeProperties = <T, K extends keyof T>(
 
   properties.forEach((prop) => {
     delete clone[prop];
+    // @ts-expect-error remove internal relations property if exists
+    delete clone[`__${prop}__`];
   });
 
   return clone;
@@ -452,6 +455,7 @@ const getUser = (
       'infoConfirmed',
       'reputation',
       'bio',
+      'readme',
       'twitter',
       'bluesky',
       'github',
@@ -475,6 +479,9 @@ const getUser = (
       'flags',
       'coresRole',
     ],
+    relations: {
+      location: true,
+    },
   });
 
 const getBalanceBoot: typeof getBalance = async ({ userId }) => {
@@ -548,6 +555,7 @@ const loggedInBoot = async ({
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+
     const hasLocationSet = !!user.flags?.location?.lastStored;
     const isTeamMember = exp?.a?.team === 1;
     const isPlus = isPlusMember(user.subscriptionFlags?.cycle);
@@ -562,6 +570,9 @@ const loggedInBoot = async ({
       refreshToken || isPlus !== req.isPlus
         ? await setAuthCookie(req, res, userId, roles, isTeamMember, isPlus)
         : req.accessToken;
+
+    const userLocation = await user.location; // preloaded via relation
+
     return {
       user: {
         ...excludeProperties(user, [
@@ -573,6 +584,8 @@ const loggedInBoot = async ({
           'cover',
           'subscriptionFlags',
           'flags',
+          'readmeHtml',
+          'location',
         ]),
         providers: [null],
         roles,
@@ -595,6 +608,14 @@ const loggedInBoot = async ({
         },
         clickbaitTries,
         hasLocationSet,
+        location: userLocation
+          ? {
+              id: userLocation.id,
+              city: userLocation.city,
+              subdivision: userLocation.subdivision,
+              country: userLocation.country,
+            }
+          : undefined,
       },
       visit,
       alerts: {
@@ -893,6 +914,8 @@ const getFunnelLoggedInData = async (
           'cover',
           'subscriptionFlags',
           'flags',
+          'readmeHtml',
+          'location',
         ]),
         providers: [null],
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,

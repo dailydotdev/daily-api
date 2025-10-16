@@ -171,9 +171,11 @@ export interface GQLUpdateUserInput {
   email?: string;
   username?: string;
   bio?: string;
+  readme?: string;
   company?: string;
   title: string;
   image?: string;
+  cover?: string;
   twitter?: string;
   github?: string;
   roadmap?: string;
@@ -195,11 +197,13 @@ export interface GQLUpdateUserInput {
   defaultFeedId?: string;
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
+  locationId?: string;
 }
 
 interface GQLUserParameters {
   data: GQLUpdateUserInput;
   upload: Promise<FileUpload>;
+  coverUpload: Promise<FileUpload>;
 }
 
 export interface GQLUser {
@@ -548,6 +552,10 @@ export const typeDefs = /* GraphQL */ `
     """
     image: String
     """
+    Cover image of the user
+    """
+    cover: String
+    """
     Username (handle) of the user
     """
     username: String
@@ -555,6 +563,10 @@ export const typeDefs = /* GraphQL */ `
     Bio of the user
     """
     bio: String
+    """
+    User about markdown
+    """
+    readme: String
     """
     Twitter handle of the user
     """
@@ -647,6 +659,10 @@ export const typeDefs = /* GraphQL */ `
     Flags for the user
     """
     flags: UserFlagsPublic
+    """
+    id of the location selected by the user
+    """
+    locationId: String
   }
 
   type TagsReadingStatus {
@@ -1059,7 +1075,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Update user profile information
     """
-    updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
+    updateUserProfile(
+      data: UpdateUserInput
+      upload: Upload
+      coverUpload: Upload
+    ): User @auth
 
     """
     Hide user's read history
@@ -2192,7 +2212,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     // add mutation to clear images
     updateUserProfile: async (
       _,
-      { data, upload }: GQLUserParameters,
+      { data, upload, coverUpload }: GQLUserParameters,
       ctx: AuthContext,
     ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
@@ -2209,13 +2229,55 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
       data = await validateUserUpdate(user, data, ctx.con);
 
-      const avatar =
-        !!upload && process.env.CLOUDINARY_URL
-          ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
-          : data.image || user.image;
+      const filesToClear = [];
+
+      if ((!data.image || !!upload) && user.image) {
+        filesToClear.push(
+          clearFile({ referenceId: user.id, preset: UploadPreset.Avatar }),
+        );
+      }
+
+      if ((!data.cover || !!coverUpload) && user.cover) {
+        filesToClear.push(
+          clearFile({
+            referenceId: user.id,
+            preset: UploadPreset.ProfileCover,
+          }),
+        );
+      }
+
+      await Promise.all(filesToClear);
+
+      const cloudinaryUrl = process.env.CLOUDINARY_URL || null;
+
+      const [avatar, cover] = await Promise.all([
+        (async () => {
+          if (upload && cloudinaryUrl) {
+            const file = await upload;
+            return (await uploadAvatar(user.id, file.createReadStream())).url;
+          }
+          return data.image || null;
+        })(),
+        (async () => {
+          if (coverUpload && cloudinaryUrl) {
+            const file = await coverUpload;
+            return (await uploadProfileCover(user.id, file.createReadStream()))
+              .url;
+          }
+          return data.cover || null;
+        })(),
+      ]);
+
+      const readmeHtml = markdown.render(data.readme || '');
 
       try {
-        const updatedUser = { ...user, ...data, image: avatar };
+        const updatedUser = {
+          ...user,
+          ...data,
+          image: avatar,
+          cover,
+          readmeHtml,
+        };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
         const marketingFlag = updatedUser.acceptedMarketing
