@@ -14,6 +14,7 @@ import { usersFixture } from '../fixture/user';
 import { UserExperience } from '../../src/entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../src/entity/user/experiences/types';
 import { Company } from '../../src/entity/Company';
+import { UserExperienceSkill } from '../../src/entity/user/experiences/UserExperienceSkill';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -1560,5 +1561,130 @@ describe('mutation upsertUserWorkExperience', () => {
       id: experienceId,
       skills: [],
     });
+  });
+});
+
+describe('mutation removeUserExperience', () => {
+  const REMOVE_USER_EXPERIENCE_MUTATION = /* GraphQL */ `
+    mutation RemoveUserExperience($id: ID!) {
+      removeUserExperience(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: REMOVE_USER_EXPERIENCE_MUTATION,
+        variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should remove an existing experience', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(REMOVE_USER_EXPERIENCE_MUTATION, {
+      variables: { id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify it's actually deleted
+    const deleted = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: 'b2c3d4e5-6789-4bcd-aef0-234567890123' } });
+    expect(deleted).toBeNull();
+  });
+
+  it('should remove work experience and cascade delete skills', async () => {
+    loggedUser = '1';
+
+    // First create a work experience with skills
+    const UPSERT_USER_WORK_EXPERIENCE_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          skills {
+            value
+          }
+        }
+      }
+    `;
+
+    const created = await client.mutate(UPSERT_USER_WORK_EXPERIENCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Full Stack Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+          skills: ['TypeScript', 'React', 'Node.js'],
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    const experienceId = created.data.upsertUserWorkExperience.id;
+
+    // Verify skills were created
+    expect(created.data.upsertUserWorkExperience.skills).toHaveLength(3);
+
+    // Now remove the experience
+    const res = await client.mutate(REMOVE_USER_EXPERIENCE_MUTATION, {
+      variables: { id: experienceId },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify the experience is deleted
+    const deleted = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(deleted).toBeNull();
+
+    // Verify skills were cascaded deleted
+    const skillsAfter = await con
+      .getRepository(UserExperienceSkill)
+      .find({ where: { experienceId } });
+    expect(skillsAfter).toHaveLength(0);
+  });
+
+  it("should not remove another user's experience", async () => {
+    loggedUser = '1';
+
+    // Try to remove user 2's experience
+    const res = await client.mutate(REMOVE_USER_EXPERIENCE_MUTATION, {
+      variables: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' },
+    });
+
+    // Should succeed without error
+    expect(res.errors).toBeFalsy();
+
+    // But the experience should still exist (not deleted)
+    const stillExists = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' } });
+    expect(stillExists).toBeDefined();
+    expect(stillExists?.userId).toBe('2');
+  });
+
+  it('should succeed silently when experience does not exist', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(REMOVE_USER_EXPERIENCE_MUTATION, {
+      variables: { id: '999e4567-e89b-12d3-a456-426614174000' },
+    });
+
+    // Should succeed without error
+    expect(res.errors).toBeFalsy();
   });
 });
