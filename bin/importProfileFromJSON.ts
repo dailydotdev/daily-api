@@ -6,7 +6,10 @@ import createOrGetConnection from '../src/db';
 import { type DataSource, type EntityManager } from 'typeorm';
 import { readFile } from 'node:fs/promises';
 import {
+  userExperienceCertificationImportSchema,
+  userExperienceEducationImportSchema,
   userExperienceInputBaseSchema,
+  userExperienceProjectImportSchema,
   userExperienceWorkImportSchema,
 } from '../src/common/schema/profile';
 import { UserExperience } from '../src/entity/user/experiences/UserExperience';
@@ -17,6 +20,9 @@ import { insertOrIgnoreUserExperienceSkills } from '../src/entity/user/experienc
 import { textFromEnumValue } from '../src/common';
 import { LocationType } from '@dailydotdev/schema';
 import { DatasetLocation } from '../src/entity/dataset/DatasetLocation';
+import { UserExperienceEducation } from '../src/entity/user/experiences/UserExperienceEducation';
+import { UserExperienceCertification } from '../src/entity/user/experiences/UserExperienceCertification';
+import { UserExperienceProject } from '../src/entity/user/experiences/UserExperienceProject';
 
 const resolveUserCompanyPart = async ({
   name,
@@ -152,6 +158,7 @@ const importUserExperienceWork = async ({
       locationType: locationType
         ? (Object.entries(LocationType).find(([, value]) => {
             return (
+              // TODO cv-parsing remove this replace when cv is adjusted to not use prefix
               locationType.replace('LOCATION_TYPE_', '') ===
               textFromEnumValue(LocationType, value)
             );
@@ -161,6 +168,123 @@ const importUserExperienceWork = async ({
         location,
         con: con,
       })),
+    }),
+  );
+
+  const experienceId = insertResult.identifiers[0].id;
+
+  if (skills) {
+    await insertOrIgnoreUserExperienceSkills(con, experienceId, skills);
+  }
+};
+
+const importUserExperienceEducation = async ({
+  data,
+  con,
+  userId,
+}: {
+  data: unknown;
+  con: EntityManager;
+  userId: string;
+}) => {
+  const userExperience = userExperienceEducationImportSchema.parse(data);
+
+  // TODO cv-parsing potentially won't be needed once cv is adjusted to use camelCase
+  const {
+    company,
+    title,
+    description,
+    started_at: startedAt,
+    skills,
+    ended_at: endedAt,
+    location,
+    subtitle,
+  } = userExperience;
+
+  const insertResult = await con.getRepository(UserExperienceEducation).insert(
+    con.getRepository(UserExperienceEducation).create({
+      userId: userId,
+      ...(await resolveUserCompanyPart({
+        name: company,
+        con: con,
+      })),
+      title,
+      description,
+      startedAt,
+      endedAt,
+      ...(await resolveUserLocationPart({
+        location,
+        con: con,
+      })),
+      subtitle,
+    }),
+  );
+
+  const experienceId = insertResult.identifiers[0].id;
+
+  if (skills) {
+    await insertOrIgnoreUserExperienceSkills(con, experienceId, skills);
+  }
+};
+
+const importUserExperienceCertification = async ({
+  data,
+  con,
+  userId,
+}: {
+  data: unknown;
+  con: EntityManager;
+  userId: string;
+}) => {
+  const userExperience = userExperienceCertificationImportSchema.parse(data);
+
+  const {
+    company,
+    title,
+    started_at: startedAt,
+    ended_at: endedAt,
+  } = userExperience;
+
+  await con.getRepository(UserExperienceCertification).insert(
+    con.getRepository(UserExperienceCertification).create({
+      userId: userId,
+      ...(await resolveUserCompanyPart({
+        name: company,
+        con: con,
+      })),
+      title,
+      startedAt,
+      endedAt,
+    }),
+  );
+};
+
+const importUserExperienceProject = async ({
+  data,
+  con,
+  userId,
+}: {
+  data: unknown;
+  con: EntityManager;
+  userId: string;
+}) => {
+  const userExperience = userExperienceProjectImportSchema.parse(data);
+
+  const {
+    title,
+    description,
+    started_at: startedAt,
+    ended_at: endedAt,
+    skills,
+  } = userExperience;
+
+  const insertResult = await con.getRepository(UserExperienceProject).insert(
+    con.getRepository(UserExperienceProject).create({
+      userId: userId,
+      title,
+      description,
+      startedAt,
+      endedAt,
     }),
   );
 
@@ -218,12 +342,35 @@ const main = async () => {
               con: entityManager,
               userId: params.userId,
             });
+
+            break;
+          case UserExperienceType.Education:
+            await importUserExperienceEducation({
+              data: item,
+              con: entityManager,
+              userId: params.userId,
+            });
+
+            break;
+          case UserExperienceType.Certification:
+            await importUserExperienceCertification({
+              data: item,
+              con: entityManager,
+              userId: params.userId,
+            });
+
+            break;
+          case UserExperienceType.Project:
+            await importUserExperienceProject({
+              data: item,
+              con: entityManager,
+              userId: params.userId,
+            });
+
             break;
           default:
             throw new Error(`Unsupported experience type: ${item.type}`);
         }
-
-        break;
       }
     });
   } catch (error) {

@@ -117,6 +117,7 @@ export const userExperienceCertificationImportSchema = z.object({
   type: z.string(),
   company: z.string().optional(),
   title: z.string(),
+  started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().optional(),
 });
 
