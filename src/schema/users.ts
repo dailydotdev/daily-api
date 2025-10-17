@@ -14,6 +14,7 @@ import {
   MarketingCta,
   Post,
   PostStats,
+  Settings,
   User,
   UserFlagsPublic,
   UserMarketingCta,
@@ -1423,7 +1424,12 @@ const getUserStreakQuery = async (
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
       .addSelect('u."weekStart"', 'weekStart')
+      .addSelect(
+        'COALESCE(s."optOutReadingStreak", false)',
+        'optOutReadingStreak',
+      )
       .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+      .leftJoin(Settings, 's', 's."userId" = u.id')
       .where(`"${builder.alias}"."userId" = :id`, {
         id: id,
       }),
@@ -1649,8 +1655,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserStreak> => {
+    ): Promise<GQLUserStreak | null> => {
       const streak = await getUserStreakQuery(ctx.userId, ctx, info);
+
+      // Check if user has opted out of reading streaks
+      if (streak?.optOutReadingStreak) {
+        return null;
+      }
 
       if (!streak) {
         return {
@@ -1678,8 +1689,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: userStreakProfileArgs,
       ctx: Context,
       info,
-    ): Promise<GQLUserStreak> => {
+    ): Promise<GQLUserStreak | null> => {
       const streak = await getUserStreakQuery(id, ctx, info);
+
+      // Check if user has opted out of reading streaks
+      if (streak?.optOutReadingStreak) {
+        return null;
+      }
 
       if (!streak) {
         return {
