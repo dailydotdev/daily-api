@@ -1424,7 +1424,10 @@ const getUserStreakQuery = async (
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
       .addSelect('u."weekStart"', 'weekStart')
-      .addSelect('COALESCE(s."optOutReadingStreak", false)', 'optOutReadingStreak')
+      .addSelect(
+        'COALESCE(s."optOutReadingStreak", false)',
+        'optOutReadingStreak',
+      )
       .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
       .leftJoin(Settings, 's', 's."userId" = u.id')
       .where(`"${builder.alias}"."userId" = :id`, {
