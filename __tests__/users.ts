@@ -39,6 +39,7 @@ import {
   MarketingCta,
   Post,
   PostReport,
+  Settings,
   Source,
   SourceMember,
   User,
@@ -610,6 +611,20 @@ describe('query userStreaks', () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
+  });
+
+  it('should return null when user has opted out of reading streaks', async () => {
+    loggedUser = '1';
+    await con.getRepository(Settings).save({
+      userId: loggedUser,
+      optOutReadingStreak: true,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreak: null,
+    });
   });
 
   const expectStreak = async (
@@ -1729,6 +1744,22 @@ describe('query userStreaksProfile', () => {
 
     const streak = await repo.findOneBy({ userId });
     expect(streak.currentStreak).toEqual(5);
+  });
+
+  it('should return null when user has opted out of reading streaks', async () => {
+    const userId = '2';
+    await con.getRepository(Settings).save({
+      userId,
+      optOutReadingStreak: true,
+    });
+
+    const res = await client.query(QUERY_BY_USER_ID, {
+      variables: { id: userId },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreakProfile: null,
+    });
   });
 });
 
