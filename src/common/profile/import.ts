@@ -1,5 +1,3 @@
-import '../src/config';
-
 import { type EntityManager } from 'typeorm';
 import {
   userExperienceCertificationImportSchema,
@@ -124,7 +122,7 @@ export const importUserExperienceWork = async ({
   data: unknown;
   con: EntityManager;
   userId: string;
-}) => {
+}): Promise<{ experienceId: string }> => {
   const userExperience = userExperienceWorkImportSchema.parse(data);
 
   const {
@@ -170,6 +168,10 @@ export const importUserExperienceWork = async ({
   if (skills) {
     await insertOrIgnoreUserExperienceSkills(con, experienceId, skills);
   }
+
+  return {
+    experienceId,
+  };
 };
 
 export const importUserExperienceEducation = async ({
@@ -180,7 +182,7 @@ export const importUserExperienceEducation = async ({
   data: unknown;
   con: EntityManager;
   userId: string;
-}) => {
+}): Promise<{ experienceId: string }> => {
   const userExperience = userExperienceEducationImportSchema.parse(data);
 
   // TODO cv-parsing potentially won't be needed once cv is adjusted to use camelCase
@@ -219,6 +221,10 @@ export const importUserExperienceEducation = async ({
   if (skills) {
     await insertOrIgnoreUserExperienceSkills(con, experienceId, skills);
   }
+
+  return {
+    experienceId,
+  };
 };
 
 export const importUserExperienceCertification = async ({
@@ -229,7 +235,7 @@ export const importUserExperienceCertification = async ({
   data: unknown;
   con: EntityManager;
   userId: string;
-}) => {
+}): Promise<{ experienceId: string }> => {
   const userExperience = userExperienceCertificationImportSchema.parse(data);
 
   const {
@@ -239,18 +245,26 @@ export const importUserExperienceCertification = async ({
     ended_at: endedAt,
   } = userExperience;
 
-  await con.getRepository(UserExperienceCertification).insert(
-    con.getRepository(UserExperienceCertification).create({
-      userId: userId,
-      ...(await resolveUserCompanyPart({
-        name: company,
-        con: con,
-      })),
-      title,
-      startedAt,
-      endedAt,
-    }),
-  );
+  const insertResult = await con
+    .getRepository(UserExperienceCertification)
+    .insert(
+      con.getRepository(UserExperienceCertification).create({
+        userId: userId,
+        ...(await resolveUserCompanyPart({
+          name: company,
+          con: con,
+        })),
+        title,
+        startedAt,
+        endedAt,
+      }),
+    );
+
+  const experienceId = insertResult.identifiers[0].id;
+
+  return {
+    experienceId,
+  };
 };
 
 export const importUserExperienceProject = async ({
@@ -261,7 +275,7 @@ export const importUserExperienceProject = async ({
   data: unknown;
   con: EntityManager;
   userId: string;
-}) => {
+}): Promise<{ experienceId: string }> => {
   const userExperience = userExperienceProjectImportSchema.parse(data);
 
   const {
@@ -287,4 +301,8 @@ export const importUserExperienceProject = async ({
   if (skills) {
     await insertOrIgnoreUserExperienceSkills(con, experienceId, skills);
   }
+
+  return {
+    experienceId,
+  };
 };
