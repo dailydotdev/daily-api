@@ -14,6 +14,7 @@ import {
   MarketingCta,
   Post,
   PostStats,
+  Settings,
   User,
   UserFlagsPublic,
   UserMarketingCta,
@@ -1649,7 +1650,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserStreak> => {
+    ): Promise<GQLUserStreak | null> => {
+      // Check if user has opted out of reading streaks
+      const settings = await ctx.con.getRepository(Settings).findOne({
+        where: { userId: ctx.userId },
+        select: ['optOutReadingStreak'],
+      });
+
+      if (settings?.optOutReadingStreak) {
+        return null;
+      }
+
       const streak = await getUserStreakQuery(ctx.userId, ctx, info);
 
       if (!streak) {
@@ -1678,7 +1689,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: userStreakProfileArgs,
       ctx: Context,
       info,
-    ): Promise<GQLUserStreak> => {
+    ): Promise<GQLUserStreak | null> => {
+      // Check if user has opted out of reading streaks
+      const settings = await ctx.con.getRepository(Settings).findOne({
+        where: { userId: id },
+        select: ['optOutReadingStreak'],
+      });
+
+      if (settings?.optOutReadingStreak) {
+        return null;
+      }
+
       const streak = await getUserStreakQuery(id, ctx, info);
 
       if (!streak) {
