@@ -9,6 +9,8 @@ export class UserReferral1761123042645 implements MigrationInterface {
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "userId" character varying NOT NULL,
         "type" text NOT NULL,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
         "status" text NOT NULL DEFAULT 'pending',
         "visited" boolean NOT NULL DEFAULT false,
         "flags" jsonb NOT NULL DEFAULT '{}',

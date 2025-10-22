@@ -1,11 +1,13 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   TableInheritance,
+  UpdateDateColumn,
 } from 'typeorm';
 import type { User } from '../User';
 
@@ -16,7 +18,7 @@ export enum UserReferralType {
 export enum UserReferralStatus {
   Pending = 'pending',
   Rejected = 'rejected',
-  Completed = 'completed',
+  Accepted = 'accepted',
 }
 
 export type UserReferralFlags = Partial<{
@@ -36,6 +38,12 @@ export class UserReferral {
     type: 'text',
   })
   userId: string;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @Column({ type: 'text' })
   @Index('IDX_user_referral_type')
