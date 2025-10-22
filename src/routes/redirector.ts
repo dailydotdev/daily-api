@@ -72,14 +72,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
 const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
   fastify.addHook<{ Params: { id: string } }>('onResponse', async (req) => {
-    const id = req.params.id;
-    if (!id) {
-      req.log.info('No referral id provided, skipping recruiter redirector');
-      return;
-    }
-
-    const isValidUUID = z.uuidv4().safeParse(id);
-    if (isValidUUID.error) {
+    const { error, data: id } = z.uuidv4().safeParse(req.params.id);
+    if (error) {
       req.log.info(
         'Invalid referral id provided, skipping recruiter redirector',
       );
