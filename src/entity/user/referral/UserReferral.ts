@@ -13,6 +13,16 @@ export enum UserReferralType {
   Linkedin = 'linkedin',
 }
 
+export enum UserReferralStatus {
+  Pending = 'pending',
+  Rejected = 'rejected',
+  Completed = 'completed',
+}
+
+export type UserReferralFlags = Partial<{
+  linkedinProfileUrl?: string;
+}>;
+
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
 @Index('IDX_user_referral_id_type_visited', ['id', 'type', 'visited'])
@@ -31,8 +41,15 @@ export class UserReferral {
   @Index('IDX_user_referral_type')
   type: UserReferralType;
 
+  @Column({ type: 'text', default: UserReferralStatus.Pending })
+  @Index('IDX_user_referral_status')
+  status: UserReferralStatus = UserReferralStatus.Pending;
+
   @Column({ type: 'boolean', default: false })
   visited: boolean = false;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: UserReferralFlags = {};
 
   @ManyToOne('User', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({ foreignKeyConstraintName: 'FK_user_referral_user_userId' })

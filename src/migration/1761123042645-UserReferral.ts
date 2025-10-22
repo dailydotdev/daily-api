@@ -9,9 +9,9 @@ export class UserReferral1761123042645 implements MigrationInterface {
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "userId" character varying NOT NULL,
         "type" text NOT NULL,
+        "status" text NOT NULL DEFAULT 'pending',
         "visited" boolean NOT NULL DEFAULT false,
-        "threadId" text,
-        CONSTRAINT "UQ_08b88b78b36e9f4e670250aff46" UNIQUE ("threadId"),
+        "flags" jsonb NOT NULL DEFAULT '{}',
         CONSTRAINT "PK_user_referral_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_user_referral_user_userId"
           FOREIGN KEY ("userId")
@@ -24,6 +24,11 @@ export class UserReferral1761123042645 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_user_referral_type"
         ON "user_referral" ("type")
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE INDEX IF NOT EXISTS "IDX_user_referral_status"
+        ON "user_referral" ("status")
     `);
 
     await queryRunner.query(/* sql */ `
