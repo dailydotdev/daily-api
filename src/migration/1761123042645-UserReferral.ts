@@ -1,13 +1,14 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class UserReferral1761123042645 implements MigrationInterface {
-  name = "UserReferral1761123042645";
+  name = 'UserReferral1761123042645';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */ `
       CREATE TABLE "user_referral" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "userId" character varying NOT NULL,
+        "externalUserId" character varying NOT NULL,
         "type" text NOT NULL,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -36,6 +37,11 @@ export class UserReferral1761123042645 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_user_referral_id_type_visited"
         ON "user_referral" ("id", "type", "visited")
+    `);
+
+    await queryRunner.query(/* sql */ `
+      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_user_referral_userId_externalUserId_unique"
+        ON "user_referral" ("userId", "externalUserId")
     `);
   }
 
