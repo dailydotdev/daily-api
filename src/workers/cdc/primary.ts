@@ -1534,8 +1534,6 @@ const onUserReferralChange = async (
     return;
   }
 
-  console.log('hello');
-
   if (
     data.payload.before!.status === UserReferralStatus.Pending &&
     data.payload.after!.status === UserReferralStatus.Accepted
