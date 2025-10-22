@@ -77,8 +77,7 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
       return;
     }
 
-    const userId = req.userId;
-    if (userId) {
+    if (req.userId) {
       req.log.info('User is logged in, skipping recruiter redirector');
       return;
     }
