@@ -113,21 +113,23 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
 
     const con = await createOrGetConnection();
 
-    const referral = await con.getRepository(UserReferralLinkedin).findOne({
-      where: { id: id, visited: false },
-    });
-
-    if (!referral) {
-      req.log.info('No valid referral found, skipping recruiter redirector');
-      return;
-    }
-
     try {
-      await con
+      const updateResult = await con
         .getRepository(UserReferralLinkedin)
-        .update({ id: id }, { visited: true });
+        .update({ id: id, visited: false }, { visited: true });
+
+      if (updateResult.affected === 0) {
+        req.log.info('Referral already processed or not found');
+        return;
+      }
 
       await con.transaction(async (manager) => {
+        const referral = await manager
+          .getRepository(UserReferralLinkedin)
+          .findOneOrFail({
+            where: { id: id },
+          });
+
         const userTransaction = await manager
           .getRepository(UserTransaction)
           .save(
