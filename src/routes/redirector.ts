@@ -3,6 +3,8 @@ import { FastifyInstance } from 'fastify';
 import { ArticlePost, Post } from '../entity';
 import { getDiscussionLink, notifyView } from '../common';
 import createOrGetConnection from '../db';
+import { isNullOrUndefined } from '../common/object';
+import { UserReferralLinkedin } from '../entity/user/referral/UserReferralLinkedin';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { postId: string }; Querystring: { a?: string } }>(
@@ -63,4 +65,65 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
     },
   );
+
+  fastify.register(recruiterRedirector, { prefix: '/recruiter' });
 }
+
+const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
+  fastify.addHook<{ Params: { id: string } }>('onResponse', async (req) => {
+    const id = req.params.id;
+    if (!id) {
+      req.log.info('No referral id provided, skipping recruiter redirector');
+      return;
+    }
+
+    const userId = req.userId;
+    if (userId) {
+      req.log.info('User is logged in, skipping recruiter redirector');
+      return;
+    }
+
+    const referrer = req.headers['referer'];
+    if (isNullOrUndefined(referrer)) {
+      req.log.info('No referrer provided, skipping recruiter redirector');
+      return;
+    }
+
+    if (referrer !== 'https://www.linkedin.com/') {
+      req.log.info('Referrer is not linkedin, skipping recruiter redirector');
+      return;
+    }
+
+    const con = await createOrGetConnection();
+
+    const referral = await con.getRepository(UserReferralLinkedin).findOne({
+      where: { id: id, visited: false },
+    });
+
+    if (!referral) {
+      req.log.info('No valid referral found, skipping recruiter redirector');
+      return;
+    }
+
+    try {
+      await con
+        .getRepository(UserReferralLinkedin)
+        .update({ id: id }, { visited: true });
+      req.log.info(`Marked referral ${id} as visited`);
+      // TODO: give cores
+    } catch (_err) {
+      const err = _err as Error;
+      req.log.error(
+        { err, referralId: id },
+        'Failed to mark referral as visited',
+      );
+      return;
+    }
+  });
+
+  fastify.get<{ Params: { id: string } }>('/:id', (req, res) =>
+    res.redirect(
+      'https://recruiter.daily.dev/?utm_source=redirector&utm_medium=linkedin_referral',
+    ),
+  );
+};
