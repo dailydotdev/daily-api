@@ -114,21 +114,21 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
     const con = await createOrGetConnection();
 
     try {
-      const updateResult = await con
-        .getRepository(UserReferralLinkedin)
-        .update({ id: id, visited: false }, { visited: true });
+      const { raw, affected } = await con
+        .createQueryBuilder()
+        .update(UserReferralLinkedin)
+        .set({ visited: true })
+        .where('id = :id', { id: 'f6227999-8ef5-4304-af34-d8536a0c713d' })
+        .returning(['userId'])
+        .execute();
 
-      if (updateResult.affected === 0) {
+      if (affected === 0) {
         req.log.info('Referral already processed or not found');
         return;
       }
 
       await con.transaction(async (manager) => {
-        const referral = await manager
-          .getRepository(UserReferralLinkedin)
-          .findOneOrFail({
-            where: { id: id },
-          });
+        const referral = raw[0] as UserReferralLinkedin;
 
         const userTransaction = await manager
           .getRepository(UserTransaction)
@@ -161,15 +161,14 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
       );
     } catch (_err) {
       const err = _err as Error;
+      await con
+        .getRepository(UserReferralLinkedin)
+        .update({ id: id }, { visited: false });
+
       req.log.error(
         { err, referralId: id },
         'Failed to mark referral as visited',
       );
-
-      await con
-        .getRepository(UserReferralLinkedin)
-        .update({ id: id }, { visited: false });
-      return;
     }
   });
 
