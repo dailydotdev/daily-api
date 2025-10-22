@@ -1,10 +1,19 @@
 import { URL } from 'url';
 import { FastifyInstance } from 'fastify';
 import { ArticlePost, Post } from '../entity';
-import { getDiscussionLink, notifyView } from '../common';
+import { getDiscussionLink, notifyView, systemUser } from '../common';
 import createOrGetConnection from '../db';
 import { isNullOrUndefined } from '../common/object';
 import { UserReferralLinkedin } from '../entity/user/referral/UserReferralLinkedin';
+import {
+  UserTransaction,
+  UserTransactionProcessor,
+  UserTransactionStatus,
+  UserTransactionType,
+} from '../entity/user/UserTransaction';
+import { randomUUID } from 'crypto';
+import { usdToCores } from '../common/number';
+import { transferCores } from '../common/njord';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { postId: string }; Querystring: { a?: string } }>(
@@ -108,14 +117,47 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
       await con
         .getRepository(UserReferralLinkedin)
         .update({ id: id }, { visited: true });
-      req.log.info(`Marked referral ${id} as visited`);
-      // TODO: give cores
+
+      await con.transaction(async (manager) => {
+        const userTransaction = await manager
+          .getRepository(UserTransaction)
+          .save(
+            manager.getRepository(UserTransaction).create({
+              id: randomUUID(),
+              processor: UserTransactionProcessor.Njord,
+              receiverId: referral.userId,
+              status: UserTransactionStatus.Success,
+              productId: null,
+              senderId: systemUser.id,
+              value: usdToCores(5),
+              valueIncFees: 0,
+              fee: 0,
+              flags: { note: 'Linkedin recruiter referral' },
+              referenceId: id,
+              referenceType: UserTransactionType.ReferralLinkedin,
+            }),
+          );
+
+        await transferCores({
+          ctx: { userId: referral.userId },
+          transaction: userTransaction,
+          entityManager: manager,
+        });
+      });
+
+      req.log.info(
+        `Marked referral ${id} as visited and rewarded user with cores`,
+      );
     } catch (_err) {
       const err = _err as Error;
       req.log.error(
         { err, referralId: id },
         'Failed to mark referral as visited',
       );
+
+      await con
+        .getRepository(UserReferralLinkedin)
+        .update({ id: id }, { visited: false });
       return;
     }
   });
