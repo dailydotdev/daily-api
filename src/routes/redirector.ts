@@ -1,3 +1,4 @@
+import z from 'zod';
 import { URL } from 'url';
 import { FastifyInstance } from 'fastify';
 import { ArticlePost, Post } from '../entity';
@@ -86,6 +87,14 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
       return;
     }
 
+    const isValidUUID = z.uuidv4().safeParse(id);
+    if (isValidUUID.error) {
+      req.log.info(
+        'Invalid referral id provided, skipping recruiter redirector',
+      );
+      return;
+    }
+
     if (req.userId) {
       req.log.info('User is logged in, skipping recruiter redirector');
       return;
@@ -162,7 +171,7 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
     }
   });
 
-  fastify.get<{ Params: { id: string } }>('/:id', (req, res) =>
+  fastify.get<{ Params: { id: string } }>('/:id', (_, res) =>
     res.redirect(
       'https://recruiter.daily.dev/?utm_source=redirector&utm_medium=linkedin_referral',
     ),
