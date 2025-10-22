@@ -232,7 +232,7 @@ const getUserExperience = (
   );
 
 // These values are something that could come from growthbook for experimentations
-const baseRecruiterUrl = 'https://api.local.fylla.dev/r/recruiter';
+const baseRecruiterUrl = `${process.env.URL_PREFIX}/r/recruiter`;
 const defaultRecruiterReferralCta = 'Earn Cores, refer recruiter to daily.dev';
 const getDefaultMessage = (url: string) =>
   `I'm currently not open to opportunities. You might find the right candidate on ${url}. It's worth checking out!`;
