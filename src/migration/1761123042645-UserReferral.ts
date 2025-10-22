@@ -8,7 +8,7 @@ export class UserReferral1761123042645 implements MigrationInterface {
       CREATE TABLE "user_referral" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "userId" character varying NOT NULL,
-        "externalUserId" character varying NOT NULL,
+        "externalUserId" text NOT NULL,
         "type" text NOT NULL,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
