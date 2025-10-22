@@ -89,7 +89,7 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
       return;
     }
 
-    if (referrer !== 'https://www.linkedin.com/') {
+    if (referrer.startsWith('https://www.linkedin.com/') === false) {
       req.log.info('Referrer is not linkedin, skipping recruiter redirector');
       return;
     }
