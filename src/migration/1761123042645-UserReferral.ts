@@ -12,7 +12,7 @@ export class UserReferral1761123042645 implements MigrationInterface {
         "visited" boolean NOT NULL DEFAULT false,
         "threadId" text,
         CONSTRAINT "UQ_08b88b78b36e9f4e670250aff46" UNIQUE ("threadId"),
-        CONSTRAINT "PK_user_referral_id_userId" PRIMARY KEY ("id", "userId"),
+        CONSTRAINT "PK_user_referral_id" PRIMARY KEY ("id"),
         CONSTRAINT "FK_user_referral_user_userId"
           FOREIGN KEY ("userId")
           REFERENCES "user"("id")

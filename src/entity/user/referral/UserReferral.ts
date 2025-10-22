@@ -19,13 +19,12 @@ export enum UserReferralType {
 @Index('IDX_user_referral_id_type_visited', ['id', 'type', 'visited'])
 export class UserReferral {
   @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_user_referral_id_userId',
+    primaryKeyConstraintName: 'PK_user_referral_id',
   })
   id: string;
 
   @PrimaryColumn({
     type: 'text',
-    primaryKeyConstraintName: 'PK_user_referral_id_userId',
   })
   userId: string;
 
