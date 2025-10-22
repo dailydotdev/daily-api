@@ -162,6 +162,11 @@ import { PollPost } from '../../entity/posts/PollPost';
 import { UserExperienceWork } from '../../entity/user/experiences/UserExperienceWork';
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
+import {
+  UserReferral,
+  UserReferralStatus,
+} from '../../entity/user/referral/UserReferral';
+import { awardReferral } from '../../common/njord';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1520,6 +1525,27 @@ const onUserExperienceChange = async (
   }
 };
 
+const onUserReferralChange = async (
+  con: DataSource,
+  _: FastifyBaseLogger,
+  data: ChangeMessage<UserReferral>,
+) => {
+  if (data.payload.op !== 'u') {
+    return;
+  }
+
+  console.log('hello');
+
+  if (
+    data.payload.before!.status === UserReferralStatus.Pending &&
+    data.payload.after!.status === UserReferralStatus.Accepted
+  ) {
+    const referral = data.payload.after!;
+    const ctx = { userId: referral.userId, con };
+    await awardReferral({ id: referral.id, ctx });
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1653,6 +1679,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserExperience):
           await onUserExperienceChange(con, logger, data);
+          break;
+        case getTableName(con, UserReferral):
+          await onUserReferralChange(con, logger, data);
           break;
       }
     } catch (err) {
