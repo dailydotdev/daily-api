@@ -4,7 +4,6 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
   TableInheritance,
 } from 'typeorm';
@@ -23,7 +22,7 @@ export class UserReferral {
   })
   id: string;
 
-  @PrimaryColumn({
+  @Column({
     type: 'text',
   })
   userId: string;
