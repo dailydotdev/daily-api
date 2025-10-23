@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { getLimit, toGQLEnum } from '../common';
+import { getLimit, getShortUrl, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
@@ -26,6 +26,8 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
+import { UserReferral } from '../entity/user/referral/UserReferral';
+import { UserReferralLinkedin } from '../entity/user/referral/UserReferralLinkedin';
 
 interface GQLUserExperience {
   id: string;
@@ -101,6 +103,12 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type RecruiterReferral {
+    message: String!
+    cta: String!
+    url: String!
+  }
+
   extend type Query {
     userExperiences(
       userId: ID!
@@ -115,6 +123,7 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): UserExperienceConnection!
     userExperienceById(id: ID!): UserExperience
+    userReferralRecruiter(toReferExternalId: String!): RecruiterReferral! @auth
   }
 
   input UserGeneralExperienceInput {
@@ -222,8 +231,53 @@ const getUserExperience = (
     true,
   );
 
+// These values are something that could come from growthbook for experimentations
+const baseRecruiterUrl = `${process.env.URL_PREFIX}/r/recruiter`;
+const defaultRecruiterReferralCta = 'Earn Cores, refer recruiter to daily.dev';
+const getDefaultMessage = (url: string) =>
+  `I'm currently not open to opportunities. You might find the right candidate on ${url}. It's worth checking out!`;
+
+const getLinkedinProfileUrl = (id: string) =>
+  `https://www.linkedin.com/in/${id}`;
+
 export const resolvers = traceResolvers<unknown, AuthContext>({
   Query: {
+    userReferralRecruiter: async (
+      _,
+      { toReferExternalId }: { toReferExternalId: string },
+      ctx,
+    ) => {
+      const referal = await ctx.con.getRepository(UserReferral).findOne({
+        where: { userId: ctx.userId, externalUserId: toReferExternalId },
+      });
+
+      if (referal) {
+        const url = `${baseRecruiterUrl}/${referal.id}`;
+        const result = await getShortUrl(url, ctx.log);
+
+        return {
+          message: getDefaultMessage(url),
+          cta: defaultRecruiterReferralCta,
+          url: result,
+        };
+      }
+
+      const newReferral = ctx.con.getRepository(UserReferralLinkedin).create({
+        userId: ctx.userId,
+        externalUserId: toReferExternalId,
+        flags: { linkedinProfileUrl: getLinkedinProfileUrl(toReferExternalId) },
+      });
+
+      const saved = await ctx.con.getRepository(UserReferral).save(newReferral);
+      const url = `${baseRecruiterUrl}/${saved.id}`;
+      const result = await getShortUrl(url, ctx.log);
+
+      return {
+        message: getDefaultMessage(url),
+        cta: defaultRecruiterReferralCta,
+        url: result,
+      };
+    },
     userExperiences: async (
       _,
       args: z.infer<typeof userExperiencesSchema>,
