@@ -24,6 +24,10 @@ export class UserReferral1761123042645 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
+      ALTER TABLE "public"."user_referral" REPLICA IDENTITY FULL
+    `);
+
+    await queryRunner.query(/* sql */ `
       CREATE INDEX IF NOT EXISTS "IDX_user_referral_type"
         ON "user_referral" ("type")
     `);

@@ -60,6 +60,7 @@ import { Message } from '@bufbuild/protobuf';
 import { ensureSourcePermissions } from '../schema/sources';
 import { SourceMemberRoles } from '../roles';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
+import { usdToCores } from './number';
 
 const transport = createGrpcTransport({
   baseUrl: process.env.NJORD_ORIGIN,
@@ -1056,7 +1057,7 @@ export const throwUserTransactionError = async ({
   error,
   transaction,
 }: {
-  ctx: AuthContext;
+  ctx: Pick<AuthContext, 'userId' | 'con'>;
   entityManager: EntityManager;
   error: TransferError;
   transaction: UserTransaction;
@@ -1095,4 +1096,49 @@ export const throwUserTransactionError = async ({
 
   // throw error for client after saving the transaction in error state
   throw userTransactionError;
+};
+
+export const awardReferral = async ({
+  id,
+  ctx,
+}: {
+  id: string;
+  ctx: Pick<AuthContext, 'userId' | 'con'>;
+}) => {
+  await ctx.con.transaction(async (entityManager) => {
+    const transaction = await entityManager.getRepository(UserTransaction).save(
+      entityManager.getRepository(UserTransaction).create({
+        id: randomUUID(),
+        processor: UserTransactionProcessor.Njord,
+        receiverId: ctx.userId,
+        status: UserTransactionStatus.Success,
+        productId: null,
+        senderId: systemUser.id,
+        value: usdToCores(10),
+        valueIncFees: 0,
+        fee: 0,
+        flags: { note: 'Linkedin recruiter referral' },
+        referenceId: id,
+        referenceType: UserTransactionType.ReferralLinkedin,
+      }),
+    );
+
+    try {
+      await transferCores({
+        ctx,
+        transaction,
+        entityManager,
+      });
+    } catch (error) {
+      if (error instanceof TransferError) {
+        await throwUserTransactionError({
+          ctx,
+          transaction,
+          entityManager,
+          error,
+        });
+      }
+      throw error;
+    }
+  });
 };
