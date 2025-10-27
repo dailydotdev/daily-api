@@ -7,6 +7,8 @@ import createOrGetConnection from '../db';
 import { isNullOrUndefined } from '../common/object';
 import { UserReferralLinkedin } from '../entity/user/referral/UserReferralLinkedin';
 import { JsonContains, Not } from 'typeorm';
+import { logger } from '../logger';
+import { UserReferralStatus } from '../entity/user/referral/UserReferral';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { postId: string }; Querystring: { a?: string } }>(
@@ -46,7 +48,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const userId = req.userId || req.trackingId;
       if (userId) {
         notifyView(
-          req.log,
+          logger,
           post.id,
           userId,
           req.headers['referer'],
@@ -75,25 +77,35 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
   fastify.addHook<{ Params: { id: string } }>('onResponse', async (req) => {
     const { error, data: id } = z.uuidv4().safeParse(req.params.id);
     if (error) {
-      req.log.debug(
+      logger.debug(
+        { referralId: req.params.id },
         'Invalid referral id provided, skipping recruiter redirector',
       );
       return;
     }
 
     if (req.userId) {
-      req.log.debug('User is logged in, skipping recruiter redirector');
+      logger.debug(
+        { referralId: id },
+        'User is logged in, skipping recruiter redirector',
+      );
       return;
     }
 
     const referrer = req.headers['referer'];
     if (isNullOrUndefined(referrer)) {
-      req.log.debug('No referrer provided, skipping recruiter redirector');
+      logger.debug(
+        { referralId: id },
+        'No referrer provided, skipping recruiter redirector',
+      );
       return;
     }
 
     if (referrer.startsWith('https://www.linkedin.com/') === false) {
-      req.log.debug('Referrer is not linkedin, skipping recruiter redirector');
+      logger.debug(
+        { referralId: id, referrer },
+        'Referrer is not linkedin, skipping recruiter redirector',
+      );
       return;
     }
 
@@ -103,6 +115,7 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
       const result = await con.getRepository(UserReferralLinkedin).update(
         {
           id: id,
+          status: UserReferralStatus.Pending,
           visited: false,
           flags: Not(JsonContains({ hashedRequestIP: hmacHashIP(req.ip) })),
         },
@@ -110,17 +123,17 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
       );
 
       if (result.affected === 0) {
-        req.log.debug(
-          { id },
+        logger.debug(
+          { referralId: id },
           `No referral found or referral already marked as visited`,
         );
         return;
       }
 
-      req.log.debug({ id }, `Marked referral as visited`);
+      logger.debug({ referralId: id }, 'Marked referral as visited');
     } catch (_err) {
       const err = _err as Error;
-      req.log.error(
+      logger.error(
         { err, referralId: id },
         'Failed to mark referral as visited',
       );
