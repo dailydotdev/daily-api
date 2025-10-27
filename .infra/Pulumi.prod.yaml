@@ -173,6 +173,8 @@ config:
       secure: AAABANvfb9iJDOmbRPpMpkPzBLpeKTHsLCsFkNfU38yn53ZKUmeP0PA34uVGPZp+y4luHmEFXRE/jy/4rFwr9ZoVtufE59aa7J5AtVJcYY1VlumIY6P5olg=
     brokkrOrigin:
       secure: AAABABvk5Zi2sL2p8Gjl4vwVS+Ge+P2S3Jo8yDBOTNMZ6FZ1WquX+DqQkvE1YBTCvSMy9kmd+TCsRzeV3LrTC0Xbnlh7PxLog7fseJS37GUJ
+    hmacSecret:
+      secure: AAABANgm4eu/hvsByErzHqU7b/52HNIxF3AvvorTo5aEKPaQHKUrXOj98jYSN9eC/amgPg2UuJ8AN/rTcs0=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

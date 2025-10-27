@@ -23,6 +23,7 @@ export enum UserReferralStatus {
 
 export type UserReferralFlags = Partial<{
   linkedinProfileUrl?: string;
+  hashedRequestIP?: string; // Hashed IP address from which the referral link was requested
 }>;
 
 @Entity()
