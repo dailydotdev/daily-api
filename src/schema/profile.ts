@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { getLimit, getShortUrl, toGQLEnum } from '../common';
+import { getLimit, getShortUrl, hmacHashIP, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
@@ -265,7 +265,10 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       const newReferral = ctx.con.getRepository(UserReferralLinkedin).create({
         userId: ctx.userId,
         externalUserId: toReferExternalId,
-        flags: { linkedinProfileUrl: getLinkedinProfileUrl(toReferExternalId) },
+        flags: {
+          linkedinProfileUrl: getLinkedinProfileUrl(toReferExternalId),
+          hashedRequestIP: hmacHashIP(ctx.req.ip),
+        },
       });
 
       const saved = await ctx.con.getRepository(UserReferral).save(newReferral);

@@ -70,6 +70,7 @@ declare global {
       SKADI_ORIGIN: string;
       SKADI_API_ORIGIN: string;
       SKADI_API_ORIGIN_V2: string;
+      HMAC_SECRET: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;

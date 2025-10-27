@@ -2,10 +2,11 @@ import z from 'zod';
 import { URL } from 'url';
 import { FastifyInstance } from 'fastify';
 import { ArticlePost, Post } from '../entity';
-import { getDiscussionLink, notifyView } from '../common';
+import { getDiscussionLink, hmacHashIP, notifyView } from '../common';
 import createOrGetConnection from '../db';
 import { isNullOrUndefined } from '../common/object';
 import { UserReferralLinkedin } from '../entity/user/referral/UserReferralLinkedin';
+import { JsonContains, Not } from 'typeorm';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { postId: string }; Querystring: { a?: string } }>(
@@ -74,36 +75,49 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
   fastify.addHook<{ Params: { id: string } }>('onResponse', async (req) => {
     const { error, data: id } = z.uuidv4().safeParse(req.params.id);
     if (error) {
-      req.log.info(
+      req.log.debug(
         'Invalid referral id provided, skipping recruiter redirector',
       );
       return;
     }
 
     if (req.userId) {
-      req.log.info('User is logged in, skipping recruiter redirector');
+      req.log.debug('User is logged in, skipping recruiter redirector');
       return;
     }
 
     const referrer = req.headers['referer'];
     if (isNullOrUndefined(referrer)) {
-      req.log.info('No referrer provided, skipping recruiter redirector');
+      req.log.debug('No referrer provided, skipping recruiter redirector');
       return;
     }
 
     if (referrer.startsWith('https://www.linkedin.com/') === false) {
-      req.log.info('Referrer is not linkedin, skipping recruiter redirector');
+      req.log.debug('Referrer is not linkedin, skipping recruiter redirector');
       return;
     }
 
     const con = await createOrGetConnection();
 
     try {
-      await con
-        .getRepository(UserReferralLinkedin)
-        .update({ id: id }, { visited: true });
+      const result = await con.getRepository(UserReferralLinkedin).update(
+        {
+          id: id,
+          visited: false,
+          flags: Not(JsonContains({ hashedRequestIP: hmacHashIP(req.ip) })),
+        },
+        { visited: true },
+      );
 
-      req.log.info(`Marked referral ${id} as visited`);
+      if (result.affected === 0) {
+        req.log.debug(
+          { id },
+          `No referral found or referral already marked as visited`,
+        );
+        return;
+      }
+
+      req.log.debug({ id }, `Marked referral as visited`);
     } catch (_err) {
       const err = _err as Error;
       req.log.error(
