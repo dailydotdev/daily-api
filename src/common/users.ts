@@ -72,6 +72,7 @@ export interface GQLUserTopReader {
 export interface GQLUserStreakTz extends GQLUserStreak {
   timezone: string;
   lastViewAtTz: Date;
+  optOutReadingStreak?: boolean;
 }
 
 export const fetchUser = async (
