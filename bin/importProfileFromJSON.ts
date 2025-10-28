@@ -14,6 +14,11 @@ import {
   importUserExperienceProject,
 } from '../src/common/profile/import';
 
+/**
+ * Import profile from JSON to user by id
+ *
+ * npx ts-node bin/importProfileFromJSON.ts --path ~/Downloads/testuser.json -u testuser
+ */
 const main = async () => {
   let con: DataSource | null = null;
 
