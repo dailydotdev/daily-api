@@ -87,7 +87,7 @@ export const userExperienceWorkImportSchema = z.object({
   started_at: z.coerce.date().default(() => new Date()),
   location_type: z.string().optional(),
   skills: z.array(z.string()).optional(),
-  ended_at: z.coerce.date().optional(),
+  ended_at: z.coerce.date().nullish().default(null),
   location: z
     .object({
       city: z.string().optional(),
@@ -102,7 +102,7 @@ export const userExperienceEducationImportSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
   started_at: z.coerce.date().default(() => new Date()),
-  ended_at: z.coerce.date().optional(),
+  ended_at: z.coerce.date().nullish().default(null),
   location: z
     .object({
       city: z.string().optional(),
@@ -118,7 +118,7 @@ export const userExperienceCertificationImportSchema = z.object({
   company: z.string().optional(),
   title: z.string(),
   started_at: z.coerce.date().default(() => new Date()),
-  ended_at: z.coerce.date().optional(),
+  ended_at: z.coerce.date().nullish().default(null),
 });
 
 export const userExperienceProjectImportSchema = z.object({
@@ -126,6 +126,6 @@ export const userExperienceProjectImportSchema = z.object({
   title: z.string(),
   description: z.string(),
   started_at: z.coerce.date().default(() => new Date()),
-  ended_at: z.coerce.date().optional(),
+  ended_at: z.coerce.date().nullish().default(null),
   skills: z.array(z.string()),
 });

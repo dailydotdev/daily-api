@@ -65,6 +65,39 @@ describe('UserExperienceType work import', () => {
       .findBy({ experienceId });
     expect(skills.map((s) => s.value)).toEqual(['PHP', 'VIVO CMS', 'CMS']);
   });
+
+  it('imports work experience without matched fields', async () => {
+    const user = await con.getRepository(User).save({ id: 'user-work-2' });
+    const fixture = userExperienceWorkFixture[1];
+
+    const { experienceId } = await importUserExperienceWork({
+      data: fixture,
+      con: con.manager,
+      userId: user.id,
+    });
+    const experience = await con
+      .getRepository(UserExperienceWork)
+      .findOne({ where: { id: experienceId } });
+
+    expect(experience).toEqual({
+      companyId: null,
+      createdAt: expect.any(Date),
+      customCompanyName: 'Cover Likers',
+      description: 'Backend development using Node.js and databases.',
+      employmentType: null,
+      endedAt: null,
+      id: experienceId,
+      locationId: null,
+      locationType: null,
+      startedAt: new Date('2018-03-01T00:00:00.000Z'),
+      subtitle: null,
+      title: 'Backend Developer',
+      type: 'work',
+      updatedAt: expect.any(Date),
+      userId: 'user-work-2',
+      verified: false,
+    });
+  });
 });
 
 describe('UserExperienceType education import', () => {
@@ -93,6 +126,38 @@ describe('UserExperienceType education import', () => {
       companyId: null,
       startedAt: new Date('2023-01-01T00:00:00.000Z'),
       endedAt: new Date('2024-12-31T00:00:00.000Z'),
+      locationId: null,
+      locationType: null,
+      grade: null,
+      createdAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('imports education experience without matched fields', async () => {
+    const user = await con.getRepository(User).save({ id: 'user-education-2' });
+    const fixture = userExperienceEducationFixture[1];
+
+    const { experienceId } = await importUserExperienceEducation({
+      data: fixture,
+      con: con.manager,
+      userId: user.id,
+    });
+    const experience = await con
+      .getRepository(UserExperienceEducation)
+      .findOne({ where: { id: experienceId } });
+
+    expect(experience).toEqual({
+      id: experienceId,
+      userId: 'user-education-2',
+      type: 'education',
+      title: 'Bachelor of Something',
+      subtitle: 'Wow!',
+      description: 'General studies with focus on various topics.',
+      customCompanyName: 'Unknown University',
+      companyId: null,
+      startedAt: new Date('2020-01-01T00:00:00.000Z'),
+      endedAt: null,
       locationId: null,
       locationType: null,
       grade: null,
@@ -129,6 +194,41 @@ describe('UserExperienceType certification import', () => {
       companyId: null,
       startedAt: new Date('2024-01-01T00:00:00.000Z'),
       endedAt: new Date('2024-12-31T00:00:00.000Z'),
+      locationId: null,
+      locationType: null,
+      externalReferenceId: null,
+      url: null,
+      createdAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+    });
+  });
+
+  it('imports certification experience without matched fields', async () => {
+    const user = await con
+      .getRepository(User)
+      .save({ id: 'user-certification-2' });
+    const fixture = userExperienceCertificationFixture[1];
+
+    const { experienceId } = await importUserExperienceCertification({
+      data: fixture,
+      con: con.manager,
+      userId: user.id,
+    });
+    const experience = await con
+      .getRepository(UserExperienceCertification)
+      .findOne({ where: { id: experienceId } });
+
+    expect(experience).toEqual({
+      id: experienceId,
+      userId: 'user-certification-2',
+      type: 'certification',
+      title: 'Advanced Unknown Tech',
+      subtitle: null,
+      description: null,
+      customCompanyName: 'Some Academy',
+      companyId: null,
+      startedAt: new Date('2022-05-01T00:00:00.000Z'),
+      endedAt: null,
       locationId: null,
       locationType: null,
       externalReferenceId: null,
@@ -177,5 +277,37 @@ describe('UserExperienceType project import', () => {
     expect(skills.map((s) => s.value).sort()).toEqual(
       ['GraphQL', 'Node.js'].sort(),
     );
+  });
+
+  it('imports project experience without matched fields', async () => {
+    const user = await con.getRepository(User).save({ id: 'user-project-2' });
+    const fixture = userExperienceProjectFixture[1];
+
+    const { experienceId } = await importUserExperienceProject({
+      data: fixture,
+      con: con.manager,
+      userId: user.id,
+    });
+    const experience = await con
+      .getRepository(UserExperienceProject)
+      .findOne({ where: { id: experienceId } });
+
+    expect(experience).toEqual({
+      id: experienceId,
+      userId: 'user-project-2',
+      type: 'project',
+      title: 'Mystery App',
+      subtitle: null,
+      description: 'An app with minimal info.',
+      customCompanyName: null,
+      companyId: null,
+      startedAt: new Date('2023-06-01T00:00:00.000Z'),
+      endedAt: null,
+      locationId: null,
+      locationType: null,
+      url: null,
+      createdAt: expect.any(Date),
+      updatedAt: expect.any(Date),
+    });
   });
 });

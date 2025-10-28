@@ -14,4 +14,18 @@ export const userExperienceWorkFixture = [
     location_type: 'LOCATION_TYPE_ONSITE',
     skills: ['PHP', 'VIVO CMS', 'CMS'],
   },
+  {
+    type: 'work',
+    company: 'Cover Likers',
+    title: 'Backend Developer',
+    description: 'Backend development using Node.js and databases.',
+    started_at: '2018-03-01',
+    ended_at: null,
+    location: {
+      city: 'Wahkkauppp',
+      country: 'Mars',
+    },
+    location_type: 'NONE',
+    skills: ['Woodworking', 'Paiting'],
+  },
 ];
