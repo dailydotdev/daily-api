@@ -73,6 +73,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(recruiterRedirector, { prefix: '/recruiter' });
 }
 
+export const BASE_RECRUITER_URL =
+  'https://recruiter.daily.dev/?utm_source=dailydev&utm_medium=linkedin_referral';
+
 const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
   fastify.addHook<{ Params: { id: string } }>('onResponse', async (req) => {
     const { error, data: id } = z.uuidv4().safeParse(req.params.id);
@@ -141,8 +144,6 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
   });
 
   fastify.get<{ Params: { id: string } }>('/:id', (_, res) =>
-    res.redirect(
-      'https://recruiter.daily.dev/?utm_source=dailydev&utm_medium=linkedin_referral',
-    ),
+    res.redirect(BASE_RECRUITER_URL),
   );
 };

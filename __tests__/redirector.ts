@@ -13,6 +13,7 @@ import { usersFixture } from './fixture/user';
 import { UserReferralLinkedin } from '../src/entity/user/referral/UserReferralLinkedin';
 import { logger } from '../src/logger';
 import { UserReferralStatus } from '../src/entity/user/referral/UserReferral';
+import { BASE_RECRUITER_URL } from '../src/routes/redirector';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -141,8 +142,6 @@ describe('GET /:id/profile-image', () => {
 
 describe('GET /r/recruiter/:id', () => {
   const spyLogger = jest.fn();
-  const recruiterUrl =
-    'https://recruiter.daily.dev/?utm_source=redirector&utm_medium=linkedin_referral';
 
   const saveReferral = async (override?: Partial<UserReferralLinkedin>) => {
     return con.getRepository(UserReferralLinkedin).save({
@@ -169,7 +168,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('X-Forwarded-For', '203.0.113.1');
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
   });
 
   it('should redirect to recruiter landing even with invalid UUID', async () => {
@@ -180,7 +179,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('X-Forwarded-For', '203.0.113.1');
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -202,7 +201,7 @@ describe('GET /r/recruiter/:id', () => {
         .set('X-Forwarded-For', '203.0.113.1'),
     );
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -224,7 +223,7 @@ describe('GET /r/recruiter/:id', () => {
       .get(`/r/recruiter/${r.id}`)
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -247,7 +246,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://daily.dev/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -273,7 +272,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -296,7 +295,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '198.51.100.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -319,7 +318,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -339,7 +338,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(recruiterUrl);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
