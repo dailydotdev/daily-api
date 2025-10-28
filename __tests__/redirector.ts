@@ -1,14 +1,19 @@
 import appFunc from '../src';
 import { FastifyInstance } from 'fastify';
-import { saveFixtures, TEST_UA } from './helpers';
+import { authorizeRequest, saveFixtures, TEST_UA } from './helpers';
 import { ArticlePost, Source, User, YouTubePost } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import request from 'supertest';
 import { postsFixture, videoPostsFixture } from './fixture/post';
-import { notifyView } from '../src/common';
+import { hmacHashIP, notifyView } from '../src/common';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { fallbackImages } from '../src/config';
+import { usersFixture } from './fixture/user';
+import { UserReferralLinkedin } from '../src/entity/user/referral/UserReferralLinkedin';
+import { logger } from '../src/logger';
+import { UserReferralStatus } from '../src/entity/user/referral/UserReferral';
+import { BASE_RECRUITER_URL } from '../src/routes/redirector';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
@@ -132,5 +137,218 @@ describe('GET /:id/profile-image', () => {
       .get('/123/profile-image')
       .expect(302)
       .expect('Location', fallbackImages.avatar);
+  });
+});
+
+describe('GET /r/recruiter/:id', () => {
+  const spyLogger = jest.fn();
+
+  const saveReferral = async (override?: Partial<UserReferralLinkedin>) => {
+    return con.getRepository(UserReferralLinkedin).save({
+      userId: usersFixture[0].id,
+      externalUserId: 'ext-0',
+      flags: { hashedRequestIP: hmacHashIP('198.51.100.1') },
+      ...override,
+    });
+  };
+
+  const getReferral = async (id: string) => {
+    return con.getRepository(UserReferralLinkedin).findOne({ where: { id } });
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should redirect to recruiter landing', async () => {
+    const r = await saveReferral();
+    const res = await request(app.server)
+      .get(`/r/recruiter/${r.id}`)
+      .set('Referer', 'https://www.linkedin.com/')
+      .set('X-Forwarded-For', '203.0.113.1');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+  });
+
+  it('should redirect to recruiter landing even with invalid UUID', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const res = await request(app.server)
+      .get(`/r/recruiter/invalid-uuid`)
+      .set('Referer', 'https://www.linkedin.com/')
+      .set('X-Forwarded-For', '203.0.113.1');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      { referralId: 'invalid-uuid' },
+      'Invalid referral id provided, skipping recruiter redirector',
+    );
+  });
+
+  it('should redirect to recruiter landing without marking visited if user is logged in', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const r = await saveReferral();
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .get(`/r/recruiter/${r.id}`)
+        .set('Referer', 'https://www.linkedin.com/')
+        .set('X-Forwarded-For', '203.0.113.1'),
+    );
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      { referralId: r.id },
+      'User is logged in, skipping recruiter redirector',
+    );
+
+    const referral = await getReferral(r.id);
+    expect(referral?.visited).toBe(false);
+  });
+
+  it('should redirect to recruiter landing without marking visited if no referrer', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const r = await saveReferral();
+
+    const res = await request(app.server)
+      .get(`/r/recruiter/${r.id}`)
+      .set('X-Forwarded-For', '203.0.113.1');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      { referralId: r.id },
+      'No referrer provided, skipping recruiter redirector',
+    );
+
+    const referral = await getReferral(r.id);
+    expect(referral?.visited).toBe(false);
+  });
+
+  it('should redirect to recruiter landing without marking visited if referrer is not linkedin', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const r = await saveReferral();
+
+    const res = await request(app.server)
+      .get(`/r/recruiter/${r.id}`)
+      .set('Referer', 'https://daily.dev/')
+      .set('X-Forwarded-For', '203.0.113.1');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      {
+        referralId: r.id,
+        referrer: 'https://daily.dev/',
+      },
+      'Referrer is not linkedin, skipping recruiter redirector',
+    );
+
+    const referral = await getReferral(r.id);
+    expect(referral?.visited).toBe(false);
+  });
+
+  it('should mark referral as visited when all conditions met', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const r = await saveReferral();
+
+    const res = await request(app.server)
+      .get(`/r/recruiter/${r.id}`)
+      .set('Referer', 'https://www.linkedin.com/')
+      .set('X-Forwarded-For', '203.0.113.1');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      { referralId: r.id },
+      'Marked referral as visited',
+    );
+
+    const referral = await getReferral(r.id);
+    expect(referral?.visited).toBe(true);
+  });
+
+  it('should not mark referral as visited if visitor is the requester', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const r = await saveReferral();
+
+    const res = await request(app.server)
+      .get(`/r/recruiter/${r.id}`)
+      .set('Referer', 'https://www.linkedin.com/')
+      .set('X-Forwarded-For', '198.51.100.1');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      { referralId: r.id },
+      'No referral found or referral already marked as visited',
+    );
+
+    const referral = await getReferral(r.id);
+    expect(referral?.visited).toBe(false);
+  });
+
+  it('should not do anything if already visited', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const r = await saveReferral({ visited: true });
+
+    const res = await request(app.server)
+      .get(`/r/recruiter/${r.id}`)
+      .set('Referer', 'https://www.linkedin.com/')
+      .set('X-Forwarded-For', '203.0.113.1');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      { referralId: r.id },
+      'No referral found or referral already marked as visited',
+    );
+  });
+
+  it('should not do anything if referral status is not pending', async () => {
+    jest.spyOn(logger, 'debug').mockImplementation(spyLogger);
+    const r = await saveReferral({ status: UserReferralStatus.Rejected });
+
+    const res = await request(app.server)
+      .get(`/r/recruiter/${r.id}`)
+      .set('Referer', 'https://www.linkedin.com/')
+      .set('X-Forwarded-For', '203.0.113.1');
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+
+    await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
+
+    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledWith(
+      { referralId: r.id },
+      'No referral found or referral already marked as visited',
+    );
+
+    const referral = await getReferral(r.id);
+    expect(referral?.visited).toBe(false);
   });
 });
