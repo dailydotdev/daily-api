@@ -29,11 +29,6 @@ export type UserReferralFlags = Partial<{
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
 @Index('IDX_user_referral_id_type_visited', ['id', 'type', 'visited'])
-@Index(
-  'IDX_user_referral_userId_externalUserId_unique',
-  ['userId', 'externalUserId'],
-  { unique: true },
-)
 export class UserReferral {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_user_referral_id',
@@ -44,11 +39,6 @@ export class UserReferral {
     type: 'text',
   })
   userId: string;
-
-  @Column({
-    type: 'text',
-  })
-  externalUserId: string;
 
   @CreateDateColumn()
   createdAt: Date;

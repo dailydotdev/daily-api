@@ -8,7 +8,7 @@ export class UserReferral1761123042645 implements MigrationInterface {
       CREATE TABLE "user_referral" (
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "userId" character varying NOT NULL,
-        "externalUserId" text NOT NULL,
+        "externalUserId" text,
         "type" text NOT NULL,
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
@@ -44,8 +44,10 @@ export class UserReferral1761123042645 implements MigrationInterface {
     `);
 
     await queryRunner.query(/* sql */ `
-      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_user_referral_userId_externalUserId_unique"
+      CREATE UNIQUE INDEX IF NOT EXISTS "IDX_user_referral_userId_externalUserId_unique_nonempty"
         ON "user_referral" ("userId", "externalUserId")
+        WHERE "externalUserId" IS NOT NULL
+          AND "externalUserId" <> ''
     `);
   }
 

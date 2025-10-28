@@ -26,7 +26,6 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
-import { UserReferral } from '../entity/user/referral/UserReferral';
 import { UserReferralLinkedin } from '../entity/user/referral/UserReferralLinkedin';
 
 interface GQLUserExperience {
@@ -247,9 +246,11 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       { toReferExternalId }: { toReferExternalId: string },
       ctx,
     ) => {
-      const referal = await ctx.con.getRepository(UserReferral).findOne({
-        where: { userId: ctx.userId, externalUserId: toReferExternalId },
-      });
+      const referal = await ctx.con
+        .getRepository(UserReferralLinkedin)
+        .findOne({
+          where: { userId: ctx.userId, externalUserId: toReferExternalId },
+        });
 
       if (referal) {
         const url = `${baseRecruiterUrl}/${referal.id}`;
@@ -271,7 +272,9 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         },
       });
 
-      const saved = await ctx.con.getRepository(UserReferral).save(newReferral);
+      const saved = await ctx.con
+        .getRepository(UserReferralLinkedin)
+        .save(newReferral);
       const url = `${baseRecruiterUrl}/${saved.id}`;
       const result = await getShortUrl(url, ctx.log);
 
