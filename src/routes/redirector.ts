@@ -59,7 +59,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         .send(
           `<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=${encodedUri}${
             req.query.a ? `#${req.query.a}` : ''
-          }"></head></html>`,
+          }"><style>:root{color-scheme:light dark}@media (prefers-color-scheme: dark){html,body{background-color:#0f1217;}}@media (prefers-color-scheme: light){html,body{background-color:#fff;}}html,body{margin:0;padding:0;min-height:100vh}</style></head></html>`,
         );
     },
   );
