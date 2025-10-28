@@ -53,7 +53,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res
         .headers({
           'Referrer-Policy': 'origin, origin-when-cross-origin',
-          Link: `<${encodedUri}>; rel="preconnect"`,
+          Link: `<${encodedUri}>; rel=dns-prefetch, <${encodedUri}>; rel=preconnect; crossorigin`,
         })
         .type('text/html')
         .send(
