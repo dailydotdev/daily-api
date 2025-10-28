@@ -13,7 +13,7 @@ import { usersFixture } from './fixture/user';
 import { UserReferralLinkedin } from '../src/entity/user/referral/UserReferralLinkedin';
 import { logger } from '../src/logger';
 import { UserReferralStatus } from '../src/entity/user/referral/UserReferral';
-import { BASE_RECRUITER_URL } from '../src/routes/redirector';
+import { BASE_RECRUITER_URL } from '../src/routes/r/recruiter';
 
 jest.mock('../src/common', () => ({
   ...(jest.requireActual('../src/common') as Record<string, unknown>),
