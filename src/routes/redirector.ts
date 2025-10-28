@@ -142,7 +142,7 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
 
   fastify.get<{ Params: { id: string } }>('/:id', (_, res) =>
     res.redirect(
-      'https://recruiter.daily.dev/?utm_source=redirector&utm_medium=linkedin_referral',
+      'https://recruiter.daily.dev/?utm_source=dailydev&utm_medium=linkedin_referral',
     ),
   );
 };
