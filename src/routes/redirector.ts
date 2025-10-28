@@ -27,6 +27,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           Pick<ArticlePost, 'id' | 'url' | 'tagsStr' | 'slug'>
         >();
 
+      res.headers({
+        'X-Robots-Tag': 'noindex, nofollow',
+      });
+
       if (!post) {
         return res.status(404).send();
       }
