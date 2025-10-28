@@ -61,9 +61,12 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev"></head></html>',
+        'link',
+        `<http://p1.com/?ref=dailydev>; rel=dns-prefetch, <http://p1.com/?ref=dailydev>; rel=preconnect; crossorigin`,
+      )
+      .expect(
+        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev"><style>:root{color-scheme:light dark}@media (prefers-color-scheme: dark){html,body{background-color:#0f1217;}}@media (prefers-color-scheme: light){html,body{background-color:#fff;}}html,body{margin:0;padding:0;min-height:100vh}</style></head></html>',
       );
     expect(notifyView).toBeCalledWith(
       expect.anything(),
@@ -82,9 +85,12 @@ describe('GET /r/:postId', () => {
       .expect(200)
       .expect('content-type', 'text/html')
       .expect('referrer-policy', 'origin, origin-when-cross-origin')
-      .expect('link', `<http://p1.com/?ref=dailydev>; rel="preconnect"`)
       .expect(
-        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev#id"></head></html>',
+        'link',
+        `<http://p1.com/?ref=dailydev#id>; rel=dns-prefetch, <http://p1.com/?ref=dailydev#id>; rel=preconnect; crossorigin`,
+      )
+      .expect(
+        '<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=http://p1.com/?ref=dailydev#id"><style>:root{color-scheme:light dark}@media (prefers-color-scheme: dark){html,body{background-color:#0f1217;}}@media (prefers-color-scheme: light){html,body{background-color:#fff;}}html,body{margin:0;padding:0;min-height:100vh}</style></head></html>',
       );
   });
 
