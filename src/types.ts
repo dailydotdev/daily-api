@@ -4,6 +4,7 @@ import type { opentelemetry } from './telemetry';
 import type { GarmrService } from './integrations/garmr';
 import { type Client } from '@connectrpc/connect';
 import type { ServiceType } from '@bufbuild/protobuf';
+import type { DataSource } from 'typeorm';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -86,6 +87,9 @@ declare global {
 
 declare module 'fastify' {
   interface FastifyRequest {
+    // Generic
+    con?: DataSource | null;
+
     // Used for auth
     userId?: string;
     roles?: Roles[];

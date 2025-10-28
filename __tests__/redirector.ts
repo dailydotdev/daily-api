@@ -168,7 +168,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('X-Forwarded-For', '203.0.113.1');
 
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
   });
 
   it('should redirect to recruiter landing even with invalid UUID', async () => {
@@ -183,7 +183,7 @@ describe('GET /r/recruiter/:id', () => {
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
-    expect(spyLogger).toHaveBeenCalledTimes(1);
+    expect(spyLogger).toHaveBeenCalledTimes(2);
     expect(spyLogger).toHaveBeenCalledWith(
       { referralId: 'invalid-uuid' },
       'Invalid referral id provided, skipping recruiter redirector',
@@ -201,7 +201,7 @@ describe('GET /r/recruiter/:id', () => {
         .set('X-Forwarded-For', '203.0.113.1'),
     );
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -223,7 +223,7 @@ describe('GET /r/recruiter/:id', () => {
       .get(`/r/recruiter/${r.id}`)
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -246,7 +246,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://daily.dev/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -272,7 +272,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -295,7 +295,7 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '198.51.100.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
@@ -318,14 +318,14 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
     expect(spyLogger).toHaveBeenCalledTimes(1);
     expect(spyLogger).toHaveBeenCalledWith(
-      { referralId: r.id },
-      'No referral found or referral already marked as visited',
+      { referralId: r.id, status: 'pending', visited: true },
+      'Referral is not pending or has been visited, skipping recruiter redirector',
     );
   });
 
@@ -338,14 +338,14 @@ describe('GET /r/recruiter/:id', () => {
       .set('Referer', 'https://www.linkedin.com/')
       .set('X-Forwarded-For', '203.0.113.1');
     expect(res.status).toBe(302);
-    expect(res.headers.location).toBe(BASE_RECRUITER_URL);
+    expect(res.headers.location).toBe(`${BASE_RECRUITER_URL}&utm_content=1`);
 
     await new Promise((r) => setTimeout(r, 100)); // wait for onResponse async tasks
 
     expect(spyLogger).toHaveBeenCalledTimes(1);
     expect(spyLogger).toHaveBeenCalledWith(
-      { referralId: r.id },
-      'No referral found or referral already marked as visited',
+      { referralId: r.id, status: 'rejected', visited: false },
+      'Referral is not pending or has been visited, skipping recruiter redirector',
     );
 
     const referral = await getReferral(r.id);

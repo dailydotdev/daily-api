@@ -74,22 +74,38 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 }
 
 export const BASE_RECRUITER_URL =
-  'https://recruiter.daily.dev/?utm_source=dailydev&utm_medium=linkedin_referral';
+  'https://recruiter.daily.dev/?utm_source=redirector&utm_medium=linkedin&utm_campaign=referral';
 
 const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
-  fastify.addHook<{ Params: { id: string } }>('onResponse', async (req) => {
-    const { error, data: id } = z.uuidv4().safeParse(req.params.id);
-    if (error) {
+  fastify.decorateRequest('con');
+  fastify.decorateRequest('referral');
+
+  fastify.addHook('onResponse', async (req) => {
+    if (!req.referral) {
       logger.debug(
-        { referralId: req.params.id },
-        'Invalid referral id provided, skipping recruiter redirector',
+        'No referral found on request, skipping recruiter redirector',
+      );
+      return;
+    }
+
+    if (
+      req.referral.status !== UserReferralStatus.Pending ||
+      req.referral.visited
+    ) {
+      logger.debug(
+        {
+          referralId: req.referral.id,
+          status: req.referral.status,
+          visited: req.referral.visited,
+        },
+        'Referral is not pending or has been visited, skipping recruiter redirector',
       );
       return;
     }
 
     if (req.userId) {
       logger.debug(
-        { referralId: id },
+        { referralId: req.referral.id },
         'User is logged in, skipping recruiter redirector',
       );
       return;
@@ -98,7 +114,7 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
     const referrer = req.headers['referer'];
     if (isNullOrUndefined(referrer)) {
       logger.debug(
-        { referralId: id },
+        { referralId: req.referral.id },
         'No referrer provided, skipping recruiter redirector',
       );
       return;
@@ -106,18 +122,16 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
 
     if (referrer.startsWith('https://www.linkedin.com/') === false) {
       logger.debug(
-        { referralId: id, referrer },
+        { referralId: req.referral.id, referrer },
         'Referrer is not linkedin, skipping recruiter redirector',
       );
       return;
     }
 
-    const con = await createOrGetConnection();
-
     try {
-      const result = await con.getRepository(UserReferralLinkedin).update(
+      const result = await req.con?.getRepository(UserReferralLinkedin).update(
         {
-          id: id,
+          id: req.referral.id,
           status: UserReferralStatus.Pending,
           visited: false,
           flags: Not(JsonContains({ hashedRequestIP: hmacHashIP(req.ip) })),
@@ -125,25 +139,47 @@ const recruiterRedirector = async (fastify: FastifyInstance): Promise<void> => {
         { visited: true },
       );
 
-      if (result.affected === 0) {
+      if (result?.affected === 0) {
         logger.debug(
-          { referralId: id },
+          { referralId: req.referral.id },
           `No referral found or referral already marked as visited`,
         );
         return;
       }
 
-      logger.debug({ referralId: id }, 'Marked referral as visited');
+      logger.debug(
+        { referralId: req.referral.id },
+        'Marked referral as visited',
+      );
     } catch (_err) {
       const err = _err as Error;
       logger.error(
-        { err, referralId: id },
+        { err, referralId: req.referral.id },
         'Failed to mark referral as visited',
       );
     }
   });
 
-  fastify.get<{ Params: { id: string } }>('/:id', (_, res) =>
-    res.redirect(BASE_RECRUITER_URL),
-  );
+  fastify.addHook<{ Params: { id: string } }>('preHandler', async (req) => {
+    const { error, data: id } = z.uuidv4().safeParse(req.params.id);
+    if (error) {
+      logger.debug(
+        { referralId: req.params.id },
+        'Invalid referral id provided, skipping recruiter redirector',
+      );
+      return;
+    }
+    req.con = await createOrGetConnection();
+    req.referral = await req.con.getRepository(UserReferralLinkedin).findOne({
+      where: { id: id },
+    });
+  });
+
+  fastify.get<{ Params: { id: string } }>('/:id', (req, res) => {
+    const url = new URL(BASE_RECRUITER_URL);
+    if (req.referral) {
+      url.searchParams.append('utm_content', req.referral.userId);
+    }
+    return res.redirect(url.toString());
+  });
 };
