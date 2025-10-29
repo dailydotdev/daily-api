@@ -15,6 +15,17 @@ import { UserExperience } from '../../src/entity/user/experiences/UserExperience
 import { UserExperienceType } from '../../src/entity/user/experiences/types';
 import { Company } from '../../src/entity/Company';
 import { UserExperienceSkill } from '../../src/entity/user/experiences/UserExperienceSkill';
+import { UserReferralLinkedin } from '../../src/entity/user/referral/UserReferralLinkedin';
+import { getShortUrl, hmacHashIP } from '../../src/common';
+
+jest.mock('../../src/common', () => ({
+  ...jest.requireActual('../../src/common'),
+  getShortUrl: jest.fn(),
+  hmacHashIP: jest.fn(),
+}));
+
+const mockGetShortUrl = getShortUrl as jest.MockedFunction<typeof getShortUrl>;
+const mockHmacHashIP = hmacHashIP as jest.MockedFunction<typeof hmacHashIP>;
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -118,6 +129,13 @@ const userExperiencesFixture: DeepPartial<UserExperience>[] = [
 
 beforeEach(async () => {
   loggedUser = null;
+  mockGetShortUrl.mockClear();
+  mockGetShortUrl.mockImplementation(
+    async (url: string): Promise<string> =>
+      Promise.resolve(`https://diy.dev/${url.split('/').pop()}`),
+  );
+  mockHmacHashIP.mockClear();
+  mockHmacHashIP.mockReturnValue('hashed-ip-address');
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Company, companiesFixture);
   await saveFixtures(con, UserExperience, userExperiencesFixture);
@@ -1686,5 +1704,185 @@ describe('mutation removeUserExperience', () => {
 
     // Should succeed without error
     expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('query userReferralRecruiter', () => {
+  const USER_REFERRAL_RECRUITER_QUERY = /* GraphQL */ `
+    query UserReferralRecruiter($toReferExternalId: String!) {
+      userReferralRecruiter(toReferExternalId: $toReferExternalId) {
+        url
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: USER_REFERRAL_RECRUITER_QUERY,
+        variables: { toReferExternalId: 'john-doe' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should create a new referral when one does not exist', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(USER_REFERRAL_RECRUITER_QUERY, {
+      variables: { toReferExternalId: 'john-doe' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify the referral was created in the database
+    const referral = await con
+      .getRepository(UserReferralLinkedin)
+      .findOne({ where: { userId: '1', externalUserId: 'john-doe' } });
+
+    expect(referral).toMatchObject({
+      userId: '1',
+      externalUserId: 'john-doe',
+      flags: {
+        linkedinProfileUrl: 'https://www.linkedin.com/in/john-doe',
+        hashedRequestIP: 'hashed-ip-address',
+      },
+    });
+
+    // Verify getShortUrl was called with the correct URL
+    expect(mockGetShortUrl).toHaveBeenCalledTimes(1);
+    const callArgs = mockGetShortUrl.mock.calls[0];
+    expect(callArgs[0]).toMatch(/\/r\/recruiter\//);
+
+    expect(res.data.userReferralRecruiter).toMatchObject({
+      url: `https://diy.dev/${referral?.id}`,
+    });
+  });
+
+  it('should return existing referral when one already exists', async () => {
+    loggedUser = '1';
+
+    // Create an existing referral
+    const existingReferral = con.getRepository(UserReferralLinkedin).create({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      userId: '1',
+      externalUserId: 'jane-smith',
+      flags: {
+        linkedinProfileUrl: 'https://www.linkedin.com/in/jane-smith',
+        hashedRequestIP: 'some-hash',
+      },
+    });
+    await con.getRepository(UserReferralLinkedin).save(existingReferral);
+
+    const res = await client.query(USER_REFERRAL_RECRUITER_QUERY, {
+      variables: { toReferExternalId: 'jane-smith' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify getShortUrl was called with the existing referral ID
+    expect(mockGetShortUrl).toHaveBeenCalledTimes(1);
+    const callArgs = mockGetShortUrl.mock.calls[0];
+    expect(callArgs[0]).toBe(
+      `${process.env.URL_PREFIX}/r/recruiter/f47ac10b-58cc-4372-a567-0e02b2c3d479`,
+    );
+
+    // Verify only one referral exists (no duplicate created)
+    const referrals = await con
+      .getRepository(UserReferralLinkedin)
+      .find({ where: { userId: '1', externalUserId: 'jane-smith' } });
+    expect(referrals).toHaveLength(1);
+
+    expect(res.data.userReferralRecruiter).toMatchObject({
+      url: `https://diy.dev/${referrals[0]?.id}`,
+    });
+  });
+
+  it('should create different referrals for different external user IDs', async () => {
+    loggedUser = '1';
+
+    // Create referral for first external user
+    const res1 = await client.query(USER_REFERRAL_RECRUITER_QUERY, {
+      variables: { toReferExternalId: 'user-one' },
+    });
+
+    expect(res1.errors).toBeFalsy();
+
+    // Create referral for second external user
+    const res2 = await client.query(USER_REFERRAL_RECRUITER_QUERY, {
+      variables: { toReferExternalId: 'user-two' },
+    });
+
+    expect(res2.errors).toBeFalsy();
+
+    // Verify two separate referrals were created
+    const referrals = await con
+      .getRepository(UserReferralLinkedin)
+      .find({ where: { userId: '1' } });
+
+    expect(referrals).toHaveLength(2);
+    expect(referrals).toMatchObject([
+      { userId: '1', externalUserId: 'user-one' },
+      { userId: '1', externalUserId: 'user-two' },
+    ]);
+    expect(res1.data.userReferralRecruiter).toMatchObject({
+      url: `https://diy.dev/${referrals[0]?.id}`,
+    });
+    expect(res2.data.userReferralRecruiter).toMatchObject({
+      url: `https://diy.dev/${referrals[1]?.id}`,
+    });
+  });
+
+  it('should allow different users to refer the same external user', async () => {
+    loggedUser = '1';
+
+    // User 1 creates a referral
+    const res1 = await client.query(USER_REFERRAL_RECRUITER_QUERY, {
+      variables: { toReferExternalId: 'same-external-user' },
+    });
+
+    expect(res1.errors).toBeFalsy();
+
+    // Switch to user 2
+    loggedUser = '2';
+
+    // User 2 creates a referral for the same external user
+    const res2 = await client.query(USER_REFERRAL_RECRUITER_QUERY, {
+      variables: { toReferExternalId: 'same-external-user' },
+    });
+
+    expect(res2.errors).toBeFalsy();
+
+    // Verify two separate referrals were created (one per user)
+    const referralsUser1 = await con
+      .getRepository(UserReferralLinkedin)
+      .find({ where: { userId: '1', externalUserId: 'same-external-user' } });
+    const referralsUser2 = await con
+      .getRepository(UserReferralLinkedin)
+      .find({ where: { userId: '2', externalUserId: 'same-external-user' } });
+
+    expect(referralsUser1).toHaveLength(1);
+    expect(referralsUser1).toMatchObject([
+      { userId: '1', externalUserId: 'same-external-user' },
+    ]);
+
+    expect(referralsUser2).toHaveLength(1);
+    expect(referralsUser2).toMatchObject([
+      { userId: '2', externalUserId: 'same-external-user' },
+    ]);
+  });
+
+  it('should return short URL in correct format', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(USER_REFERRAL_RECRUITER_QUERY, {
+      variables: { toReferExternalId: 'test-user' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userReferralRecruiter.url).toMatch(/^https:\/\/diy\.dev\//);
   });
 });

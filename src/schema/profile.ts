@@ -103,8 +103,6 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type RecruiterReferral {
-    message: String!
-    cta: String!
     url: String!
   }
 
@@ -232,9 +230,6 @@ const getUserExperience = (
 
 // These values are something that could come from growthbook for experimentations
 const baseRecruiterUrl = `${process.env.URL_PREFIX}/r/recruiter`;
-const defaultRecruiterReferralCta = 'Earn Cores, refer recruiter to daily.dev';
-const getDefaultMessage = (url: string) =>
-  `I'm currently not open to opportunities. You might find the right candidate on ${url}. It's worth checking out!`;
 
 const getLinkedinProfileUrl = (id: string) =>
   `https://www.linkedin.com/in/${id}`;
@@ -246,19 +241,17 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       { toReferExternalId }: { toReferExternalId: string },
       ctx,
     ) => {
-      const referal = await ctx.con
+      const referral = await ctx.con
         .getRepository(UserReferralLinkedin)
         .findOne({
           where: { userId: ctx.userId, externalUserId: toReferExternalId },
         });
 
-      if (referal) {
-        const url = `${baseRecruiterUrl}/${referal.id}`;
+      if (referral) {
+        const url = `${baseRecruiterUrl}/${referral.id}`;
         const result = await getShortUrl(url, ctx.log);
 
         return {
-          message: getDefaultMessage(url),
-          cta: defaultRecruiterReferralCta,
           url: result,
         };
       }
@@ -279,8 +272,6 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       const result = await getShortUrl(url, ctx.log);
 
       return {
-        message: getDefaultMessage(url),
-        cta: defaultRecruiterReferralCta,
         url: result,
       };
     },
