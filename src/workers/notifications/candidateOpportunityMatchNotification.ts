@@ -18,18 +18,6 @@ const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.
           return;
         }
 
-        // TODO: Temporary until we happy to launch
-        const isTeamMember = await con.getRepository(Feature).exists({
-          where: {
-            userId,
-            feature: FeatureType.Team,
-            value: 1,
-          },
-        });
-        if (!isTeamMember) {
-          return;
-        }
-
         return [
           {
             type: NotificationType.NewOpportunityMatch,

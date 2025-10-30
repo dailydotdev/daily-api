@@ -30,12 +30,6 @@ describe('storeCandidateOpportunityMatch worker', () => {
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
-
-    await con.getRepository(Feature).insert({
-      userId: '1',
-      feature: FeatureType.Team,
-      value: 1,
-    });
   });
 
   it('should handle the correct schema format', async () => {

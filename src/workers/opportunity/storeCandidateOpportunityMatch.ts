@@ -35,20 +35,6 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
             skipUpdateIfNoValuesChanged: true,
           },
         );
-
-        // TODO: Temporary until we happy to launch
-        const isTeamMember = await con.getRepository(Feature).exists({
-          where: {
-            userId,
-            feature: FeatureType.Team,
-            value: 1,
-          },
-        });
-        if (isTeamMember) {
-          await manager
-            .getRepository(Alerts)
-            .update({ userId, opportunityId: IsNull() }, { opportunityId });
-        }
       });
     },
     parseMessage: (message) => {
