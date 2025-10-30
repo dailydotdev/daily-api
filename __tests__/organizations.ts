@@ -60,7 +60,7 @@ beforeEach(async () => {
       },
     },
     {
-      id: 'org-2',
+      id: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
       seats: 2,
       name: 'Organization 2',
       subscriptionFlags: {
@@ -69,7 +69,7 @@ beforeEach(async () => {
       },
     },
     {
-      id: 'org-3',
+      id: '42ce1d83-9ce4-4d97-b175-fd082d95a2c4',
       seats: 5,
       name: 'Organization 3',
       subscriptionFlags: {
@@ -621,7 +621,13 @@ describe('mutation updateOrganization', () => {
 
     testMutationErrorCode(
       client,
-      { mutation: MUTATION, variables: { id: 'org-2', name: 'New org name' } },
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
+          name: 'New org name',
+        },
+      },
       'NOT_FOUND',
     );
   });
@@ -1211,8 +1217,8 @@ describe('mutation deleteOrganization', () => {
       },
       {
         userId: '1',
-        referenceId: 'org-2',
-        organizationId: 'org-2',
+        referenceId: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
+        organizationId: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
         feedId: '1',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -1222,8 +1228,8 @@ describe('mutation deleteOrganization', () => {
       },
       {
         userId: '1',
-        referenceId: 'org-3',
-        organizationId: 'org-3',
+        referenceId: '42ce1d83-9ce4-4d97-b175-fd082d95a2c4',
+        organizationId: '42ce1d83-9ce4-4d97-b175-fd082d95a2c4',
         feedId: '1',
         status: ContentPreferenceOrganizationStatus.Free,
         flags: {
@@ -1303,7 +1309,7 @@ describe('mutation deleteOrganization', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'org-2' },
+        variables: { id: '5d7a9ee0-a095-44df-8a2c-6915af60ece2' },
       },
       'FORBIDDEN',
       'Cannot delete organization with Plus members. Please remove all Plus members first.',
@@ -1314,7 +1320,7 @@ describe('mutation deleteOrganization', () => {
     loggedUser = '1';
 
     const { data, errors } = await client.mutate(MUTATION, {
-      variables: { id: 'org-3' },
+      variables: { id: '42ce1d83-9ce4-4d97-b175-fd082d95a2c4' },
     });
 
     expect(errors).toBeUndefined();
@@ -1325,7 +1331,7 @@ describe('mutation deleteOrganization', () => {
     });
 
     const org = await con.getRepository(Organization).findOneBy({
-      id: 'org-3',
+      id: '42ce1d83-9ce4-4d97-b175-fd082d95a2c4',
     });
     expect(org).toBeNull();
 
@@ -1333,7 +1339,7 @@ describe('mutation deleteOrganization', () => {
       .getRepository(ContentPreferenceOrganization)
       .findOneBy({
         userId: loggedUser,
-        organizationId: 'org-3',
+        organizationId: '42ce1d83-9ce4-4d97-b175-fd082d95a2c4',
       });
     expect(contentPreference).toBeNull();
   });
@@ -1429,7 +1435,10 @@ describe('mutation removeOrganizationMember', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'org-2', memberId: '2' },
+        variables: {
+          id: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
+          memberId: '2',
+        },
       },
       'NOT_FOUND',
     );
@@ -1590,8 +1599,8 @@ describe('mutation updateOrganizationMemberRole', () => {
       },
       {
         userId: '4',
-        referenceId: 'org-2',
-        organizationId: 'org-2',
+        referenceId: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
+        organizationId: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
         feedId: '4',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -1623,7 +1632,11 @@ describe('mutation updateOrganizationMemberRole', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'org-2', memberId: '2', role: 'admin' },
+        variables: {
+          id: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
+          memberId: '2',
+          role: 'admin',
+        },
       },
       'NOT_FOUND',
     );
@@ -1861,8 +1874,8 @@ describe('mutation toggleOrganizationMemberSeat', () => {
       },
       {
         userId: '4',
-        referenceId: 'org-2',
-        organizationId: 'org-2',
+        referenceId: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
+        organizationId: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
         feedId: '4',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -1893,7 +1906,10 @@ describe('mutation toggleOrganizationMemberSeat', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'org-2', memberId: '2' },
+        variables: {
+          id: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
+          memberId: '2',
+        },
       },
       'NOT_FOUND',
     );
@@ -1937,7 +1953,7 @@ describe('mutation toggleOrganizationMemberSeat', () => {
 
     await con.getRepository(User).update('2', {
       subscriptionFlags: updateSubscriptionFlags({
-        organizationId: 'org-2',
+        organizationId: '5d7a9ee0-a095-44df-8a2c-6915af60ece2',
         cycle: 'yearly',
       }),
     });
