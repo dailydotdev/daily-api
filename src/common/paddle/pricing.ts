@@ -123,12 +123,14 @@ const featureKey: Record<PurchaseType, string> = {
   [PurchaseType.Plus]: PLUS_FEATURE_KEY,
   [PurchaseType.Organization]: ORGANIZATION_FEATURE_KEY,
   [PurchaseType.Cores]: CORES_FEATURE_KEY,
+  [PurchaseType.Recruiter]: '', // Not used, but added for completeness
 };
 
 const defaultVariant: Record<PurchaseType, string> = {
   [PurchaseType.Plus]: DEFAULT_PLUS_METADATA,
   [PurchaseType.Organization]: DEFAULT_ORGANIZATION_METADATA,
   [PurchaseType.Cores]: DEFAULT_CORES_METADATA,
+  [PurchaseType.Recruiter]: '', // Not used, but added for completeness
 };
 
 export const getPricingDuration = (

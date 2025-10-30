@@ -7,6 +7,7 @@ export enum PurchaseType {
   Cores = 'cores',
   Plus = 'plus',
   Organization = 'organization',
+  Recruiter = 'recruiter',
 }
 
 export enum PlusPlanType {
