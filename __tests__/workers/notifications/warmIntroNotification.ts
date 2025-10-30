@@ -42,7 +42,7 @@ describe('warmIntroNotification worker', () => {
 
   it('should send notification with all required fields', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org123',
+      id: 'e34d0a84-89ea-4ba3-ba6e-1b8fe9ac952f',
       name: 'Test Organization',
       image: 'https://example.com/org.png',
     });
@@ -102,7 +102,7 @@ describe('warmIntroNotification worker', () => {
     );
     expect(context.organization).toEqual(
       expect.objectContaining({
-        id: 'org123',
+        id: 'e34d0a84-89ea-4ba3-ba6e-1b8fe9ac952f',
         name: 'Test Organization',
         image: 'https://example.com/org.png',
       }),
