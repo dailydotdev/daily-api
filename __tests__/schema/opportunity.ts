@@ -77,11 +77,19 @@ let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | null = null;
+let isTeamMember = false;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser) as unknown as Context,
+    (req) =>
+      new MockContext(
+        con,
+        loggedUser || undefined,
+        [],
+        req,
+        isTeamMember,
+      ) as Context,
   );
   client = state.client;
   app = state.app;
@@ -304,6 +312,8 @@ describe('query opportunityById', () => {
   });
 
   it('should return null for non-live opportunity when user is not a recruiter', async () => {
+    loggedUser = '2';
+
     await con
       .getRepository(Opportunity)
       .update(
@@ -317,7 +327,7 @@ describe('query opportunityById', () => {
         query: OPPORTUNITY_BY_ID_QUERY,
         variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
       },
-      'NOT_FOUND',
+      'FORBIDDEN',
     );
   });
 
@@ -340,6 +350,28 @@ describe('query opportunityById', () => {
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
       type: OpportunityUserType.Recruiter,
     });
+
+    await con
+      .getRepository(Opportunity)
+      .update(
+        { id: '550e8400-e29b-41d4-a716-446655440001' },
+        { state: OpportunityState.DRAFT },
+      );
+
+    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.opportunityById.id).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
+  });
+
+  it('should return non-live opportunity if user is a team member', async () => {
+    loggedUser = '2';
+    isTeamMember = true;
 
     await con
       .getRepository(Opportunity)
