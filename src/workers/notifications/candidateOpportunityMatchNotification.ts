@@ -2,7 +2,6 @@ import { NotificationType } from '../../notifications/common';
 import { TypedNotificationWorker } from '../worker';
 import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
-import { Feature, FeatureType } from '../../entity';
 
 const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.candidate-opportunity-match'> =
   {

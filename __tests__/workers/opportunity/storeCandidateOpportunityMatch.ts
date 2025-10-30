@@ -3,13 +3,7 @@ import { storeCandidateOpportunityMatch as worker } from '../../../src/workers/o
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
-import {
-  User,
-  Organization,
-  Alerts,
-  Feature,
-  FeatureType,
-} from '../../../src/entity';
+import { User, Organization, Alerts } from '../../../src/entity';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import { usersFixture } from '../../fixture';
 import {

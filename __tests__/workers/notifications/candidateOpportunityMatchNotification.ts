@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
 import { candidateOpportunityMatchNotification as worker } from '../../../src/workers/notifications/candidateOpportunityMatchNotification';
 import createOrGetConnection from '../../../src/db';
-import { Feature, FeatureType, User } from '../../../src/entity';
+import { User } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
