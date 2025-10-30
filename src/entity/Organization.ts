@@ -5,7 +5,7 @@ import {
   Entity,
   Index,
   OneToMany,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import type { ContentPreferenceOrganization } from './contentPreference/ContentPreferenceOrganization';
@@ -20,8 +20,10 @@ export type OrganizationLink = z.infer<typeof organizationLinksSchema>;
 @Entity()
 @Index('IDX_organization_subflags_subscriptionid', { synchronize: false })
 export class Organization {
-  @PrimaryGeneratedColumn({
+  @PrimaryColumn({
+    type: 'text',
     primaryKeyConstraintName: 'PK_organization_organization_id',
+    default: () => 'uuid_generate_v4()',
   })
   id: string;
 
