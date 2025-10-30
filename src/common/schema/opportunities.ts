@@ -94,10 +94,7 @@ export const opportunityEditSchema = z
         city: z.string().nonempty().max(240).optional(),
         subdivision: z.string().nonempty().max(240).optional(),
         continent: z
-          .preprocess(
-            (v) => (v === '' || v === undefined ? null : v),
-            z.union([z.literal('Europe'), z.null()]),
-          )
+          .union([z.literal('Europe'), z.literal(''), z.undefined()])
           .optional(),
         type: z.coerce.number().min(1),
       }),
