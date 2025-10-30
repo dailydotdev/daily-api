@@ -5,7 +5,6 @@ import {
   Entity,
   Index,
   OneToMany,
-  PrimaryColumn,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
