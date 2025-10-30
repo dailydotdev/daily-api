@@ -1093,7 +1093,7 @@ describe('POST /p/newOpportunity', () => {
   beforeEach(async () => {
     await saveFixtures(con, Organization, [
       {
-        id: 'org-1',
+        id: '14e9a766-1d22-4b90-8929-7876e315c06a',
         seats: 1,
         name: 'Organization 1',
         subscriptionFlags: {
@@ -1133,7 +1133,7 @@ describe('POST /p/newOpportunity', () => {
     const opportunityData = {
       title: 'Senior Software Engineer',
       tldr: 'Join our team to build amazing products',
-      organizationId: 'org-1',
+      organizationId: '14e9a766-1d22-4b90-8929-7876e315c06a',
       keywords: [
         { keyword: 'javascript' },
         { keyword: 'typescript' },
@@ -1174,7 +1174,9 @@ describe('POST /p/newOpportunity', () => {
     expect(opportunity?.tldr).toEqual(
       'Join our team to build amazing products',
     );
-    expect(opportunity?.organizationId).toEqual('org-1');
+    expect(opportunity?.organizationId).toEqual(
+      '14e9a766-1d22-4b90-8929-7876e315c06a',
+    );
     expect(opportunity?.state).toEqual(1);
     expect(opportunity?.type).toEqual(1);
 
@@ -1201,7 +1203,7 @@ describe('POST /p/newOpportunity', () => {
     const opportunityData = {
       title: 'Backend Engineer',
       tldr: 'Work on distributed systems',
-      organizationId: 'org-1',
+      organizationId: '14e9a766-1d22-4b90-8929-7876e315c06a',
       keywords: [{ keyword: 'golang' }, { keyword: 'kubernetes' }],
       meta: {
         employmentType: 1,

@@ -37,7 +37,7 @@ describe('organizationUserRemoved worker', () => {
 
     await saveFixtures(con, Organization, [
       {
-        id: 'our-org-1',
+        id: '8d02f0a0-6c44-40e9-9c40-80bc8e8cc2e8',
         seats: 1,
         name: 'Organization 1',
         subscriptionFlags: {
@@ -46,7 +46,7 @@ describe('organizationUserRemoved worker', () => {
         },
       },
       {
-        id: 'our-org-2',
+        id: '2b243220-ca5a-44c5-957e-47743243e995',
         seats: 1,
         name: 'Organization 2',
         subscriptionFlags: {
@@ -70,8 +70,8 @@ describe('organizationUserRemoved worker', () => {
     await con.getRepository(ContentPreferenceOrganization).save([
       {
         userId: '1',
-        referenceId: 'our-org-1',
-        organizationId: 'our-org-1',
+        referenceId: '8d02f0a0-6c44-40e9-9c40-80bc8e8cc2e8',
+        organizationId: '8d02f0a0-6c44-40e9-9c40-80bc8e8cc2e8',
         feedId: '1',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -81,8 +81,8 @@ describe('organizationUserRemoved worker', () => {
       },
       {
         userId: '2',
-        referenceId: 'our-org-1',
-        organizationId: 'our-org-1',
+        referenceId: '8d02f0a0-6c44-40e9-9c40-80bc8e8cc2e8',
+        organizationId: '8d02f0a0-6c44-40e9-9c40-80bc8e8cc2e8',
         feedId: '2',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -92,8 +92,8 @@ describe('organizationUserRemoved worker', () => {
       },
       {
         userId: '2',
-        referenceId: 'our-org-2',
-        organizationId: 'our-org-2',
+        referenceId: '2b243220-ca5a-44c5-957e-47743243e995',
+        organizationId: '2b243220-ca5a-44c5-957e-47743243e995',
         feedId: '2',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -133,7 +133,7 @@ describe('organizationUserRemoved worker', () => {
     const warnSpy = jest.spyOn(logger, 'error');
 
     await expectSuccessfulTypedBackground(worker, {
-      organizationId: 'our-org-1',
+      organizationId: '8d02f0a0-6c44-40e9-9c40-80bc8e8cc2e8',
       memberId: '87b79108-d258-42d2-b38a-4a02974746cc',
     });
 
@@ -150,7 +150,7 @@ describe('organizationUserRemoved worker', () => {
     const user = usersFixture[0];
 
     await expectSuccessfulTypedBackground(worker, {
-      organizationId: 'our-org-1',
+      organizationId: '8d02f0a0-6c44-40e9-9c40-80bc8e8cc2e8',
       memberId: '1',
     });
 
