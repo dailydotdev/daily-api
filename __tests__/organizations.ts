@@ -2067,8 +2067,6 @@ describe('mutation toggleOrganizationMemberSeat', () => {
       variables: { id: '9a212368-3388-4040-9c59-540f44c7a862', memberId: '3' },
     });
 
-    console.log(JSON.stringify(data.toggleOrganizationMemberSeat, null, 2));
-
     expect(errors).toBeUndefined();
     expect(data.toggleOrganizationMemberSeat.organization.activeSeats).toEqual(
       1,
