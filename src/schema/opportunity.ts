@@ -115,6 +115,7 @@ export const typeDefs = /* GraphQL */ `
     salary: Salary
     seniorityLevel: ProtoEnumValue
     roleType: Float
+    equity: Boolean
   }
 
   type OpportunityKeyword {
@@ -379,7 +380,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
-      if (opportunity.state !== OpportunityState.LIVE) {
+      if (opportunity.state !== OpportunityState.LIVE && !ctx.isTeamMember) {
         if (!ctx.userId) {
           throw new NotFoundError('Not found!');
         }
