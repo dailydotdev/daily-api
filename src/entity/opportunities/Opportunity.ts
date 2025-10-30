@@ -58,7 +58,7 @@ export class Opportunity {
     default: {},
     comment: 'OpportunityMeta from protobuf schema',
   })
-  meta: OpportunityMeta & { equity: boolean };
+  meta: OpportunityMeta;
 
   @OneToMany('OpportunityUser', (user: OpportunityUser) => user.opportunity, {
     lazy: true,
