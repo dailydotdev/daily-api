@@ -8,6 +8,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import {
   autocompleteBaseSchema,
   autocompleteCompanySchema,
+  autocompleteKeywordsSchema,
   autocompleteSchema,
 } from '../common/schema/autocompletes';
 import type z from 'zod';
@@ -166,10 +167,10 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
     },
     autocompleteKeywords: async (
       _,
-      payload: z.infer<typeof autocompleteBaseSchema>,
+      payload: z.infer<typeof autocompleteKeywordsSchema>,
       ctx: AuthContext,
     ): Promise<GQLKeywordAutocomplete[]> => {
-      const data = autocompleteBaseSchema.parse(payload);
+      const data = autocompleteKeywordsSchema.parse(payload);
 
       const status = !!ctx.userId
         ? [KeywordStatus.Allow, KeywordStatus.Synonym]

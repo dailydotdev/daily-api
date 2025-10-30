@@ -23,6 +23,7 @@ export class Organization {
   @PrimaryColumn({
     type: 'text',
     primaryKeyConstraintName: 'PK_organization_organization_id',
+    default: () => 'uuid_generate_v4()',
   })
   id: string;
 
