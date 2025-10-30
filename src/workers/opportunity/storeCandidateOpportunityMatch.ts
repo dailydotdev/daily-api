@@ -2,6 +2,8 @@ import { TypedWorker } from '../worker';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
+import { Alerts } from '../../entity';
+import { IsNull } from 'typeorm';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -33,6 +35,9 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
             skipUpdateIfNoValuesChanged: true,
           },
         );
+        await manager
+          .getRepository(Alerts)
+          .update({ userId, opportunityId: IsNull() }, { opportunityId });
       });
     },
     parseMessage: (message) => {
