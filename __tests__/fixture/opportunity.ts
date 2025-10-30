@@ -94,6 +94,7 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
         currency: 'USD',
         period: SalaryPeriod.ANNUAL,
       },
+      equity: true,
     },
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),

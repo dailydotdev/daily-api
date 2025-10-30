@@ -144,6 +144,7 @@ describe('query opportunityById', () => {
             max
             period
           }
+          equity
         }
         location {
           city
@@ -222,6 +223,7 @@ describe('query opportunityById', () => {
           max: 120000,
           period: 1,
         },
+        equity: true,
       },
       location: [
         {
