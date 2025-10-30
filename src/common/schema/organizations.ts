@@ -13,6 +13,7 @@ export enum SocialMediaType {
   X = 'x',
   GitHub = 'github',
   Crunchbase = 'crunchbase',
+  LinkedIn = 'linkedin',
 }
 
 export const organizationSubscriptionFlagsSchema = z.object({
