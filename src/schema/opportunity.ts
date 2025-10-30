@@ -115,6 +115,7 @@ export const typeDefs = /* GraphQL */ `
     salary: Salary
     seniorityLevel: ProtoEnumValue
     roleType: Float
+    equity: Boolean
   }
 
   type OpportunityKeyword {
