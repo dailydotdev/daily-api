@@ -186,7 +186,10 @@ describe('query organization', () => {
 
     testQueryErrorCode(
       client,
-      { query: QUERY, variables: { id: 'non-existing' } },
+      {
+        query: QUERY,
+        variables: { id: '00000000-0000-0000-0000-000000000000' },
+      },
       'NOT_FOUND',
     );
   });
@@ -610,7 +613,10 @@ describe('mutation updateOrganization', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'non-existing', name: 'New org name' },
+        variables: {
+          id: '00000000-0000-0000-0000-000000000000',
+          name: 'New org name',
+        },
       },
       'NOT_FOUND',
     );
@@ -785,7 +791,10 @@ describe('mutation joinOrganization', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: 'non-existing', token: 'ref-token-1' },
+        variables: {
+          id: '00000000-0000-0000-0000-000000000000',
+          token: 'ref-token-1',
+        },
       },
       'FORBIDDEN',
       'Invalid invitation token',
@@ -801,7 +810,7 @@ describe('mutation joinOrganization', () => {
         mutation: MUTATION,
         variables: {
           id: '9a212368-3388-4040-9c59-540f44c7a862',
-          token: 'non-existing',
+          token: '00000000-0000-0000-0000-000000000000',
         },
       },
       'FORBIDDEN',
@@ -934,7 +943,10 @@ describe('query getOrganizationByIdAndInviteToken', () => {
       client,
       {
         query: QUERY,
-        variables: { id: 'non-existing', token: 'ref-token-1' },
+        variables: {
+          id: '00000000-0000-0000-0000-000000000000',
+          token: 'ref-token-1',
+        },
       },
       'FORBIDDEN',
       'Invalid invitation token',
