@@ -16,7 +16,7 @@ export type ContentPreferenceOrganizationFlags = Partial<{
 
 @ChildEntity(ContentPreferenceType.Organization)
 export class ContentPreferenceOrganization extends ContentPreference<ContentPreferenceOrganizationStatus> {
-  @Column({ type: 'text', default: null })
+  @Column({ type: 'uuid', default: null })
   @Index('IDX_content_preference_organization_id')
   organizationId: string;
 
