@@ -215,6 +215,7 @@ export const typeDefs = /* GraphQL */ `
     city: String
     country: String
     subdivision: String
+    continent: String
     type: ProtoEnumValue
   }
 
