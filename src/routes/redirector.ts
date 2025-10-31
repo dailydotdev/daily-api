@@ -27,6 +27,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           Pick<ArticlePost, 'id' | 'url' | 'tagsStr' | 'slug'>
         >();
 
+      res.headers({
+        'X-Robots-Tag': 'noindex, nofollow',
+      });
+
       if (!post) {
         return res.status(404).send();
       }
@@ -35,6 +39,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
       const url = new URL(post.url);
       url.searchParams.append('ref', 'dailydev');
+      url.hash = req.query.a || '';
       const encodedUri = encodeURI(url.href);
       if (req.isBot) {
         return res.status(302).redirect(encodedUri);
@@ -53,13 +58,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res
         .headers({
           'Referrer-Policy': 'origin, origin-when-cross-origin',
-          Link: `<${encodedUri}>; rel="preconnect"`,
+          Link: `<${encodedUri}>; rel=dns-prefetch, <${encodedUri}>; rel=preconnect; crossorigin`,
         })
         .type('text/html')
         .send(
-          `<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=${encodedUri}${
-            req.query.a ? `#${req.query.a}` : ''
-          }"></head></html>`,
+          `<html><head><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;URL=${encodedUri}"><style>:root{color-scheme:light dark}@media (prefers-color-scheme: dark){html,body{background-color:#0f1217;}}@media (prefers-color-scheme: light){html,body{background-color:#fff;}}html,body{margin:0;padding:0;min-height:100vh}</style></head></html>`,
         );
     },
   );
