@@ -4,7 +4,7 @@ import { logger } from '../../logger';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityUserType } from '../../entity/opportunities/types';
 import { WarmIntro } from '@dailydotdev/schema';
-import { Feature, FeatureType, User } from '../../entity';
+import { User } from '../../entity';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { markdown } from '../../common/markdown';
 

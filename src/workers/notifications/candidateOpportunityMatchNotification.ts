@@ -3,7 +3,6 @@ import { TypedNotificationWorker } from '../worker';
 import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { User } from '../../entity';
-import { logger } from '../../logger';
 
 const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.candidate-opportunity-match'> =
   {
