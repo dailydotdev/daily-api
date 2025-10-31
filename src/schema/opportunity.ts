@@ -302,6 +302,13 @@ export const typeDefs = /* GraphQL */ `
       id: ID!
     ): EmptyResponse @auth
 
+    rejectOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
     candidateAddKeywords(
       """
       Keywords to add to candidate profile
@@ -597,6 +604,58 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           status: OpportunityMatchStatus.CandidateAccepted,
+        },
+      );
+
+      return { _: true };
+    },
+    rejectOpportunityMatch: async (
+      _,
+      { id }: { id: string },
+      { userId, con, log }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const match = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          opportunityId: id,
+          userId,
+        },
+        relations: {
+          opportunity: true,
+        },
+      });
+
+      if (!match) {
+        log.error(
+          { opportunityId: id, userId },
+          'No match found for opportunity',
+        );
+        throw new ForbiddenError('Access denied! No match found');
+      }
+
+      if (match.status !== OpportunityMatchStatus.Pending) {
+        log.error(
+          { opportunityId: id, userId, status: match.status },
+          'Match is not pending',
+        );
+        throw new ForbiddenError(`Access denied! Match is not pending`);
+      }
+
+      const opportunity = await match.opportunity;
+      if (opportunity.state !== OpportunityState.LIVE) {
+        log.error(
+          { opportunityId: id, userId, state: opportunity.state },
+          'Opportunity is not live',
+        );
+        throw new ForbiddenError(`Access denied! Opportunity is not live`);
+      }
+
+      await con.getRepository(OpportunityMatch).update(
+        {
+          opportunityId: id,
+          userId,
+        },
+        {
+          status: OpportunityMatchStatus.CandidateRejected,
         },
       );
 
