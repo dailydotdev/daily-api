@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { startOfISOWeek, endOfISOWeek } from 'date-fns';
 import { zonedTimeToUtc } from 'date-fns-tz';
 import { snakeCase } from 'lodash';
@@ -318,3 +319,9 @@ export const textToSlug = (text: string): string =>
     locale: 'en',
     replacement: '-',
   }).substring(0, 100);
+
+export const hmacHashIP = (ip: string): string =>
+  crypto
+    .createHmac('sha256', process.env.HMAC_SECRET)
+    .update(ip, 'utf-8')
+    .digest('hex');

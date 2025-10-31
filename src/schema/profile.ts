@@ -1,6 +1,6 @@
 import { traceResolvers } from './trace';
 import { type AuthContext } from '../Context';
-import { getLimit, toGQLEnum } from '../common';
+import { getLimit, getShortUrl, hmacHashIP, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
 import type z from 'zod';
 import {
@@ -26,6 +26,7 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
+import { UserReferralLinkedin } from '../entity/user/referral/UserReferralLinkedin';
 
 interface GQLUserExperience {
   id: string;
@@ -101,6 +102,10 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type RecruiterReferral {
+    url: String!
+  }
+
   extend type Query {
     userExperiences(
       userId: ID!
@@ -115,6 +120,7 @@ export const typeDefs = /* GraphQL */ `
       first: Int
     ): UserExperienceConnection!
     userExperienceById(id: ID!): UserExperience
+    userReferralRecruiter(toReferExternalId: String!): RecruiterReferral! @auth
   }
 
   input UserGeneralExperienceInput {
@@ -222,8 +228,53 @@ const getUserExperience = (
     true,
   );
 
+// These values are something that could come from growthbook for experimentations
+const baseRecruiterUrl = `${process.env.URL_PREFIX}/r/recruiter`;
+
+const getLinkedinProfileUrl = (id: string) =>
+  `https://www.linkedin.com/in/${id}`;
+
 export const resolvers = traceResolvers<unknown, AuthContext>({
   Query: {
+    userReferralRecruiter: async (
+      _,
+      { toReferExternalId }: { toReferExternalId: string },
+      ctx,
+    ) => {
+      const referral = await ctx.con
+        .getRepository(UserReferralLinkedin)
+        .findOne({
+          where: { userId: ctx.userId, externalUserId: toReferExternalId },
+        });
+
+      if (referral) {
+        const url = `${baseRecruiterUrl}/${referral.id}`;
+        const result = await getShortUrl(url, ctx.log);
+
+        return {
+          url: result,
+        };
+      }
+
+      const newReferral = ctx.con.getRepository(UserReferralLinkedin).create({
+        userId: ctx.userId,
+        externalUserId: toReferExternalId,
+        flags: {
+          linkedinProfileUrl: getLinkedinProfileUrl(toReferExternalId),
+          hashedRequestIP: hmacHashIP(ctx.req.ip),
+        },
+      });
+
+      const saved = await ctx.con
+        .getRepository(UserReferralLinkedin)
+        .save(newReferral);
+      const url = `${baseRecruiterUrl}/${saved.id}`;
+      const result = await getShortUrl(url, ctx.log);
+
+      return {
+        url: result,
+      };
+    },
     userExperiences: async (
       _,
       args: z.infer<typeof userExperiencesSchema>,

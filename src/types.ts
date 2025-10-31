@@ -4,6 +4,7 @@ import type { opentelemetry } from './telemetry';
 import type { GarmrService } from './integrations/garmr';
 import { type Client } from '@connectrpc/connect';
 import type { ServiceType } from '@bufbuild/protobuf';
+import type { DataSource } from 'typeorm';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -70,6 +71,7 @@ declare global {
       SKADI_ORIGIN: string;
       SKADI_API_ORIGIN: string;
       SKADI_API_ORIGIN_V2: string;
+      HMAC_SECRET: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
@@ -85,6 +87,9 @@ declare global {
 
 declare module 'fastify' {
   interface FastifyRequest {
+    // Generic
+    con?: DataSource | null;
+
     // Used for auth
     userId?: string;
     roles?: Roles[];

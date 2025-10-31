@@ -3,6 +3,8 @@ import { FastifyInstance } from 'fastify';
 import { ArticlePost, Post } from '../entity';
 import { getDiscussionLink, notifyView } from '../common';
 import createOrGetConnection from '../db';
+import { logger } from '../logger';
+import { recruiterRedirector } from './r/recruiter';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { postId: string }; Querystring: { a?: string } }>(
@@ -42,7 +44,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const userId = req.userId || req.trackingId;
       if (userId) {
         notifyView(
-          req.log,
+          logger,
           post.id,
           userId,
           req.headers['referer'],
@@ -63,4 +65,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
     },
   );
+
+  fastify.register(recruiterRedirector, { prefix: '/recruiter' });
 }
