@@ -29,6 +29,10 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
 
       const user = await con.getRepository(User).findOneBy({ id: userId });
       if (!user) {
+        logger.error(
+          { opportunityId, userId, opportunity },
+          'warmIntroNotification: User not found',
+        );
         return;
       }
 

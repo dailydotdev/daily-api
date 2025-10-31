@@ -4,6 +4,7 @@ import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
 import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
+import { logger } from '../../logger';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -19,6 +20,10 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
 
       const user = await con.getRepository(User).findOneBy({ id: userId });
       if (!user) {
+        logger.error(
+          { opportunityId, userId },
+          'storeCandidateOpportunityMatch: User not found',
+        );
         return;
       }
 
