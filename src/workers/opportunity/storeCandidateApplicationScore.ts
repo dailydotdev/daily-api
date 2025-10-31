@@ -2,6 +2,7 @@ import { TypedWorker } from '../worker';
 import { ApplicationScored } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { applicationScoreSchema } from '../../common/schema/opportunities';
+import { User } from '../../entity';
 
 export const storeCandidateApplicationScore: TypedWorker<'gondul.v1.candidate-application-scored'> =
   {
@@ -12,6 +13,11 @@ export const storeCandidateApplicationScore: TypedWorker<'gondul.v1.candidate-ap
         throw new Error(
           'Missing userId or opportunityId in candidate application score',
         );
+      }
+
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      if (!user) {
+        return;
       }
 
       const applicationRank = applicationScoreSchema.parse({

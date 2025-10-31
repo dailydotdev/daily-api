@@ -2,7 +2,7 @@ import { TypedWorker } from '../worker';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
-import { Alerts, Feature, FeatureType } from '../../entity';
+import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
@@ -15,6 +15,11 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
         throw new Error(
           'Missing userId or opportunityId in candidate opportunity match',
         );
+      }
+
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      if (!user) {
+        return;
       }
 
       const description = opportunityMatchDescriptionSchema.parse({
@@ -35,20 +40,9 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
             skipUpdateIfNoValuesChanged: true,
           },
         );
-
-        // TODO: Temporary until we happy to launch
-        const isTeamMember = await con.getRepository(Feature).exists({
-          where: {
-            userId,
-            feature: FeatureType.Team,
-            value: 1,
-          },
-        });
-        if (isTeamMember) {
-          await manager
-            .getRepository(Alerts)
-            .update({ userId, opportunityId: IsNull() }, { opportunityId });
-        }
+        await manager
+          .getRepository(Alerts)
+          .update({ userId, opportunityId: IsNull() }, { opportunityId });
       });
     },
     parseMessage: (message) => {
