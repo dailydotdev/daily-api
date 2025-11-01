@@ -96,8 +96,6 @@ import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { CampaignUpdateEvent } from '../../src/common/campaign/common';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
-import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
-import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
 import {
   opportunitiesFixture,
   opportunityMatchesFixture,
