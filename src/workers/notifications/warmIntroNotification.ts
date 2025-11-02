@@ -4,7 +4,7 @@ import { logger } from '../../logger';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityUserType } from '../../entity/opportunities/types';
 import { WarmIntro } from '@dailydotdev/schema';
-import { Feature, FeatureType } from '../../entity';
+import { User } from '../../entity';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { markdown } from '../../common/markdown';
 
@@ -27,6 +27,15 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         return;
       }
 
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      if (!user) {
+        logger.error(
+          { opportunityId, userId, opportunity },
+          'warmIntroNotification: User not found',
+        );
+        return;
+      }
+
       await con
         .getRepository(OpportunityMatch)
         .createQueryBuilder()
@@ -42,18 +51,6 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
           JSON.stringify({ warmIntro: markdown.render(description) }),
         )
         .execute();
-
-      // TODO: Temporary until we happy to launch
-      const isTeamMember = await con.getRepository(Feature).exists({
-        where: {
-          userId,
-          feature: FeatureType.Team,
-          value: 1,
-        },
-      });
-      if (!isTeamMember) {
-        return;
-      }
 
       const organization = await opportunity.organization;
       const users = await opportunity.users;

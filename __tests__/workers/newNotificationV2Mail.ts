@@ -42,6 +42,7 @@ import {
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
   WelcomePost,
+  Organization,
 } from '../../src/entity';
 import { PollPost } from '../../src/entity/posts/PollPost';
 import { usersFixture } from '../fixture/user';
@@ -65,6 +66,7 @@ import {
   NotificationUserContext,
   Reference,
   type NotificationAwardContext,
+  type NotificationOpportunityMatchContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
@@ -92,6 +94,13 @@ import { env } from 'node:process';
 import { Product, ProductType } from '../../src/entity/Product';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { CampaignUpdateEvent } from '../../src/common/campaign/common';
+import { Opportunity } from '../../src/entity/opportunities/Opportunity';
+import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
+import {
+  opportunitiesFixture,
+  opportunityMatchesFixture,
+  organizationsFixture,
+} from '../fixture/opportunity';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -1855,6 +1864,38 @@ describe('user_post_added notification', () => {
     expect(args.transactional_message_id).toEqual(
       notificationToTemplateId[NotificationType.UserPostAdded],
     );
+  });
+});
+
+describe('new_opportunity_match notification', () => {
+  it('should send email', async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+    await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
+    const ctx: NotificationOpportunityMatchContext = {
+      userIds: ['1'],
+      opportunityId: opportunitiesFixture[0].id,
+      reasoningShort: 'Your skills match this opportunity',
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.NewOpportunityMatch,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      opportunity_link: `http://localhost:5002/opportunity/${opportunitiesFixture[0].id}`,
+    });
+    expect(args.transactional_message_id).toEqual('87');
   });
 });
 

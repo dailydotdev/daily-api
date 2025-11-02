@@ -121,6 +121,8 @@ export const getPurchaseType = ({ id }: { id: string }): PurchaseType => {
       return PurchaseType.Organization;
     case remoteConfig.vars.paddleProductIds?.plus:
       return PurchaseType.Plus;
+    case remoteConfig.vars.paddleProductIds?.recruiter:
+      return PurchaseType.Recruiter;
     default:
       throw new PurchaseTypeError('Product purchase type not found', id);
   }

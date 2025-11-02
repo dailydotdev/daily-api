@@ -121,7 +121,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   campaign_squad_completed: '83',
   campaign_post_first_milestone: '80',
   campaign_squad_first_milestone: '82',
-  new_opportunity_match: '',
+  new_opportunity_match: '87',
   post_analytics: '',
   poll_result: '84',
   poll_result_author: '84',
@@ -1054,8 +1054,21 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   in_app_purchases: async () => {
     return null;
   },
-  new_opportunity_match: async () => {
-    return null;
+  new_opportunity_match: async (con, _, notification) => {
+    const [foundUser, opportunityMatch] = await Promise.all([
+      con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
+      con.getRepository(OpportunityMatch).findOneByOrFail({
+        opportunityId: notification.referenceId,
+        userId: notification.uniqueKey,
+      }),
+    ]);
+    if (!foundUser || !opportunityMatch) {
+      return null;
+    }
+
+    return {
+      opportunity_link: notification.targetUrl,
+    };
   },
   post_analytics: async () => {
     return null;

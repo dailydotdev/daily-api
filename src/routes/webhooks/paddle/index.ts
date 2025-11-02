@@ -49,6 +49,8 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
               case isPurchaseType(PurchaseType.Plus, event):
                 await processPlusPaddleEvent(event);
                 break;
+              case isPurchaseType(PurchaseType.Recruiter, event):
+                break;
               default:
                 logger.info(
                   { eventType: event.eventType },

@@ -77,11 +77,19 @@ let app: FastifyInstance;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | null = null;
+let isTeamMember = false;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser) as unknown as Context,
+    (req) =>
+      new MockContext(
+        con,
+        loggedUser || undefined,
+        [],
+        req,
+        isTeamMember,
+      ) as Context,
   );
   client = state.client;
   app = state.app;
@@ -144,6 +152,7 @@ describe('query opportunityById', () => {
             max
             period
           }
+          equity
         }
         location {
           city
@@ -222,6 +231,7 @@ describe('query opportunityById', () => {
           max: 120000,
           period: 1,
         },
+        equity: true,
       },
       location: [
         {
@@ -302,6 +312,8 @@ describe('query opportunityById', () => {
   });
 
   it('should return null for non-live opportunity when user is not a recruiter', async () => {
+    loggedUser = '2';
+
     await con
       .getRepository(Opportunity)
       .update(
@@ -315,7 +327,7 @@ describe('query opportunityById', () => {
         query: OPPORTUNITY_BY_ID_QUERY,
         variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
       },
-      'NOT_FOUND',
+      'FORBIDDEN',
     );
   });
 
@@ -338,6 +350,28 @@ describe('query opportunityById', () => {
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
       type: OpportunityUserType.Recruiter,
     });
+
+    await con
+      .getRepository(Opportunity)
+      .update(
+        { id: '550e8400-e29b-41d4-a716-446655440001' },
+        { state: OpportunityState.DRAFT },
+      );
+
+    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.opportunityById.id).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
+  });
+
+  it('should return non-live opportunity if user is a team member', async () => {
+    loggedUser = '2';
+    isTeamMember = true;
 
     await con
       .getRepository(Opportunity)
@@ -1109,6 +1143,90 @@ describe('mutation acceptOpportunityMatch', () => {
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
         userId: '1',
         status: OpportunityMatchStatus.CandidateAccepted,
+      }),
+    ).toEqual(1);
+  });
+
+  it('should return error when the match is not pending', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match is not pending',
+    );
+  });
+
+  it('should return error when the opportunity is not live', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440003',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Opportunity is not live',
+    );
+  });
+});
+
+describe('mutation rejectOpportunityMatch', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation RejectOpportunityMatch($id: ID!) {
+      rejectOpportunityMatch(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should accept opportunity match for authenticated user', async () => {
+    loggedUser = '1';
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.Pending,
+      }),
+    ).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.rejectOpportunityMatch).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateRejected,
       }),
     ).toEqual(1);
   });

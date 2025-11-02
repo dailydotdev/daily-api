@@ -68,6 +68,22 @@ export const redirectToAppStore = ({
   );
 };
 
+const redirectToExtensionStore = (
+  req: FastifyRequest,
+  res: FastifyReply,
+): FastifyReply => {
+  const ua = uaParser(req.headers['user-agent']);
+  const browser = ua.browser.name?.toLowerCase();
+  const url = new URL(req.raw.url!, 'http://localhost');
+  res.status(307);
+
+  const redirectURL = browser?.includes('edge')
+    ? `https://microsoftedge.microsoft.com/addons/detail/daily-20-source-for-bu/cbdhgldgiancdheindpekpcbkccpjaeb${url.search}`
+    : `https://chrome.google.com/webstore/detail/daily-discover-web-techno/jlmpjdjjbgclbocgajdjefcidcncaied${url.search}`;
+
+  return res.status(307).redirect(redirectURL);
+};
+
 const redirectToStore =
   (con: DataSource) =>
   async (req: FastifyRequest, res: FastifyReply): Promise<FastifyReply> => {
@@ -103,15 +119,7 @@ const redirectToStore =
       return res.redirect(`https://app.daily.dev${url.search}`);
     }
 
-    if (browser?.includes('edge')) {
-      return res.redirect(
-        `https://microsoftedge.microsoft.com/addons/detail/daily-20-source-for-bu/cbdhgldgiancdheindpekpcbkccpjaeb${url.search}`,
-      );
-    }
-
-    return res.redirect(
-      `https://chrome.google.com/webstore/detail/daily-discover-web-techno/jlmpjdjjbgclbocgajdjefcidcncaied${url.search}`,
-    );
+    return redirectToExtensionStore(req, res);
   };
 
 const redirectToMobile =
@@ -173,6 +181,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   );
   fastify.get('/download', redirectToStore(con));
   fastify.get('/get', redirectToStore(con));
+  fastify.get('/get-extension', redirectToExtensionStore);
   fastify.get('/mobile', redirectToMobile(con));
   fastify.get<{ Params: { id: string } }>('/:id/profile-image', (req, res) =>
     redirectToProfileImage(con, res, req.params.id),
