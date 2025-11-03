@@ -20,13 +20,15 @@ const generateMarkdown = (data: Briefing): string => {
   let markdown = '';
 
   for (const section of data.sections) {
-    markdown += `## ${section.title}\n\n`;
+    if (section.items.length) {
+      markdown += `## ${section.title}\n\n`;
 
-    for (const item of section.items) {
-      markdown += `- **${item.title}**: ${item.body}\n`;
+      for (const item of section.items) {
+        markdown += `- **${item.title}**: ${item.body}\n`;
+      }
+
+      markdown += '\n';
     }
-
-    markdown += '\n';
   }
 
   return markdown.trim();
