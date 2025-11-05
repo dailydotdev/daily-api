@@ -197,11 +197,14 @@ export interface GQLUpdateUserInput {
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
   locationId?: string;
+  cover?: string;
+  readme?: string;
 }
 
 interface GQLUserParameters {
   data: GQLUpdateUserInput;
   upload: Promise<FileUpload>;
+  coverUpload?: Promise<FileUpload>;
 }
 
 export interface GQLUser {
@@ -2213,7 +2216,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     // add mutation to clear images
     updateUserProfile: async (
       _,
-      { data, upload }: GQLUserParameters,
+      { data, upload, coverUpload }: GQLUserParameters,
       ctx: AuthContext,
     ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
@@ -2272,7 +2275,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const readmeHtml = markdown.render(data.readme || '');
 
       try {
-        const updatedUser = { ...user, ...data, image: avatar };
+        const updatedUser = {
+          ...user,
+          ...data,
+          image: avatar,
+          cover,
+          readmeHtml,
+        };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
         const marketingFlag = updatedUser.acceptedMarketing
