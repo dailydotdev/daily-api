@@ -553,6 +553,10 @@ export const typeDefs = /* GraphQL */ `
     """
     image: String
     """
+    The cover image of the user
+    """
+    cover: String
+    """
     Username (handle) of the user
     """
     username: String
@@ -656,6 +660,10 @@ export const typeDefs = /* GraphQL */ `
     id of the location selected by the user
     """
     locationId: String
+    """
+    The user's readme
+    """
+    readme: String
   }
 
   type TagsReadingStatus {
