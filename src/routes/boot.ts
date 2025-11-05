@@ -937,6 +937,7 @@ const getFunnelLoggedInData = async (
           'flags',
           'locationId',
           'readmeHtml',
+          'readme',
         ]),
         providers: [null],
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
