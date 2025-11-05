@@ -1068,7 +1068,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Update user profile information
     """
-    updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
+    updateUserProfile(
+      data: UpdateUserInput
+      upload: Upload
+      coverUpload: Upload
+    ): User @auth
 
     """
     Hide user's read history
