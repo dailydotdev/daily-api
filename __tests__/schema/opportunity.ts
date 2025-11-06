@@ -420,40 +420,6 @@ describe('query getOpportunityMatch', () => {
     });
   });
 
-  it('should clear alert when alert matches opportunityId', async () => {
-    loggedUser = '1';
-
-    await saveFixtures(con, Alerts, [
-      {
-        userId: '1',
-        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      },
-    ]);
-
-    const res = await client.query(GET_OPPORTUNITY_MATCH_QUERY, {
-      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunityMatch).toEqual({
-      status: 'pending',
-      description: {
-        reasoning: 'Interested candidate',
-      },
-    });
-    expect(
-      await con.getRepository(Alerts).countBy({
-        userId: '1',
-        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      }),
-    ).toEqual(0);
-    expect(
-      await con
-        .getRepository(Alerts)
-        .countBy({ userId: '1', opportunityId: IsNull() }),
-    ).toEqual(1);
-  });
-
   it('should not clear alert when alert does not match opportunityId', async () => {
     loggedUser = '1';
 
@@ -1147,6 +1113,38 @@ describe('mutation acceptOpportunityMatch', () => {
     ).toEqual(1);
   });
 
+  it('should clear alert when accepting opportunity match', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, Alerts, [
+      {
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.acceptOpportunityMatch).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(Alerts).countBy({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    ).toEqual(0);
+    expect(
+      await con
+        .getRepository(Alerts)
+        .countBy({ userId: '1', opportunityId: IsNull() }),
+    ).toEqual(1);
+  });
+
   it('should return error when the match is not pending', async () => {
     loggedUser = '2';
 
@@ -1228,6 +1226,38 @@ describe('mutation rejectOpportunityMatch', () => {
         userId: '1',
         status: OpportunityMatchStatus.CandidateRejected,
       }),
+    ).toEqual(1);
+  });
+
+  it('should clear alert when rejecting opportunity match', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, Alerts, [
+      {
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.rejectOpportunityMatch).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(Alerts).countBy({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      }),
+    ).toEqual(0);
+    expect(
+      await con
+        .getRepository(Alerts)
+        .countBy({ userId: '1', opportunityId: IsNull() }),
     ).toEqual(1);
   });
 
