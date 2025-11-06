@@ -408,7 +408,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunityMatch> => {
-      const match = await graphorm.queryOneOrFail<GQLOpportunityMatch>(
+      return await graphorm.queryOneOrFail<GQLOpportunityMatch>(
         ctx,
         info,
         (builder) => {
@@ -418,18 +418,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
-
-      await ctx.con.getRepository(Alerts).update(
-        {
-          userId: ctx.userId,
-          opportunityId: id,
-        },
-        {
-          opportunityId: null,
-        },
-      );
-
-      return match;
     },
     getCandidatePreferences: async (
       _,
@@ -607,6 +595,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
+      await con.getRepository(Alerts).update(
+        {
+          userId,
+          opportunityId: id,
+        },
+        {
+          opportunityId: null,
+        },
+      );
+
       return { _: true };
     },
     rejectOpportunityMatch: async (
@@ -656,6 +654,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           status: OpportunityMatchStatus.CandidateRejected,
+        },
+      );
+
+      await con.getRepository(Alerts).update(
+        {
+          userId,
+          opportunityId: id,
+        },
+        {
+          opportunityId: null,
         },
       );
 
