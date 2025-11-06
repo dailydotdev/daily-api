@@ -13,6 +13,7 @@ import {
   SourceDisplay,
   SourceRequest,
   User,
+  UserPost,
   View,
 } from '../entity';
 import { ghostUser } from './index';
@@ -93,6 +94,8 @@ export const deleteUser = async (
       await entityManager.getRepository(Settings).delete({ userId });
       await entityManager.getRepository(SourceDisplay).delete({ userId });
       await entityManager.getRepository(SourceRequest).delete({ userId });
+      // Manually delete user post actions
+      await entityManager.getRepository(UserPost).delete({ userId: userId });
       await entityManager
         .getRepository(ArticlePost)
         .update({ authorId: userId }, { authorId: null });
