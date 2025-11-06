@@ -420,7 +420,6 @@ describe('query getOpportunityMatch', () => {
     });
   });
 
-
   it('should not clear alert when alert does not match opportunityId', async () => {
     loggedUser = '1';
 
