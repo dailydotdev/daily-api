@@ -19,6 +19,8 @@ export const ghostUser = {
   id: '404',
   username: 'ghost',
   name: 'Deleted user',
+  image:
+    'https://media.daily.dev/image/upload/s--hNIUzLiO--/f_auto/v1705327420/public/ghost_vlftth',
 };
 
 export const deletedPost = {
