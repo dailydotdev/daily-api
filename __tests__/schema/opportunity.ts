@@ -26,6 +26,7 @@ import {
   opportunityKeywordsFixture,
   opportunityMatchesFixture,
   opportunityQuestionsFixture,
+  opportunityFeedbackQuestionsFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
 import { OpportunityUser } from '../../src/entity/opportunities/user';
@@ -57,6 +58,7 @@ import { fileTypeFromBuffer } from '../setup';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
 import { RoleType } from '../../src/common/schema/userCandidate';
 import { QuestionType } from '../../src/entity/questions/types';
+import { QuestionFeedback } from '../../src/entity/questions/QuestionFeedback';
 import type { FastifyInstance } from 'fastify';
 import type { Context } from '../../src/Context';
 import { createMockGondulTransport } from '../helpers';
@@ -105,6 +107,11 @@ beforeEach(async () => {
   await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, Opportunity, opportunitiesFixture);
   await saveFixtures(con, QuestionScreening, opportunityQuestionsFixture);
+  await saveFixtures(
+    con,
+    QuestionFeedback,
+    opportunityFeedbackQuestionsFixture,
+  );
   await saveFixtures(con, OpportunityKeyword, opportunityKeywordsFixture);
   await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
   await saveFixtures(con, OpportunityUser, [
@@ -183,6 +190,13 @@ describe('query opportunityById', () => {
           keyword
         }
         questions {
+          id
+          title
+          order
+          placeholder
+          opportunityId
+        }
+        feedbackQuestions {
           id
           title
           order
@@ -300,7 +314,50 @@ describe('query opportunityById', () => {
           order: 0,
         },
       ]),
+      feedbackQuestions: expect.arrayContaining([
+        {
+          id: '850e8400-e29b-41d4-a716-446655440001',
+          title: 'How did you hear about this opportunity?',
+          placeholder: 'e.g., LinkedIn, friend, etc.',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          order: 0,
+        },
+        {
+          id: '850e8400-e29b-41d4-a716-446655440002',
+          title: 'What interests you most about this role?',
+          placeholder: 'Your answer here...',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          order: 1,
+        },
+      ]),
     });
+  });
+
+  it('should correctly separate screening and feedback questions by type', async () => {
+    // This test ensures that questions and feedbackQuestions
+    // are properly filtered by their type discriminator
+    const res = await client.query<
+      { opportunityById: GQLOpportunity },
+      { id: string }
+    >(OPPORTUNITY_BY_ID_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify screening questions only contain screening type (IDs starting with 750e)
+    expect(res.data.opportunityById.questions).toHaveLength(2);
+    expect(res.data.opportunityById.questions.every(q => q.id.startsWith('750e'))).toBe(true);
+
+    // Verify feedback questions only contain feedback type (IDs starting with 850e)
+    expect(res.data.opportunityById.feedbackQuestions).toHaveLength(2);
+    expect(res.data.opportunityById.feedbackQuestions.every(q => q.id.startsWith('850e'))).toBe(true);
+
+    // Verify no overlap - screening questions should not appear in feedback
+    const screeningIds = res.data.opportunityById.questions.map(q => q.id);
+    const feedbackIds = res.data.opportunityById.feedbackQuestions.map(q => q.id);
+    const hasOverlap = screeningIds.some(id => feedbackIds.includes(id));
+    expect(hasOverlap).toBe(false);
   });
 
   it('should return UNEXPECTED for false UUID opportunity', async () => {
@@ -1058,6 +1115,209 @@ describe('mutation saveOpportunityScreeningAnswers', () => {
       },
       'CONFLICT',
       'Number of answers (1) does not match the required questions',
+    );
+  });
+});
+
+describe('mutation saveOpportunityFeedbackAnswers', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation SaveOpportunityFeedbackAnswers(
+      $id: ID!
+      $answers: [OpportunityScreeningAnswerInput!]!
+    ) {
+      saveOpportunityFeedbackAnswers(id: $id, answers: $answers) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '850e8400-e29b-41d4-a716-446655440001',
+              answer: 'From a friend',
+            },
+          ],
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should save feedback answers for authenticated user', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        answers: [
+          {
+            questionId: '850e8400-e29b-41d4-a716-446655440001',
+            answer: 'From a friend',
+          },
+          {
+            questionId: '850e8400-e29b-41d4-a716-446655440002',
+            answer: 'The company culture',
+          },
+        ],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.saveOpportunityFeedbackAnswers).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+    });
+
+    expect(match.feedback).toEqual(
+      expect.arrayContaining([
+        {
+          screening: 'How did you hear about this opportunity?',
+          answer: 'From a friend',
+        },
+        {
+          screening: 'What interests you most about this role?',
+          answer: 'The company culture',
+        },
+      ]),
+    );
+  });
+
+  it('should allow partial feedback answers since they are optional', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        answers: [
+          {
+            questionId: '850e8400-e29b-41d4-a716-446655440001',
+            answer: 'From LinkedIn',
+          },
+        ],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.saveOpportunityFeedbackAnswers).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+    });
+
+    expect(match.feedback).toEqual([
+      {
+        screening: 'How did you hear about this opportunity?',
+        answer: 'From LinkedIn',
+      },
+    ]);
+  });
+
+  it('should allow empty feedback answers since they are optional', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+        answers: [],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.saveOpportunityFeedbackAnswers).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+    });
+
+    expect(match.feedback).toEqual([]);
+  });
+
+  it('should return FORBIDDEN when match does not exist', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '850e8400-e29b-41d4-a716-446655440001',
+              answer: 'From a friend',
+            },
+          ],
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! No match found',
+    );
+  });
+
+  it('should return error when there are duplicate answers by questionId', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '850e8400-e29b-41d4-a716-446655440001',
+              answer: 'From a friend',
+            },
+            {
+              questionId: '850e8400-e29b-41d4-a716-446655440001',
+              answer: 'From LinkedIn',
+            },
+          ],
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+      'Validation error',
+      (errors) => {
+        const extensions = errors[0].extensions as unknown as ZodError;
+        expect(extensions.issues.length).toEqual(1);
+        expect(extensions.issues[0].code).toEqual('custom');
+        expect(extensions.issues[0].message).toEqual(
+          'Duplicate questionId 850e8400-e29b-41d4-a716-446655440001',
+        );
+      },
+    );
+  });
+
+  it('should return error when the questionId does not belong to opportunity', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440003',
+              answer: 'Invalid question',
+            },
+          ],
+        },
+      },
+      'CONFLICT',
+      'Question 750e8400-e29b-41d4-a716-446655440003 not found for opportunity',
     );
   });
 });
