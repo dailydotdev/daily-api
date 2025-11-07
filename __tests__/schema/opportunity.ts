@@ -347,16 +347,24 @@ describe('query opportunityById', () => {
 
     // Verify screening questions only contain screening type (IDs starting with 750e)
     expect(res.data.opportunityById.questions).toHaveLength(2);
-    expect(res.data.opportunityById.questions.every(q => q.id.startsWith('750e'))).toBe(true);
+    expect(
+      res.data.opportunityById.questions.every((q) => q.id.startsWith('750e')),
+    ).toBe(true);
 
     // Verify feedback questions only contain feedback type (IDs starting with 850e)
     expect(res.data.opportunityById.feedbackQuestions).toHaveLength(2);
-    expect(res.data.opportunityById.feedbackQuestions.every(q => q.id.startsWith('850e'))).toBe(true);
+    expect(
+      res.data.opportunityById.feedbackQuestions.every((q) =>
+        q.id.startsWith('850e'),
+      ),
+    ).toBe(true);
 
     // Verify no overlap - screening questions should not appear in feedback
-    const screeningIds = res.data.opportunityById.questions.map(q => q.id);
-    const feedbackIds = res.data.opportunityById.feedbackQuestions.map(q => q.id);
-    const hasOverlap = screeningIds.some(id => feedbackIds.includes(id));
+    const screeningIds = res.data.opportunityById.questions.map((q) => q.id);
+    const feedbackIds = res.data.opportunityById.feedbackQuestions.map(
+      (q) => q.id,
+    );
+    const hasOverlap = screeningIds.some((id) => feedbackIds.includes(id));
     expect(hasOverlap).toBe(false);
   });
 
