@@ -47,7 +47,7 @@ export const candidatePreferenceSchema = z.object({
       message: 'Invalid candidate status',
     })
     .optional(),
-  role: z.string().max(100).optional(),
+  role: z.string().max(400).optional(),
   roleType: z.enum(RoleType, { error: 'Invalid role type' }).optional(),
   employmentType: z
     .array(
