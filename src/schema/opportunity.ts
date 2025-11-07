@@ -20,7 +20,10 @@ import {
   userCandidateToggleKeywordSchema,
 } from '../common/schema/userCandidate';
 import { Alerts } from '../entity';
-import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
+import {
+  opportunityScreeningAnswersSchema,
+  opportunityFeedbackAnswersSchema,
+} from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
 import { ConflictError, NotFoundError } from '../errors';
@@ -130,6 +133,14 @@ export const typeDefs = /* GraphQL */ `
     opportunityId: ID!
   }
 
+  type OpportunityFeedbackQuestion {
+    id: ID!
+    title: String!
+    order: Int!
+    placeholder: String
+    opportunityId: ID!
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -143,6 +154,7 @@ export const typeDefs = /* GraphQL */ `
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
+    feedbackQuestions: [OpportunityFeedbackQuestion]!
   }
 
   type OpportunityMatchDescription {
@@ -295,6 +307,15 @@ export const typeDefs = /* GraphQL */ `
       answers: [OpportunityScreeningAnswerInput!]!
     ): EmptyResponse @auth
 
+    saveOpportunityFeedbackAnswers(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      answers: [OpportunityScreeningAnswerInput!]!
+    ): EmptyResponse @auth
+
     acceptOpportunityMatch(
       """
       Id of the Opportunity
@@ -408,7 +429,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunityMatch> => {
-      const match = await graphorm.queryOneOrFail<GQLOpportunityMatch>(
+      return await graphorm.queryOneOrFail<GQLOpportunityMatch>(
         ctx,
         info,
         (builder) => {
@@ -418,18 +439,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
-
-      await ctx.con.getRepository(Alerts).update(
-        {
-          userId: ctx.userId,
-          opportunityId: id,
-        },
-        {
-          opportunityId: null,
-        },
-      );
-
-      return match;
     },
     getCandidatePreferences: async (
       _,
@@ -557,6 +566,70 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
       return { _: true };
     },
+    saveOpportunityFeedbackAnswers: async (
+      _,
+      payload: z.infer<typeof opportunityFeedbackAnswersSchema>,
+      { userId, con, log }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const safePayload = opportunityFeedbackAnswersSchema.safeParse(payload);
+      if (safePayload.error) {
+        throw safePayload.error;
+      }
+
+      const opportunityId = safePayload.data.id;
+      const answers = safePayload.data.answers;
+
+      const [match, opportunity] = await Promise.all([
+        con.getRepository(OpportunityMatch).findOneBy({
+          opportunityId,
+          userId,
+        }),
+        con.getRepository(OpportunityJob).findOneOrFail({
+          where: { id: opportunityId },
+          relations: {
+            feedbackQuestions: true,
+          },
+        }),
+      ]);
+
+      if (!match) {
+        throw new ForbiddenError(`Access denied! No match found`);
+      }
+
+      const questions = await opportunity.feedbackQuestions;
+
+      // Feedback questions are optional, so validate only that provided questionIds exist
+      const feedback = answers.map((answer) => {
+        const question = questions.find((q) => q.id === answer.questionId);
+        if (!question) {
+          log.error(
+            { answer, questions, opportunityId },
+            'Question not found for opportunity',
+          );
+          throw new ConflictError(
+            `Question ${answer.questionId} not found for opportunity`,
+          );
+        }
+
+        return {
+          screening: question.title,
+          answer: answer.answer,
+        };
+      });
+
+      await con.getRepository(OpportunityMatch).upsert(
+        {
+          opportunityId,
+          userId,
+          feedback,
+        },
+        {
+          conflictPaths: ['opportunityId', 'userId'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
+      return { _: true };
+    },
     acceptOpportunityMatch: async (
       _,
       { id }: { id: string },
@@ -604,6 +677,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           status: OpportunityMatchStatus.CandidateAccepted,
+        },
+      );
+
+      await con.getRepository(Alerts).update(
+        {
+          userId,
+          opportunityId: id,
+        },
+        {
+          opportunityId: null,
         },
       );
 
@@ -656,6 +739,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           status: OpportunityMatchStatus.CandidateRejected,
+        },
+      );
+
+      await con.getRepository(Alerts).update(
+        {
+          userId,
+          opportunityId: id,
+        },
+        {
+          opportunityId: null,
         },
       );
 

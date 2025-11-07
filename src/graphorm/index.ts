@@ -63,6 +63,7 @@ import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
+import { QuestionType } from '../entity/questions/types';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1535,10 +1536,49 @@ const obj = new GraphORM({
           childColumn: 'opportunityId',
         },
       },
+      questions: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."type" = :screeningType`, {
+                screeningType: QuestionType.Screening,
+              })
+              .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
+        },
+      },
+      feedbackQuestions: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."type" = :feedbackType`, {
+                feedbackType: QuestionType.Feedback,
+              })
+              .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
+        },
+      },
     },
   },
   OpportunityScreeningQuestion: {
     from: 'QuestionScreening',
+    requiredColumns: ['questionOrder'],
+    additionalQuery: (_, alias, qb) =>
+      qb.orderBy(`${alias}."questionOrder"`, 'ASC'),
+    fields: {
+      order: {
+        alias: { field: 'questionOrder', type: 'int' },
+      },
+    },
+  },
+  OpportunityFeedbackQuestion: {
+    from: 'QuestionFeedback',
     requiredColumns: ['questionOrder'],
     additionalQuery: (_, alias, qb) =>
       qb.orderBy(`${alias}."questionOrder"`, 'ASC'),
@@ -1560,6 +1600,9 @@ const obj = new GraphORM({
         jsonType: true,
       },
       screening: {
+        jsonType: true,
+      },
+      feedback: {
         jsonType: true,
       },
       applicationRank: {

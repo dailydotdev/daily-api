@@ -17,6 +17,7 @@ import {
   SocialMediaType,
 } from '../../src/common/schema/organizations';
 import type { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
+import type { QuestionFeedback } from '../../src/entity/questions/QuestionFeedback';
 import { demoCompany } from '../../src/common';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
@@ -313,3 +314,21 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     updatedAt: new Date('2023-01-03'),
   },
 ];
+
+export const opportunityFeedbackQuestionsFixture: DeepPartial<QuestionFeedback>[] =
+  [
+    {
+      id: '850e8400-e29b-41d4-a716-446655440001',
+      title: 'How did you hear about this opportunity?',
+      placeholder: 'e.g., LinkedIn, friend, etc.',
+      opportunityId: opportunitiesFixture[0].id,
+      questionOrder: 0,
+    },
+    {
+      id: '850e8400-e29b-41d4-a716-446655440002',
+      title: 'What interests you most about this role?',
+      placeholder: 'Your answer here...',
+      opportunityId: opportunitiesFixture[0].id,
+      questionOrder: 1,
+    },
+  ];
