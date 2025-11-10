@@ -166,6 +166,7 @@ export const identifyUserOpportunities = async ({
       status: OpportunityMatchStatus.Pending,
     },
     select: ['opportunityId'],
+    order: { createdAt: 'ASC' },
   });
   await cio.identify(userId, {
     opportunities: opportunities.map(
