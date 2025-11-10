@@ -687,7 +687,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           opportunityId: null,
-          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: false }),
+          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
         },
       );
 
@@ -750,7 +750,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           opportunityId: null,
-          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: false }),
+          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
         },
       );
 
