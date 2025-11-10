@@ -173,6 +173,8 @@ config:
       secure: AAABANvfb9iJDOmbRPpMpkPzBLpeKTHsLCsFkNfU38yn53ZKUmeP0PA34uVGPZp+y4luHmEFXRE/jy/4rFwr9ZoVtufE59aa7J5AtVJcYY1VlumIY6P5olg=
     brokkrOrigin:
       secure: AAABABvk5Zi2sL2p8Gjl4vwVS+Ge+P2S3Jo8yDBOTNMZ6FZ1WquX+DqQkvE1YBTCvSMy9kmd+TCsRzeV3LrTC0Xbnlh7PxLog7fseJS37GUJ
+    slackRecruiterWebhook:
+      secure: AAABANouDkXZrXKlBhPnSmgjwQS/mb+qPaFmD/vpxeEkdCx4pfnsjYOsdOQFvsH6KcXb7BNGnnEtpEBUaeb3CNNMUbc2/JP80iNsnJSrF4hx5zBEYEPlMi0rmTXAJ4nc087FooqlV031idBJLxyNLDU=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
