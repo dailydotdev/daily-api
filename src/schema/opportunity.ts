@@ -10,7 +10,7 @@ import {
   ScreeningQuestionsRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { toGQLEnum } from '../common';
+import { toGQLEnum, updateFlagsStatement } from '../common';
 import { OpportunityMatchStatus } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
@@ -687,6 +687,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           opportunityId: null,
+          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
         },
       );
 
@@ -749,6 +750,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
         {
           opportunityId: null,
+          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
         },
       );
 

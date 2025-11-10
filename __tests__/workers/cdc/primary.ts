@@ -246,6 +246,11 @@ jest.mock('../../../src/temporal/notifications/utils', () => ({
   cancelEntityReminderWorkflow: jest.fn(),
 }));
 
+jest.mock('../../../src/cio', () => ({
+  ...(jest.requireActual('../../../src/cio') as Record<string, unknown>),
+  identifyUserOpportunities: jest.fn(),
+}));
+
 let con: DataSource;
 
 beforeAll(async () => {
