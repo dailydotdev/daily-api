@@ -86,7 +86,7 @@ describe('warmIntroNotification worker', () => {
 
     const context = result![0].ctx as NotificationWarmIntroContext;
 
-    expect(context.userIds).toEqual(['1']);
+    expect(context.userIds).toEqual(['1', 'recruiter123']);
     expect(context.opportunityId).toEqual(
       '123e4567-e89b-12d3-a456-426614174000',
     );

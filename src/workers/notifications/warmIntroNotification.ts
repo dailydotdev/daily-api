@@ -64,7 +64,7 @@ export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intr
         {
           type: NotificationType.WarmIntro,
           ctx: {
-            userIds: [userId],
+            userIds: [userId, recruiter?.id],
             opportunityId,
             description,
             recruiter,
