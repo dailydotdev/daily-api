@@ -251,7 +251,7 @@ export const notifyCandidateOpportunityMatchRejected = async ({
 
   const match = await queryReadReplica(con, async ({ queryRunner }) => {
     return queryRunner.manager.getRepository(OpportunityMatch).findOne({
-      select: ['opportunityId', 'userId'],
+      select: ['opportunityId', 'userId', 'createdAt', 'updatedAt'],
       where: { opportunityId: data.opportunityId, userId: data.userId },
     });
   });
