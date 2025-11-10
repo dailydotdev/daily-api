@@ -162,6 +162,7 @@ import { PollPost } from '../../entity/posts/PollPost';
 import { UserExperienceWork } from '../../entity/user/experiences/UserExperienceWork';
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
+import { cio, identifyUserOpportunities } from '../../cio';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1292,6 +1293,11 @@ const onOpportunityMatchChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<OpportunityMatch>,
 ) => {
+  await identifyUserOpportunities({
+    con,
+    cio,
+    userId: data.payload.after?.userId ?? data.payload.before?.userId ?? '',
+  });
   if (data.payload.op === 'u') {
     if (
       data.payload.after?.status === OpportunityMatchStatus.CandidateAccepted &&
