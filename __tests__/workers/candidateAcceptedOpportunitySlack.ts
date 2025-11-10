@@ -6,11 +6,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { webhooks } from '../../src/common/slack';
 import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
-import {
-  CandidateAcceptedOpportunityMessage,
-  OpportunityType,
-  OpportunityState,
-} from '@dailydotdev/schema';
+import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import { Organization } from '../../src/entity/Organization';
 import {
