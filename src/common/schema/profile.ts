@@ -65,6 +65,8 @@ const experienceTypeToSchema: Record<
   [UserExperienceType.Education]: userExperienceEducationSchema,
   [UserExperienceType.Project]: userExperienceProjectSchema,
   [UserExperienceType.Work]: userExperienceWorkSchema,
+  [UserExperienceType.Volunteering]: userExperienceProjectSchema,
+  [UserExperienceType.OpenSource]: userExperienceProjectSchema,
 };
 
 export const getExperienceSchema = (type: UserExperienceType) => {
