@@ -54,7 +54,10 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       updatedAt: BigInt(Math.floor(match.updatedAt.getTime() / 1000)),
     });
 
-    await expectSuccessfulTypedBackground(worker, eventData);
+    await expectSuccessfulTypedBackground<'api.v1.candidate-accepted-opportunity'>(
+      worker,
+      eventData,
+    );
 
     expect(mockContentSend).toHaveBeenCalledWith({
       text: 'Candidate accepted opportunity!',
@@ -101,7 +104,10 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       updatedAt: BigInt(Math.floor(match.updatedAt.getTime() / 1000)),
     });
 
-    await expectSuccessfulTypedBackground(worker, eventData);
+    await expectSuccessfulTypedBackground<'api.v1.candidate-accepted-opportunity'>(
+      worker,
+      eventData,
+    );
 
     expect(mockContentSend).toHaveBeenCalledWith({
       text: 'Candidate accepted opportunity!',
@@ -137,7 +143,10 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       updatedAt: BigInt(Math.floor(Date.now() / 1000)),
     });
 
-    await expectSuccessfulTypedBackground(worker, eventData);
+    await expectSuccessfulTypedBackground<'api.v1.candidate-accepted-opportunity'>(
+      worker,
+      eventData,
+    );
 
     expect(mockContentSend).not.toHaveBeenCalled();
   });
@@ -161,7 +170,10 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       updatedAt: BigInt(Math.floor(match.updatedAt.getTime() / 1000)),
     });
 
-    await expectSuccessfulTypedBackground(worker, eventData);
+    await expectSuccessfulTypedBackground<'api.v1.candidate-accepted-opportunity'>(
+      worker,
+      eventData,
+    );
 
     expect(mockContentSend).toHaveBeenCalledWith({
       text: 'Candidate accepted opportunity!',
