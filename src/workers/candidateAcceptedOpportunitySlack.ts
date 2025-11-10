@@ -30,7 +30,7 @@ const worker: TypedWorker<'api.v1.candidate-accepted-opportunity'> = {
       const opportunity = await match.opportunity;
       const user = await match.user;
 
-      await webhooks.content.send({
+      await webhooks.recruiter.send({
         text: 'Candidate accepted opportunity!',
         attachments: [
           {

@@ -15,9 +15,9 @@ import {
 } from '../fixture/opportunity';
 import { usersFixture } from '../fixture/user';
 
-// Spy on the webhooks.content.send method
-const mockContentSend = jest
-  .spyOn(webhooks.content, 'send')
+// Spy on the webhooks.recruiter.send method
+const mockRecruiterSend = jest
+  .spyOn(webhooks.recruiter, 'send')
   .mockResolvedValue(undefined);
 
 let con: DataSource;
@@ -59,7 +59,7 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       eventData,
     );
 
-    expect(mockContentSend).toHaveBeenCalledWith({
+    expect(mockRecruiterSend).toHaveBeenCalledWith({
       text: 'Candidate accepted opportunity!',
       attachments: [
         {
@@ -109,7 +109,7 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       eventData,
     );
 
-    expect(mockContentSend).toHaveBeenCalledWith({
+    expect(mockRecruiterSend).toHaveBeenCalledWith({
       text: 'Candidate accepted opportunity!',
       attachments: [
         {
@@ -148,7 +148,7 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       eventData,
     );
 
-    expect(mockContentSend).not.toHaveBeenCalled();
+    expect(mockRecruiterSend).not.toHaveBeenCalled();
   });
 
   it('should handle different opportunities', async () => {
@@ -175,7 +175,7 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       eventData,
     );
 
-    expect(mockContentSend).toHaveBeenCalledWith({
+    expect(mockRecruiterSend).toHaveBeenCalledWith({
       text: 'Candidate accepted opportunity!',
       attachments: [
         {
