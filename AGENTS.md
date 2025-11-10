@@ -34,7 +34,7 @@ This file provides guidance to coding agents when working with code in this repo
 - **Fastify** - Web framework with plugins for CORS, helmet, cookies, rate limiting
 - **Mercurius** - GraphQL server with caching, upload support, and subscriptions
 - **TypeORM** - Database ORM with entity-based modeling and migrations
-- **PostgreSQL** - Primary database with master/slave replication setup
+- **PostgreSQL** - Primary database with master/slave replication setup. Favor read replica when you're ok with eventually consistent data.
 - **Redis** - Caching and pub/sub via ioRedisPool
 - **Temporal** - Workflow orchestration for background jobs
 - **ClickHouse** - Analytics and metrics storage
@@ -64,12 +64,18 @@ This file provides guidance to coding agents when working with code in this repo
 - `src/integrations/` - External service integrations (Slack, SendGrid, etc.) 
 - `src/cron/` - Scheduled cron jobs for maintenance and periodic tasks. One file per cron, registered in `index.ts`, deployed via `.infra/crons.ts` Pulumi config. Each cron exports a `Cron` object with `name` and `handler(DataSource, logger, pubsub)`. Run locally with `pnpm run cli cron <name>`. See `src/cron/AGENTS.md` for more.
 
+**Type Safety & Validation:**
+- We favor type safety throughout the codebase. Use TypeScript interfaces and types for compile-time type checking.
+- **Zod schemas** are preferred for runtime validation, especially for input validation, API boundaries, and data parsing. Zod provides both type inference and runtime validation, making it ideal for verifying user input, API payloads, and external data sources.
+- When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
+
 **Business Domains:**
 - **Content**: Posts, comments, bookmarks, feeds, sources
 - **Users**: Authentication, preferences, profiles, user experience
 - **Organizations**: Squad management, member roles, campaigns
 - **Notifications**: Push notifications, email digests, alerts
 - **Monetization**: Paddle subscription management, premium features
+- **Squads**: Squad management, member roles, campaigns
 
 **Testing Strategy:**
 - Jest with supertest for integration testing
