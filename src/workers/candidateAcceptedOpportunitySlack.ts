@@ -1,6 +1,7 @@
 import { TypedWorker } from './worker';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { webhooks } from '../common';
+import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
 
 const worker: TypedWorker<'api.v1.candidate-accepted-opportunity'> = {
   subscription: 'api.candidate-accepted-opportunity-slack',
@@ -60,6 +61,8 @@ const worker: TypedWorker<'api.v1.candidate-accepted-opportunity'> = {
       );
     }
   },
+  parseMessage: (message) =>
+    CandidateAcceptedOpportunityMessage.fromBinary(message.data),
 };
 
 export default worker;
