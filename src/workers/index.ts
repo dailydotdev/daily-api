@@ -71,6 +71,7 @@ import { postAuthorCoresEarned } from './postAnalytics/postAuthorCoresEarned';
 import { storeCandidateOpportunityMatch } from './opportunity/storeCandidateOpportunityMatch';
 import { storeCandidateApplicationScore } from './opportunity/storeCandidateApplicationScore';
 import { extractCVMarkdown } from './extractCVMarkdown';
+import candidateAcceptedOpportunitySlack from './candidateAcceptedOpportunitySlack';
 
 export { Worker } from './worker';
 
@@ -145,6 +146,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   storeCandidateOpportunityMatch,
   storeCandidateApplicationScore,
   extractCVMarkdown,
+  candidateAcceptedOpportunitySlack,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
