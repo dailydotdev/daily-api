@@ -168,10 +168,9 @@ export const identifyUserOpportunities = async ({
     select: ['opportunityId'],
     order: { createdAt: 'ASC' },
   });
+  const ids = opportunities.map((opportunity) => opportunity.opportunityId);
   await cio.identify(userId, {
-    opportunities: opportunities.map(
-      (opportunity) => opportunity.opportunityId,
-    ),
+    opportunities: ids || null,
   });
 };
 
