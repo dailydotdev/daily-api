@@ -12,6 +12,7 @@ import type { Opportunity } from './opportunities/Opportunity';
 
 export type AlertsFlags = Partial<{
   lastReferralReminder: Date | null;
+  hasSeenOpportunity: boolean;
 }>;
 
 @Entity()
