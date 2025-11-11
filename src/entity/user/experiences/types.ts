@@ -3,4 +3,6 @@ export enum UserExperienceType {
   Education = 'education',
   Project = 'project',
   Certification = 'certification',
+  Volunteering = 'volunteering',
+  OpenSource = 'opensource',
 }
