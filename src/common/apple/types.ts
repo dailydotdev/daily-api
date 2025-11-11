@@ -28,6 +28,11 @@ export const bundleId = isTest ? 'dev.fylla' : env.APPLE_APP_BUNDLE_ID;
 export const appAppleId = parseInt(env.APPLE_APP_APPLE_ID);
 export const appleEnableOnlineChecks = true;
 export const appleEnvironment = getVerifierEnvironment();
+export const appleIssuerId = env.APPLE_ISSUER_ID;
+export const appleAppStoreServerClientKey =
+  env.APPLE_APP_STORE_SERVER_CLIENT_KEY;
+export const appleAppStoreServerClientKeyId =
+  env.APPLE_APP_STORE_SERVER_CLIENT_KEY_ID;
 
 export const allowedIPs = [
   '127.0.0.1/24',

@@ -1,4 +1,5 @@
 import {
+  AccountTenure,
   NotificationTypeV2,
   Subtype,
   type Environment,
@@ -24,6 +25,7 @@ import { readFile } from 'fs/promises';
 import { isTest } from '../utils';
 import { isCorePurchaseApple } from './purchase';
 import { SubscriptionProvider } from '../plus';
+import { differenceInDays } from 'date-fns';
 
 export const verifyAndDecodeAppleSignedData = async ({
   notification,
@@ -154,4 +156,22 @@ export const getAppleTransactionType = ({
     default:
       return null;
   }
+};
+
+export const getAccountTenure = (user: Pick<User, 'createdAt'>): number => {
+  if (!user.createdAt) {
+    return 0;
+  }
+
+  const difference = differenceInDays(new Date(), user.createdAt);
+
+  if (difference < 3) return AccountTenure.ZERO_TO_THREE_DAYS;
+  if (difference < 10) return AccountTenure.THREE_DAYS_TO_TEN_DAYS;
+  if (difference < 30) return AccountTenure.TEN_DAYS_TO_THIRTY_DAYS;
+  if (difference < 90) return AccountTenure.THIRTY_DAYS_TO_NINETY_DAYS;
+  if (difference < 180)
+    return AccountTenure.NINETY_DAYS_TO_ONE_HUNDRED_EIGHTY_DAYS;
+  if (difference < 365)
+    return AccountTenure.ONE_HUNDRED_EIGHTY_DAYS_TO_THREE_HUNDRED_SIXTY_FIVE_DAYS;
+  return AccountTenure.GREATER_THAN_THREE_HUNDRED_SIXTY_FIVE_DAYS;
 };

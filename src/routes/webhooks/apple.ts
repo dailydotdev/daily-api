@@ -26,6 +26,7 @@ import {
   AppleTransactionType,
 } from '../../common/apple/types';
 import {
+  handleCoresConsumptionRequest,
   handleCoresPurchase,
   isCorePurchaseApple,
 } from '../../common/apple/purchase';
@@ -82,15 +83,17 @@ const handleNotifcationRequest = async (
     }
 
     const con = await createOrGetConnection();
-    const user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole'> | null =
-      await con.getRepository(User).findOne({
-        select: ['id', 'subscriptionFlags', 'coresRole'],
-        where: {
-          subscriptionFlags: JsonContains({
-            appAccountToken: transactionInfo.appAccountToken,
-          }),
-        },
-      });
+    const user: Pick<
+      User,
+      'id' | 'subscriptionFlags' | 'coresRole' | 'createdAt'
+    > | null = await con.getRepository(User).findOne({
+      select: ['id', 'subscriptionFlags', 'coresRole', 'createdAt'],
+      where: {
+        subscriptionFlags: JsonContains({
+          appAccountToken: transactionInfo.appAccountToken,
+        }),
+      },
+    });
 
     if (!user) {
       logger.error(
@@ -124,12 +127,29 @@ const handleNotifcationRequest = async (
     switch (getAppleTransactionType({ transactionInfo })) {
       case AppleTransactionType.Consumable:
         if (isCorePurchaseApple({ transactionInfo })) {
-          await handleCoresPurchase({
-            transactionInfo,
-            user,
-            environment,
-            notification,
-          });
+          switch (notification.notificationType) {
+            case NotificationTypeV2.ONE_TIME_CHARGE:
+              await handleCoresPurchase({
+                transactionInfo,
+                user,
+                environment,
+                notification,
+              });
+              break;
+            case NotificationTypeV2.CONSUMPTION_REQUEST:
+              await handleCoresConsumptionRequest({
+                transactionInfo,
+                user,
+                environment,
+              });
+              break;
+            case NotificationTypeV2.REFUND_DECLINED:
+              // No action needed for refund declined on consumables
+              break;
+            case NotificationTypeV2.REFUND: // TODO: Handle refunds for consumables if needed - since it is Apple who decides if a refund is given, we may need to revoke the consumable
+            default:
+              throw new Error('Unsupported Apple Consumable notification type');
+          }
         } else {
           throw new Error('Unsupported Apple Consumable transaction type');
         }
