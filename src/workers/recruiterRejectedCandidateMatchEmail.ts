@@ -34,7 +34,7 @@ const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
 
       const shouldReceiveEmail = isSubscribedToNotificationType(
         user.notificationFlags,
-        NotificationType.RecruiterRejectedCandidateMatch,
+        NotificationType.NewOpportunityMatch,
         NotificationChannel.Email,
       );
 
