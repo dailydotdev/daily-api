@@ -78,7 +78,7 @@ export enum NotificationType {
   PostAnalytics = 'post_analytics',
   PollResult = 'poll_result',
   PollResultAuthor = 'poll_result_author',
-  WarmIntro = 'warm_intro'
+  WarmIntro = 'warm_intro',
 }
 
 export enum NotificationPreferenceType {
