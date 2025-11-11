@@ -49,7 +49,7 @@ const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
       await sendEmail({
         ...baseNotificationEmailData,
         reply_to: 'ido@daily.dev',
-        transactional_message_id: '85',
+        transactional_message_id: '88',
         message_data: {
           opportunity_id: opportunityId,
         },
