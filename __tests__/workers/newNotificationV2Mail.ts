@@ -2813,7 +2813,7 @@ describe('warm_intro notification', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
 
     expect(args.message_data).toEqual({
-      title: `It's a match!`,
+      title: `[Action Required] It's a match!`,
       copy: '<p>Great match based on your experience!</p>',
       cc: 'recruiter@test.com',
     });
