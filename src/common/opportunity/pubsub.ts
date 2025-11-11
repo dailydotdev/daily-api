@@ -10,7 +10,12 @@ import {
   Salary,
   UserCV,
 } from '@dailydotdev/schema';
-import { demoCompany, triggerTypedEvent, uniqueifyArray } from '../../common';
+import {
+  debeziumTimeToDate,
+  demoCompany,
+  triggerTypedEvent,
+  uniqueifyArray,
+} from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { ChangeObject } from '../../types';
@@ -231,6 +236,27 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
       'failed to send recruiter accepted candidate match event',
     );
   }
+};
+
+export const notifyRecruiterCandidateMatchRejected = async ({
+  logger,
+  data,
+}: {
+  logger: FastifyBaseLogger;
+  data: ChangeObject<OpportunityMatch>;
+}) => {
+  const message = new CandidateRejectedOpportunityMessage({
+    opportunityId: data.opportunityId,
+    userId: data.userId,
+    createdAt: getSecondsTimestamp(debeziumTimeToDate(data.createdAt)),
+    updatedAt: getSecondsTimestamp(debeziumTimeToDate(data.updatedAt)),
+  });
+
+  await triggerTypedEvent(
+    logger,
+    'api.v1.recruiter-rejected-candidate-match',
+    message,
+  );
 };
 
 export const notifyCandidateOpportunityMatchRejected = async ({

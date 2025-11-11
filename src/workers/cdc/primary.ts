@@ -154,6 +154,7 @@ import {
   notifyCandidatePreferenceChange,
   notifyOpportunityMatchAccepted,
   notifyRecruiterCandidateMatchAccepted,
+  notifyRecruiterCandidateMatchRejected,
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
@@ -1325,6 +1326,15 @@ const onOpportunityMatchChange = async (
     ) {
       await notifyCandidateOpportunityMatchRejected({
         con,
+        logger,
+        data: data.payload.after!,
+      });
+    }
+    if (
+      data.payload.after?.status === OpportunityMatchStatus.RecruiterRejected &&
+      data?.payload.before?.status !== OpportunityMatchStatus.RecruiterRejected
+    ) {
+      await notifyRecruiterCandidateMatchRejected({
         logger,
         data: data.payload.after!,
       });

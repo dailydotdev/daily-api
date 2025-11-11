@@ -170,7 +170,7 @@ export const identifyUserOpportunities = async ({
   });
   const ids = opportunities.map((opportunity) => opportunity.opportunityId);
   await cio.identify(userId, {
-    opportunities: ids || null,
+    opportunities: ids?.length > 0 ? ids : null,
   });
 };
 

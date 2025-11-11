@@ -1141,7 +1141,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const recruiter = await recruiterUser?.user;
 
     return {
-      title: `It's a match!`,
+      title: `[Action Required] It's a match!`,
       copy: warmIntro,
       cc: recruiter?.email,
     };

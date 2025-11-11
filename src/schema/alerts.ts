@@ -5,6 +5,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { DataSource, QueryRunner } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
 import { GQLEmptyResponse } from './common';
+import { updateFlagsStatement } from '../common';
 
 interface GQLAlerts {
   filter: boolean;
@@ -189,6 +190,13 @@ export const typeDefs = /* GraphQL */ `
     Reset opportunity alert
     """
     clearOpportunityAlert: EmptyResponse! @auth
+
+    """
+    Update the hasSeenOpportunity flag
+    """
+    updateHasSeenOpportunity(
+      hasSeenOpportunity: Boolean = true
+    ): EmptyResponse! @auth
   }
 
   extend type Query {
@@ -312,6 +320,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await updateAlerts(ctx.con, ctx.userId, { opportunityId: null });
+      return { _: true };
+    },
+    updateHasSeenOpportunity: async (
+      _,
+      { hasSeenOpportunity = true }: { hasSeenOpportunity?: boolean },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.getRepository(Alerts).update(
+        { userId: ctx.userId },
+        {
+          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity }),
+        },
+      );
       return { _: true };
     },
   },
