@@ -28,8 +28,8 @@ export const webhooks = Object.freeze({
   ads: process.env.SLACK_ADS_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_ADS_WEBHOOK)
     : nullWebhook,
-  recruiter: process.env.SLACK_RECRUITER
-    ? new IncomingWebhook(process.env.SLACK_RECRUITER)
+  recruiter: process.env.SLACK_RECRUITER_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_RECRUITER_WEBHOOK)
     : nullWebhook,
 });
 
