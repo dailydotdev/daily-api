@@ -124,12 +124,28 @@ const handleNotifcationRequest = async (
     switch (getAppleTransactionType({ transactionInfo })) {
       case AppleTransactionType.Consumable:
         if (isCorePurchaseApple({ transactionInfo })) {
-          await handleCoresPurchase({
-            transactionInfo,
-            user,
-            environment,
-            notification,
-          });
+          if (
+            notification.notificationType === NotificationTypeV2.ONE_TIME_CHARGE
+          ) {
+            await handleCoresPurchase({
+              transactionInfo,
+              user,
+              environment,
+              notification,
+            });
+          } else {
+            logger.error(
+              {
+                environment,
+                notification,
+                notificationType: notification.notificationType,
+                user,
+                transactionInfo,
+                provider: SubscriptionProvider.AppleStoreKit,
+              },
+              'Unsupported Apple Consumable notification type for cores purchase',
+            );
+          }
         } else {
           throw new Error('Unsupported Apple Consumable transaction type');
         }
