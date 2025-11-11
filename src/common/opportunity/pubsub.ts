@@ -233,6 +233,27 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
   }
 };
 
+export const notifyRecruiterCandidateMatchRejected = async ({
+  logger,
+  data,
+}: {
+  logger: FastifyBaseLogger;
+  data: ChangeObject<OpportunityMatch>;
+}) => {
+  const message = new CandidateRejectedOpportunityMessage({
+    opportunityId: data.opportunityId,
+    userId: data.userId,
+    createdAt: getSecondsTimestamp(data.createdAt),
+    updatedAt: getSecondsTimestamp(data.updatedAt),
+  });
+
+  await triggerTypedEvent(
+    logger,
+    'api.v1.recruiter-rejected-candidate-match',
+    message,
+  );
+};
+
 export const notifyCandidateOpportunityMatchRejected = async ({
   con,
   logger,
