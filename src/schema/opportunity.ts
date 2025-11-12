@@ -750,8 +750,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 });
             }
 
-            builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
-
             return builder;
           },
           orderByKey: 'DESC',
