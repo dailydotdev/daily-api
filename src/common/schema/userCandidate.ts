@@ -19,6 +19,7 @@ export const gcsBlobSchema = z.object({
   contentType: z.string().optional(),
   bucket: z.string().optional(),
   lastModified: z.date().optional(),
+  signedUrl: z.string().optional().nullable(),
 });
 
 export type UserCandidateCV = z.infer<typeof gcsBlobSchema>;

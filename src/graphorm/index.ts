@@ -64,6 +64,7 @@ import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
+import { generateResumeSignedUrl } from '../common/googleCloud';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1636,10 +1637,20 @@ const obj = new GraphORM({
     fields: {
       cv: {
         jsonType: true,
-        transform: (value: GCSBlob) => ({
-          ...value,
-          lastModified: transformDate(value?.lastModified),
-        }),
+        transform: async (value: GCSBlob, ctx, parent): Promise<GCSBlob> => {
+          if (!value || !value.blob) {
+            return value;
+          }
+
+          const preference = parent as { userId: string };
+          const signedUrl = await generateResumeSignedUrl(preference.userId);
+
+          return {
+            ...value,
+            lastModified: transformDate(value?.lastModified),
+            signedUrl,
+          };
+        },
       },
       employmentAgreement: {
         jsonType: true,
