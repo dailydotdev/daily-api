@@ -197,6 +197,11 @@ export const typeDefs = /* GraphQL */ `
     warmIntro: String
   }
 
+  type EngagementProfile {
+    profileText: String!
+    updatedAt: DateTime!
+  }
+
   type OpportunityMatch {
     status: OpportunityMatchStatus!
     description: OpportunityMatchDescription!
@@ -209,6 +214,7 @@ export const typeDefs = /* GraphQL */ `
     screening: [ScreeningAnswer!]!
     feedback: [ScreeningAnswer!]!
     applicationRank: ApplicationRank!
+    engagementProfile: EngagementProfile
   }
 
   type OpportunityMatchEdge {
