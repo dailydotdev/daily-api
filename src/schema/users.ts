@@ -335,6 +335,25 @@ export const typeDefs = /* GraphQL */ `
     company: Company
   }
 
+  type DatasetLocation {
+    """
+    ID of the location
+    """
+    id: String!
+    """
+    Country of the location
+    """
+    country: String!
+    """
+    City of the location
+    """
+    city: String
+    """
+    Subdivision of the location
+    """
+    subdivision: String
+  }
+
   """
   Registered user
   """
@@ -496,6 +515,10 @@ export const typeDefs = /* GraphQL */ `
     Role for Cores access
     """
     coresRole: Int
+    """
+    Where the user is located
+    """
+    location: DatasetLocation
   }
 
   """
