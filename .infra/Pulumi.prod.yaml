@@ -30,6 +30,12 @@ config:
     apiConfigFeatureKey: api-config
     appleAppAppleId: 6740634400
     appleAppBundleId: dev.daily.app
+    appleIssuerId:
+      secure: AAABAK7J9W93y2dJnNDSiDfzwj2+bSPdo3uOswwQE/vX4RrWSVtPndgGY4EStNzK5dAyV34Osd5Ktekn9wHyEeptNN4=
+    appleAppStoreServerClientKey:
+      secure: AAABAPaOTw3J1adzb3RaGgZYE7eywB9UHAw85tagbYBXaIzM6MxQI7vgSFUP5bbvMwuZVaZ2F2aB5WXn0V6ZcoqV/OCGJk/XygbjovFqMlqCEjO4ovRu0Cjck+82nJYk6hPuLqsTUw6C0aJUBour4a1o2Jl04X5XRcUUTTanguOyFlWxSUxVDZ6As9DGuFYsNV3jIhhiAtgC1IHZH/luyURuUkprm7iHKvdlVqMO9ctne+PQ2bMVWCSGvJeXt/oQDWRQT9UHxnbD7LSgWDmMAbd4aaXD/YE/gN220FSzeV7EsiXUb4+NyPtP6dSc4GSKVfa7keGn57KZK+U+duFZjhEqch8uenb0RO28zvyYYcbbcpsd7TvggwbBgqc2cTJXUA==
+    appleAppStoreServerClientKeyId:
+      secure: AAABAOxbRgC+Npj/q0uRCmHXjAnMs8W507CAyKb50ndVgQkx1YKyYPZb
     validLanguagesFeatureKey: valid_languages
     cdcWorkerMaxMessages: 1
     cioApiKey:
