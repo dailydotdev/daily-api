@@ -17,11 +17,13 @@ export const ensureOpportunityPermissions = async ({
   userId,
   opportunityId,
   permission,
+  isTeamMember,
 }: {
   con: EntityManager;
   userId: string;
   permission: OpportunityPermissions;
   opportunityId: string;
+  isTeamMember?: boolean;
 }) => {
   if (!userId) {
     throw new AuthenticationError('Authentication required!');
@@ -29,6 +31,11 @@ export const ensureOpportunityPermissions = async ({
 
   if (!opportunityId) {
     throw new NotFoundError('Not found!');
+  }
+
+  // Team members have access to all opportunities
+  if (isTeamMember) {
+    return;
   }
 
   if (

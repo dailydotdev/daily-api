@@ -518,6 +518,7 @@ async function updateRecruiterMatchStatus(
     userId: ctx.userId,
     opportunityId,
     permission: OpportunityPermissions.ViewDraft,
+    isTeamMember: ctx.isTeamMember,
   });
 
   const match = await ctx.con.getRepository(OpportunityMatch).findOne({
@@ -655,7 +656,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
-      if (opportunity.state !== OpportunityState.LIVE && !ctx.isTeamMember) {
+      if (opportunity.state !== OpportunityState.LIVE) {
         if (!ctx.userId) {
           throw new NotFoundError('Not found!');
         }
@@ -665,6 +666,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           userId: ctx.userId,
           opportunityId: id,
           permission: OpportunityPermissions.ViewDraft,
+          isTeamMember: ctx.isTeamMember,
         });
       }
 
@@ -773,6 +775,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
         opportunityId: args.opportunityId,
         permission: OpportunityPermissions.ViewDraft,
+        isTeamMember: ctx.isTeamMember,
       });
 
       return await queryPaginatedByDate<
@@ -1166,6 +1169,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
         opportunityId: id,
         permission: OpportunityPermissions.Edit,
+        isTeamMember: ctx.isTeamMember,
       });
 
       await ctx.con.transaction(async (entityManager) => {
@@ -1265,6 +1269,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
         opportunityId: id,
         permission: OpportunityPermissions.Edit,
+        isTeamMember: ctx.isTeamMember,
       });
 
       const hasQuestionsAlready = await ctx.con
@@ -1331,6 +1336,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
         opportunityId: id,
         permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
       });
 
       const opportunity = await ctx.con
