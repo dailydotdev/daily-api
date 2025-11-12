@@ -11,7 +11,10 @@ import {
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum, updateFlagsStatement } from '../common';
-import { OpportunityMatchStatus } from '../entity/opportunities/types';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
 import {
@@ -48,6 +51,8 @@ import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { ConnectionArguments } from 'graphql-relay';
 
 export interface GQLOpportunity
   extends Pick<
@@ -59,7 +64,13 @@ export interface GQLOpportunity
 }
 
 export interface GQLOpportunityMatch
-  extends Pick<OpportunityMatch, 'status' | 'description'> {}
+  extends Pick<
+    OpportunityMatch,
+    'status' | 'description' | 'userId' | 'opportunityId'
+  > {
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface GQLUserCandidatePreference
   extends Omit<
@@ -141,6 +152,20 @@ export const typeDefs = /* GraphQL */ `
     opportunityId: ID!
   }
 
+  type OpportunityEdge {
+    node: Opportunity!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type OpportunityConnection {
+    pageInfo: PageInfo!
+    edges: [OpportunityEdge!]!
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -161,9 +186,43 @@ export const typeDefs = /* GraphQL */ `
     reasoning: String!
   }
 
+  type ScreeningAnswer {
+    screening: String!
+    answer: String!
+  }
+
+  type ApplicationRank {
+    score: Float
+    description: String
+    warmIntro: String
+  }
+
   type OpportunityMatch {
     status: OpportunityMatchStatus!
     description: OpportunityMatchDescription!
+    userId: String!
+    opportunityId: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    user: User!
+    candidatePreferences: UserCandidatePreference
+    screening: [ScreeningAnswer!]!
+    feedback: [ScreeningAnswer!]!
+    applicationRank: ApplicationRank!
+  }
+
+  type OpportunityMatchEdge {
+    node: OpportunityMatch!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type OpportunityMatchConnection {
+    pageInfo: PageInfo!
+    edges: [OpportunityMatchEdge!]!
   }
 
   type GCSBlob {
@@ -217,6 +276,42 @@ export const typeDefs = /* GraphQL */ `
     Returns the authenticated candidate's saved preferences
     """
     getCandidatePreferences: UserCandidatePreference @auth
+
+    """
+    Get all opportunities filtered by state (defaults to LIVE)
+    """
+    getOpportunities(
+      """
+      State of opportunities to fetch (defaults to LIVE)
+      """
+      state: ProtoEnumValue
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityConnection! @auth
+
+    """
+    Get all opportunity matches for a specific opportunity (includes only candidate_accepted, recruiter_accepted, and recruiter_rejected statuses)
+    """
+    getOpportunityMatches(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityMatchConnection! @auth
   }
 
   input SalaryExpectationInput {
@@ -330,6 +425,28 @@ export const typeDefs = /* GraphQL */ `
       id: ID!
     ): EmptyResponse @auth
 
+    recruiterAcceptOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Id of the candidate user to accept
+      """
+      candidateUserId: ID!
+    ): EmptyResponse @auth
+
+    recruiterRejectOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Id of the candidate user to reject
+      """
+      candidateUserId: ID!
+    ): EmptyResponse @auth
+
     candidateAddKeywords(
       """
       Keywords to add to candidate profile
@@ -384,6 +501,136 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
   }
 `;
+
+/**
+ * Shared logic for updating an opportunity match status by a recruiter
+ * Validates recruiter permissions, match exists, is candidate_accepted, and opportunity is live
+ */
+async function updateRecruiterMatchStatus(
+  opportunityId: string,
+  candidateUserId: string,
+  targetStatus: OpportunityMatchStatus,
+  ctx: AuthContext,
+): Promise<void> {
+  // Verify the logged-in user is a recruiter for this opportunity
+  await ensureOpportunityPermissions({
+    con: ctx.con.manager,
+    userId: ctx.userId,
+    opportunityId,
+    permission: OpportunityPermissions.ViewDraft,
+  });
+
+  const match = await ctx.con.getRepository(OpportunityMatch).findOne({
+    where: {
+      opportunityId,
+      userId: candidateUserId,
+    },
+    relations: {
+      opportunity: true,
+    },
+  });
+
+  if (!match) {
+    ctx.log.error(
+      { opportunityId, candidateUserId },
+      'No match found for candidate',
+    );
+    throw new ForbiddenError('Access denied! No match found');
+  }
+
+  if (match.status !== OpportunityMatchStatus.CandidateAccepted) {
+    ctx.log.error(
+      { opportunityId, candidateUserId, status: match.status },
+      'Match is not candidate accepted',
+    );
+    throw new ForbiddenError(
+      `Access denied! Match must be in candidate_accepted status`,
+    );
+  }
+
+  const opportunity = await match.opportunity;
+  if (opportunity.state !== OpportunityState.LIVE) {
+    ctx.log.error(
+      { opportunityId, candidateUserId, state: opportunity.state },
+      'Opportunity is not live',
+    );
+    throw new ForbiddenError(`Access denied! Opportunity is not live`);
+  }
+
+  await ctx.con.getRepository(OpportunityMatch).update(
+    {
+      opportunityId,
+      userId: candidateUserId,
+    },
+    {
+      status: targetStatus,
+    },
+  );
+}
+
+/**
+ * Shared logic for updating an opportunity match status for a candidate
+ * Validates the match exists, is pending, and the opportunity is live
+ */
+async function updateCandidateMatchStatus(
+  opportunityId: string,
+  userId: string,
+  targetStatus: OpportunityMatchStatus,
+  ctx: AuthContext,
+): Promise<void> {
+  const match = await ctx.con.getRepository(OpportunityMatch).findOne({
+    where: {
+      opportunityId,
+      userId,
+    },
+    relations: {
+      opportunity: true,
+    },
+  });
+
+  if (!match) {
+    ctx.log.error({ opportunityId, userId }, 'No match found for opportunity');
+    throw new ForbiddenError('Access denied! No match found');
+  }
+
+  if (match.status !== OpportunityMatchStatus.Pending) {
+    ctx.log.error(
+      { opportunityId, userId, status: match.status },
+      'Match is not pending',
+    );
+    throw new ForbiddenError(`Access denied! Match is not pending`);
+  }
+
+  const opportunity = await match.opportunity;
+  if (opportunity.state !== OpportunityState.LIVE) {
+    ctx.log.error(
+      { opportunityId, userId, state: opportunity.state },
+      'Opportunity is not live',
+    );
+    throw new ForbiddenError(`Access denied! Opportunity is not live`);
+  }
+
+  await ctx.con.getRepository(OpportunityMatch).update(
+    {
+      opportunityId,
+      userId,
+    },
+    {
+      status: targetStatus,
+    },
+  );
+
+  await ctx.con.getRepository(Alerts).update(
+    {
+      userId,
+      opportunityId,
+    },
+    {
+      opportunityId: null,
+      flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
+    },
+  );
+}
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -463,6 +710,109 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...new UserCandidatePreference(),
         keywords: [],
       };
+    },
+    getOpportunities: async (
+      _,
+      args: ConnectionArguments & { state?: number },
+      ctx: Context,
+      info,
+    ) => {
+      // Default to LIVE opportunities if no state is provided
+      const opportunityState = args.state ?? OpportunityState.LIVE;
+
+      if (!ctx.userId) {
+        throw new NotFoundError('Not found!');
+      }
+
+      return await queryPaginatedByDate<
+        GQLOpportunity,
+        'createdAt',
+        typeof args
+      >(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt', maxSize: 50 },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder.where({ state: opportunityState });
+
+            if (!ctx.isTeamMember) {
+              builder.queryBuilder
+                .innerJoin(
+                  'opportunity_user',
+                  'ou',
+                  `ou.opportunityId = ${builder.alias}.id`,
+                )
+                .andWhere('ou.userId = :userId', { userId: ctx.userId })
+                .andWhere('ou.type = :type', {
+                  type: OpportunityUserType.Recruiter,
+                });
+            }
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
+        },
+      );
+    },
+    getOpportunityMatches: async (
+      _,
+      args: ConnectionArguments & { opportunityId: string },
+      ctx: AuthContext,
+      info,
+    ) => {
+      if (!ctx.userId) {
+        throw new NotFoundError('Not found!');
+      }
+
+      // First verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: args.opportunityId,
+        permission: OpportunityPermissions.ViewDraft,
+      });
+
+      return await queryPaginatedByDate<
+        GQLOpportunityMatch,
+        'createdAt',
+        typeof args
+      >(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt', maxSize: 50 },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder
+              .where({ opportunityId: args.opportunityId })
+              .andWhere(`${builder.alias}.status IN (:...statuses)`, {
+                statuses: [
+                  OpportunityMatchStatus.CandidateAccepted,
+                  OpportunityMatchStatus.RecruiterAccepted,
+                  OpportunityMatchStatus.RecruiterRejected,
+                ],
+              })
+              // Order by candidate_accepted status first (priority 0), then others (priority 1)
+              // Then by createdAt ascending (oldest first) within each group
+              .addOrderBy(
+                `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
+                'ASC',
+              )
+              .addOrderBy(`${builder.alias}.createdAt`, 'ASC')
+              .setParameter(
+                'candidateAcceptedStatus',
+                OpportunityMatchStatus.CandidateAccepted,
+              );
+
+            return builder;
+          },
+          orderByKey: 'ASC',
+          readReplica: true,
+        },
+      );
     },
   },
   Mutation: {
@@ -633,62 +983,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     acceptOpportunityMatch: async (
       _,
       { id }: { id: string },
-      { userId, con, log }: AuthContext,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const match = await con.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId: id,
-          userId,
-        },
-        relations: {
-          opportunity: true,
-        },
-      });
-
-      if (!match) {
-        log.error(
-          { opportunityId: id, userId },
-          'No match found for opportunity',
-        );
-        throw new ForbiddenError('Access denied! No match found');
-      }
-
-      if (match.status !== OpportunityMatchStatus.Pending) {
-        log.error(
-          { opportunityId: id, userId, status: match.status },
-          'Match is not pending',
-        );
-        throw new ForbiddenError(`Access denied! Match is not pending`);
-      }
-
-      const opportunity = await match.opportunity;
-      if (opportunity.state !== OpportunityState.LIVE) {
-        log.error(
-          { opportunityId: id, userId, state: opportunity.state },
-          'Opportunity is not live',
-        );
-        throw new ForbiddenError(`Access denied! Opportunity is not live`);
-      }
-
-      await con.getRepository(OpportunityMatch).update(
-        {
-          opportunityId: id,
-          userId,
-        },
-        {
-          status: OpportunityMatchStatus.CandidateAccepted,
-        },
-      );
-
-      await con.getRepository(Alerts).update(
-        {
-          userId,
-          opportunityId: id,
-        },
-        {
-          opportunityId: null,
-          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
-        },
+      await updateCandidateMatchStatus(
+        id,
+        ctx.userId,
+        OpportunityMatchStatus.CandidateAccepted,
+        ctx,
       );
 
       return { _: true };
@@ -696,62 +997,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     rejectOpportunityMatch: async (
       _,
       { id }: { id: string },
-      { userId, con, log }: AuthContext,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const match = await con.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId: id,
-          userId,
-        },
-        relations: {
-          opportunity: true,
-        },
-      });
-
-      if (!match) {
-        log.error(
-          { opportunityId: id, userId },
-          'No match found for opportunity',
-        );
-        throw new ForbiddenError('Access denied! No match found');
-      }
-
-      if (match.status !== OpportunityMatchStatus.Pending) {
-        log.error(
-          { opportunityId: id, userId, status: match.status },
-          'Match is not pending',
-        );
-        throw new ForbiddenError(`Access denied! Match is not pending`);
-      }
-
-      const opportunity = await match.opportunity;
-      if (opportunity.state !== OpportunityState.LIVE) {
-        log.error(
-          { opportunityId: id, userId, state: opportunity.state },
-          'Opportunity is not live',
-        );
-        throw new ForbiddenError(`Access denied! Opportunity is not live`);
-      }
-
-      await con.getRepository(OpportunityMatch).update(
-        {
-          opportunityId: id,
-          userId,
-        },
-        {
-          status: OpportunityMatchStatus.CandidateRejected,
-        },
+      await updateCandidateMatchStatus(
+        id,
+        ctx.userId,
+        OpportunityMatchStatus.CandidateRejected,
+        ctx,
       );
 
-      await con.getRepository(Alerts).update(
-        {
-          userId,
-          opportunityId: id,
-        },
-        {
-          opportunityId: null,
-          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
-        },
+      return { _: true };
+    },
+    recruiterAcceptOpportunityMatch: async (
+      _,
+      {
+        opportunityId,
+        candidateUserId,
+      }: { opportunityId: string; candidateUserId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await updateRecruiterMatchStatus(
+        opportunityId,
+        candidateUserId,
+        OpportunityMatchStatus.RecruiterAccepted,
+        ctx,
+      );
+
+      return { _: true };
+    },
+    recruiterRejectOpportunityMatch: async (
+      _,
+      {
+        opportunityId,
+        candidateUserId,
+      }: { opportunityId: string; candidateUserId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await updateRecruiterMatchStatus(
+        opportunityId,
+        candidateUserId,
+        OpportunityMatchStatus.RecruiterRejected,
+        ctx,
       );
 
       return { _: true };
