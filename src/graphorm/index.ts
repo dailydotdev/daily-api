@@ -1691,8 +1691,7 @@ const obj = new GraphORM({
             return value;
           }
 
-          const preference = parent as { userId: string };
-          const signedUrl = await generateResumeSignedUrl(preference.userId);
+          const signedUrl = await generateResumeSignedUrl(value.blob);
 
           return {
             ...value,
