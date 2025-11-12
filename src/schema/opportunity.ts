@@ -236,6 +236,7 @@ export const typeDefs = /* GraphQL */ `
     fileName: String
     contentType: String
     lastModified: DateTime
+    signedUrl: String
   }
 
   type UserCandidateKeyword {
