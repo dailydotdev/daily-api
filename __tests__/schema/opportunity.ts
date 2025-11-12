@@ -422,25 +422,18 @@ describe('query opportunityById', () => {
 
     await con.getRepository(OpportunityUser).save({
       userId: '3',
-      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440003',
       type: OpportunityUserType.Recruiter,
     });
 
-    await con
-      .getRepository(Opportunity)
-      .update(
-        { id: '550e8400-e29b-41d4-a716-446655440001' },
-        { state: OpportunityState.DRAFT },
-      );
-
     const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
-      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      variables: { id: '550e8400-e29b-41d4-a716-446655440003' },
     });
 
     expect(res.errors).toBeFalsy();
 
     expect(res.data.opportunityById.id).toEqual(
-      '550e8400-e29b-41d4-a716-446655440001',
+      '550e8400-e29b-41d4-a716-446655440003',
     );
   });
 
@@ -448,22 +441,17 @@ describe('query opportunityById', () => {
     loggedUser = '2';
     isTeamMember = true;
 
-    await con
-      .getRepository(Opportunity)
-      .update(
-        { id: '550e8400-e29b-41d4-a716-446655440001' },
-        { state: OpportunityState.DRAFT },
-      );
-
     const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
-      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      variables: { id: '550e8400-e29b-41d4-a716-446655440004' },
     });
 
     expect(res.errors).toBeFalsy();
 
     expect(res.data.opportunityById.id).toEqual(
-      '550e8400-e29b-41d4-a716-446655440001',
+      '550e8400-e29b-41d4-a716-446655440004',
     );
+
+    isTeamMember = false;
   });
 });
 
@@ -741,7 +729,7 @@ describe('query getOpportunityMatch', () => {
       client,
       {
         query: GET_OPPORTUNITY_MATCH_QUERY,
-        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        variables: { id: '550e8400-e29b-41d4-a716-446655440002' },
       },
       'NOT_FOUND',
     );
@@ -1717,7 +1705,7 @@ describe('mutation saveOpportunityFeedbackAnswers', () => {
       {
         mutation: MUTATION,
         variables: {
-          id: '550e8400-e29b-41d4-a716-446655440001',
+          id: '550e8400-e29b-41d4-a716-446655440002',
           answers: [
             {
               questionId: '850e8400-e29b-41d4-a716-446655440001',
@@ -2130,6 +2118,15 @@ describe('mutation recruiterAcceptOpportunityMatch', () => {
       },
     ]);
 
+    // Update the existing Pending match to CandidateAccepted
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: opportunitiesFixture[2].id,
+        userId: usersFixture[0].id,
+      },
+      { status: OpportunityMatchStatus.CandidateAccepted },
+    );
+
     await testMutationErrorCode(
       client,
       {
@@ -2440,6 +2437,15 @@ describe('mutation recruiterRejectOpportunityMatch', () => {
         type: OpportunityUserType.Recruiter,
       },
     ]);
+
+    // Update the existing Pending match to CandidateAccepted
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: opportunitiesFixture[2].id,
+        userId: usersFixture[0].id,
+      },
+      { status: OpportunityMatchStatus.CandidateAccepted },
+    );
 
     await testMutationErrorCode(
       client,

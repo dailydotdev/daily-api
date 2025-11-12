@@ -322,24 +322,13 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
   {
     opportunityId: '550e8400-e29b-41d4-a716-446655440003',
     userId: '1',
-    status: OpportunityMatchStatus.CandidateAccepted,
+    status: OpportunityMatchStatus.Pending,
     description: { reasoning: 'Interested candidate' },
     screening: [],
     feedback: [],
     applicationRank: {},
     createdAt: new Date('2023-01-03'),
     updatedAt: new Date('2023-01-03'),
-  },
-  {
-    opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-    userId: '3',
-    status: OpportunityMatchStatus.RecruiterRejected,
-    description: { reasoning: 'Not a good fit' },
-    screening: [],
-    feedback: [],
-    applicationRank: { score: 60 },
-    createdAt: new Date('2023-01-05'),
-    updatedAt: new Date('2023-01-05'),
   },
   {
     opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -351,6 +340,17 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     applicationRank: { score: 95, description: 'Top candidate' },
     createdAt: new Date('2023-01-06'),
     updatedAt: new Date('2023-01-06'),
+  },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+    userId: '3',
+    status: OpportunityMatchStatus.RecruiterRejected,
+    description: { reasoning: 'Not a good fit' },
+    screening: [],
+    feedback: [],
+    applicationRank: { score: 60 },
+    createdAt: new Date('2023-01-05'),
+    updatedAt: new Date('2023-01-05'),
   },
 ];
 
