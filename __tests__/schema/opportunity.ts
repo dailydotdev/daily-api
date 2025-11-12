@@ -469,14 +469,45 @@ describe('query opportunityById', () => {
 
 describe('query getOpportunities', () => {
   const GET_OPPORTUNITIES_QUERY = /* GraphQL */ `
-    query GetOpportunities($state: ProtoEnumValue) {
-      getOpportunities(state: $state) {
-        id
-        title
-        state
+    query GetOpportunities(
+      $state: ProtoEnumValue
+      $first: Int
+      $after: String
+    ) {
+      getOpportunities(state: $state, first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          endCursor
+          startCursor
+        }
+        edges {
+          node {
+            id
+            title
+            state
+          }
+        }
       }
     }
   `;
+
+  beforeEach(async () => {
+    // Ensure user 1 is a recruiter for 3 opportunities total
+    // (already has opportunities[0] and opportunities[2] from beforeEach)
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[1].id, // Third LIVE opportunity
+        userId: usersFixture[0].id, // User '1'
+        type: OpportunityUserType.Recruiter,
+      },
+      {
+        opportunityId: opportunitiesFixture[4].id, // Third LIVE opportunity
+        userId: usersFixture[0].id, // User '1'
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+  });
 
   it('should throw error if not authenticated', async () => {
     await testQueryErrorCode(
@@ -492,23 +523,24 @@ describe('query getOpportunities', () => {
     loggedUser = '1';
 
     const res = await client.query(GET_OPPORTUNITIES_QUERY, {
-      variables: { state: OpportunityState.LIVE },
+      variables: { state: OpportunityState.LIVE, first: 10 },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities).toHaveLength(3);
+    expect(res.data.getOpportunities.edges).toHaveLength(3);
+    expect(res.data.getOpportunities.pageInfo.hasNextPage).toBe(false);
   });
 
   it('should return only recruiter DRAFT opportunities for authenticated non-team member', async () => {
     loggedUser = '1';
 
     const res = await client.query(GET_OPPORTUNITIES_QUERY, {
-      variables: { state: OpportunityState.DRAFT },
+      variables: { state: OpportunityState.DRAFT, first: 10 },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities).toHaveLength(1);
-    expect(res.data.getOpportunities[0]).toEqual(
+    expect(res.data.getOpportunities.edges).toHaveLength(1);
+    expect(res.data.getOpportunities.edges[0].node).toEqual(
       expect.objectContaining({
         id: '550e8400-e29b-41d4-a716-446655440003',
         state: OpportunityState.DRAFT,
@@ -520,12 +552,12 @@ describe('query getOpportunities', () => {
     loggedUser = '2';
 
     const res = await client.query(GET_OPPORTUNITIES_QUERY, {
-      variables: { state: OpportunityState.DRAFT },
+      variables: { state: OpportunityState.DRAFT, first: 10 },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities).toHaveLength(1);
-    expect(res.data.getOpportunities[0]).toEqual(
+    expect(res.data.getOpportunities.edges).toHaveLength(1);
+    expect(res.data.getOpportunities.edges[0].node).toEqual(
       expect.objectContaining({
         id: '550e8400-e29b-41d4-a716-446655440004',
         state: OpportunityState.DRAFT,
@@ -538,12 +570,15 @@ describe('query getOpportunities', () => {
     isTeamMember = true;
 
     const res = await client.query(GET_OPPORTUNITIES_QUERY, {
-      variables: { state: OpportunityState.DRAFT },
+      variables: { state: OpportunityState.DRAFT, first: 10 },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities).toHaveLength(2);
-    expect(res.data.getOpportunities).toEqual(
+    expect(res.data.getOpportunities.edges).toHaveLength(2);
+    const nodes = res.data.getOpportunities.edges.map(
+      (e: { node: unknown }) => e.node,
+    );
+    expect(nodes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           id: '550e8400-e29b-41d4-a716-446655440003',
@@ -559,18 +594,41 @@ describe('query getOpportunities', () => {
     isTeamMember = false;
   });
 
-  it('should return all opportunities when team member fetches LIVE opportunities', async () => {
+  it('should support pagination with first parameter', async () => {
     loggedUser = '1';
-    isTeamMember = true;
 
     const res = await client.query(GET_OPPORTUNITIES_QUERY, {
-      variables: { state: OpportunityState.LIVE },
+      variables: { state: OpportunityState.LIVE, first: 2 },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities).toHaveLength(3);
+    expect(res.data.getOpportunities.edges).toHaveLength(2);
+    expect(res.data.getOpportunities.pageInfo.hasNextPage).toBe(true);
+    expect(res.data.getOpportunities.pageInfo.endCursor).toBeTruthy();
+  });
 
-    isTeamMember = false;
+  it('should support pagination with after cursor', async () => {
+    loggedUser = '1';
+
+    // Get first page
+    const firstPage = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 2 },
+    });
+
+    expect(firstPage.errors).toBeFalsy();
+    const endCursor = firstPage.data.getOpportunities.pageInfo.endCursor;
+
+    // Get second page
+    const secondPage = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 2, after: endCursor },
+    });
+
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.getOpportunities.edges).toHaveLength(1);
+    expect(secondPage.data.getOpportunities.pageInfo.hasNextPage).toBe(false);
+    expect(secondPage.data.getOpportunities.pageInfo.hasPreviousPage).toBe(
+      true,
+    );
   });
 });
 

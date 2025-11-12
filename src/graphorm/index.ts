@@ -1490,6 +1490,7 @@ const obj = new GraphORM({
     },
   },
   Opportunity: {
+    requiredColumns: ['id', 'createdAt'],
     fields: {
       createdAt: {
         transform: transformDate,

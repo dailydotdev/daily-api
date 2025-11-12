@@ -51,6 +51,8 @@ import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { ConnectionArguments } from 'graphql-relay';
 
 export interface GQLOpportunity
   extends Pick<
@@ -144,6 +146,20 @@ export const typeDefs = /* GraphQL */ `
     opportunityId: ID!
   }
 
+  type OpportunityEdge {
+    node: Opportunity!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type OpportunityConnection {
+    pageInfo: PageInfo!
+    edges: [OpportunityEdge!]!
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -229,7 +245,15 @@ export const typeDefs = /* GraphQL */ `
       State of opportunities to fetch (defaults to LIVE)
       """
       state: ProtoEnumValue
-    ): [Opportunity!]! @auth
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityConnection! @auth
   }
 
   input SalaryExpectationInput {
@@ -479,43 +503,50 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     getOpportunities: async (
       _,
-      { state }: { state?: number },
+      args: ConnectionArguments & { state?: number },
       ctx: Context,
       info,
-    ): Promise<GQLOpportunity[]> => {
+    ) => {
       // Default to LIVE opportunities if no state is provided
-      const opportunityState = state ?? OpportunityState.LIVE;
+      const opportunityState = args.state ?? OpportunityState.LIVE;
 
       if (!ctx.userId) {
         throw new NotFoundError('Not found!');
       }
 
-      return await graphorm.query<GQLOpportunity>(
+      return await queryPaginatedByDate<
+        GQLOpportunity,
+        'createdAt',
+        typeof args
+      >(
         ctx,
         info,
-        (builder) => {
-          builder.queryBuilder.where({ state: opportunityState });
+        args,
+        { key: 'createdAt', maxSize: 50 },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder.where({ state: opportunityState });
 
-          // If fetching non-LIVE opportunities and user is not a team member,
-          // filter at database level to only show opportunities where user is a recruiter
-          if (opportunityState !== OpportunityState.LIVE && !ctx.isTeamMember) {
-            builder.queryBuilder
-              .innerJoin(
-                'opportunity_user',
-                'ou',
-                `ou.opportunityId = ${builder.alias}.id`,
-              )
-              .andWhere('ou.userId = :userId', { userId: ctx.userId })
-              .andWhere('ou.type = :type', {
-                type: OpportunityUserType.Recruiter,
-              });
-          }
+            if (!ctx.isTeamMember) {
+              builder.queryBuilder
+                .innerJoin(
+                  'opportunity_user',
+                  'ou',
+                  `ou.opportunityId = ${builder.alias}.id`,
+                )
+                .andWhere('ou.userId = :userId', { userId: ctx.userId })
+                .andWhere('ou.type = :type', {
+                  type: OpportunityUserType.Recruiter,
+                });
+            }
 
-          builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
+            builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
 
-          return builder;
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
         },
-        true,
       );
     },
   },
