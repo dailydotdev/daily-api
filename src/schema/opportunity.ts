@@ -503,6 +503,72 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 /**
+ * Shared logic for updating an opportunity match status by a recruiter
+ * Validates recruiter permissions, match exists, is candidate_accepted, and opportunity is live
+ */
+async function updateRecruiterMatchStatus(
+  opportunityId: string,
+  candidateUserId: string,
+  targetStatus: OpportunityMatchStatus,
+  ctx: AuthContext,
+): Promise<void> {
+  // Verify the logged-in user is a recruiter for this opportunity
+  await ensureOpportunityPermissions({
+    con: ctx.con.manager,
+    userId: ctx.userId,
+    opportunityId,
+    permission: OpportunityPermissions.ViewDraft,
+  });
+
+  const match = await ctx.con.getRepository(OpportunityMatch).findOne({
+    where: {
+      opportunityId,
+      userId: candidateUserId,
+    },
+    relations: {
+      opportunity: true,
+    },
+  });
+
+  if (!match) {
+    ctx.log.error(
+      { opportunityId, candidateUserId },
+      'No match found for candidate',
+    );
+    throw new ForbiddenError('Access denied! No match found');
+  }
+
+  if (match.status !== OpportunityMatchStatus.CandidateAccepted) {
+    ctx.log.error(
+      { opportunityId, candidateUserId, status: match.status },
+      'Match is not candidate accepted',
+    );
+    throw new ForbiddenError(
+      `Access denied! Match must be in candidate_accepted status`,
+    );
+  }
+
+  const opportunity = await match.opportunity;
+  if (opportunity.state !== OpportunityState.LIVE) {
+    ctx.log.error(
+      { opportunityId, candidateUserId, state: opportunity.state },
+      'Opportunity is not live',
+    );
+    throw new ForbiddenError(`Access denied! Opportunity is not live`);
+  }
+
+  await ctx.con.getRepository(OpportunityMatch).update(
+    {
+      opportunityId,
+      userId: candidateUserId,
+    },
+    {
+      status: targetStatus,
+    },
+  );
+}
+
+/**
  * Shared logic for updating an opportunity match status for a candidate
  * Validates the match exists, is pending, and the opportunity is live
  */
@@ -523,10 +589,7 @@ async function updateCandidateMatchStatus(
   });
 
   if (!match) {
-    ctx.log.error(
-      { opportunityId, userId },
-      'No match found for opportunity',
-    );
+    ctx.log.error({ opportunityId, userId }, 'No match found for opportunity');
     throw new ForbiddenError('Access denied! No match found');
   }
 
@@ -942,61 +1005,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         opportunityId,
         candidateUserId,
       }: { opportunityId: string; candidateUserId: string },
-      { userId, con, log }: AuthContext,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      // Verify the logged-in user is a recruiter for this opportunity
-      await ensureOpportunityPermissions({
-        con: con.manager,
-        userId,
+      await updateRecruiterMatchStatus(
         opportunityId,
-        permission: OpportunityPermissions.ViewDraft,
-      });
-
-      const match = await con.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId,
-          userId: candidateUserId,
-        },
-        relations: {
-          opportunity: true,
-        },
-      });
-
-      if (!match) {
-        log.error(
-          { opportunityId, candidateUserId },
-          'No match found for candidate',
-        );
-        throw new ForbiddenError('Access denied! No match found');
-      }
-
-      if (match.status !== OpportunityMatchStatus.CandidateAccepted) {
-        log.error(
-          { opportunityId, candidateUserId, status: match.status },
-          'Match is not candidate accepted',
-        );
-        throw new ForbiddenError(
-          `Access denied! Match must be in candidate_accepted status`,
-        );
-      }
-
-      const opportunity = await match.opportunity;
-      if (opportunity.state !== OpportunityState.LIVE) {
-        log.error(
-          { opportunityId, candidateUserId, state: opportunity.state },
-          'Opportunity is not live',
-        );
-        throw new ForbiddenError(`Access denied! Opportunity is not live`);
-      }
-
-      await con.getRepository(OpportunityMatch).update(
-        {
-          opportunityId,
-          userId: candidateUserId,
-        },
-        {
-          status: OpportunityMatchStatus.RecruiterAccepted,
-        },
+        candidateUserId,
+        OpportunityMatchStatus.RecruiterAccepted,
+        ctx,
       );
 
       return { _: true };
@@ -1007,61 +1022,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         opportunityId,
         candidateUserId,
       }: { opportunityId: string; candidateUserId: string },
-      { userId, con, log }: AuthContext,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      // Verify the logged-in user is a recruiter for this opportunity
-      await ensureOpportunityPermissions({
-        con: con.manager,
-        userId,
+      await updateRecruiterMatchStatus(
         opportunityId,
-        permission: OpportunityPermissions.ViewDraft,
-      });
-
-      const match = await con.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId,
-          userId: candidateUserId,
-        },
-        relations: {
-          opportunity: true,
-        },
-      });
-
-      if (!match) {
-        log.error(
-          { opportunityId, candidateUserId },
-          'No match found for candidate',
-        );
-        throw new ForbiddenError('Access denied! No match found');
-      }
-
-      if (match.status !== OpportunityMatchStatus.CandidateAccepted) {
-        log.error(
-          { opportunityId, candidateUserId, status: match.status },
-          'Match is not candidate accepted',
-        );
-        throw new ForbiddenError(
-          `Access denied! Match must be in candidate_accepted status`,
-        );
-      }
-
-      const opportunity = await match.opportunity;
-      if (opportunity.state !== OpportunityState.LIVE) {
-        log.error(
-          { opportunityId, candidateUserId, state: opportunity.state },
-          'Opportunity is not live',
-        );
-        throw new ForbiddenError(`Access denied! Opportunity is not live`);
-      }
-
-      await con.getRepository(OpportunityMatch).update(
-        {
-          opportunityId,
-          userId: candidateUserId,
-        },
-        {
-          status: OpportunityMatchStatus.RecruiterRejected,
-        },
+        candidateUserId,
+        OpportunityMatchStatus.RecruiterRejected,
+        ctx,
       );
 
       return { _: true };
