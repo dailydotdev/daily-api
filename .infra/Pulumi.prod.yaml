@@ -181,6 +181,8 @@ config:
       secure: AAABABvk5Zi2sL2p8Gjl4vwVS+Ge+P2S3Jo8yDBOTNMZ6FZ1WquX+DqQkvE1YBTCvSMy9kmd+TCsRzeV3LrTC0Xbnlh7PxLog7fseJS37GUJ
     slackRecruiterWebhook:
       secure: AAABANouDkXZrXKlBhPnSmgjwQS/mb+qPaFmD/vpxeEkdCx4pfnsjYOsdOQFvsH6KcXb7BNGnnEtpEBUaeb3CNNMUbc2/JP80iNsnJSrF4hx5zBEYEPlMi0rmTXAJ4nc087FooqlV031idBJLxyNLDU=
+    snotraOrigin:
+      secure: AAABAGav+Zu5sB3oCBC6iBCp1igmACgiKlwl0YkDsLawDBUGaPKulWIr8v/hUnwuTsLgaVS3A1azmw50v+PRKhJPblETkKZpqNB4JCnrQ92k
   api:k8s:
     host: subs.daily.dev
     namespace: daily

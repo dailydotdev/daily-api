@@ -102,6 +102,60 @@ export const uploadEmploymentAgreementFromBuffer = async (
   });
 };
 
+/**
+ * Generate a signed URL for a file in GCS bucket
+ * Signed URLs are valid for 1 hour by default
+ */
+export const generateSignedUrl = async ({
+  bucketName,
+  blobName,
+  expiresInMinutes = 60,
+}: {
+  bucketName: string;
+  blobName: string;
+  expiresInMinutes?: number;
+}): Promise<string | null> => {
+  try {
+    const storage = new Storage();
+    const file = storage.bucket(bucketName).file(blobName);
+
+    // Check if file exists first
+    const [exists] = await file.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const [signedUrl] = await file.getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: Date.now() + expiresInMinutes * 60 * 1000,
+    });
+
+    return signedUrl;
+  } catch (error) {
+    logger.error(
+      { error, bucketName, blobName },
+      'Failed to generate signed URL',
+    );
+    return null;
+  }
+};
+
+/**
+ * Generate a signed URL for a resume/CV file
+ */
+export const generateResumeSignedUrl = async (
+  userId: string,
+  expiresInMinutes?: number,
+): Promise<string | null> => {
+  const { bucketName } = gcsBucketMap.resume;
+  return generateSignedUrl({
+    bucketName,
+    blobName: userId,
+    expiresInMinutes,
+  });
+};
+
 export const deleteFileFromBucket = async (
   bucket: Bucket,
   fileName: string,
