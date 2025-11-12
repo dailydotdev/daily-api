@@ -794,11 +794,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   OpportunityMatchStatus.RecruiterAccepted,
                   OpportunityMatchStatus.RecruiterRejected,
                 ],
-              });
+              })
+              // Order by candidate_accepted status first (priority 0), then others (priority 1)
+              // Then by createdAt ascending (oldest first) within each group
+              .addOrderBy(
+                `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
+                'ASC',
+              )
+              .addOrderBy(`${builder.alias}.createdAt`, 'ASC')
+              .setParameter(
+                'candidateAcceptedStatus',
+                OpportunityMatchStatus.CandidateAccepted,
+              );
 
             return builder;
           },
-          orderByKey: 'DESC',
+          orderByKey: 'ASC',
           readReplica: true,
         },
       );
