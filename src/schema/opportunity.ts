@@ -502,6 +502,73 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
+/**
+ * Shared logic for updating an opportunity match status for a candidate
+ * Validates the match exists, is pending, and the opportunity is live
+ */
+async function updateCandidateMatchStatus(
+  opportunityId: string,
+  userId: string,
+  targetStatus: OpportunityMatchStatus,
+  ctx: AuthContext,
+): Promise<void> {
+  const match = await ctx.con.getRepository(OpportunityMatch).findOne({
+    where: {
+      opportunityId,
+      userId,
+    },
+    relations: {
+      opportunity: true,
+    },
+  });
+
+  if (!match) {
+    ctx.log.error(
+      { opportunityId, userId },
+      'No match found for opportunity',
+    );
+    throw new ForbiddenError('Access denied! No match found');
+  }
+
+  if (match.status !== OpportunityMatchStatus.Pending) {
+    ctx.log.error(
+      { opportunityId, userId, status: match.status },
+      'Match is not pending',
+    );
+    throw new ForbiddenError(`Access denied! Match is not pending`);
+  }
+
+  const opportunity = await match.opportunity;
+  if (opportunity.state !== OpportunityState.LIVE) {
+    ctx.log.error(
+      { opportunityId, userId, state: opportunity.state },
+      'Opportunity is not live',
+    );
+    throw new ForbiddenError(`Access denied! Opportunity is not live`);
+  }
+
+  await ctx.con.getRepository(OpportunityMatch).update(
+    {
+      opportunityId,
+      userId,
+    },
+    {
+      status: targetStatus,
+    },
+  );
+
+  await ctx.con.getRepository(Alerts).update(
+    {
+      userId,
+      opportunityId,
+    },
+    {
+      opportunityId: null,
+      flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
+    },
+  );
+}
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -844,62 +911,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     acceptOpportunityMatch: async (
       _,
       { id }: { id: string },
-      { userId, con, log }: AuthContext,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const match = await con.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId: id,
-          userId,
-        },
-        relations: {
-          opportunity: true,
-        },
-      });
-
-      if (!match) {
-        log.error(
-          { opportunityId: id, userId },
-          'No match found for opportunity',
-        );
-        throw new ForbiddenError('Access denied! No match found');
-      }
-
-      if (match.status !== OpportunityMatchStatus.Pending) {
-        log.error(
-          { opportunityId: id, userId, status: match.status },
-          'Match is not pending',
-        );
-        throw new ForbiddenError(`Access denied! Match is not pending`);
-      }
-
-      const opportunity = await match.opportunity;
-      if (opportunity.state !== OpportunityState.LIVE) {
-        log.error(
-          { opportunityId: id, userId, state: opportunity.state },
-          'Opportunity is not live',
-        );
-        throw new ForbiddenError(`Access denied! Opportunity is not live`);
-      }
-
-      await con.getRepository(OpportunityMatch).update(
-        {
-          opportunityId: id,
-          userId,
-        },
-        {
-          status: OpportunityMatchStatus.CandidateAccepted,
-        },
-      );
-
-      await con.getRepository(Alerts).update(
-        {
-          userId,
-          opportunityId: id,
-        },
-        {
-          opportunityId: null,
-          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
-        },
+      await updateCandidateMatchStatus(
+        id,
+        ctx.userId,
+        OpportunityMatchStatus.CandidateAccepted,
+        ctx,
       );
 
       return { _: true };
@@ -907,62 +925,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     rejectOpportunityMatch: async (
       _,
       { id }: { id: string },
-      { userId, con, log }: AuthContext,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const match = await con.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId: id,
-          userId,
-        },
-        relations: {
-          opportunity: true,
-        },
-      });
-
-      if (!match) {
-        log.error(
-          { opportunityId: id, userId },
-          'No match found for opportunity',
-        );
-        throw new ForbiddenError('Access denied! No match found');
-      }
-
-      if (match.status !== OpportunityMatchStatus.Pending) {
-        log.error(
-          { opportunityId: id, userId, status: match.status },
-          'Match is not pending',
-        );
-        throw new ForbiddenError(`Access denied! Match is not pending`);
-      }
-
-      const opportunity = await match.opportunity;
-      if (opportunity.state !== OpportunityState.LIVE) {
-        log.error(
-          { opportunityId: id, userId, state: opportunity.state },
-          'Opportunity is not live',
-        );
-        throw new ForbiddenError(`Access denied! Opportunity is not live`);
-      }
-
-      await con.getRepository(OpportunityMatch).update(
-        {
-          opportunityId: id,
-          userId,
-        },
-        {
-          status: OpportunityMatchStatus.CandidateRejected,
-        },
-      );
-
-      await con.getRepository(Alerts).update(
-        {
-          userId,
-          opportunityId: id,
-        },
-        {
-          opportunityId: null,
-          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
-        },
+      await updateCandidateMatchStatus(
+        id,
+        ctx.userId,
+        OpportunityMatchStatus.CandidateRejected,
+        ctx,
       );
 
       return { _: true };
