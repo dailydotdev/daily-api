@@ -7,7 +7,11 @@ import {
   UserPersonalizedDigestType,
   UserStreak,
 } from './entity';
-import { camelCaseToSnakeCase, getDateBaseFromType } from './common/utils';
+import {
+  camelCaseToSnakeCase,
+  getDateBaseFromType,
+  isProd,
+} from './common/utils';
 import { getFirstName } from './common/mailing';
 
 export enum CioUnsubscribeTopic {
@@ -160,6 +164,9 @@ export const identifyUserOpportunities = async ({
   con: ConnectionManager;
   userId: string;
 }): Promise<void> => {
+  if (!isProd) {
+    return;
+  }
   const opportunities = await con.getRepository(OpportunityMatch).find({
     where: {
       userId,
@@ -169,9 +176,17 @@ export const identifyUserOpportunities = async ({
     order: { createdAt: 'ASC' },
   });
   const ids = opportunities.map((opportunity) => opportunity.opportunityId);
-  await cio.identify(userId, {
-    opportunities: ids?.length > 0 ? ids : null,
-  });
+  try {
+    await cio.identify(userId, {
+      opportunities: ids?.length > 0 ? ids : null,
+    });
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      logger.warn({ err }, 'failed to update user opportunities in cio');
+      return;
+    }
+    throw err;
+  }
 };
 
 export const generateIdentifyObject = async (
