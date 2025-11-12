@@ -1623,6 +1623,13 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+      candidatePreferences: {
+        relation: {
+          isMany: false,
+          childColumn: 'userId',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserCandidatePreference: {

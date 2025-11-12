@@ -64,7 +64,13 @@ export interface GQLOpportunity
 }
 
 export interface GQLOpportunityMatch
-  extends Pick<OpportunityMatch, 'status' | 'description'> {}
+  extends Pick<
+    OpportunityMatch,
+    'status' | 'description' | 'userId' | 'opportunityId'
+  > {
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface GQLUserCandidatePreference
   extends Omit<
@@ -180,9 +186,43 @@ export const typeDefs = /* GraphQL */ `
     reasoning: String!
   }
 
+  type ScreeningAnswer {
+    screening: String!
+    answer: String!
+  }
+
+  type ApplicationRank {
+    score: Float
+    description: String
+    warmIntro: String
+  }
+
   type OpportunityMatch {
     status: OpportunityMatchStatus!
     description: OpportunityMatchDescription!
+    userId: String!
+    opportunityId: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    user: User!
+    candidatePreferences: UserCandidatePreference
+    screening: [ScreeningAnswer!]!
+    feedback: [ScreeningAnswer!]!
+    applicationRank: ApplicationRank!
+  }
+
+  type OpportunityMatchEdge {
+    node: OpportunityMatch!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type OpportunityMatchConnection {
+    pageInfo: PageInfo!
+    edges: [OpportunityMatchEdge!]!
   }
 
   type GCSBlob {
@@ -254,6 +294,24 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): OpportunityConnection! @auth
+
+    """
+    Get all opportunity matches for a specific opportunity (includes only candidate_accepted, recruiter_accepted, and recruiter_rejected statuses)
+    """
+    getOpportunityMatches(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityMatchConnection! @auth
   }
 
   input SalaryExpectationInput {
@@ -365,6 +423,28 @@ export const typeDefs = /* GraphQL */ `
       Id of the Opportunity
       """
       id: ID!
+    ): EmptyResponse @auth
+
+    recruiterAcceptOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Id of the candidate user to accept
+      """
+      candidateUserId: ID!
+    ): EmptyResponse @auth
+
+    recruiterRejectOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Id of the candidate user to reject
+      """
+      candidateUserId: ID!
     ): EmptyResponse @auth
 
     candidateAddKeywords(
@@ -541,6 +621,52 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             }
 
             builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
+        },
+      );
+    },
+    getOpportunityMatches: async (
+      _,
+      args: ConnectionArguments & { opportunityId: string },
+      ctx: AuthContext,
+      info,
+    ) => {
+      if (!ctx.userId) {
+        throw new NotFoundError('Not found!');
+      }
+
+      // First verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: args.opportunityId,
+        permission: OpportunityPermissions.ViewDraft,
+      });
+
+      return await queryPaginatedByDate<
+        GQLOpportunityMatch,
+        'createdAt',
+        typeof args
+      >(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt', maxSize: 50 },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder
+              .where({ opportunityId: args.opportunityId })
+              .andWhere(`${builder.alias}.status IN (:...statuses)`, {
+                statuses: [
+                  OpportunityMatchStatus.CandidateAccepted,
+                  OpportunityMatchStatus.RecruiterAccepted,
+                  OpportunityMatchStatus.RecruiterRejected,
+                ],
+              });
 
             return builder;
           },
@@ -836,6 +962,136 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {
           opportunityId: null,
           flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
+        },
+      );
+
+      return { _: true };
+    },
+    recruiterAcceptOpportunityMatch: async (
+      _,
+      {
+        opportunityId,
+        candidateUserId,
+      }: { opportunityId: string; candidateUserId: string },
+      { userId, con, log }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      // Verify the logged-in user is a recruiter for this opportunity
+      await ensureOpportunityPermissions({
+        con: con.manager,
+        userId,
+        opportunityId,
+        permission: OpportunityPermissions.ViewDraft,
+      });
+
+      const match = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          opportunityId,
+          userId: candidateUserId,
+        },
+        relations: {
+          opportunity: true,
+        },
+      });
+
+      if (!match) {
+        log.error(
+          { opportunityId, candidateUserId },
+          'No match found for candidate',
+        );
+        throw new ForbiddenError('Access denied! No match found');
+      }
+
+      if (match.status !== OpportunityMatchStatus.CandidateAccepted) {
+        log.error(
+          { opportunityId, candidateUserId, status: match.status },
+          'Match is not candidate accepted',
+        );
+        throw new ForbiddenError(
+          `Access denied! Match must be in candidate_accepted status`,
+        );
+      }
+
+      const opportunity = await match.opportunity;
+      if (opportunity.state !== OpportunityState.LIVE) {
+        log.error(
+          { opportunityId, candidateUserId, state: opportunity.state },
+          'Opportunity is not live',
+        );
+        throw new ForbiddenError(`Access denied! Opportunity is not live`);
+      }
+
+      await con.getRepository(OpportunityMatch).update(
+        {
+          opportunityId,
+          userId: candidateUserId,
+        },
+        {
+          status: OpportunityMatchStatus.RecruiterAccepted,
+        },
+      );
+
+      return { _: true };
+    },
+    recruiterRejectOpportunityMatch: async (
+      _,
+      {
+        opportunityId,
+        candidateUserId,
+      }: { opportunityId: string; candidateUserId: string },
+      { userId, con, log }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      // Verify the logged-in user is a recruiter for this opportunity
+      await ensureOpportunityPermissions({
+        con: con.manager,
+        userId,
+        opportunityId,
+        permission: OpportunityPermissions.ViewDraft,
+      });
+
+      const match = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          opportunityId,
+          userId: candidateUserId,
+        },
+        relations: {
+          opportunity: true,
+        },
+      });
+
+      if (!match) {
+        log.error(
+          { opportunityId, candidateUserId },
+          'No match found for candidate',
+        );
+        throw new ForbiddenError('Access denied! No match found');
+      }
+
+      if (match.status !== OpportunityMatchStatus.CandidateAccepted) {
+        log.error(
+          { opportunityId, candidateUserId, status: match.status },
+          'Match is not candidate accepted',
+        );
+        throw new ForbiddenError(
+          `Access denied! Match must be in candidate_accepted status`,
+        );
+      }
+
+      const opportunity = await match.opportunity;
+      if (opportunity.state !== OpportunityState.LIVE) {
+        log.error(
+          { opportunityId, candidateUserId, state: opportunity.state },
+          'Opportunity is not live',
+        );
+        throw new ForbiddenError(`Access denied! Opportunity is not live`);
+      }
+
+      await con.getRepository(OpportunityMatch).update(
+        {
+          opportunityId,
+          userId: candidateUserId,
+        },
+        {
+          status: OpportunityMatchStatus.RecruiterRejected,
         },
       );
 
