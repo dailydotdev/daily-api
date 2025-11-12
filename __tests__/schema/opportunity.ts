@@ -131,6 +131,16 @@ beforeEach(async () => {
       userId: usersFixture[1].id,
       type: OpportunityUserType.Recruiter,
     },
+    {
+      opportunityId: opportunitiesFixture[2].id,
+      userId: usersFixture[0].id,
+      type: OpportunityUserType.Recruiter,
+    },
+    {
+      opportunityId: opportunitiesFixture[3].id,
+      userId: usersFixture[1].id,
+      type: OpportunityUserType.Recruiter,
+    },
   ]);
 });
 
@@ -454,6 +464,113 @@ describe('query opportunityById', () => {
     expect(res.data.opportunityById.id).toEqual(
       '550e8400-e29b-41d4-a716-446655440001',
     );
+  });
+});
+
+describe('query getOpportunities', () => {
+  const GET_OPPORTUNITIES_QUERY = /* GraphQL */ `
+    query GetOpportunities($state: ProtoEnumValue) {
+      getOpportunities(state: $state) {
+        id
+        title
+        state
+      }
+    }
+  `;
+
+  it('should throw error if not authenticated', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITIES_QUERY,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return all LIVE opportunities with authentication', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities).toHaveLength(3);
+  });
+
+  it('should return only recruiter DRAFT opportunities for authenticated non-team member', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.DRAFT },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities).toHaveLength(1);
+    expect(res.data.getOpportunities[0]).toEqual(
+      expect.objectContaining({
+        id: '550e8400-e29b-41d4-a716-446655440003',
+        state: OpportunityState.DRAFT,
+      }),
+    );
+  });
+
+  it('should return correct DRAFT opportunities for different recruiter', async () => {
+    loggedUser = '2';
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.DRAFT },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities).toHaveLength(1);
+    expect(res.data.getOpportunities[0]).toEqual(
+      expect.objectContaining({
+        id: '550e8400-e29b-41d4-a716-446655440004',
+        state: OpportunityState.DRAFT,
+      }),
+    );
+  });
+
+  it('should return all DRAFT opportunities for team members', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.DRAFT },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities).toHaveLength(2);
+    expect(res.data.getOpportunities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: '550e8400-e29b-41d4-a716-446655440003',
+          state: OpportunityState.DRAFT,
+        }),
+        expect.objectContaining({
+          id: '550e8400-e29b-41d4-a716-446655440004',
+          state: OpportunityState.DRAFT,
+        }),
+      ]),
+    );
+
+    isTeamMember = false;
+  });
+
+  it('should return all opportunities when team member fetches LIVE opportunities', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities).toHaveLength(3);
+
+    isTeamMember = false;
   });
 });
 

@@ -11,7 +11,10 @@ import {
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { toGQLEnum, updateFlagsStatement } from '../common';
-import { OpportunityMatchStatus } from '../entity/opportunities/types';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
 import {
@@ -217,6 +220,16 @@ export const typeDefs = /* GraphQL */ `
     Returns the authenticated candidate's saved preferences
     """
     getCandidatePreferences: UserCandidatePreference @auth
+
+    """
+    Get all opportunities filtered by state (defaults to LIVE)
+    """
+    getOpportunities(
+      """
+      State of opportunities to fetch (defaults to LIVE)
+      """
+      state: ProtoEnumValue
+    ): [Opportunity!]! @auth
   }
 
   input SalaryExpectationInput {
@@ -463,6 +476,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...new UserCandidatePreference(),
         keywords: [],
       };
+    },
+    getOpportunities: async (
+      _,
+      { state }: { state?: number },
+      ctx: Context,
+      info,
+    ): Promise<GQLOpportunity[]> => {
+      // Default to LIVE opportunities if no state is provided
+      const opportunityState = state ?? OpportunityState.LIVE;
+
+      if (!ctx.userId) {
+        throw new NotFoundError('Not found!');
+      }
+
+      return await graphorm.query<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ state: opportunityState });
+
+          // If fetching non-LIVE opportunities and user is not a team member,
+          // filter at database level to only show opportunities where user is a recruiter
+          if (opportunityState !== OpportunityState.LIVE && !ctx.isTeamMember) {
+            builder.queryBuilder
+              .innerJoin(
+                'opportunity_user',
+                'ou',
+                `ou.opportunityId = ${builder.alias}.id`,
+              )
+              .andWhere('ou.userId = :userId', { userId: ctx.userId })
+              .andWhere('ou.type = :type', {
+                type: OpportunityUserType.Recruiter,
+              });
+          }
+
+          builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
+
+          return builder;
+        },
+        true,
+      );
     },
   },
   Mutation: {
