@@ -131,6 +131,16 @@ beforeEach(async () => {
       userId: usersFixture[1].id,
       type: OpportunityUserType.Recruiter,
     },
+    {
+      opportunityId: opportunitiesFixture[2].id,
+      userId: usersFixture[0].id,
+      type: OpportunityUserType.Recruiter,
+    },
+    {
+      opportunityId: opportunitiesFixture[3].id,
+      userId: usersFixture[1].id,
+      type: OpportunityUserType.Recruiter,
+    },
   ]);
 });
 
@@ -412,25 +422,18 @@ describe('query opportunityById', () => {
 
     await con.getRepository(OpportunityUser).save({
       userId: '3',
-      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440003',
       type: OpportunityUserType.Recruiter,
     });
 
-    await con
-      .getRepository(Opportunity)
-      .update(
-        { id: '550e8400-e29b-41d4-a716-446655440001' },
-        { state: OpportunityState.DRAFT },
-      );
-
     const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
-      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      variables: { id: '550e8400-e29b-41d4-a716-446655440003' },
     });
 
     expect(res.errors).toBeFalsy();
 
     expect(res.data.opportunityById.id).toEqual(
-      '550e8400-e29b-41d4-a716-446655440001',
+      '550e8400-e29b-41d4-a716-446655440003',
     );
   });
 
@@ -438,21 +441,181 @@ describe('query opportunityById', () => {
     loggedUser = '2';
     isTeamMember = true;
 
-    await con
-      .getRepository(Opportunity)
-      .update(
-        { id: '550e8400-e29b-41d4-a716-446655440001' },
-        { state: OpportunityState.DRAFT },
-      );
-
     const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
-      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      variables: { id: '550e8400-e29b-41d4-a716-446655440004' },
     });
 
     expect(res.errors).toBeFalsy();
 
     expect(res.data.opportunityById.id).toEqual(
-      '550e8400-e29b-41d4-a716-446655440001',
+      '550e8400-e29b-41d4-a716-446655440004',
+    );
+
+    isTeamMember = false;
+  });
+});
+
+describe('query getOpportunities', () => {
+  const GET_OPPORTUNITIES_QUERY = /* GraphQL */ `
+    query GetOpportunities(
+      $state: ProtoEnumValue
+      $first: Int
+      $after: String
+    ) {
+      getOpportunities(state: $state, first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          endCursor
+          startCursor
+        }
+        edges {
+          node {
+            id
+            title
+            state
+          }
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // Ensure user 1 is a recruiter for 3 opportunities total
+    // (already has opportunities[0] and opportunities[2] from beforeEach)
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[1].id, // Third LIVE opportunity
+        userId: usersFixture[0].id, // User '1'
+        type: OpportunityUserType.Recruiter,
+      },
+      {
+        opportunityId: opportunitiesFixture[4].id, // Third LIVE opportunity
+        userId: usersFixture[0].id, // User '1'
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+  });
+
+  it('should throw error if not authenticated', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITIES_QUERY,
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return all LIVE opportunities with authentication', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities.edges).toHaveLength(3);
+    expect(res.data.getOpportunities.pageInfo.hasNextPage).toBe(false);
+  });
+
+  it('should return only recruiter DRAFT opportunities for authenticated non-team member', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.DRAFT, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities.edges).toHaveLength(1);
+    expect(res.data.getOpportunities.edges[0].node).toEqual(
+      expect.objectContaining({
+        id: '550e8400-e29b-41d4-a716-446655440003',
+        state: OpportunityState.DRAFT,
+      }),
+    );
+  });
+
+  it('should return correct DRAFT opportunities for different recruiter', async () => {
+    loggedUser = '2';
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.DRAFT, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities.edges).toHaveLength(1);
+    expect(res.data.getOpportunities.edges[0].node).toEqual(
+      expect.objectContaining({
+        id: '550e8400-e29b-41d4-a716-446655440004',
+        state: OpportunityState.DRAFT,
+      }),
+    );
+  });
+
+  it('should return all DRAFT opportunities for team members', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.DRAFT, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities.edges).toHaveLength(2);
+    const nodes = res.data.getOpportunities.edges.map(
+      (e: { node: unknown }) => e.node,
+    );
+    expect(nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: '550e8400-e29b-41d4-a716-446655440003',
+          state: OpportunityState.DRAFT,
+        }),
+        expect.objectContaining({
+          id: '550e8400-e29b-41d4-a716-446655440004',
+          state: OpportunityState.DRAFT,
+        }),
+      ]),
+    );
+
+    isTeamMember = false;
+  });
+
+  it('should support pagination with first parameter', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 2 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunities.edges).toHaveLength(2);
+    expect(res.data.getOpportunities.pageInfo.hasNextPage).toBe(true);
+    expect(res.data.getOpportunities.pageInfo.endCursor).toBeTruthy();
+  });
+
+  it('should support pagination with after cursor', async () => {
+    loggedUser = '1';
+
+    // Get first page
+    const firstPage = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 2 },
+    });
+
+    expect(firstPage.errors).toBeFalsy();
+    const endCursor = firstPage.data.getOpportunities.pageInfo.endCursor;
+
+    // Get second page
+    const secondPage = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 2, after: endCursor },
+    });
+
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.getOpportunities.edges).toHaveLength(1);
+    expect(secondPage.data.getOpportunities.pageInfo.hasNextPage).toBe(false);
+    expect(secondPage.data.getOpportunities.pageInfo.hasPreviousPage).toBe(
+      true,
     );
   });
 });
@@ -566,10 +729,293 @@ describe('query getOpportunityMatch', () => {
       client,
       {
         query: GET_OPPORTUNITY_MATCH_QUERY,
-        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        variables: { id: '550e8400-e29b-41d4-a716-446655440002' },
       },
       'NOT_FOUND',
     );
+  });
+});
+
+describe('query getOpportunityMatches', () => {
+  const GET_OPPORTUNITY_MATCHES_QUERY = /* GraphQL */ `
+    query GetOpportunityMatches(
+      $opportunityId: ID!
+      $first: Int
+      $after: String
+    ) {
+      getOpportunityMatches(
+        opportunityId: $opportunityId
+        first: $first
+        after: $after
+      ) {
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          endCursor
+          startCursor
+        }
+        edges {
+          node {
+            userId
+            opportunityId
+            status
+            description {
+              reasoning
+            }
+            screening {
+              screening
+              answer
+            }
+            feedback {
+              screening
+              answer
+            }
+            applicationRank {
+              score
+              description
+              warmIntro
+            }
+            user {
+              id
+              name
+            }
+            candidatePreferences {
+              status
+              role
+            }
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    // Add recruiter permission for user 1 on opportunity 1
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Add candidate preferences for users 2 and 4
+    await saveFixtures(con, UserCandidatePreference, [
+      {
+        userId: usersFixture[1].id,
+        status: 1, // Active
+        role: 'Senior Developer',
+      },
+      {
+        userId: '4',
+        status: 1, // Active
+        role: 'Principal Engineer',
+      },
+    ]);
+  });
+
+  it('should return only candidate_accepted, recruiter_accepted, and recruiter_rejected matches', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunityMatches.edges).toHaveLength(3);
+
+    const statuses = res.data.getOpportunityMatches.edges.map(
+      (e: { node: { status: string } }) => e.node.status,
+    );
+
+    // Should include these statuses
+    expect(statuses).toContain('candidate_accepted');
+    expect(statuses).toContain('recruiter_accepted');
+    expect(statuses).toContain('recruiter_rejected');
+
+    // Should NOT include these statuses
+    expect(statuses).not.toContain('pending');
+    expect(statuses).not.toContain('candidate_rejected');
+    expect(statuses).not.toContain('candidate_time_out');
+  });
+
+  it('should include user data and candidate preferences', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const acceptedMatch = res.data.getOpportunityMatches.edges.find(
+      (e: { node: { status: string } }) =>
+        e.node.status === 'candidate_accepted',
+    );
+
+    expect(acceptedMatch.node.user).toEqual({
+      id: '2',
+      name: 'Tsahi',
+    });
+
+    expect(acceptedMatch.node.candidatePreferences).toEqual({
+      status: 1,
+      role: 'Senior Developer',
+    });
+  });
+
+  it('should include screening, feedback, and application rank', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const acceptedMatch = res.data.getOpportunityMatches.edges.find(
+      (e: { node: { status: string } }) =>
+        e.node.status === 'candidate_accepted',
+    );
+
+    expect(acceptedMatch.node.screening).toEqual([
+      { screening: 'What is your favorite language?', answer: 'JavaScript' },
+    ]);
+
+    expect(acceptedMatch.node.feedback).toEqual([
+      { screening: 'How did you hear about us?', answer: 'LinkedIn' },
+    ]);
+
+    expect(acceptedMatch.node.applicationRank).toEqual({
+      score: 90,
+      description: 'Excellent fit',
+      warmIntro: 'Great background in React',
+    });
+  });
+
+  it('should support pagination with first parameter', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 2,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunityMatches.edges).toHaveLength(2);
+    expect(res.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(true);
+    expect(res.data.getOpportunityMatches.pageInfo.endCursor).toBeTruthy();
+  });
+
+  it('should support pagination with after cursor', async () => {
+    loggedUser = '1';
+
+    // Get first page
+    const firstPage = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 2,
+      },
+    });
+
+    expect(firstPage.errors).toBeFalsy();
+    expect(firstPage.data.getOpportunityMatches.edges).toHaveLength(2);
+    expect(firstPage.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(
+      true,
+    );
+    const firstUserIds = firstPage.data.getOpportunityMatches.edges.map(
+      (e: { node: { userId: string } }) => e.node.userId,
+    );
+    const endCursor = firstPage.data.getOpportunityMatches.pageInfo.endCursor;
+
+    // Get second page
+    const secondPage = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+        after: endCursor,
+      },
+    });
+
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.getOpportunityMatches.edges).toHaveLength(1);
+    expect(secondPage.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(
+      false,
+    );
+    // Verify we got different results
+    expect(firstUserIds).not.toContain(
+      secondPage.data.getOpportunityMatches.edges[0].node.userId,
+    );
+    expect(secondPage.data.getOpportunityMatches.pageInfo.hasPreviousPage).toBe(
+      true,
+    );
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITY_MATCHES_QUERY,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          first: 10,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should require permission to view opportunity', async () => {
+    loggedUser = '3'; // User without permission
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITY_MATCHES_QUERY,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          first: 10,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return empty list for opportunity with no non-pending matches', async () => {
+    loggedUser = '1';
+
+    // Add permission for opportunity 3
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[2].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440003',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.getOpportunityMatches.edges).toHaveLength(0);
+    expect(res.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(false);
   });
 });
 
@@ -1259,7 +1705,7 @@ describe('mutation saveOpportunityFeedbackAnswers', () => {
       {
         mutation: MUTATION,
         variables: {
-          id: '550e8400-e29b-41d4-a716-446655440001',
+          id: '550e8400-e29b-41d4-a716-446655440002',
           answers: [
             {
               questionId: '850e8400-e29b-41d4-a716-446655440001',
@@ -1559,6 +2005,646 @@ describe('mutation rejectOpportunityMatch', () => {
       'FORBIDDEN',
       'Access denied! Opportunity is not live',
     );
+  });
+});
+
+describe('mutation recruiterAcceptOpportunityMatch', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation RecruiterAcceptOpportunityMatch(
+      $opportunityId: ID!
+      $candidateUserId: ID!
+    ) {
+      recruiterAcceptOpportunityMatch(
+        opportunityId: $opportunityId
+        candidateUserId: $candidateUserId
+      ) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '2',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should accept candidate match for authenticated recruiter', async () => {
+    loggedUser = '1';
+
+    // Add recruiter permission
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '2',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recruiterAcceptOpportunityMatch).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterAccepted);
+  });
+
+  it('should return error when user is not a recruiter', async () => {
+    loggedUser = '3'; // Not a recruiter
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '2',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return error when match is not candidate_accepted', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '1', // This user has status pending
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match must be in candidate_accepted status',
+    );
+  });
+
+  it('should return error when the opportunity is not live', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[2].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Update the existing Pending match to CandidateAccepted
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: opportunitiesFixture[2].id,
+        userId: usersFixture[0].id,
+      },
+      { status: OpportunityMatchStatus.CandidateAccepted },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440003', // DRAFT opportunity
+          candidateUserId: '1',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Opportunity is not live',
+    );
+  });
+
+  it('should return error when match does not exist', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '999', // Non-existent user
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! No match found',
+    );
+  });
+
+  it('should not allow accepting an already accepted match', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Add a match that's already recruiter accepted
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '4',
+        status: OpportunityMatchStatus.RecruiterAccepted,
+        description: { reasoning: 'Already accepted' },
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '4',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match must be in candidate_accepted status',
+    );
+  });
+
+  it('should not allow accepting an already rejected match', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '3', // This user has recruiter_rejected status
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match must be in candidate_accepted status',
+    );
+  });
+
+  it('should allow team members to accept matches', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '2',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recruiterAcceptOpportunityMatch).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterAccepted);
+
+    isTeamMember = false;
+  });
+
+  it('should work for different recruiters on the same opportunity', async () => {
+    loggedUser = '3';
+
+    // Add user 3 as a recruiter for opportunity 1
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[2].id, // User 3
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Add a new candidate match that's accepted by candidate
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '4',
+        status: OpportunityMatchStatus.CandidateAccepted,
+        description: { reasoning: 'New candidate' },
+        screening: [],
+        feedback: [],
+        applicationRank: {},
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '4',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recruiterAcceptOpportunityMatch).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '4',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterAccepted);
+  });
+
+  it('should verify status transition from candidate_accepted to recruiter_accepted', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Verify initial status
+    let match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.CandidateAccepted);
+
+    // Accept the match
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '2',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify status changed
+    match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterAccepted);
+  });
+});
+
+describe('mutation recruiterRejectOpportunityMatch', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation RecruiterRejectOpportunityMatch(
+      $opportunityId: ID!
+      $candidateUserId: ID!
+    ) {
+      recruiterRejectOpportunityMatch(
+        opportunityId: $opportunityId
+        candidateUserId: $candidateUserId
+      ) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '2',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should reject candidate match for authenticated recruiter', async () => {
+    loggedUser = '1';
+
+    // Add recruiter permission
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '2',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recruiterRejectOpportunityMatch).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterRejected);
+  });
+
+  it('should return error when user is not a recruiter', async () => {
+    loggedUser = '3'; // Not a recruiter
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '2',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return error when match is not candidate_accepted', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '1', // This user has status pending
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match must be in candidate_accepted status',
+    );
+  });
+
+  it('should return error when the opportunity is not live', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[2].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Update the existing Pending match to CandidateAccepted
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: opportunitiesFixture[2].id,
+        userId: usersFixture[0].id,
+      },
+      { status: OpportunityMatchStatus.CandidateAccepted },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440003', // DRAFT opportunity
+          candidateUserId: '1',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Opportunity is not live',
+    );
+  });
+
+  it('should return error when match does not exist', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '999', // Non-existent user
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! No match found',
+    );
+  });
+
+  it('should not allow rejecting an already rejected match', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '3', // This user has recruiter_rejected status
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match must be in candidate_accepted status',
+    );
+  });
+
+  it('should not allow rejecting an already accepted match', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Add a match that's already recruiter accepted
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '4',
+        status: OpportunityMatchStatus.RecruiterAccepted,
+        description: { reasoning: 'Already accepted' },
+      },
+    ]);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          candidateUserId: '4',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Match must be in candidate_accepted status',
+    );
+  });
+
+  it('should allow team members to reject matches', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '2',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recruiterRejectOpportunityMatch).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterRejected);
+
+    isTeamMember = false;
+  });
+
+  it('should work for different recruiters on the same opportunity', async () => {
+    loggedUser = '3';
+
+    // Add user 3 as a recruiter for opportunity 1
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[2].id, // User 3
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Add a new candidate match that's accepted by candidate
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '4',
+        status: OpportunityMatchStatus.CandidateAccepted,
+        description: { reasoning: 'New candidate' },
+        screening: [],
+        feedback: [],
+        applicationRank: {},
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '4',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.recruiterRejectOpportunityMatch).toEqual({ _: true });
+
+    const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '4',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterRejected);
+  });
+
+  it('should verify status transition from candidate_accepted to recruiter_rejected', async () => {
+    loggedUser = '1';
+
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Verify initial status
+    let match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.CandidateAccepted);
+
+    // Reject the match
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        candidateUserId: '2',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify status changed
+    match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '2',
+    });
+    expect(match.status).toBe(OpportunityMatchStatus.RecruiterRejected);
   });
 });
 

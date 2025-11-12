@@ -73,6 +73,9 @@ declare global {
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
+      APPLE_ISSUER_ID: string;
+      APPLE_APP_STORE_SERVER_CLIENT_KEY: string;
+      APPLE_APP_STORE_SERVER_CLIENT_KEY_ID: string;
 
       GEOIP_PATH?: string;
       RESUME_BUCKET_NAME: string;

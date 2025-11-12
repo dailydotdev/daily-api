@@ -5,6 +5,7 @@ import { opportunityMatchDescriptionSchema } from '../../common/schema/opportuni
 import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
 import { logger } from '../../logger';
+import { updateFlagsStatement } from '../../common';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -45,9 +46,13 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
             skipUpdateIfNoValuesChanged: true,
           },
         );
-        await manager
-          .getRepository(Alerts)
-          .update({ userId, opportunityId: IsNull() }, { opportunityId });
+        await manager.getRepository(Alerts).update(
+          { userId, opportunityId: IsNull() },
+          {
+            opportunityId,
+            flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: false }),
+          },
+        );
       });
     },
     parseMessage: (message) => {

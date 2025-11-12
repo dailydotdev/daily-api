@@ -1490,6 +1490,7 @@ const obj = new GraphORM({
     },
   },
   Opportunity: {
+    requiredColumns: ['id', 'createdAt'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -1619,6 +1620,13 @@ const obj = new GraphORM({
         relation: {
           isMany: false,
           childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
+      candidatePreferences: {
+        relation: {
+          isMany: false,
+          childColumn: 'userId',
           parentColumn: 'userId',
         },
       },

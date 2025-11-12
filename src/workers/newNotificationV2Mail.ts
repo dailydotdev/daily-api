@@ -64,6 +64,7 @@ import { generateCampaignPostEmail } from '../common/campaign/post';
 import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
+import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -1132,9 +1133,17 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
+    const recruiterUser = await con
+      .getRepository(OpportunityUserRecruiter)
+      .findOneBy({
+        opportunityId: notif.referenceId,
+      });
+    const recruiter = await recruiterUser?.user;
+
     return {
-      title: `It's a match!`,
+      title: `[Action Required] It's a match!`,
       copy: warmIntro,
+      cc: recruiter?.email,
     };
   },
 };
@@ -1206,7 +1215,14 @@ const worker: Worker = {
                 identifiers: {
                   id: user.id,
                 },
-                to: user.email,
+                to: [
+                  user.email,
+                  !isNullOrUndefined(templateData?.cc)
+                    ? templateData.cc
+                    : undefined,
+                ]
+                  .filter(Boolean)
+                  .join(','),
                 send_at:
                   !isNullOrUndefined(templateData.sendAtMs) &&
                   templateData.sendAtMs > Date.now()
