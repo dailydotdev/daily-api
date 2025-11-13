@@ -147,6 +147,16 @@ const handleNotifcationRequest = async (
               // No action needed for refund declined on consumables
               break;
             case NotificationTypeV2.REFUND: // TODO: Handle refunds for consumables if needed - since it is Apple who decides if a refund is given, we may need to revoke the consumable
+              logger.error(
+                {
+                  transactionInfo,
+                  user,
+                  environment,
+                  provider: SubscriptionProvider.AppleStoreKit,
+                },
+                'Apple issued refund',
+              );
+              break;
             default:
               throw new Error('Unsupported Apple Consumable notification type');
           }

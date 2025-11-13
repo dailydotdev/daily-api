@@ -196,37 +196,6 @@ describe('query userExperiences', () => {
     expect(res.data.userExperiences.edges).toHaveLength(1);
   });
 
-  it('should restrict fields for anonymous users to only allowed columns', async () => {
-    loggedUser = null;
-
-    const res = await client.query(USER_EXPERIENCES_QUERY, {
-      variables: { userId: '1' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userExperiences.edges).toHaveLength(1);
-
-    const experience = res.data.userExperiences.edges[0].node;
-
-    // Allowed columns for anonymous users
-    expect(experience).toMatchObject({
-      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      type: 'work',
-      title: 'Senior Software Engineer',
-      company: {
-        id: 'company-1',
-        name: 'Daily.dev',
-      },
-    });
-
-    // Restricted columns should be null for anonymous users
-    expect(experience.subtitle).toBeNull();
-    expect(experience.description).toBeNull();
-    expect(experience.startedAt).toBeNull();
-    expect(experience.endedAt).toBeNull();
-    expect(experience.createdAt).toBeNull();
-  });
-
   it('should return all fields for logged-in users', async () => {
     loggedUser = '1';
 
@@ -513,35 +482,6 @@ describe('query userExperienceById', () => {
     expect(res.data.userExperienceById).toMatchObject({
       id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
     });
-  });
-
-  it('should restrict fields for anonymous users when fetching by id', async () => {
-    loggedUser = null;
-
-    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
-      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
-    });
-
-    expect(res.errors).toBeFalsy();
-
-    const experience = res.data.userExperienceById;
-
-    // Allowed columns for anonymous users
-    expect(experience).toMatchObject({
-      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      type: 'work',
-      title: 'Senior Software Engineer',
-      company: {
-        name: 'Daily.dev',
-      },
-    });
-
-    // Restricted columns should be null for anonymous users
-    expect(experience.subtitle).toBeNull();
-    expect(experience.description).toBeNull();
-    expect(experience.startedAt).toBeNull();
-    expect(experience.endedAt).toBeNull();
-    expect(experience.createdAt).toBeNull();
   });
 
   it('should return experience from another user', async () => {

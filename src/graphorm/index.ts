@@ -1686,7 +1686,7 @@ const obj = new GraphORM({
     fields: {
       cv: {
         jsonType: true,
-        transform: async (value: GCSBlob, ctx, parent): Promise<GCSBlob> => {
+        transform: async (value: GCSBlob): Promise<GCSBlob> => {
           if (!value || !value.blob) {
             return value;
           }
@@ -1726,17 +1726,6 @@ const obj = new GraphORM({
     from: 'DatasetLocation',
   },
   UserExperience: {
-    anonymousRestrictedColumns: [
-      'user',
-      'subtitle',
-      'description',
-      'startedAt',
-      'endedAt',
-      'location',
-      'locationType',
-      'createdAt',
-      'updatedAt',
-    ],
     fields: {
       startedAt: {
         transform: transformDate,
