@@ -51,6 +51,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
     { name: 'objUser', role: 'roles/storage.objectUser' },
     { name: 'bigqueryJobUser', role: 'roles/bigquery.jobUser' },
     { name: 'bigqueryDataViwer', role: 'roles/bigquery.dataViewer' },
+    { name: 'tokenCreator', role: 'roles/iam.serviceAccountTokenCreator' },
   ],
   isAdhocEnv,
 );
@@ -488,12 +489,12 @@ const migrations: ApplicationSuiteArgs['migrations'] = {
     args: isAdhocEnv
       ? ['npm', 'run', 'db:migrate:latest']
       : [
-        'node',
-        './node_modules/typeorm/cli.js',
-        'migration:run',
-        '-d',
-        'src/data-source.js',
-      ],
+          'node',
+          './node_modules/typeorm/cli.js',
+          'migration:run',
+          '-d',
+          'src/data-source.js',
+        ],
   },
 };
 
@@ -552,25 +553,25 @@ const [apps] = deployApplicationSuite(
           'key.pem': Buffer.from(temporalCert.key).toString('base64'),
         },
       },
-      ...additionalSecrets
+      ...additionalSecrets,
     ],
     apps: appsArgs,
     crons: isAdhocEnv
       ? []
       : crons.map((cron) => ({
-        nameSuffix: cron.name,
-        args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
-        schedule: cron.schedule,
-        limits: cron.limits ?? bgLimits,
-        requests: cron.requests ?? bgRequests,
-        activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
-        spot: {
-          enabled: true,
-          weight: 70,
-        },
-        podAnnotations: podAnnotations,
-        ...vols,
-      })),
+          nameSuffix: cron.name,
+          args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
+          schedule: cron.schedule,
+          limits: cron.limits ?? bgLimits,
+          requests: cron.requests ?? bgRequests,
+          activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
+          spot: {
+            enabled: true,
+            weight: 70,
+          },
+          podAnnotations: podAnnotations,
+          ...vols,
+        })),
     isAdhocEnv,
     dependsOn,
   },

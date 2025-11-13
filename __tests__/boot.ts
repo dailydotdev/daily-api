@@ -115,6 +115,7 @@ const LOGGED_IN_BODY = {
   alerts: {
     ...BASE_BODY.alerts,
     bootPopup: true,
+    flags: {},
   },
   accessToken: {
     expiresIn: expect.any(String),

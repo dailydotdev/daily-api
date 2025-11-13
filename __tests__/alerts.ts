@@ -101,6 +101,7 @@ describe('query userAlerts', () => {
     const res = await client.query(QUERY);
 
     delete expected.userId;
+    delete expected.flags;
 
     expect(res.data.userAlerts).toEqual({
       ...expected,
@@ -275,6 +276,7 @@ describe('dedicated api routes', () => {
         await repo.findOneByOrFail({ userId: '1' })!,
       );
       delete expected['userId'];
+      delete expected['flags'];
 
       loggedUser = '1';
       const res = await authorizeRequest(

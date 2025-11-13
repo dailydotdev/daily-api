@@ -208,13 +208,17 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 /**
- * Remove the flags from the alerts object
+ * Remove the non public flags from the alerts object
  * @param alerts
  */
 export const saveReturnAlerts = (alerts: Alerts) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { flags, ...data } = alerts;
-  return data;
+  return {
+    ...data,
+    flags: {
+      hasSeenOpportunity: flags?.hasSeenOpportunity,
+    },
+  };
 };
 
 interface GQLAlertInputInternalInput {

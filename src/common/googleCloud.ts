@@ -145,13 +145,13 @@ export const generateSignedUrl = async ({
  * Generate a signed URL for a resume/CV file
  */
 export const generateResumeSignedUrl = async (
-  userId: string,
+  blobName: string,
   expiresInMinutes?: number,
 ): Promise<string | null> => {
   const { bucketName } = gcsBucketMap.resume;
   return generateSignedUrl({
     bucketName,
-    blobName: userId,
+    blobName,
     expiresInMinutes,
   });
 };
