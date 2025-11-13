@@ -16,6 +16,7 @@ import {
   OpportunityUserType,
 } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import { User } from '../entity';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
@@ -34,6 +35,7 @@ import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
   deleteEmploymentAgreementByUserId,
+  generateResumeSignedUrl,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
 import {
@@ -53,6 +55,7 @@ import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { ConnectionArguments } from 'graphql-relay';
+import { ProfileResponse, snotraClient } from '../integrations/snotra';
 
 export interface GQLOpportunity
   extends Pick<
@@ -199,7 +202,6 @@ export const typeDefs = /* GraphQL */ `
 
   type EngagementProfile {
     profileText: String!
-    updatedAt: DateTime!
   }
 
   type OpportunityMatch {
@@ -210,7 +212,7 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
     updatedAt: DateTime!
     user: User!
-    candidatePreferences: UserCandidatePreference
+    candidatePreferences: OpportunityMatchCandidatePreference
     screening: [ScreeningAnswer!]!
     feedback: [ScreeningAnswer!]!
     applicationRank: ApplicationRank!
@@ -241,6 +243,13 @@ export const typeDefs = /* GraphQL */ `
 
   type UserCandidateKeyword {
     keyword: String!
+  }
+
+  type OpportunityMatchCandidatePreference {
+    status: ProtoEnumValue!
+    role: String
+    roleType: Float
+    cv: GCSBlob
   }
 
   type UserCandidatePreference {
@@ -287,7 +296,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get all opportunities filtered by state (defaults to LIVE)
     """
-    getOpportunities(
+    opportunities(
       """
       State of opportunities to fetch (defaults to LIVE)
       """
@@ -305,7 +314,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Get all opportunity matches for a specific opportunity (includes only candidate_accepted, recruiter_accepted, and recruiter_rejected statuses)
     """
-    getOpportunityMatches(
+    opportunityMatches(
       """
       Id of the Opportunity
       """
@@ -524,7 +533,7 @@ async function updateRecruiterMatchStatus(
     con: ctx.con.manager,
     userId: ctx.userId,
     opportunityId,
-    permission: OpportunityPermissions.ViewDraft,
+    permission: OpportunityPermissions.UpdateState,
     isTeamMember: ctx.isTeamMember,
   });
 
@@ -554,15 +563,6 @@ async function updateRecruiterMatchStatus(
     throw new ForbiddenError(
       `Access denied! Match must be in candidate_accepted status`,
     );
-  }
-
-  const opportunity = await match.opportunity;
-  if (opportunity.state !== OpportunityState.LIVE) {
-    ctx.log.error(
-      { opportunityId, candidateUserId, state: opportunity.state },
-      'Opportunity is not live',
-    );
-    throw new ForbiddenError(`Access denied! Opportunity is not live`);
   }
 
   await ctx.con.getRepository(OpportunityMatch).update(
@@ -609,35 +609,28 @@ async function updateCandidateMatchStatus(
     throw new ForbiddenError(`Access denied! Match is not pending`);
   }
 
-  const opportunity = await match.opportunity;
-  if (opportunity.state !== OpportunityState.LIVE) {
-    ctx.log.error(
-      { opportunityId, userId, state: opportunity.state },
-      'Opportunity is not live',
+  await ctx.con.transaction(async (entityManager) => {
+    await entityManager.getRepository(OpportunityMatch).update(
+      {
+        opportunityId,
+        userId,
+      },
+      {
+        status: targetStatus,
+      },
     );
-    throw new ForbiddenError(`Access denied! Opportunity is not live`);
-  }
 
-  await ctx.con.getRepository(OpportunityMatch).update(
-    {
-      opportunityId,
-      userId,
-    },
-    {
-      status: targetStatus,
-    },
-  );
-
-  await ctx.con.getRepository(Alerts).update(
-    {
-      userId,
-      opportunityId,
-    },
-    {
-      opportunityId: null,
-      flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
-    },
-  );
+    await entityManager.getRepository(Alerts).update(
+      {
+        userId,
+        opportunityId,
+      },
+      {
+        opportunityId: null,
+        flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
+      },
+    );
+  });
 }
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -720,7 +713,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         keywords: [],
       };
     },
-    getOpportunities: async (
+    opportunities: async (
       _,
       args: ConnectionArguments & { state?: number },
       ctx: Context,
@@ -766,7 +759,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
-    getOpportunityMatches: async (
+    opportunityMatches: async (
       _,
       args: ConnectionArguments & { opportunityId: string },
       ctx: AuthContext,
@@ -781,19 +774,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         con: ctx.con.manager,
         userId: ctx.userId,
         opportunityId: args.opportunityId,
-        permission: OpportunityPermissions.ViewDraft,
+        permission: OpportunityPermissions.UpdateState,
         isTeamMember: ctx.isTeamMember,
       });
 
       return await queryPaginatedByDate<
         GQLOpportunityMatch,
-        'createdAt',
+        'updatedAt',
         typeof args
       >(
         ctx,
         info,
         args,
-        { key: 'createdAt', maxSize: 50 },
+        { key: 'updatedAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
             builder.queryBuilder
@@ -806,12 +799,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 ],
               })
               // Order by candidate_accepted status first (priority 0), then others (priority 1)
-              // Then by createdAt ascending (oldest first) within each group
+              // Then by updatedAt ascending (oldest first) within each group
               .addOrderBy(
                 `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
                 'ASC',
               )
-              .addOrderBy(`${builder.alias}.createdAt`, 'ASC')
+              .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
               .setParameter(
                 'candidateAcceptedStatus',
                 OpportunityMatchStatus.CandidateAccepted,
@@ -1380,6 +1373,70 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return {
         _: true,
+      };
+    },
+  },
+  OpportunityMatch: {
+    user: async (parent: OpportunityMatch, _, ctx: Context) => {
+      if (!parent.userId) {
+        return null;
+      }
+      return await ctx.con.getRepository(User).findOneBy({ id: parent.userId });
+    },
+    candidatePreferences: async (parent: OpportunityMatch, _, ctx: Context) => {
+      if (!parent.userId) {
+        return null;
+      }
+      return await ctx.con
+        .getRepository(UserCandidatePreference)
+        .findOneBy({ userId: parent.userId });
+    },
+    engagementProfile: async (
+      parent: OpportunityMatch,
+      _,
+      ctx: Context,
+    ): Promise<{ profileText: string } | null> => {
+      if (!parent.userId) {
+        return null;
+      }
+
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 5000),
+        );
+
+        const profile = await Promise.race([
+          snotraClient.getProfile({ user_id: parent.userId }),
+          timeoutPromise,
+        ]);
+
+        if (!profile) {
+          return null;
+        }
+
+        return {
+          profileText: (profile as ProfileResponse).profile_text,
+        };
+      } catch (error) {
+        // Log error but don't fail the entire query
+        ctx.log.warn(
+          { userId: parent.userId, err: error },
+          'Failed to fetch engagement profile from snotra',
+        );
+        return null;
+      }
+    },
+  },
+  OpportunityMatchCandidatePreference: {
+    cv: async (parent: UserCandidatePreference) => {
+      if (!parent?.cv?.blob) {
+        return parent?.cv;
+      }
+
+      const signedUrl = await generateResumeSignedUrl(parent.cv.blob);
+      return {
+        ...parent.cv,
+        signedUrl,
       };
     },
   },

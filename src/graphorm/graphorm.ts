@@ -76,6 +76,8 @@ export interface GraphORMType {
   fields?: { [name: string]: GraphORMField };
   // Array of columns to select regardless of the resolve tree
   requiredColumns?: (string | RequiredColumnConfig)[];
+  // Array of columns to ignore
+  ignoredColumns?: (string | RequiredColumnConfig)[];
   // Restricted columns when the user is not authenticated
   anonymousRestrictedColumns?: (string | RequiredColumnConfig)[];
   // Define a function to manipulate the query every time
@@ -292,6 +294,7 @@ export class GraphORM {
   ): QueryBuilder {
     const childType = Object.keys(field.fieldsByTypeName)[0];
     const mapping = this.mappings?.[type]?.fields?.[field.name];
+
     if (mapping?.alias) {
       const fieldsByTypeName = childType
         ? {
@@ -387,6 +390,9 @@ export class GraphORM {
     let newBuilder = builder.from(tableName, alias).select([]);
 
     fields.forEach((field) => {
+      if (this.mappings?.[type]?.ignoredColumns?.includes(field.name)) {
+        return;
+      }
       if (this.checkIsColumnRestricted(ctx, type, field.name)) {
         return;
       }
