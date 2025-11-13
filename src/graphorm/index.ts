@@ -109,7 +109,6 @@ const nullIfNotSameUserById = <T>(
   parent: unknown,
 ): T | null => {
   const entity = parent as { userId: string };
-
   return ctx.userId === entity.userId ? value : null;
 };
 
@@ -1644,6 +1643,7 @@ const obj = new GraphORM({
     },
   },
   UserCandidatePreference: {
+    requiredColumns: ['userId'],
     ignoredColumns: ['signedUrl'],
     fields: {
       cv: {
