@@ -22,9 +22,7 @@ export const userExperienceInputBaseSchema = z.object({
     .trim()
     .normalize()
     .max(100)
-    .nonempty()
-    .nullable()
-    .optional()
+    .nullish()
     .default(null),
 });
 
@@ -79,6 +77,20 @@ export const getExperienceSchema = (type: UserExperienceType) => {
         code: 'custom',
         message: 'endedAt must be greater than startedAt',
         path: ['endedAt'],
+      });
+    }
+    if (
+      [UserExperienceType.Work, UserExperienceType.Education].includes(type) &&
+      !data.customCompanyName &&
+      !data.companyId
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        message:
+          type === UserExperienceType.Work
+            ? 'Company is required'
+            : 'School is required',
+        path: ['customCompanyName'],
       });
     }
   });
