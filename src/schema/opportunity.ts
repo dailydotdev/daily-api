@@ -16,7 +16,6 @@ import {
   OpportunityUserType,
 } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
-import { User } from '../entity';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
