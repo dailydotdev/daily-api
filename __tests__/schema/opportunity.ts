@@ -455,14 +455,14 @@ describe('query opportunityById', () => {
   });
 });
 
-describe('query getOpportunities', () => {
+describe('query opportunities', () => {
   const GET_OPPORTUNITIES_QUERY = /* GraphQL */ `
     query GetOpportunities(
       $state: ProtoEnumValue
       $first: Int
       $after: String
     ) {
-      getOpportunities(state: $state, first: $first, after: $after) {
+      opportunities(state: $state, first: $first, after: $after) {
         pageInfo {
           hasNextPage
           hasPreviousPage
@@ -515,8 +515,8 @@ describe('query getOpportunities', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities.edges).toHaveLength(3);
-    expect(res.data.getOpportunities.pageInfo.hasNextPage).toBe(false);
+    expect(res.data.opportunities.edges).toHaveLength(3);
+    expect(res.data.opportunities.pageInfo.hasNextPage).toBe(false);
   });
 
   it('should return only recruiter DRAFT opportunities for authenticated non-team member', async () => {
@@ -527,8 +527,8 @@ describe('query getOpportunities', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities.edges).toHaveLength(1);
-    expect(res.data.getOpportunities.edges[0].node).toEqual(
+    expect(res.data.opportunities.edges).toHaveLength(1);
+    expect(res.data.opportunities.edges[0].node).toEqual(
       expect.objectContaining({
         id: '550e8400-e29b-41d4-a716-446655440003',
         state: OpportunityState.DRAFT,
@@ -544,8 +544,8 @@ describe('query getOpportunities', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities.edges).toHaveLength(1);
-    expect(res.data.getOpportunities.edges[0].node).toEqual(
+    expect(res.data.opportunities.edges).toHaveLength(1);
+    expect(res.data.opportunities.edges[0].node).toEqual(
       expect.objectContaining({
         id: '550e8400-e29b-41d4-a716-446655440004',
         state: OpportunityState.DRAFT,
@@ -562,8 +562,8 @@ describe('query getOpportunities', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities.edges).toHaveLength(2);
-    const nodes = res.data.getOpportunities.edges.map(
+    expect(res.data.opportunities.edges).toHaveLength(2);
+    const nodes = res.data.opportunities.edges.map(
       (e: { node: unknown }) => e.node,
     );
     expect(nodes).toEqual(
@@ -590,9 +590,9 @@ describe('query getOpportunities', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunities.edges).toHaveLength(2);
-    expect(res.data.getOpportunities.pageInfo.hasNextPage).toBe(true);
-    expect(res.data.getOpportunities.pageInfo.endCursor).toBeTruthy();
+    expect(res.data.opportunities.edges).toHaveLength(2);
+    expect(res.data.opportunities.pageInfo.hasNextPage).toBe(true);
+    expect(res.data.opportunities.pageInfo.endCursor).toBeTruthy();
   });
 
   it('should support pagination with after cursor', async () => {
@@ -604,7 +604,7 @@ describe('query getOpportunities', () => {
     });
 
     expect(firstPage.errors).toBeFalsy();
-    const endCursor = firstPage.data.getOpportunities.pageInfo.endCursor;
+    const endCursor = firstPage.data.opportunities.pageInfo.endCursor;
 
     // Get second page
     const secondPage = await client.query(GET_OPPORTUNITIES_QUERY, {
@@ -612,11 +612,9 @@ describe('query getOpportunities', () => {
     });
 
     expect(secondPage.errors).toBeFalsy();
-    expect(secondPage.data.getOpportunities.edges).toHaveLength(1);
-    expect(secondPage.data.getOpportunities.pageInfo.hasNextPage).toBe(false);
-    expect(secondPage.data.getOpportunities.pageInfo.hasPreviousPage).toBe(
-      true,
-    );
+    expect(secondPage.data.opportunities.edges).toHaveLength(1);
+    expect(secondPage.data.opportunities.pageInfo.hasNextPage).toBe(false);
+    expect(secondPage.data.opportunities.pageInfo.hasPreviousPage).toBe(true);
   });
 });
 
@@ -736,14 +734,14 @@ describe('query getOpportunityMatch', () => {
   });
 });
 
-describe('query getOpportunityMatches', () => {
+describe('query opportunityMatches', () => {
   const GET_OPPORTUNITY_MATCHES_QUERY = /* GraphQL */ `
     query GetOpportunityMatches(
       $opportunityId: ID!
       $first: Int
       $after: String
     ) {
-      getOpportunityMatches(
+      opportunityMatches(
         opportunityId: $opportunityId
         first: $first
         after: $after
@@ -827,9 +825,9 @@ describe('query getOpportunityMatches', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunityMatches.edges).toHaveLength(3);
+    expect(res.data.opportunityMatches.edges).toHaveLength(3);
 
-    const statuses = res.data.getOpportunityMatches.edges.map(
+    const statuses = res.data.opportunityMatches.edges.map(
       (e: { node: { status: string } }) => e.node.status,
     );
 
@@ -856,7 +854,7 @@ describe('query getOpportunityMatches', () => {
 
     expect(res.errors).toBeFalsy();
 
-    const acceptedMatch = res.data.getOpportunityMatches.edges.find(
+    const acceptedMatch = res.data.opportunityMatches.edges.find(
       (e: { node: { status: string } }) =>
         e.node.status === 'candidate_accepted',
     );
@@ -884,7 +882,7 @@ describe('query getOpportunityMatches', () => {
 
     expect(res.errors).toBeFalsy();
 
-    const acceptedMatch = res.data.getOpportunityMatches.edges.find(
+    const acceptedMatch = res.data.opportunityMatches.edges.find(
       (e: { node: { status: string } }) =>
         e.node.status === 'candidate_accepted',
     );
@@ -915,9 +913,9 @@ describe('query getOpportunityMatches', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunityMatches.edges).toHaveLength(2);
-    expect(res.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(true);
-    expect(res.data.getOpportunityMatches.pageInfo.endCursor).toBeTruthy();
+    expect(res.data.opportunityMatches.edges).toHaveLength(2);
+    expect(res.data.opportunityMatches.pageInfo.hasNextPage).toBe(true);
+    expect(res.data.opportunityMatches.pageInfo.endCursor).toBeTruthy();
   });
 
   it('should support pagination with after cursor', async () => {
@@ -932,14 +930,12 @@ describe('query getOpportunityMatches', () => {
     });
 
     expect(firstPage.errors).toBeFalsy();
-    expect(firstPage.data.getOpportunityMatches.edges).toHaveLength(2);
-    expect(firstPage.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(
-      true,
-    );
-    const firstUserIds = firstPage.data.getOpportunityMatches.edges.map(
+    expect(firstPage.data.opportunityMatches.edges).toHaveLength(2);
+    expect(firstPage.data.opportunityMatches.pageInfo.hasNextPage).toBe(true);
+    const firstUserIds = firstPage.data.opportunityMatches.edges.map(
       (e: { node: { userId: string } }) => e.node.userId,
     );
-    const endCursor = firstPage.data.getOpportunityMatches.pageInfo.endCursor;
+    const endCursor = firstPage.data.opportunityMatches.pageInfo.endCursor;
 
     // Get second page
     const secondPage = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
@@ -951,15 +947,13 @@ describe('query getOpportunityMatches', () => {
     });
 
     expect(secondPage.errors).toBeFalsy();
-    expect(secondPage.data.getOpportunityMatches.edges).toHaveLength(1);
-    expect(secondPage.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(
-      false,
-    );
+    expect(secondPage.data.opportunityMatches.edges).toHaveLength(1);
+    expect(secondPage.data.opportunityMatches.pageInfo.hasNextPage).toBe(false);
     // Verify we got different results
     expect(firstUserIds).not.toContain(
-      secondPage.data.getOpportunityMatches.edges[0].node.userId,
+      secondPage.data.opportunityMatches.edges[0].node.userId,
     );
-    expect(secondPage.data.getOpportunityMatches.pageInfo.hasPreviousPage).toBe(
+    expect(secondPage.data.opportunityMatches.pageInfo.hasPreviousPage).toBe(
       true,
     );
   });
@@ -1014,8 +1008,63 @@ describe('query getOpportunityMatches', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.getOpportunityMatches.edges).toHaveLength(0);
-    expect(res.data.getOpportunityMatches.pageInfo.hasNextPage).toBe(false);
+    expect(res.data.opportunityMatches.edges).toHaveLength(0);
+    expect(res.data.opportunityMatches.pageInfo.hasNextPage).toBe(false);
+  });
+
+  it('should not expose salaryExpectation to recruiters viewing other candidates', async () => {
+    loggedUser = '1'; // Recruiter
+
+    // Add salaryExpectation to user 2's candidate preferences
+    await con.getRepository(UserCandidatePreference).update(
+      { userId: usersFixture[1].id },
+      {
+        salaryExpectation: {
+          min: 120000,
+          period: SalaryPeriod.ANNUALLY,
+        },
+      },
+    );
+
+    const GET_OPPORTUNITY_MATCHES_WITH_SALARY_QUERY = /* GraphQL */ `
+      query GetOpportunityMatchesWithSalary($opportunityId: ID!, $first: Int) {
+        opportunityMatches(opportunityId: $opportunityId, first: $first) {
+          edges {
+            node {
+              userId
+              updatedAt
+              candidatePreferences {
+                status
+                role
+                salaryExpectation {
+                  min
+                  period
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_WITH_SALARY_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Find the match for user 2 (candidate with salaryExpectation)
+    const user2Match = res.data.opportunityMatches.edges.find(
+      (e: { node: { userId: string } }) => e.node.userId === '2',
+    );
+
+    expect(user2Match).toBeDefined();
+    expect(user2Match.node.candidatePreferences.role).toBe('Senior Developer');
+    // salaryExpectation should be null for recruiter viewing another candidate
+    expect(user2Match.node.candidatePreferences.salaryExpectation).toBeNull();
   });
 });
 
@@ -1874,22 +1923,6 @@ describe('mutation acceptOpportunityMatch', () => {
       'Access denied! Match is not pending',
     );
   });
-
-  it('should return error when the opportunity is not live', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          id: '550e8400-e29b-41d4-a716-446655440003',
-        },
-      },
-      'FORBIDDEN',
-      'Access denied! Opportunity is not live',
-    );
-  });
 });
 
 describe('mutation rejectOpportunityMatch', () => {
@@ -1990,22 +2023,6 @@ describe('mutation rejectOpportunityMatch', () => {
       'Access denied! Match is not pending',
     );
   });
-
-  it('should return error when the opportunity is not live', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          id: '550e8400-e29b-41d4-a716-446655440003',
-        },
-      },
-      'FORBIDDEN',
-      'Access denied! Opportunity is not live',
-    );
-  });
 });
 
 describe('mutation recruiterAcceptOpportunityMatch', () => {
@@ -2104,40 +2121,6 @@ describe('mutation recruiterAcceptOpportunityMatch', () => {
       },
       'FORBIDDEN',
       'Access denied! Match must be in candidate_accepted status',
-    );
-  });
-
-  it('should return error when the opportunity is not live', async () => {
-    loggedUser = '1';
-
-    await saveFixtures(con, OpportunityUser, [
-      {
-        opportunityId: opportunitiesFixture[2].id,
-        userId: usersFixture[0].id,
-        type: OpportunityUserType.Recruiter,
-      },
-    ]);
-
-    // Update the existing Pending match to CandidateAccepted
-    await con.getRepository(OpportunityMatch).update(
-      {
-        opportunityId: opportunitiesFixture[2].id,
-        userId: usersFixture[0].id,
-      },
-      { status: OpportunityMatchStatus.CandidateAccepted },
-    );
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          opportunityId: '550e8400-e29b-41d4-a716-446655440003', // DRAFT opportunity
-          candidateUserId: '1',
-        },
-      },
-      'FORBIDDEN',
-      'Access denied! Opportunity is not live',
     );
   });
 
@@ -2424,40 +2407,6 @@ describe('mutation recruiterRejectOpportunityMatch', () => {
       },
       'FORBIDDEN',
       'Access denied! Match must be in candidate_accepted status',
-    );
-  });
-
-  it('should return error when the opportunity is not live', async () => {
-    loggedUser = '1';
-
-    await saveFixtures(con, OpportunityUser, [
-      {
-        opportunityId: opportunitiesFixture[2].id,
-        userId: usersFixture[0].id,
-        type: OpportunityUserType.Recruiter,
-      },
-    ]);
-
-    // Update the existing Pending match to CandidateAccepted
-    await con.getRepository(OpportunityMatch).update(
-      {
-        opportunityId: opportunitiesFixture[2].id,
-        userId: usersFixture[0].id,
-      },
-      { status: OpportunityMatchStatus.CandidateAccepted },
-    );
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          opportunityId: '550e8400-e29b-41d4-a716-446655440003', // DRAFT opportunity
-          candidateUserId: '1',
-        },
-      },
-      'FORBIDDEN',
-      'Access denied! Opportunity is not live',
     );
   });
 

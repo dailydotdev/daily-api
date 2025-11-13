@@ -64,8 +64,6 @@ import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
-import { generateResumeSignedUrl } from '../common/googleCloud';
-import { ProfileResponse, snotraClient } from '../integrations/snotra';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -103,6 +101,15 @@ const nullIfNotSameUser = <T>(
   const user = parent as Pick<User, 'id'>;
 
   return ctx.userId === user.id ? value : null;
+};
+
+const nullIfNotSameUserById = <T>(
+  value: T,
+  ctx: Context,
+  parent: unknown,
+): T | null => {
+  const entity = parent as { userId: string };
+  return ctx.userId === entity.userId ? value : null;
 };
 
 const checkIfTitleIsClickbait = (value?: string): boolean => {
@@ -1592,6 +1599,7 @@ const obj = new GraphORM({
     },
   },
   OpportunityMatch: {
+    ignoredColumns: ['engagementProfile'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -1610,49 +1618,6 @@ const obj = new GraphORM({
       },
       applicationRank: {
         jsonType: true,
-      },
-      engagementProfile: {
-        jsonType: true,
-        transform: async (
-          _,
-          ctx,
-          parent,
-        ): Promise<{ profileText: string; updatedAt: Date } | null> => {
-          const match = parent as { userId: string };
-          if (!match.userId) {
-            return null;
-          }
-
-          try {
-            const timeoutPromise = new Promise((_, reject) =>
-              setTimeout(
-                () => reject(new Error('Profile fetch timeout')),
-                5000,
-              ),
-            );
-
-            const profile = await Promise.race([
-              snotraClient.getProfile({ user_id: match.userId }),
-              timeoutPromise,
-            ]);
-
-            if (!profile) {
-              return null;
-            }
-
-            return {
-              profileText: (profile as ProfileResponse).profile_text,
-              updatedAt: new Date((profile as ProfileResponse).update_at),
-            };
-          } catch (error) {
-            // Log error but don't fail the entire query
-            ctx.log.warn(
-              { userId: match.userId, err: error },
-              'Failed to fetch engagement profile from snotra',
-            );
-            return null;
-          }
-        },
       },
       opportunity: {
         relation: {
@@ -1677,26 +1642,16 @@ const obj = new GraphORM({
       },
     },
   },
-  EngagementProfile: {
-    // This type is fetched from external API via transform in OpportunityMatch
-    // The transform function returns the entire object, so no DB mapping needed
-    from: 'OpportunityMatch',
-  },
   UserCandidatePreference: {
+    requiredColumns: ['userId'],
+    ignoredColumns: ['signedUrl'],
     fields: {
       cv: {
         jsonType: true,
-        transform: async (value: GCSBlob): Promise<GCSBlob> => {
-          if (!value || !value.blob) {
-            return value;
-          }
-
-          const signedUrl = await generateResumeSignedUrl(value.blob);
-
+        transform: async (value: GCSBlob) => {
           return {
             ...value,
             lastModified: transformDate(value?.lastModified),
-            signedUrl,
           };
         },
       },
@@ -1709,6 +1664,7 @@ const obj = new GraphORM({
       },
       salaryExpectation: {
         jsonType: true,
+        transform: nullIfNotSameUserById,
       },
       location: {
         jsonType: true,
@@ -1735,6 +1691,24 @@ const obj = new GraphORM({
       },
       createdAt: {
         transform: transformDate,
+      },
+    },
+  },
+  OpportunityMatchCandidatePreference: {
+    from: 'UserCandidatePreference',
+    fields: {
+      cv: {
+        jsonType: true,
+        transform: async (value: GCSBlob) => {
+          return {
+            ...value,
+            lastModified: transformDate(value?.lastModified),
+          };
+        },
+      },
+      salaryExpectation: {
+        jsonType: true,
+        transform: nullIfNotSameUserById,
       },
     },
   },
