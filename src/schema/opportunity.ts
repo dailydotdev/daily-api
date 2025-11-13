@@ -1377,20 +1377,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   OpportunityMatch: {
-    user: async (parent: OpportunityMatch, _, ctx: Context) => {
-      if (!parent.userId) {
-        return null;
-      }
-      return await ctx.con.getRepository(User).findOneBy({ id: parent.userId });
-    },
-    candidatePreferences: async (parent: OpportunityMatch, _, ctx: Context) => {
-      if (!parent.userId) {
-        return null;
-      }
-      return await ctx.con
-        .getRepository(UserCandidatePreference)
-        .findOneBy({ userId: parent.userId });
-    },
     engagementProfile: async (
       parent: OpportunityMatch,
       _,
