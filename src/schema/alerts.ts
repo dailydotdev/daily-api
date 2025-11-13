@@ -214,7 +214,7 @@ export const typeDefs = /* GraphQL */ `
 export const saveReturnAlerts = (alerts: Alerts) => {
   const { flags, ...data } = alerts;
   return {
-    data,
+    ...data,
     flags: {
       hasSeenOpportunity: flags?.hasSeenOpportunity,
     },
