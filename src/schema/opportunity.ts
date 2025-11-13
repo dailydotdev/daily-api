@@ -1407,13 +1407,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   },
   UserCandidatePreference: {
     cv: async (parent: UserCandidatePreference) => {
-      if (!parent?.cv?.blob) {
-        return parent?.cv;
+      const cv = await parent?.cv;
+      if (!cv?.blob) {
+        return cv;
       }
 
-      const signedUrl = await generateResumeSignedUrl(parent.cv.blob);
+      const signedUrl = await generateResumeSignedUrl(cv.blob);
       return {
-        ...parent.cv,
+        ...cv,
         signedUrl,
       };
     },
