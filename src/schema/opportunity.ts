@@ -211,7 +211,7 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
     updatedAt: DateTime!
     user: User!
-    candidatePreferences: OpportunityMatchCandidatePreference
+    candidatePreferences: UserCandidatePreference
     screening: [ScreeningAnswer!]!
     feedback: [ScreeningAnswer!]!
     applicationRank: ApplicationRank!
@@ -242,13 +242,6 @@ export const typeDefs = /* GraphQL */ `
 
   type UserCandidateKeyword {
     keyword: String!
-  }
-
-  type OpportunityMatchCandidatePreference {
-    status: ProtoEnumValue!
-    role: String
-    roleType: Float
-    cv: GCSBlob
   }
 
   type UserCandidatePreference {
@@ -1412,7 +1405,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
     },
   },
-  OpportunityMatchCandidatePreference: {
+  UserCandidatePreference: {
     cv: async (parent: UserCandidatePreference) => {
       if (!parent?.cv?.blob) {
         return parent?.cv;

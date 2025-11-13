@@ -1654,6 +1654,7 @@ const obj = new GraphORM({
       },
       salaryExpectation: {
         jsonType: true,
+        transform: nullIfNotSameUser,
       },
       location: {
         jsonType: true,
