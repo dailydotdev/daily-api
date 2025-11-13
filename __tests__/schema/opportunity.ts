@@ -1011,6 +1011,61 @@ describe('query opportunityMatches', () => {
     expect(res.data.opportunityMatches.edges).toHaveLength(0);
     expect(res.data.opportunityMatches.pageInfo.hasNextPage).toBe(false);
   });
+
+  it('should not expose salaryExpectation to recruiters viewing other candidates', async () => {
+    loggedUser = '1'; // Recruiter
+
+    // Add salaryExpectation to user 2's candidate preferences
+    await con.getRepository(UserCandidatePreference).update(
+      { userId: usersFixture[1].id },
+      {
+        salaryExpectation: {
+          min: 120000,
+          period: SalaryPeriod.ANNUALLY,
+        },
+      },
+    );
+
+    const GET_OPPORTUNITY_MATCHES_WITH_SALARY_QUERY = /* GraphQL */ `
+      query GetOpportunityMatchesWithSalary($opportunityId: ID!, $first: Int) {
+        opportunityMatches(opportunityId: $opportunityId, first: $first) {
+          edges {
+            node {
+              userId
+              updatedAt
+              candidatePreferences {
+                status
+                role
+                salaryExpectation {
+                  min
+                  period
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_WITH_SALARY_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Find the match for user 2 (candidate with salaryExpectation)
+    const user2Match = res.data.opportunityMatches.edges.find(
+      (e: { node: { userId: string } }) => e.node.userId === '2',
+    );
+
+    expect(user2Match).toBeDefined();
+    expect(user2Match.node.candidatePreferences.role).toBe('Senior Developer');
+    // salaryExpectation should be null for recruiter viewing another candidate
+    expect(user2Match.node.candidatePreferences.salaryExpectation).toBeNull();
+  });
 });
 
 describe('query getCandidatePreferences', () => {

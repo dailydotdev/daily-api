@@ -103,6 +103,16 @@ const nullIfNotSameUser = <T>(
   return ctx.userId === user.id ? value : null;
 };
 
+const nullIfNotSameUserById = <T>(
+  value: T,
+  ctx: Context,
+  parent: unknown,
+): T | null => {
+  const entity = parent as { userId: string };
+
+  return ctx.userId === entity.userId ? value : null;
+};
+
 const checkIfTitleIsClickbait = (value?: string): boolean => {
   if (!value) {
     return false;
@@ -1654,7 +1664,7 @@ const obj = new GraphORM({
       },
       salaryExpectation: {
         jsonType: true,
-        transform: nullIfNotSameUser,
+        transform: nullIfNotSameUserById,
       },
       location: {
         jsonType: true,
@@ -1695,6 +1705,10 @@ const obj = new GraphORM({
             lastModified: transformDate(value?.lastModified),
           };
         },
+      },
+      salaryExpectation: {
+        jsonType: true,
+        transform: nullIfNotSameUserById,
       },
     },
   },
