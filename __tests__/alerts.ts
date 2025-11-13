@@ -107,6 +107,7 @@ describe('query userAlerts', () => {
       ...expected,
       lastBanner: expected.lastBanner.toISOString(),
       lastChangelog: expected.lastChangelog.toISOString(),
+      lastFeedSettingsFeedback: expected.lastFeedSettingsFeedback.toISOString(),
     });
   });
 
