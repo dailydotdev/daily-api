@@ -26,7 +26,6 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
-
 interface GQLUserExperience {
   id: string;
   type: UserExperienceType;
@@ -184,9 +183,7 @@ const generateExperienceToSave = async <
       where: { id: companyId },
     });
     toSave.customCompanyName = null;
-  }
-
-  if (customCompanyName) {
+  } else if (customCompanyName) {
     const existingCompany = await ctx.con
       .getRepository(Company)
       .createQueryBuilder('c')
