@@ -22,9 +22,7 @@ export const userExperienceInputBaseSchema = z.object({
     .trim()
     .normalize()
     .max(100)
-    .nonempty()
-    .nullable()
-    .optional()
+    .nullish()
     .default(null),
 });
 
@@ -72,6 +70,15 @@ const experienceTypeToSchema: Record<
   [UserExperienceType.OpenSource]: userExperienceProjectSchema,
 };
 
+const experienceCompanyCopy = {
+  [UserExperienceType.Work]: 'Company',
+  [UserExperienceType.Education]: 'School',
+  [UserExperienceType.Project]: 'Publisher',
+  [UserExperienceType.Certification]: 'Organization',
+  [UserExperienceType.OpenSource]: 'Organization',
+  [UserExperienceType.Volunteering]: 'Organization',
+};
+
 export const getExperienceSchema = (type: UserExperienceType) => {
   return experienceTypeToSchema[type].superRefine((data, ctx) => {
     if (data.endedAt && data.endedAt < data.startedAt) {
@@ -79,6 +86,13 @@ export const getExperienceSchema = (type: UserExperienceType) => {
         code: 'custom',
         message: 'endedAt must be greater than startedAt',
         path: ['endedAt'],
+      });
+    }
+    if (!data.customCompanyName && !data.companyId) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `${experienceCompanyCopy[type]} is required`,
+        path: ['customCompanyName'],
       });
     }
   });
