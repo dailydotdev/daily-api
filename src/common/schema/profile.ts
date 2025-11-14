@@ -70,6 +70,15 @@ const experienceTypeToSchema: Record<
   [UserExperienceType.OpenSource]: userExperienceProjectSchema,
 };
 
+const experienceCompanyCopy = {
+  [UserExperienceType.Work]: 'Company',
+  [UserExperienceType.Education]: 'School',
+  [UserExperienceType.Project]: 'Publisher',
+  [UserExperienceType.Certification]: 'Organization',
+  [UserExperienceType.OpenSource]: 'Organization',
+  [UserExperienceType.Volunteering]: 'Organization',
+};
+
 export const getExperienceSchema = (type: UserExperienceType) => {
   return experienceTypeToSchema[type].superRefine((data, ctx) => {
     if (data.endedAt && data.endedAt < data.startedAt) {
@@ -79,17 +88,10 @@ export const getExperienceSchema = (type: UserExperienceType) => {
         path: ['endedAt'],
       });
     }
-    if (
-      [UserExperienceType.Work, UserExperienceType.Education].includes(type) &&
-      !data.customCompanyName &&
-      !data.companyId
-    ) {
+    if (!data.customCompanyName && !data.companyId) {
       ctx.addIssue({
         code: 'custom',
-        message:
-          type === UserExperienceType.Work
-            ? 'Company is required'
-            : 'School is required',
+        message: `${experienceCompanyCopy[type]} is required`,
         path: ['customCompanyName'],
       });
     }
