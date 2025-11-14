@@ -196,6 +196,10 @@ export interface GQLUpdateUserInput {
   defaultFeedId?: string;
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
+}
+
+// New interface for updateUserInfo with additional fields
+export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
   locationId?: string;
   cover?: string;
   readme?: string;
@@ -204,6 +208,11 @@ export interface GQLUpdateUserInput {
 interface GQLUserParameters {
   data: GQLUpdateUserInput;
   upload: Promise<FileUpload>;
+}
+
+interface GQLUserInfoParameters {
+  data: GQLUpdateUserInfoInput;
+  upload?: Promise<FileUpload>;
   coverUpload?: Promise<FileUpload>;
 }
 
@@ -563,6 +572,124 @@ export const typeDefs = /* GraphQL */ `
   Update user profile input
   """
   input UpdateUserInput {
+    """
+    Full name of the user
+    """
+    name: String
+    """
+    Email for the user
+    """
+    email: String
+    """
+    Profile image of the user
+    """
+    image: String
+    """
+    Username (handle) of the user
+    """
+    username: String
+    """
+    Bio of the user
+    """
+    bio: String
+    """
+    Twitter handle of the user
+    """
+    twitter: String
+    """
+    Github handle of the user
+    """
+    github: String
+    """
+    Hashnode handle of the user
+    """
+    hashnode: String
+    """
+    Bluesky profile of the user
+    """
+    bluesky: String
+    """
+    Roadmap profile of the user
+    """
+    roadmap: String
+    """
+    Threads profile of the user
+    """
+    threads: String
+    """
+    Codepen profile of the user
+    """
+    codepen: String
+    """
+    Reddit profile of the user
+    """
+    reddit: String
+    """
+    Stackoverflow profile of the user
+    """
+    stackoverflow: String
+    """
+    Youtube profile of the user
+    """
+    youtube: String
+    """
+    Linkedin profile of the user
+    """
+    linkedin: String
+    """
+    Mastodon profile of the user
+    """
+    mastodon: String
+    """
+    Preferred timezone of the user that affects data
+    """
+    timezone: String
+    """
+    Preferred day of the week to start the week
+    """
+    weekStart: Int
+    """
+    Current company of the user
+    """
+    company: String
+    """
+    Title of user from their company
+    """
+    title: String
+    """
+    User website
+    """
+    portfolio: String
+    """
+    If the user has accepted marketing
+    """
+    acceptedMarketing: Boolean
+    """
+    If the user's info is confirmed
+    """
+    infoConfirmed: Boolean
+    """
+    Experience level of the user
+    """
+    experienceLevel: String
+    """
+    Preferred language of the user
+    """
+    language: String
+    """
+    Default feed id for the user
+    """
+    defaultFeedId: String
+    """
+    Flags for the user
+    """
+    flags: UserFlagsPublic
+  }
+
+  """
+  Update user info input with extended fields
+  """
+  input UpdateUserInfoInput {
     """
     Full name of the user
     """
@@ -1099,8 +1226,13 @@ export const typeDefs = /* GraphQL */ `
     """
     Update user profile information
     """
-    updateUserProfile(
-      data: UpdateUserInput
+    updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
+
+    """
+    Update user info with extended fields
+    """
+    updateUserInfo(
+      data: UpdateUserInfoInput
       upload: Upload
       coverUpload: Upload
     ): User @auth
@@ -2248,10 +2380,102 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
-    // add mutation to clear images
     updateUserProfile: async (
       _,
-      { data, upload, coverUpload }: GQLUserParameters,
+      { data, upload }: GQLUserParameters,
+      ctx: AuthContext,
+    ): Promise<GQLUser> => {
+      const repo = ctx.con.getRepository(User);
+      const user = await repo.findOneBy({ id: ctx.userId });
+
+      if (!user) {
+        throw new AuthenticationError('Unauthorized!');
+      }
+
+      if (!ctx.service) {
+        // Only accept email changes from Service calls
+        delete data.email;
+        delete data.infoConfirmed;
+      }
+      data = await validateUserUpdate(user, data, ctx.con);
+
+      const avatar =
+        !!upload && process.env.CLOUDINARY_URL
+          ? (await uploadAvatar(user.id, (await upload).createReadStream())).url
+          : data.image || user.image;
+
+      try {
+        const updatedUser = { ...user, ...data, image: avatar };
+        updatedUser.email = updatedUser.email?.toLowerCase();
+
+        const marketingFlag = updatedUser.acceptedMarketing
+          ? {
+              email: NotificationPreferenceStatus.Subscribed,
+              inApp: NotificationPreferenceStatus.Subscribed,
+            }
+          : {
+              email: NotificationPreferenceStatus.Muted,
+              inApp: NotificationPreferenceStatus.Muted,
+            };
+
+        if (
+          !user.infoConfirmed &&
+          updatedUser.email &&
+          updatedUser.username &&
+          updatedUser.name
+        ) {
+          updatedUser.infoConfirmed = true;
+        }
+
+        await repo.update(
+          { id: user.id },
+          {
+            ...updatedUser,
+            permalink: undefined,
+            flags: data?.flags ? updateFlagsStatement(data.flags) : undefined,
+            notificationFlags: updateNotificationFlags({
+              marketing: marketingFlag,
+            }),
+          },
+        );
+
+        return updatedUser;
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          const uniqueColumns: Array<keyof User> = [
+            'username',
+            'github',
+            'twitter',
+            'hashnode',
+            'roadmap',
+            'threads',
+            'codepen',
+            'reddit',
+            'stackoverflow',
+            'youtube',
+            'linkedin',
+            'bluesky',
+            'mastodon',
+          ];
+
+          uniqueColumns.forEach((uniqueColumn) => {
+            if (err.message.indexOf(`users_${uniqueColumn}_unique`) > -1) {
+              throw new ValidationError(
+                JSON.stringify({
+                  [uniqueColumn]: `${uniqueColumn} already exists`,
+                }),
+              );
+            }
+          });
+        }
+        throw err;
+      }
+    },
+    updateUserInfo: async (
+      _,
+      { data, upload, coverUpload }: GQLUserInfoParameters,
       ctx: AuthContext,
     ): Promise<GQLUser> => {
       const repo = ctx.con.getRepository(User);
