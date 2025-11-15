@@ -5,7 +5,7 @@ import type { Organization } from '../Organization';
 
 @ChildEntity(OpportunityType.JOB)
 export class OpportunityJob extends Opportunity {
-  @Column({ type: 'text' })
+  @Column({ type: 'uuid' })
   @Index('IDX_opportunity_organization_id')
   organizationId: string;
 
