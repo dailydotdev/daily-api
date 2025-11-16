@@ -1729,6 +1729,7 @@ describe('funnel boot', () => {
         'clickbaitTries',
         'hasLocationSet',
         'location',
+        'readme',
       ]),
     });
   });

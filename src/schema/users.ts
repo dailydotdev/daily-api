@@ -198,7 +198,6 @@ export interface GQLUpdateUserInput {
   notificationFlags?: UserNotificationFlags;
 }
 
-// New interface for updateUserInfo with additional fields
 export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
   locationId?: string;
   cover?: string;
