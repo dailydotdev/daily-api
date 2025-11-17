@@ -36,6 +36,7 @@ import {
   UserMarketingCta,
   UserNotification,
 } from '../src/entity';
+import { DatasetLocation } from '../src/entity/dataset/DatasetLocation';
 import {
   OrganizationMemberRole,
   SourceMemberRoles,
@@ -142,6 +143,7 @@ const LOGGED_IN_BODY = {
     youtube: null,
     linkedin: null,
     mastodon: null,
+    readme: null,
     language: undefined,
     isPlus: false,
     defaultFeedId: null,
@@ -155,6 +157,7 @@ const LOGGED_IN_BODY = {
     coresRole: CoresRole.None,
     clickbaitTries: null,
     hasLocationSet: false,
+    location: null,
   },
   marketingCta: null,
   feeds: [],
@@ -411,6 +414,48 @@ describe('logged in boot', () => {
       .set('Cookie', 'ory_kratos_session=value;')
       .expect(200);
     expect(res.body.user.hasLocationSet).toBe(true);
+  });
+
+  it('should return location when user has locationId set', async () => {
+    const location = await con.getRepository(DatasetLocation).save({
+      country: 'United States',
+      city: 'San Francisco',
+      subdivision: 'California',
+      iso2: 'US',
+      iso3: 'USA',
+      timezone: 'America/Los_Angeles',
+      ranking: 1,
+    });
+
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      locationId: location.id,
+    });
+
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.user.location).toEqual({
+      id: location.id,
+      city: 'San Francisco',
+      subdivision: 'California',
+      country: 'United States',
+    });
+  });
+
+  it('should return null location when user has no locationId', async () => {
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.user.location).toBeNull();
   });
 
   it('should set kratos cookie expiration', async () => {
@@ -1683,6 +1728,8 @@ describe('funnel boot', () => {
         'subscriptionFlags',
         'clickbaitTries',
         'hasLocationSet',
+        'location',
+        'readme',
       ]),
     });
   });
