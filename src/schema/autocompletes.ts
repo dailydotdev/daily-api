@@ -113,9 +113,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
         const response = await fetch(mapboxUrl);
 
         if (!response.ok) {
-          throw new Error(
-            `Mapbox API error: ${response.status} ${response.statusText}`,
-          );
+          return [];
         }
 
         const data: MapboxResponse = await response.json();
