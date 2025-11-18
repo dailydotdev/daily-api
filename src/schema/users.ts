@@ -166,6 +166,9 @@ import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { excludeProperties } from '../routes/boot';
+import { createLocationFromMapbox } from '../entity/dataset/utils';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -199,7 +202,7 @@ export interface GQLUpdateUserInput {
 }
 
 export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
-  locationId?: string;
+  externalLocationId?: string;
   cover?: string;
   readme?: string;
 }
@@ -809,6 +812,10 @@ export const typeDefs = /* GraphQL */ `
     id of the location selected by the user
     """
     locationId: String
+    """
+    External location ID selected by the user
+    """
+    externalLocationId: String
     """
     The user's readme
     """
@@ -2490,6 +2497,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         delete data.infoConfirmed;
       }
       data = await validateUserUpdate(user, data, ctx.con);
+      let location: DatasetLocation | null = null;
+
+      if (data.externalLocationId) {
+        location = await ctx.con.getRepository(DatasetLocation).findOne({
+          where: { externalId: data.externalLocationId },
+        });
+
+        if (!location) {
+          location = await createLocationFromMapbox(
+            ctx.con,
+            data.externalLocationId,
+          );
+        }
+      }
 
       const filesToClear = [];
 
@@ -2533,12 +2554,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const readmeHtml = markdown.render(data.readme || '');
 
       try {
+        const formProps = excludeProperties(data, ['externalLocationId']);
+
         const updatedUser = {
           ...user,
-          ...data,
+          ...formProps,
           image: avatar,
           cover,
           readmeHtml,
+          locationId: location?.id || null,
         };
         updatedUser.email = updatedUser.email?.toLowerCase();
 

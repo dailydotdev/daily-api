@@ -1,7 +1,7 @@
 import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
-import { ILike, Raw, type FindOptionsWhere } from 'typeorm';
+import { ILike, Raw } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -12,8 +12,8 @@ import {
   autocompleteSchema,
 } from '../common/schema/autocompletes';
 import type z from 'zod';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { Company, CompanyType } from '../entity/Company';
+import type { MapboxResponse } from '../entity/dataset/utils';
 
 interface AutocompleteData {
   result: string[];
@@ -79,48 +79,6 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-type FindLocation = FindOptionsWhere<DatasetLocation>;
-
-const getLocationCondition = (query: string): FindLocation[] => {
-  const [country, subdivision, city] = query
-    .split(',')
-    .reverse()
-    .map((s) => s.trim());
-  const base: FindLocation[] = [{ country: ILike(`%${country}%`) }];
-
-  if (country.length === 2) {
-    base.push({ iso2: country.toUpperCase() });
-  } else if (country.length === 3) {
-    base.push({ iso3: country.toUpperCase() });
-  }
-
-  if (!subdivision) {
-    return base.concat([
-      { subdivision: ILike(`%${query}%`) },
-      { city: ILike(`%${query}%`) },
-    ]);
-  }
-
-  if (city) {
-    return base.map((conditions) => ({
-      ...conditions,
-      city: ILike(`%${city}%`),
-      subdivision: ILike(`%${subdivision}%`),
-    }));
-  }
-
-  const subdivisionCombination: FindLocation[] = base.map((conditions) => ({
-    ...conditions,
-    subdivision: ILike(`%${subdivision}%`),
-  }));
-  const cityCombination: FindLocation[] = base.map((conditions) => ({
-    ...conditions,
-    city: ILike(`%${subdivision}%`),
-  }));
-
-  return subdivisionCombination.concat(cityCombination);
-};
-
 export const resolvers = traceResolvers<unknown, BaseContext>({
   Query: {
     autocomplete: async (
@@ -148,22 +106,37 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       payload: z.infer<typeof autocompleteSchema>,
       ctx: AuthContext,
     ): Promise<GQLLocation[]> => {
-      const { query, limit } = autocompleteBaseSchema.parse(payload);
-      const conditions = getLocationCondition(query);
+      const { query } = autocompleteBaseSchema.parse(payload);
+      const mapboxUrl = `${process.env.MAPBOX_GEOCODING_URL}?q=${encodeURIComponent(query)}&types=country,place&limit=5&access_token=${process.env.MAPBOX_ACCESS_TOKEN}`;
 
-      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(DatasetLocation).find({
-          select: { id: true, country: true, subdivision: true, city: true },
-          take: limit,
-          order: {
-            ranking: 'DESC',
-            city: 'ASC',
-          },
-          where: conditions,
-        }),
-      );
+      try {
+        const response = await fetch(mapboxUrl);
 
-      return result;
+        if (!response.ok) {
+          throw new Error(
+            `Mapbox API error: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        const data: MapboxResponse = await response.json();
+
+        return data.features.map((feature) => ({
+          id: feature.properties.mapbox_id,
+          country:
+            feature.properties.context.country?.name || feature.properties.name,
+          city:
+            feature.properties.feature_type === 'place'
+              ? feature.properties.name
+              : null,
+          subdivision: feature.properties.context.region?.name || null,
+        }));
+      } catch (error) {
+        ctx.log.error(
+          { error },
+          'Failed to fetch location autocomplete from Mapbox',
+        );
+        return [];
+      }
     },
     autocompleteKeywords: async (
       _,
