@@ -13,7 +13,7 @@ export const userExperienceInputBaseSchema = z.object({
   type: z.enum(UserExperienceType),
   title: z.string().max(1000).nonempty(),
   description: z.string().max(5000).optional(),
-  subtitle: z.string().max(1000).optional(),
+  subtitle: z.string().max(1000).optional().nullable(),
   startedAt: z.date(),
   endedAt: z.date().optional().nullable().default(null),
   companyId: z.string().nullable().optional().default(null),
