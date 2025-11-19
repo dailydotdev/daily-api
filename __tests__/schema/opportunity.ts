@@ -3720,6 +3720,214 @@ describe('mutation editOpportunity', () => {
       'Only opportunities in draft state can be edited',
     );
   });
+
+  it('should edit opportunity with organization data', async () => {
+    loggedUser = '1';
+
+    const MUTATION_WITH_ORG = /* GraphQL */ `
+      mutation EditOpportunityWithOrg(
+        $id: ID!
+        $payload: OpportunityEditInput!
+      ) {
+        editOpportunity(id: $id, payload: $payload) {
+          id
+          organization {
+            id
+            website
+            description
+            perks
+            founded
+            location
+            category
+            size
+            stage
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(MUTATION_WITH_ORG, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          organization: {
+            website: 'https://updated.dev',
+            description: 'Updated description',
+            perks: ['Remote work', 'Flexible hours'],
+            founded: 2021,
+            location: 'Berlin, Germany',
+            category: 'Technology',
+            size: CompanySize.COMPANY_SIZE_51_200,
+            stage: CompanyStage.SERIES_B,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.organization).toMatchObject({
+      website: 'https://updated.dev',
+      description: 'Updated description',
+      perks: ['Remote work', 'Flexible hours'],
+      founded: 2021,
+      location: 'Berlin, Germany',
+      category: 'Technology',
+      size: CompanySize.COMPANY_SIZE_51_200,
+      stage: CompanyStage.SERIES_B,
+    });
+
+    // Verify the organization was updated in database
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: organizationsFixture[0].id });
+
+    expect(organization).toMatchObject({
+      website: 'https://updated.dev',
+      description: 'Updated description',
+      perks: ['Remote work', 'Flexible hours'],
+      founded: 2021,
+      location: 'Berlin, Germany',
+      category: 'Technology',
+      size: CompanySize.COMPANY_SIZE_51_200,
+      stage: CompanyStage.SERIES_B,
+    });
+  });
+});
+
+describe('mutation clearOrganizationImage', () => {
+  beforeEach(async () => {
+    await con.getRepository(OpportunityJob).update(
+      {
+        id: opportunitiesFixture[0].id,
+      },
+      {
+        state: OpportunityState.DRAFT,
+      },
+    );
+  });
+
+  const MUTATION = /* GraphQL */ `
+    mutation ClearOrganizationImage($id: ID!) {
+      clearOrganizationImage(id: $id) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw error when user is not a recruiter for opportunity', async () => {
+    loggedUser = '2';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+        },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+  });
+
+  it('should throw error when opportunity does not exist', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '660e8400-e29b-41d4-a716-446655440999',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should clear organization image', async () => {
+    loggedUser = '1';
+
+    // First set an image on the organization
+    await con
+      .getRepository(Organization)
+      .update(
+        { id: organizationsFixture[0].id },
+        { image: 'https://example.com/old-image.png' },
+      );
+
+    // Verify image is set
+    let organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: organizationsFixture[0].id });
+    expect(organization?.image).toBe('https://example.com/old-image.png');
+
+    // Clear the image
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.clearOrganizationImage).toEqual({ _: true });
+
+    // Verify image was cleared in database
+    organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: organizationsFixture[0].id });
+    expect(organization?.image).toBeNull();
+  });
+
+  it('should work with opportunity permissions not direct organization permissions', async () => {
+    loggedUser = '3';
+
+    // User 3 is not a recruiter for opportunity 0, but let's make them one
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '3',
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Set an image on the organization
+    await con
+      .getRepository(Organization)
+      .update(
+        { id: organizationsFixture[0].id },
+        { image: 'https://example.com/test-image.png' },
+      );
+
+    // Should be able to clear the image through opportunity permissions
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.clearOrganizationImage).toEqual({ _: true });
+
+    // Verify image was cleared
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: organizationsFixture[0].id });
+    expect(organization?.image).toBeNull();
+  });
 });
 
 describe('mutation recommendOpportunityScreeningQuestions', () => {
@@ -3955,6 +4163,10 @@ describe('mutation updateOpportunityState', () => {
           'content.responsibilities',
           'content.requirements',
           'questions',
+          'organization.links.0.socialType',
+          'organization.links.1.socialType',
+          'organization.links.2.title',
+          'organization.links.3.socialType',
         ]);
       },
     );
