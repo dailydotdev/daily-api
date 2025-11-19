@@ -13,7 +13,7 @@ import {
 } from '../common/schema/autocompletes';
 import type z from 'zod';
 import { Company, CompanyType } from '../entity/Company';
-import type { MapboxResponse } from '../entity/dataset/utils';
+import { mapboxClient } from '../integrations/mapbox/clients';
 
 interface AutocompleteData {
   result: string[];
@@ -107,26 +107,21 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       ctx: AuthContext,
     ): Promise<GQLLocation[]> => {
       const { query } = autocompleteBaseSchema.parse(payload);
-      const mapboxUrl = `${process.env.MAPBOX_GEOCODING_URL}?q=${encodeURIComponent(query)}&types=country,place&limit=5&access_token=${process.env.MAPBOX_ACCESS_TOKEN}`;
 
       try {
-        const response = await fetch(mapboxUrl);
-
-        if (!response.ok) {
-          return [];
-        }
-
-        const data: MapboxResponse = await response.json();
+        // Use the new Mapbox client with Garmr integration
+        const data = await mapboxClient.autocomplete(query);
 
         return data.features.map((feature) => ({
           id: feature.properties.mapbox_id,
           country:
-            feature.properties.context.country?.name || feature.properties.name,
+            feature.properties.context?.country?.name ||
+            feature.properties.name,
           city:
             feature.properties.feature_type === 'place'
               ? feature.properties.name
               : null,
-          subdivision: feature.properties.context.region?.name || null,
+          subdivision: feature.properties.context?.region?.name || null,
         }));
       } catch (error) {
         ctx.log.error(

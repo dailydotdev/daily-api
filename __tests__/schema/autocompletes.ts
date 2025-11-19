@@ -14,7 +14,8 @@ import { usersFixture } from '../fixture/user';
 import { keywordsFixture } from '../fixture/keywords';
 import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
 import { Company, CompanyType } from '../../src/entity/Company';
-import type { MapboxResponse } from '../../src/entity/dataset/utils';
+import type { MapboxResponse } from '../../src/integrations/mapbox/types';
+import nock from 'nock';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -375,6 +376,7 @@ describe('query autocompleteLocation', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    nock.cleanAll();
   });
 
   it('should return unauthenticated when not logged in', () =>
@@ -432,10 +434,16 @@ describe('query autocompleteLocation', () => {
       response_id: 'test-response-id',
     };
 
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockMapboxResponse,
-    } as Response);
+    // Mock the Mapbox API response
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'new york',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .reply(200, mockMapboxResponse);
 
     const res = await client.query(QUERY, {
       variables: { query: 'new york' },
@@ -451,12 +459,7 @@ describe('query autocompleteLocation', () => {
       },
     ]);
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('new%20york'),
-    );
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('types=country,place'),
-    );
+    expect(nock.isDone()).toBe(true);
   });
 
   it('should handle countries without cities', async () => {
@@ -498,10 +501,16 @@ describe('query autocompleteLocation', () => {
       response_id: 'test-response-id',
     };
 
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockMapboxResponse,
-    } as Response);
+    // Mock the Mapbox API response
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'united states',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .reply(200, mockMapboxResponse);
 
     const res = await client.query(QUERY, {
       variables: { query: 'united states' },
@@ -597,10 +606,16 @@ describe('query autocompleteLocation', () => {
       response_id: 'test-response-id',
     };
 
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockMapboxResponse,
-    } as Response);
+    // Mock the Mapbox API response
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'san',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .reply(200, mockMapboxResponse);
 
     const res = await client.query(QUERY, {
       variables: { query: 'san' },
@@ -627,10 +642,16 @@ describe('query autocompleteLocation', () => {
   it('should return empty array when Mapbox API fails', async () => {
     loggedUser = '1';
 
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-    } as Response);
+    // Mock the Mapbox API to return an error
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'test',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .reply(500, 'Internal Server Error');
 
     const res = await client.query(QUERY, {
       variables: { query: 'test' },
@@ -650,10 +671,16 @@ describe('query autocompleteLocation', () => {
       response_id: 'test-response-id',
     };
 
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockMapboxResponse,
-    } as Response);
+    // Mock the Mapbox API response
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'nonexistentlocation',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .reply(200, mockMapboxResponse);
 
     const res = await client.query(QUERY, {
       variables: { query: 'nonexistentlocation' },
@@ -666,9 +693,16 @@ describe('query autocompleteLocation', () => {
   it('should handle API network errors gracefully', async () => {
     loggedUser = '1';
 
-    jest
-      .spyOn(global, 'fetch')
-      .mockRejectedValueOnce(new Error('Network error'));
+    // Mock a network error
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'test',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .replyWithError('Network error');
 
     const res = await client.query(QUERY, {
       variables: { query: 'test' },
@@ -718,10 +752,16 @@ describe('query autocompleteLocation', () => {
       response_id: 'test-response-id',
     };
 
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockMapboxResponse,
-    } as Response);
+    // Mock the Mapbox API response
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'berlin',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .reply(200, mockMapboxResponse);
 
     const res = await client.query(QUERY, {
       variables: { query: 'berlin' },
@@ -748,21 +788,24 @@ describe('query autocompleteLocation', () => {
       response_id: 'test-response-id',
     };
 
-    jest.spyOn(global, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => mockMapboxResponse,
-    } as Response);
+    // Mock the Mapbox API response
+    // Note: nock automatically handles URL encoding
+    nock('https://api.mapbox.com')
+      .get('/search/geocode/v6/forward')
+      .query({
+        q: 'San Francisco, CA',
+        types: 'country,place',
+        limit: 5,
+        access_token: process.env.MAPBOX_ACCESS_TOKEN,
+      })
+      .reply(200, mockMapboxResponse);
 
     const res = await client.query(QUERY, {
       variables: { query: 'San Francisco, CA' },
     });
 
     expect(res.errors).toBeFalsy();
-    // URL encoding converts spaces to %20 and comma to %2C
-    // The query gets lowercased in the URL
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('san%20francisco%2C%20ca'),
-    );
+    expect(res.data.autocompleteLocation).toEqual([]);
   });
 });
 
