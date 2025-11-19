@@ -53,6 +53,7 @@ import {
   mapCloudinaryUrl,
   THREE_MONTHS_IN_SECONDS,
   isTest,
+  excludeProperties,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -199,23 +200,6 @@ const visitSection = async (
     visitId,
     sessionId,
   };
-};
-
-export const excludeProperties = <T, K extends keyof T>(
-  obj: T,
-  properties: K[],
-): Pick<T, Exclude<keyof T, K>> => {
-  if (!obj) {
-    return obj;
-  }
-
-  const clone = structuredClone(obj);
-
-  properties.forEach((prop) => {
-    delete clone[prop];
-  });
-
-  return clone;
 };
 
 export const includeProperties = <T, K extends keyof T>(
