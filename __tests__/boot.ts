@@ -425,6 +425,7 @@ describe('logged in boot', () => {
       iso2: 'US',
       iso3: 'USA',
       timezone: 'America/Los_Angeles',
+      externalId: '123',
       ranking: 1,
     });
 
@@ -445,6 +446,7 @@ describe('logged in boot', () => {
       city: 'San Francisco',
       subdivision: 'California',
       country: 'United States',
+      externalId: '123',
     });
   });
 
