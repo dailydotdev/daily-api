@@ -1,5 +1,7 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
+// @ts-expect-error - no types
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
@@ -37,6 +39,7 @@ import {
   generateResumeSignedUrl,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
+import { uploadOrganizationImage } from '../common/cloudinary';
 import {
   opportunityEditSchema,
   opportunityStateLiveSchema,
@@ -50,6 +53,11 @@ import {
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
+import { Organization } from '../entity/Organization';
+import {
+  OrganizationLinkType,
+  SocialMediaType,
+} from '../common/schema/organizations';
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
@@ -91,6 +99,8 @@ export type GQLOpportunityScreeningQuestion = Pick<
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
+  ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
+  ${toGQLEnum(SocialMediaType, 'SocialMediaType')}
 
   type OpportunityContentBlock {
     content: String
@@ -376,6 +386,25 @@ export const typeDefs = /* GraphQL */ `
     placeholder: String
   }
 
+  input OrganizationLinkInput {
+    type: OrganizationLinkType!
+    socialType: SocialMediaType
+    title: String!
+    link: String!
+  }
+
+  input OrganizationEditInput {
+    website: String
+    description: String
+    perks: [String!]
+    founded: Int
+    location: String
+    category: String
+    size: Int
+    stage: Int
+    links: [OrganizationLinkInput!]
+  }
+
   input OpportunityEditInput {
     title: String
     tldr: String
@@ -384,6 +413,7 @@ export const typeDefs = /* GraphQL */ `
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
+    organization: OrganizationEditInput
   }
 
   extend type Mutation {
@@ -490,7 +520,22 @@ export const typeDefs = /* GraphQL */ `
       Opportunity data to update
       """
       payload: OpportunityEditInput!
+
+      """
+      Organization image to upload
+      """
+      organizationImage: Upload
     ): Opportunity! @auth
+
+    """
+    Clear the organization image for an opportunity
+    """
+    clearOrganizationImage(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): EmptyResponse @auth
 
     recommendOpportunityScreeningQuestions(
       """
@@ -1150,7 +1195,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         id,
         payload,
-      }: { id: string; payload: z.infer<typeof opportunityEditSchema> },
+        organizationImage,
+      }: {
+        id: string;
+        payload: z.infer<typeof opportunityEditSchema>;
+        organizationImage?: Promise<FileUpload>;
+      },
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunity> => {
@@ -1165,8 +1215,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       await ctx.con.transaction(async (entityManager) => {
-        const { keywords, content, questions, ...opportunityUpdate } =
-          opportunity;
+        const {
+          keywords,
+          content,
+          questions,
+          organization,
+          ...opportunityUpdate
+        } = opportunity;
 
         const renderedContent: Record<
           string,
@@ -1198,6 +1253,41 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('contentJson', opportunityContent.toJsonString())
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
+
+        if (organization || organizationImage) {
+          const opportunityJob = await entityManager
+            .getRepository(OpportunityJob)
+            .findOne({
+              where: { id },
+              select: ['organizationId'],
+            });
+
+          if (opportunityJob?.organizationId) {
+            const organizationUpdate: Record<string, unknown> = {
+              ...organization,
+            };
+
+            // Handle image upload
+            if (organizationImage) {
+              const { createReadStream } = await organizationImage;
+              const stream = createReadStream();
+              const { url: imageUrl } = await uploadOrganizationImage(
+                opportunityJob.organizationId,
+                stream,
+              );
+              organizationUpdate.image = imageUrl;
+            }
+
+            if (Object.keys(organizationUpdate).length > 0) {
+              await entityManager
+                .getRepository(Organization)
+                .update(
+                  { id: opportunityJob.organizationId },
+                  organizationUpdate,
+                );
+            }
+          }
+        }
 
         if (Array.isArray(keywords)) {
           await entityManager.getRepository(OpportunityKeyword).delete({
@@ -1250,6 +1340,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         return builder;
       });
+    },
+    clearOrganizationImage: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.Edit,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunityJob = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOne({
+          where: { id },
+          select: ['organizationId'],
+        });
+
+      if (!opportunityJob?.organizationId) {
+        throw new NotFoundError('Opportunity not found');
+      }
+
+      await ctx.con
+        .getRepository(Organization)
+        .update(opportunityJob.organizationId, { image: null });
+
+      return { _: true };
     },
     recommendOpportunityScreeningQuestions: async (
       _,

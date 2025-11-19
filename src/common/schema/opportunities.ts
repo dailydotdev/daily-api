@@ -1,5 +1,6 @@
 import { OpportunityState } from '@dailydotdev/schema';
 import z from 'zod';
+import { organizationLinksSchema } from './organizations';
 
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
@@ -143,6 +144,17 @@ export const opportunityEditSchema = z
       )
       .min(1)
       .max(3),
+    organization: z.object({
+      website: z.string().max(500).nullable().optional(),
+      description: z.string().max(2000).nullable().optional(),
+      perks: z.array(z.string().max(240)).max(50).nullable().optional(),
+      founded: z.number().int().min(1800).max(2100).nullable().optional(),
+      location: z.string().max(500).nullable().optional(),
+      category: z.string().max(240).nullable().optional(),
+      size: z.number().int().nullable().optional(),
+      stage: z.number().int().nullable().optional(),
+      links: z.array(organizationLinksSchema).max(50).optional(),
+    }),
   })
   .partial();
 
