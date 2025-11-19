@@ -1487,9 +1487,9 @@ const onUserExperienceChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserExperience>,
 ) => {
-  const experience = data.payload.after!;
+  const experience = data.payload.after;
 
-  if (experience.type !== UserExperienceType.Work) {
+  if (!experience || experience.type !== UserExperienceType.Work) {
     return;
   }
 
