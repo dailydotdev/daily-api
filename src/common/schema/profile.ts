@@ -44,11 +44,11 @@ export const userExperienceProjectSchema = z
 export const userExperienceWorkSchema = z
   .object({
     externalReferenceId: z.string().optional(),
-    employmentType: z.number().nullable().optional().default(null),
-    locationType: z.number().nullable().optional().default(null),
+    employmentType: z.number().nullish().default(null),
+    locationType: z.number().nullish().default(null),
     externalLocationId: z.preprocess(
       (val) => (val === '' ? null : val),
-      z.string().nullable().optional().default(null),
+      z.string().nullish().default(null),
     ),
     skills: z
       .array(z.string().trim().normalize().nonempty().max(100))

@@ -167,7 +167,6 @@ import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchem
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { excludeProperties } from '../common/utils';
 import { createLocationFromMapbox } from '../entity/dataset/utils';
 
 export interface GQLUpdateUserInput {
@@ -2558,11 +2557,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const readmeHtml = markdown.render(data.readme || '');
 
       try {
-        const formProps = excludeProperties(data, ['externalLocationId']);
+        delete data.externalLocationId;
 
         const updatedUser = {
           ...user,
-          ...formProps,
+          ...data,
           image: avatar,
           cover,
           readmeHtml,

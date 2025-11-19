@@ -320,20 +320,3 @@ export const textToSlug = (text: string): string =>
     locale: 'en',
     replacement: '-',
   }).substring(0, 100);
-
-export const excludeProperties = <T, K extends keyof T>(
-  obj: T,
-  properties: K[],
-): Pick<T, Exclude<keyof T, K>> => {
-  if (!obj) {
-    return obj;
-  }
-
-  const clone = structuredClone(obj);
-
-  properties.forEach((prop) => {
-    delete clone[prop];
-  });
-
-  return clone;
-};
