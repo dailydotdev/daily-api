@@ -389,7 +389,7 @@ export const typeDefs = /* GraphQL */ `
   input OrganizationLinkInput {
     type: OrganizationLinkType!
     socialType: SocialMediaType
-    title: String!
+    title: String
     link: String!
   }
 
