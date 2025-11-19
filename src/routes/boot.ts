@@ -516,6 +516,7 @@ const getLocation = async (
       'location.city',
       'location.subdivision',
       'location.country',
+      'location.externalId',
     ])
     .where('user.id = :userId', { userId })
     .getOne();

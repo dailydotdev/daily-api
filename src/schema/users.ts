@@ -363,6 +363,10 @@ export const typeDefs = /* GraphQL */ `
     Subdivision of the location
     """
     subdivision: String
+    """
+    External ID of the location
+    """
+    externalId: String
   }
 
   """

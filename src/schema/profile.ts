@@ -82,7 +82,7 @@ export const typeDefs = /* GraphQL */ `
     externalReferenceId: String
     subtitle: String
     employmentType: ProtoEnumValue
-    location: Location
+    location: DatasetLocation
     locationType: ProtoEnumValue
     skills: [UserExperienceSkill]
   }
@@ -302,10 +302,6 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       info,
     ): Promise<GQLUserExperience> => {
       const result = await generateExperienceToSave(ctx, args);
-
-      if (!result.parsedInput.externalLocationId) {
-        throw new Error('externalLocationId is required');
-      }
 
       let location: DatasetLocation | null = null;
       if (result.parsedInput.externalLocationId) {
