@@ -26,6 +26,7 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
+import { createLocationFromMapbox } from '../entity/dataset/utils';
 interface GQLUserExperience {
   id: string;
   type: UserExperienceType;
@@ -125,7 +126,7 @@ export const typeDefs = /* GraphQL */ `
 
   input UserExperienceWorkInput {
     ${baseExperienceInput}
-    locationId: ID
+    externalLocationId: String
     locationType: ProtoEnumValue
     employmentType: ProtoEnumValue
     skills: [String]
@@ -302,10 +303,22 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
     ): Promise<GQLUserExperience> => {
       const result = await generateExperienceToSave(ctx, args);
 
-      if (result.parsedInput.locationId) {
-        await ctx.con.getRepository(DatasetLocation).findOneOrFail({
-          where: { id: result.parsedInput.locationId },
-        });
+      let locationId: string | null = null;
+      if (result.parsedInput.externalLocationId) {
+        const existingLocation = await ctx.con
+          .getRepository(DatasetLocation)
+          .findOne({
+            where: { externalId: result.parsedInput.externalLocationId },
+          });
+        if (existingLocation) {
+          locationId = existingLocation.id;
+        } else {
+          const newLocation = await createLocationFromMapbox(
+            ctx.con,
+            result.parsedInput.externalLocationId,
+          );
+          locationId = newLocation.id;
+        }
       }
 
       const entity = await ctx.con.transaction(async (con) => {
@@ -313,6 +326,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         const skills = result.parsedInput.skills;
         const saved = await repo.save({
           ...result.userExperience,
+          locationId,
           type: args.input.type,
           userId: ctx.userId,
         });

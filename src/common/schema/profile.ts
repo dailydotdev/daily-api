@@ -46,9 +46,9 @@ export const userExperienceWorkSchema = z
     externalReferenceId: z.string().optional(),
     employmentType: z.number().nullable().optional().default(null),
     locationType: z.number().nullable().optional().default(null),
-    locationId: z.preprocess(
+    externalLocationId: z.preprocess(
       (val) => (val === '' ? null : val),
-      z.string().uuid().nullable().optional().default(null),
+      z.string().nullable().optional().default(null),
     ),
     skills: z
       .array(z.string().trim().normalize().nonempty().max(100))
