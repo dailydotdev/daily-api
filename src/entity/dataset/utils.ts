@@ -64,7 +64,7 @@ export const createLocationFromMapbox = async (
   const response = await fetch(mapboxGeocodingUrl);
 
   if (!response.ok) {
-    throw new Error('API error');
+    throw new Error('Mapbox API error');
   }
 
   const geocodingData = await response.json();

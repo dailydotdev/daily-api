@@ -303,21 +303,20 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
     ): Promise<GQLUserExperience> => {
       const result = await generateExperienceToSave(ctx, args);
 
-      let locationId: string | null = null;
+      if (!result.parsedInput.externalLocationId) {
+        throw new Error('externalLocationId is required');
+      }
+
+      let location: DatasetLocation | null = null;
       if (result.parsedInput.externalLocationId) {
-        const existingLocation = await ctx.con
-          .getRepository(DatasetLocation)
-          .findOne({
-            where: { externalId: result.parsedInput.externalLocationId },
-          });
-        if (existingLocation) {
-          locationId = existingLocation.id;
-        } else {
-          const newLocation = await createLocationFromMapbox(
+        location = await ctx.con.getRepository(DatasetLocation).findOne({
+          where: { externalId: result.parsedInput.externalLocationId },
+        });
+        if (!location) {
+          location = await createLocationFromMapbox(
             ctx.con,
             result.parsedInput.externalLocationId,
           );
-          locationId = newLocation.id;
         }
       }
 
@@ -326,7 +325,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         const skills = result.parsedInput.skills;
         const saved = await repo.save({
           ...result.userExperience,
-          locationId,
+          locationId: location?.id || null,
           type: args.input.type,
           userId: ctx.userId,
         });
