@@ -104,7 +104,6 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
     autocompleteLocation: async (
       _,
       payload: z.infer<typeof autocompleteSchema>,
-      ctx: AuthContext,
     ): Promise<GQLLocation[]> => {
       const { query } = autocompleteBaseSchema.parse(payload);
 
@@ -124,10 +123,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           subdivision: feature.properties.context?.region?.name || null,
         }));
       } catch (error) {
-        ctx.log.error(
-          { error },
-          'Failed to fetch location autocomplete from Mapbox',
-        );
+        // We return an empty array to not confuse the user, as they will likely continue typing and the autocomplete might succeed on consecutive requests.
         return [];
       }
     },

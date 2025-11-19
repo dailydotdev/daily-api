@@ -43,12 +43,6 @@ export class MapboxClient implements IMapboxClient {
 
       const response = await fetch(url);
 
-      if (!response.ok) {
-        throw new Error(
-          `Mapbox API error: ${response.status} ${response.statusText}`,
-        );
-      }
-
       return response.json() as Promise<MapboxResponse>;
     });
   }
