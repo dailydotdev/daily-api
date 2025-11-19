@@ -37,7 +37,7 @@ export class Organization {
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  image: string;
+  image: string | null;
 
   @Column({ type: 'smallint', default: 1 })
   seats: number;
