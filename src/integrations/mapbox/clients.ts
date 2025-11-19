@@ -55,7 +55,7 @@ export class MapboxClient implements IMapboxClient {
 }
 
 // Configure Garmr service for Mapbox
-// No bulkhead/rate limiting - let Mapbox's 1000 req/min limit handle it
+// Rate limiting - let Mapbox's 1000 req/min limit handle it
 const garmrMapboxService = new GarmrService({
   service: 'mapbox',
   breakerOpts: {
@@ -70,7 +70,6 @@ const garmrMapboxService = new GarmrService({
   },
 });
 
-// Export singleton client instance
 export const mapboxClient = new MapboxClient(
   process.env.MAPBOX_GEOCODING_URL!,
   process.env.MAPBOX_ACCESS_TOKEN!,
