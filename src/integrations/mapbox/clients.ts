@@ -59,7 +59,7 @@ const garmrMapboxService = new GarmrService({
     minimumRps: 0,
   },
   retryOpts: {
-    maxAttempts: 3,
+    maxAttempts: 2,
     backoff: 100,
   },
 });
