@@ -167,7 +167,7 @@ import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchem
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { excludeProperties } from '../routes/boot';
+import { excludeProperties } from '../common/utils';
 import { createLocationFromMapbox } from '../entity/dataset/utils';
 
 export interface GQLUpdateUserInput {

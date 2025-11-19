@@ -76,7 +76,8 @@ import {
 } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { CoresRole, UserVote } from '../src/types';
-import { BootAlerts, excludeProperties, FunnelBoot } from '../src/routes/boot';
+import { BootAlerts, FunnelBoot } from '../src/routes/boot';
+import { excludeProperties } from '../src/common/utils';
 import { SubscriptionCycles } from '../src/paddle';
 import * as njordCommon from '../src/common/njord';
 import { Credits, EntityType } from '@dailydotdev/schema';
