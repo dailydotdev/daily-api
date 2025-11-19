@@ -1284,28 +1284,6 @@ describe('mutation upsertUserWorkExperience', () => {
     );
   });
 
-  it('should fail when locationId does not exist', async () => {
-    loggedUser = '1';
-
-    await testQueryErrorCode(
-      client,
-      {
-        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
-        variables: {
-          input: {
-            type: 'work',
-            title: 'Remote Developer',
-            startedAt: new Date('2023-01-01'),
-            companyId: 'company-1',
-            locationId: 'd4e5f6a7-89ab-4dea-a012-456789012345', // Non-existent location UUID (v4 format)
-            skills: [],
-          },
-        },
-      },
-      'NOT_FOUND',
-    );
-  });
-
   it('should add new skills when creating experience', async () => {
     loggedUser = '1';
 

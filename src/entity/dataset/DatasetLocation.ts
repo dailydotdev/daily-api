@@ -32,12 +32,7 @@ export class DatasetLocation {
   @Index('IDX_dataset_location_iso3')
   iso3: string;
 
-  @Column()
-  timezone: string;
-
-  @Column({ default: 0 })
-  ranking: number;
-
-  @Column({ type: 'text', nullable: true })
+  @Index('IDX_dataset_location_externalId')
+  @Column({ type: 'text', nullable: true, unique: true })
   externalId: string | null;
 }

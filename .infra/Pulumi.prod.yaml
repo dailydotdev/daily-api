@@ -6,7 +6,7 @@ config:
       secure: AAABAGND38ZY4hSe1YR2RTh/JyY3g3pBsK8Ovm4FCs6Et4ihLMPkAvZUKDy+T6N1Wg1OEmO3q9JMeB3dNGZ3ptLDTEDZ8bpAh7FBBMuZGxeC81i1XwzCNAMPzKwm2m3ZJkSSWRdxkEp8m+0qfpiPCscYGpeKCmRJUZqDHuMUl1S+kMAK4CQn+xdCtDLhI+9EqujfNyyGXaPzw1UkEMAF7RZs5GSWvoTOWIwN5N4TC7Uwi3dZq2COQcGJ2RdjCFDtbq3uDoq7kLsgQsCxG02hJnjzxlbRzpm+CVq6Alkj1v0FgpzY7kdX2xpBnjNz9Rd7ILOYni6PMcvF+uM1FJRnUxcZMExM8sS7Lm14CPdi/IjTRXvu7ie+FNmRbotEypb2fBLHLxrcrn4EtB/6ihTFfg2mCOMY3I74laKihU3hjpUR3YpVS3Eio+cEYB5SBdxIexA2Ff7TIyJe6dY3VwoeB9Ln3VqU4KtWEvOIKArZK+lR4GL1qmlEFshB8OvjHoLBnBWoMKXSXkyO9kTaQUEPRjyrxKgLLkRVHsp04aTW95VZQRkykUvzGGAFkUwiTKeC4/SPPkOpbl41dHfQL2lWGvMlfuwoi0lDwM1vbM/XEmASjVghvReZYE9/qnY09VnI1E8=
   api:clickhouseSync:
     keys:
-      slot.name: "clickhouse_sync"
+      slot.name: 'clickhouse_sync'
     vars:
       clickhouse_database:
         secure: AAABAFXhGil+ZGIYbGEIU71Q2eQslzMjGAkeeW0LumXI3GA=
@@ -22,7 +22,7 @@ config:
     secure: AAABAHdC/62trKcIoEduX+v3nBKj/KJ1XDNPRwwEwqcq33TLhqLrVq9oJfFsq/aX
   api:debeziumDbUser:
     secure: AAABAO0E/09gCux4t78RzYaMt9h+ZVFXNo6KS9mwLuKX11/HvmX7sg==
-  api:enablePersonalizedDigest: "true"
+  api:enablePersonalizedDigest: 'true'
   api:env:
     accessSecret:
       secure: AAABALdzzBMEk2sKYDjFrWsbsdYJDOvfDfmnOmaj6lvRkds8E6SYw1RNgQ/hpCky9W8BeJXFzu2b0W6jD30KkA==
@@ -183,6 +183,9 @@ config:
       secure: AAABANouDkXZrXKlBhPnSmgjwQS/mb+qPaFmD/vpxeEkdCx4pfnsjYOsdOQFvsH6KcXb7BNGnnEtpEBUaeb3CNNMUbc2/JP80iNsnJSrF4hx5zBEYEPlMi0rmTXAJ4nc087FooqlV031idBJLxyNLDU=
     snotraOrigin:
       secure: AAABAGav+Zu5sB3oCBC6iBCp1igmACgiKlwl0YkDsLawDBUGaPKulWIr8v/hUnwuTsLgaVS3A1azmw50v+PRKhJPblETkKZpqNB4JCnrQ92k
+    mapboxAccessToken:
+      secure: AAABAGQ/EX6kte5JXzyFrBmYlob0zx+IyG7RIbbcpySfexg2C6aqhoAJQ+aaXCw9UaVXMbMlncgnVvCWnhmR361glY6aDeNfUFXEBYARRJRnZJjXWPXw6KJEWinueHakjMeTpTelCQ2bCBXS0TzEtEE/n0HDqynumezR7A==
+    mapboxGeocodingUrl: https://api.mapbox.com/search/geocode/v6/forward
   api:k8s:
     host: subs.daily.dev
     namespace: daily

@@ -76,7 +76,8 @@ import {
 } from '../src/common';
 import { saveReturnAlerts } from '../src/schema/alerts';
 import { CoresRole, UserVote } from '../src/types';
-import { BootAlerts, excludeProperties, FunnelBoot } from '../src/routes/boot';
+import { BootAlerts, FunnelBoot } from '../src/routes/boot';
+import { excludeProperties } from '../src/routes/boot';
 import { SubscriptionCycles } from '../src/paddle';
 import * as njordCommon from '../src/common/njord';
 import { Credits, EntityType } from '@dailydotdev/schema';
@@ -424,6 +425,7 @@ describe('logged in boot', () => {
       iso2: 'US',
       iso3: 'USA',
       timezone: 'America/Los_Angeles',
+      externalId: '123',
       ranking: 1,
     });
 
@@ -444,6 +446,7 @@ describe('logged in boot', () => {
       city: 'San Francisco',
       subdivision: 'California',
       country: 'United States',
+      externalId: '123',
     });
   });
 
