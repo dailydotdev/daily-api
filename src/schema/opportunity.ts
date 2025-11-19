@@ -1263,16 +1263,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             });
 
           if (opportunityJob?.organizationId) {
-            // Filter out null and undefined values for TypeORM update
-            const organizationUpdate: Record<string, unknown> = {};
-
-            if (organization) {
-              Object.entries(organization).forEach(([key, value]) => {
-                if (value !== null && value !== undefined) {
-                  organizationUpdate[key] = value;
-                }
-              });
-            }
+            const organizationUpdate: Record<string, unknown> = {
+              ...organization,
+            };
 
             // Handle image upload
             if (organizationImage) {
