@@ -1,5 +1,6 @@
 import { URL } from 'url';
 import { FastifyInstance } from 'fastify';
+import encodeurl from 'encodeurl';
 import { ArticlePost, Post } from '../entity';
 import { getDiscussionLink, notifyView } from '../common';
 import createOrGetConnection from '../db';
@@ -35,7 +36,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
       const url = new URL(post.url);
       url.searchParams.append('ref', 'dailydev');
-      const encodedUri = encodeURI(url.href);
+      const encodedUri = encodeurl(url.href);
       if (req.isBot) {
         return res.status(302).redirect(encodedUri);
       }
