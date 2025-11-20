@@ -111,14 +111,14 @@ describe('GET /r/:postId', () => {
       .getRepository(ArticlePost)
       .update(
         { id: 'p1' },
-        { url: 'http://p1.com/hello%world/%f0%9f%9a%80-to-the-🌔' },
+        { url: 'http://p1.com/hello%20world/%f0%9f%9a%80-to-the-🌔' },
       );
     return request(app.server)
       .get('/r/p1')
       .expect(302)
       .expect(
         'Location',
-        'http://p1.com/hello%world/%f0%9f%9a%80-to-the-%F0%9F%8C%94?ref=dailydev',
+        'http://p1.com/hello%20world/%f0%9f%9a%80-to-the-%F0%9F%8C%94?ref=dailydev',
       );
   });
 });
