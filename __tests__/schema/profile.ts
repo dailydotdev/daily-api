@@ -196,37 +196,6 @@ describe('query userExperiences', () => {
     expect(res.data.userExperiences.edges).toHaveLength(1);
   });
 
-  it('should restrict fields for anonymous users to only allowed columns', async () => {
-    loggedUser = null;
-
-    const res = await client.query(USER_EXPERIENCES_QUERY, {
-      variables: { userId: '1' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userExperiences.edges).toHaveLength(1);
-
-    const experience = res.data.userExperiences.edges[0].node;
-
-    // Allowed columns for anonymous users
-    expect(experience).toMatchObject({
-      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      type: 'work',
-      title: 'Senior Software Engineer',
-      company: {
-        id: 'company-1',
-        name: 'Daily.dev',
-      },
-    });
-
-    // Restricted columns should be null for anonymous users
-    expect(experience.subtitle).toBeNull();
-    expect(experience.description).toBeNull();
-    expect(experience.startedAt).toBeNull();
-    expect(experience.endedAt).toBeNull();
-    expect(experience.createdAt).toBeNull();
-  });
-
   it('should return all fields for logged-in users', async () => {
     loggedUser = '1';
 
@@ -515,35 +484,6 @@ describe('query userExperienceById', () => {
     });
   });
 
-  it('should restrict fields for anonymous users when fetching by id', async () => {
-    loggedUser = null;
-
-    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
-      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
-    });
-
-    expect(res.errors).toBeFalsy();
-
-    const experience = res.data.userExperienceById;
-
-    // Allowed columns for anonymous users
-    expect(experience).toMatchObject({
-      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-      type: 'work',
-      title: 'Senior Software Engineer',
-      company: {
-        name: 'Daily.dev',
-      },
-    });
-
-    // Restricted columns should be null for anonymous users
-    expect(experience.subtitle).toBeNull();
-    expect(experience.description).toBeNull();
-    expect(experience.startedAt).toBeNull();
-    expect(experience.endedAt).toBeNull();
-    expect(experience.createdAt).toBeNull();
-  });
-
   it('should return experience from another user', async () => {
     loggedUser = '1';
 
@@ -682,6 +622,7 @@ describe('mutation upsertUserGeneralExperience', () => {
           description: 'Built a popular browser extension for developers',
           startedAt: new Date('2021-01-01'),
           url: 'https://github.com/dailydotdev/extension',
+          customCompanyName: 'Personal Project',
         },
       },
     });
@@ -801,6 +742,7 @@ describe('mutation upsertUserGeneralExperience', () => {
           title: 'Self-taught Developer',
           startedAt: new Date('2020-01-01'),
           companyId: null,
+          customCompanyName: 'Self-taught',
         },
       },
     });
@@ -808,6 +750,7 @@ describe('mutation upsertUserGeneralExperience', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.upsertUserGeneralExperience).toMatchObject({
       company: null,
+      customCompanyName: 'Self-taught',
     });
   });
 
@@ -844,6 +787,7 @@ describe('mutation upsertUserGeneralExperience', () => {
             type: 'certification',
             title: 'Test',
             startedAt: new Date('2020-01-01'),
+            customCompanyName: 'Test Company',
           },
         },
       },
@@ -865,6 +809,7 @@ describe('mutation upsertUserGeneralExperience', () => {
             type: 'work',
             title: 'Hacked Title',
             startedAt: new Date('2021-01-01'),
+            customCompanyName: 'Some Company',
           },
         },
       },
@@ -889,6 +834,7 @@ describe('mutation upsertUserGeneralExperience', () => {
           type: 'project',
           title: 'Updated Project Title',
           startedAt: new Date('2021-06-01'),
+          companyId: 'company-1',
         },
       },
     });
@@ -1019,6 +965,29 @@ describe('mutation upsertUserGeneralExperience', () => {
     );
   });
 
+  it('should fail when experience has neither companyId nor customCompanyName', async () => {
+    loggedUser = '1';
+
+    const experienceTypes = ['work', 'education', 'project', 'certification'];
+
+    for (const type of experienceTypes) {
+      await testQueryErrorCode(
+        client,
+        {
+          query: UPSERT_USER_GENERAL_EXPERIENCE_MUTATION,
+          variables: {
+            input: {
+              type,
+              title: 'Test Experience',
+              startedAt: new Date('2023-01-01'),
+            },
+          },
+        },
+        'ZOD_VALIDATION_ERROR',
+      );
+    }
+  });
+
   it('should create experience without optional fields', async () => {
     loggedUser = '1';
 
@@ -1028,6 +997,7 @@ describe('mutation upsertUserGeneralExperience', () => {
           type: 'project',
           title: 'Minimal Project',
           startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Project Organization',
         },
       },
     });
@@ -1041,6 +1011,7 @@ describe('mutation upsertUserGeneralExperience', () => {
       endedAt: null,
       url: null,
       company: null,
+      customCompanyName: 'Project Organization',
     });
   });
 
@@ -1304,28 +1275,7 @@ describe('mutation upsertUserWorkExperience', () => {
             type: 'work',
             title: 'Hacked Title',
             startedAt: new Date('2021-01-01'),
-            skills: [],
-          },
-        },
-      },
-      'NOT_FOUND',
-    );
-  });
-
-  it('should fail when locationId does not exist', async () => {
-    loggedUser = '1';
-
-    await testQueryErrorCode(
-      client,
-      {
-        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
-        variables: {
-          input: {
-            type: 'work',
-            title: 'Remote Developer',
-            startedAt: new Date('2023-01-01'),
-            companyId: 'company-1',
-            locationId: 'd4e5f6a7-89ab-4dea-a012-456789012345', // Non-existent location UUID (v4 format)
+            customCompanyName: 'Some Company',
             skills: [],
           },
         },
@@ -1561,6 +1511,25 @@ describe('mutation upsertUserWorkExperience', () => {
       id: experienceId,
       skills: [],
     });
+  });
+
+  it('should fail when work experience has neither companyId nor customCompanyName', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_USER_WORK_EXPERIENCE_MUTATION,
+        variables: {
+          input: {
+            type: 'work',
+            title: 'Software Engineer',
+            startedAt: new Date('2023-01-01'),
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
   });
 });
 

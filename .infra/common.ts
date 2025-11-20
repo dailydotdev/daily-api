@@ -429,6 +429,14 @@ export const workers: Worker[] = [
     topic: 'api.v1.candidate-preference-updated',
     subscription: 'api.extract-cv-markdown',
   },
+  {
+    topic: 'api.v1.candidate-accepted-opportunity',
+    subscription: 'api.candidate-accepted-opportunity-slack',
+  },
+  {
+    topic: 'api.v1.recruiter-rejected-candidate-match',
+    subscription: 'api.recruiter-rejected-candidate-match-email',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -63,6 +63,7 @@ import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
+import { QuestionType } from '../entity/questions/types';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -100,6 +101,15 @@ const nullIfNotSameUser = <T>(
   const user = parent as Pick<User, 'id'>;
 
   return ctx.userId === user.id ? value : null;
+};
+
+const nullIfNotSameUserById = <T>(
+  value: T,
+  ctx: Context,
+  parent: unknown,
+): T | null => {
+  const entity = parent as { userId: string };
+  return ctx.userId === entity.userId ? value : null;
 };
 
 const checkIfTitleIsClickbait = (value?: string): boolean => {
@@ -1489,6 +1499,7 @@ const obj = new GraphORM({
     },
   },
   Opportunity: {
+    requiredColumns: ['id', 'createdAt'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -1535,6 +1546,34 @@ const obj = new GraphORM({
           childColumn: 'opportunityId',
         },
       },
+      questions: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."type" = :screeningType`, {
+                screeningType: QuestionType.Screening,
+              })
+              .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
+        },
+      },
+      feedbackQuestions: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."type" = :feedbackType`, {
+                feedbackType: QuestionType.Feedback,
+              })
+              .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
+        },
+      },
     },
   },
   OpportunityScreeningQuestion: {
@@ -1548,7 +1587,19 @@ const obj = new GraphORM({
       },
     },
   },
+  OpportunityFeedbackQuestion: {
+    from: 'QuestionFeedback',
+    requiredColumns: ['questionOrder'],
+    additionalQuery: (_, alias, qb) =>
+      qb.orderBy(`${alias}."questionOrder"`, 'ASC'),
+    fields: {
+      order: {
+        alias: { field: 'questionOrder', type: 'int' },
+      },
+    },
+  },
   OpportunityMatch: {
+    ignoredColumns: ['engagementProfile'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -1560,6 +1611,9 @@ const obj = new GraphORM({
         jsonType: true,
       },
       screening: {
+        jsonType: true,
+      },
+      feedback: {
         jsonType: true,
       },
       applicationRank: {
@@ -1579,16 +1633,27 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+      candidatePreferences: {
+        relation: {
+          isMany: false,
+          childColumn: 'userId',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserCandidatePreference: {
+    requiredColumns: ['userId'],
+    ignoredColumns: ['signedUrl'],
     fields: {
       cv: {
         jsonType: true,
-        transform: (value: GCSBlob) => ({
-          ...value,
-          lastModified: transformDate(value?.lastModified),
-        }),
+        transform: async (value: GCSBlob) => {
+          return {
+            ...value,
+            lastModified: transformDate(value?.lastModified),
+          };
+        },
       },
       employmentAgreement: {
         jsonType: true,
@@ -1599,6 +1664,7 @@ const obj = new GraphORM({
       },
       salaryExpectation: {
         jsonType: true,
+        transform: nullIfNotSameUserById,
       },
       location: {
         jsonType: true,
@@ -1616,17 +1682,6 @@ const obj = new GraphORM({
     from: 'DatasetLocation',
   },
   UserExperience: {
-    anonymousRestrictedColumns: [
-      'user',
-      'subtitle',
-      'description',
-      'startedAt',
-      'endedAt',
-      'location',
-      'locationType',
-      'createdAt',
-      'updatedAt',
-    ],
     fields: {
       startedAt: {
         transform: transformDate,
@@ -1636,6 +1691,24 @@ const obj = new GraphORM({
       },
       createdAt: {
         transform: transformDate,
+      },
+    },
+  },
+  OpportunityMatchCandidatePreference: {
+    from: 'UserCandidatePreference',
+    fields: {
+      cv: {
+        jsonType: true,
+        transform: async (value: GCSBlob) => {
+          return {
+            ...value,
+            lastModified: transformDate(value?.lastModified),
+          };
+        },
+      },
+      salaryExpectation: {
+        jsonType: true,
+        transform: nullIfNotSameUserById,
       },
     },
   },

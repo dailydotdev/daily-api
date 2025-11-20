@@ -2,7 +2,7 @@ import { NotificationType } from '../../notifications/common';
 import { TypedNotificationWorker } from '../worker';
 import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
-import { Feature, FeatureType } from '../../entity';
+import { User } from '../../entity';
 
 const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -18,15 +18,12 @@ const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.
           return;
         }
 
-        // TODO: Temporary until we happy to launch
-        const isTeamMember = await con.getRepository(Feature).exists({
-          where: {
-            userId,
-            feature: FeatureType.Team,
-            value: 1,
-          },
-        });
-        if (!isTeamMember) {
+        const user = await con.getRepository(User).findOneBy({ id: userId });
+        if (!user) {
+          logger.error(
+            { opportunityId, userId },
+            'candidateOpportunityMatchNotification: User not found',
+          );
           return;
         }
 

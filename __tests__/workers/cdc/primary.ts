@@ -246,6 +246,11 @@ jest.mock('../../../src/temporal/notifications/utils', () => ({
   cancelEntityReminderWorkflow: jest.fn(),
 }));
 
+jest.mock('../../../src/cio', () => ({
+  ...(jest.requireActual('../../../src/cio') as Record<string, unknown>),
+  identifyUserOpportunities: jest.fn(),
+}));
+
 let con: DataSource;
 
 beforeAll(async () => {
@@ -6152,6 +6157,53 @@ describe('opportunity match', () => {
         mockChangeMessage<ObjectType>({
           after,
           before: base,
+          op: 'u',
+          table: 'opportunity_match',
+        }),
+      );
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+    });
+  });
+
+  describe('recruiter rejected', () => {
+    it('should notify on recruiter rejected candidate match', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        status: OpportunityMatchStatus.RecruiterRejected,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: base,
+          op: 'u',
+          table: 'opportunity_match',
+        }),
+      );
+      expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+      expect(triggerTypedEvent).toHaveBeenCalledWith(
+        expect.any(Object),
+        'api.v1.recruiter-rejected-candidate-match',
+        expect.objectContaining({
+          opportunityId: opportunitiesFixture[0].id,
+          userId: '1',
+        }),
+      );
+    });
+
+    it('should not notify when recruiter rejected status stays the same', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        status: OpportunityMatchStatus.RecruiterRejected,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: {
+            ...base,
+            status: OpportunityMatchStatus.RecruiterRejected,
+          },
           op: 'u',
           table: 'opportunity_match',
         }),

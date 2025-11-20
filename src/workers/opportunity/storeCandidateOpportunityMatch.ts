@@ -2,8 +2,10 @@ import { TypedWorker } from '../worker';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
-import { Alerts, Feature, FeatureType } from '../../entity';
+import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
+import { logger } from '../../logger';
+import { updateFlagsStatement } from '../../common';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -15,6 +17,15 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
         throw new Error(
           'Missing userId or opportunityId in candidate opportunity match',
         );
+      }
+
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      if (!user) {
+        logger.error(
+          { opportunityId, userId },
+          'storeCandidateOpportunityMatch: User not found',
+        );
+        return;
       }
 
       const description = opportunityMatchDescriptionSchema.parse({
@@ -35,20 +46,13 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
             skipUpdateIfNoValuesChanged: true,
           },
         );
-
-        // TODO: Temporary until we happy to launch
-        const isTeamMember = await con.getRepository(Feature).exists({
-          where: {
-            userId,
-            feature: FeatureType.Team,
-            value: 1,
+        await manager.getRepository(Alerts).update(
+          { userId, opportunityId: IsNull() },
+          {
+            opportunityId,
+            flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: false }),
           },
-        });
-        if (isTeamMember) {
-          await manager
-            .getRepository(Alerts)
-            .update({ userId, opportunityId: IsNull() }, { opportunityId });
-        }
+        );
       });
     },
     parseMessage: (message) => {

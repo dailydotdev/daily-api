@@ -13,18 +13,16 @@ export const userExperienceInputBaseSchema = z.object({
   type: z.enum(UserExperienceType),
   title: z.string().max(1000).nonempty(),
   description: z.string().max(5000).optional(),
-  subtitle: z.string().max(1000).optional(),
+  subtitle: z.string().max(1000).optional().nullable(),
   startedAt: z.date(),
-  endedAt: z.date().optional(),
+  endedAt: z.date().optional().nullable().default(null),
   companyId: z.string().nullable().optional().default(null),
   customCompanyName: z
     .string()
     .trim()
     .normalize()
     .max(100)
-    .nonempty()
-    .nullable()
-    .optional()
+    .nullish()
     .default(null),
 });
 
@@ -46,9 +44,12 @@ export const userExperienceProjectSchema = z
 export const userExperienceWorkSchema = z
   .object({
     externalReferenceId: z.string().optional(),
-    employmentType: z.number().nullable().optional().default(null),
-    locationType: z.number().nullable().optional().default(null),
-    locationId: z.uuidv4().nullable().optional().default(null),
+    employmentType: z.number().nullish().default(null),
+    locationType: z.number().nullish().default(null),
+    externalLocationId: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().nullish().default(null),
+    ),
     skills: z
       .array(z.string().trim().normalize().nonempty().max(100))
       .max(50)
@@ -65,6 +66,17 @@ const experienceTypeToSchema: Record<
   [UserExperienceType.Education]: userExperienceEducationSchema,
   [UserExperienceType.Project]: userExperienceProjectSchema,
   [UserExperienceType.Work]: userExperienceWorkSchema,
+  [UserExperienceType.Volunteering]: userExperienceProjectSchema,
+  [UserExperienceType.OpenSource]: userExperienceProjectSchema,
+};
+
+const experienceCompanyCopy = {
+  [UserExperienceType.Work]: 'Company',
+  [UserExperienceType.Education]: 'School',
+  [UserExperienceType.Project]: 'Publisher',
+  [UserExperienceType.Certification]: 'Organization',
+  [UserExperienceType.OpenSource]: 'Organization',
+  [UserExperienceType.Volunteering]: 'Organization',
 };
 
 export const getExperienceSchema = (type: UserExperienceType) => {
@@ -74,6 +86,13 @@ export const getExperienceSchema = (type: UserExperienceType) => {
         code: 'custom',
         message: 'endedAt must be greater than startedAt',
         path: ['endedAt'],
+      });
+    }
+    if (!data.customCompanyName && !data.companyId) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `${experienceCompanyCopy[type]} is required`,
+        path: ['customCompanyName'],
       });
     }
   });

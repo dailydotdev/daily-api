@@ -96,6 +96,13 @@ export const deleteUser = async (
       await entityManager
         .getRepository(ArticlePost)
         .update({ authorId: userId }, { authorId: null });
+      // Manually set user source posts to ghost user
+      await entityManager
+        .getRepository(Post)
+        .update(
+          { authorId: userId, sourceId: userId },
+          { authorId: ghostUser.id, sourceId: ghostUser.id },
+        );
       // Manually set shared post to 404 dummy user
       await entityManager
         .getRepository(Post)

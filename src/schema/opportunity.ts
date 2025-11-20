@@ -1,5 +1,7 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
+// @ts-expect-error - no types
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
@@ -10,8 +12,11 @@ import {
   ScreeningQuestionsRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { toGQLEnum } from '../common';
-import { OpportunityMatchStatus } from '../entity/opportunities/types';
+import { toGQLEnum, updateFlagsStatement } from '../common';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import type { GQLEmptyResponse } from './common';
 import {
@@ -20,7 +25,10 @@ import {
   userCandidateToggleKeywordSchema,
 } from '../common/schema/userCandidate';
 import { Alerts } from '../entity';
-import { opportunityScreeningAnswersSchema } from '../common/schema/opportunityMatch';
+import {
+  opportunityScreeningAnswersSchema,
+  opportunityFeedbackAnswersSchema,
+} from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { ForbiddenError } from 'apollo-server-errors';
 import { ConflictError, NotFoundError } from '../errors';
@@ -28,8 +36,10 @@ import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
   deleteEmploymentAgreementByUserId,
+  generateResumeSignedUrl,
   uploadEmploymentAgreementFromBuffer,
 } from '../common/googleCloud';
+import { uploadOrganizationImage } from '../common/cloudinary';
 import {
   opportunityEditSchema,
   opportunityStateLiveSchema,
@@ -43,8 +53,16 @@ import {
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not } from 'typeorm';
+import { Organization } from '../entity/Organization';
+import {
+  OrganizationLinkType,
+  SocialMediaType,
+} from '../common/schema/organizations';
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
+import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { ConnectionArguments } from 'graphql-relay';
+import { ProfileResponse, snotraClient } from '../integrations/snotra';
 
 export interface GQLOpportunity
   extends Pick<
@@ -56,7 +74,13 @@ export interface GQLOpportunity
 }
 
 export interface GQLOpportunityMatch
-  extends Pick<OpportunityMatch, 'status' | 'description'> {}
+  extends Pick<
+    OpportunityMatch,
+    'status' | 'description' | 'userId' | 'opportunityId'
+  > {
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface GQLUserCandidatePreference
   extends Omit<
@@ -75,6 +99,8 @@ export type GQLOpportunityScreeningQuestion = Pick<
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
+  ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
+  ${toGQLEnum(SocialMediaType, 'SocialMediaType')}
 
   type OpportunityContentBlock {
     content: String
@@ -130,6 +156,28 @@ export const typeDefs = /* GraphQL */ `
     opportunityId: ID!
   }
 
+  type OpportunityFeedbackQuestion {
+    id: ID!
+    title: String!
+    order: Int!
+    placeholder: String
+    opportunityId: ID!
+  }
+
+  type OpportunityEdge {
+    node: Opportunity!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type OpportunityConnection {
+    pageInfo: PageInfo!
+    edges: [OpportunityEdge!]!
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -143,15 +191,55 @@ export const typeDefs = /* GraphQL */ `
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
+    feedbackQuestions: [OpportunityFeedbackQuestion]!
   }
 
   type OpportunityMatchDescription {
     reasoning: String!
   }
 
+  type ScreeningAnswer {
+    screening: String!
+    answer: String!
+  }
+
+  type ApplicationRank {
+    score: Float
+    description: String
+    warmIntro: String
+  }
+
+  type EngagementProfile {
+    profileText: String!
+  }
+
   type OpportunityMatch {
     status: OpportunityMatchStatus!
     description: OpportunityMatchDescription!
+    userId: String!
+    opportunityId: String!
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    user: User!
+    candidatePreferences: UserCandidatePreference
+    screening: [ScreeningAnswer!]!
+    feedback: [ScreeningAnswer!]!
+    applicationRank: ApplicationRank!
+    engagementProfile: EngagementProfile
+  }
+
+  type OpportunityMatchEdge {
+    node: OpportunityMatch!
+
+    """
+    Used in \`before\` and \`after\` args
+    """
+    cursor: String!
+  }
+
+  type OpportunityMatchConnection {
+    pageInfo: PageInfo!
+    edges: [OpportunityMatchEdge!]!
   }
 
   type GCSBlob {
@@ -159,6 +247,7 @@ export const typeDefs = /* GraphQL */ `
     fileName: String
     contentType: String
     lastModified: DateTime
+    signedUrl: String
   }
 
   type UserCandidateKeyword {
@@ -205,6 +294,42 @@ export const typeDefs = /* GraphQL */ `
     Returns the authenticated candidate's saved preferences
     """
     getCandidatePreferences: UserCandidatePreference @auth
+
+    """
+    Get all opportunities filtered by state (defaults to LIVE)
+    """
+    opportunities(
+      """
+      State of opportunities to fetch (defaults to LIVE)
+      """
+      state: ProtoEnumValue
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityConnection! @auth
+
+    """
+    Get all opportunity matches for a specific opportunity (includes only candidate_accepted, recruiter_accepted, and recruiter_rejected statuses)
+    """
+    opportunityMatches(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityMatchConnection! @auth
   }
 
   input SalaryExpectationInput {
@@ -261,6 +386,25 @@ export const typeDefs = /* GraphQL */ `
     placeholder: String
   }
 
+  input OrganizationLinkInput {
+    type: OrganizationLinkType!
+    socialType: SocialMediaType
+    title: String
+    link: String!
+  }
+
+  input OrganizationEditInput {
+    website: String
+    description: String
+    perks: [String!]
+    founded: Int
+    location: String
+    category: String
+    size: Int
+    stage: Int
+    links: [OrganizationLinkInput!]
+  }
+
   input OpportunityEditInput {
     title: String
     tldr: String
@@ -269,6 +413,7 @@ export const typeDefs = /* GraphQL */ `
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
+    organization: OrganizationEditInput
   }
 
   extend type Mutation {
@@ -295,11 +440,49 @@ export const typeDefs = /* GraphQL */ `
       answers: [OpportunityScreeningAnswerInput!]!
     ): EmptyResponse @auth
 
+    saveOpportunityFeedbackAnswers(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      answers: [OpportunityScreeningAnswerInput!]!
+    ): EmptyResponse @auth
+
     acceptOpportunityMatch(
       """
       Id of the Opportunity
       """
       id: ID!
+    ): EmptyResponse @auth
+
+    rejectOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    recruiterAcceptOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Id of the candidate user to accept
+      """
+      candidateUserId: ID!
+    ): EmptyResponse @auth
+
+    recruiterRejectOpportunityMatch(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Id of the candidate user to reject
+      """
+      candidateUserId: ID!
     ): EmptyResponse @auth
 
     candidateAddKeywords(
@@ -337,7 +520,22 @@ export const typeDefs = /* GraphQL */ `
       Opportunity data to update
       """
       payload: OpportunityEditInput!
+
+      """
+      Organization image to upload
+      """
+      organizationImage: Upload
     ): Opportunity! @auth
+
+    """
+    Clear the organization image for an opportunity
+    """
+    clearOrganizationImage(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): EmptyResponse @auth
 
     recommendOpportunityScreeningQuestions(
       """
@@ -356,6 +554,121 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
   }
 `;
+
+/**
+ * Shared logic for updating an opportunity match status by a recruiter
+ * Validates recruiter permissions, match exists, is candidate_accepted, and opportunity is live
+ */
+async function updateRecruiterMatchStatus(
+  opportunityId: string,
+  candidateUserId: string,
+  targetStatus: OpportunityMatchStatus,
+  ctx: AuthContext,
+): Promise<void> {
+  // Verify the logged-in user is a recruiter for this opportunity
+  await ensureOpportunityPermissions({
+    con: ctx.con.manager,
+    userId: ctx.userId,
+    opportunityId,
+    permission: OpportunityPermissions.UpdateState,
+    isTeamMember: ctx.isTeamMember,
+  });
+
+  const match = await ctx.con.getRepository(OpportunityMatch).findOne({
+    where: {
+      opportunityId,
+      userId: candidateUserId,
+    },
+    relations: {
+      opportunity: true,
+    },
+  });
+
+  if (!match) {
+    ctx.log.error(
+      { opportunityId, candidateUserId },
+      'No match found for candidate',
+    );
+    throw new ForbiddenError('Access denied! No match found');
+  }
+
+  if (match.status !== OpportunityMatchStatus.CandidateAccepted) {
+    ctx.log.error(
+      { opportunityId, candidateUserId, status: match.status },
+      'Match is not candidate accepted',
+    );
+    throw new ForbiddenError(
+      `Access denied! Match must be in candidate_accepted status`,
+    );
+  }
+
+  await ctx.con.getRepository(OpportunityMatch).update(
+    {
+      opportunityId,
+      userId: candidateUserId,
+    },
+    {
+      status: targetStatus,
+    },
+  );
+}
+
+/**
+ * Shared logic for updating an opportunity match status for a candidate
+ * Validates the match exists, is pending, and the opportunity is live
+ */
+async function updateCandidateMatchStatus(
+  opportunityId: string,
+  userId: string,
+  targetStatus: OpportunityMatchStatus,
+  ctx: AuthContext,
+): Promise<void> {
+  const match = await ctx.con.getRepository(OpportunityMatch).findOne({
+    where: {
+      opportunityId,
+      userId,
+    },
+    relations: {
+      opportunity: true,
+    },
+  });
+
+  if (!match) {
+    ctx.log.error({ opportunityId, userId }, 'No match found for opportunity');
+    throw new ForbiddenError('Access denied! No match found');
+  }
+
+  if (match.status !== OpportunityMatchStatus.Pending) {
+    ctx.log.error(
+      { opportunityId, userId, status: match.status },
+      'Match is not pending',
+    );
+    throw new ForbiddenError(`Access denied! Match is not pending`);
+  }
+
+  await ctx.con.transaction(async (entityManager) => {
+    await entityManager.getRepository(OpportunityMatch).update(
+      {
+        opportunityId,
+        userId,
+      },
+      {
+        status: targetStatus,
+      },
+    );
+
+    await entityManager.getRepository(Alerts).update(
+      {
+        userId,
+        opportunityId,
+      },
+      {
+        opportunityId: null,
+        flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: true }),
+      },
+    );
+  });
+}
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -380,7 +693,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
-      if (opportunity.state !== OpportunityState.LIVE && !ctx.isTeamMember) {
+      if (opportunity.state !== OpportunityState.LIVE) {
         if (!ctx.userId) {
           throw new NotFoundError('Not found!');
         }
@@ -390,6 +703,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           userId: ctx.userId,
           opportunityId: id,
           permission: OpportunityPermissions.ViewDraft,
+          isTeamMember: ctx.isTeamMember,
         });
       }
 
@@ -401,7 +715,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunityMatch> => {
-      const match = await graphorm.queryOneOrFail<GQLOpportunityMatch>(
+      return await graphorm.queryOneOrFail<GQLOpportunityMatch>(
         ctx,
         info,
         (builder) => {
@@ -411,18 +725,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
-
-      await ctx.con.getRepository(Alerts).update(
-        {
-          userId: ctx.userId,
-          opportunityId: id,
-        },
-        {
-          opportunityId: null,
-        },
-      );
-
-      return match;
     },
     getCandidatePreferences: async (
       _,
@@ -447,6 +749,110 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...new UserCandidatePreference(),
         keywords: [],
       };
+    },
+    opportunities: async (
+      _,
+      args: ConnectionArguments & { state?: number },
+      ctx: Context,
+      info,
+    ) => {
+      // Default to LIVE opportunities if no state is provided
+      const opportunityState = args.state ?? OpportunityState.LIVE;
+
+      if (!ctx.userId) {
+        throw new NotFoundError('Not found!');
+      }
+
+      return await queryPaginatedByDate<
+        GQLOpportunity,
+        'createdAt',
+        typeof args
+      >(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt', maxSize: 50 },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder.where({ state: opportunityState });
+
+            if (!ctx.isTeamMember) {
+              builder.queryBuilder
+                .innerJoin(
+                  'opportunity_user',
+                  'ou',
+                  `ou.opportunityId = ${builder.alias}.id`,
+                )
+                .andWhere('ou.userId = :userId', { userId: ctx.userId })
+                .andWhere('ou.type = :type', {
+                  type: OpportunityUserType.Recruiter,
+                });
+            }
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
+        },
+      );
+    },
+    opportunityMatches: async (
+      _,
+      args: ConnectionArguments & { opportunityId: string },
+      ctx: AuthContext,
+      info,
+    ) => {
+      if (!ctx.userId) {
+        throw new NotFoundError('Not found!');
+      }
+
+      // First verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: args.opportunityId,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      return await queryPaginatedByDate<
+        GQLOpportunityMatch,
+        'updatedAt',
+        typeof args
+      >(
+        ctx,
+        info,
+        args,
+        { key: 'updatedAt', maxSize: 50 },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder
+              .where({ opportunityId: args.opportunityId })
+              .andWhere(`${builder.alias}.status IN (:...statuses)`, {
+                statuses: [
+                  OpportunityMatchStatus.CandidateAccepted,
+                  OpportunityMatchStatus.RecruiterAccepted,
+                  OpportunityMatchStatus.RecruiterRejected,
+                ],
+              })
+              // Order by candidate_accepted status first (priority 0), then others (priority 1)
+              // Then by updatedAt ascending (oldest first) within each group
+              .addOrderBy(
+                `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
+                'ASC',
+              )
+              .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
+              .setParameter(
+                'candidateAcceptedStatus',
+                OpportunityMatchStatus.CandidateAccepted,
+              );
+
+            return builder;
+          },
+          orderByKey: 'ASC',
+          readReplica: true,
+        },
+      );
     },
   },
   Mutation: {
@@ -550,54 +956,128 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
       return { _: true };
     },
+    saveOpportunityFeedbackAnswers: async (
+      _,
+      payload: z.infer<typeof opportunityFeedbackAnswersSchema>,
+      { userId, con, log }: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const safePayload = opportunityFeedbackAnswersSchema.safeParse(payload);
+      if (safePayload.error) {
+        throw safePayload.error;
+      }
+
+      const opportunityId = safePayload.data.id;
+      const answers = safePayload.data.answers;
+
+      const [match, opportunity] = await Promise.all([
+        con.getRepository(OpportunityMatch).findOneBy({
+          opportunityId,
+          userId,
+        }),
+        con.getRepository(OpportunityJob).findOneOrFail({
+          where: { id: opportunityId },
+          relations: {
+            feedbackQuestions: true,
+          },
+        }),
+      ]);
+
+      if (!match) {
+        throw new ForbiddenError(`Access denied! No match found`);
+      }
+
+      const questions = await opportunity.feedbackQuestions;
+
+      // Feedback questions are optional, so validate only that provided questionIds exist
+      const feedback = answers.map((answer) => {
+        const question = questions.find((q) => q.id === answer.questionId);
+        if (!question) {
+          log.error(
+            { answer, questions, opportunityId },
+            'Question not found for opportunity',
+          );
+          throw new ConflictError(
+            `Question ${answer.questionId} not found for opportunity`,
+          );
+        }
+
+        return {
+          screening: question.title,
+          answer: answer.answer,
+        };
+      });
+
+      await con.getRepository(OpportunityMatch).upsert(
+        {
+          opportunityId,
+          userId,
+          feedback,
+        },
+        {
+          conflictPaths: ['opportunityId', 'userId'],
+          skipUpdateIfNoValuesChanged: true,
+        },
+      );
+      return { _: true };
+    },
     acceptOpportunityMatch: async (
       _,
       { id }: { id: string },
-      { userId, con, log }: AuthContext,
+      ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const match = await con.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId: id,
-          userId,
-        },
-        relations: {
-          opportunity: true,
-        },
-      });
+      await updateCandidateMatchStatus(
+        id,
+        ctx.userId,
+        OpportunityMatchStatus.CandidateAccepted,
+        ctx,
+      );
 
-      if (!match) {
-        log.error(
-          { opportunityId: id, userId },
-          'No match found for opportunity',
-        );
-        throw new ForbiddenError('Access denied! No match found');
-      }
+      return { _: true };
+    },
+    rejectOpportunityMatch: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await updateCandidateMatchStatus(
+        id,
+        ctx.userId,
+        OpportunityMatchStatus.CandidateRejected,
+        ctx,
+      );
 
-      if (match.status !== OpportunityMatchStatus.Pending) {
-        log.error(
-          { opportunityId: id, userId, status: match.status },
-          'Match is not pending',
-        );
-        throw new ForbiddenError(`Access denied! Match is not pending`);
-      }
+      return { _: true };
+    },
+    recruiterAcceptOpportunityMatch: async (
+      _,
+      {
+        opportunityId,
+        candidateUserId,
+      }: { opportunityId: string; candidateUserId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await updateRecruiterMatchStatus(
+        opportunityId,
+        candidateUserId,
+        OpportunityMatchStatus.RecruiterAccepted,
+        ctx,
+      );
 
-      const opportunity = await match.opportunity;
-      if (opportunity.state !== OpportunityState.LIVE) {
-        log.error(
-          { opportunityId: id, userId, state: opportunity.state },
-          'Opportunity is not live',
-        );
-        throw new ForbiddenError(`Access denied! Opportunity is not live`);
-      }
-
-      await con.getRepository(OpportunityMatch).update(
-        {
-          opportunityId: id,
-          userId,
-        },
-        {
-          status: OpportunityMatchStatus.CandidateAccepted,
-        },
+      return { _: true };
+    },
+    recruiterRejectOpportunityMatch: async (
+      _,
+      {
+        opportunityId,
+        candidateUserId,
+      }: { opportunityId: string; candidateUserId: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await updateRecruiterMatchStatus(
+        opportunityId,
+        candidateUserId,
+        OpportunityMatchStatus.RecruiterRejected,
+        ctx,
       );
 
       return { _: true };
@@ -715,7 +1195,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         id,
         payload,
-      }: { id: string; payload: z.infer<typeof opportunityEditSchema> },
+        organizationImage,
+      }: {
+        id: string;
+        payload: z.infer<typeof opportunityEditSchema>;
+        organizationImage?: Promise<FileUpload>;
+      },
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunity> => {
@@ -726,11 +1211,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
         opportunityId: id,
         permission: OpportunityPermissions.Edit,
+        isTeamMember: ctx.isTeamMember,
       });
 
       await ctx.con.transaction(async (entityManager) => {
-        const { keywords, content, questions, ...opportunityUpdate } =
-          opportunity;
+        const {
+          keywords,
+          content,
+          questions,
+          organization,
+          ...opportunityUpdate
+        } = opportunity;
 
         const renderedContent: Record<
           string,
@@ -762,6 +1253,41 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('contentJson', opportunityContent.toJsonString())
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
+
+        if (organization || organizationImage) {
+          const opportunityJob = await entityManager
+            .getRepository(OpportunityJob)
+            .findOne({
+              where: { id },
+              select: ['organizationId'],
+            });
+
+          if (opportunityJob?.organizationId) {
+            const organizationUpdate: Record<string, unknown> = {
+              ...organization,
+            };
+
+            // Handle image upload
+            if (organizationImage) {
+              const { createReadStream } = await organizationImage;
+              const stream = createReadStream();
+              const { url: imageUrl } = await uploadOrganizationImage(
+                opportunityJob.organizationId,
+                stream,
+              );
+              organizationUpdate.image = imageUrl;
+            }
+
+            if (Object.keys(organizationUpdate).length > 0) {
+              await entityManager
+                .getRepository(Organization)
+                .update(
+                  { id: opportunityJob.organizationId },
+                  organizationUpdate,
+                );
+            }
+          }
+        }
 
         if (Array.isArray(keywords)) {
           await entityManager.getRepository(OpportunityKeyword).delete({
@@ -815,6 +1341,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return builder;
       });
     },
+    clearOrganizationImage: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.Edit,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunityJob = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOne({
+          where: { id },
+          select: ['organizationId'],
+        });
+
+      if (!opportunityJob?.organizationId) {
+        throw new NotFoundError('Opportunity not found');
+      }
+
+      await ctx.con
+        .getRepository(Organization)
+        .update(opportunityJob.organizationId, { image: null });
+
+      return { _: true };
+    },
     recommendOpportunityScreeningQuestions: async (
       _,
       { id }: { id: string },
@@ -825,6 +1381,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
         opportunityId: id,
         permission: OpportunityPermissions.Edit,
+        isTeamMember: ctx.isTeamMember,
       });
 
       const hasQuestionsAlready = await ctx.con
@@ -891,6 +1448,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userId: ctx.userId,
         opportunityId: id,
         permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
       });
 
       const opportunity = await ctx.con
@@ -927,6 +1485,57 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return {
         _: true,
+      };
+    },
+  },
+  OpportunityMatch: {
+    engagementProfile: async (
+      parent: OpportunityMatch,
+      _,
+      ctx: Context,
+    ): Promise<{ profileText: string } | null> => {
+      if (!parent.userId) {
+        return null;
+      }
+
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 5000),
+        );
+
+        const profile = await Promise.race([
+          snotraClient.getProfile({ user_id: parent.userId }),
+          timeoutPromise,
+        ]);
+
+        if (!profile) {
+          return null;
+        }
+
+        return {
+          profileText: (profile as ProfileResponse).profile_text,
+        };
+      } catch (error) {
+        // Log error but don't fail the entire query
+        ctx.log.warn(
+          { userId: parent.userId, err: error },
+          'Failed to fetch engagement profile from snotra',
+        );
+        return null;
+      }
+    },
+  },
+  UserCandidatePreference: {
+    cv: async (parent: UserCandidatePreference) => {
+      const cv = await parent?.cv;
+      if (!cv?.blob) {
+        return cv;
+      }
+
+      const signedUrl = await generateResumeSignedUrl(cv.blob);
+      return {
+        ...cv,
+        signedUrl,
       };
     },
   },

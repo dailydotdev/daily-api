@@ -26,7 +26,7 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
-
+import { createLocationFromMapbox } from '../entity/dataset/utils';
 interface GQLUserExperience {
   id: string;
   type: UserExperienceType;
@@ -82,7 +82,7 @@ export const typeDefs = /* GraphQL */ `
     externalReferenceId: String
     subtitle: String
     employmentType: ProtoEnumValue
-    location: Location
+    location: DatasetLocation
     locationType: ProtoEnumValue
     skills: [UserExperienceSkill]
   }
@@ -126,7 +126,7 @@ export const typeDefs = /* GraphQL */ `
 
   input UserExperienceWorkInput {
     ${baseExperienceInput}
-    locationId: ID
+    externalLocationId: String
     locationType: ProtoEnumValue
     employmentType: ProtoEnumValue
     skills: [String]
@@ -184,9 +184,7 @@ const generateExperienceToSave = async <
       where: { id: companyId },
     });
     toSave.customCompanyName = null;
-  }
-
-  if (customCompanyName) {
+  } else if (customCompanyName) {
     const existingCompany = await ctx.con
       .getRepository(Company)
       .createQueryBuilder('c')
@@ -305,10 +303,17 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
     ): Promise<GQLUserExperience> => {
       const result = await generateExperienceToSave(ctx, args);
 
-      if (result.parsedInput.locationId) {
-        await ctx.con.getRepository(DatasetLocation).findOneOrFail({
-          where: { id: result.parsedInput.locationId },
+      let location: DatasetLocation | null = null;
+      if (result.parsedInput.externalLocationId) {
+        location = await ctx.con.getRepository(DatasetLocation).findOne({
+          where: { externalId: result.parsedInput.externalLocationId },
         });
+        if (!location) {
+          location = await createLocationFromMapbox(
+            ctx.con,
+            result.parsedInput.externalLocationId,
+          );
+        }
       }
 
       const entity = await ctx.con.transaction(async (con) => {
@@ -316,6 +321,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         const skills = result.parsedInput.skills;
         const saved = await repo.save({
           ...result.userExperience,
+          locationId: location?.id || null,
           type: args.input.type,
           userId: ctx.userId,
         });

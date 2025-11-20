@@ -7,7 +7,11 @@ import {
   UserPersonalizedDigestType,
   UserStreak,
 } from './entity';
-import { camelCaseToSnakeCase, getDateBaseFromType } from './common/utils';
+import {
+  camelCaseToSnakeCase,
+  getDateBaseFromType,
+  isProd,
+} from './common/utils';
 import { getFirstName } from './common/mailing';
 
 export enum CioUnsubscribeTopic {
@@ -46,6 +50,8 @@ import type { UserCompany } from './entity/UserCompany';
 import type { Company } from './entity/Company';
 import { DataSource, In } from 'typeorm';
 import { logger } from './logger';
+import { OpportunityMatch } from './entity/OpportunityMatch';
+import { OpportunityMatchStatus } from './entity/opportunities/types';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
@@ -148,6 +154,40 @@ export async function identifyUserStreak({
     throw err;
   }
 }
+
+export const identifyUserOpportunities = async ({
+  cio,
+  con,
+  userId,
+}: {
+  cio: TrackClient;
+  con: ConnectionManager;
+  userId: string;
+}): Promise<void> => {
+  if (!isProd) {
+    return;
+  }
+  const opportunities = await con.getRepository(OpportunityMatch).find({
+    where: {
+      userId,
+      status: OpportunityMatchStatus.Pending,
+    },
+    select: ['opportunityId'],
+    order: { createdAt: 'ASC' },
+  });
+  const ids = opportunities.map((opportunity) => opportunity.opportunityId);
+  try {
+    await cio.identify(userId, {
+      opportunities: ids?.length > 0 ? ids : null,
+    });
+  } catch (err) {
+    if (err instanceof CustomerIORequestError && err.statusCode === 400) {
+      logger.warn({ err }, 'failed to update user opportunities in cio');
+      return;
+    }
+    throw err;
+  }
+};
 
 export const generateIdentifyObject = async (
   con: ConnectionManager,

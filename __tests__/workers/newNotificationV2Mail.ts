@@ -42,6 +42,7 @@ import {
   UserPersonalizedDigestSendType,
   UserPersonalizedDigestType,
   WelcomePost,
+  Organization,
 } from '../../src/entity';
 import { PollPost } from '../../src/entity/posts/PollPost';
 import { usersFixture } from '../fixture/user';
@@ -65,6 +66,8 @@ import {
   NotificationUserContext,
   Reference,
   type NotificationAwardContext,
+  type NotificationOpportunityMatchContext,
+  type NotificationWarmIntroContext,
 } from '../../src/notifications';
 import { postsFixture } from '../fixture/post';
 import { sourcesFixture } from '../fixture/source';
@@ -92,6 +95,15 @@ import { env } from 'node:process';
 import { Product, ProductType } from '../../src/entity/Product';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { CampaignUpdateEvent } from '../../src/common/campaign/common';
+import { Opportunity } from '../../src/entity/opportunities/Opportunity';
+import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
+import { OpportunityUserRecruiter } from '../../src/entity/opportunities/user';
+import { OpportunityUserType } from '../../src/entity/opportunities/types';
+import {
+  opportunitiesFixture,
+  opportunityMatchesFixture,
+  organizationsFixture,
+} from '../fixture/opportunity';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -1858,6 +1870,38 @@ describe('user_post_added notification', () => {
   });
 });
 
+describe('new_opportunity_match notification', () => {
+  it('should send email', async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+    await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
+    const ctx: NotificationOpportunityMatchContext = {
+      userIds: ['1'],
+      opportunityId: opportunitiesFixture[0].id,
+      reasoningShort: 'Your skills match this opportunity',
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.NewOpportunityMatch,
+      ctx,
+    );
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+    expect(args.message_data).toEqual({
+      opportunity_link: `http://localhost:5002/opportunity/${opportunitiesFixture[0].id}`,
+    });
+    expect(args.transactional_message_id).toEqual('87');
+  });
+});
+
 describe('source_post_approved notification', () => {
   it('should send email of type shared post', async () => {
     await con.getRepository(Post).save(postsFixture);
@@ -2706,5 +2750,76 @@ describe('poll result notifications', () => {
       'Your poll just wrapped up. Curious to see how everyone voted? The results are waiting.',
     );
     expect(args.transactional_message_id).toEqual('84');
+  });
+});
+
+describe('warm_intro notification', () => {
+  it('should send email to both candidate and recruiter', async () => {
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+    await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
+
+    // Create a recruiter user
+    const recruiter = await con.getRepository(User).save({
+      id: 'recruiter123',
+      name: 'John Recruiter',
+      email: 'recruiter@test.com',
+      username: 'recruiter',
+    });
+
+    // Link recruiter to opportunity
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: recruiter.id,
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Update opportunity match with warmIntro
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '1',
+      },
+      {
+        applicationRank: {
+          warmIntro: '<p>Great match based on your experience!</p>',
+        },
+      },
+    );
+
+    const ctx: NotificationWarmIntroContext = {
+      userIds: ['1'],
+      opportunityId: opportunitiesFixture[0].id,
+      description: 'Great match based on your experience!',
+      recruiter,
+      organization: organizationsFixture[0],
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.WarmIntro,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      title: `[Action Required] It's a match!`,
+      copy: '<p>Great match based on your experience!</p>',
+      cc: 'recruiter@test.com',
+    });
+
+    // Verify both emails are in the 'to' field
+    expect(args.to).toEqual('ido@daily.dev,recruiter@test.com');
+    expect(args.transactional_message_id).toEqual('85');
   });
 });

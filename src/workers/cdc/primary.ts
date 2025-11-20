@@ -154,6 +154,7 @@ import {
   notifyCandidatePreferenceChange,
   notifyOpportunityMatchAccepted,
   notifyRecruiterCandidateMatchAccepted,
+  notifyRecruiterCandidateMatchRejected,
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
@@ -162,6 +163,7 @@ import { PollPost } from '../../entity/posts/PollPost';
 import { UserExperienceWork } from '../../entity/user/experiences/UserExperienceWork';
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
+import { cio, identifyUserOpportunities } from '../../cio';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1292,6 +1294,11 @@ const onOpportunityMatchChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<OpportunityMatch>,
 ) => {
+  await identifyUserOpportunities({
+    con,
+    cio,
+    userId: data.payload.after?.userId ?? data.payload.before?.userId ?? '',
+  });
   if (data.payload.op === 'u') {
     if (
       data.payload.after?.status === OpportunityMatchStatus.CandidateAccepted &&
@@ -1319,6 +1326,15 @@ const onOpportunityMatchChange = async (
     ) {
       await notifyCandidateOpportunityMatchRejected({
         con,
+        logger,
+        data: data.payload.after!,
+      });
+    }
+    if (
+      data.payload.after?.status === OpportunityMatchStatus.RecruiterRejected &&
+      data?.payload.before?.status !== OpportunityMatchStatus.RecruiterRejected
+    ) {
+      await notifyRecruiterCandidateMatchRejected({
         logger,
         data: data.payload.after!,
       });
@@ -1471,9 +1487,9 @@ const onUserExperienceChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserExperience>,
 ) => {
-  const experience = data.payload.after!;
+  const experience = data.payload.after;
 
-  if (experience.type !== UserExperienceType.Work) {
+  if (!experience || experience.type !== UserExperienceType.Work) {
     return;
   }
 
