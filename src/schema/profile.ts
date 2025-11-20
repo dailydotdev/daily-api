@@ -207,6 +207,7 @@ const getUserExperience = (
   ctx: AuthContext,
   info: GraphQLResolveInfo,
   id: string,
+  readReplica = true,
 ): Promise<GQLUserExperience> =>
   graphorm.queryOneOrFail(
     ctx,
@@ -217,7 +218,7 @@ const getUserExperience = (
       return builder;
     },
     undefined,
-    true,
+    readReplica,
   );
 
 export const resolvers = traceResolvers<unknown, AuthContext>({
@@ -293,7 +294,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         });
       });
 
-      return getUserExperience(ctx, info, entity.id);
+      return getUserExperience(ctx, info, entity.id, false);
     },
     upsertUserWorkExperience: async (
       _,
@@ -335,7 +336,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         return saved;
       });
 
-      return getUserExperience(ctx, info, entity.id);
+      return getUserExperience(ctx, info, entity.id, false);
     },
     removeUserExperience: async (_, { id }: { id: string }, ctx) => {
       await ctx.con
