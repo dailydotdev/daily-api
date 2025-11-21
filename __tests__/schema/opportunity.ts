@@ -1068,6 +1068,348 @@ describe('query opportunityMatches', () => {
   });
 });
 
+describe('query userOpportunityMatches', () => {
+  const GET_USER_OPPORTUNITY_MATCHES_QUERY = /* GraphQL */ `
+    query GetUserOpportunityMatches($first: Int, $after: String) {
+      userOpportunityMatches(first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          endCursor
+          startCursor
+        }
+        edges {
+          node {
+            userId
+            opportunityId
+            status
+            description {
+              reasoning
+            }
+            screening {
+              screening
+              answer
+            }
+            feedback {
+              screening
+              answer
+            }
+            applicationRank {
+              score
+              description
+              warmIntro
+            }
+            user {
+              id
+              name
+            }
+            candidatePreferences {
+              status
+              role
+            }
+            createdAt
+            updatedAt
+          }
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_USER_OPPORTUNITY_MATCHES_QUERY,
+        variables: {
+          first: 10,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return all matches for the authenticated user', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userOpportunityMatches.edges).toHaveLength(2);
+
+    const opportunityIds = res.data.userOpportunityMatches.edges.map(
+      (e: { node: { opportunityId: string } }) => e.node.opportunityId,
+    );
+
+    // User 1 has matches for opportunities 1 and 3
+    expect(opportunityIds).toContain('550e8400-e29b-41d4-a716-446655440001');
+    expect(opportunityIds).toContain('550e8400-e29b-41d4-a716-446655440003');
+
+    // All matches should belong to user 1
+    const userIds = res.data.userOpportunityMatches.edges.map(
+      (e: { node: { userId: string } }) => e.node.userId,
+    );
+    expect(userIds.every((id: string) => id === '1')).toBe(true);
+  });
+
+  it('should return matches ordered by updatedAt DESC', async () => {
+    loggedUser = '2';
+
+    // Add more matches for user 2 with different updatedAt dates
+    await saveFixtures(con, OpportunityMatch, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+        userId: '2',
+        status: OpportunityMatchStatus.Pending,
+        description: { reasoning: 'Newer match' },
+        screening: [],
+        feedback: [],
+        applicationRank: {},
+        createdAt: new Date('2023-01-10'),
+        updatedAt: new Date('2023-01-10'),
+      },
+    ]);
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userOpportunityMatches.edges).toHaveLength(2);
+
+    const updatedDates = res.data.userOpportunityMatches.edges.map(
+      (e: { node: { updatedAt: string } }) => new Date(e.node.updatedAt),
+    );
+
+    // Verify DESC ordering (most recent first)
+    expect(updatedDates[0].getTime()).toBeGreaterThan(updatedDates[1].getTime());
+  });
+
+  it('should return different matches for different users', async () => {
+    loggedUser = '2';
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userOpportunityMatches.edges).toHaveLength(1);
+
+    const match = res.data.userOpportunityMatches.edges[0].node;
+    expect(match.userId).toBe('2');
+    expect(match.opportunityId).toBe('550e8400-e29b-41d4-a716-446655440001');
+    expect(match.status).toBe('candidate_accepted');
+    expect(match.description.reasoning).toBe('Accepted candidate');
+  });
+
+  it('should include all match statuses for the user', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const statuses = res.data.userOpportunityMatches.edges.map(
+      (e: { node: { status: string } }) => e.node.status,
+    );
+
+    // User 1 has two pending matches
+    expect(statuses).toContain('pending');
+  });
+
+  it('should include screening, feedback, and application rank data', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const matchWithData = res.data.userOpportunityMatches.edges.find(
+      (e: { node: { opportunityId: string } }) =>
+        e.node.opportunityId === '550e8400-e29b-41d4-a716-446655440001',
+    );
+
+    expect(matchWithData.node.screening).toEqual([
+      { screening: 'What is your favorite language?', answer: 'TypeScript' },
+    ]);
+
+    expect(matchWithData.node.applicationRank).toEqual({
+      score: 85,
+      description: 'Strong candidate',
+      warmIntro: null,
+    });
+  });
+
+  it('should support pagination with first parameter', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 1,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userOpportunityMatches.edges).toHaveLength(1);
+    expect(res.data.userOpportunityMatches.pageInfo.hasNextPage).toBe(true);
+    expect(res.data.userOpportunityMatches.pageInfo.endCursor).toBeTruthy();
+  });
+
+  it('should support pagination with after cursor', async () => {
+    loggedUser = '1';
+
+    // Update one match to have a different updatedAt for proper pagination testing
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+      },
+      {
+        updatedAt: new Date('2023-01-08'),
+      },
+    );
+
+    // Get first page
+    const firstPage = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 1,
+      },
+    });
+
+    expect(firstPage.errors).toBeFalsy();
+    expect(firstPage.data.userOpportunityMatches.edges).toHaveLength(1);
+    expect(firstPage.data.userOpportunityMatches.pageInfo.hasNextPage).toBe(
+      true,
+    );
+    const firstOpportunityId =
+      firstPage.data.userOpportunityMatches.edges[0].node.opportunityId;
+    const endCursor = firstPage.data.userOpportunityMatches.pageInfo.endCursor;
+
+    // Get second page
+    const secondPage = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+        after: endCursor,
+      },
+    });
+
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.userOpportunityMatches.edges).toHaveLength(1);
+    expect(secondPage.data.userOpportunityMatches.pageInfo.hasNextPage).toBe(
+      false,
+    );
+    // Verify we got different results
+    expect(
+      secondPage.data.userOpportunityMatches.edges[0].node.opportunityId,
+    ).not.toBe(firstOpportunityId);
+    expect(
+      secondPage.data.userOpportunityMatches.pageInfo.hasPreviousPage,
+    ).toBe(true);
+  });
+
+  it('should return empty list for user with no matches', async () => {
+    loggedUser = '5'; // User with no matches
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userOpportunityMatches.edges).toHaveLength(0);
+    expect(res.data.userOpportunityMatches.pageInfo.hasNextPage).toBe(false);
+  });
+
+  it('should include user data in the response', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_USER_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const firstMatch = res.data.userOpportunityMatches.edges[0].node;
+    expect(firstMatch.user).toEqual({
+      id: '1',
+      name: 'Ido',
+    });
+  });
+
+  it('should expose salaryExpectation to user viewing their own matches', async () => {
+    loggedUser = '1';
+
+    // Add salaryExpectation to user 1's candidate preferences
+    await con.getRepository(UserCandidatePreference).upsert(
+      {
+        userId: '1',
+        salaryExpectation: {
+          min: 100000,
+          period: SalaryPeriod.ANNUAL,
+        },
+      },
+      {
+        conflictPaths: ['userId'],
+        skipUpdateIfNoValuesChanged: true,
+      },
+    );
+
+    const GET_USER_MATCHES_WITH_SALARY_QUERY = /* GraphQL */ `
+      query GetUserOpportunityMatchesWithSalary($first: Int) {
+        userOpportunityMatches(first: $first) {
+          edges {
+            node {
+              userId
+              updatedAt
+              candidatePreferences {
+                status
+                role
+                salaryExpectation {
+                  min
+                  period
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(GET_USER_MATCHES_WITH_SALARY_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const firstMatch = res.data.userOpportunityMatches.edges[0].node;
+    expect(firstMatch.userId).toBe('1');
+    expect(firstMatch.candidatePreferences.salaryExpectation).toEqual({
+      min: 100000,
+      period: 1, // ANNUAL
+    });
+  });
+});
+
 describe('query getCandidatePreferences', () => {
   const QUERY = /* GraphQL */ `
     query GetCandidatePreferences {

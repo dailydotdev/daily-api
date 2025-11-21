@@ -330,6 +330,20 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): OpportunityMatchConnection! @auth
+
+    """
+    Get all opportunity matches for the authenticated user
+    """
+    userOpportunityMatches(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityMatchConnection! @auth
   }
 
   input SalaryExpectationInput {
@@ -850,6 +864,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             return builder;
           },
           orderByKey: 'ASC',
+          readReplica: true,
+        },
+      );
+    },
+    userOpportunityMatches: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ) => {
+      if (!ctx.userId) {
+        throw new NotFoundError('Not found!');
+      }
+
+      return await queryPaginatedByDate<
+        GQLOpportunityMatch,
+        'updatedAt',
+        typeof args
+      >(
+        ctx,
+        info,
+        args,
+        { key: 'updatedAt', maxSize: 50 },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder.where({ userId: ctx.userId });
+
+            return builder;
+          },
+          orderByKey: 'DESC',
           readReplica: true,
         },
       );
