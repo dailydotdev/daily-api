@@ -437,6 +437,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.recruiter-rejected-candidate-match',
     subscription: 'api.recruiter-rejected-candidate-match-email',
   },
+  {
+    topic: 'api.v1.candidate-preference-updated',
+    subscription: 'api.parse-cv-profile',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
