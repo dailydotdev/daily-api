@@ -1410,6 +1410,68 @@ describe('query userOpportunityMatches', () => {
       period: 1, // ANNUAL
     });
   });
+
+  it('should include opportunity details when requested', async () => {
+    loggedUser = '1';
+
+    const GET_USER_MATCHES_WITH_OPPORTUNITY_QUERY = /* GraphQL */ `
+      query GetUserOpportunityMatchesWithOpportunity($first: Int) {
+        userOpportunityMatches(first: $first) {
+          edges {
+            node {
+              userId
+              opportunityId
+              status
+              updatedAt
+              opportunity {
+                id
+                title
+                state
+                location {
+                  city
+                  country
+                }
+                organization {
+                  id
+                  name
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(GET_USER_MATCHES_WITH_OPPORTUNITY_QUERY, {
+      variables: {
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userOpportunityMatches.edges).toHaveLength(2);
+
+    const matchWithOpportunity = res.data.userOpportunityMatches.edges.find(
+      (e: { node: { opportunityId: string } }) =>
+        e.node.opportunityId === '550e8400-e29b-41d4-a716-446655440001',
+    );
+
+    expect(matchWithOpportunity.node.opportunity).toEqual({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      title: 'Senior Full Stack Developer',
+      state: 2, // LIVE
+      location: [
+        {
+          city: null,
+          country: 'Norway',
+        },
+      ],
+      organization: {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Daily Dev Inc',
+      },
+    });
+  });
 });
 
 describe('query getCandidatePreferences', () => {
