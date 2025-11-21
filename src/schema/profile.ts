@@ -236,11 +236,8 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         ctx,
         info,
         (nodeSize) =>
-          !!ctx.userId &&
           userExperiencesPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) =>
-          !!ctx.userId &&
-          userExperiencesPageGenerator.hasNextPage(page, nodeSize),
+        (nodeSize) => userExperiencesPageGenerator.hasNextPage(page, nodeSize),
         (node, index) =>
           userExperiencesPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
@@ -259,8 +256,8 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           builder.queryBuilder
             .orderBy(`${builder.alias}."endedAt"`, 'DESC', 'NULLS FIRST')
             .addOrderBy(`${builder.alias}."startedAt"`, 'DESC')
-            .limit(!ctx.userId ? 1 : getLimit({ limit: page.limit }))
-            .offset(!ctx.userId ? 0 : page.offset);
+            .limit(getLimit({ limit: page.limit }))
+            .offset(page.offset);
 
           return builder;
         },
