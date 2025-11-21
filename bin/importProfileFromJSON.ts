@@ -5,14 +5,7 @@ import { z } from 'zod';
 import createOrGetConnection from '../src/db';
 import { type DataSource } from 'typeorm';
 import { readFile } from 'node:fs/promises';
-import { userExperienceInputBaseSchema } from '../src/common/schema/profile';
-import { UserExperienceType } from '../src/entity/user/experiences/types';
-import {
-  importUserExperienceWork,
-  importUserExperienceEducation,
-  importUserExperienceCertification,
-  importUserExperienceProject,
-} from '../src/common/profile/import';
+import { importUserExperienceFromJSON } from '../src/common/profile/import';
 
 /**
  * Import profile from JSON to user by id
@@ -47,55 +40,10 @@ const main = async () => {
 
     const dataJSON = JSON.parse(await readFile(params.path, 'utf-8'));
 
-    const data = z
-      .array(
-        userExperienceInputBaseSchema
-          .pick({
-            type: true,
-          })
-          .loose(),
-      )
-      .parse(dataJSON);
-
-    await con.transaction(async (entityManager) => {
-      for (const item of data) {
-        switch (item.type) {
-          case UserExperienceType.Work:
-            await importUserExperienceWork({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
-
-            break;
-          case UserExperienceType.Education:
-            await importUserExperienceEducation({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
-
-            break;
-          case UserExperienceType.Certification:
-            await importUserExperienceCertification({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
-
-            break;
-          case UserExperienceType.Project:
-            await importUserExperienceProject({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
-
-            break;
-          default:
-            throw new Error(`Unsupported experience type: ${item.type}`);
-        }
-      }
+    await importUserExperienceFromJSON({
+      con: con.manager,
+      dataJson: dataJSON,
+      userId: params.userId,
     });
   } catch (error) {
     console.error(error instanceof z.ZodError ? z.prettifyError(error) : error);

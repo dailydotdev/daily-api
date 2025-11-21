@@ -2,6 +2,7 @@ import { type EntityManager } from 'typeorm';
 import {
   userExperienceCertificationImportSchema,
   userExperienceEducationImportSchema,
+  userExperienceInputBaseSchema,
   userExperienceProjectImportSchema,
   userExperienceWorkImportSchema,
 } from '../../../src/common/schema/profile';
@@ -15,6 +16,8 @@ import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 import { UserExperienceEducation } from '../../../src/entity/user/experiences/UserExperienceEducation';
 import { UserExperienceCertification } from '../../../src/entity/user/experiences/UserExperienceCertification';
 import { UserExperienceProject } from '../../../src/entity/user/experiences/UserExperienceProject';
+import z from 'zod';
+import { UserExperienceType } from '../../entity/user/experiences/types';
 
 const resolveUserCompanyPart = async ({
   name,
@@ -305,4 +308,69 @@ export const importUserExperienceProject = async ({
   return {
     experienceId,
   };
+};
+
+export const importUserExperienceFromJSON = async ({
+  con,
+  dataJson,
+  userId,
+}: {
+  con: EntityManager;
+  dataJson: unknown;
+  userId: string;
+}) => {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  const data = z
+    .array(
+      userExperienceInputBaseSchema
+        .pick({
+          type: true,
+        })
+        .loose(),
+    )
+    .parse(dataJson);
+
+  await con.transaction(async (entityManager) => {
+    for (const item of data) {
+      switch (item.type) {
+        case UserExperienceType.Work:
+          await importUserExperienceWork({
+            data: item,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        case UserExperienceType.Education:
+          await importUserExperienceEducation({
+            data: item,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        case UserExperienceType.Certification:
+          await importUserExperienceCertification({
+            data: item,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        case UserExperienceType.Project:
+          await importUserExperienceProject({
+            data: item,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        default:
+          throw new Error(`Unsupported experience type: ${item.type}`);
+      }
+    }
+  });
 };
