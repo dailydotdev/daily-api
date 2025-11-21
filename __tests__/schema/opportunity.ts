@@ -1187,7 +1187,9 @@ describe('query userOpportunityMatches', () => {
     );
 
     // Verify DESC ordering (most recent first)
-    expect(updatedDates[0].getTime()).toBeGreaterThan(updatedDates[1].getTime());
+    expect(updatedDates[0].getTime()).toBeGreaterThan(
+      updatedDates[1].getTime(),
+    );
   });
 
   it('should return different matches for different users', async () => {
