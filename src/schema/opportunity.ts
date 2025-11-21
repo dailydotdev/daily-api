@@ -873,16 +873,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments,
       ctx: AuthContext,
       info,
-    ) => {
-      if (!ctx.userId) {
-        throw new NotFoundError('Not found!');
-      }
-
-      return await queryPaginatedByDate<
-        GQLOpportunityMatch,
-        'updatedAt',
-        typeof args
-      >(
+    ) =>
+      await queryPaginatedByDate<GQLOpportunityMatch, 'updatedAt', typeof args>(
         ctx,
         info,
         args,
@@ -896,8 +888,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           orderByKey: 'DESC',
           readReplica: true,
         },
-      );
-    },
+      ),
   },
   Mutation: {
     updateCandidatePreferences: async (
