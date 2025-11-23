@@ -115,6 +115,7 @@ import {
 import { markdown } from '../common/markdown';
 import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
 import {
+  fallbackImages,
   generateStorageKey,
   RESUME_BUCKET_NAME,
   StorageKey,
@@ -2542,7 +2543,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             const file = await upload;
             return (await uploadAvatar(user.id, file.createReadStream())).url;
           }
-          return data.image || null;
+          return data.image || fallbackImages.avatar;
         })(),
         (async () => {
           if (coverUpload && cloudinaryUrl) {
