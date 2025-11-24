@@ -122,6 +122,11 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
+  const cvLastModifiedDate =
+    typeof candidatePreference.cv.lastModified === 'string'
+      ? new Date(candidatePreference.cv.lastModified)
+      : candidatePreference.cv.lastModified;
+
   const message = new CandidateAcceptedOpportunityMessage({
     opportunityId: match.opportunityId,
     userId: match.userId,
@@ -138,9 +143,7 @@ export const notifyOpportunityMatchAccepted = async ({
       }),
       cv: new UserCV({
         ...candidatePreference.cv,
-        lastModified:
-          getSecondsTimestamp(candidatePreference.cv.lastModified || 0) ||
-          undefined,
+        lastModified: getSecondsTimestamp(cvLastModifiedDate || 0) || undefined,
       }),
       updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
       keywords: keywords,
@@ -451,6 +454,11 @@ export const notifyCandidatePreferenceChange = async ({
     return;
   }
 
+  const cvLastModifiedDate =
+    typeof candidatePreference?.cv?.lastModified === 'string'
+      ? new Date(candidatePreference.cv.lastModified)
+      : candidatePreference?.cv?.lastModified;
+
   const message = new CandidatePreferenceUpdated({
     payload: {
       ...candidatePreference,
@@ -462,9 +470,7 @@ export const notifyCandidatePreferenceChange = async ({
       }),
       cv: new UserCV({
         ...candidatePreference?.cv,
-        lastModified:
-          getSecondsTimestamp(candidatePreference?.cv?.lastModified || 0) ||
-          undefined,
+        lastModified: getSecondsTimestamp(cvLastModifiedDate || 0) || undefined,
       }),
       updatedAt:
         getSecondsTimestamp(candidatePreference?.updatedAt) || undefined,
