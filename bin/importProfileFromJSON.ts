@@ -12,7 +12,13 @@ import { randomUUID } from 'node:crypto';
 /**
  * Import profile from JSON to user by id
  *
- * npx ts-node bin/importProfileFromJSON.ts --path ~/Downloads/testuser.json -u testuser
+ * Single file usage:
+ *
+ * npx ts-node bin/importProfileFromJSON.ts --path ~/Downloads/testuser.json
+ *
+ * Directory usage:
+ *
+ * npx ts-node bin/importProfileFromJSON.ts --path ~/Downloads/profiles --limit 100 --offset 0 --import import_run_test
  */
 const main = async () => {
   let con: DataSource | null = null;
@@ -92,7 +98,7 @@ const main = async () => {
         await importUserExperienceFromJSON({
           con: con.manager,
           dataJson: dataJSON,
-          userId: 'testuser',
+          userId,
           importId: params.uid,
         });
       } catch (error) {
