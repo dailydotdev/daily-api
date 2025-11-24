@@ -439,7 +439,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'new york',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -506,7 +506,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'united states',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -611,7 +611,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'san',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -647,7 +647,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'test',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -676,7 +676,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'nonexistentlocation',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -698,7 +698,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'test',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -757,7 +757,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'berlin',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -794,7 +794,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'San Francisco, CA',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
