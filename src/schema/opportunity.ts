@@ -221,6 +221,7 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
     updatedAt: DateTime!
     user: User!
+    opportunity: Opportunity
     candidatePreferences: UserCandidatePreference
     screening: [ScreeningAnswer!]!
     feedback: [ScreeningAnswer!]!
