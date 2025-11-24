@@ -46,11 +46,16 @@ import {
   ScreeningQuestionsResponse,
   BrokkrService,
   ExtractMarkdownResponse,
+  ParseCVResponse,
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
 import { Message as ProtobufMessage } from '@bufbuild/protobuf';
 import { GarmrService } from '../src/integrations/garmr';
+import { userExperienceCertificationFixture } from './fixture/profile/certification';
+import { userExperienceEducationFixture } from './fixture/profile/education';
+import { userExperienceProjectFixture } from './fixture/profile/project';
+import { userExperienceWorkFixture } from './fixture/profile/work';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -441,6 +446,20 @@ export const createMockBrokkrTransport = () =>
 
         return new ExtractMarkdownResponse({
           content: `# Extracted content for ${request.blobName} in ${request.bucketName}`,
+        });
+      },
+      parseCV: (request) => {
+        if (request.blobName === 'empty-cv-mock') {
+          return new ParseCVResponse({});
+        }
+
+        return new ParseCVResponse({
+          parsedCv: JSON.stringify([
+            userExperienceCertificationFixture[0],
+            userExperienceEducationFixture[0],
+            userExperienceProjectFixture[0],
+            userExperienceWorkFixture[0],
+          ]),
         });
       },
     });

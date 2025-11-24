@@ -7,6 +7,7 @@ import { User } from '../../entity/user/User';
 import { getBrokkrClient } from '../../common/brokkr';
 import { updateFlagsStatement } from '../../common/utils';
 import { importUserExperienceFromJSON } from '../../common/profile/import';
+import { logger } from '../../logger';
 
 export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-updated'> =
   {
@@ -40,13 +41,15 @@ export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-upda
         return;
       }
 
-      const lastModifiedCVDate = new Date(cv.lastModified);
+      const lastModifiedCVDate = new Date(cv.lastModified * 1000);
 
       if (Number.isNaN(lastModifiedCVDate.getTime())) {
         return;
       }
 
-      const lastProfileParseDate = user.flags.lastCVParseAt || new Date(0);
+      const lastProfileParseDate = user.flags.lastCVParseAt
+        ? new Date(user.flags.lastCVParseAt)
+        : new Date(0);
 
       if (lastModifiedCVDate <= lastProfileParseDate) {
         return;
@@ -73,6 +76,10 @@ export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-upda
           );
         });
 
+        if (!result.parsedCv) {
+          throw new Error('Empty parsedCV result');
+        }
+
         const dataJson = JSON.parse(result.parsedCv);
 
         await importUserExperienceFromJSON({
@@ -86,12 +93,19 @@ export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-upda
           { id: userId },
           {
             flags: updateFlagsStatement<User>({
-              lastCVParseAt: user.flags.lastCVParseAt,
+              lastCVParseAt: user.flags.lastCVParseAt || null,
             }),
           },
         );
 
-        throw error;
+        logger.error(
+          {
+            err: error,
+            userId,
+            cv,
+          },
+          'Error parsing CV to profile',
+        );
       }
     },
   };
