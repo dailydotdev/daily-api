@@ -58,7 +58,11 @@ const resolveUserLocationPart = async ({
   con,
   threshold = 0.5,
 }: {
-  location?: Partial<Pick<DatasetLocation, 'country' | 'subdivision' | 'city'>>;
+  location?: {
+    city?: string | null;
+    subdivision?: string | null;
+    country?: string | null;
+  } | null;
   con: EntityManager;
   threshold?: number;
 }): Promise<Partial<Pick<UserExperience, 'locationId'>>> => {
@@ -324,12 +328,25 @@ export const importUserExperienceFromJSON = async ({
   }
 
   const data = z
-    .array(
-      userExperienceInputBaseSchema
-        .pick({
-          type: true,
-        })
-        .loose(),
+    .preprocess(
+      (item) => {
+        if (item === null) {
+          return [];
+        }
+
+        if (typeof item === 'object' && !Array.isArray(item)) {
+          return [];
+        }
+
+        return item;
+      },
+      z.array(
+        userExperienceInputBaseSchema
+          .pick({
+            type: true,
+          })
+          .loose(),
+      ),
     )
     .parse(dataJson);
 

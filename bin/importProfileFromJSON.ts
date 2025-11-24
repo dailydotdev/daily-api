@@ -3,9 +3,10 @@ import '../src/config';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import createOrGetConnection from '../src/db';
-import { type DataSource } from 'typeorm';
-import { readFile } from 'node:fs/promises';
+import { QueryFailedError, type DataSource } from 'typeorm';
+import { readFile, stat, readdir } from 'node:fs/promises';
 import { importUserExperienceFromJSON } from '../src/common/profile/import';
+import path from 'node:path';
 
 /**
  * Import profile from JSON to user by id
@@ -14,6 +15,7 @@ import { importUserExperienceFromJSON } from '../src/common/profile/import';
  */
 const main = async () => {
   let con: DataSource | null = null;
+  let failedImports = 0;
 
   try {
     const { values } = parseArgs({
@@ -22,34 +24,96 @@ const main = async () => {
           type: 'string',
           short: 'p',
         },
-        userId: {
+        limit: {
           type: 'string',
-          short: 'u',
+          short: 'l',
         },
       },
     });
 
     const paramsSchema = z.object({
       path: z.string().nonempty(),
-      userId: z.string().nonempty(),
+      limit: z.coerce.number().int().positive().default(10),
     });
 
     const params = paramsSchema.parse(values);
 
     con = await createOrGetConnection();
 
-    const dataJSON = JSON.parse(await readFile(params.path, 'utf-8'));
+    const pathStat = await stat(params.path);
 
-    await importUserExperienceFromJSON({
-      con: con.manager,
-      dataJson: dataJSON,
-      userId: params.userId,
-    });
+    let filePaths = [params.path];
+
+    if (pathStat.isDirectory()) {
+      filePaths = await readdir(params.path);
+    }
+
+    console.log('Found files:', filePaths.length);
+
+    console.log(
+      `Importing:`,
+      Math.min(params.limit, filePaths.length),
+      `(limit ${params.limit})`,
+    );
+
+    for (const [index, fileName] of filePaths
+      .slice(0, params.limit)
+      .entries()) {
+      const filePath =
+        params.path === fileName ? fileName : path.join(params.path, fileName);
+
+      try {
+        if (!filePath.endsWith('.json')) {
+          throw { type: 'not_json_ext', filePath };
+        }
+
+        const userId = filePath.split('/').pop()?.split('.json')[0];
+
+        if (!userId) {
+          throw { type: 'no_user_id', filePath };
+        }
+
+        const dataJSON = JSON.parse(await readFile(filePath, 'utf-8'));
+
+        await importUserExperienceFromJSON({
+          con: con.manager,
+          dataJson: dataJSON,
+          userId: 'testuser',
+        });
+      } catch (error) {
+        failedImports += 1;
+
+        if (error instanceof QueryFailedError) {
+          console.error({
+            type: 'db_query_failed',
+            message: error.message,
+            filePath,
+          });
+        } else if (error instanceof z.ZodError) {
+          console.error({
+            type: 'zod_error',
+            message: error.issues[0].message,
+            path: error.issues[0].path,
+            filePath,
+          });
+        } else {
+          console.error(error);
+        }
+      }
+
+      if (index && index % 100 === 0) {
+        console.log('Done so far:', index, ', failed:', failedImports);
+      }
+    }
   } catch (error) {
     console.error(error instanceof z.ZodError ? z.prettifyError(error) : error);
   } finally {
     if (con) {
       con.destroy();
+    }
+
+    if (failedImports > 0) {
+      console.log(`Failed imports: ${failedImports}`);
     }
 
     process.exit(0);

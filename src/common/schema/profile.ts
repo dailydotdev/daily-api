@@ -100,51 +100,77 @@ export const getExperienceSchema = (type: UserExperienceType) => {
 
 export const userExperienceWorkImportSchema = z.object({
   type: z.string(),
-  company: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
+  company: z.string().nullish(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Work experience'),
+  description: z.string().nullish(),
   started_at: z.coerce.date().default(() => new Date()),
-  location_type: z.string().optional(),
-  skills: z.array(z.string()).optional(),
+  location_type: z.string().nullish(),
+  skills: z
+    .array(z.string())
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default([]),
   ended_at: z.coerce.date().nullish().default(null),
   location: z
     .object({
-      city: z.string().optional(),
-      country: z.string(),
+      city: z.string().nullish(),
+      country: z.string().nullish(),
     })
-    .optional(),
+    .nullish(),
 });
 
 export const userExperienceEducationImportSchema = z.object({
   type: z.string(),
-  company: z.string().optional(),
-  title: z.string(),
-  description: z.string().optional(),
+  company: z.string().nullish(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Education'),
+  description: z.string().nullish(),
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
   location: z
     .object({
-      city: z.string().optional(),
-      country: z.string(),
+      city: z.string().nullish(),
+      country: z.string().nullish(),
     })
-    .optional(),
-  skills: z.array(z.string()).optional(),
-  subtitle: z.string().optional(),
+    .nullish(),
+  skills: z
+    .array(z.string())
+    .nullish()
+    .transform((n) => (n === null ? undefined : n)),
+  subtitle: z.string().nullish(),
 });
 
 export const userExperienceCertificationImportSchema = z.object({
   type: z.string(),
-  company: z.string().optional(),
-  title: z.string(),
+  company: z.string().nullish(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Certification'),
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
 });
 
 export const userExperienceProjectImportSchema = z.object({
   type: z.string(),
-  title: z.string(),
-  description: z.string(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Project'),
+  description: z.string().nullish(),
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
-  skills: z.array(z.string()),
+  skills: z
+    .array(z.string())
+    .nullish()
+    .transform((n) => (n === null ? undefined : n)),
 });

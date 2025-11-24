@@ -15,6 +15,10 @@ import type { Company } from '../../Company';
 import { LocationType } from '@dailydotdev/schema';
 import type { DatasetLocation } from '../../dataset/DatasetLocation';
 
+export type UserExperienceFlags = Partial<{
+  import: string;
+}>;
+
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
 export class UserExperience {
@@ -84,4 +88,7 @@ export class UserExperience {
 
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: UserExperienceFlags;
 }
