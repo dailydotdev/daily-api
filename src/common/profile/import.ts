@@ -37,8 +37,9 @@ const resolveUserCompanyPart = async ({
   const company = await con
     .getRepository(Company)
     .createQueryBuilder()
+    .setParameter('companyName', name)
     .addSelect('id')
-    .addSelect(`similarity(name, '${name}')`, 'similarity')
+    .addSelect(`similarity(name, :companyName)`, 'similarity')
     .orderBy('similarity', 'DESC')
     .getRawOne<Pick<Company, 'id'> & { similarity: number }>();
 
@@ -76,26 +77,32 @@ const resolveUserLocationPart = async ({
     .addSelect('id');
 
   if (location.city) {
-    datasetLocationQb.addSelect(
-      `coalesce(similarity(city, '${location.city}'), 0)`,
-      'similarityCity',
-    );
+    datasetLocationQb
+      .setParameter('locationCity', location.city)
+      .addSelect(
+        `coalesce(similarity(city, :locationCity), 0)`,
+        'similarityCity',
+      );
     datasetLocationQb.addOrderBy('"similarityCity"', 'DESC');
   }
 
   if (location.subdivision) {
-    datasetLocationQb.addSelect(
-      `coalesce(similarity(subdivision, '${location.subdivision}'), 0)`,
-      'similaritySubdivision',
-    );
+    datasetLocationQb
+      .setParameter('locationSubdivision', location.subdivision)
+      .addSelect(
+        `coalesce(similarity(subdivision, :locationSubdivision), 0)`,
+        'similaritySubdivision',
+      );
     datasetLocationQb.addOrderBy('"similaritySubdivision"', 'DESC');
   }
 
   if (location.country) {
-    datasetLocationQb.addSelect(
-      `coalesce(similarity(country, '${location.country}'), 0)`,
-      'similarityCountry',
-    );
+    datasetLocationQb
+      .setParameter('locationCountry', location.country)
+      .addSelect(
+        `coalesce(similarity(country, :locationCountry), 0)`,
+        'similarityCountry',
+      );
     datasetLocationQb.addOrderBy('"similarityCountry"', 'DESC');
   }
 
