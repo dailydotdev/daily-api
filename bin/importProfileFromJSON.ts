@@ -102,6 +102,7 @@ const main = async () => {
           console.error({
             type: 'db_query_failed',
             message: error.message,
+            query: error.query,
             filePath,
           });
         } else if (error instanceof z.ZodError) {
