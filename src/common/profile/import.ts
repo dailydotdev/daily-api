@@ -361,6 +361,8 @@ export const importUserExperienceFromJSON = async ({
 
           break;
         case UserExperienceType.Project:
+        case UserExperienceType.OpenSource:
+        case UserExperienceType.Volunteering:
           await importUserExperienceProject({
             data: item,
             con: entityManager,
