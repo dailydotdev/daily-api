@@ -141,10 +141,12 @@ export const importUserExperienceWork = async ({
     skills,
     ended_at: endedAt,
     location,
+    flags,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceWork).insert(
     con.getRepository(UserExperienceWork).create({
+      flags,
       userId: userId,
       ...(await resolveUserCompanyPart({
         name: company,
@@ -202,10 +204,12 @@ export const importUserExperienceEducation = async ({
     ended_at: endedAt,
     location,
     subtitle,
+    flags,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceEducation).insert(
     con.getRepository(UserExperienceEducation).create({
+      flags,
       userId: userId,
       ...(await resolveUserCompanyPart({
         name: company,
@@ -250,12 +254,14 @@ export const importUserExperienceCertification = async ({
     title,
     started_at: startedAt,
     ended_at: endedAt,
+    flags,
   } = userExperience;
 
   const insertResult = await con
     .getRepository(UserExperienceCertification)
     .insert(
       con.getRepository(UserExperienceCertification).create({
+        flags,
         userId: userId,
         ...(await resolveUserCompanyPart({
           name: company,
@@ -291,10 +297,12 @@ export const importUserExperienceProject = async ({
     started_at: startedAt,
     ended_at: endedAt,
     skills,
+    flags,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceProject).insert(
     con.getRepository(UserExperienceProject).create({
+      flags,
       userId: userId,
       title,
       description,
@@ -318,10 +326,12 @@ export const importUserExperienceFromJSON = async ({
   con,
   dataJson,
   userId,
+  importId,
 }: {
   con: EntityManager;
   dataJson: unknown;
   userId: string;
+  importId?: string;
 }) => {
   if (!userId) {
     throw new Error('userId is required');
@@ -352,10 +362,15 @@ export const importUserExperienceFromJSON = async ({
 
   await con.transaction(async (entityManager) => {
     for (const item of data) {
-      switch (item.type) {
+      const importData = {
+        ...item,
+        flags: importId ? { import: importId } : undefined,
+      };
+
+      switch (importData.type) {
         case UserExperienceType.Work:
           await importUserExperienceWork({
-            data: item,
+            data: importData,
             con: entityManager,
             userId,
           });
@@ -363,7 +378,7 @@ export const importUserExperienceFromJSON = async ({
           break;
         case UserExperienceType.Education:
           await importUserExperienceEducation({
-            data: item,
+            data: importData,
             con: entityManager,
             userId,
           });
@@ -371,7 +386,7 @@ export const importUserExperienceFromJSON = async ({
           break;
         case UserExperienceType.Certification:
           await importUserExperienceCertification({
-            data: item,
+            data: importData,
             con: entityManager,
             userId,
           });
@@ -381,14 +396,14 @@ export const importUserExperienceFromJSON = async ({
         case UserExperienceType.OpenSource:
         case UserExperienceType.Volunteering:
           await importUserExperienceProject({
-            data: item,
+            data: importData,
             con: entityManager,
             userId,
           });
 
           break;
         default:
-          throw new Error(`Unsupported experience type: ${item.type}`);
+          throw new Error(`Unsupported experience type: ${importData.type}`);
       }
     }
   });

@@ -121,6 +121,7 @@ export const userExperienceWorkImportSchema = z.object({
       country: z.string().nullish(),
     })
     .nullish(),
+  flags: z.object({ import: z.string() }).partial().optional(),
 });
 
 export const userExperienceEducationImportSchema = z.object({
@@ -145,6 +146,7 @@ export const userExperienceEducationImportSchema = z.object({
     .nullish()
     .transform((n) => (n === null ? undefined : n)),
   subtitle: z.string().nullish(),
+  flags: z.object({ import: z.string() }).partial().optional(),
 });
 
 export const userExperienceCertificationImportSchema = z.object({
@@ -157,6 +159,7 @@ export const userExperienceCertificationImportSchema = z.object({
     .default('Certification'),
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
+  flags: z.object({ import: z.string() }).partial().optional(),
 });
 
 export const userExperienceProjectImportSchema = z.object({
@@ -173,4 +176,5 @@ export const userExperienceProjectImportSchema = z.object({
     .array(z.string())
     .nullish()
     .transform((n) => (n === null ? undefined : n)),
+  flags: z.object({ import: z.string() }).partial().optional(),
 });

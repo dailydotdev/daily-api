@@ -7,6 +7,7 @@ import { QueryFailedError, type DataSource } from 'typeorm';
 import { readFile, stat, readdir } from 'node:fs/promises';
 import { importUserExperienceFromJSON } from '../src/common/profile/import';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 /**
  * Import profile from JSON to user by id
@@ -28,15 +29,21 @@ const main = async () => {
           type: 'string',
           short: 'l',
         },
+        uid: {
+          type: 'string',
+        },
       },
     });
 
     const paramsSchema = z.object({
       path: z.string().nonempty(),
       limit: z.coerce.number().int().positive().default(10),
+      uid: z.string().nonempty().default(randomUUID()),
     });
 
     const params = paramsSchema.parse(values);
+
+    console.log('Starting import with ID:', params.uid);
 
     con = await createOrGetConnection();
 
@@ -79,6 +86,7 @@ const main = async () => {
           con: con.manager,
           dataJson: dataJSON,
           userId: 'testuser',
+          importId: params.uid,
         });
       } catch (error) {
         failedImports += 1;
