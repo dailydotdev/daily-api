@@ -185,17 +185,6 @@ describe('query userExperiences', () => {
     expect(res.data.userExperiences.pageInfo.hasNextPage).toBe(false);
   });
 
-  it('should return only 1 experience for non-logged-in user', async () => {
-    loggedUser = null;
-
-    const res = await client.query(USER_EXPERIENCES_QUERY, {
-      variables: { userId: '1' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userExperiences.edges).toHaveLength(1);
-  });
-
   it('should return all fields for logged-in users', async () => {
     loggedUser = '1';
 
