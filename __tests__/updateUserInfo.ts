@@ -10,6 +10,7 @@ import {
 } from './helpers';
 import { User } from '../src/entity';
 import { clearFile, UploadPreset } from '../src/common/cloudinary';
+import { fallbackImages } from '../src/config';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -254,7 +255,7 @@ describe('mutation updateUserInfo', () => {
       expect(res.errors).toBeFalsy();
 
       const updatedUser = await repo.findOneBy({ id: loggedUser });
-      expect(updatedUser?.image).toBeNull();
+      expect(updatedUser?.image).toBe(fallbackImages.avatar);
       expect(clearFile).toHaveBeenCalledWith({
         referenceId: loggedUser,
         preset: UploadPreset.Avatar,
@@ -318,7 +319,7 @@ describe('mutation updateUserInfo', () => {
       expect(res.errors).toBeFalsy();
 
       const updatedUser = await repo.findOneBy({ id: loggedUser });
-      expect(updatedUser?.image).toBeNull();
+      expect(updatedUser?.image).toBe(fallbackImages.avatar);
       expect(updatedUser?.cover).toBeNull();
 
       expect(clearFile).toHaveBeenCalledTimes(2);
