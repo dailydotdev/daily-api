@@ -29,6 +29,10 @@ const main = async () => {
           type: 'string',
           short: 'l',
         },
+        offset: {
+          type: 'string',
+          short: 'o',
+        },
         uid: {
           type: 'string',
         },
@@ -38,6 +42,7 @@ const main = async () => {
     const paramsSchema = z.object({
       path: z.string().nonempty(),
       limit: z.coerce.number().int().positive().default(10),
+      offset: z.coerce.number().int().positive().default(0),
       uid: z.string().nonempty().default(randomUUID()),
     });
 
@@ -52,8 +57,10 @@ const main = async () => {
     let filePaths = [params.path];
 
     if (pathStat.isDirectory()) {
-      filePaths = await readdir(params.path);
+      filePaths = await readdir(params.path, 'utf-8');
     }
+
+    filePaths.sort(); // ensure consistent order for offset/limit
 
     console.log('Found files:', filePaths.length);
 
@@ -64,7 +71,7 @@ const main = async () => {
     );
 
     for (const [index, fileName] of filePaths
-      .slice(0, params.limit)
+      .slice(params.offset, params.offset + params.limit)
       .entries()) {
       const filePath =
         params.path === fileName ? fileName : path.join(params.path, fileName);
