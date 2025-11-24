@@ -54,7 +54,7 @@ const main = async () => {
 
     const params = paramsSchema.parse(values);
 
-    console.log('Starting import with ID:', params.uid);
+    console.log(`Starting import with ID: ${params.uid}`);
 
     con = await createOrGetConnection();
 
@@ -68,12 +68,10 @@ const main = async () => {
 
     filePaths.sort(); // ensure consistent order for offset/limit
 
-    console.log('Found files:', filePaths.length);
+    console.log(`Found files: ${filePaths.length}`);
 
     console.log(
-      `Importing:`,
-      Math.min(params.limit, filePaths.length),
-      `(limit ${params.limit})`,
+      `Importing: ${Math.min(params.limit, filePaths.length)} (limit ${params.limit}, offset ${params.offset})`,
     );
 
     for (const [index, fileName] of filePaths
@@ -124,7 +122,7 @@ const main = async () => {
       }
 
       if (index && index % 100 === 0) {
-        console.log('Done so far:', index, ', failed:', failedImports);
+        console.log(`Done so far: ${index}, failed: ${failedImports}`);
       }
     }
   } catch (error) {
