@@ -5,7 +5,7 @@ import {
 import type { TypedWorker } from '../worker';
 import { User } from '../../entity/user/User';
 import { getBrokkrClient } from '../../common/brokkr';
-import { updateFlagsStatement } from '../../common/utils';
+import { isProd, updateFlagsStatement } from '../../common/utils';
 import { importUserExperienceFromJSON } from '../../common/profile/import';
 import { logger } from '../../logger';
 
@@ -14,6 +14,12 @@ export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-upda
     subscription: 'api.parse-cv-profile',
     parseMessage: ({ data }) => CandidatePreferenceUpdated.fromBinary(data),
     handler: async ({ data }, con) => {
+      if (isProd) {
+        // disabled for now so I can merge the code and will enable after backfill
+
+        return;
+      }
+
       const { userId, cv } = data.payload || {};
 
       if (!cv?.blob || !cv?.bucket) {
