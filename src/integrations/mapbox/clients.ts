@@ -39,7 +39,7 @@ export class MapboxClient implements IMapboxClient {
 
   async autocomplete(query: string): Promise<MapboxResponse> {
     return this.garmr.execute(async () => {
-      const url = `${this.baseUrl}?q=${encodeURIComponent(query)}&types=country,place&limit=5&access_token=${this.accessToken}`;
+      const url = `${this.baseUrl}?q=${encodeURIComponent(query)}&types=country,region,place&limit=5&access_token=${this.accessToken}`;
 
       const response = await fetch(url);
 
