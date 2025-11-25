@@ -69,6 +69,13 @@ export class UserExperience {
   @Column({ type: 'text', default: null })
   locationId: string | null;
 
+  @Column({ type: 'jsonb', default: {} })
+  customLocation: Partial<{
+    city: string | null;
+    subdivision: string | null;
+    country: string | null;
+  }>;
+
   @ManyToOne('DatasetLocation', { lazy: true, onDelete: 'SET NULL' })
   @JoinColumn({
     name: 'locationId',
