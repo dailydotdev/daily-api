@@ -11,7 +11,7 @@ import { Company } from '../../../src/entity/Company';
 import { UserExperienceWork } from '../../../src/entity/user/experiences/UserExperienceWork';
 import { insertOrIgnoreUserExperienceSkills } from '../../../src/entity/user/experiences/UserExperienceSkill';
 import { textFromEnumValue } from '../../../src/common';
-import { LocationType } from '@dailydotdev/schema';
+import { EmploymentType, LocationType } from '@dailydotdev/schema';
 import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 import { UserExperienceEducation } from '../../../src/entity/user/experiences/UserExperienceEducation';
 import { UserExperienceCertification } from '../../../src/entity/user/experiences/UserExperienceCertification';
@@ -149,6 +149,7 @@ export const importUserExperienceWork = async ({
     ended_at: endedAt,
     location,
     flags,
+    employment_type: employmentType,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceWork).insert(
@@ -166,7 +167,6 @@ export const importUserExperienceWork = async ({
       locationType: locationType
         ? (Object.entries(LocationType).find(([, value]) => {
             return (
-              // TODO cv-parsing remove this replace when cv is adjusted to not use prefix
               locationType.replace('LOCATION_TYPE_', '') ===
               textFromEnumValue(LocationType, value)
             );
@@ -176,6 +176,14 @@ export const importUserExperienceWork = async ({
         location,
         con: con,
       })),
+      employmentType: employmentType
+        ? (Object.entries(EmploymentType).find(([, value]) => {
+            return (
+              employmentType.replace('EMPLOYMENT_TYPE_', '') ===
+              textFromEnumValue(EmploymentType, value)
+            );
+          })?.[1] as EmploymentType)
+        : undefined,
     }),
   );
 
@@ -201,7 +209,6 @@ export const importUserExperienceEducation = async ({
 }): Promise<{ experienceId: string }> => {
   const userExperience = userExperienceEducationImportSchema.parse(data);
 
-  // TODO cv-parsing potentially won't be needed once cv is adjusted to use camelCase
   const {
     company,
     title,

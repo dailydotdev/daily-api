@@ -122,6 +122,7 @@ export const userExperienceWorkImportSchema = z.object({
     })
     .nullish(),
   flags: z.object({ import: z.string() }).partial().optional(),
+  employment_type: z.string().nullish(),
 });
 
 export const userExperienceEducationImportSchema = z.object({
