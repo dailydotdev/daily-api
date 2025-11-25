@@ -310,6 +310,9 @@ importers:
       node-html-parser:
         specifier: ^7.0.1
         version: 7.0.1
+      node-stream-zip:
+        specifier: ^1.15.0
+        version: 1.15.0
       opentelemetry-instrumentation-typeorm:
         specifier: ^0.41.0
         version: 0.41.0(@opentelemetry/api@1.9.0)
@@ -3762,6 +3765,10 @@ packages:
 
   node-releases@2.0.19:
     resolution: {integrity: sha512-xxOWJsBKtzAq7DY0J+DTzuz58K8e7sJbdgwkbMWQe8UYB6ekmsQ45q0M/tJDsGaZmbC+l7n57UV8Hl5tHxO9uw==}
+
+  node-stream-zip@1.15.0:
+    resolution: {integrity: sha512-LN4fydt9TqhZhThkZIVQnF9cwjU3qmUH9h78Mx/K7d3VvfRqqwthLwJEUOEL0QPZ0XQmNN7be5Ggit5+4dq3Bw==}
+    engines: {node: '>=0.12.0'}
 
   nodemon@3.1.10:
     resolution: {integrity: sha512-WDjw3pJ0/0jMFmyNDp3gvY2YizjLmmOUQo6DEBY+JgdvW/yQ9mEeSw6H5ythl5Ny2ytb7f9C2nIbjSxMNzbJXw==}
@@ -8925,6 +8932,8 @@ snapshots:
   node-int64@0.4.0: {}
 
   node-releases@2.0.19: {}
+
+  node-stream-zip@1.15.0: {}
 
   nodemon@3.1.10:
     dependencies:

@@ -128,6 +128,7 @@
     "nanoid": "^3.3.4",
     "node-fetch": "^2.7.0",
     "node-html-parser": "^7.0.1",
+    "node-stream-zip": "^1.15.0",
     "opentelemetry-instrumentation-typeorm": "^0.41.0",
     "parsecurrency": "^1.1.1",
     "pg": "^8.16.3",
