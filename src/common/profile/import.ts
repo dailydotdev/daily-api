@@ -382,11 +382,11 @@ export const importUserExperienceFromJSON = async ({
     )
     .parse(dataJson);
 
-  const transactionFn = transaction
-    ? con.transaction
-    : async <T>(callback: (entityManager: EntityManager) => Promise<T>) => {
-        return callback(con);
-      };
+  const transactionFn = async <T>(
+    callback: (entityManager: EntityManager) => Promise<T>,
+  ) => {
+    return transaction ? con.transaction(callback) : callback(con);
+  };
 
   await transactionFn(async (entityManager) => {
     for (const item of data) {
