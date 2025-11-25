@@ -162,7 +162,7 @@ export const userExperienceCertificationImportSchema = z.object({
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
   flags: z.object({ import: z.string() }).partial().optional(),
-  url: urlParseSchema.nullish(),
+  url: urlParseSchema.nullish().catch(undefined),
 });
 
 export const userExperienceProjectImportSchema = z.object({
@@ -180,5 +180,5 @@ export const userExperienceProjectImportSchema = z.object({
     .nullish()
     .transform((n) => (n === null ? undefined : n)),
   flags: z.object({ import: z.string() }).partial().optional(),
-  url: urlParseSchema.nullish(),
+  url: urlParseSchema.nullish().catch(undefined),
 });
