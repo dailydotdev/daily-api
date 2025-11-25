@@ -30,9 +30,11 @@ import {
   opportunityFeedbackAnswersSchema,
 } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
+import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
 import { ForbiddenError } from 'apollo-server-errors';
 import { ConflictError, NotFoundError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
+import { User } from '../entity/user/User';
 import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
   deleteEmploymentAgreementByUserId,
@@ -420,6 +422,12 @@ export const typeDefs = /* GraphQL */ `
     links: [OrganizationLinkInput!]
   }
 
+  input RecruiterInput {
+    userId: ID!
+    title: String
+    bio: String
+  }
+
   input OpportunityEditInput {
     title: String
     tldr: String
@@ -429,6 +437,7 @@ export const typeDefs = /* GraphQL */ `
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
     organization: OrganizationEditInput
+    recruiter: RecruiterInput
   }
 
   extend type Mutation {
@@ -1256,6 +1265,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           content,
           questions,
           organization,
+          recruiter,
           ...opportunityUpdate
         } = opportunity;
 
@@ -1367,6 +1377,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               });
             }),
             { conflictPaths: ['id'] },
+          );
+        }
+
+        if (recruiter) {
+          // Check if the recruiter is part of the recruiters for this opportunity
+          const existingRecruiter = await entityManager
+            .getRepository(OpportunityUserRecruiter)
+            .findOne({
+              where: {
+                opportunityId: id,
+                userId: recruiter.userId,
+                type: OpportunityUserType.Recruiter,
+              },
+            });
+
+          if (!existingRecruiter) {
+            ctx.log.error(
+              { opportunityId: id, userId: recruiter.userId },
+              'Recruiter is not part of this opportunity',
+            );
+            throw new ForbiddenError(
+              'Access denied! Recruiter is not part of this opportunity',
+            );
+          }
+
+          // Update the recruiter's title and bio on the User entity
+          await entityManager.getRepository(User).update(
+            {
+              id: recruiter.userId,
+            },
+            {
+              title: recruiter.title,
+              bio: recruiter.bio,
+            },
           );
         }
       });
