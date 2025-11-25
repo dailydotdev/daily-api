@@ -205,7 +205,10 @@ export const notificationTitleMap: Record<
   poll_result_author: (ctx: NotificationPostContext) =>
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>
-    `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
+    `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <u>${ctx.organization.name}</u>!`,
+  parsed_cv_profile: () => {
+    return `Your CV was successfully parsed and your experiences are added to <u>your profile</u>.`;
+  },
 };
 
 export const generateNotificationMap: Record<
@@ -592,5 +595,16 @@ export const generateNotificationMap: Record<
       .description(
         `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
       );
+  },
+  parsed_cv_profile: (
+    builder: NotificationBuilder,
+    ctx: NotificationUserContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceUser(ctx.user)
+      .avatarUser(ctx.user)
+      .targetUser(ctx.user)
+      .uniqueKey(new Date().toISOString());
   },
 };

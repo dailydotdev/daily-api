@@ -1,7 +1,7 @@
 import {
   createGarmrMock,
   createMockBrokkrTransport,
-  expectSuccessfulTypedBackground,
+  invokeTypedNotificationWorker,
   saveFixtures,
 } from '../../helpers';
 import { DataSource } from 'typeorm';
@@ -15,6 +15,8 @@ import type { ServiceClient } from '../../../src/types';
 import * as brokkrCommon from '../../../src/common/brokkr';
 import { UserExperience } from '../../../src/entity/user/experiences/UserExperience';
 import { getSecondsTimestamp, updateFlagsStatement } from '../../../src/common';
+import type { NotificationUserContext } from '../../../src/notifications';
+import { NotificationType } from '../../../src/notifications/common';
 
 let con: DataSource;
 
@@ -70,10 +72,13 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeDefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(1);
 
@@ -101,10 +106,13 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeUndefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(0);
 
@@ -133,10 +141,13 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeUndefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(0);
 
@@ -165,10 +176,13 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeUndefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(0);
 
@@ -198,10 +212,13 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeUndefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(0);
 
@@ -240,10 +257,13 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeUndefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(0);
 
@@ -273,10 +293,13 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeUndefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(1);
 
@@ -320,14 +343,46 @@ describe('parseCVProfile worker', () => {
       'parseCV',
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-preference-updated'>(
-      worker,
-      payload,
-    );
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result).toBeUndefined();
 
     expect(parseCVSpy).toHaveBeenCalledTimes(1);
 
     const user = await con.getRepository(User).findOneBy({ id: userId });
     expect(user?.flags.lastCVParseAt).toBe(parseDate.toISOString());
+  });
+
+  it('should send notification after successful parsing', async () => {
+    const userId = '1-pcpw';
+
+    const payload = new CandidatePreferenceUpdated({
+      payload: {
+        userId,
+        cv: {
+          blob: userId,
+          bucket: 'bucket-test',
+          lastModified: getSecondsTimestamp(new Date()),
+        },
+      },
+    });
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(NotificationType.ParsedCVProfile);
+
+    const postContext = result![0].ctx as NotificationUserContext;
+
+    expect(postContext.userIds).toEqual(['1-pcpw']);
+    expect(postContext.user.id).toEqual(userId);
   });
 });

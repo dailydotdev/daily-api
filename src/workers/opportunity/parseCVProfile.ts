@@ -2,24 +2,20 @@ import {
   BrokkrParseRequest,
   CandidatePreferenceUpdated,
 } from '@dailydotdev/schema';
-import type { TypedWorker } from '../worker';
+import type { TypedNotificationWorker } from '../worker';
 import { User } from '../../entity/user/User';
 import { getBrokkrClient } from '../../common/brokkr';
-import { isProd, updateFlagsStatement } from '../../common/utils';
+import { updateFlagsStatement } from '../../common/utils';
 import { importUserExperienceFromJSON } from '../../common/profile/import';
 import { logger } from '../../logger';
+import { NotificationType } from '../../notifications/common';
+import type { NotificationUserContext } from '../../notifications';
 
-export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-updated'> =
+export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-preference-updated'> =
   {
     subscription: 'api.parse-cv-profile',
     parseMessage: ({ data }) => CandidatePreferenceUpdated.fromBinary(data),
-    handler: async ({ data }, con) => {
-      if (isProd) {
-        // disabled for now so I can merge the code and will enable after backfill
-
-        return;
-      }
-
+    handler: async (data, con) => {
       const { userId, cv } = data.payload || {};
 
       if (!cv?.blob || !cv?.bucket) {
@@ -34,14 +30,11 @@ export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-upda
         return;
       }
 
-      const user: Pick<User, 'flags'> | null = await con
-        .getRepository(User)
-        .findOne({
-          select: ['flags'],
-          where: {
-            id: userId,
-          },
-        });
+      const user = await con.getRepository(User).findOne({
+        where: {
+          id: userId,
+        },
+      });
 
       if (!user) {
         return;
@@ -94,6 +87,16 @@ export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-upda
           userId,
           transaction: true,
         });
+
+        return [
+          {
+            type: NotificationType.ParsedCVProfile,
+            ctx: {
+              user,
+              userIds: [userId],
+            } as NotificationUserContext,
+          },
+        ];
       } catch (error) {
         // revert to previous date on error
         await con.getRepository(User).update(
