@@ -269,6 +269,7 @@ export const importUserExperienceCertification = async ({
     started_at: startedAt,
     ended_at: endedAt,
     flags,
+    url,
   } = userExperience;
 
   const insertResult = await con
@@ -284,6 +285,7 @@ export const importUserExperienceCertification = async ({
         title,
         startedAt,
         endedAt,
+        url,
       }),
     );
 
@@ -312,6 +314,7 @@ export const importUserExperienceProject = async ({
     ended_at: endedAt,
     skills,
     flags,
+    url,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceProject).insert(
@@ -322,6 +325,7 @@ export const importUserExperienceProject = async ({
       description,
       startedAt,
       endedAt,
+      url,
     }),
   );
 

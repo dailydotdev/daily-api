@@ -1,6 +1,6 @@
 import z from 'zod';
 import { UserExperienceType } from '../../entity/user/experiences/types';
-import { paginationSchema } from './common';
+import { paginationSchema, urlParseSchema } from './common';
 
 export const userExperiencesSchema = z
   .object({
@@ -161,6 +161,7 @@ export const userExperienceCertificationImportSchema = z.object({
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
   flags: z.object({ import: z.string() }).partial().optional(),
+  url: urlParseSchema.nullish(),
 });
 
 export const userExperienceProjectImportSchema = z.object({
@@ -178,4 +179,5 @@ export const userExperienceProjectImportSchema = z.object({
     .nullish()
     .transform((n) => (n === null ? undefined : n)),
   flags: z.object({ import: z.string() }).partial().optional(),
+  url: urlParseSchema.nullish(),
 });
