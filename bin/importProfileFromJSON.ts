@@ -74,57 +74,61 @@ const main = async () => {
       `Importing: ${Math.min(params.limit, filePaths.length)} (limit ${params.limit}, offset ${params.offset})`,
     );
 
-    for (const [index, fileName] of filePaths
-      .slice(params.offset, params.offset + params.limit)
-      .entries()) {
-      const filePath =
-        params.path === fileName ? fileName : path.join(params.path, fileName);
+    await con.transaction(async (entityManager) => {
+      for (const [index, fileName] of filePaths
+        .slice(params.offset, params.offset + params.limit)
+        .entries()) {
+        const filePath =
+          params.path === fileName
+            ? fileName
+            : path.join(params.path, fileName);
 
-      try {
-        if (!filePath.endsWith('.json')) {
-          throw { type: 'not_json_ext', filePath };
+        try {
+          if (!filePath.endsWith('.json')) {
+            throw { type: 'not_json_ext', filePath };
+          }
+
+          const userId = filePath.split('/').pop()?.split('.json')[0];
+
+          if (!userId) {
+            throw { type: 'no_user_id', filePath };
+          }
+
+          const dataJSON = JSON.parse(await readFile(filePath, 'utf-8'));
+
+          await importUserExperienceFromJSON({
+            con: entityManager,
+            dataJson: dataJSON,
+            userId,
+            importId: params.uid,
+          });
+        } catch (error) {
+          failedImports += 1;
+
+          if (error instanceof QueryFailedError) {
+            console.error({
+              type: 'db_query_failed',
+              message: error.message,
+              query: error.query,
+              filePath,
+            });
+          } else if (error instanceof z.ZodError) {
+            console.error({
+              type: 'zod_error',
+              message: error.issues[0].message,
+              path: error.issues[0].path,
+              filePath,
+            });
+          } else {
+            console.error(error);
+          }
         }
 
-        const userId = filePath.split('/').pop()?.split('.json')[0];
-
-        if (!userId) {
-          throw { type: 'no_user_id', filePath };
-        }
-
-        const dataJSON = JSON.parse(await readFile(filePath, 'utf-8'));
-
-        await importUserExperienceFromJSON({
-          con: con.manager,
-          dataJson: dataJSON,
-          userId,
-          importId: params.uid,
-        });
-      } catch (error) {
-        failedImports += 1;
-
-        if (error instanceof QueryFailedError) {
-          console.error({
-            type: 'db_query_failed',
-            message: error.message,
-            query: error.query,
-            filePath,
-          });
-        } else if (error instanceof z.ZodError) {
-          console.error({
-            type: 'zod_error',
-            message: error.issues[0].message,
-            path: error.issues[0].path,
-            filePath,
-          });
-        } else {
-          console.error(error);
+        if (index && index % 100 === 0) {
+          console.log(`Done so far: ${index}, failed: ${failedImports}`);
         }
       }
-
-      if (index && index % 100 === 0) {
-        console.log(`Done so far: ${index}, failed: ${failedImports}`);
-      }
-    }
+    });
   } catch (error) {
     console.error(error instanceof z.ZodError ? z.prettifyError(error) : error);
   } finally {
@@ -134,6 +138,8 @@ const main = async () => {
 
     if (failedImports > 0) {
       console.log(`Failed imports: ${failedImports}`);
+    } else {
+      console.log('Done!');
     }
 
     process.exit(0);

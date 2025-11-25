@@ -347,11 +347,13 @@ export const importUserExperienceFromJSON = async ({
   dataJson,
   userId,
   importId,
+  transaction = false,
 }: {
   con: EntityManager;
   dataJson: unknown;
   userId: string;
   importId?: string;
+  transaction?: boolean;
 }) => {
   if (!userId) {
     throw new Error('userId is required');
@@ -380,7 +382,13 @@ export const importUserExperienceFromJSON = async ({
     )
     .parse(dataJson);
 
-  await con.transaction(async (entityManager) => {
+  const transactionFn = transaction
+    ? con.transaction
+    : async <T>(callback: (entityManager: EntityManager) => Promise<T>) => {
+        return callback(con);
+      };
+
+  await transactionFn(async (entityManager) => {
     for (const item of data) {
       const importData = {
         ...item,
