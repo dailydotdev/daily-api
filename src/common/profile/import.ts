@@ -41,6 +41,7 @@ const resolveUserCompanyPart = async ({
     .addSelect('id')
     .addSelect(`similarity(name, :companyName)`, 'similarity')
     .orderBy('similarity', 'DESC')
+    .limit(1)
     .getRawOne<Pick<Company, 'id'> & { similarity: number }>();
 
   if (company && company.similarity > threshold) {
@@ -106,7 +107,7 @@ const resolveUserLocationPart = async ({
     datasetLocationQb.addOrderBy('"similarityCountry"', 'DESC');
   }
 
-  const datasetLocation = await datasetLocationQb.getRawOne<
+  const datasetLocation = await datasetLocationQb.limit(1).getRawOne<
     Pick<DatasetLocation, 'id'> & {
       similarityCountry: number;
       similaritySubdivision: number;
@@ -139,7 +140,7 @@ export const importUserExperienceWork = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceWorkImportSchema.parse(data);
+  const userExperience = await userExperienceWorkImportSchema.parseAsync(data);
 
   const {
     company,
@@ -209,7 +210,8 @@ export const importUserExperienceEducation = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceEducationImportSchema.parse(data);
+  const userExperience =
+    await userExperienceEducationImportSchema.parseAsync(data);
 
   const {
     company,
@@ -265,7 +267,8 @@ export const importUserExperienceCertification = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceCertificationImportSchema.parse(data);
+  const userExperience =
+    await userExperienceCertificationImportSchema.parseAsync(data);
 
   const {
     company,
@@ -309,7 +312,8 @@ export const importUserExperienceProject = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceProjectImportSchema.parse(data);
+  const userExperience =
+    await userExperienceProjectImportSchema.parseAsync(data);
 
   const {
     title,
@@ -361,7 +365,7 @@ export const importUserExperienceFromJSON = async ({
     throw new Error('userId is required');
   }
 
-  const data = z
+  const data = await z
     .preprocess(
       (item) => {
         if (item === null) {
@@ -382,7 +386,7 @@ export const importUserExperienceFromJSON = async ({
           .loose(),
       ),
     )
-    .parse(dataJson);
+    .parseAsync(dataJson);
 
   const transactionFn = async <T>(
     callback: (entityManager: EntityManager) => Promise<T>,
