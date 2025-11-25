@@ -92,6 +92,7 @@ export const parseCVProfileWorker: TypedWorker<'api.v1.candidate-preference-upda
           con: con.manager,
           dataJson,
           userId,
+          transaction: true,
         });
       } catch (error) {
         // revert to previous date on error

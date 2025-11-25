@@ -16,3 +16,21 @@ export const paginationSchema = z.object({
 });
 
 export type PaginationArgs = z.infer<typeof paginationSchema>;
+
+const urlStartRegexMatch = /^https?:\/\//;
+
+// match http(s) urls and partials like daily.dev (without protocol )
+export const urlParseSchema = z.preprocess(
+  (val) => {
+    if (typeof val === 'string') {
+      return val.match(urlStartRegexMatch) ? val : `https://${val}`;
+    }
+
+    return val;
+  },
+  z.url({
+    protocol: /^https?$/,
+    hostname: z.regexes.domain,
+    normalize: true,
+  }),
+);

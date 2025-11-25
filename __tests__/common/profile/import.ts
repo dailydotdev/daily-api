@@ -59,6 +59,7 @@ describe('UserExperienceType work import', () => {
       verified: false,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
+      flags: {},
     });
     const skills = await con
       .getRepository(UserExperienceSkill)
@@ -96,6 +97,7 @@ describe('UserExperienceType work import', () => {
       updatedAt: expect.any(Date),
       userId: 'user-work-2',
       verified: false,
+      flags: {},
     });
   });
 });
@@ -131,6 +133,7 @@ describe('UserExperienceType education import', () => {
       grade: null,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
+      flags: {},
     });
   });
 
@@ -163,6 +166,7 @@ describe('UserExperienceType education import', () => {
       grade: null,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
+      flags: {},
     });
   });
 });
@@ -200,6 +204,7 @@ describe('UserExperienceType certification import', () => {
       url: null,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
+      flags: {},
     });
   });
 
@@ -235,6 +240,7 @@ describe('UserExperienceType certification import', () => {
       url: null,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
+      flags: {},
     });
   });
 });
@@ -273,6 +279,7 @@ describe('UserExperienceType project import', () => {
       url: null,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
+      flags: {},
     });
     expect(skills.map((s) => s.value).sort()).toEqual(
       ['GraphQL', 'Node.js'].sort(),
@@ -308,6 +315,7 @@ describe('UserExperienceType project import', () => {
       url: null,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date),
+      flags: {},
     });
   });
 });
