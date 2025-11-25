@@ -66,7 +66,7 @@ const resolveUserLocationPart = async ({
   } | null;
   con: EntityManager;
   threshold?: number;
-}): Promise<Partial<Pick<UserExperience, 'locationId'>>> => {
+}): Promise<Partial<Pick<UserExperience, 'locationId' | 'customLocation'>>> => {
   if (!location) {
     return {};
   }
@@ -125,7 +125,9 @@ const resolveUserLocationPart = async ({
     };
   }
 
-  return {};
+  return {
+    customLocation: location,
+  };
 };
 
 export const importUserExperienceWork = async ({
