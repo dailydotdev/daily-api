@@ -148,6 +148,7 @@ export const userExperienceEducationImportSchema = z.object({
     .transform((n) => (n === null ? undefined : n)),
   subtitle: z.string().nullish(),
   flags: z.object({ import: z.string() }).partial().optional(),
+  grade: z.string().nullish(),
 });
 
 export const userExperienceCertificationImportSchema = z.object({

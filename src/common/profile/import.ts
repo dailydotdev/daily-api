@@ -219,6 +219,7 @@ export const importUserExperienceEducation = async ({
     location,
     subtitle,
     flags,
+    grade,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceEducation).insert(
@@ -238,6 +239,7 @@ export const importUserExperienceEducation = async ({
         con: con,
       })),
       subtitle,
+      grade,
     }),
   );
 
