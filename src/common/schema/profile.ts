@@ -12,7 +12,7 @@ export const userExperiencesSchema = z
 export const userExperienceInputBaseSchema = z.object({
   type: z.enum(UserExperienceType),
   title: z.string().max(1000).nonempty(),
-  description: z.string().max(5000).optional(),
+  description: z.string().max(5000).nullish(),
   subtitle: z.string().max(1000).optional().nullable(),
   startedAt: z.date(),
   endedAt: z.date().optional().nullable().default(null),
@@ -28,17 +28,17 @@ export const userExperienceInputBaseSchema = z.object({
 
 export const userExperienceCertificationSchema = z
   .object({
-    url: z.url().optional(),
-    externalReferenceId: z.string().optional(),
+    url: z.url().nullish(),
+    externalReferenceId: z.string().nullish(),
   })
   .extend(userExperienceInputBaseSchema.shape);
 
 export const userExperienceEducationSchema = z
-  .object({ grade: z.string().optional() })
+  .object({ grade: z.string().nullish() })
   .extend(userExperienceInputBaseSchema.shape);
 
 export const userExperienceProjectSchema = z
-  .object({ url: z.url().optional() })
+  .object({ url: z.url().nullish() })
   .extend(userExperienceInputBaseSchema.shape);
 
 export const userExperienceWorkSchema = z
