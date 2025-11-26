@@ -64,7 +64,7 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       attachments: [
         {
           title: 'Senior Full Stack Developer',
-          title_link: `${process.env.COMMENTS_PREFIX}/opportunities/550e8400-e29b-41d4-a716-446655440001`,
+          title_link: `${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440001`,
           fields: [
             {
               title: 'User',
@@ -114,7 +114,7 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       attachments: [
         {
           title: 'Senior Full Stack Developer',
-          title_link: `${process.env.COMMENTS_PREFIX}/opportunities/550e8400-e29b-41d4-a716-446655440001`,
+          title_link: `${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440001`,
           fields: [
             {
               title: 'User',
@@ -180,7 +180,7 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
       attachments: [
         {
           title: 'Frontend Developer',
-          title_link: `${process.env.COMMENTS_PREFIX}/opportunities/550e8400-e29b-41d4-a716-446655440002`,
+          title_link: `${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440002`,
           fields: [
             {
               title: 'User',
