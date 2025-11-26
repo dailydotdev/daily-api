@@ -35,7 +35,7 @@ const worker: TypedWorker<'api.v1.candidate-accepted-opportunity'> = {
         attachments: [
           {
             title: opportunity?.title || `Opportunity: ${opportunityId}`,
-            title_link: `${process.env.COMMENTS_PREFIX}/opportunities/${opportunityId}`,
+            title_link: `${process.env.COMMENTS_PREFIX}/jobs/${opportunityId}`,
             fields: [
               {
                 title: 'User',
