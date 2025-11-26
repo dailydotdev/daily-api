@@ -38,6 +38,7 @@ import { pollResultAuthorNotification } from './pollResultAuthorNotification';
 import { pollResultNotification } from './pollResultNotification';
 import { articleNewCommentCommentCommented } from './articleNewCommentCommentCommented';
 import { warmIntroNotification } from './warmIntroNotification';
+import { parseCVProfileWorker } from '../opportunity/parseCVProfile';
 
 export function notificationWorkerToWorker(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -122,6 +123,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   pollResultAuthorNotification,
   pollResultNotification,
   warmIntroNotification,
+  parseCVProfileWorker,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

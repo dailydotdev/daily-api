@@ -2170,3 +2170,37 @@ describe('warm intro notifications', () => {
     expect(actual.attachments.length).toEqual(0);
   });
 });
+
+describe('parsed_cv_profile notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should notify when parsed CV profile is ready', async () => {
+    const type = NotificationType.ParsedCVProfile;
+    const ctx: NotificationUserContext = {
+      userIds: ['1'],
+      user: usersFixture[0] as Reference<User>,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('1');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/idoshamun',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+  });
+});
