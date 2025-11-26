@@ -79,6 +79,7 @@ export enum NotificationType {
   PollResult = 'poll_result',
   PollResultAuthor = 'poll_result_author',
   WarmIntro = 'warm_intro',
+  ParsedCVProfile = 'parsed_cv_profile',
 }
 
 export enum NotificationPreferenceType {
