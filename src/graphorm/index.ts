@@ -1692,6 +1692,9 @@ const obj = new GraphORM({
       createdAt: {
         transform: transformDate,
       },
+      customLocation: {
+        jsonType: true,
+      },
     },
   },
   OpportunityMatchCandidatePreference: {
