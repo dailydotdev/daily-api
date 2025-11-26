@@ -74,6 +74,7 @@ export const typeDefs = /* GraphQL */ `
     startedAt: DateTime
     endedAt: DateTime
     company: Company
+    verified: Boolean!
     customCompanyName: String
 
     # custom props per child entity
