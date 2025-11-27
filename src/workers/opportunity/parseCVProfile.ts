@@ -7,9 +7,10 @@ import { User } from '../../entity/user/User';
 import { getBrokkrClient } from '../../common/brokkr';
 import { updateFlagsStatement } from '../../common/utils';
 import { importUserExperienceFromJSON } from '../../common/profile/import';
-import { logger } from '../../logger';
 import { NotificationType } from '../../notifications/common';
-import type { NotificationUserContext } from '../../notifications';
+import type { NotificationParsedCVProfileContext } from '../../notifications';
+import { logger } from '../../logger';
+import { ParseCVProfileError } from '../../errors';
 
 export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-preference-updated'> =
   {
@@ -76,7 +77,10 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
         });
 
         if (!result.parsedCv) {
-          throw new Error('Empty parsedCV result');
+          throw new ParseCVProfileError({
+            message: 'Empty parsedCV result',
+            errors: result.errors,
+          });
         }
 
         const dataJson = JSON.parse(result.parsedCv);
@@ -94,20 +98,11 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
             ctx: {
               user,
               userIds: [userId],
-            } as NotificationUserContext,
+              status: 'success',
+            } as NotificationParsedCVProfileContext,
           },
         ];
       } catch (error) {
-        // revert to previous date on error
-        await con.getRepository(User).update(
-          { id: userId },
-          {
-            flags: updateFlagsStatement<User>({
-              lastCVParseAt: user.flags.lastCVParseAt || null,
-            }),
-          },
-        );
-
         logger.error(
           {
             err: error,
@@ -116,6 +111,17 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
           },
           'Error parsing CV to profile',
         );
+
+        return [
+          {
+            type: NotificationType.ParsedCVProfile,
+            ctx: {
+              user,
+              userIds: [userId],
+              status: 'failed',
+            } as NotificationParsedCVProfileContext,
+          },
+        ];
       }
     },
   };

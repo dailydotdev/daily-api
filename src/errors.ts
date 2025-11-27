@@ -2,7 +2,8 @@ import { ApolloError } from 'apollo-server-errors';
 import { QueryFailedError } from 'typeorm';
 import { submissionLimit } from './config';
 import { BookmarkListCountLimit, maxBookmarksPerMutation } from './types';
-import type { TransferResponse } from '@dailydotdev/schema';
+import { ParseError, TransferResponse } from '@dailydotdev/schema';
+import type { JsonValue } from '@bufbuild/protobuf';
 
 export enum UserFailErrorKeys {
   GenericError = 'GENERIC_ERROR',
@@ -197,5 +198,23 @@ export class PurchaseTypeError extends Error {
     super(message);
 
     this.type = type;
+  }
+}
+
+export class ParseCVProfileError extends Error {
+  private errors: Array<JsonValue> = [];
+
+  constructor(payload: { message: string; errors?: Array<ParseError> }) {
+    super(payload.message);
+
+    if (Array.isArray(payload.errors)) {
+      this.errors = payload.errors.map((error) => {
+        if (error instanceof ParseError) {
+          return error.toJson();
+        }
+
+        return error;
+      });
+    }
   }
 }

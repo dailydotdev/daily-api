@@ -15,7 +15,7 @@ import type { ServiceClient } from '../../../src/types';
 import * as brokkrCommon from '../../../src/common/brokkr';
 import { UserExperience } from '../../../src/entity/user/experiences/UserExperience';
 import { getSecondsTimestamp, updateFlagsStatement } from '../../../src/common';
-import type { NotificationUserContext } from '../../../src/notifications';
+import type { NotificationParsedCVProfileContext } from '../../../src/notifications';
 import { NotificationType } from '../../../src/notifications/common';
 
 let con: DataSource;
@@ -299,7 +299,7 @@ describe('parseCVProfile worker', () => {
         payload,
       );
 
-    expect(result).toBeUndefined();
+    expect(result!.length).toEqual(1);
 
     expect(parseCVSpy).toHaveBeenCalledTimes(1);
 
@@ -310,51 +310,7 @@ describe('parseCVProfile worker', () => {
     expect(experiences).toHaveLength(0);
 
     const user = await con.getRepository(User).findOneBy({ id: userId });
-    expect(user?.flags.lastCVParseAt).toBeNull();
-  });
-
-  it('should revert date of profile parse if parsing fails', async () => {
-    const userId = '1-pcpw';
-
-    const parseDate = new Date('2024-01-01T00:00:00Z');
-
-    await con.getRepository(User).update(
-      { id: userId },
-      {
-        flags: updateFlagsStatement<User>({
-          lastCVParseAt: parseDate,
-        }),
-      },
-    );
-
-    const payload = new CandidatePreferenceUpdated({
-      payload: {
-        userId,
-        cv: {
-          blob: 'empty-cv-mock',
-          bucket: 'bucket-test',
-          lastModified: getSecondsTimestamp(new Date()),
-        },
-      },
-    });
-
-    const parseCVSpy = jest.spyOn(
-      brokkrCommon.getBrokkrClient().instance,
-      'parseCV',
-    );
-
-    const result =
-      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
-        worker,
-        payload,
-      );
-
-    expect(result).toBeUndefined();
-
-    expect(parseCVSpy).toHaveBeenCalledTimes(1);
-
-    const user = await con.getRepository(User).findOneBy({ id: userId });
-    expect(user?.flags.lastCVParseAt).toBe(parseDate.toISOString());
+    expect(user?.flags.lastCVParseAt).not.toBeNull();
   });
 
   it('should send notification after successful parsing', async () => {
@@ -380,9 +336,40 @@ describe('parseCVProfile worker', () => {
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.ParsedCVProfile);
 
-    const postContext = result![0].ctx as NotificationUserContext;
+    const context = result![0].ctx as NotificationParsedCVProfileContext;
 
-    expect(postContext.userIds).toEqual(['1-pcpw']);
-    expect(postContext.user.id).toEqual(userId);
+    expect(context.userIds).toEqual(['1-pcpw']);
+    expect(context.user.id).toEqual(userId);
+    expect(context.status).toEqual('success');
+  });
+
+  it('should send notification after failed parsing', async () => {
+    const userId = '1-pcpw';
+
+    const payload = new CandidatePreferenceUpdated({
+      payload: {
+        userId,
+        cv: {
+          blob: 'empty-cv-mock',
+          bucket: 'bucket-test',
+          lastModified: getSecondsTimestamp(new Date()),
+        },
+      },
+    });
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(NotificationType.ParsedCVProfile);
+
+    const context = result![0].ctx as NotificationParsedCVProfileContext;
+
+    expect(context.userIds).toEqual(['1-pcpw']);
+    expect(context.user.id).toEqual(userId);
+    expect(context.status).toEqual('failed');
   });
 });
