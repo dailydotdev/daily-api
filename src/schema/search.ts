@@ -564,7 +564,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ? mimirSearchRes.result.map((id) => id.postId)
         : ['nosuchid'];
 
-      logger.info({ mimirSearchRes }, 'mimir search result');
+      logger.info({ mimirSearchRes, searchReq }, 'mimir search result');
       const res = await mimirSearchResolver(
         source,
         {
