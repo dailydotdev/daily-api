@@ -155,6 +155,11 @@ export const opportunityEditSchema = z
       stage: z.number().int().nullable().optional(),
       links: z.array(organizationLinksSchema).max(50).optional(),
     }),
+    recruiter: z.object({
+      userId: z.string(),
+      title: z.string().max(240).optional(),
+      bio: z.string().max(2000).optional(),
+    }),
   })
   .partial();
 

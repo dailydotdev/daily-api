@@ -4198,6 +4198,117 @@ describe('mutation editOpportunity', () => {
       stage: CompanyStage.SERIES_B,
     });
   });
+
+  it('should update recruiter title and bio', async () => {
+    loggedUser = '1'; // user 1 is recruiter for opportunitiesFixture[0]
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          recruiter: {
+            userId: usersFixture[0].id,
+            title: 'Senior Tech Recruiter',
+            bio: 'Passionate about connecting great talent with amazing opportunities.',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify the user's title and bio were updated
+    const userAfter = await con
+      .getRepository(User)
+      .findOneBy({ id: usersFixture[0].id });
+
+    expect(userAfter?.title).toBe('Senior Tech Recruiter');
+    expect(userAfter?.bio).toBe(
+      'Passionate about connecting great talent with amazing opportunities.',
+    );
+  });
+
+  it('should fail to update recruiter when user is not a recruiter for the opportunity', async () => {
+    loggedUser = '1'; // user 1 is recruiter for opportunitiesFixture[0]
+
+    // user 2 is NOT a recruiter for opportunitiesFixture[0]
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: {
+            recruiter: {
+              userId: usersFixture[1].id, // user 2
+              title: 'Unauthorized Recruiter',
+              bio: 'This should fail',
+            },
+          },
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Recruiter is not part of this opportunity',
+    );
+  });
+
+  it('should fail to update recruiter when recruiter does not exist in opportunity_user', async () => {
+    loggedUser = '1';
+
+    // user 3 exists but is not a recruiter for opportunitiesFixture[0]
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunitiesFixture[0].id,
+          payload: {
+            recruiter: {
+              userId: '3',
+              title: 'Non-existent Recruiter',
+              bio: 'This should fail',
+            },
+          },
+        },
+      },
+      'FORBIDDEN',
+      'Access denied! Recruiter is not part of this opportunity',
+    );
+  });
+
+  it('should only update title when bio is not provided', async () => {
+    loggedUser = '1';
+
+    // Set initial bio
+    await con.getRepository(User).update(
+      { id: usersFixture[0].id },
+      {
+        title: 'Initial Title',
+        bio: 'Initial bio that should remain',
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          recruiter: {
+            userId: usersFixture[0].id,
+            title: 'Updated Title Only',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const userAfter = await con
+      .getRepository(User)
+      .findOneBy({ id: usersFixture[0].id });
+
+    expect(userAfter?.title).toBe('Updated Title Only');
+    expect(userAfter?.bio).toBe('Initial bio that should remain');
+  });
 });
 
 describe('mutation clearOrganizationImage', () => {
