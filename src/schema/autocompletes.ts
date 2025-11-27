@@ -46,7 +46,7 @@ export const typeDefs = /* GraphQL */ `
 
   type Location {
     id: ID!
-    country: String!
+    country: String
     city: String
     subdivision: String
   }
