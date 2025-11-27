@@ -4307,8 +4307,7 @@ describe('mutation editOpportunity', () => {
       .findOneBy({ id: usersFixture[0].id });
 
     expect(userAfter?.title).toBe('Updated Title Only');
-    // Bio should be set to undefined since it wasn't provided in the update
-    expect(userAfter?.bio).toBeUndefined();
+    expect(userAfter?.bio).toBe('Initial bio that should remain');
   });
 });
 
