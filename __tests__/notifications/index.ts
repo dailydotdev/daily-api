@@ -2237,7 +2237,7 @@ describe('parsed_cv_profile notifications', () => {
     ]);
 
     expect(actual.notification.title).toBe(
-      "We couldn't read your CV — sorry about that! The good news is you can still add your experience manually in your profile.",
+      "We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in your profile.",
     );
   });
 });

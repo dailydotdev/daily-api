@@ -212,7 +212,7 @@ export const notificationTitleMap: Record<
       return `Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!`;
     }
 
-    return `We couldn't read your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
+    return `We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
   },
 };
 
