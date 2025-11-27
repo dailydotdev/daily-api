@@ -10,6 +10,7 @@ import { importUserExperienceFromJSON } from '../../common/profile/import';
 import { NotificationType } from '../../notifications/common';
 import type { NotificationParsedCVProfileContext } from '../../notifications';
 import { logger } from '../../logger';
+import { ParseCVProfileError } from '../../errors';
 
 export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-preference-updated'> =
   {
@@ -76,7 +77,10 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
         });
 
         if (!result.parsedCv) {
-          throw new Error('Empty parsedCV result');
+          throw new ParseCVProfileError({
+            message: 'Empty parsedCV result',
+            errors: result.errors,
+          });
         }
 
         const dataJson = JSON.parse(result.parsedCv);

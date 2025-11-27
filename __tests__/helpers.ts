@@ -47,6 +47,7 @@ import {
   BrokkrService,
   ExtractMarkdownResponse,
   ParseCVResponse,
+  ParseError,
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
@@ -450,7 +451,9 @@ export const createMockBrokkrTransport = () =>
       },
       parseCV: (request) => {
         if (request.blobName === 'empty-cv-mock') {
-          return new ParseCVResponse({});
+          return new ParseCVResponse({
+            errors: [new ParseError({ message: 'Empty CV' })],
+          });
         }
 
         return new ParseCVResponse({
