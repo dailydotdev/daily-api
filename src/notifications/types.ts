@@ -170,6 +170,10 @@ export type NotificationWarmIntroContext = NotificationBaseContext & {
   organization: Reference<Organization>;
 };
 
+export type NotificationParsedCVProfileContext = NotificationUserContext & {
+  status: 'success' | 'failed';
+};
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

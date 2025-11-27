@@ -33,6 +33,7 @@ import {
   type NotificationPostAnalyticsContext,
   type NotificationWarmIntroContext,
   type NotificationStreakRestoreContext,
+  type NotificationParsedCVProfileContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -206,8 +207,12 @@ export const notificationTitleMap: Record<
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>
     `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
-  parsed_cv_profile: () => {
-    return `Your CV was successfully parsed and your experiences are added to <u>your profile</u>.`;
+  parsed_cv_profile: (ctx: NotificationParsedCVProfileContext) => {
+    if (ctx.status === 'success') {
+      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!`;
+    }
+
+    return `We couldn't read your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
   },
 };
 
