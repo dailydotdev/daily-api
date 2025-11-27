@@ -58,6 +58,11 @@ export const postAnalyticsClickhouseCron: Cron = {
             sum(go_to_link) AS "goToLink"
         FROM api.post_analytics
         FINAL
+        WHERE post_id IN (
+          SELECT DISTINCT post_id
+          FROM api.post_analytics
+          WHERE created_at > {lastRunAt: DateTime}
+        )
         GROUP BY id
         HAVING "updatedAt" > {lastRunAt: DateTime}
         ORDER BY "updatedAt" DESC;
