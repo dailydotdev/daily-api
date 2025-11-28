@@ -3,10 +3,12 @@ import '../src/config';
 import createOrGetConnection from '../src/db';
 import { UserExperience } from '../src/entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../src/entity/user/experiences/types';
+import { Company } from '../src/entity/Company';
 import {
   enrichCompanyForExperience,
   EnrichmentLogger,
 } from '../src/common/companyEnrichment';
+import { DataSource } from 'typeorm';
 
 const QUEUE_CONCURRENCY = 1;
 
@@ -14,6 +16,20 @@ interface ExperienceData {
   id: string;
   customCompanyName: string;
   type: string;
+}
+
+async function findExactCompanyMatch(
+  con: DataSource,
+  customCompanyName: string,
+): Promise<Company | null> {
+  return con
+    .getRepository(Company)
+    .createQueryBuilder('company')
+    .where('LOWER(company.name) = LOWER(:name)', { name: customCompanyName })
+    .orWhere('LOWER(company.altName) = LOWER(:name)', {
+      name: customCompanyName,
+    })
+    .getOne();
 }
 
 const silentLogger: EnrichmentLogger = {
@@ -47,6 +63,7 @@ const silentLogger: EnrichmentLogger = {
   );
 
   let enriched = 0;
+  let exactMatches = 0;
   let processedCount = 0;
 
   const builder = con
@@ -67,6 +84,23 @@ const silentLogger: EnrichmentLogger = {
   const stream = await builder.stream();
 
   const enrichQueue = fastq.promise(async (experience: ExperienceData) => {
+    // First check for exact name match to avoid API calls
+    const exactMatch = await findExactCompanyMatch(
+      con,
+      experience.customCompanyName,
+    );
+
+    if (exactMatch) {
+      await con
+        .getRepository(UserExperience)
+        .update({ id: experience.id }, { companyId: exactMatch.id });
+
+      processedCount++;
+      exactMatches++;
+      return;
+    }
+
+    // No exact match, use enrichment API
     const result = await enrichCompanyForExperience(
       con,
       {
@@ -95,7 +129,7 @@ const silentLogger: EnrichmentLogger = {
   await enrichQueue.drained();
 
   console.log(
-    `Completed. Processed ${processedCount} experiences, enriched ${enriched} (offset ${offset} to ${offset + processedCount - 1}).`,
+    `Completed. Processed ${processedCount} experiences: ${exactMatches} exact matches, ${enriched} enriched (offset ${offset} to ${offset + processedCount - 1}).`,
   );
   console.log(
     `Next batch command: npx ts-node bin/enrichExistingCompanies.ts ${limit} ${offset + limit}`,
