@@ -1489,7 +1489,32 @@ const onUserExperienceChange = async (
 ) => {
   const experience = data.payload.after;
 
-  if (!experience || experience.type !== UserExperienceType.Work) {
+  if (
+    !experience ||
+    ![UserExperienceType.Work, UserExperienceType.Education].includes(
+      experience?.type,
+    )
+  ) {
+    return;
+  }
+
+  // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
+  if (
+    data.payload.op === 'c' &&
+    experience.customCompanyName &&
+    !experience.companyId
+  ) {
+    await triggerTypedEvent(logger, 'api.v1.company-enrichment', {
+      experienceId: experience.id,
+      customCompanyName: experience.customCompanyName,
+      userId: experience.userId,
+      experienceType:
+        experience.type === UserExperienceType.Education ? 'education' : 'work',
+    });
+  }
+
+  // Work-specific verification logic
+  if (experience.type !== UserExperienceType.Work) {
     return;
   }
 

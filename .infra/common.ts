@@ -441,6 +441,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.candidate-preference-updated',
     subscription: 'api.parse-cv-profile',
   },
+  {
+    topic: 'api.v1.company-enrichment',
+    subscription: 'api.company-enrichment-worker',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
