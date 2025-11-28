@@ -1,6 +1,9 @@
 import nock from 'nock';
 import { AnthropicClient } from '../../../src/integrations/anthropic/client';
-import { GarmrService, GarmrNoopService } from '../../../src/integrations/garmr';
+import {
+  GarmrService,
+  GarmrNoopService,
+} from '../../../src/integrations/garmr';
 import type { AnthropicResponse } from '../../../src/integrations/anthropic/types';
 
 describe('AnthropicClient', () => {
@@ -43,23 +46,11 @@ describe('AnthropicClient', () => {
 
   describe('createMessage', () => {
     const mockResponse: AnthropicResponse = {
-      id: 'msg_123',
-      type: 'message',
-      role: 'assistant',
       content: [
         {
-          type: 'text',
-          text: 'Hello!',
           input: {},
         },
       ],
-      model: 'claude-sonnet-4-5-20250929',
-      stop_reason: 'end_turn',
-      stop_sequence: null,
-      usage: {
-        input_tokens: 10,
-        output_tokens: 5,
-      },
     };
 
     it('should send request with correct headers', async () => {
@@ -97,13 +88,8 @@ describe('AnthropicClient', () => {
 
     it('should handle tool use response', async () => {
       const toolUseResponse: AnthropicResponse = {
-        id: 'msg_456',
-        type: 'message',
-        role: 'assistant',
         content: [
           {
-            type: 'text',
-            text: '',
             input: {
               englishName: 'Google',
               nativeName: 'Google',
@@ -111,13 +97,6 @@ describe('AnthropicClient', () => {
             },
           },
         ],
-        model: 'claude-sonnet-4-5-20250929',
-        stop_reason: 'end_turn',
-        stop_sequence: null,
-        usage: {
-          input_tokens: 50,
-          output_tokens: 30,
-        },
       };
 
       nock('https://api.anthropic.com')

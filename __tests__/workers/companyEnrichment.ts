@@ -27,16 +27,11 @@ let con: DataSource;
 
 const mockAnthropicResponse = (
   englishName: string,
-  nativeName: string,
+  nativeName: string | null,
   domain: string,
 ): AnthropicResponse => ({
-  id: 'msg_123',
-  type: 'message',
-  role: 'assistant',
   content: [
     {
-      type: 'text',
-      text: '',
       input: {
         englishName,
         nativeName,
@@ -44,13 +39,6 @@ const mockAnthropicResponse = (
       },
     },
   ],
-  model: 'claude-sonnet-4-5-20250929',
-  stop_reason: 'end_turn',
-  stop_sequence: null,
-  usage: {
-    input_tokens: 50,
-    output_tokens: 30,
-  },
 });
 
 describe('companyEnrichment worker', () => {
@@ -298,7 +286,7 @@ describe('companyEnrichment worker', () => {
 
     // The new company should have google.com domain
     const googleCompany = companies.find((c) =>
-      c.domains.includes('google.com'),
+      c.domains.some((domain) => domain === 'google.com'),
     );
     expect(googleCompany).toBeDefined();
     expect(googleCompany?.name).toBe('Google');
@@ -436,29 +424,9 @@ describe('companyEnrichment worker', () => {
   });
 
   it('should not set altName when nativeName is null', async () => {
-    mockCreateMessage.mockResolvedValue({
-      id: 'msg_123',
-      type: 'message',
-      role: 'assistant',
-      content: [
-        {
-          type: 'text',
-          text: '',
-          input: {
-            englishName: 'Test Corp',
-            nativeName: null,
-            domain: 'testcorp.com',
-          },
-        },
-      ],
-      model: 'claude-sonnet-4-5-20250929',
-      stop_reason: 'end_turn',
-      stop_sequence: null,
-      usage: {
-        input_tokens: 50,
-        output_tokens: 30,
-      },
-    });
+    mockCreateMessage.mockResolvedValue(
+      mockAnthropicResponse('Test Corp', null, 'testcorp.com'),
+    );
 
     nock('https://testcorp.com').get('/').reply(200);
 

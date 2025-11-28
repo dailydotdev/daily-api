@@ -4,6 +4,7 @@ import { anthropicClient } from '../integrations/anthropic';
 import { generateShortId } from '../ids';
 import { Company, CompanyType } from '../entity/Company';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
+import { UserExperienceType } from '../entity/user/experiences/types';
 
 const GOOGLE_FAVICON_URL = 'https://www.google.com/s2/favicons';
 const FAVICON_SIZE = 128;
@@ -51,8 +52,8 @@ async function validateDomain(
 ): Promise<string | null> {
   // Try the LLM-provided domain first, then the opposite variant
   const domainsToTry = domain.startsWith('www.')
-    ? [domain, domain.slice(4)] // remove www.
-    : [domain, `www.${domain}`]; // add www.
+    ? [domain, domain.slice(4)]
+    : [domain, `www.${domain}`];
 
   for (const testDomain of domainsToTry) {
     for (let attempt = 1; attempt <= DOMAIN_CHECK_RETRIES; attempt++) {
@@ -77,7 +78,6 @@ async function validateDomain(
           'Domain validation attempt failed',
         );
 
-        // Don't retry non-retryable errors (like SSL cert issues)
         if (!retryable) {
           break;
         }
@@ -116,7 +116,7 @@ const worker: TypedWorker<'api.v1.company-enrichment'> = {
       model: 'claude-sonnet-4-5-20250929',
       max_tokens: 1024,
       system:
-        'You are an helpful assistant that returns information about an organization. The user will give you a name, and you will return its name in both English and its native language, as well as their web domain. If you cannot find the domain, return an empty string.',
+        'You are a helpful assistant that returns information about an organization. The user will give you a name, and you will return its name in both English and its native language, as well as their web domain. If you cannot find the domain, return an empty string.',
       messages: [
         {
           role: 'user',
@@ -214,7 +214,9 @@ const worker: TypedWorker<'api.v1.company-enrichment'> = {
     const altName =
       nativeName && nativeName !== englishName ? nativeName : null;
     const companyType =
-      experienceType === 'education' ? CompanyType.School : CompanyType.Company;
+      experienceType === UserExperienceType.Education
+        ? CompanyType.School
+        : CompanyType.Company;
     const company = con.getRepository(Company).create({
       id: companyId,
       name: englishName,

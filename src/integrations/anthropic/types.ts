@@ -14,23 +14,11 @@ export interface AnthropicRequest {
 }
 
 export interface AnthropicContentBlock {
-  type: 'text';
-  text: string;
   input: Record<string, unknown>;
 }
 
 export interface AnthropicResponse {
-  id: string;
-  type: 'message';
-  role: 'assistant';
   content: AnthropicContentBlock[];
-  model: string;
-  stop_reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | null;
-  stop_sequence: string | null;
-  usage: {
-    input_tokens: number;
-    output_tokens: number;
-  };
 }
 
 export interface IAnthropicClient {
