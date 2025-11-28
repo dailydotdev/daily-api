@@ -862,6 +862,22 @@ describe('query autocompleteCompany', () => {
         type: CompanyType.Company,
       },
       {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        altName: '삼성전자',
+        image: 'https://example.com/samsung.png',
+        domains: ['samsung.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        altName: 'トヨタ自動車',
+        image: 'https://example.com/toyota.png',
+        domains: ['toyota.com'],
+        type: CompanyType.Company,
+      },
+      {
         id: 'mit',
         name: 'Massachusetts Institute of Technology',
         image: 'https://example.com/mit.png',
@@ -887,6 +903,14 @@ describe('query autocompleteCompany', () => {
         name: 'University of California, Berkeley',
         image: 'https://example.com/berkeley.png',
         domains: ['berkeley.edu'],
+        type: CompanyType.School,
+      },
+      {
+        id: 'todai',
+        name: 'The University of Tokyo',
+        altName: '東京大学',
+        image: 'https://example.com/todai.png',
+        domains: ['u-tokyo.ac.jp'],
         type: CompanyType.School,
       },
     ]);
@@ -1184,6 +1208,66 @@ describe('query autocompleteCompany', () => {
         id: 'google',
         name: 'Google',
         image: 'https://example.com/google.png',
+      },
+    ]);
+  });
+
+  it('should search by altName (native language name)', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: '삼성전자' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+    ]);
+  });
+
+  it('should search by altName for schools', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: '東京大学', type: 'school' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'todai',
+        name: 'The University of Tokyo',
+        image: 'https://example.com/todai.png',
+      },
+    ]);
+  });
+
+  it('should search by partial altName', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'トヨタ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        image: 'https://example.com/toyota.png',
+      },
+    ]);
+  });
+
+  it('should return results from both name and altName searches', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'samsung' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
       },
     ]);
   });

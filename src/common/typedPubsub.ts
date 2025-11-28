@@ -230,6 +230,12 @@ export type PubSubSchema = {
   'api.v1.recruiter-rejected-candidate-match': CandidateRejectedOpportunityMessage;
   'gondul.v1.candidate-application-scored': ApplicationScored;
   'gondul.v1.warm-intro-generated': WarmIntro;
+  'api.v1.company-enrichment': {
+    experienceId: string;
+    customCompanyName: string;
+    userId: string;
+    experienceType: 'work' | 'education';
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

@@ -172,6 +172,8 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           where: [
             { type, name: slugQuery },
             { type, name: ILike(`%${query}%`) },
+            { type, altName: slugQuery },
+            { type, altName: ILike(`%${query}%`) },
           ],
         }),
       );
