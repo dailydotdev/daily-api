@@ -1,6 +1,7 @@
 import { OpportunityState } from '@dailydotdev/schema';
 import z from 'zod';
 import { organizationLinksSchema } from './organizations';
+import { fileUploadSchema, urlParseSchema } from './common';
 
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
@@ -76,6 +77,25 @@ export const opportunityCreateSchema = z.object({
   }),
   content: opportunityContentSchema.partial(),
 });
+
+export const opportunityCreateParseSchema = opportunityCreateSchema
+  .omit({ organizationId: true })
+  .extend({
+    keywords: z.preprocess((val) => {
+      if (Array.isArray(val)) {
+        return val.map((keyword) => {
+          return {
+            keyword,
+          };
+        });
+      }
+
+      return val;
+    }, opportunityCreateSchema.shape.keywords),
+    meta: opportunityCreateSchema.shape.meta.extend({
+      teamSize: opportunityCreateSchema.shape.meta.shape.teamSize.optional(),
+    }),
+  });
 
 export const opportunityEditSchema = z
   .object({
@@ -171,3 +191,33 @@ export const opportunityUpdateStateSchema = z.object({
   id: z.uuid(),
   state: z.enum(OpportunityState),
 });
+
+export const parseOpportunitySchema = z
+  .object({
+    url: urlParseSchema.optional(),
+    file: fileUploadSchema.optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.url && !data.file) {
+        return false;
+      }
+
+      return true;
+    },
+    {
+      error: 'Either url or file must be provided.',
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.url && data.file) {
+        return false;
+      }
+
+      return true;
+    },
+    {
+      error: 'Only one of url or file can be provided.',
+    },
+  );

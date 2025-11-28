@@ -4763,4 +4763,32 @@ describe('mutation updateOpportunityState', () => {
       'Opportunity is closed',
     );
   });
+
+  it('should throw conflict on LIVE transition if opportunity does not have organization', async () => {
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[0].id;
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(Opportunity).save({
+      id: opportunityId,
+      state: OpportunityState.DRAFT,
+      organizationId: null,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunityId, state: OpportunityState.LIVE },
+      },
+      'CONFLICT',
+      'Opportunity must have an organization assigned',
+    );
+  });
 });
