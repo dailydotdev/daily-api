@@ -314,3 +314,7 @@ export type TLocation = {
   subdivision: string | null;
   city: string | null;
 };
+
+export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
+
+export const acceptedOpportunityExtensions = acceptedResumeExtensions;

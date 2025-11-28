@@ -48,6 +48,16 @@ import {
   ExtractMarkdownResponse,
   ParseCVResponse,
   ParseError,
+  ParseOpportunityResponse,
+  Opportunity,
+  OpportunityMeta,
+  OpportunityContent,
+  EmploymentType,
+  SeniorityLevel,
+  Salary,
+  SalaryPeriod,
+  OpportunityContent_ContentBlock,
+  Location,
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
@@ -67,6 +77,7 @@ export class MockContext extends Context {
   logger: FastifyLoggerInstance;
   contentLanguage: ContentLanguage;
   mockRegion: string;
+  mockTrackingId: string | undefined;
 
   constructor(
     con: DataSource,
@@ -76,6 +87,7 @@ export class MockContext extends Context {
     isTeamMember = false,
     isPlus = false,
     region = '',
+    trackingId: string | undefined = undefined,
   ) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<opentelemetry.Span>();
@@ -88,6 +100,7 @@ export class MockContext extends Context {
     this.mockIsPlus = isPlus;
     this.logger = mock<FastifyLoggerInstance>();
     this.mockRegion = region;
+    this.mockTrackingId = trackingId;
 
     if (req?.headers['content-language']) {
       this.contentLanguage = req.headers['content-language'] as ContentLanguage;
@@ -103,7 +116,7 @@ export class MockContext extends Context {
   }
 
   get trackingId(): string | null {
-    return this.mockUserId;
+    return this.mockTrackingId || this.mockUserId;
   }
 
   get isTeamMember(): boolean {
@@ -463,6 +476,54 @@ export const createMockBrokkrTransport = () =>
             userExperienceProjectFixture[0],
             userExperienceWorkFixture[0],
           ]),
+        });
+      },
+      parseOpportunity: () => {
+        return new ParseOpportunityResponse({
+          opportunity: new Opportunity({
+            title: 'Mocked Opportunity Title',
+            tldr: 'This is a mocked TL;DR of the opportunity.',
+            keywords: ['mock', 'opportunity', 'test'],
+            meta: new OpportunityMeta({
+              employmentType: EmploymentType.FULL_TIME,
+              seniorityLevel: SeniorityLevel.SENIOR,
+              roleType: 0.5,
+              salary: new Salary({
+                min: BigInt(1000),
+                max: BigInt(2000),
+                currency: 'USD',
+                period: SalaryPeriod.MONTHLY,
+              }),
+            }),
+            location: [
+              new Location({
+                country: 'USA',
+                city: 'San Francisco',
+                subdivision: 'CA',
+                type: 1,
+              }),
+            ],
+            content: new OpportunityContent({
+              overview: new OpportunityContent_ContentBlock({
+                content: 'This is the overview of the mocked opportunity.',
+              }),
+              responsibilities: new OpportunityContent_ContentBlock({
+                content:
+                  'These are the responsibilities of the mocked opportunity.',
+              }),
+              requirements: new OpportunityContent_ContentBlock({
+                content:
+                  'These are the requirements of the mocked opportunity.',
+              }),
+              whatYoullDo: new OpportunityContent_ContentBlock({
+                content: 'This is what you will do in the mocked opportunity.',
+              }),
+              interviewProcess: new OpportunityContent_ContentBlock({
+                content:
+                  'This is the interview process of the mocked opportunity.',
+              }),
+            }),
+          }),
         });
       },
     });
