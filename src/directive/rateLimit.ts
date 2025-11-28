@@ -56,6 +56,8 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
       case 'commentOnPost':
       case 'commentOnComment':
         return `${context.userId ?? context.trackingId}:createComment`;
+      case 'parseOpportunity':
+        return `${context.userId ?? context.trackingId}:parseOpportunity`;
       default:
         return `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
           directiveArgs,

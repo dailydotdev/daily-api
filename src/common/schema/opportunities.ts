@@ -2,6 +2,7 @@ import { OpportunityState } from '@dailydotdev/schema';
 import z from 'zod';
 import { organizationLinksSchema } from './organizations';
 import { fileUploadSchema, urlParseSchema } from './common';
+import { parseBigInt } from '../utils';
 
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
@@ -94,6 +95,23 @@ export const opportunityCreateParseSchema = opportunityCreateSchema
     }, opportunityCreateSchema.shape.keywords),
     meta: opportunityCreateSchema.shape.meta.extend({
       teamSize: opportunityCreateSchema.shape.meta.shape.teamSize.optional(),
+      salary: z.object({
+        min: z.preprocess((val: bigint) => {
+          if (typeof val === 'undefined') {
+            return val;
+          }
+
+          return parseBigInt(val);
+        }, z.number().int().nonnegative().max(100_000_000).optional()),
+        max: z.preprocess((val: bigint) => {
+          if (typeof val === 'undefined') {
+            return val;
+          }
+
+          return parseBigInt(val);
+        }, z.number().int().nonnegative().max(100_000_000).optional()),
+        period: z.number(),
+      }),
     }),
   });
 

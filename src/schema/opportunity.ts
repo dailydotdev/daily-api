@@ -81,6 +81,8 @@ import { fileTypeFromBuffer } from 'file-type';
 import { acceptedOpportunityFileTypes } from '../types';
 import { getBrokkrClient } from '../common/brokkr';
 import { garmScraperService } from '../common/scraper';
+import { Storage } from '@google-cloud/storage';
+import { randomUUID } from 'node:crypto';
 
 export interface GQLOpportunity
   extends Pick<
@@ -1621,21 +1623,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         await parseOpportunitySchema.parseAsync(payload);
 
       let opportunityFileBuffer: Buffer | null = null;
-      const filename = `test-upload-job.pdf`;
+      const filename = `job-opportunity-${randomUUID()}.pdf`;
       let extension = 'pdf';
 
       if (parseOpportunityPayload.url) {
-        const response = await garmScraperService.execute(() => {
-          return fetch(`${process.env.SCRAPER_URL}/pdf`, {
+        const response = await garmScraperService.execute(async () => {
+          const response = await fetch(`${process.env.SCRAPER_URL}/pdf`, {
             method: 'POST',
             body: JSON.stringify({ url: parseOpportunityPayload.url }),
             headers: { 'content-type': 'application/json' },
           });
-        });
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch job from URL');
-        }
+          if (!response.ok) {
+            throw new Error('Failed to fetch job from URL');
+          }
+
+          return response;
+        });
 
         opportunityFileBuffer = Buffer.from(await response.arrayBuffer());
       } else {
@@ -1707,24 +1711,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityContent = new OpportunityContent(renderedContent);
 
-        const opportunity = await ctx.con.getRepository(OpportunityJob).save(
-          ctx.con.getRepository(OpportunityJob).create({
-            ...parsedOpportunity,
-            state: OpportunityState.DRAFT,
-            content: opportunityContent,
-            keywords: parsedOpportunity.keywords.map((keyword) => {
-              return ctx.con.getRepository(OpportunityKeyword).create({
+        const opportunityResult = await ctx.con.transaction(
+          async (entityManager) => {
+            const opportunity = await entityManager
+              .getRepository(OpportunityJob)
+              .save(
+                entityManager.getRepository(OpportunityJob).create({
+                  ...parsedOpportunity,
+                  state: OpportunityState.DRAFT,
+                  content: opportunityContent,
+                  flags: {
+                    anonUserId: ctx.trackingId, // save tracking id to attribute later
+                  },
+                } as DeepPartial<OpportunityJob>),
+              );
+
+            await entityManager.getRepository(OpportunityKeyword).insert(
+              parsedOpportunity.keywords.map((keyword) => ({
+                opportunityId: opportunity.id,
                 keyword: keyword.keyword,
-              });
-            }),
-            flags: {
-              anonUserId: ctx.trackingId, // save tracking id to attribute later
-            },
-          } as DeepPartial<OpportunityJob>),
+              })),
+            );
+
+            return opportunity;
+          },
         );
 
         return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-          builder.queryBuilder.where({ id: opportunity.id });
+          builder.queryBuilder.where({ id: opportunityResult.id });
 
           return builder;
         });
