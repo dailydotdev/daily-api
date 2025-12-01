@@ -510,7 +510,11 @@ export const validateUserUpdate = async (
       throw new ValidationError(JSON.stringify(formattedErrors));
     }
 
-    return { ...validatedName, ...socialResult.data };
+    const socialData = Object.fromEntries(
+      Object.entries(socialResult.data).filter(([, v]) => v !== undefined),
+    );
+
+    return { ...validatedName, ...socialData };
   } catch (originalError) {
     if (originalError instanceof ValidationError) {
       const validationError: ValidationError = originalError;
