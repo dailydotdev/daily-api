@@ -1,4 +1,4 @@
-import type { EntityManager } from 'typeorm';
+import { IsNull, type EntityManager } from 'typeorm';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { updateFlagsStatement } from '../utils';
 import type { Opportunity } from '../../entity/opportunities/Opportunity';
@@ -31,6 +31,9 @@ export const claimAnonOpportunities = async ({
         })
         .where("flags->>'anonUserId' = :anonUserId", {
           anonUserId,
+        })
+        .andWhere({
+          organizationId: IsNull(), // only claim opportunities not linked to an organization yet
         })
         .returning(['id'])
         .execute();
