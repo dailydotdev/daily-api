@@ -96,6 +96,7 @@ describe('mutation updateUserInfo', () => {
           country
           city
         }
+        hideExperience
       }
     }
   `;
@@ -661,5 +662,54 @@ describe('mutation updateUserInfo', () => {
     expect(updatedUser?.readme).toEqual('# My Profile\n\nWelcome!');
     expect(updatedUser?.readmeHtml).toContain('<h1>');
     // locationId check skipped - requires DatasetLocation records
+  });
+
+  it('should update hideExperience', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(User);
+
+    // Verify initial state is false
+    const user = await repo.findOneBy({ id: loggedUser });
+    expect(user?.hideExperience).toBe(false);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          hideExperience: true,
+          username: 'testuser',
+          name: 'Test User',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserInfo.hideExperience).toBe(true);
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser?.hideExperience).toBe(true);
+  });
+
+  it('should update hideExperience to false', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(User);
+
+    // Set hideExperience to true first
+    await repo.update({ id: loggedUser }, { hideExperience: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          hideExperience: false,
+          username: 'testuser',
+          name: 'Test User',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserInfo.hideExperience).toBe(false);
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser?.hideExperience).toBe(false);
   });
 });

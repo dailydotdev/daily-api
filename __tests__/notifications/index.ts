@@ -10,6 +10,7 @@ import {
   NotificationDoneByContext,
   NotificationGiftPlusContext,
   type NotificationOpportunityMatchContext,
+  type NotificationParsedCVProfileContext,
   type NotificationPostAnalyticsContext,
   NotificationPostContext,
   NotificationPostModerationContext,
@@ -2179,9 +2180,10 @@ describe('parsed_cv_profile notifications', () => {
 
   it('should notify when parsed CV profile is ready', async () => {
     const type = NotificationType.ParsedCVProfile;
-    const ctx: NotificationUserContext = {
+    const ctx: NotificationParsedCVProfileContext = {
       userIds: ['1'],
       user: usersFixture[0] as Reference<User>,
+      status: 'success',
     };
 
     const actual = generateNotificationV2(type, ctx);
@@ -2202,5 +2204,40 @@ describe('parsed_cv_profile notifications', () => {
         type: 'user',
       },
     ]);
+    expect(actual.notification.title).toBe(
+      'Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!',
+    );
+  });
+
+  it('should notify when parsed CV profile failed', async () => {
+    const type = NotificationType.ParsedCVProfile;
+    const ctx: NotificationParsedCVProfileContext = {
+      userIds: ['1'],
+      user: usersFixture[0] as Reference<User>,
+      status: 'failed',
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('1');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/idoshamun',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+
+    expect(actual.notification.title).toBe(
+      "We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.",
+    );
   });
 });

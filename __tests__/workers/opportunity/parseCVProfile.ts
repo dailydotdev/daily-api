@@ -15,7 +15,7 @@ import type { ServiceClient } from '../../../src/types';
 import * as brokkrCommon from '../../../src/common/brokkr';
 import { UserExperience } from '../../../src/entity/user/experiences/UserExperience';
 import { getSecondsTimestamp, updateFlagsStatement } from '../../../src/common';
-import type { NotificationUserContext } from '../../../src/notifications';
+import type { NotificationParsedCVProfileContext } from '../../../src/notifications';
 import { NotificationType } from '../../../src/notifications/common';
 
 let con: DataSource;
@@ -299,7 +299,7 @@ describe('parseCVProfile worker', () => {
         payload,
       );
 
-    expect(result).toBeUndefined();
+    expect(result!.length).toEqual(1);
 
     expect(parseCVSpy).toHaveBeenCalledTimes(1);
 
@@ -310,51 +310,7 @@ describe('parseCVProfile worker', () => {
     expect(experiences).toHaveLength(0);
 
     const user = await con.getRepository(User).findOneBy({ id: userId });
-    expect(user?.flags.lastCVParseAt).toBeNull();
-  });
-
-  it('should revert date of profile parse if parsing fails', async () => {
-    const userId = '1-pcpw';
-
-    const parseDate = new Date('2024-01-01T00:00:00Z');
-
-    await con.getRepository(User).update(
-      { id: userId },
-      {
-        flags: updateFlagsStatement<User>({
-          lastCVParseAt: parseDate,
-        }),
-      },
-    );
-
-    const payload = new CandidatePreferenceUpdated({
-      payload: {
-        userId,
-        cv: {
-          blob: 'empty-cv-mock',
-          bucket: 'bucket-test',
-          lastModified: getSecondsTimestamp(new Date()),
-        },
-      },
-    });
-
-    const parseCVSpy = jest.spyOn(
-      brokkrCommon.getBrokkrClient().instance,
-      'parseCV',
-    );
-
-    const result =
-      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
-        worker,
-        payload,
-      );
-
-    expect(result).toBeUndefined();
-
-    expect(parseCVSpy).toHaveBeenCalledTimes(1);
-
-    const user = await con.getRepository(User).findOneBy({ id: userId });
-    expect(user?.flags.lastCVParseAt).toBe(parseDate.toISOString());
+    expect(user?.flags.lastCVParseAt).not.toBeNull();
   });
 
   it('should send notification after successful parsing', async () => {
@@ -380,9 +336,115 @@ describe('parseCVProfile worker', () => {
     expect(result!.length).toEqual(1);
     expect(result![0].type).toEqual(NotificationType.ParsedCVProfile);
 
-    const postContext = result![0].ctx as NotificationUserContext;
+    const context = result![0].ctx as NotificationParsedCVProfileContext;
 
-    expect(postContext.userIds).toEqual(['1-pcpw']);
-    expect(postContext.user.id).toEqual(userId);
+    expect(context.userIds).toEqual(['1-pcpw']);
+    expect(context.user.id).toEqual(userId);
+    expect(context.status).toEqual('success');
+  });
+
+  it('should send notification after failed parsing', async () => {
+    const userId = '1-pcpw';
+
+    const payload = new CandidatePreferenceUpdated({
+      payload: {
+        userId,
+        cv: {
+          blob: 'empty-cv-mock',
+          bucket: 'bucket-test',
+          lastModified: getSecondsTimestamp(new Date()),
+        },
+      },
+    });
+
+    const result =
+      await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+        worker,
+        payload,
+      );
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(NotificationType.ParsedCVProfile);
+
+    const context = result![0].ctx as NotificationParsedCVProfileContext;
+
+    expect(context.userIds).toEqual(['1-pcpw']);
+    expect(context.user.id).toEqual(userId);
+    expect(context.status).toEqual('failed');
+  });
+
+  it('should set hideExperience to true when user has 0 experiences before CV upload', async () => {
+    const userId = '1-pcpw';
+
+    // Verify user starts with hideExperience = false and no experiences
+    const userBefore = await con.getRepository(User).findOneBy({ id: userId });
+    expect(userBefore?.hideExperience).toBe(false);
+
+    const experiencesBefore = await con.getRepository(UserExperience).find({
+      where: { userId },
+    });
+    expect(experiencesBefore).toHaveLength(0);
+
+    const payload = new CandidatePreferenceUpdated({
+      payload: {
+        userId,
+        cv: {
+          blob: userId,
+          bucket: 'bucket-test',
+          lastModified: getSecondsTimestamp(new Date()),
+        },
+      },
+    });
+
+    await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+      worker,
+      payload,
+    );
+
+    // Verify experiences were imported
+    const experiencesAfter = await con.getRepository(UserExperience).find({
+      where: { userId },
+    });
+    expect(experiencesAfter.length).toBeGreaterThan(0);
+
+    // Verify hideExperience was set to true
+    const userAfter = await con.getRepository(User).findOneBy({ id: userId });
+    expect(userAfter?.hideExperience).toBe(true);
+  });
+
+  it('should not change hideExperience when user already has experiences', async () => {
+    const userId = '1-pcpw';
+
+    // Create an existing experience for the user
+    await con.getRepository(UserExperience).insert({
+      userId,
+      title: 'Existing Experience',
+      type: 'work',
+      startedAt: new Date(),
+    });
+
+    const experiencesBefore = await con.getRepository(UserExperience).find({
+      where: { userId },
+    });
+    expect(experiencesBefore).toHaveLength(1);
+
+    const payload = new CandidatePreferenceUpdated({
+      payload: {
+        userId,
+        cv: {
+          blob: userId,
+          bucket: 'bucket-test',
+          lastModified: getSecondsTimestamp(new Date()),
+        },
+      },
+    });
+
+    await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+      worker,
+      payload,
+    );
+
+    const userAfter = await con.getRepository(User).findOneBy({ id: userId });
+    expect(userAfter?.hideExperience).toBe(false);
   });
 });

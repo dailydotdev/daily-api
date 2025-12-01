@@ -7,9 +7,11 @@ import { User } from '../../entity/user/User';
 import { getBrokkrClient } from '../../common/brokkr';
 import { updateFlagsStatement } from '../../common/utils';
 import { importUserExperienceFromJSON } from '../../common/profile/import';
-import { logger } from '../../logger';
 import { NotificationType } from '../../notifications/common';
-import type { NotificationUserContext } from '../../notifications';
+import type { NotificationParsedCVProfileContext } from '../../notifications';
+import { logger } from '../../logger';
+import { ParseCVProfileError } from '../../errors';
+import { UserExperience } from '../../entity/user/experiences/UserExperience';
 
 export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-preference-updated'> =
   {
@@ -56,6 +58,11 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
 
       const brokkrClient = getBrokkrClient();
 
+      // Check if user has 0 experiences before parsing
+      const existingExperiencesCount = await con
+        .getRepository(UserExperience)
+        .count({ where: { userId } });
+
       try {
         await con.getRepository(User).update(
           { id: userId },
@@ -76,7 +83,10 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
         });
 
         if (!result.parsedCv) {
-          throw new Error('Empty parsedCV result');
+          throw new ParseCVProfileError({
+            message: 'Empty parsedCV result',
+            errors: result.errors,
+          });
         }
 
         const dataJson = JSON.parse(result.parsedCv);
@@ -88,26 +98,27 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
           transaction: true,
         });
 
+        // If user had no experiences before, set hideExperience to true
+        if (existingExperiencesCount === 0) {
+          await con
+            .getRepository(User)
+            .update(
+              { id: userId, hideExperience: false },
+              { hideExperience: true },
+            );
+        }
+
         return [
           {
             type: NotificationType.ParsedCVProfile,
             ctx: {
               user,
               userIds: [userId],
-            } as NotificationUserContext,
+              status: 'success',
+            } as NotificationParsedCVProfileContext,
           },
         ];
       } catch (error) {
-        // revert to previous date on error
-        await con.getRepository(User).update(
-          { id: userId },
-          {
-            flags: updateFlagsStatement<User>({
-              lastCVParseAt: user.flags.lastCVParseAt || null,
-            }),
-          },
-        );
-
         logger.error(
           {
             err: error,
@@ -116,6 +127,17 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
           },
           'Error parsing CV to profile',
         );
+
+        return [
+          {
+            type: NotificationType.ParsedCVProfile,
+            ctx: {
+              user,
+              userIds: [userId],
+              status: 'failed',
+            } as NotificationParsedCVProfileContext,
+          },
+        ];
       }
     },
   };
