@@ -320,6 +320,65 @@ describe('query userExperiences', () => {
     });
   });
 
+  it('should return empty list when viewing another user with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 2's hideExperience to true
+    await con.getRepository(User).update({ id: '2' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(0);
+    expect(res.data.userExperiences.pageInfo.hasNextPage).toBe(false);
+  });
+
+  it('should return own experiences even with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 1's hideExperience to true
+    await con.getRepository(User).update({ id: '1' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(4);
+  });
+
+  it('should return experiences for another user when hideExperience is false', async () => {
+    loggedUser = '1';
+
+    // Explicitly set user 2's hideExperience to false
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { hideExperience: false });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(1);
+  });
+
+  it('should return empty list for anonymous user when owner has hideExperience enabled', async () => {
+    loggedUser = null;
+
+    // Set user 2's hideExperience to true
+    await con.getRepository(User).update({ id: '2' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(0);
+  });
+
   it('should return cursor for each edge', async () => {
     loggedUser = '1';
 
@@ -447,17 +506,15 @@ describe('query userExperienceById', () => {
     });
   });
 
-  it('should return error when experience does not exist', async () => {
+  it('should return null when experience does not exist', async () => {
     loggedUser = '1';
 
-    await testQueryErrorCode(
-      client,
-      {
-        query: USER_EXPERIENCE_BY_ID_QUERY,
-        variables: { id: 'f47ac10b-58cc-4372-a567-3e02b2c3d479' }, // manually adjusted to be unique
-      },
-      'NOT_FOUND',
-    );
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-3e02b2c3d479' }, // manually adjusted to be unique
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toBeNull();
   });
 
   it('should work for non-logged-in users', async () => {
@@ -485,6 +542,70 @@ describe('query userExperienceById', () => {
       id: 'd4e5f6a7-89ab-4def-c012-456789012345',
       title: 'Product Manager',
     });
+  });
+
+  it('should return null when viewing another user experience with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 2's hideExperience to true
+    await con.getRepository(User).update({ id: '2' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' }, // User 2's experience
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toBeNull();
+  });
+
+  it('should return own experience even with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 1's hideExperience to true
+    await con.getRepository(User).update({ id: '1' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }, // User 1's experience
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      title: 'Senior Software Engineer',
+    });
+  });
+
+  it('should return experience from another user when hideExperience is false', async () => {
+    loggedUser = '1';
+
+    // Explicitly set user 2's hideExperience to false
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { hideExperience: false });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+      title: 'Product Manager',
+    });
+  });
+
+  it('should return null for anonymous user when owner has hideExperience enabled', async () => {
+    loggedUser = null;
+
+    // Set user 1's hideExperience to true
+    await con.getRepository(User).update({ id: '1' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }, // User 1's experience
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toBeNull();
   });
 });
 
