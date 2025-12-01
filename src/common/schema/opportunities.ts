@@ -171,3 +171,15 @@ export const opportunityUpdateStateSchema = z.object({
   id: z.uuid(),
   state: z.enum(OpportunityState),
 });
+
+export const createSharedSlackChannelSchema = z.object({
+  email: z.string().email('Email must be a valid email address'),
+  channelName: z
+    .string()
+    .min(1, 'Channel name is required')
+    .max(80, 'Channel name must be 80 characters or less')
+    .regex(
+      /^[a-z0-9-_]+$/,
+      'Channel name can only contain lowercase letters, numbers, hyphens, and underscores',
+    ),
+});

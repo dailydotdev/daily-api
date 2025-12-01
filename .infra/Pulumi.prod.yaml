@@ -186,6 +186,8 @@ config:
     mapboxAccessToken:
       secure: AAABAGQ/EX6kte5JXzyFrBmYlob0zx+IyG7RIbbcpySfexg2C6aqhoAJQ+aaXCw9UaVXMbMlncgnVvCWnhmR361glY6aDeNfUFXEBYARRJRnZJjXWPXw6KJEWinueHakjMeTpTelCQ2bCBXS0TzEtEE/n0HDqynumezR7A==
     mapboxGeocodingUrl: https://api.mapbox.com/search/geocode/v6/forward
+    slackBotToken:
+      secure: AAABAH+UKbv4/Uoc9jYySYeAr7m+W7OCm/kQa9/3LCrKURh3TcPqgNPqF1ugLg31AAfsT4qVafpb0jiZm+ZCfDTYzrCfPmebxLjV0AAkHAy3kHgLK1v6YNGH
   api:k8s:
     host: subs.daily.dev
     namespace: daily

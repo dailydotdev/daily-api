@@ -46,6 +46,7 @@ import {
   opportunityEditSchema,
   opportunityStateLiveSchema,
   opportunityUpdateStateSchema,
+  createSharedSlackChannelSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -65,6 +66,7 @@ import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
+import { WebClient } from '@slack/web-api';
 
 export interface GQLOpportunity
   extends Pick<
@@ -575,6 +577,21 @@ export const typeDefs = /* GraphQL */ `
       id: ID!
 
       state: ProtoEnumValue!
+    ): EmptyResponse @auth
+
+    """
+    Create a shared Slack channel and invite a user by email
+    """
+    createSharedSlackChannel(
+      """
+      Email address of the user to invite
+      """
+      email: String!
+
+      """
+      Name of the channel to create (lowercase letters, numbers, hyphens, and underscores only)
+      """
+      channelName: String!
     ): EmptyResponse @auth
   }
 `;
@@ -1566,6 +1583,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         _: true,
       };
+    },
+    createSharedSlackChannel: async (
+      _,
+      payload: z.infer<typeof createSharedSlackChannelSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      try {
+        const { channelName, email } = payload;
+        const client = new WebClient(process.env.SLACK_BOT_TOKEN);
+        const createResult = await client.conversations.create({
+          name: channelName,
+          is_private: false,
+        });
+
+        if (!createResult?.channel) {
+          return { _: false };
+        }
+
+        await client.conversations.inviteShared({
+          channel: createResult.channel.id as string,
+          emails: [email],
+          external_limited: true, // Optional: limits them to just this channel
+        });
+
+        return { _: true };
+      } catch (error) {
+        ctx.log.error(
+          {
+            err: error,
+            userId: ctx.userId,
+          },
+          'error creating shared slack channel via GraphQL',
+        );
+
+        throw error;
+      }
     },
   },
   OpportunityMatch: {
