@@ -26,6 +26,10 @@ import { SubscriptionCycles } from '../src/paddle';
 import { SubscriptionStatus } from '../src/common/plus';
 import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../src/entity/OpportunityKeyword';
+import { OpportunityState } from '@dailydotdev/schema';
+import { generateShortId } from '../src/ids';
+import { OpportunityUser } from '../src/entity/opportunities/user';
+import { OpportunityUserType } from '../src/entity/opportunities/types';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -778,6 +782,53 @@ describe('POST /p/newUser', () => {
 
     expect(body.status).toEqual('ok');
     expect(body.userId).not.toEqual(deletedUser.id);
+  });
+
+  it('should claim opportunities that user created as anonymous', async () => {
+    const anonUserId = await generateShortId();
+
+    const opportunity = await con.getRepository(OpportunityJob).save(
+      con.getRepository(OpportunityJob).create({
+        title: 'Test',
+        tldr: 'Test',
+        state: OpportunityState.DRAFT,
+        flags: {
+          anonUserId,
+        },
+      }),
+    );
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: opportunity.flags.anonUserId,
+        name: anonUserId,
+        image: usersFixture[0].image,
+        username: anonUserId,
+        email: `test+${anonUserId}@gmail.com`,
+        experienceLevel: 'LESS_THAN_1_YEAR',
+      })
+      .expect(200);
+
+    expect(body.status).toEqual('ok');
+    expect(body.userId).toEqual(anonUserId);
+
+    const updatedOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneBy({ id: opportunity.id });
+    expect(updatedOpportunity!.flags.anonUserId).toBeNull();
+
+    const opportunityUser = await con.getRepository(OpportunityUser).findOneBy({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+    });
+    expect(opportunityUser).toEqual({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+      type: OpportunityUserType.Recruiter,
+    });
   });
 });
 

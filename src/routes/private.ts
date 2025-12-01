@@ -29,6 +29,7 @@ import {
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import { logger } from '../logger';
+import { claimAnonOpportunities } from '../common/opportunity/user';
 
 interface SearchUsername {
   search: string;
@@ -55,6 +56,25 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const operationResult = await addNewUser(con, body, req);
 
     await addClaimableItemsToUser(con, body);
+
+    if (body.id && operationResult.status === 'ok') {
+      const opportunities = await claimAnonOpportunities({
+        anonUserId: body.id,
+        userId: operationResult.userId,
+        con: con.manager,
+      });
+
+      if (opportunities.length > 0) {
+        logger.info(
+          {
+            anonUserId: body.id,
+            userId: operationResult.userId,
+            opportunities,
+          },
+          'Claimed anon opportunities for new user',
+        );
+      }
+    }
 
     return res.status(200).send(operationResult);
   });
