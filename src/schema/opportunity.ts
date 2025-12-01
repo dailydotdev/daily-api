@@ -1608,7 +1608,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
 
         return { _: true };
-      } catch (error) {
+      } catch (originalError) {
+        const error = originalError as Error;
+
         ctx.log.error(
           {
             err: error,
@@ -1616,6 +1618,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
           'error creating shared slack channel via GraphQL',
         );
+
+        if (error.message === 'An API error occurred: name_taken') {
+          throw new ConflictError('Channel name already exists');
+        }
 
         throw error;
       }
