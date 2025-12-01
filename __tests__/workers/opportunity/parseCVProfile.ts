@@ -372,4 +372,79 @@ describe('parseCVProfile worker', () => {
     expect(context.user.id).toEqual(userId);
     expect(context.status).toEqual('failed');
   });
+
+  it('should set hideExperience to true when user has 0 experiences before CV upload', async () => {
+    const userId = '1-pcpw';
+
+    // Verify user starts with hideExperience = false and no experiences
+    const userBefore = await con.getRepository(User).findOneBy({ id: userId });
+    expect(userBefore?.hideExperience).toBe(false);
+
+    const experiencesBefore = await con.getRepository(UserExperience).find({
+      where: { userId },
+    });
+    expect(experiencesBefore).toHaveLength(0);
+
+    const payload = new CandidatePreferenceUpdated({
+      payload: {
+        userId,
+        cv: {
+          blob: userId,
+          bucket: 'bucket-test',
+          lastModified: getSecondsTimestamp(new Date()),
+        },
+      },
+    });
+
+    await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+      worker,
+      payload,
+    );
+
+    // Verify experiences were imported
+    const experiencesAfter = await con.getRepository(UserExperience).find({
+      where: { userId },
+    });
+    expect(experiencesAfter.length).toBeGreaterThan(0);
+
+    // Verify hideExperience was set to true
+    const userAfter = await con.getRepository(User).findOneBy({ id: userId });
+    expect(userAfter?.hideExperience).toBe(true);
+  });
+
+  it('should not change hideExperience when user already has experiences', async () => {
+    const userId = '1-pcpw';
+
+    // Create an existing experience for the user
+    await con.getRepository(UserExperience).insert({
+      userId,
+      title: 'Existing Experience',
+      type: 'work',
+      startedAt: new Date(),
+    });
+
+    const experiencesBefore = await con.getRepository(UserExperience).find({
+      where: { userId },
+    });
+    expect(experiencesBefore).toHaveLength(1);
+
+    const payload = new CandidatePreferenceUpdated({
+      payload: {
+        userId,
+        cv: {
+          blob: userId,
+          bucket: 'bucket-test',
+          lastModified: getSecondsTimestamp(new Date()),
+        },
+      },
+    });
+
+    await invokeTypedNotificationWorker<'api.v1.candidate-preference-updated'>(
+      worker,
+      payload,
+    );
+
+    const userAfter = await con.getRepository(User).findOneBy({ id: userId });
+    expect(userAfter?.hideExperience).toBe(false);
+  });
 });
