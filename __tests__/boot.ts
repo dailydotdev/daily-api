@@ -159,6 +159,7 @@ const LOGGED_IN_BODY = {
     clickbaitTries: null,
     hasLocationSet: false,
     location: null,
+    hideExperience: false,
   },
   marketingCta: null,
   feeds: [],

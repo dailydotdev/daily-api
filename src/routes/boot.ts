@@ -479,6 +479,7 @@ const getUser = (
       'locationId',
       'readme',
       'language',
+      'hideExperience',
     ],
   });
 
