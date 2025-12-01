@@ -102,7 +102,10 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
         if (existingExperiencesCount === 0) {
           await con
             .getRepository(User)
-            .update({ id: userId }, { hideExperience: true });
+            .update(
+              { id: userId, hideExperience: false },
+              { hideExperience: true },
+            );
         }
 
         return [
