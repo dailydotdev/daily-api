@@ -1619,6 +1619,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLOpportunity> => {
+      if (ctx.userId) {
+        throw new ForbiddenError('Not available for authenticated users yet');
+      }
+
       const parseOpportunityPayload =
         await parseOpportunitySchema.parseAsync(payload);
 

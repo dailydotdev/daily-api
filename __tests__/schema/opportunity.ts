@@ -5151,4 +5151,22 @@ describe('mutation parseOpportunity', () => {
     expect(body.errors[0].extensions.code).toBe('GRAPHQL_VALIDATION_FAILED');
     expect(body.errors[0].message).toBe('File type not supported');
   });
+
+  it('should not allow authenticated users to parse opportunity', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        payload: {
+          url: 'https://example.com/opportunity',
+        },
+      },
+    });
+
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.[0].extensions.code).toBe('FORBIDDEN');
+    expect(res.errors?.[0].message).toBe(
+      'Not available for authenticated users yet',
+    );
+  });
 });
