@@ -33,8 +33,6 @@ async function findExactCompanyMatch(
 }
 
 const silentLogger: EnrichmentLogger = {
-  info: () => {},
-  warn: () => {},
   debug: () => {},
 };
 

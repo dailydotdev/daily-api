@@ -164,6 +164,7 @@ import { UserExperienceWork } from '../../entity/user/experiences/UserExperience
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
+import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1504,13 +1505,15 @@ const onUserExperienceChange = async (
     experience.customCompanyName &&
     !experience.companyId
   ) {
-    await triggerTypedEvent(logger, 'api.v1.company-enrichment', {
-      experienceId: experience.id,
-      customCompanyName: experience.customCompanyName,
-      userId: experience.userId,
-      experienceType:
-        experience.type === UserExperienceType.Education ? 'education' : 'work',
-    });
+    await enrichCompanyForExperience(
+      con,
+      {
+        experienceId: experience.id,
+        customCompanyName: experience.customCompanyName,
+        experienceType: experience.type,
+      },
+      logger,
+    );
   }
 
   // Work-specific verification logic

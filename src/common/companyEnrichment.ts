@@ -13,8 +13,6 @@ const DOMAIN_CHECK_RETRIES = 3;
 const RETRY_DELAY_MS = 1000;
 
 export type EnrichmentLogger = {
-  info: (obj: object, msg: string) => void;
-  warn: (obj: object, msg: string) => void;
   debug: (obj: object, msg: string) => void;
 };
 
@@ -79,7 +77,7 @@ async function validateDomain(
           error instanceof Error ? error.message : String(error);
         const retryable = isRetryableError(error);
 
-        logger.warn(
+        logger.debug(
           {
             testDomain,
             attempt,
@@ -127,7 +125,7 @@ export async function enrichCompanyForExperience(
   const { experienceId, customCompanyName, experienceType } = params;
 
   if (!anthropicClient) {
-    logger.warn({}, 'Anthropic client not configured, skipping enrichment');
+    logger.debug({}, 'Anthropic client not configured, skipping enrichment');
     return {
       success: false,
       skipped: true,
@@ -186,14 +184,9 @@ export async function enrichCompanyForExperience(
     domain: string;
   };
 
-  logger.info(
-    { englishName, nativeName, domain },
-    'Extracted organization info',
-  );
-
   if (!englishName || !domain) {
-    logger.warn(
-      {},
+    logger.debug(
+      { englishName, domain },
       'Missing required organization info (englishName or domain)',
     );
     return {
@@ -207,14 +200,7 @@ export async function enrichCompanyForExperience(
 
   const validatedDomain = await validateDomain(domain, logger);
   if (!validatedDomain) {
-    logger.warn(
-      {
-        domain,
-        timeout: DOMAIN_CHECK_TIMEOUT,
-        retries: DOMAIN_CHECK_RETRIES,
-      },
-      'Domain validation failed after all retries',
-    );
+    logger.debug({ domain }, 'Domain validation failed');
     return {
       success: false,
       skipped: true,
@@ -224,8 +210,6 @@ export async function enrichCompanyForExperience(
     };
   }
 
-  logger.info({ validatedDomain }, 'Domain validated successfully');
-
   const existingCompany = await con
     .getRepository(Company)
     .createQueryBuilder('company')
@@ -233,19 +217,10 @@ export async function enrichCompanyForExperience(
     .getOne();
 
   if (existingCompany) {
-    logger.info(
-      { existingCompanyId: existingCompany.id, domain: validatedDomain },
-      'Found existing company with domain',
-    );
-
     await con
       .getRepository(UserExperience)
       .update({ id: experienceId }, { companyId: existingCompany.id });
 
-    logger.info(
-      { experienceId, companyId: existingCompany.id },
-      'UserExperience linked to existing company',
-    );
     return {
       success: true,
       skipped: false,
@@ -272,19 +247,10 @@ export async function enrichCompanyForExperience(
   });
 
   await con.getRepository(Company).save(company);
-  logger.info(
-    { companyId, name: englishName, type: companyType },
-    'Company created',
-  );
 
   await con
     .getRepository(UserExperience)
     .update({ id: experienceId }, { companyId });
-
-  logger.info(
-    { experienceId, companyId },
-    'UserExperience updated with companyId',
-  );
 
   return {
     success: true,
