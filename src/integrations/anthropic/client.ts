@@ -2,9 +2,6 @@ import fetch from 'node-fetch';
 import { GarmrService, IGarmrService, GarmrNoopService } from '../garmr';
 import { IAnthropicClient, AnthropicRequest, AnthropicResponse } from './types';
 
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_VERSION = '2023-06-01';
-
 export class AnthropicClient implements IAnthropicClient {
   private readonly apiKey: string;
   public readonly garmr: IGarmrService;
@@ -21,12 +18,12 @@ export class AnthropicClient implements IAnthropicClient {
 
   async createMessage(request: AnthropicRequest): Promise<AnthropicResponse> {
     return this.garmr.execute(async () => {
-      const response = await fetch(ANTHROPIC_API_URL, {
+      const response = await fetch(process.env.ANTHROPIC_API_URL || '', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
-          'anthropic-version': ANTHROPIC_VERSION,
+          'anthropic-version': process.env.ANTHROPIC_VERSION || '',
         },
         body: JSON.stringify(request),
       });
@@ -57,8 +54,9 @@ const garmrAnthropicService = new GarmrService({
   },
 });
 
-export const anthropicClient = process.env.ANTHROPIC_API_KEY
-  ? new AnthropicClient(process.env.ANTHROPIC_API_KEY, {
-      garmr: garmrAnthropicService,
-    })
-  : null;
+export const anthropicClient = new AnthropicClient(
+  process.env.ANTHROPIC_API_KEY || '',
+  {
+    garmr: garmrAnthropicService,
+  },
+);
