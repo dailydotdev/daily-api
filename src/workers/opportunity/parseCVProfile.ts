@@ -62,7 +62,6 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
       const existingExperiencesCount = await con
         .getRepository(UserExperience)
         .count({ where: { userId } });
-      const hadNoExperiences = existingExperiencesCount === 0;
 
       try {
         await con.getRepository(User).update(
@@ -100,7 +99,7 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
         });
 
         // If user had no experiences before, set hideExperience to true
-        if (hadNoExperiences) {
+        if (existingExperiencesCount === 0) {
           await con
             .getRepository(User)
             .update({ id: userId }, { hideExperience: true });
