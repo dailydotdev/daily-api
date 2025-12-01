@@ -12,23 +12,12 @@ import { generateTrackingId } from '../../ids';
 import { fallbackImages } from '../../config';
 import { validateAndTransformHandle } from '../../common/handles';
 import {
-  bskySocialUrlMatch,
-  codepenSocialUrlMatch,
   DEFAULT_TIMEZONE,
   DEFAULT_WEEK_START,
-  githubSocialUrlMatch,
-  linkedinSocialUrlMatch,
-  mastodonSocialUrlMatch,
   portfolioLimit,
-  redditSocialUrlMatch,
-  roadmapShSocialUrlMatch,
   safeJSONParse,
-  socialUrlMatch,
-  stackoverflowSocialUrlMatch,
-  threadsSocialUrlMatch,
-  twitterSocialUrlMatch,
-  youtubeSocialUrlMatch,
 } from '../../common';
+import { socialFieldsSchema } from '../../common/schema/socials';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLUpdateUserInput } from '../../schema/users';
 import { validateValidTimeZone } from '../../common/timezone';
@@ -503,23 +492,25 @@ export const validateUserUpdate = async (
 
   const regexParams: ValidateRegex[] = [
     ['name', data.name, nameRegex, !user.name],
-    ['github', data.github, githubSocialUrlMatch],
-    ['twitter', data.twitter, twitterSocialUrlMatch],
-    ['hashnode', data.hashnode, socialUrlMatch],
-    ['roadmap', data.roadmap, roadmapShSocialUrlMatch],
-    ['threads', data.threads, threadsSocialUrlMatch],
-    ['codepen', data.codepen, codepenSocialUrlMatch],
-    ['reddit', data.reddit, redditSocialUrlMatch],
-    ['stackoverflow', data.stackoverflow, stackoverflowSocialUrlMatch],
-    ['youtube', data.youtube, youtubeSocialUrlMatch],
-    ['linkedin', data.linkedin, linkedinSocialUrlMatch],
-    ['mastodon', data.mastodon, mastodonSocialUrlMatch],
-    ['portfolio', data.portfolio, socialUrlMatch],
-    ['bluesky', data.bluesky, bskySocialUrlMatch],
   ];
 
   try {
-    return validateRegex(regexParams, data);
+    const validatedName = validateRegex(regexParams, data);
+    const socialResult = socialFieldsSchema.safeParse(data);
+
+    if (!socialResult.success) {
+      const errors = socialResult.error.flatten().fieldErrors;
+      const formattedErrors = Object.fromEntries(
+        Object.entries(errors).map(([key]) => [key, `${key} is invalid!`]),
+      );
+      logger.warn(
+        { errors: formattedErrors },
+        'social handles validation error',
+      );
+      throw new ValidationError(JSON.stringify(formattedErrors));
+    }
+
+    return { ...validatedName, ...socialResult.data };
   } catch (originalError) {
     if (originalError instanceof ValidationError) {
       const validationError: ValidationError = originalError;
