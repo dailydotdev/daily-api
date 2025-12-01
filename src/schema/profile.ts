@@ -27,6 +27,7 @@ import {
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
 import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { User } from '../entity/user/User';
 interface GQLUserExperience {
   id: string;
   type: UserExperienceType;
@@ -243,10 +244,15 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         (node, index) =>
           userExperiencesPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          builder.queryBuilder.where(
-            `${builder.alias}."userId" = :userExperienceId`,
-            { userExperienceId: userId },
-          );
+          builder.queryBuilder
+            .innerJoin(User, 'owner', `owner.id = ${builder.alias}."userId"`)
+            .where(`${builder.alias}."userId" = :userExperienceId`, {
+              userExperienceId: userId,
+            })
+            .andWhere(
+              '(owner."hideExperience" = false OR owner.id = :requestingUserId)',
+              { requestingUserId: ctx.userId },
+            );
 
           if (type) {
             builder.queryBuilder.andWhere(
@@ -272,7 +278,23 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       { id }: { id: string },
       ctx,
       info,
-    ): Promise<GQLUserExperience> => getUserExperience(ctx, info, id),
+    ): Promise<GQLUserExperience | null> =>
+      graphorm.queryOne(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .innerJoin(User, 'owner', `owner.id = ${builder.alias}."userId"`)
+            .where(`${builder.alias}."id" = :id`, { id })
+            .andWhere(
+              '(owner."hideExperience" = false OR owner.id = :requestingUserId)',
+              { requestingUserId: ctx.userId },
+            );
+
+          return builder;
+        },
+        true,
+      ),
   },
   Mutation: {
     upsertUserGeneralExperience: async (

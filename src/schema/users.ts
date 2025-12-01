@@ -205,6 +205,7 @@ export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
   externalLocationId?: string;
   cover?: string;
   readme?: string;
+  hideExperience?: boolean;
 }
 
 interface GQLUserParameters {
@@ -534,6 +535,10 @@ export const typeDefs = /* GraphQL */ `
     Where the user is located
     """
     location: DatasetLocation
+    """
+    Whether to hide user's experience
+    """
+    hideExperience: Boolean
   }
 
   """
@@ -824,6 +829,10 @@ export const typeDefs = /* GraphQL */ `
     The user's readme
     """
     readme: String
+    """
+    Whether to hide user's experience
+    """
+    hideExperience: Boolean
   }
 
   type TagsReadingStatus {

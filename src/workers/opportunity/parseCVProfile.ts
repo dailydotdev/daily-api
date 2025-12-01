@@ -11,6 +11,7 @@ import { NotificationType } from '../../notifications/common';
 import type { NotificationParsedCVProfileContext } from '../../notifications';
 import { logger } from '../../logger';
 import { ParseCVProfileError } from '../../errors';
+import { UserExperience } from '../../entity/user/experiences/UserExperience';
 
 export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-preference-updated'> =
   {
@@ -57,6 +58,11 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
 
       const brokkrClient = getBrokkrClient();
 
+      // Check if user has 0 experiences before parsing
+      const existingExperiencesCount = await con
+        .getRepository(UserExperience)
+        .count({ where: { userId } });
+
       try {
         await con.getRepository(User).update(
           { id: userId },
@@ -91,6 +97,16 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
           userId,
           transaction: true,
         });
+
+        // If user had no experiences before, set hideExperience to true
+        if (existingExperiencesCount === 0) {
+          await con
+            .getRepository(User)
+            .update(
+              { id: userId, hideExperience: false },
+              { hideExperience: true },
+            );
+        }
 
         return [
           {
