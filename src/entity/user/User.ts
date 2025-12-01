@@ -345,6 +345,9 @@ export class User {
   @Column({ type: 'text', default: null })
   locationId: string | null;
 
+  @Column({ type: 'boolean', default: false })
+  hideExperience: boolean;
+
   @ManyToOne('DatasetLocation', { lazy: true })
   @JoinColumn({
     name: 'locationId',
