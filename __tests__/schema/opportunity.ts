@@ -10,6 +10,7 @@ import createOrGetConnection from '../../src/db';
 import {
   authorizeRequest,
   createGarmrMock,
+  createMockBrokkrTransport,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -35,6 +36,7 @@ import {
   OpportunityUserType,
 } from '../../src/entity/opportunities/types';
 import {
+  BrokkrService,
   CompanySize,
   CompanyStage,
   EmploymentType,
@@ -52,10 +54,13 @@ import type {
 import { UserCandidateKeyword } from '../../src/entity/user/UserCandidateKeyword';
 import * as googleCloud from '../../src/common/googleCloud';
 import { Bucket } from '@google-cloud/storage';
-import { deleteRedisKey } from '../../src/redis';
+import { deleteKeysByPattern, deleteRedisKey } from '../../src/redis';
 import { rateLimiterName } from '../../src/directive/rateLimit';
 import { fileTypeFromBuffer } from '../setup';
-import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
+import {
+  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  RESUME_BUCKET_NAME,
+} from '../../src/config';
 import { RoleType } from '../../src/common/schema/userCandidate';
 import { QuestionType } from '../../src/entity/questions/types';
 import { QuestionFeedback } from '../../src/entity/questions/QuestionFeedback';
@@ -67,6 +72,7 @@ import { ApplicationService as GondulService } from '@dailydotdev/schema';
 import * as gondulModule from '../../src/common/gondul';
 import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
+import * as brokkrCommon from '../../src/common/brokkr';
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 const uploadEmploymentAgreementFromBuffer = jest.spyOn(
@@ -80,6 +86,7 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string | null = null;
 let isTeamMember = false;
+let trackingId: string | undefined = undefined;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -91,6 +98,9 @@ beforeAll(async () => {
         [],
         req,
         isTeamMember,
+        undefined,
+        undefined,
+        trackingId,
       ) as Context,
   );
   client = state.client;
@@ -4761,6 +4771,402 @@ describe('mutation updateOpportunityState', () => {
       },
       'CONFLICT',
       'Opportunity is closed',
+    );
+  });
+
+  it('should throw conflict on LIVE transition if opportunity does not have organization', async () => {
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[0].id;
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(Opportunity).save({
+      id: opportunityId,
+      state: OpportunityState.DRAFT,
+      organizationId: null,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunityId, state: OpportunityState.LIVE },
+      },
+      'CONFLICT',
+      'Opportunity must have an organization assigned',
+    );
+  });
+});
+
+describe('mutation parseOpportunity', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ParseOpportunity($payload: ParseOpportunityInput!) {
+      parseOpportunity(payload: $payload) {
+        id
+        title
+        tldr
+        content {
+          overview {
+            content
+            html
+          }
+          requirements {
+            content
+            html
+          }
+          responsibilities {
+            content
+            html
+          }
+          whatYoullDo {
+            content
+            html
+          }
+          interviewProcess {
+            content
+            html
+          }
+        }
+        meta {
+          roleType
+          teamSize
+          seniorityLevel
+          employmentType
+          salary {
+            min
+            max
+            period
+          }
+        }
+        location {
+          city
+          country
+          subdivision
+          type
+        }
+        keywords {
+          keyword
+        }
+        questions {
+          id
+          title
+          placeholder
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+    const transport = createMockBrokkrTransport();
+
+    const serviceClient = {
+      instance: createClient(BrokkrService, transport),
+      garmr: createGarmrMock(),
+    };
+
+    jest
+      .spyOn(brokkrCommon, 'getBrokkrClient')
+      .mockImplementation((): ServiceClient<typeof BrokkrService> => {
+        return serviceClient;
+      });
+  });
+
+  it('should parse opportunity from file', async () => {
+    trackingId = 'anon1';
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    expect(body.data.parseOpportunity).toMatchObject({
+      title: 'Mocked Opportunity Title',
+      tldr: 'This is a mocked TL;DR of the opportunity.',
+      keywords: [
+        { keyword: 'mock' },
+        { keyword: 'opportunity' },
+        { keyword: 'test' },
+      ],
+      meta: {
+        employmentType: EmploymentType.FULL_TIME,
+        seniorityLevel: SeniorityLevel.SENIOR,
+        roleType: RoleType.Auto,
+        salary: {
+          min: 1000,
+          max: 2000,
+          period: SalaryPeriod.MONTHLY,
+        },
+      },
+      content: {
+        overview: {
+          content: 'This is the overview of the mocked opportunity.',
+          html: '<p>This is the overview of the mocked opportunity.</p>\n',
+        },
+        responsibilities: {
+          content: 'These are the responsibilities of the mocked opportunity.',
+          html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
+        },
+        requirements: {
+          content: 'These are the requirements of the mocked opportunity.',
+          html: '<p>These are the requirements of the mocked opportunity.</p>\n',
+        },
+      },
+      location: [
+        {
+          city: 'San Francisco',
+          country: 'USA',
+          subdivision: 'CA',
+          type: LocationType.REMOTE,
+        },
+      ],
+      questions: [],
+    });
+  });
+
+  it('should parse opportunity from URL', async () => {
+    trackingId = 'anon1';
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+
+    const pdfResponse = new Response('Mocked fetch response body', {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+
+    jest
+      .spyOn(pdfResponse, 'arrayBuffer')
+      .mockResolvedValue(new ArrayBuffer(0));
+
+    fetchSpy.mockResolvedValueOnce(pdfResponse);
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    // Execute the mutation with a URL
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .send({
+          query: MUTATION,
+          variables: {
+            payload: {
+              url: 'https://example.com/opportunity',
+            },
+          },
+        }),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    expect(body.data.parseOpportunity).toMatchObject({
+      title: 'Mocked Opportunity Title',
+      tldr: 'This is a mocked TL;DR of the opportunity.',
+      keywords: [
+        { keyword: 'mock' },
+        { keyword: 'opportunity' },
+        { keyword: 'test' },
+      ],
+      meta: {
+        employmentType: EmploymentType.FULL_TIME,
+        seniorityLevel: SeniorityLevel.SENIOR,
+        roleType: RoleType.Auto,
+        salary: {
+          min: 1000,
+          max: 2000,
+          period: SalaryPeriod.MONTHLY,
+        },
+      },
+      content: {
+        overview: {
+          content: 'This is the overview of the mocked opportunity.',
+          html: '<p>This is the overview of the mocked opportunity.</p>\n',
+        },
+        responsibilities: {
+          content: 'These are the responsibilities of the mocked opportunity.',
+          html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
+        },
+        requirements: {
+          content: 'These are the requirements of the mocked opportunity.',
+          html: '<p>These are the requirements of the mocked opportunity.</p>\n',
+        },
+      },
+      location: [
+        {
+          city: 'San Francisco',
+          country: 'USA',
+          subdivision: 'CA',
+          type: LocationType.REMOTE,
+        },
+      ],
+      questions: [],
+    });
+  });
+
+  it('should fail when both file and URL are provided', async () => {
+    trackingId = 'anon1';
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+                url: 'https://example.com/opportunity',
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeDefined();
+    expect(body.errors[0].extensions.code).toBe('ZOD_VALIDATION_ERROR');
+    expect(body.errors[0].extensions.issues[0].message).toEqual(
+      'Only one of url or file can be provided.',
+    );
+  });
+
+  it('should fail when neither file nor URL are provided', async () => {
+    trackingId = 'anon1';
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .send({
+          query: MUTATION,
+          variables: {
+            payload: {},
+          },
+        }),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeDefined();
+    expect(body.errors[0].extensions.code).toBe('ZOD_VALIDATION_ERROR');
+    expect(body.errors[0].extensions.issues[0].message).toEqual(
+      'Either url or file must be provided.',
+    );
+  });
+
+  it('should fail if invalid file type is provided', async () => {
+    trackingId = 'anon1';
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'exe',
+      mime: 'application/x-msdownload',
+    });
+
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeDefined();
+    expect(body.errors[0].extensions.code).toBe('GRAPHQL_VALIDATION_FAILED');
+    expect(body.errors[0].message).toBe('File type not supported');
+  });
+
+  it('should not allow authenticated users to parse opportunity', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        payload: {
+          url: 'https://example.com/opportunity',
+        },
+      },
+    });
+
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.[0].extensions.code).toBe('FORBIDDEN');
+    expect(res.errors?.[0].message).toBe(
+      'Not available for authenticated users yet',
     );
   });
 });

@@ -25,8 +25,8 @@ interface GQLKeywordAutocomplete {
 }
 
 interface GQLLocation {
-  id: string;
-  country: string;
+  id: string | null;
+  country: string | null;
   city: string | null;
   subdivision: string | null;
 }
@@ -45,7 +45,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Location {
-    id: ID!
+    id: ID
     country: String
     city: String
     subdivision: String
