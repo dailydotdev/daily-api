@@ -5179,6 +5179,15 @@ describe('mutation parseOpportunity', () => {
       ],
       questions: [],
     });
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: body.data.parseOpportunity.id,
+      },
+    });
+
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.state).toBe(OpportunityState.DRAFT);
   });
 
   it('should parse opportunity from URL', async () => {
