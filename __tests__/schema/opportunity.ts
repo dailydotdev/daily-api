@@ -29,7 +29,10 @@ import {
   opportunityFeedbackQuestionsFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
-import { OpportunityUser } from '../../src/entity/opportunities/user';
+import {
+  OpportunityUser,
+  OpportunityUserRecruiter,
+} from '../../src/entity/opportunities/user';
 import {
   OpportunityMatchStatus,
   OpportunityUserType,
@@ -76,8 +79,12 @@ jest.mock('@slack/web-api', () => ({
   ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
   WebClient: jest.fn().mockImplementation(() => ({
     conversations: {
-      create: mockConversationsCreate,
-      inviteShared: mockConversationsInviteShared,
+      get create() {
+        return mockConversationsCreate;
+      },
+      get inviteShared() {
+        return mockConversationsInviteShared;
+      },
     },
   })),
 }));
@@ -4808,8 +4815,31 @@ describe('mutation createSharedSlackChannel', () => {
     );
   });
 
+  it('should forbid non-recruiters from creating slack channels', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          email: 'user@example.com',
+          channelName: 'test-channel',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
   it('should create slack channel and invite user successfully', async () => {
     loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
 
     // Mock successful Slack API responses
     mockConversationsCreate.mockResolvedValue({
@@ -4849,6 +4879,13 @@ describe('mutation createSharedSlackChannel', () => {
   it('should handle slack channel creation failure', async () => {
     loggedUser = '1';
 
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
     // Mock failed channel creation (no channel in response)
     mockConversationsCreate.mockResolvedValue({
       ok: false,
@@ -4872,6 +4909,13 @@ describe('mutation createSharedSlackChannel', () => {
 
   it('should handle invitation failure', async () => {
     loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
 
     mockConversationsCreate.mockResolvedValue({
       ok: true,

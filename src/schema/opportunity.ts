@@ -1589,6 +1589,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       payload: z.infer<typeof createSharedSlackChannelSchema>,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      // Check if the user is a recruiter
+      const isRecruiter = await ctx.con
+        .getRepository(OpportunityUserRecruiter)
+        .findOne({
+          where: {
+            userId: ctx.userId,
+            type: OpportunityUserType.Recruiter,
+          },
+        });
+
+      if (!isRecruiter) {
+        ctx.log.error(
+          { userId: ctx.userId },
+          'User is not a recruiter - cannot create shared slack channel',
+        );
+        throw new ForbiddenError(
+          'Access denied! Only recruiters can create Slack channels',
+        );
+      }
+
       try {
         const { channelName, email } = payload;
 
