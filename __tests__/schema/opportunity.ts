@@ -4816,7 +4816,7 @@ describe('mutation createSharedSlackChannel', () => {
   });
 
   it('should forbid non-recruiters from creating slack channels', async () => {
-    loggedUser = '1';
+    loggedUser = '5'; // User 5 is not a recruiter in fixtures
 
     await testMutationErrorCode(
       client,
