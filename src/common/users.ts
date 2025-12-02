@@ -600,42 +600,6 @@ export const shouldAllowRestore = async (
   });
 };
 
-export const roadmapShSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?roadmap\.sh\/u\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const twitterSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?(?:twitter|x)\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const githubSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?github\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const threadsSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?threads\.net\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const codepenSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?codepen\.io\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const redditSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?reddit\.com\/(?:u|user)\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const stackoverflowSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?stackoverflow\.com\/users\/(?<value>\d{2,}\/?[\w-]{2,}?)\/?$/;
-
-export const youtubeSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?youtube\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const linkedinSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const mastodonSocialUrlMatch =
-  /^(?<value>https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;
-
-export const socialUrlMatch =
-  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_+.~#?&\/=]*))$/;
-
-export const bskySocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/;
-
 export const portfolioLimit = 500;
 
 const MIN_WORK_EXPERIENCE = 1; // Minimum number of work experiences required for profile completion
