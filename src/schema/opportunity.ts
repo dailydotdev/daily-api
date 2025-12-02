@@ -62,6 +62,7 @@ import {
   opportunityEditSchema,
   opportunityStateLiveSchema,
   opportunityUpdateStateSchema,
+  createSharedSlackChannelSchema,
   parseOpportunitySchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
@@ -82,6 +83,7 @@ import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
+import { slackClient } from '../common/slack';
 import { fileTypeFromBuffer } from 'file-type';
 import { acceptedOpportunityFileTypes } from '../types';
 import { getBrokkrClient } from '../common/brokkr';
@@ -618,6 +620,21 @@ export const typeDefs = /* GraphQL */ `
     """
     parseOpportunity(payload: ParseOpportunityInput!): Opportunity!
       @rateLimit(limit: 5, duration: 3600)
+
+    """
+    Create a shared Slack channel and invite a user by email
+    """
+    createSharedSlackChannel(
+      """
+      Email address of the user to invite
+      """
+      email: String!
+
+      """
+      Name of the channel to create (lowercase letters, numbers, hyphens, and underscores only)
+      """
+      channelName: String!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -1654,6 +1671,56 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         _: true,
       };
+    },
+    createSharedSlackChannel: async (
+      _,
+      payload: z.infer<typeof createSharedSlackChannelSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      // Check if the user is a recruiter
+      const isRecruiter = await ctx.con
+        .getRepository(OpportunityUserRecruiter)
+        .findOne({
+          where: {
+            userId: ctx.userId,
+            type: OpportunityUserType.Recruiter,
+          },
+        });
+
+      if (!isRecruiter) {
+        throw new ForbiddenError(
+          'Access denied! Only recruiters can create Slack channels',
+        );
+      }
+
+      try {
+        const { channelName, email } = payload;
+
+        const createResult = await slackClient.createConversation(
+          channelName,
+          false,
+        );
+
+        if (!createResult?.channel) {
+          return { _: false };
+        }
+
+        await slackClient.inviteSharedToConversation(
+          createResult.channel.id as string,
+          [email],
+          true,
+        );
+
+        return { _: true };
+      } catch (originalError) {
+        const error = originalError as Error;
+
+        if (error.message === 'An API error occurred: name_taken') {
+          throw new ConflictError('Channel name already exists');
+        }
+
+        throw error;
+      }
     },
     parseOpportunity: async (
       _,

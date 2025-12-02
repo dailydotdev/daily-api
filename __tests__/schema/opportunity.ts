@@ -30,7 +30,10 @@ import {
   opportunityFeedbackQuestionsFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
-import { OpportunityUser } from '../../src/entity/opportunities/user';
+import {
+  OpportunityUser,
+  OpportunityUserRecruiter,
+} from '../../src/entity/opportunities/user';
 import {
   OpportunityMatchStatus,
   OpportunityUserType,
@@ -74,6 +77,28 @@ import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import * as brokkrCommon from '../../src/common/brokkr';
 import { randomUUID } from 'node:crypto';
+
+// Mock Slack WebClient
+const mockConversationsCreate = jest.fn();
+const mockConversationsInviteShared = jest.fn();
+const mockConversationsJoin = jest.fn();
+
+jest.mock('@slack/web-api', () => ({
+  ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
+  WebClient: jest.fn().mockImplementation(() => ({
+    conversations: {
+      get create() {
+        return mockConversationsCreate;
+      },
+      get inviteShared() {
+        return mockConversationsInviteShared;
+      },
+      get join() {
+        return mockConversationsJoin;
+      },
+    },
+  })),
+}));
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 const uploadEmploymentAgreementFromBuffer = jest.spyOn(
@@ -5388,5 +5413,159 @@ describe('mutation parseOpportunity', () => {
     expect(res.errors?.[0].message).toBe(
       'Not available for authenticated users yet',
     );
+  });
+});
+
+describe('mutation createSharedSlackChannel', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CreateSharedSlackChannel($email: String!, $channelName: String!) {
+      createSharedSlackChannel(email: $email, channelName: $channelName) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(() => {
+    // Reset all mocks before each test
+    mockConversationsCreate.mockReset();
+    mockConversationsInviteShared.mockReset();
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          email: 'user@example.com',
+          channelName: 'test-channel',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should forbid non-recruiters from creating slack channels', async () => {
+    loggedUser = '5'; // User 5 is not a recruiter in fixtures
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          email: 'user@example.com',
+          channelName: 'test-channel',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should create slack channel and invite user successfully', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Mock successful Slack API responses
+    mockConversationsCreate.mockResolvedValue({
+      ok: true,
+      channel: {
+        id: 'C1234567890',
+        name: 'test-channel',
+      },
+    });
+
+    mockConversationsInviteShared.mockResolvedValue({
+      ok: true,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        email: 'user@example.com',
+        channelName: 'test-channel',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSharedSlackChannel).toEqual({ _: true });
+
+    // Verify Slack API calls were made
+    expect(mockConversationsCreate).toHaveBeenCalledWith({
+      name: 'test-channel',
+      is_private: false,
+    });
+    expect(mockConversationsInviteShared).toHaveBeenCalledWith({
+      channel: 'C1234567890',
+      emails: ['user@example.com'],
+      external_limited: true,
+    });
+  });
+
+  it('should handle slack channel creation failure', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Mock failed channel creation (no channel in response)
+    mockConversationsCreate.mockResolvedValue({
+      ok: false,
+      error: 'name_taken',
+      channel: undefined,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        email: 'user@example.com',
+        channelName: 'existing-channel',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSharedSlackChannel).toEqual({ _: false });
+
+    // Should not proceed to invite if channel creation fails
+    expect(mockConversationsInviteShared).not.toHaveBeenCalled();
+  });
+
+  it('should handle invitation failure', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    mockConversationsCreate.mockResolvedValue({
+      ok: true,
+      channel: {
+        id: 'C1234567890',
+        name: 'test-channel',
+      },
+    });
+
+    mockConversationsInviteShared.mockRejectedValue(
+      new Error('Failed to invite user'),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        email: 'user@example.com',
+        channelName: 'test-channel',
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
   });
 });
