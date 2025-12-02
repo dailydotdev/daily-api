@@ -11,6 +11,7 @@ import {
 import { DataSource } from 'typeorm';
 
 const QUEUE_CONCURRENCY = 1;
+const LOG_INTERVAL = 100; // Log progress every N items
 
 interface ExperienceData {
   id: string;
@@ -63,6 +64,16 @@ const silentLogger: EnrichmentLogger = {
   let enriched = 0;
   let exactMatches = 0;
   let processedCount = 0;
+  let failed = 0;
+  const startTime = Date.now();
+
+  const logProgress = () => {
+    const elapsed = (Date.now() - startTime) / 1000;
+    const rate = processedCount / elapsed;
+    console.log(
+      `[Progress] ${processedCount} processed | ${exactMatches} exact | ${enriched} enriched | ${failed} failed | ${rate.toFixed(1)}/sec`,
+    );
+  };
 
   const builder = con
     .getRepository(UserExperience)
@@ -95,6 +106,10 @@ const silentLogger: EnrichmentLogger = {
 
       processedCount++;
       exactMatches++;
+
+      if (processedCount % LOG_INTERVAL === 0) {
+        logProgress();
+      }
       return;
     }
 
@@ -113,6 +128,12 @@ const silentLogger: EnrichmentLogger = {
 
     if (result.success) {
       enriched++;
+    } else {
+      failed++;
+    }
+
+    if (processedCount % LOG_INTERVAL === 0) {
+      logProgress();
     }
   }, QUEUE_CONCURRENCY);
 
@@ -126,8 +147,9 @@ const silentLogger: EnrichmentLogger = {
   });
   await enrichQueue.drained();
 
+  const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
   console.log(
-    `Completed. Processed ${processedCount} experiences: ${exactMatches} exact matches, ${enriched} enriched (offset ${offset} to ${offset + processedCount - 1}).`,
+    `Completed in ${totalTime}s. Processed ${processedCount} experiences: ${exactMatches} exact matches, ${enriched} enriched, ${failed} failed (offset ${offset} to ${offset + processedCount - 1}).`,
   );
   console.log(
     `Next batch command: npx ts-node bin/enrichExistingCompanies.ts ${limit} ${offset + limit}`,
