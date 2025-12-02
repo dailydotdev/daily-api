@@ -63,8 +63,7 @@ config:
     digestQueueConcurrency: 1000
     experimentationKey:
       secure: AAABADH0xT7H6UeMlZG0fUEGjohQ1dvwcbIgJ3WMI5wfqScub3Qp3nvUDhska0DunbFmvj7IrtH07noRL1lCYg==
-    skadiApiOrigin: http://skadi-post-boost-api.daily.svc.cluster.local
-    skadiApiOriginV2: http://skadi-api-server.daily.svc.cluster.local
+    skadiApiOriginV2: http://skadi-boost-api-server.daily.svc.cluster.local
     freyjaOrigin: http://freyja.freyja
     growthbookApiConfigClientKey:
       secure: AAABAJEgS6b8xZv0j06KOawyNMdkTpGmzKs7Ryed5SofiLp3vSTjxhqQuKSVsaHjR5s=
