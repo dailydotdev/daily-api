@@ -27,7 +27,7 @@ config:
     anthropicApiUrl: https://api.anthropic.com/v1/messages
     anthropicVersion: 2023-06-01
     anthropicApiKey:
-    secure: AAABAHEzcSWbWl8xVDhOLgPCopvQnihNX6MIzyG/JbaYeGA3p1qrJ3UEQhOvBg7kMoIbx9u+0CRC102IldakBAlxx0l9l9kCDSE/JqqfCfjiLT5mjdLISRE5q2dQz+MaqqVzqm0MzaIQQkWBmOxeJAxRxQ/+/dWdla8RMWKG+Q7PnrH8vS8PeNKASRQ=
+      secure: AAABAHEzcSWbWl8xVDhOLgPCopvQnihNX6MIzyG/JbaYeGA3p1qrJ3UEQhOvBg7kMoIbx9u+0CRC102IldakBAlxx0l9l9kCDSE/JqqfCfjiLT5mjdLISRE5q2dQz+MaqqVzqm0MzaIQQkWBmOxeJAxRxQ/+/dWdla8RMWKG+Q7PnrH8vS8PeNKASRQ=
     accessSecret:
       secure: AAABALdzzBMEk2sKYDjFrWsbsdYJDOvfDfmnOmaj6lvRkds8E6SYw1RNgQ/hpCky9W8BeJXFzu2b0W6jD30KkA==
     analyticsUrl: http://analytics-api
