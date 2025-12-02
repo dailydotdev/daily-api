@@ -569,7 +569,6 @@ const [apps] = deployApplicationSuite(
           activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
           spot: {
             enabled: true,
-            weight: 70,
           },
           podAnnotations: podAnnotations,
           ...vols,
