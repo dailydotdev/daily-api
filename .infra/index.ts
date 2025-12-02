@@ -469,15 +469,19 @@ if (isAdhocEnv) {
   if (isPersonalizedDigestEnabled) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
-      env: [...commonEnv, ...jwtEnv],
+      env: [
+        ...commonEnv,
+        ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-personalized-digest`,
+        },
+      ],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
-      maxReplicas: 2,
+      maxReplicas: 4,
+      requests: { cpu: '50m', memory: '256Mi' },
       limits: { memory: '1Gi' },
-      requests: {
-        cpu: '200m',
-        memory: '512Mi',
-      },
       metric: {
         type: 'pubsub',
         labels: {
@@ -486,10 +490,7 @@ if (isAdhocEnv) {
         },
         targetAverageValue: 100_000,
       },
-      spot: {
-        enabled: true,
-        weight: 70,
-      },
+      spot: { enabled: true },
       podAnnotations: podAnnotations,
       ...vols,
     });
