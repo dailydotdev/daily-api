@@ -164,7 +164,6 @@ import { UserExperienceWork } from '../../entity/user/experiences/UserExperience
 import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
-import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1490,34 +1489,7 @@ const onUserExperienceChange = async (
 ) => {
   const experience = data.payload.after;
 
-  if (
-    !experience ||
-    ![UserExperienceType.Work, UserExperienceType.Education].includes(
-      experience?.type,
-    )
-  ) {
-    return;
-  }
-
-  // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
-  if (
-    data.payload.op === 'c' &&
-    experience.customCompanyName &&
-    !experience.companyId
-  ) {
-    await enrichCompanyForExperience(
-      con,
-      {
-        experienceId: experience.id,
-        customCompanyName: experience.customCompanyName,
-        experienceType: experience.type,
-      },
-      logger,
-    );
-  }
-
-  // Work-specific verification logic
-  if (experience.type !== UserExperienceType.Work) {
+  if (!experience || experience.type !== UserExperienceType.Work) {
     return;
   }
 

@@ -21,9 +21,6 @@ export enum CompanyType {
 @Index('IDX_company_name_trgm', { synchronize: false })
 @Index('IDX_company_name_lower', { synchronize: false })
 @Index('IDX_company_name_slugify', { synchronize: false })
-@Index('IDX_company_altName_trgm', { synchronize: false })
-@Index('IDX_company_altName_lower', { synchronize: false })
-@Index('IDX_company_altName_slugify', { synchronize: false })
 export class Company {
   @PrimaryColumn({ type: 'text' })
   id: string;
@@ -42,13 +39,6 @@ export class Company {
 
   @Column({ type: 'text', array: true, default: [] })
   domains: string[];
-
-  @Column({
-    type: 'text',
-    nullable: true,
-    default: null,
-  })
-  altName: string | null;
 
   @Column({
     type: 'text',
