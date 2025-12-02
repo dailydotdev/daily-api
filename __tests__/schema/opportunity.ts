@@ -81,6 +81,7 @@ import { randomUUID } from 'node:crypto';
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
 const mockConversationsInviteShared = jest.fn();
+const mockConversationsJoin = jest.fn();
 
 jest.mock('@slack/web-api', () => ({
   ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
@@ -91,6 +92,9 @@ jest.mock('@slack/web-api', () => ({
       },
       get inviteShared() {
         return mockConversationsInviteShared;
+      },
+      get join() {
+        return mockConversationsJoin;
       },
     },
   })),
