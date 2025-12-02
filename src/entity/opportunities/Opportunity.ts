@@ -21,7 +21,7 @@ import type { QuestionScreening } from '../questions/QuestionScreening';
 import type { QuestionFeedback } from '../questions/QuestionFeedback';
 
 export type OpportunityFlags = Partial<{
-  anonUserId: string;
+  anonUserId: string | null;
 }>;
 
 @Entity()

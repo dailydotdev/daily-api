@@ -183,6 +183,7 @@ export const opportunityEditSchema = z
       .min(1)
       .max(3),
     organization: z.object({
+      name: z.string().nonempty().max(60).optional(),
       website: z.string().max(500).nullable().optional(),
       description: z.string().max(2000).nullable().optional(),
       perks: z.array(z.string().max(240)).max(50).nullable().optional(),
