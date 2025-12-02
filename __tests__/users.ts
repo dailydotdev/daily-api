@@ -59,30 +59,32 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
-  bskySocialUrlMatch,
   CioTransactionalMessageTemplateId,
-  codepenSocialUrlMatch,
   DayOfWeek,
   encrypt,
   getTimezonedStartOfISOWeek,
   ghostUser,
-  githubSocialUrlMatch,
   type GQLUserTopReader,
-  linkedinSocialUrlMatch,
-  mastodonSocialUrlMatch,
   portfolioLimit,
-  redditSocialUrlMatch,
-  roadmapShSocialUrlMatch,
   sendEmail,
-  socialUrlMatch,
-  stackoverflowSocialUrlMatch,
   systemUser,
-  threadsSocialUrlMatch,
-  twitterSocialUrlMatch,
   updateFlagsStatement,
   updateSubscriptionFlags,
   UploadPreset,
 } from '../src/common';
+import {
+  blueskySchema,
+  codepenSchema,
+  githubSchema,
+  linkedinSchema,
+  mastodonSchema,
+  portfolioSchema,
+  redditSchema,
+  roadmapSchema,
+  stackoverflowSchema,
+  threadsSchema,
+  twitterSchema,
+} from '../src/common/schema/socials';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
@@ -3863,12 +3865,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(githubSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(githubSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = githubSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(githubSocialUrlMatch.test(item)).toBe(false);
+      expect(githubSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3897,12 +3900,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(twitterSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(twitterSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = twitterSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(twitterSocialUrlMatch.test(item)).toBe(false);
+      expect(twitterSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3925,11 +3929,11 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(bskySocialUrlMatch.test(item)).toBe(true);
+      expect(blueskySchema.safeParse(item).success).toBe(true);
     });
 
     invalid.forEach((item) => {
-      expect(bskySocialUrlMatch.test(item)).toBe(false);
+      expect(blueskySchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3950,12 +3954,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(roadmapShSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(roadmapShSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = roadmapSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(roadmapShSocialUrlMatch.test(item)).toBe(false);
+      expect(roadmapSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3980,12 +3985,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(threadsSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(threadsSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = threadsSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(threadsSocialUrlMatch.test(item)).toBe(false);
+      expect(threadsSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4006,12 +4012,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(codepenSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(codepenSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = codepenSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(codepenSocialUrlMatch.test(item)).toBe(false);
+      expect(codepenSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4035,12 +4042,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(redditSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(redditSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = redditSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(redditSocialUrlMatch.test(item)).toBe(false);
+      expect(redditSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4049,9 +4057,9 @@ describe('mutation updateUserProfile', () => {
       'stackoverflow.com/users/999999/lee',
       'https://stackoverflow.com/users/999999/lee',
       'https://stackoverflow.com/users/999999/lee/',
+      '999999/lee',
     ];
     const invalid = [
-      '99999/lee',
       'lee',
       'lee#',
       'http://stackoverflow.com/lee',
@@ -4064,14 +4072,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(stackoverflowSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(stackoverflowSocialUrlMatch)?.groups?.value).toBe(
-        '999999/lee',
-      );
+      const result = stackoverflowSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('999999/lee');
     });
 
     invalid.forEach((item) => {
-      expect(stackoverflowSocialUrlMatch.test(item)).toBe(false);
+      expect(stackoverflowSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4092,12 +4099,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(linkedinSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(linkedinSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = linkedinSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(linkedinSocialUrlMatch.test(item)).toBe(false);
+      expect(linkedinSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4117,12 +4125,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(mastodonSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(mastodonSocialUrlMatch)?.groups?.value).toBe(item);
+      const result = mastodonSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe(item);
     });
 
     invalid.forEach((item) => {
-      expect(mastodonSocialUrlMatch.test(item)).toBe(false);
+      expect(mastodonSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4149,12 +4158,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(socialUrlMatch.test(item)).toBe(true);
-      expect(item.match(socialUrlMatch)?.groups?.value).toBe(item);
+      const result = portfolioSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe(item);
     });
 
     invalid.forEach((item) => {
-      expect(socialUrlMatch.test(item)).toBe(false);
+      expect(portfolioSchema.safeParse(item).success).toBe(false);
     });
   });
 
