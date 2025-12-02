@@ -7,12 +7,17 @@ import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
   Opportunity,
+  BrokkrParseRequest,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { toGQLEnum, updateFlagsStatement } from '../common';
+import {
+  getBufferFromStream,
+  toGQLEnum,
+  updateFlagsStatement,
+} from '../common';
 import {
   OpportunityMatchStatus,
   OpportunityUserType,
@@ -31,22 +36,34 @@ import {
 } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
-import { ForbiddenError } from 'apollo-server-errors';
-import { ConflictError, NotFoundError } from '../errors';
+import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import {
+  ConflictError,
+  NotFoundError,
+  TypeOrmError,
+  type TypeORMQueryFailedError,
+} from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { User } from '../entity/user/User';
-import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
+import {
+  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  RESUME_BUCKET_NAME,
+} from '../config';
 import {
   deleteEmploymentAgreementByUserId,
+  deleteFileFromBucket,
   generateResumeSignedUrl,
   uploadEmploymentAgreementFromBuffer,
+  uploadResumeFromBuffer,
 } from '../common/googleCloud';
 import { uploadOrganizationImage } from '../common/cloudinary';
 import {
+  opportunityCreateParseSchema,
   opportunityEditSchema,
   opportunityStateLiveSchema,
   opportunityUpdateStateSchema,
   createSharedSlackChannelSchema,
+  parseOpportunitySchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -55,7 +72,7 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not } from 'typeorm';
+import { In, Not, QueryFailedError, type DeepPartial } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
   OrganizationLinkType,
@@ -67,6 +84,12 @@ import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
 import { slackClient } from '../common/slack';
+import { fileTypeFromBuffer } from 'file-type';
+import { acceptedOpportunityFileTypes } from '../types';
+import { getBrokkrClient } from '../common/brokkr';
+import { garmScraperService } from '../common/scraper';
+import { Storage } from '@google-cloud/storage';
+import { randomUUID } from 'node:crypto';
 
 export interface GQLOpportunity
   extends Pick<
@@ -191,7 +214,7 @@ export const typeDefs = /* GraphQL */ `
     content: OpportunityContent!
     meta: OpportunityMeta!
     location: [Location]!
-    organization: Organization!
+    organization: Organization
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
@@ -413,6 +436,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   input OrganizationEditInput {
+    name: String
     website: String
     description: String
     perks: [String!]
@@ -440,6 +464,18 @@ export const typeDefs = /* GraphQL */ `
     questions: [OpportunityScreeningQuestionInput!]
     organization: OrganizationEditInput
     recruiter: RecruiterInput
+  }
+
+  input ParseOpportunityInput {
+    """
+    PDF, Word file to parse
+    """
+    file: Upload
+
+    """
+    URL to scrape and parse
+    """
+    url: String
   }
 
   extend type Mutation {
@@ -578,6 +614,12 @@ export const typeDefs = /* GraphQL */ `
 
       state: ProtoEnumValue!
     ): EmptyResponse @auth
+
+    """
+    Parse an opportunity from a URL or file upload
+    """
+    parseOpportunity(payload: ParseOpportunityInput!): Opportunity!
+      @rateLimit(limit: 5, duration: 3600)
 
     """
     Create a shared Slack channel and invite a user by email
@@ -1325,30 +1367,70 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               select: ['organizationId'],
             });
 
-          if (opportunityJob?.organizationId) {
-            const organizationUpdate: Record<string, unknown> = {
-              ...organization,
-            };
+          let organizationId = opportunityJob?.organizationId;
 
-            // Handle image upload
-            if (organizationImage) {
-              const { createReadStream } = await organizationImage;
-              const stream = createReadStream();
-              const { url: imageUrl } = await uploadOrganizationImage(
-                opportunityJob.organizationId,
-                stream,
-              );
-              organizationUpdate.image = imageUrl;
-            }
+          let organizationUpdate: Record<string, unknown> = {
+            ...organization,
+          };
 
-            if (Object.keys(organizationUpdate).length > 0) {
-              await entityManager
+          if (organizationId) {
+            delete organizationUpdate.name; // prevent name updates on existing organizations
+          }
+
+          if (!organizationId) {
+            // create new organization and assign to opportunity here inline
+            // TODO: ideally this should be refactored later to separate mutation
+
+            try {
+              const organizationInsertResult = await entityManager
                 .getRepository(Organization)
-                .update(
-                  { id: opportunityJob.organizationId },
-                  organizationUpdate,
-                );
+                .insert(organizationUpdate);
+
+              organizationId = organizationInsertResult.identifiers[0]
+                .id as string;
+
+              await entityManager
+                .getRepository(OpportunityJob)
+                .update({ id }, { organizationId });
+
+              // values were applied during insert
+              organizationUpdate = {};
+            } catch (insertError) {
+              if (insertError instanceof QueryFailedError) {
+                const queryFailedError = insertError as TypeORMQueryFailedError;
+
+                if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
+                  if (
+                    insertError.message.indexOf(
+                      'IDX_organization_name_unique',
+                    ) > -1
+                  ) {
+                    throw new ConflictError(
+                      'Organization with this name already exists',
+                    );
+                  }
+                }
+              }
+
+              throw insertError;
             }
+          }
+
+          // Handle image upload
+          if (organizationImage) {
+            const { createReadStream } = await organizationImage;
+            const stream = createReadStream();
+            const { url: imageUrl } = await uploadOrganizationImage(
+              organizationId,
+              stream,
+            );
+            organizationUpdate.image = imageUrl;
+          }
+
+          if (Object.keys(organizationUpdate).length > 0) {
+            await entityManager
+              .getRepository(Organization)
+              .update({ id: organizationId }, organizationUpdate);
           }
         }
 
@@ -1561,6 +1643,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       switch (state) {
         case OpportunityState.LIVE: {
+          if (!opportunity.organizationId) {
+            throw new ConflictError(
+              `Opportunity must have an organization assigned`,
+            );
+          }
+
           if (opportunity.state === OpportunityState.CLOSED) {
             throw new ConflictError(`Opportunity is closed`);
           }
@@ -1644,6 +1732,152 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         throw error;
+      }
+    },
+    parseOpportunity: async (
+      _,
+      {
+        payload,
+      }: {
+        payload: unknown;
+      },
+      ctx: Context,
+      info,
+    ): Promise<GQLOpportunity> => {
+      if (ctx.userId) {
+        throw new ForbiddenError('Not available for authenticated users yet');
+      }
+
+      const parseOpportunityPayload =
+        await parseOpportunitySchema.parseAsync(payload);
+
+      let opportunityFileBuffer: Buffer | null = null;
+      const filename = `job-opportunity-${randomUUID()}.pdf`;
+      let extension = 'pdf';
+
+      if (parseOpportunityPayload.url) {
+        const response = await garmScraperService.execute(async () => {
+          const response = await fetch(`${process.env.SCRAPER_URL}/pdf`, {
+            method: 'POST',
+            body: JSON.stringify({ url: parseOpportunityPayload.url }),
+            headers: { 'content-type': 'application/json' },
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch job from URL');
+          }
+
+          return response;
+        });
+
+        opportunityFileBuffer = Buffer.from(await response.arrayBuffer());
+      } else {
+        const fileUpload = await parseOpportunityPayload.file;
+
+        extension = fileUpload.filename?.split('.')?.pop()?.toLowerCase();
+
+        const { createReadStream } = await parseOpportunityPayload.file;
+
+        opportunityFileBuffer = await getBufferFromStream(createReadStream());
+      }
+
+      // Validate file extension
+      const supportedFileType = acceptedOpportunityFileTypes.find(
+        (type) => type.ext === extension,
+      );
+
+      if (!supportedFileType) {
+        throw new ValidationError('File extension not supported');
+      }
+
+      // Validate MIME type using buffer
+      const fileType = await fileTypeFromBuffer(opportunityFileBuffer);
+
+      if (supportedFileType.mime !== fileType?.mime) {
+        throw new ValidationError('File type not supported');
+      }
+
+      try {
+        // Actual upload using buffer as a stream
+        await uploadResumeFromBuffer(filename, opportunityFileBuffer, {
+          contentType: fileType?.mime,
+        });
+
+        const brokkrClient = getBrokkrClient();
+
+        const result = await brokkrClient.garmr.execute(() => {
+          return brokkrClient.instance.parseOpportunity(
+            new BrokkrParseRequest({
+              // TODO potentially change to separate bucket, does not mean much sicne
+              // we clean up afterwards anyway
+              bucketName: RESUME_BUCKET_NAME,
+              blobName: filename,
+            }),
+          );
+        });
+
+        const parsedOpportunity = await opportunityCreateParseSchema.parseAsync(
+          result.opportunity,
+        );
+
+        const renderedContent: Record<
+          string,
+          { content: string; html: string }
+        > = {};
+
+        Object.entries(parsedOpportunity.content || {}).forEach(
+          ([key, value]) => {
+            if (typeof value?.content !== 'string') {
+              return;
+            }
+
+            renderedContent[key] = {
+              content: value.content,
+              html: markdown.render(value.content),
+            };
+          },
+        );
+
+        const opportunityContent = new OpportunityContent(renderedContent);
+
+        const opportunityResult = await ctx.con.transaction(
+          async (entityManager) => {
+            const opportunity = await entityManager
+              .getRepository(OpportunityJob)
+              .save(
+                entityManager.getRepository(OpportunityJob).create({
+                  ...parsedOpportunity,
+                  state: OpportunityState.DRAFT,
+                  content: opportunityContent,
+                  flags: {
+                    anonUserId: ctx.trackingId, // save tracking id to attribute later
+                  },
+                } as DeepPartial<OpportunityJob>),
+              );
+
+            await entityManager.getRepository(OpportunityKeyword).insert(
+              parsedOpportunity.keywords.map((keyword) => ({
+                opportunityId: opportunity.id,
+                keyword: keyword.keyword,
+              })),
+            );
+
+            return opportunity;
+          },
+        );
+
+        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+          builder.queryBuilder.where({ id: opportunityResult.id });
+
+          return builder;
+        });
+      } catch (error) {
+        throw error;
+      } finally {
+        const storage = new Storage();
+        const bucket = storage.bucket(RESUME_BUCKET_NAME);
+
+        await deleteFileFromBucket(bucket, filename);
       }
     },
   },

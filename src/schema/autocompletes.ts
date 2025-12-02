@@ -1,7 +1,7 @@
 import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
-import { ILike, Raw } from 'typeorm';
+import { FindOptionsWhere, ILike, Raw } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -25,8 +25,8 @@ interface GQLKeywordAutocomplete {
 }
 
 interface GQLLocation {
-  id: string;
-  country: string;
+  id: string | null;
+  country: string | null;
   city: string | null;
   subdivision: string | null;
 }
@@ -45,7 +45,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Location {
-    id: ID!
+    id: ID
     country: String
     city: String
     subdivision: String
@@ -161,18 +161,30 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       ctx: AuthContext,
     ): Promise<GQLCompany[]> => {
       const { type, query, limit } = autocompleteCompanySchema.parse(payload);
-      const slugQuery = Raw((alias) => `slugify(${alias}) = :slug`, {
-        slug: textToSlug(query),
-      });
+      const slug = textToSlug(query);
+
+      const whereConditions: FindOptionsWhere<Company>[] = [
+        { type, name: ILike(`%${query}%`) },
+        { type, altName: ILike(`%${query}%`) },
+      ];
+
+      // Only add slug-based search if the slug is non-empty
+      // (non-Latin characters like Korean get stripped by slugify, causing false matches)
+      if (slug) {
+        const slugQuery = Raw((alias) => `slugify(${alias}) = :slug`, {
+          slug,
+        });
+        whereConditions.unshift(
+          { type, name: slugQuery },
+          { type, altName: slugQuery },
+        );
+      }
 
       return await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(Company).find({
           take: limit,
           order: { name: 'ASC' },
-          where: [
-            { type, name: slugQuery },
-            { type, name: ILike(`%${query}%`) },
-          ],
+          where: whereConditions,
         }),
       );
     },

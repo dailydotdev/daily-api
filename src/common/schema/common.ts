@@ -1,4 +1,6 @@
 import { z } from 'zod';
+// @ts-expect-error - no types
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
 /**
  * Common pagination arguments schema for cursor-based pagination
@@ -34,3 +36,5 @@ export const urlParseSchema = z.preprocess(
     normalize: true,
   }),
 );
+
+export const fileUploadSchema = z.custom<Promise<FileUpload>>();

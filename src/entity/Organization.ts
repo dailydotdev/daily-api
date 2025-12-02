@@ -34,6 +34,7 @@ export class Organization {
   updatedAt: Date;
 
   @Column({ type: 'text' })
+  @Index('IDX_organization_name_unique', { unique: true })
   name: string;
 
   @Column({ type: 'text', nullable: true })

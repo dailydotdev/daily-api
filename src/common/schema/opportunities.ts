@@ -1,6 +1,8 @@
 import { OpportunityState } from '@dailydotdev/schema';
 import z from 'zod';
 import { organizationLinksSchema } from './organizations';
+import { fileUploadSchema, urlParseSchema } from './common';
+import { parseBigInt } from '../utils';
 
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
@@ -77,6 +79,42 @@ export const opportunityCreateSchema = z.object({
   content: opportunityContentSchema.partial(),
 });
 
+export const opportunityCreateParseSchema = opportunityCreateSchema
+  .omit({ organizationId: true })
+  .extend({
+    keywords: z.preprocess((val) => {
+      if (Array.isArray(val)) {
+        return val.map((keyword) => {
+          return {
+            keyword,
+          };
+        });
+      }
+
+      return val;
+    }, opportunityCreateSchema.shape.keywords),
+    meta: opportunityCreateSchema.shape.meta.extend({
+      teamSize: opportunityCreateSchema.shape.meta.shape.teamSize.optional(),
+      salary: z.object({
+        min: z.preprocess((val: bigint) => {
+          if (typeof val === 'undefined') {
+            return val;
+          }
+
+          return parseBigInt(val);
+        }, z.number().int().nonnegative().max(100_000_000).optional()),
+        max: z.preprocess((val: bigint) => {
+          if (typeof val === 'undefined') {
+            return val;
+          }
+
+          return parseBigInt(val);
+        }, z.number().int().nonnegative().max(100_000_000).optional()),
+        period: z.number(),
+      }),
+    }),
+  });
+
 export const opportunityEditSchema = z
   .object({
     title: z.string().nonempty().max(240),
@@ -145,6 +183,7 @@ export const opportunityEditSchema = z
       .min(1)
       .max(3),
     organization: z.object({
+      name: z.string().nonempty().max(60).optional(),
       website: z.string().max(500).nullable().optional(),
       description: z.string().max(2000).nullable().optional(),
       perks: z.array(z.string().max(240)).max(50).nullable().optional(),
@@ -171,6 +210,36 @@ export const opportunityUpdateStateSchema = z.object({
   id: z.uuid(),
   state: z.enum(OpportunityState),
 });
+
+export const parseOpportunitySchema = z
+  .object({
+    url: urlParseSchema.optional(),
+    file: fileUploadSchema.optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.url && !data.file) {
+        return false;
+      }
+
+      return true;
+    },
+    {
+      error: 'Either url or file must be provided.',
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.url && data.file) {
+        return false;
+      }
+
+      return true;
+    },
+    {
+      error: 'Only one of url or file can be provided.',
+    },
+  );
 
 export const createSharedSlackChannelSchema = z.object({
   email: z.string().email('Email must be a valid email address'),
