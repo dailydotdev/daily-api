@@ -73,6 +73,7 @@ import * as gondulModule from '../../src/common/gondul';
 import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import * as brokkrCommon from '../../src/common/brokkr';
+import { randomUUID } from 'node:crypto';
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 const uploadEmploymentAgreementFromBuffer = jest.spyOn(
@@ -4318,6 +4319,216 @@ describe('mutation editOpportunity', () => {
 
     expect(userAfter?.title).toBe('Updated Title Only');
     expect(userAfter?.bio).toBe('Initial bio that should remain');
+  });
+
+  it('should create organization for opportunity if missing', async () => {
+    loggedUser = '1';
+
+    const MUTATION_WITH_ORG = /* GraphQL */ `
+      mutation EditOpportunityWithOrg(
+        $id: ID!
+        $payload: OpportunityEditInput!
+      ) {
+        editOpportunity(id: $id, payload: $payload) {
+          id
+          organization {
+            id
+            name
+            website
+            description
+            perks
+            founded
+            location
+            category
+            size
+            stage
+          }
+        }
+      }
+    `;
+
+    const opportunityWithoutOrganization = await con
+      .getRepository(OpportunityJob)
+      .save({
+        ...opportunitiesFixture[0],
+        id: randomUUID(),
+        state: OpportunityState.DRAFT,
+        organizationId: null,
+      });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunityWithoutOrganization.id,
+      userId: loggedUser,
+      type: OpportunityUserType.Recruiter,
+    });
+
+    const organizationBefore = await con.getRepository(Organization).findOne({
+      where: {
+        name: 'Test Corp',
+      },
+    });
+
+    expect(organizationBefore).toBeNull();
+
+    const res = await client.mutate(MUTATION_WITH_ORG, {
+      variables: {
+        id: opportunityWithoutOrganization.id,
+        payload: {
+          organization: {
+            name: 'Test Corp',
+            website: 'https://updated.dev',
+            description: 'Updated description',
+            perks: ['Remote work', 'Flexible hours'],
+            founded: 2021,
+            location: 'Berlin, Germany',
+            category: 'Technology',
+            size: CompanySize.COMPANY_SIZE_51_200,
+            stage: CompanyStage.SERIES_B,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.organization).toMatchObject({
+      name: 'Test Corp',
+      website: 'https://updated.dev',
+      description: 'Updated description',
+      perks: ['Remote work', 'Flexible hours'],
+      founded: 2021,
+      location: 'Berlin, Germany',
+      category: 'Technology',
+      size: CompanySize.COMPANY_SIZE_51_200,
+      stage: CompanyStage.SERIES_B,
+    });
+
+    // Verify the organization was created in database
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: res.data.editOpportunity.organization.id });
+
+    expect(organization).toMatchObject({
+      name: 'Test Corp',
+      website: 'https://updated.dev',
+      description: 'Updated description',
+      perks: ['Remote work', 'Flexible hours'],
+      founded: 2021,
+      location: 'Berlin, Germany',
+      category: 'Technology',
+      size: CompanySize.COMPANY_SIZE_51_200,
+      stage: CompanyStage.SERIES_B,
+    });
+
+    const opportunityAfter = await con
+      .getRepository(OpportunityJob)
+      .findOneBy({ id: opportunityWithoutOrganization.id });
+
+    expect(opportunityAfter!.organizationId).toBe(
+      res.data.editOpportunity.organization.id,
+    );
+  });
+
+  it('should not update organization name on edit', async () => {
+    loggedUser = '1';
+
+    const MUTATION_WITH_ORG = /* GraphQL */ `
+      mutation EditOpportunityWithOrg(
+        $id: ID!
+        $payload: OpportunityEditInput!
+      ) {
+        editOpportunity(id: $id, payload: $payload) {
+          id
+          organization {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(MUTATION_WITH_ORG, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          organization: {
+            name: 'Test update name',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.organization.name).toEqual(
+      organizationsFixture[0].name,
+    );
+
+    // Verify the organization was updated in database
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: organizationsFixture[0].id });
+
+    expect(organization!.name).toEqual(organizationsFixture[0].name);
+  });
+
+  it('should not allow duplicate organization names', async () => {
+    loggedUser = '1';
+
+    const MUTATION_WITH_ORG = /* GraphQL */ `
+      mutation EditOpportunityWithOrg(
+        $id: ID!
+        $payload: OpportunityEditInput!
+      ) {
+        editOpportunity(id: $id, payload: $payload) {
+          id
+          organization {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const opportunityWithoutOrganization = await con
+      .getRepository(OpportunityJob)
+      .save({
+        ...opportunitiesFixture[0],
+        id: randomUUID(),
+        state: OpportunityState.DRAFT,
+        organizationId: null,
+      });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunityWithoutOrganization.id,
+      userId: loggedUser,
+      type: OpportunityUserType.Recruiter,
+    });
+
+    const organizationBefore = await con.getRepository(Organization).findOne({
+      where: {
+        name: 'Daily Dev Inc',
+      },
+    });
+
+    expect(organizationBefore).not.toBeNull();
+
+    const res = await client.mutate(MUTATION_WITH_ORG, {
+      variables: {
+        id: opportunityWithoutOrganization.id,
+        payload: {
+          organization: {
+            name: 'Daily Dev Inc',
+            founded: 2021,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+
+    expect(res.errors![0].extensions.code).toEqual('CONFLICT');
+    expect(res.errors![0].message).toEqual(
+      'Organization with this name already exists',
+    );
   });
 });
 

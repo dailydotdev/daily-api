@@ -37,7 +37,12 @@ import {
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { ConflictError, NotFoundError } from '../errors';
+import {
+  ConflictError,
+  NotFoundError,
+  TypeOrmError,
+  type TypeORMQueryFailedError,
+} from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { User } from '../entity/user/User';
 import {
@@ -66,7 +71,7 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, type DeepPartial } from 'typeorm';
+import { In, Not, QueryFailedError, type DeepPartial } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
   OrganizationLinkType,
@@ -207,7 +212,7 @@ export const typeDefs = /* GraphQL */ `
     content: OpportunityContent!
     meta: OpportunityMeta!
     location: [Location]!
-    organization: Organization!
+    organization: Organization
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
@@ -429,6 +434,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   input OrganizationEditInput {
+    name: String
     website: String
     description: String
     perks: [String!]
@@ -1344,30 +1350,70 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               select: ['organizationId'],
             });
 
-          if (opportunityJob?.organizationId) {
-            const organizationUpdate: Record<string, unknown> = {
-              ...organization,
-            };
+          let organizationId = opportunityJob?.organizationId;
 
-            // Handle image upload
-            if (organizationImage) {
-              const { createReadStream } = await organizationImage;
-              const stream = createReadStream();
-              const { url: imageUrl } = await uploadOrganizationImage(
-                opportunityJob.organizationId,
-                stream,
-              );
-              organizationUpdate.image = imageUrl;
-            }
+          let organizationUpdate: Record<string, unknown> = {
+            ...organization,
+          };
 
-            if (Object.keys(organizationUpdate).length > 0) {
-              await entityManager
+          if (organizationId) {
+            delete organizationUpdate.name; // prevent name updates on existing organizations
+          }
+
+          if (!organizationId) {
+            // create new organization and assign to opportunity here inline
+            // TODO: ideally this should be refactored later to separate mutation
+
+            try {
+              const organizationInsertResult = await entityManager
                 .getRepository(Organization)
-                .update(
-                  { id: opportunityJob.organizationId },
-                  organizationUpdate,
-                );
+                .insert(organizationUpdate);
+
+              organizationId = organizationInsertResult.identifiers[0]
+                .id as string;
+
+              await entityManager
+                .getRepository(OpportunityJob)
+                .update({ id }, { organizationId });
+
+              // values were applied during insert
+              organizationUpdate = {};
+            } catch (insertError) {
+              if (insertError instanceof QueryFailedError) {
+                const queryFailedError = insertError as TypeORMQueryFailedError;
+
+                if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
+                  if (
+                    insertError.message.indexOf(
+                      'IDX_organization_name_unique',
+                    ) > -1
+                  ) {
+                    throw new ConflictError(
+                      'Organization with this name already exists',
+                    );
+                  }
+                }
+              }
+
+              throw insertError;
             }
+          }
+
+          // Handle image upload
+          if (organizationImage) {
+            const { createReadStream } = await organizationImage;
+            const stream = createReadStream();
+            const { url: imageUrl } = await uploadOrganizationImage(
+              organizationId,
+              stream,
+            );
+            organizationUpdate.image = imageUrl;
+          }
+
+          if (Object.keys(organizationUpdate).length > 0) {
+            await entityManager
+              .getRepository(Organization)
+              .update({ id: organizationId }, organizationUpdate);
           }
         }
 
