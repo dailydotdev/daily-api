@@ -862,6 +862,22 @@ describe('query autocompleteCompany', () => {
         type: CompanyType.Company,
       },
       {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        altName: '삼성전자',
+        image: 'https://example.com/samsung.png',
+        domains: ['samsung.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        altName: 'トヨタ自動車',
+        image: 'https://example.com/toyota.png',
+        domains: ['toyota.com'],
+        type: CompanyType.Company,
+      },
+      {
         id: 'mit',
         name: 'Massachusetts Institute of Technology',
         image: 'https://example.com/mit.png',
@@ -887,6 +903,14 @@ describe('query autocompleteCompany', () => {
         name: 'University of California, Berkeley',
         image: 'https://example.com/berkeley.png',
         domains: ['berkeley.edu'],
+        type: CompanyType.School,
+      },
+      {
+        id: 'todai',
+        name: 'The University of Tokyo',
+        altName: '東京大学',
+        image: 'https://example.com/todai.png',
+        domains: ['u-tokyo.ac.jp'],
         type: CompanyType.School,
       },
     ]);
@@ -940,6 +964,11 @@ describe('query autocompleteCompany', () => {
         image: 'https://example.com/stanford.png',
       },
       {
+        id: 'todai',
+        name: 'The University of Tokyo',
+        image: 'https://example.com/todai.png',
+      },
+      {
         id: 'berkeley',
         name: 'University of California, Berkeley',
         image: 'https://example.com/berkeley.png',
@@ -975,6 +1004,16 @@ describe('query autocompleteCompany', () => {
         id: 'microsoft',
         name: 'Microsoft Corporation',
         image: 'https://example.com/microsoft.png',
+      },
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        image: 'https://example.com/toyota.png',
       },
     ]);
   });
@@ -1051,9 +1090,19 @@ describe('query autocompleteCompany', () => {
         image: 'https://example.com/microsoft.png',
       },
       {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+      {
         id: 'stanford',
         name: 'Stanford University',
         image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        image: 'https://example.com/toyota.png',
       },
       {
         id: 'berkeley',
@@ -1186,5 +1235,61 @@ describe('query autocompleteCompany', () => {
         image: 'https://example.com/google.png',
       },
     ]);
+  });
+
+  it('should return results when searching by English name for company with altName', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'samsung' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+    ]);
+  });
+
+  it('should return results when searching by non-Latin characters (Korean)', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: '삼성' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+    ]);
+  });
+
+  it('should return results when searching by non-Latin characters (Japanese)', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'トヨタ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        image: 'https://example.com/toyota.png',
+      },
+    ]);
+  });
+
+  it('should not return unrelated companies when searching with non-Latin characters', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: '삼성' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    // Should only return Samsung, not other companies with non-Latin altNames
+    expect(res.data.autocompleteCompany.length).toBe(1);
+    expect(res.data.autocompleteCompany[0].id).toBe('samsung');
   });
 });
