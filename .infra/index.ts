@@ -401,7 +401,7 @@ if (isAdhocEnv) {
         },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
-      minReplicas: 3,
+      minReplicas: 2,
       maxReplicas: 10,
       limits: bgLimits,
       requests: bgRequests,
