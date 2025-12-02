@@ -160,7 +160,7 @@ const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
 };
 
-const wsMemory = 1280;
+const wsMemory = 1600;
 const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '75m',
   memory: '800Mi',
@@ -384,7 +384,7 @@ if (isAdhocEnv) {
       requests: wsRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 85, memory: 130 },
+      metric: { type: 'memory_cpu', cpu: 150, memory: 150 },
       disableLifecycle: true,
       spot: { enabled: true },
       podAnnotations: podAnnotations,
