@@ -226,6 +226,8 @@ if (!isAdhocEnv) {
   });
 
   podAnnotations['gke-gcsfuse/volumes'] = 'true';
+  podAnnotations['gke-gcsfuse/cpu-request'] = '10m';
+  podAnnotations['gke-gcsfuse/memory-request'] = '32Mi';
 }
 
 const jwtEnv = [
