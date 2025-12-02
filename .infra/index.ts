@@ -532,10 +532,12 @@ const [apps] = deployApplicationSuite(
           value: 'true',
         },
       ],
-      // TODO: split limit and request
+      requests: {
+        cpu: '50m',
+        memory: '450Mi'
+      },
       limits: {
-        cpu: '100m',
-        memory: '800Mi',
+        memory: '900Mi',
       },
     },
     additionalSecrets: [
@@ -567,7 +569,6 @@ const [apps] = deployApplicationSuite(
           activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
           spot: {
             enabled: true,
-            weight: 70,
           },
           podAnnotations: podAnnotations,
           ...vols,
