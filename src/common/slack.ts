@@ -91,6 +91,7 @@ const garmrSlackService = new GarmrService({
     halfOpenAfter: 5 * 1000,
     threshold: 0.1,
     duration: 10 * 1000,
+    minimumRps: 1,
   },
   retryOpts: {
     maxAttempts: 2,

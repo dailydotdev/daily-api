@@ -1688,10 +1688,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
 
       if (!isRecruiter) {
-        ctx.log.error(
-          { userId: ctx.userId },
-          'User is not a recruiter - cannot create shared slack channel',
-        );
         throw new ForbiddenError(
           'Access denied! Only recruiters can create Slack channels',
         );
@@ -1718,14 +1714,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return { _: true };
       } catch (originalError) {
         const error = originalError as Error;
-
-        ctx.log.error(
-          {
-            err: error,
-            userId: ctx.userId,
-          },
-          'error creating shared slack channel via GraphQL',
-        );
 
         if (error.message === 'An API error occurred: name_taken') {
           throw new ConflictError('Channel name already exists');
