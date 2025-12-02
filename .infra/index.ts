@@ -153,8 +153,8 @@ if (isPersonalizedDigestEnabled) {
 
 const memory = 860;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '600m',
-  memory: '620Mi',
+  cpu: '500m',
+  memory: '575Mi',
 };
 const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
@@ -162,7 +162,7 @@ const apiLimits: pulumi.Input<{ memory: string }> = {
 
 const wsMemory = 1280;
 const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '300m',
+  cpu: '75m',
   memory: '800Mi',
 };
 const wsLimits: pulumi.Input<{
@@ -341,7 +341,7 @@ if (isAdhocEnv) {
       requests: apiRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
+      metric: { type: 'memory_cpu', cpu: 120, memory: 130 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
@@ -366,15 +366,15 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
-        {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
-        },
         ...commonEnv,
         ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-ws`,
+        },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
-      minReplicas: 3,
+      minReplicas: 2,
       maxReplicas: 10,
       limits: wsLimits,
       requests: wsRequests,
@@ -388,7 +388,14 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      env: [...commonEnv, ...jwtEnv],
+      env: [
+        ...commonEnv,
+        ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`,
+        },
+      ],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
       minReplicas: 3,
       maxReplicas: 10,
@@ -430,6 +437,10 @@ if (isAdhocEnv) {
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
         ...commonEnv,
         ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-private`,
+        },
       ],
       minReplicas: 2,
       maxReplicas: 2,
