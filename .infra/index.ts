@@ -748,13 +748,11 @@ if (!isAdhocEnv) {
         tag: '6b73adea1357df3e755dfc083c3a89bd2ccc348b',
       },
       resources: {
-        // TODO: adjust resources based on the actual usage
         requests: {
-          cpu: '1',
-          memory: '2048Mi',
+          cpu: '50m',
+          memory: '512Mi',
         },
         limits: {
-          // 4GiB
           memory: '4096Mi',
         },
       },
