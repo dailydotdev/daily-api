@@ -1,4 +1,9 @@
 import { IncomingWebhook } from '@slack/webhook';
+import { WebClient } from '@slack/web-api';
+import type {
+  ConversationsCreateResponse,
+  ConversationsInviteSharedResponse,
+} from '@slack/web-api';
 import { Post, Comment, User, Source, type Campaign } from '../entity';
 import { getDiscussionLink, getSourceLink } from './links';
 import { NotFoundError } from '../errors';
@@ -10,6 +15,11 @@ import { PropsParameters } from '../types';
 import { getAbsoluteDifferenceInDays } from './users';
 import { concatTextToNewline } from './utils';
 import { capitalize } from 'lodash';
+import {
+  GarmrService,
+  IGarmrService,
+  GarmrNoopService,
+} from '../integrations/garmr';
 
 const nullWebhook = { send: (): Promise<void> => Promise.resolve() };
 export const webhooks = Object.freeze({
@@ -32,6 +42,67 @@ export const webhooks = Object.freeze({
     ? new IncomingWebhook(process.env.SLACK_RECRUITER_WEBHOOK)
     : nullWebhook,
 });
+
+export class SlackClient {
+  private readonly client: WebClient;
+  public readonly garmr: IGarmrService;
+
+  constructor(
+    token: string,
+    options?: {
+      garmr?: IGarmrService;
+    },
+  ) {
+    this.client = new WebClient(token);
+    this.garmr = options?.garmr || new GarmrNoopService();
+  }
+
+  async createConversation(
+    name: string,
+    isPrivate: boolean = false,
+  ): Promise<ConversationsCreateResponse> {
+    return this.garmr.execute(async () =>
+      this.client.conversations.create({
+        name,
+        is_private: isPrivate,
+      }),
+    );
+  }
+
+  async inviteSharedToConversation(
+    channel: string,
+    emails: string[],
+    externalLimited: boolean = true,
+  ): Promise<ConversationsInviteSharedResponse> {
+    return this.garmr.execute(async () =>
+      this.client.conversations.inviteShared({
+        channel,
+        emails,
+        external_limited: externalLimited,
+      }),
+    );
+  }
+}
+
+// Configure Garmr service for Slack
+const garmrSlackService = new GarmrService({
+  service: 'slack',
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
+  retryOpts: {
+    maxAttempts: 2,
+  },
+});
+
+export const slackClient = new SlackClient(
+  process.env.SLACK_BOT_TOKEN as string,
+  {
+    garmr: garmrSlackService,
+  },
+);
 
 interface NotifyBoostedProps {
   mdLink: string;

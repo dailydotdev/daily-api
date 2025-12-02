@@ -66,7 +66,7 @@ import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
-import { WebClient } from '@slack/web-api';
+import { slackClient } from '../common/slack';
 
 export interface GQLOpportunity
   extends Pick<
@@ -1591,21 +1591,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       try {
         const { channelName, email } = payload;
-        const client = new WebClient(process.env.SLACK_BOT_TOKEN);
-        const createResult = await client.conversations.create({
-          name: channelName,
-          is_private: false,
-        });
+
+        const createResult = await slackClient.createConversation(
+          channelName,
+          false,
+        );
 
         if (!createResult?.channel) {
           return { _: false };
         }
 
-        await client.conversations.inviteShared({
-          channel: createResult.channel.id as string,
-          emails: [email],
-          external_limited: true, // Optional: limits them to just this channel
-        });
+        await slackClient.inviteSharedToConversation(
+          createResult.channel.id as string,
+          [email],
+          true,
+        );
 
         return { _: true };
       } catch (originalError) {
