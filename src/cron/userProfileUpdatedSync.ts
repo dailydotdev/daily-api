@@ -34,7 +34,7 @@ const mapExperienceTypeToProto: Record<
 export const userProfileUpdatedSync: Cron = {
   name: 'user-profile-updated-sync',
   handler: async (con) => {
-    const timeThreshold = subHours(new Date(), 6);
+    const timeThreshold = subHours(new Date(), 3);
 
     const userExperiences = await queryReadReplica(
       con,
@@ -133,6 +133,11 @@ export const userProfileUpdatedSync: Cron = {
         );
       },
       10,
+    );
+
+    logger.info(
+      { profiles: experiencesByUser.size, experiences: userExperiences.length },
+      'user profile updated sync completed',
     );
   },
 };

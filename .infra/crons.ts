@@ -136,6 +136,6 @@ export const crons: Cron[] = [
   },
   {
     name: 'user-profile-updated-sync',
-    schedule: '45 */6 * * *',
+    schedule: '45 */3 * * *',
   },
 ];
