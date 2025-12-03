@@ -5,6 +5,7 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   TableInheritance,
   UpdateDateColumn,
@@ -14,6 +15,7 @@ import { UserExperienceType } from './types';
 import type { Company } from '../../Company';
 import { LocationType } from '@dailydotdev/schema';
 import type { DatasetLocation } from '../../dataset/DatasetLocation';
+import type { UserExperienceSkill } from './UserExperienceSkill';
 
 export type UserExperienceFlags = Partial<{
   import: string;
@@ -98,4 +100,11 @@ export class UserExperience {
 
   @Column({ type: 'jsonb', default: {} })
   flags: UserExperienceFlags;
+
+  @OneToMany(
+    'UserExperienceSkill',
+    (skill: UserExperienceSkill) => skill.experience,
+    { lazy: true },
+  )
+  skills: Promise<UserExperienceSkill[]>;
 }
