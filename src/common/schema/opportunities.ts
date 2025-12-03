@@ -255,3 +255,16 @@ export const createSharedSlackChannelSchema = z.object({
       'Channel name can only contain lowercase letters, numbers, hyphens, and underscores',
     ),
 });
+
+export const opportunityPreviewSchema = z.object({
+  opportunity: z.object({
+    title: z.string(),
+    tldr: z.string(),
+    content: opportunityContentSchema.partial().optional(),
+    meta: opportunityCreateSchema.shape.meta.partial().optional(),
+    location: opportunityCreateSchema.shape.location.optional(),
+    state: z.number().optional(),
+    type: z.number().optional(),
+    keywords: z.array(z.string()).optional(),
+  }),
+});

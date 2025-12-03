@@ -64,6 +64,7 @@ import {
   opportunityUpdateStateSchema,
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
+  opportunityPreviewSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -478,6 +479,29 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
+  input OpportunityPreviewInput {
+    title: String!
+    tldr: String!
+    content: OpportunityContentInput
+    meta: OpportunityMetaInput
+    location: [LocationInput]
+    state: Int
+    type: Int
+    keywords: [String]
+  }
+
+  type OpportunityPreviewResponse {
+    """
+    List of user IDs that match the opportunity
+    """
+    userIds: [String!]!
+
+    """
+    Total count of matching users
+    """
+    totalCount: Int!
+  }
+
   extend type Mutation {
     """
     Updates the authenticated candidate's saved preferences
@@ -635,6 +659,16 @@ export const typeDefs = /* GraphQL */ `
       """
       channelName: String!
     ): EmptyResponse @auth
+
+    """
+    Get a preview of potential candidate matches for an opportunity
+    """
+    opportunityPreview(
+      """
+      Opportunity data to preview matches for
+      """
+      opportunity: OpportunityPreviewInput!
+    ): OpportunityPreviewResponse!
   }
 `;
 
@@ -1718,6 +1752,70 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         if (error.message === 'An API error occurred: name_taken') {
           throw new ConflictError('Channel name already exists');
         }
+
+        throw error;
+      }
+    },
+    opportunityPreview: async (
+      _,
+      { opportunity }: { opportunity: unknown },
+      ctx: Context,
+    ): Promise<{
+      userIds: string[];
+      totalCount: number;
+    }> => {
+      // Validate the input
+      const validatedPayload = await opportunityPreviewSchema.parseAsync({
+        opportunity,
+      });
+
+      try {
+        const gondulClient = getGondulClient();
+
+        // Call the gondul preview endpoint with circuit breaker
+        // TODO: Remove this temporary mock return
+        return {
+          userIds: ['user1', 'user2', 'user3'],
+          totalCount: 3,
+        };
+
+        const result = await gondulClient.garmr.execute(async () => {
+          const response = await fetch(`${process.env.GONDUL_ORIGIN}/preview`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(validatedPayload),
+          });
+
+          if (!response.ok) {
+            ctx.log.error(
+              {
+                status: response.status,
+                statusText: response.statusText,
+              },
+              'Failed to fetch opportunity preview from gondul',
+            );
+            throw new Error('Failed to fetch opportunity preview');
+          }
+
+          return await response.json();
+        });
+
+        return {
+          userIds: result.user_ids || [],
+          totalCount: result.total_count || 0,
+        };
+      } catch (originalError) {
+        const error = originalError as Error;
+
+        ctx.log.error(
+          {
+            err: error,
+            userId: ctx.userId || 'anonymous',
+          },
+          'error fetching opportunity preview',
+        );
 
         throw error;
       }
