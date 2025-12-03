@@ -10,6 +10,7 @@ import {
   FreeformPost,
   Post,
   PostRelation,
+  type SharePost,
 } from '../../entity/posts';
 import { ChangeObject } from '../../types';
 import { PostKeyword, Source } from '../../entity';
@@ -93,6 +94,7 @@ export const notifyPostContentUpdated = async ({
   ]);
   const articlePost = post as ChangeObject<ArticlePost>;
   const freeformPost = post as ChangeObject<FreeformPost>;
+  const sharePost = post as ChangeObject<SharePost>;
 
   const contentUpdatedMessage = new ContentUpdatedMessage({
     yggdrasilId: post.yggdrasilId,
@@ -135,6 +137,7 @@ export const notifyPostContentUpdated = async ({
       decoder: new ContentQuality(),
     }),
     deleted: articlePost.deleted,
+    sharedPostId: sharePost.sharedPostId || undefined,
   });
 
   await triggerTypedEvent(

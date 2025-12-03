@@ -3828,6 +3828,33 @@ describe('post content updated', () => {
       ],
     );
   });
+
+  it('should notify on share post updated', async () => {
+    const after: ChangeObject<SharePost> = {
+      ...contentUpdatedPost,
+      type: PostType.Share,
+      sharedPostId: 'sp1',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<SharePost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
+      [
+        'api.v1.content-updated',
+        {
+          sharedPostId: 'sp1',
+          type: PostType.Share,
+        },
+      ],
+    );
+  });
 });
 
 describe('user streak change', () => {
