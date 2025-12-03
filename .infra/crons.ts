@@ -134,4 +134,8 @@ export const crons: Cron[] = [
     name: 'clean-zombie-opportunities',
     schedule: '30 6 * * *',
   },
+  {
+    name: 'user-profile-updated-sync',
+    schedule: '45 */6 * * *',
+  },
 ];

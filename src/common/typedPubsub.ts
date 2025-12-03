@@ -38,6 +38,7 @@ import {
   RecruiterAcceptedCandidateMatchMessage,
   type TransferResponse,
   type UserBriefingRequest,
+  type UserProfileUpdatedMessage,
   WarmIntro,
 } from '@dailydotdev/schema';
 import { SourcePostModeration } from '../entity/SourcePostModeration';
@@ -230,6 +231,7 @@ export type PubSubSchema = {
   'api.v1.recruiter-rejected-candidate-match': CandidateRejectedOpportunityMessage;
   'gondul.v1.candidate-application-scored': ApplicationScored;
   'gondul.v1.warm-intro-generated': WarmIntro;
+  'api.v1.user-profile-updated': UserProfileUpdatedMessage;
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
