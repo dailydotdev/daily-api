@@ -64,7 +64,6 @@ import {
   opportunityUpdateStateSchema,
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
-  opportunityPreviewSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -73,7 +72,13 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, QueryFailedError, type DeepPartial } from 'typeorm';
+import {
+  In,
+  Not,
+  QueryFailedError,
+  type DeepPartial,
+  JsonContains,
+} from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
   OrganizationLinkType,
@@ -479,17 +484,6 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
-  input OpportunityPreviewInput {
-    title: String!
-    tldr: String!
-    content: OpportunityContentInput
-    meta: OpportunityMetaInput
-    location: [LocationInput]
-    state: Int
-    type: Int
-    keywords: [String]
-  }
-
   type OpportunityPreviewResponse {
     """
     List of user IDs that match the opportunity
@@ -661,14 +655,9 @@ export const typeDefs = /* GraphQL */ `
     ): EmptyResponse @auth
 
     """
-    Get a preview of potential candidate matches for an opportunity
+    Get a preview of potential candidate matches for an opportunity owned by the anonymous user
     """
-    opportunityPreview(
-      """
-      Opportunity data to preview matches for
-      """
-      opportunity: OpportunityPreviewInput!
-    ): OpportunityPreviewResponse!
+    opportunityPreview: OpportunityPreviewResponse!
   }
 `;
 
@@ -1758,26 +1747,49 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     opportunityPreview: async (
       _,
-      { opportunity }: { opportunity: unknown },
+      __,
       ctx: Context,
     ): Promise<{
       userIds: string[];
       totalCount: number;
     }> => {
-      // Validate the input
-      const validatedPayload = await opportunityPreviewSchema.parseAsync({
-        opportunity,
-      });
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { flags: JsonContains({ anonUserId: ctx.userId }) },
+          relations: {
+            keywords: true,
+          },
+        });
+
+      if (!opportunity) {
+        throw new NotFoundError('No opportunity found for this anonymous user');
+      }
+
+      const keywords = await opportunity.keywords;
+
+      const validatedPayload = {
+        opportunity: {
+          title: opportunity.title,
+          tldr: opportunity.tldr,
+          content: opportunity.content,
+          meta: opportunity.meta,
+          location: opportunity.location,
+          state: opportunity.state,
+          type: opportunity.type,
+          keywords: keywords.map((k) => k.keyword),
+        },
+      };
+
+      // Call the gondul preview endpoint with circuit breaker
+      // TODO: Remove this temporary mock return
+      return {
+        userIds: ['user1', 'user2', 'user3'],
+        totalCount: 3,
+      };
 
       try {
         const gondulClient = getGondulClient();
-
-        // Call the gondul preview endpoint with circuit breaker
-        // TODO: Remove this temporary mock return
-        return {
-          userIds: ['user1', 'user2', 'user3'],
-          totalCount: 3,
-        };
 
         const result = await gondulClient.garmr.execute(async () => {
           const response = await fetch(`${process.env.GONDUL_ORIGIN}/preview`, {
