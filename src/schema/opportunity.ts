@@ -1801,13 +1801,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           });
 
           if (!response.ok) {
-            ctx.log.error(
-              {
-                status: response.status,
-                statusText: response.statusText,
-              },
-              'Failed to fetch opportunity preview from gondul',
-            );
             throw new Error('Failed to fetch opportunity preview');
           }
 
