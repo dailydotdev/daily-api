@@ -22,6 +22,7 @@ import type { QuestionFeedback } from '../questions/QuestionFeedback';
 
 export type OpportunityFlags = Partial<{
   anonUserId: string | null;
+  preview: object;
 }>;
 
 @Entity()

@@ -1753,6 +1753,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       userIds: string[];
       totalCount: number;
     }> => {
+      console.log('ctx.', ctx.trackingId);
       const opportunity = await ctx.con
         .getRepository(OpportunityJob)
         .findOneOrFail({
@@ -1764,6 +1765,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (!opportunity) {
         throw new NotFoundError('No opportunity found for this anonymous user');
+      }
+
+      if (opportunity.flags?.preview) {
+        return {
+          userIds: ['user4', 'user5', 'user6'],
+          totalCount: 5,
+        };
       }
 
       const keywords = await opportunity.keywords;
@@ -1783,10 +1791,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Call the gondul preview endpoint with circuit breaker
       // TODO: Remove this temporary mock return
-      return {
+      const gondulResult = {
         userIds: ['user1', 'user2', 'user3'],
         totalCount: 3,
       };
+      await ctx.con.getRepository(OpportunityJob).update(
+        { id: opportunity.id },
+        {
+          flags: updateFlagsStatement<OpportunityJob>({
+            preview: gondulResult,
+          }),
+        },
+      );
+
+      return gondulResult;
 
       try {
         const gondulClient = getGondulClient();
