@@ -1757,15 +1757,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const opportunity = await ctx.con
         .getRepository(OpportunityJob)
         .findOneOrFail({
-          where: { flags: JsonContains({ anonUserId: ctx.userId }) },
+          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
           relations: {
             keywords: true,
           },
         });
-
-      if (!opportunity) {
-        throw new NotFoundError('No opportunity found for this anonymous user');
-      }
 
       if (opportunity.flags?.preview) {
         return {
