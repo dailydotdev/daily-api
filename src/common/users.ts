@@ -361,6 +361,39 @@ export const getUserReadingTags = (
   );
 };
 
+export const getUserTopReadingTags = (
+  con: DataSource,
+  {
+    userId,
+    limit = 5,
+    readLimit = 100,
+  }: { userId: string; limit?: number; readLimit?: number },
+): Promise<Array<{ tag: string; count: number }>> => {
+  return con.query(
+    `--sql
+      WITH recent_reads AS (
+        SELECT v."postId"
+        FROM "view" v
+        WHERE v."userId" = $1
+          AND v.hidden = false
+        ORDER BY v.timestamp DESC
+        LIMIT $3
+      )
+      SELECT
+        pk.keyword AS tag,
+        COUNT(*) AS count
+      FROM recent_reads rr
+      JOIN post_keyword pk ON rr."postId" = pk."postId"
+      WHERE pk.status = 'allow'
+        AND pk.keyword != 'general-programming'
+      GROUP BY pk.keyword
+      ORDER BY COUNT(*) DESC
+      LIMIT $2;
+    `,
+    [userId, limit, readLimit],
+  );
+};
+
 export const getUserReadingRank = async (
   con: DataSource,
   userId: string,
