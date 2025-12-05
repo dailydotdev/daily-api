@@ -21,6 +21,7 @@ import {
   type PostFlagsPublic,
   type Campaign,
   type OrganizationLink,
+  SourceType,
 } from '../entity';
 import {
   OrganizationMemberRole,
@@ -36,6 +37,7 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
+  getUserTopReadingTags,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
@@ -1840,53 +1842,62 @@ const obj = new GraphORM({
         },
       },
       topTags: {
-        select: (_, alias, qb) =>
-          qb.select(`
-              ARRAY(
-                SELECT pk.keyword
-                FROM user_post up
-                INNER JOIN post_keyword pk ON pk."postId" = up."postId"
-                WHERE up."userId" = ${alias}.id
-                  AND up.hidden = false
-                GROUP BY pk.keyword
-                ORDER BY COUNT(*) DESC
-                LIMIT 5
-              )
-            `),
-        transform: (tags: string[] | null): string[] | null => {
-          return tags && tags.length > 0 ? tags : null;
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) {
+            return null;
+          }
+          try {
+            const tags = await getUserTopReadingTags(ctx.con, {
+              userId: user.id,
+              limit: 5,
+              readLimit: 100,
+            });
+            return tags && tags.length > 0 ? tags.map((t) => t.tag) : null;
+          } catch (error) {
+            return null;
+          }
         },
       },
       recentlyRead: {
         select: (_, alias, qb) =>
           qb.select(`
               ARRAY(
-                SELECT up."postId"
-                FROM user_post up
-                WHERE up."userId" = ${alias}.id
-                  AND up.hidden = false
-                ORDER BY up."createdAt" DESC
+                SELECT jsonb_build_object(
+                  'tag', utr."keywordValue",
+                  'issuedAt', utr."issuedAt"
+                )
+                FROM user_top_reader utr
+                WHERE utr."userId" = ${alias}.id
+                ORDER BY utr."issuedAt" DESC
                 LIMIT 3
               )
             `),
-        transform: (postIds: string[] | null): string[] | null => {
-          return postIds && postIds.length > 0 ? postIds : null;
+        transform: (
+          badges: Array<{ tag: string; issuedAt: string }> | null,
+        ): Array<{ tag: string; issuedAt: string }> | null => {
+          return badges && badges.length > 0 ? badges : null;
         },
       },
       activeSquads: {
         select: (_, alias, qb) =>
-          qb.select(`
+          qb
+            .select(
+              `
               ARRAY(
                 SELECT sm."sourceId"
                 FROM source_member sm
                 INNER JOIN source s ON s.id = sm."sourceId"
                 WHERE sm."userId" = ${alias}.id
-                  AND s.type = 4
+                  AND s.type = :squadType
                   AND s.active = true
                 ORDER BY sm."createdAt" DESC
                 LIMIT 5
               )
-            `),
+            `,
+            )
+            .setParameter('squadType', SourceType.Squad),
         transform: (squadIds: string[] | null): string[] | null => {
           return squadIds && squadIds.length > 0 ? squadIds : null;
         },
