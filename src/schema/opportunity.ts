@@ -1,5 +1,6 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
+import { GraphQLResolveInfo } from 'graphql';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
@@ -1127,7 +1128,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { first = 10, after }: { first?: number; after?: string },
       ctx: Context,
-    ): Promise<GQLOpportunityPreviewResponse> => {
+      info: GraphQLResolveInfo,
+    ): Promise<GQLOpportunityPreviewUser> => {
       const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
           where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
@@ -1191,18 +1193,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const hasNextPage = startIndex + first < userIds.length;
 
       // Add totalCount to context for anonId generation
-      (ctx as Context & { previewTotalCount?: number }).previewTotalCount =
-        totalCount;
+      const enrichedCtx = {
+        ...ctx,
+        previewTotalCount: totalCount,
+      } as Context & { previewTotalCount: number };
 
-      // Fetch users from database in the correct order
-      const users = await queryReadReplica(ctx.con, ({ queryRunner }) => {
-        return queryRunner.manager
-          .createQueryBuilder(User, 'user')
-          .where('user.id IN (:...userIds)', { userIds: paginatedUserIds })
-          .orderBy('array_position(ARRAY[:...orderIds], user.id)', 'ASC')
-          .setParameter('orderIds', paginatedUserIds)
-          .getMany();
-      });
+      // Fetch users using GraphORM for optimized field resolution
+      const users = await graphorm.query<GQLOpportunityPreviewUser>(
+        enrichedCtx,
+        info,
+        (builder) => {
+          const orderByParams = paginatedUserIds.reduce(
+            (acc, id, i) => {
+              acc[`userId${i}`] = id;
+              return acc;
+            },
+            {} as Record<string, string>,
+          );
+
+          builder.queryBuilder
+            .where(`${builder.alias}.id IN (:...userIds)`, {
+              userIds: paginatedUserIds,
+            })
+            .setParameters(orderByParams)
+            .orderBy(
+              `array_position(ARRAY[${paginatedUserIds.map((_, i) => `:userId${i}`).join(',')}]::uuid[], ${builder.alias}.id)`,
+              'ASC',
+            );
+          return builder;
+        },
+        true, // use read replica
+      );
 
       // Create edges with cursors
       const edges = users.map((user, index) => ({

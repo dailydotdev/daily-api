@@ -1726,7 +1726,6 @@ const obj = new GraphORM({
         select: 'image',
       },
       anonId: {
-        // Will be set by transform using parent data
         select: () => 'NULL',
         transform: (_, ctx, parent) => {
           const user = parent as User;
@@ -1738,7 +1737,6 @@ const obj = new GraphORM({
             hash = (hash << 5) - hash + user.id.charCodeAt(i);
             hash = hash & hash;
           }
-          // Get totalCount from context (needs to be passed in)
           const totalCount =
             (ctx as Context & { previewTotalCount?: number })
               .previewTotalCount || 1000;
@@ -1791,14 +1789,6 @@ const obj = new GraphORM({
         transform: (data: Record<string, unknown>): string | null => {
           if (!data) return null;
 
-          // If it's from preferences, it has specific structure
-          if (data.city || data.subdivision || data.country) {
-            return [data.city, data.subdivision, data.country]
-              .filter(Boolean)
-              .join(', ');
-          }
-
-          // If it's from user flags
           if (data.city || data.subdivision || data.country) {
             return [data.city, data.subdivision, data.country]
               .filter(Boolean)
