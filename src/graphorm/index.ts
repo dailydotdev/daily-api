@@ -64,6 +64,7 @@ import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
+import { snotraClient } from '../integrations/snotra';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1712,6 +1713,183 @@ const obj = new GraphORM({
       salaryExpectation: {
         jsonType: true,
         transform: nullIfNotSameUserById,
+      },
+    },
+  },
+  OpportunityPreviewUser: {
+    from: 'User',
+    requiredColumns: ['id'],
+    fields: {
+      profileImage: {
+        select: 'image',
+      },
+      anonId: {
+        // Will be set by transform using parent data
+        select: () => 'NULL',
+        transform: (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) return null;
+
+          // Deterministic hash from userId
+          let hash = 0;
+          for (let i = 0; i < user.id.length; i++) {
+            hash = (hash << 5) - hash + user.id.charCodeAt(i);
+            hash = hash & hash;
+          }
+          // Get totalCount from context (needs to be passed in)
+          const totalCount =
+            (ctx as Context & { previewTotalCount?: number })
+              .previewTotalCount || 1000;
+          const anonNumber = (Math.abs(hash) % totalCount) + 1;
+          return `anon #${anonNumber}`;
+        },
+      },
+      description: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          try {
+            const profile = await snotraClient.getProfile({
+              user_id: user.id,
+            });
+            return profile?.profile_text || null;
+          } catch (error) {
+            return null;
+          }
+        },
+      },
+      openToWork: {
+        select: (_, alias, qb) =>
+          qb
+            .select('ucp.status')
+            .from('user_candidate_preference', 'ucp')
+            .where(`ucp."userId" = ${alias}.id`)
+            .limit(1),
+        transform: (status: number | null): boolean => status === 1,
+      },
+      seniority: {
+        select: 'experienceLevel',
+      },
+      location: {
+        select: (_, alias) => `
+          COALESCE(
+            (
+              SELECT jsonb_build_object(
+                'city', location->>0->>'city',
+                'subdivision', location->>0->>'subdivision',
+                'country', location->>0->>'country'
+              )
+              FROM user_candidate_preference
+              WHERE "userId" = ${alias}.id
+              LIMIT 1
+            ),
+            ${alias}.flags
+          )
+        `,
+        transform: (data: Record<string, unknown>): string | null => {
+          if (!data) return null;
+
+          // If it's from preferences, it has specific structure
+          if (data.city || data.subdivision || data.country) {
+            return [data.city, data.subdivision, data.country]
+              .filter(Boolean)
+              .join(', ');
+          }
+
+          // If it's from user flags
+          if (data.city || data.subdivision || data.country) {
+            return [data.city, data.subdivision, data.country]
+              .filter(Boolean)
+              .join(', ');
+          }
+
+          return null;
+        },
+      },
+      company: {
+        select: (_, alias, qb) =>
+          qb
+            .select(`COALESCE(c.name, ue."customCompanyName") as company_name`)
+            .from('user_experience', 'ue')
+            .leftJoin('company', 'c', 'c.id = ue."companyId"')
+            .where(`ue."userId" = ${alias}.id`)
+            .andWhere('ue.verified = true')
+            .andWhere('ue.type = :type', { type: 1 })
+            .orderBy('ue."startedAt"', 'DESC')
+            .limit(1),
+        transform: (
+          companyName: string | null,
+        ): { name: string; favicon?: string } | null => {
+          if (!companyName) return null;
+          return {
+            name: companyName,
+            favicon: undefined,
+          };
+        },
+      },
+      lastActivity: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) {
+            return null;
+          }
+          return await ctx.dataLoader.userLastActive.load({
+            userId: user.id,
+          });
+        },
+      },
+      topTags: {
+        select: (_, alias, qb) =>
+          qb.select(`
+              ARRAY(
+                SELECT pk.keyword
+                FROM user_post up
+                INNER JOIN post_keyword pk ON pk."postId" = up."postId"
+                WHERE up."userId" = ${alias}.id
+                  AND up.hidden = false
+                GROUP BY pk.keyword
+                ORDER BY COUNT(*) DESC
+                LIMIT 5
+              )
+            `),
+        transform: (tags: string[] | null): string[] | null => {
+          return tags && tags.length > 0 ? tags : null;
+        },
+      },
+      recentlyRead: {
+        select: (_, alias, qb) =>
+          qb.select(`
+              ARRAY(
+                SELECT up."postId"
+                FROM user_post up
+                WHERE up."userId" = ${alias}.id
+                  AND up.hidden = false
+                ORDER BY up."createdAt" DESC
+                LIMIT 3
+              )
+            `),
+        transform: (postIds: string[] | null): string[] | null => {
+          return postIds && postIds.length > 0 ? postIds : null;
+        },
+      },
+      activeSquads: {
+        select: (_, alias, qb) =>
+          qb.select(`
+              ARRAY(
+                SELECT sm."sourceId"
+                FROM source_member sm
+                INNER JOIN source s ON s.id = sm."sourceId"
+                WHERE sm."userId" = ${alias}.id
+                  AND s.type = 4
+                  AND s.active = true
+                ORDER BY sm."createdAt" DESC
+                LIMIT 5
+              )
+            `),
+        transform: (squadIds: string[] | null): string[] | null => {
+          return squadIds && squadIds.length > 0 ? squadIds : null;
+        },
       },
     },
   },

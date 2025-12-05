@@ -1,5 +1,6 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
+import { GraphQLResolveInfo } from 'graphql';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
@@ -23,7 +24,6 @@ import {
   OpportunityUserType,
 } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
-import { UserExperience } from '../entity/user/experiences/UserExperience';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
@@ -67,7 +67,6 @@ import {
   parseOpportunitySchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
-import { SourceType } from '../entity';
 import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
@@ -1836,104 +1835,163 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     opportunityPreview: async (
       _,
-      { first, after }: { first?: number; after?: string },
+      { first = 10, after }: { first?: number; after?: string },
       ctx: Context,
-    ): Promise<{
-      userIds: string[];
-      totalCount: number;
-      first?: number;
-      after?: string;
-    }> => {
+      info: GraphQLResolveInfo,
+    ) => {
       const opportunity = await ctx.con
         .getRepository(OpportunityJob)
         .findOneOrFail({
           where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
-          relations: {
-            keywords: true,
-          },
+          // TODO: Uncomment when using Gondul service - relations: { keywords: true },
         });
+
+      let userIds: string[];
+      let totalCount: number;
 
       if (opportunity.flags?.preview) {
-        return {
-          userIds: opportunity.flags.preview.userIds,
-          totalCount: opportunity.flags.preview.totalCount,
-          first,
-          after,
+        userIds = opportunity.flags.preview.userIds;
+        totalCount = opportunity.flags.preview.totalCount;
+      } else {
+        // TODO: Uncomment when Gondul service is ready
+        // const keywords = await opportunity.keywords;
+        // const validatedPayload = {
+        //   opportunity: {
+        //     title: opportunity.title,
+        //     tldr: opportunity.tldr,
+        //     content: opportunity.content,
+        //     meta: opportunity.meta,
+        //     location: opportunity.location,
+        //     state: opportunity.state,
+        //     type: opportunity.type,
+        //     keywords: keywords.map((k) => k.keyword),
+        //   },
+        // };
+
+        // Call the gondul preview endpoint with circuit breaker
+        // TODO: Remove this temporary mock return and use validatedPayload with Gondul
+        const gondulResult = {
+          userIds: ['user1', 'user2', 'user3'],
+          totalCount: 3,
         };
-      }
 
-      const keywords = await opportunity.keywords;
-
-      const validatedPayload = {
-        opportunity: {
-          title: opportunity.title,
-          tldr: opportunity.tldr,
-          content: opportunity.content,
-          meta: opportunity.meta,
-          location: opportunity.location,
-          state: opportunity.state,
-          type: opportunity.type,
-          keywords: keywords.map((k) => k.keyword),
-        },
-      };
-
-      // Call the gondul preview endpoint with circuit breaker
-      // TODO: Remove this temporary mock return
-      const gondulResult = {
-        userIds: ['user1', 'user2', 'user3'],
-        totalCount: 3,
-      };
-      await ctx.con.getRepository(OpportunityJob).update(
-        { id: opportunity.id },
-        {
-          flags: updateFlagsStatement<OpportunityJob>({
-            preview: gondulResult,
-          }),
-        },
-      );
-
-      return {
-        ...gondulResult,
-        first,
-        after,
-      };
-
-      try {
-        const gondulClient = getGondulClient();
-
-        const result = await gondulClient.garmr.execute(async () => {
-          const response = await fetch(`${process.env.GONDUL_ORIGIN}/preview`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(validatedPayload),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch opportunity preview');
-          }
-
-          return await response.json();
-        });
-
-        return {
-          userIds: result.user_ids || [],
-          totalCount: result.total_count || 0,
-        };
-      } catch (originalError) {
-        const error = originalError as Error;
-
-        ctx.log.error(
+        await ctx.con.getRepository(OpportunityJob).update(
+          { id: opportunity.id },
           {
-            err: error,
-            userId: ctx.userId || 'anonymous',
+            flags: updateFlagsStatement<OpportunityJob>({
+              preview: gondulResult,
+            }),
           },
-          'error fetching opportunity preview',
         );
 
-        throw error;
+        userIds = gondulResult.userIds;
+        totalCount = gondulResult.totalCount;
       }
+
+      // Handle pagination with cursor
+      let startIndex = 0;
+      if (after) {
+        const cursorIndex = parseInt(
+          Buffer.from(after, 'base64').toString('ascii'),
+          10,
+        );
+        startIndex = cursorIndex + 1;
+      }
+
+      const paginatedUserIds = userIds.slice(startIndex, startIndex + first);
+      const hasNextPage = startIndex + first < userIds.length;
+
+      // Add totalCount to context for anonId generation
+      const enrichedCtx = {
+        ...ctx,
+        previewTotalCount: totalCount,
+      } as Context & { previewTotalCount: number };
+
+      // Use GraphORM to fetch all user data with nested fields in a single optimized query
+      const users = await graphorm.query<User>(
+        enrichedCtx,
+        info,
+        (builder) => {
+          // Set parameters for array_position ordering
+          const orderByParams = paginatedUserIds.reduce(
+            (acc, id, i) => {
+              acc[`userId${i}`] = id;
+              return acc;
+            },
+            {} as Record<string, string>,
+          );
+
+          builder.queryBuilder
+            .where(`${builder.alias}.id IN (:...userIds)`, {
+              userIds: paginatedUserIds,
+            })
+            .setParameters(orderByParams)
+            // Order by the userIds array to maintain the sort order from Gondul
+            .orderBy(
+              `array_position(ARRAY[${paginatedUserIds.map((_, i) => `:userId${i}`).join(',')}]::uuid[], ${builder.alias}.id)`,
+              'ASC',
+            );
+          return builder;
+        },
+        true, // use read replica
+      );
+
+      // Create edges with cursors
+      const edges = users.map((user, index) => ({
+        cursor: Buffer.from(`${startIndex + index}`).toString('base64'),
+        node: user,
+      }));
+
+      return {
+        users: {
+          edges,
+          pageInfo: {
+            hasNextPage,
+            hasPreviousPage: startIndex > 0,
+            startCursor: edges[0]?.cursor || null,
+            endCursor: edges[edges.length - 1]?.cursor || null,
+          },
+        },
+        totalCount,
+      };
+
+      // TODO: Uncomment when Gondul service is ready
+      // try {
+      //   const gondulClient = getGondulClient();
+      //
+      //   const result = await gondulClient.garmr.execute(async () => {
+      //     const response = await fetch(`${process.env.GONDUL_ORIGIN}/preview`, {
+      //       method: 'POST',
+      //       headers: {
+      //         'Content-Type': 'application/json',
+      //       },
+      //       body: JSON.stringify(validatedPayload),
+      //     });
+      //
+      //     if (!response.ok) {
+      //       throw new Error('Failed to fetch opportunity preview');
+      //     }
+      //
+      //     return await response.json();
+      //   });
+      //
+      //   return {
+      //     userIds: result.user_ids || [],
+      //     totalCount: result.total_count || 0,
+      //   };
+      // } catch (originalError) {
+      //   const error = originalError as Error;
+      //
+      //   ctx.log.error(
+      //     {
+      //       err: error,
+      //       userId: ctx.userId || 'anonymous',
+      //     },
+      //     'error fetching opportunity preview',
+      //   );
+      //
+      //   throw error;
+      // }
     },
     parseOpportunity: async (
       _,
@@ -2131,274 +2189,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...cv,
         signedUrl,
       };
-    },
-  },
-  OpportunityPreviewResponse: {
-    users: async (
-      parent: {
-        userIds: string[];
-        totalCount: number;
-        first?: number;
-        after?: string;
-      },
-      _,
-      ctx: Context,
-    ) => {
-      const { userIds, first = 10, after } = parent;
-
-      // Handle pagination with cursor
-      let startIndex = 0;
-      if (after) {
-        const cursorIndex = parseInt(
-          Buffer.from(after, 'base64').toString('ascii'),
-          10,
-        );
-        startIndex = cursorIndex + 1;
-      }
-
-      const paginatedUserIds = userIds.slice(startIndex, startIndex + first);
-      const hasNextPage = startIndex + first < userIds.length;
-
-      // Fetch all related data in parallel to avoid N+1 queries
-      const [users, candidatePreferences, userExperiences] = await Promise.all([
-        // Fetch user data
-        ctx.con.getRepository(User).find({
-          where: { id: In(paginatedUserIds) },
-          select: ['id', 'image', 'experienceLevel', 'flags'],
-        }),
-        // Fetch candidate preferences
-        ctx.con.getRepository(UserCandidatePreference).find({
-          where: { userId: In(paginatedUserIds) },
-          select: ['userId', 'status', 'location'],
-        }),
-        // Fetch latest work experience for each user with company info
-        ctx.con
-          .createQueryBuilder(UserExperience, 'ue')
-          .leftJoinAndSelect('ue.company', 'c')
-          .select([
-            'ue.userId',
-            'ue.customCompanyName',
-            'ue.startedAt',
-            'c.name',
-          ])
-          .where('ue.userId IN (:...userIds)', { userIds: paginatedUserIds })
-          .andWhere('ue.verified = true')
-          .andWhere('ue.type = :type', { type: 1 }) // 1 = UserExperienceType.WORK
-          .orderBy('ue.startedAt', 'DESC')
-          .getMany(),
-      ]);
-
-      const usersMap = new Map(users.map((u) => [u.id, u]));
-      const preferencesMap = new Map(
-        candidatePreferences.map((p) => [p.userId, p]),
-      );
-      // Group experiences by userId and get the latest one
-      const experiencesMap = new Map<string, UserExperience>();
-      userExperiences.forEach((exp) => {
-        if (!experiencesMap.has(exp.userId)) {
-          experiencesMap.set(exp.userId, exp);
-        }
-      });
-
-      // Generate anonymized IDs with deterministic hash based on userId
-      const edges = paginatedUserIds.map((userId, index) => {
-        // Create deterministic hash from userId to generate consistent anon number
-        let hash = 0;
-        for (let i = 0; i < userId.length; i++) {
-          hash = (hash << 5) - hash + userId.charCodeAt(i);
-          hash = hash & hash; // Convert to 32bit integer
-        }
-        // Ensure positive number within totalCount range
-        const anonNumber = (Math.abs(hash) % parent.totalCount) + 1;
-        const cursor = Buffer.from(`${startIndex + index}`).toString('base64');
-
-        return {
-          cursor,
-          node: {
-            userId, // Real userId for field resolvers
-            anonId: `anon #${anonNumber}`, // Anonymized display ID
-            // Pass through all fetched data to avoid re-querying
-            user: usersMap.get(userId),
-            candidatePreference: preferencesMap.get(userId),
-            latestExperience: experiencesMap.get(userId),
-          },
-        };
-      });
-
-      return {
-        edges,
-        pageInfo: {
-          hasNextPage,
-          hasPreviousPage: startIndex > 0,
-          startCursor: edges[0]?.cursor || null,
-          endCursor: edges[edges.length - 1]?.cursor || null,
-        },
-      };
-    },
-  },
-  OpportunityPreviewUser: {
-    id: (parent: { userId: string }): string => {
-      return parent.userId;
-    },
-    profileImage: (parent: { userId: string; user?: User }): string | null => {
-      return parent.user?.image || null;
-    },
-    anonId: (parent: { anonId: string }): string => {
-      return parent.anonId;
-    },
-    description: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string | null> => {
-      try {
-        const profile: ProfileResponse = await snotraClient.getProfile({
-          user_id: parent.userId,
-        });
-
-        return profile?.profile_text || null;
-      } catch (error) {
-        ctx.log.error(
-          { err: error, userId: parent.userId },
-          'Failed to fetch engagement profile from Snotra',
-        );
-        return null;
-      }
-    },
-    openToWork: (parent: {
-      userId: string;
-      candidatePreference?: UserCandidatePreference;
-    }): boolean => {
-      return parent.candidatePreference?.status === 1; // 1 = ACTIVELY_LOOKING
-    },
-    seniority: (parent: { userId: string; user?: User }): string | null => {
-      return parent.user?.experienceLevel || null;
-    },
-    location: (parent: {
-      userId: string;
-      user?: User;
-      candidatePreference?: UserCandidatePreference;
-    }): string | null => {
-      // Try location from preferences first
-      if (
-        parent.candidatePreference?.location &&
-        parent.candidatePreference.location.length > 0
-      ) {
-        const loc = parent.candidatePreference.location[0];
-        return [loc.city, loc.subdivision, loc.country]
-          .filter(Boolean)
-          .join(', ');
-      }
-
-      // Fallback to user geo flags from parent
-      if (parent.user?.flags) {
-        return [
-          parent.user.flags.city,
-          parent.user.flags.subdivision,
-          parent.user.flags.country,
-        ]
-          .filter(Boolean)
-          .join(', ');
-      }
-
-      return null;
-    },
-    company: async (parent: {
-      userId: string;
-      latestExperience?: UserExperience;
-    }): Promise<{ name: string; favicon?: string } | null> => {
-      if (!parent.latestExperience) {
-        return null;
-      }
-
-      // Use COALESCE logic: prefer company name over customCompanyName
-      let companyName: string | null = null;
-
-      // Try to get company name from the loaded relation
-      const companyRelation = await parent.latestExperience.company;
-      if (companyRelation?.name) {
-        companyName = companyRelation.name;
-      } else if (parent.latestExperience.customCompanyName) {
-        companyName = parent.latestExperience.customCompanyName;
-      }
-
-      if (!companyName) {
-        return null;
-      }
-
-      // TODO: Fetch favicon from company enrichment service
-      return {
-        name: companyName,
-        favicon: undefined,
-      };
-    },
-    lastActivity: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<Date | null> => {
-      if (!parent.userId) {
-        return null;
-      }
-      return await ctx.dataLoader.userLastActive.load({
-        userId: parent.userId,
-      });
-    },
-    topTags: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string[] | null> => {
-      const tags = await ctx.con
-        .createQueryBuilder()
-        .select('pk.keyword', 'keyword')
-        .addSelect('COUNT(*)', 'count')
-        .from('user_post', 'up')
-        .innerJoin('post_keyword', 'pk', 'pk.postId = up.postId')
-        .where('up.userId = :userId', { userId: parent.userId })
-        .andWhere('up.hidden = false')
-        .groupBy('pk.keyword')
-        .orderBy('count', 'DESC')
-        .limit(5)
-        .getRawMany<{ keyword: string }>();
-
-      return tags.length > 0 ? tags.map((t) => t.keyword) : null;
-    },
-    recentlyRead: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string[] | null> => {
-      const posts = await ctx.con
-        .createQueryBuilder()
-        .select('up.postId', 'postId')
-        .from('user_post', 'up')
-        .where('up.userId = :userId', { userId: parent.userId })
-        .andWhere('up.hidden = false')
-        .orderBy('up.createdAt', 'DESC')
-        .limit(3)
-        .getRawMany<{ postId: string }>();
-
-      return posts.length > 0 ? posts.map((p) => p.postId) : null;
-    },
-    activeSquads: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string[] | null> => {
-      const squads = await ctx.con
-        .createQueryBuilder()
-        .select('sm.sourceId', 'sourceId')
-        .from('source_member', 'sm')
-        .innerJoin('source', 's', 's.id = sm.sourceId')
-        .where('sm.userId = :userId', { userId: parent.userId })
-        .andWhere('s.type = :type', { type: SourceType.Squad })
-        .andWhere('s.active = true')
-        .orderBy('sm.createdAt', 'DESC')
-        .limit(5)
-        .getRawMany<{ sourceId: string }>();
-
-      return squads.length > 0 ? squads.map((s) => s.sourceId) : null;
     },
   },
 });
