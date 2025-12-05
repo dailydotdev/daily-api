@@ -30,6 +30,7 @@ import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import { logger } from '../logger';
 import { claimAnonOpportunities } from '../common/opportunity/user';
+import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 
 interface SearchUsername {
   search: string;
@@ -152,9 +153,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         .execute();
 
       const id = opportunityJob.raw?.[0]?.id;
+
       if (!id) {
         return res.status(500).send();
       }
+
+      await addOpportunityDefaultQuestionFeedback({
+        entityManager,
+        opportunityId: id,
+      });
 
       if (Array.isArray(keywords)) {
         await entityManager.getRepository(OpportunityKeyword).insert(
