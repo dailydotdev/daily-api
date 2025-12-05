@@ -5093,6 +5093,10 @@ describe('mutation parseOpportunity', () => {
           title
           placeholder
         }
+        feedbackQuestions {
+          title
+          placeholder
+        }
       }
     }
   `;
@@ -5203,6 +5207,12 @@ describe('mutation parseOpportunity', () => {
         },
       ],
       questions: [],
+      feedbackQuestions: [
+        {
+          title: 'Why did you reject this opportunity?',
+          placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
+        },
+      ],
     });
 
     const opportunity = await con.getRepository(OpportunityJob).findOne({
