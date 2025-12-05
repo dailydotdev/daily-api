@@ -23,6 +23,7 @@ import {
   OpportunityUserType,
 } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import { UserExperience } from '../entity/user/experiences/UserExperience';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
@@ -2133,12 +2134,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   OpportunityPreviewResponse: {
-    users: async (parent: {
-      userIds: string[];
-      totalCount: number;
-      first?: number;
-      after?: string;
-    }) => {
+    users: async (
+      parent: {
+        userIds: string[];
+        totalCount: number;
+        first?: number;
+        after?: string;
+      },
+      _,
+      ctx: Context,
+    ) => {
       const { userIds, first = 10, after } = parent;
 
       // Handle pagination with cursor
@@ -2153,6 +2158,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const paginatedUserIds = userIds.slice(startIndex, startIndex + first);
       const hasNextPage = startIndex + first < userIds.length;
+
+      // Fetch all related data in parallel to avoid N+1 queries
+      const [users, candidatePreferences, userExperiences] = await Promise.all([
+        // Fetch user data
+        ctx.con.getRepository(User).find({
+          where: { id: In(paginatedUserIds) },
+          select: ['id', 'image', 'experienceLevel', 'flags'],
+        }),
+        // Fetch candidate preferences
+        ctx.con.getRepository(UserCandidatePreference).find({
+          where: { userId: In(paginatedUserIds) },
+          select: ['userId', 'status', 'location'],
+        }),
+        // Fetch latest work experience for each user with company info
+        ctx.con
+          .createQueryBuilder(UserExperience, 'ue')
+          .leftJoinAndSelect('ue.company', 'c')
+          .select([
+            'ue.userId',
+            'ue.customCompanyName',
+            'ue.startedAt',
+            'c.name',
+          ])
+          .where('ue.userId IN (:...userIds)', { userIds: paginatedUserIds })
+          .andWhere('ue.verified = true')
+          .andWhere('ue.type = :type', { type: 1 }) // 1 = UserExperienceType.WORK
+          .orderBy('ue.startedAt', 'DESC')
+          .getMany(),
+      ]);
+
+      const usersMap = new Map(users.map((u) => [u.id, u]));
+      const preferencesMap = new Map(
+        candidatePreferences.map((p) => [p.userId, p]),
+      );
+      // Group experiences by userId and get the latest one
+      const experiencesMap = new Map<string, UserExperience>();
+      userExperiences.forEach((exp) => {
+        if (!experiencesMap.has(exp.userId)) {
+          experiencesMap.set(exp.userId, exp);
+        }
+      });
 
       // Generate anonymized IDs with deterministic hash based on userId
       const edges = paginatedUserIds.map((userId, index) => {
@@ -2171,6 +2217,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           node: {
             userId, // Real userId for field resolvers
             anonId: `anon #${anonNumber}`, // Anonymized display ID
+            // Pass through all fetched data to avoid re-querying
+            user: usersMap.get(userId),
+            candidatePreference: preferencesMap.get(userId),
+            latestExperience: experiencesMap.get(userId),
           },
         };
       });
@@ -2190,17 +2240,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     id: (parent: { userId: string }): string => {
       return parent.userId;
     },
-    profileImage: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string | null> => {
-      const user = await ctx.con.getRepository(User).findOne({
-        where: { id: parent.userId },
-        select: ['image'],
-      });
-
-      return user?.image || null;
+    profileImage: (parent: { userId: string; user?: User }): string | null => {
+      return parent.user?.image || null;
     },
     anonId: (parent: { anonId: string }): string => {
       return parent.anonId;
@@ -2212,10 +2253,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<string | null> => {
       try {
         const profile: ProfileResponse = await snotraClient.getProfile({
-          userId: parent.userId,
+          user_id: parent.userId,
         });
 
-        return profile?.profileText || null;
+        return profile?.profile_text || null;
       } catch (error) {
         ctx.log.error(
           { err: error, userId: parent.userId },
@@ -2224,88 +2265,70 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return null;
       }
     },
-    openToWork: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<boolean> => {
-      const preferences = await ctx.con
-        .getRepository(UserCandidatePreference)
-        .findOne({
-          where: { userId: parent.userId },
-          select: ['status'],
-        });
-
-      return preferences?.status === 1; // 1 = ACTIVELY_LOOKING
+    openToWork: (parent: {
+      userId: string;
+      candidatePreference?: UserCandidatePreference;
+    }): boolean => {
+      return parent.candidatePreference?.status === 1; // 1 = ACTIVELY_LOOKING
     },
-    seniority: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string | null> => {
-      const user = await ctx.con.getRepository(User).findOne({
-        where: { id: parent.userId },
-        select: ['experienceLevel'],
-      });
-
-      return user?.experienceLevel || null;
+    seniority: (parent: { userId: string; user?: User }): string | null => {
+      return parent.user?.experienceLevel || null;
     },
-    location: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string | null> => {
-      const [preferences, user] = await Promise.all([
-        ctx.con.getRepository(UserCandidatePreference).findOne({
-          where: { userId: parent.userId },
-          select: ['location'],
-        }),
-        ctx.con.getRepository(User).findOne({
-          where: { id: parent.userId },
-          select: ['flags'],
-        }),
-      ]);
-
+    location: (parent: {
+      userId: string;
+      user?: User;
+      candidatePreference?: UserCandidatePreference;
+    }): string | null => {
       // Try location from preferences first
-      if (preferences?.location && preferences.location.length > 0) {
-        const loc = preferences.location[0];
+      if (
+        parent.candidatePreference?.location &&
+        parent.candidatePreference.location.length > 0
+      ) {
+        const loc = parent.candidatePreference.location[0];
         return [loc.city, loc.subdivision, loc.country]
           .filter(Boolean)
           .join(', ');
       }
 
-      // Fallback to user geo flags
-      if (user?.flags) {
-        return [user.flags.city, user.flags.subdivision, user.flags.country]
+      // Fallback to user geo flags from parent
+      if (parent.user?.flags) {
+        return [
+          parent.user.flags.city,
+          parent.user.flags.subdivision,
+          parent.user.flags.country,
+        ]
           .filter(Boolean)
           .join(', ');
       }
 
       return null;
     },
-    company: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<{ name: string; favicon?: string } | null> => {
-      const activeExperience = await ctx.con
-        .createQueryBuilder()
-        .select('ue.company', 'company')
-        .from('user_experience', 'ue')
-        .where('ue.userId = :userId', { userId: parent.userId })
-        .andWhere('ue.verified = true')
-        .andWhere('ue.type = :type', { type: 1 }) // 1 = UserExperienceType.WORK
-        .orderBy('ue.startedAt', 'DESC')
-        .limit(1)
-        .getRawOne<{ company: string }>();
+    company: async (parent: {
+      userId: string;
+      latestExperience?: UserExperience;
+    }): Promise<{ name: string; favicon?: string } | null> => {
+      if (!parent.latestExperience) {
+        return null;
+      }
 
-      if (!activeExperience?.company) {
+      // Use COALESCE logic: prefer company name over customCompanyName
+      let companyName: string | null = null;
+
+      // Try to get company name from the loaded relation
+      const companyRelation = await parent.latestExperience.company;
+      if (companyRelation?.name) {
+        companyName = companyRelation.name;
+      } else if (parent.latestExperience.customCompanyName) {
+        companyName = parent.latestExperience.customCompanyName;
+      }
+
+      if (!companyName) {
         return null;
       }
 
       // TODO: Fetch favicon from company enrichment service
       return {
-        name: activeExperience.company,
+        name: companyName,
         favicon: undefined,
       };
     },
