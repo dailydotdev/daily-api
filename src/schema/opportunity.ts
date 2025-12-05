@@ -66,8 +66,6 @@ import {
   parseOpportunitySchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
-import { GQLPost } from './posts';
-import { GQLSource } from './sources';
 import { SourceType } from '../entity';
 import {
   ensureOpportunityPermissions,
@@ -487,11 +485,31 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
+  type OpportunityPreviewCompany {
+    name: String!
+    favicon: String
+  }
+
   type OpportunityPreviewUser {
     """
-    User ID (anonymized as anon #1002 format)
+    Real user ID
     """
     id: String!
+
+    """
+    User profile image
+    """
+    profileImage: String
+
+    """
+    Anonymized ID (e.g., anon #1002)
+    """
+    anonId: String!
+
+    """
+    User description/bio
+    """
+    description: String
 
     """
     Whether the user is open to work
@@ -511,7 +529,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Active company from experience
     """
-    company: String
+    company: OpportunityPreviewCompany
 
     """
     Last activity timestamp
@@ -519,24 +537,19 @@ export const typeDefs = /* GraphQL */ `
     lastActivity: DateTime
 
     """
-    Engagement profile text from Snotra
-    """
-    engagementProfile: String
-
-    """
     Top tags for the user
     """
-    topTags: [String!]!
+    topTags: [String!]
 
     """
-    Recently read posts (limit 3)
+    Recently read post IDs (limit 3)
     """
-    recentlyRead: [Post!]!
+    recentlyRead: [String!]
 
     """
-    Active squads
+    Active squad IDs
     """
-    activeSquads: [Source!]!
+    activeSquads: [String!]
   }
 
   type OpportunityPreviewEdge {
@@ -2141,16 +2154,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const paginatedUserIds = userIds.slice(startIndex, startIndex + first);
       const hasNextPage = startIndex + first < userIds.length;
 
-      // Generate anonymized IDs with random numbers within totalCount
+      // Generate anonymized IDs with deterministic hash based on userId
       const edges = paginatedUserIds.map((userId, index) => {
-        const anonNumber = Math.floor(Math.random() * parent.totalCount) + 1;
+        // Create deterministic hash from userId to generate consistent anon number
+        let hash = 0;
+        for (let i = 0; i < userId.length; i++) {
+          hash = (hash << 5) - hash + userId.charCodeAt(i);
+          hash = hash & hash; // Convert to 32bit integer
+        }
+        // Ensure positive number within totalCount range
+        const anonNumber = (Math.abs(hash) % parent.totalCount) + 1;
         const cursor = Buffer.from(`${startIndex + index}`).toString('base64');
 
         return {
           cursor,
           node: {
-            id: `anon #${anonNumber}`,
-            userId, // Store the real userId for field resolvers
+            userId, // Real userId for field resolvers
+            anonId: `anon #${anonNumber}`, // Anonymized display ID
           },
         };
       });
@@ -2167,6 +2187,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
   },
   OpportunityPreviewUser: {
+    id: (parent: { userId: string }): string => {
+      return parent.userId;
+    },
+    profileImage: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<string | null> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        where: { id: parent.userId },
+        select: ['image'],
+      });
+
+      return user?.image || null;
+    },
+    anonId: (parent: { anonId: string }): string => {
+      return parent.anonId;
+    },
+    description: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<string | null> => {
+      try {
+        const profile: ProfileResponse = await snotraClient.getProfile({
+          userId: parent.userId,
+        });
+
+        return profile?.profileText || null;
+      } catch (error) {
+        ctx.log.error(
+          { err: error, userId: parent.userId },
+          'Failed to fetch engagement profile from Snotra',
+        );
+        return null;
+      }
+    },
     openToWork: async (
       parent: { userId: string },
       _,
@@ -2230,51 +2287,45 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       parent: { userId: string },
       _,
       ctx: Context,
-    ): Promise<string | null> => {
+    ): Promise<{ name: string; favicon?: string } | null> => {
       const activeExperience = await ctx.con
         .createQueryBuilder()
         .select('ue.company', 'company')
         .from('user_experience', 'ue')
         .where('ue.userId = :userId', { userId: parent.userId })
-        .andWhere('ue.active = true')
+        .andWhere('ue.verified = true')
         .andWhere('ue.type = :type', { type: 1 }) // 1 = UserExperienceType.WORK
-        .orderBy('ue.startDate', 'DESC')
+        .orderBy('ue.startedAt', 'DESC')
         .limit(1)
         .getRawOne<{ company: string }>();
 
-      return activeExperience?.company || null;
+      if (!activeExperience?.company) {
+        return null;
+      }
+
+      // TODO: Fetch favicon from company enrichment service
+      return {
+        name: activeExperience.company,
+        favicon: undefined,
+      };
     },
     lastActivity: async (
       parent: { userId: string },
       _,
       ctx: Context,
     ): Promise<Date | null> => {
-      return ctx.loader.userLastActive.load({ userId: parent.userId });
-    },
-    engagementProfile: async (
-      parent: { userId: string },
-      _,
-      ctx: Context,
-    ): Promise<string | null> => {
-      try {
-        const profile: ProfileResponse = await snotraClient.getProfile({
-          userId: parent.userId,
-        });
-
-        return profile?.profileText || null;
-      } catch (error) {
-        ctx.log.error(
-          { err: error, userId: parent.userId },
-          'Failed to fetch engagement profile from Snotra',
-        );
+      if (!parent.userId) {
         return null;
       }
+      return await ctx.dataLoader.userLastActive.load({
+        userId: parent.userId,
+      });
     },
     topTags: async (
       parent: { userId: string },
       _,
       ctx: Context,
-    ): Promise<string[]> => {
+    ): Promise<string[] | null> => {
       const tags = await ctx.con
         .createQueryBuilder()
         .select('pk.keyword', 'keyword')
@@ -2288,53 +2339,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .limit(5)
         .getRawMany<{ keyword: string }>();
 
-      return tags.map((t) => t.keyword);
+      return tags.length > 0 ? tags.map((t) => t.keyword) : null;
     },
     recentlyRead: async (
       parent: { userId: string },
       _,
       ctx: Context,
-      info,
-    ): Promise<GQLPost[]> => {
-      const posts = await graphorm.query<GQLPost>(ctx, info, (builder) => {
-        builder.queryBuilder
-          .innerJoin(
-            'user_post',
-            'up',
-            `up.postId = ${builder.alias}.id AND up.userId = :userId AND up.hidden = false`,
-          )
-          .setParameter('userId', parent.userId)
-          .orderBy('up.createdAt', 'DESC')
-          .limit(3);
-        return builder;
-      });
+    ): Promise<string[] | null> => {
+      const posts = await ctx.con
+        .createQueryBuilder()
+        .select('up.postId', 'postId')
+        .from('user_post', 'up')
+        .where('up.userId = :userId', { userId: parent.userId })
+        .andWhere('up.hidden = false')
+        .orderBy('up.createdAt', 'DESC')
+        .limit(3)
+        .getRawMany<{ postId: string }>();
 
-      return posts;
+      return posts.length > 0 ? posts.map((p) => p.postId) : null;
     },
     activeSquads: async (
       parent: { userId: string },
       _,
       ctx: Context,
-      info,
-    ): Promise<GQLSource[]> => {
-      const squads = await graphorm.query<GQLSource>(ctx, info, (builder) => {
-        builder.queryBuilder
-          .innerJoin(
-            'source_member',
-            'sm',
-            `sm.sourceId = ${builder.alias}.id AND sm.userId = :userId`,
-          )
-          .andWhere(`${builder.alias}.type = :type`, {
-            type: SourceType.Squad,
-          })
-          .andWhere(`${builder.alias}.active = true`)
-          .setParameter('userId', parent.userId)
-          .orderBy('sm.createdAt', 'DESC')
-          .limit(5);
-        return builder;
-      });
+    ): Promise<string[] | null> => {
+      const squads = await ctx.con
+        .createQueryBuilder()
+        .select('sm.sourceId', 'sourceId')
+        .from('source_member', 'sm')
+        .innerJoin('source', 's', 's.id = sm.sourceId')
+        .where('sm.userId = :userId', { userId: parent.userId })
+        .andWhere('s.type = :type', { type: SourceType.Squad })
+        .andWhere('s.active = true')
+        .orderBy('sm.createdAt', 'DESC')
+        .limit(5)
+        .getRawMany<{ sourceId: string }>();
 
-      return squads;
+      return squads.length > 0 ? squads.map((s) => s.sourceId) : null;
     },
   },
 });
