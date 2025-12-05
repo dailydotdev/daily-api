@@ -66,6 +66,9 @@ import {
   parseOpportunitySchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
+import { GQLPost } from './posts';
+import { GQLSource } from './sources';
+import { SourceType } from '../entity';
 import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
@@ -484,11 +487,73 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
+  type OpportunityPreviewUser {
+    """
+    User ID (anonymized as anon #1002 format)
+    """
+    id: String!
+
+    """
+    Whether the user is open to work
+    """
+    openToWork: Boolean!
+
+    """
+    User seniority level
+    """
+    seniority: String
+
+    """
+    User location (from preferences or geo flags)
+    """
+    location: String
+
+    """
+    Active company from experience
+    """
+    company: String
+
+    """
+    Last activity timestamp
+    """
+    lastActivity: DateTime
+
+    """
+    Engagement profile text from Snotra
+    """
+    engagementProfile: String
+
+    """
+    Top tags for the user
+    """
+    topTags: [String!]!
+
+    """
+    Recently read posts (limit 3)
+    """
+    recentlyRead: [Post!]!
+
+    """
+    Active squads
+    """
+    activeSquads: [Source!]!
+  }
+
+  type OpportunityPreviewEdge {
+    node: OpportunityPreviewUser!
+    cursor: String!
+  }
+
+  type OpportunityPreviewConnection {
+    edges: [OpportunityPreviewEdge!]!
+    pageInfo: PageInfo!
+  }
+
   type OpportunityPreviewResponse {
     """
-    List of user IDs that match the opportunity
+    Paginated list of matching users
     """
-    userIds: [String!]!
+    users: OpportunityPreviewConnection!
 
     """
     Total count of matching users
@@ -657,7 +722,17 @@ export const typeDefs = /* GraphQL */ `
     """
     Get a preview of potential candidate matches for an opportunity owned by the anonymous user
     """
-    opportunityPreview: OpportunityPreviewResponse!
+    opportunityPreview(
+      """
+      Number of users to return
+      """
+      first: Int
+
+      """
+      Cursor for pagination
+      """
+      after: String
+    ): OpportunityPreviewResponse!
   }
 `;
 
@@ -1747,13 +1822,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     opportunityPreview: async (
       _,
-      __,
+      { first, after }: { first?: number; after?: string },
       ctx: Context,
     ): Promise<{
       userIds: string[];
       totalCount: number;
+      first?: number;
+      after?: string;
     }> => {
-      console.log('ctx.', ctx.trackingId);
       const opportunity = await ctx.con
         .getRepository(OpportunityJob)
         .findOneOrFail({
@@ -1765,8 +1841,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (opportunity.flags?.preview) {
         return {
-          userIds: ['user4', 'user5', 'user6'],
-          totalCount: 5,
+          userIds: opportunity.flags.preview.userIds,
+          totalCount: opportunity.flags.preview.totalCount,
+          first,
+          after,
         };
       }
 
@@ -1800,7 +1878,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
 
-      return gondulResult;
+      return {
+        ...gondulResult,
+        first,
+        after,
+      };
 
       try {
         const gondulClient = getGondulClient();
@@ -2035,6 +2117,224 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...cv,
         signedUrl,
       };
+    },
+  },
+  OpportunityPreviewResponse: {
+    users: async (parent: {
+      userIds: string[];
+      totalCount: number;
+      first?: number;
+      after?: string;
+    }) => {
+      const { userIds, first = 10, after } = parent;
+
+      // Handle pagination with cursor
+      let startIndex = 0;
+      if (after) {
+        const cursorIndex = parseInt(
+          Buffer.from(after, 'base64').toString('ascii'),
+          10,
+        );
+        startIndex = cursorIndex + 1;
+      }
+
+      const paginatedUserIds = userIds.slice(startIndex, startIndex + first);
+      const hasNextPage = startIndex + first < userIds.length;
+
+      // Generate anonymized IDs with random numbers within totalCount
+      const edges = paginatedUserIds.map((userId, index) => {
+        const anonNumber = Math.floor(Math.random() * parent.totalCount) + 1;
+        const cursor = Buffer.from(`${startIndex + index}`).toString('base64');
+
+        return {
+          cursor,
+          node: {
+            id: `anon #${anonNumber}`,
+            userId, // Store the real userId for field resolvers
+          },
+        };
+      });
+
+      return {
+        edges,
+        pageInfo: {
+          hasNextPage,
+          hasPreviousPage: startIndex > 0,
+          startCursor: edges[0]?.cursor || null,
+          endCursor: edges[edges.length - 1]?.cursor || null,
+        },
+      };
+    },
+  },
+  OpportunityPreviewUser: {
+    openToWork: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<boolean> => {
+      const preferences = await ctx.con
+        .getRepository(UserCandidatePreference)
+        .findOne({
+          where: { userId: parent.userId },
+          select: ['status'],
+        });
+
+      return preferences?.status === 1; // 1 = ACTIVELY_LOOKING
+    },
+    seniority: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<string | null> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        where: { id: parent.userId },
+        select: ['experienceLevel'],
+      });
+
+      return user?.experienceLevel || null;
+    },
+    location: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<string | null> => {
+      const [preferences, user] = await Promise.all([
+        ctx.con.getRepository(UserCandidatePreference).findOne({
+          where: { userId: parent.userId },
+          select: ['location'],
+        }),
+        ctx.con.getRepository(User).findOne({
+          where: { id: parent.userId },
+          select: ['flags'],
+        }),
+      ]);
+
+      // Try location from preferences first
+      if (preferences?.location && preferences.location.length > 0) {
+        const loc = preferences.location[0];
+        return [loc.city, loc.subdivision, loc.country]
+          .filter(Boolean)
+          .join(', ');
+      }
+
+      // Fallback to user geo flags
+      if (user?.flags) {
+        return [user.flags.city, user.flags.subdivision, user.flags.country]
+          .filter(Boolean)
+          .join(', ');
+      }
+
+      return null;
+    },
+    company: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<string | null> => {
+      const activeExperience = await ctx.con
+        .createQueryBuilder()
+        .select('ue.company', 'company')
+        .from('user_experience', 'ue')
+        .where('ue.userId = :userId', { userId: parent.userId })
+        .andWhere('ue.active = true')
+        .andWhere('ue.type = :type', { type: 1 }) // 1 = UserExperienceType.WORK
+        .orderBy('ue.startDate', 'DESC')
+        .limit(1)
+        .getRawOne<{ company: string }>();
+
+      return activeExperience?.company || null;
+    },
+    lastActivity: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<Date | null> => {
+      return ctx.loader.userLastActive.load({ userId: parent.userId });
+    },
+    engagementProfile: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<string | null> => {
+      try {
+        const profile: ProfileResponse = await snotraClient.getProfile({
+          userId: parent.userId,
+        });
+
+        return profile?.profileText || null;
+      } catch (error) {
+        ctx.log.error(
+          { err: error, userId: parent.userId },
+          'Failed to fetch engagement profile from Snotra',
+        );
+        return null;
+      }
+    },
+    topTags: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+    ): Promise<string[]> => {
+      const tags = await ctx.con
+        .createQueryBuilder()
+        .select('pk.keyword', 'keyword')
+        .addSelect('COUNT(*)', 'count')
+        .from('user_post', 'up')
+        .innerJoin('post_keyword', 'pk', 'pk.postId = up.postId')
+        .where('up.userId = :userId', { userId: parent.userId })
+        .andWhere('up.hidden = false')
+        .groupBy('pk.keyword')
+        .orderBy('count', 'DESC')
+        .limit(5)
+        .getRawMany<{ keyword: string }>();
+
+      return tags.map((t) => t.keyword);
+    },
+    recentlyRead: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+      info,
+    ): Promise<GQLPost[]> => {
+      const posts = await graphorm.query<GQLPost>(ctx, info, (builder) => {
+        builder.queryBuilder
+          .innerJoin(
+            'user_post',
+            'up',
+            `up.postId = ${builder.alias}.id AND up.userId = :userId AND up.hidden = false`,
+          )
+          .setParameter('userId', parent.userId)
+          .orderBy('up.createdAt', 'DESC')
+          .limit(3);
+        return builder;
+      });
+
+      return posts;
+    },
+    activeSquads: async (
+      parent: { userId: string },
+      _,
+      ctx: Context,
+      info,
+    ): Promise<GQLSource[]> => {
+      const squads = await graphorm.query<GQLSource>(ctx, info, (builder) => {
+        builder.queryBuilder
+          .innerJoin(
+            'source_member',
+            'sm',
+            `sm.sourceId = ${builder.alias}.id AND sm.userId = :userId`,
+          )
+          .andWhere(`${builder.alias}.type = :type`, {
+            type: SourceType.Squad,
+          })
+          .andWhere(`${builder.alias}.active = true`)
+          .setParameter('userId', parent.userId)
+          .orderBy('sm.createdAt', 'DESC')
+          .limit(5);
+        return builder;
+      });
+
+      return squads;
     },
   },
 });
