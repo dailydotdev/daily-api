@@ -224,7 +224,9 @@ export const resolvers = {
 };
 ```
 
-### Query with Custom Filtering
+### Query with Custom Filtering and Read Replica
+
+The optional fourth parameter enables read replica routing for eventually consistent reads:
 
 ```typescript
 export const resolvers = {
@@ -239,7 +241,7 @@ export const resolvers = {
             .limit(1);
           return builder;
         },
-        true // Use read replica
+        true // readReplica: Use read replica for better performance
       );
     }
   }
@@ -263,6 +265,42 @@ export const resolvers = {
     }
   }
 };
+```
+
+### Query by Hierarchy
+
+Use `queryByHierarchy` when you need to query a nested field from the resolve tree:
+
+```typescript
+export const resolvers = {
+  Query: {
+    searchPosts: async (_, args, ctx: Context, info) => {
+      return graphorm.queryByHierarchy<GQLPost>(
+        ctx,
+        info,
+        ['posts', 'edges', 'node'], // Path to the nested field
+        (builder) => {
+          builder.queryBuilder.where(`${builder.alias}.visible = true`);
+          return builder;
+        },
+        true // readReplica
+      );
+    }
+  }
+};
+```
+
+### Query Paginated Integration
+
+Use `queryPaginatedIntegration` for non-database data (e.g., external APIs) while still returning Relay-style pagination:
+
+```typescript
+const results = await graphorm.queryPaginatedIntegration<ExternalItem>(
+  (nodeSize) => false, // hasPreviousPage
+  (nodeSize) => nodeSize >= limit, // hasNextPage
+  (node, index) => base64(`cursor:${index}`), // nodeToCursor
+  async () => fetchFromExternalAPI(args), // fetchData callback
+);
 ```
 
 ## Configuration Patterns
@@ -354,11 +392,12 @@ fields: {
 
 ## Best Practices
 
-### 1. Always Use `beforeQuery` for Filtering
+### 1. Always Use the Query Builder Callback for Filtering
 
-Don't fetch all data and filter in JavaScript. Filter at the database level:
+Don't fetch all data and filter in JavaScript. Filter at the database level using the builder callback parameter:
 
 ```typescript
+// The callback receives { queryBuilder, alias } and must return the modified builder
 (builder) => {
   builder.queryBuilder
     .andWhere(`${builder.alias}."userId" = :userId`, { userId: ctx.userId })
@@ -395,10 +434,13 @@ Always paginate lists to avoid fetching too much data:
 graphorm.queryPaginated(
   ctx,
   info,
-  hasPreviousPage,
-  hasNextPage,
-  nodeToCursor,
-  beforeQuery
+  (nodeSize) => hasPreviousPage(nodeSize),
+  (nodeSize) => hasNextPage(nodeSize),
+  (node, index) => nodeToCursor(node, index),
+  (builder) => {
+    builder.queryBuilder.limit(limit).offset(offset);
+    return builder;
+  }
 );
 ```
 
@@ -449,6 +491,17 @@ requiredColumns: [
 3. **Read Replicas**: Use read replicas for all read queries when available
 4. **Required Columns**: Only add truly required columns to avoid unnecessary data fetching
 5. **Transform Functions**: Keep transforms lightweight - avoid database calls in transforms
+
+## Available Methods
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `query<T>()` | Query multiple results | `Promise<T[]>` |
+| `queryOne<T>()` | Query single result or null | `Promise<T \| null>` |
+| `queryOneOrFail<T>()` | Query single result or throw | `Promise<T>` |
+| `queryPaginated<T>()` | Query with Relay pagination | `Promise<Connection<T>>` |
+| `queryByHierarchy<T>()` | Query nested field from resolve tree | `Promise<T[]>` |
+| `queryPaginatedIntegration<T>()` | Paginate non-DB data | `Promise<Connection<T>>` |
 
 ## Related Files
 

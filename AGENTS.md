@@ -2,10 +2,15 @@
 
 This file provides guidance to coding agents when working with code in this repository.
 
+## Prerequisites
+
+- **Node.js**: 22.16.0 (managed via Volta)
+- **Package Manager**: pnpm 9.14.4
+
 ## Essential Commands
 
 **Development:**
-- `pnpm run dev` - Start API server with hot reload on port 5000
+- `pnpm run dev` - Start API server with hot reload on port 3000
 - `pnpm run dev:background` - Start background processor
 - `pnpm run dev:temporal-worker` - Start Temporal worker
 - `pnpm run dev:temporal-server` - Start Temporal server for local development
@@ -35,15 +40,17 @@ This file provides guidance to coding agents when working with code in this repo
 - **Mercurius** - GraphQL server with caching, upload support, and subscriptions
 - **TypeORM** - Database ORM with entity-based modeling and migrations
 - **PostgreSQL** - Primary database with master/slave replication setup. Favor read replica when you're ok with eventually consistent data.
-- **Redis** - Caching and pub/sub via ioRedisPool
+- **Redis** - Caching and pub/sub via `@dailydotdev/ts-ioredis-pool`
 - **Temporal** - Workflow orchestration for background jobs
 - **ClickHouse** - Analytics and metrics storage
 
 **Application Entry Points:**
 - `src/index.ts` - Main Fastify server setup with GraphQL, auth, and middleware
-- `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron modes
+- `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron, personalized-digest modes
 - `src/background.ts` - Pub/Sub message handlers and background processing
 - `src/cron.ts` - Scheduled task execution
+- `src/temporal/` - Temporal workflow definitions and workers
+- `src/commands/` - Standalone command implementations (e.g., personalized digest)
 
 **GraphQL Schema Organization:**
 - `src/graphql.ts` - Combines all schema modules with transformers and directives
@@ -71,11 +78,12 @@ This file provides guidance to coding agents when working with code in this repo
 
 **Business Domains:**
 - **Content**: Posts, comments, bookmarks, feeds, sources
-- **Users**: Authentication, preferences, profiles, user experience
-- **Organizations**: Squad management, member roles, campaigns
+- **Users**: Authentication, preferences, profiles, user experience, streaks
+- **Squads**: Squad management, member roles, public requests
+- **Organizations**: Organization management, campaigns
 - **Notifications**: Push notifications, email digests, alerts
-- **Monetization**: Paddle subscription management, premium features
-- **Squads**: Squad management, member roles, campaigns
+- **Monetization**: Paddle subscription management, premium features, cores/transactions
+- **Opportunities**: Job matching, recruiter features, candidate profiles
 
 **Testing Strategy:**
 - Jest with supertest for integration testing
@@ -89,3 +97,9 @@ This file provides guidance to coding agents when working with code in this repo
 - OneSignal for push notifications
 - Temporal workflows for async job processing
 - Rate limiting and caching at multiple layers
+
+**Infrastructure as Code:**
+- `.infra/` - Pulumi configuration for deployment
+- `.infra/crons.ts` - Cron job schedules and resource limits
+- `.infra/common.ts` - Worker subscription definitions
+- `.infra/index.ts` - Main Pulumi deployment configuration

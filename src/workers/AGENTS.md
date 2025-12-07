@@ -51,10 +51,12 @@ import { TypedWorker } from './worker';
 
 const worker: TypedWorker<'post-upvoted'> = {
   subscription: 'post-upvoted-rep',
-  handler: async ({ data }, con, logger): Promise<void> => {
-    // data is automatically typed as PubSubSchema['post-upvoted']
+  handler: async (message, con, logger): Promise<void> => {
+    // message.data is automatically typed as PubSubSchema['post-upvoted']
+    const { data, messageId } = message;
     const { postId, userId } = data;
     // Process with full type safety
+    logger.info({ postId, userId, messageId }, 'Processing post upvote');
   },
 };
 ```
@@ -69,13 +71,48 @@ import { MatchedCandidate } from '@dailydotdev/schema';
 
 const worker: TypedWorker<'gondul.v1.candidate-opportunity-match'> = {
   subscription: 'api.store-candidate-opportunity-match',
-  handler: async ({ data }, con): Promise<void> => {
-    // data is typed as MatchedCandidate
+  handler: async (message, con): Promise<void> => {
+    // message.data is typed as MatchedCandidate
+    const { data } = message;
   },
   parseMessage: (message) => {
     return MatchedCandidate.fromBinary(message.data);
   },
 };
+```
+
+### Typed Notification Workers (`TypedNotificationWorker`)
+
+For notification-specific workers that return `NotificationHandlerReturn`:
+
+```typescript
+import { TypedNotificationWorker } from './worker';
+
+const worker: TypedNotificationWorker<'post-upvoted'> = {
+  subscription: 'api.article-upvote-milestone-notification',
+  handler: async (data, con, logger) => {
+    // Returns NotificationHandlerReturn for notification processing
+    return { type: NotificationType.ArticleUpvoteMilestone, ... };
+  },
+};
+```
+
+### Experiment Workers (`ExperimentWorker`)
+
+For workers that need access to the GrowthBook experiment allocation client:
+
+```typescript
+import { ExperimentWorker, workerToExperimentWorker } from './worker';
+
+const worker: ExperimentWorker = {
+  subscription: 'api.experiment-allocated',
+  handler: async (message, con, logger, pubsub, experimentAllocationClient) => {
+    // experimentAllocationClient available for A/B test tracking
+  },
+};
+
+// Wrap with workerToExperimentWorker to inject the client
+export default workerToExperimentWorker(worker);
 ```
 
 ## Creating a New Worker
@@ -103,14 +140,15 @@ import { TypedWorker } from './worker';
 
 const worker: TypedWorker<'my-new-topic'> = {
   subscription: 'my-new-subscription',
-  handler: async ({ data }, con, logger): Promise<void> => {
+  handler: async (message, con, logger): Promise<void> => {
+    const { data, messageId } = message;
     const { userId, action } = data;
     
     try {
       // Your worker logic here
-      logger.info({ userId, action }, 'Processing worker');
+      logger.info({ userId, action, messageId }, 'Processing worker');
     } catch (err) {
-      logger.error({ err, data }, 'Worker failed');
+      logger.error({ err, data, messageId }, 'Worker failed');
       throw err; // Re-throw to trigger nack
     }
   },
@@ -121,14 +159,24 @@ export default worker;
 
 ### Step 3: Register the Worker
 
-Add your worker to `src/workers/index.ts`:
+Add your worker to `src/workers/index.ts`. There are three worker arrays:
+
+1. **`typedWorkers`** - TypedWorker instances (preferred for new workers)
+2. **`workers`** - Legacy Worker instances (still used for CDC and some older workers)
+3. **`personalizedDigestWorkers`** - Separate array for digest workers (run in dedicated process)
 
 ```typescript
 import myNewWorker from './myNewWorker';
 
+// For TypedWorker instances (recommended)
 export const typedWorkers: BaseTypedWorker<any>[] = [
   // ... existing workers
   myNewWorker,
+];
+
+// For legacy Worker instances
+export const workers: Worker[] = [
+  // ... existing workers
 ];
 ```
 
@@ -270,7 +318,7 @@ handler: async (message, con, logger): Promise<void> => {
 
 ### Pulumi Setup
 
-Workers are configured in `.infra/common.ts` and `.infra/workers.ts`. The Pulumi infrastructure:
+Workers are configured in `.infra/common.ts`. The Pulumi infrastructure:
 
 1. Creates subscriptions (topics are managed in a separate infrastructure repository)
 2. Configures subscription settings (ack deadline, dead letter, etc.)
@@ -313,36 +361,54 @@ For critical workers, configure a dead letter queue:
 
 ## Testing Workers
 
-### Unit Testing
+### Integration Testing
 
-Test workers in isolation:
+Tests use a real database connection (reset before each test run). Create tests in `__tests__/workers/`:
 
 ```typescript
-import worker from './myWorker';
-import { createMockDataSource } from '../testHelpers';
+import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
+import worker from '../../src/workers/myWorker';
+import { typedWorkers } from '../../src/workers';
+import { YourEntity } from '../../src/entity';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
+
+let con: DataSource;
+
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
 
 describe('myWorker', () => {
-  it('processes messages correctly', async () => {
-    const con = createMockDataSource();
-    const logger = createMockLogger();
-    const pubsub = createMockPubSub();
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, YourEntity, yourFixtures);
+  });
+
+  it('should be registered', () => {
+    const registeredWorker = typedWorkers.find(
+      (item) => item.subscription === worker.subscription,
+    );
+    expect(registeredWorker).toBeDefined();
+  });
+
+  it('should process messages correctly', async () => {
+    await expectSuccessfulTypedBackground(worker, {
+      userId: '123',
+      action: 'test',
+    });
     
-    const message = {
-      messageId: '123',
-      data: Buffer.from(JSON.stringify({ userId: '456', action: 'test' })),
-    };
-    
-    await worker.handler(message, con, logger, pubsub);
-    
-    // Assertions
+    // Verify database state
+    const result = await con.getRepository(YourEntity).findOneBy({ ... });
+    expect(result).toBeDefined();
   });
 });
 ```
 
 ## Best Practices
 
-1. **Always Use Typed Workers**: Use `TypedWorker` for all new workers - regular `Worker` interface is deprecated
-2. **Use `triggerTypedEvent`**: Always use `triggerTypedEvent` to publish messages (not the deprecated `publishEvent`)
+1. **Use Typed Workers for New Workers**: Use `TypedWorker` for all new workers. The `Worker` interface is still used for CDC workers and some legacy workers.
+2. **Use `triggerTypedEvent`**: Always use `triggerTypedEvent` to publish typed messages. Use the helper functions in `src/common/pubsub.ts` for specific event types.
 3. **Idempotency**: Design workers to handle duplicate messages gracefully
 4. **Logging**: Log with context (messageId, relevant data)
 5. **Error Handling**: Re-throw errors to trigger retries, but log appropriately
