@@ -4,6 +4,9 @@ import {
   handleRegex,
   descriptionRegex,
   emailRegex,
+  mapArrayToOjbect,
+  isNullOrUndefined,
+  validateRegex,
 } from '../../src/common/object';
 
 describe('nameRegex', () => {
@@ -126,7 +129,7 @@ describe('emailRegex', () => {
       'USER_123@example.co.uk',
     ];
 
-    validEmails.forEach((email) => expect(emailRegex.test(email)).toBe(true)); 
+    validEmails.forEach((email) => expect(emailRegex.test(email)).toBe(true));
   });
 
   it('rejects invalid emails', () => {
@@ -141,5 +144,87 @@ describe('emailRegex', () => {
     invalidEmails.forEach((email) =>
       expect(emailRegex.test(email)).toBe(false)
     );
+  });
 });
+
+describe('mapArrayToOjbect', () => {
+  it('should map array of objects to object using specified keys', () => {
+    const array = [
+      { id: '1', name: 'John' },
+      { id: '2', name: 'Jane' },
+      { id: '3', name: 'Bob' },
+    ];
+
+    const result = mapArrayToOjbect(array, 'id', 'name');
+
+    expect(result).toEqual({
+      '1': 'John',
+      '2': 'Jane',
+      '3': 'Bob',
+    });
+  });
+
+  it('should handle empty array', () => {
+    const result = mapArrayToOjbect([], 'id', 'name');
+    expect(result).toEqual({});
+  });
+});
+
+describe('isNullOrUndefined', () => {
+  it('should return true for null', () => {
+    expect(isNullOrUndefined(null)).toBe(true);
+  });
+
+  it('should return true for undefined', () => {
+    expect(isNullOrUndefined(undefined)).toBe(true);
+  });
+
+  it('should return false for other values', () => {
+    expect(isNullOrUndefined('')).toBe(false);
+    expect(isNullOrUndefined(0)).toBe(false);
+    expect(isNullOrUndefined(false)).toBe(false);
+    expect(isNullOrUndefined({})).toBe(false);
+    expect(isNullOrUndefined([])).toBe(false);
+  });
+});
+
+describe('validateRegex', () => {
+  it('should validate successfully and return data', () => {
+    const params: any = [
+      ['name', 'John Doe', nameRegex],
+      ['email', 'test@example.com', emailRegex],
+    ];
+
+    const result = validateRegex(params, {});
+
+    expect(result).toEqual({});
+  });
+
+  it('should mutate data with captured groups', () => {
+    const regexWithGroups = new RegExp(/^(?<value>\w+)@example\.com$/);
+    const params: any = [
+      ['email', 'test@example.com', regexWithGroups],
+    ];
+
+    const result = validateRegex(params, {});
+
+    expect(result).toEqual({ email: 'test' });
+  });
+
+  it('should throw ValidationError for invalid data', () => {
+    const params: any = [
+      ['name', '', nameRegex, true],
+    ];
+
+    expect(() => validateRegex(params, {})).toThrow();
+  });
+
+  it('should not require optional fields', () => {
+    const params: any = [
+      ['name', undefined, nameRegex],
+    ];
+
+    const result = validateRegex(params, {});
+    expect(result).toEqual({});
+  });
 });
