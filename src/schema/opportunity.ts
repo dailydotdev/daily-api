@@ -165,6 +165,7 @@ export interface GQLOpportunityPreviewConnection {
     hasPreviousPage: boolean;
     startCursor: string | null;
     endCursor: string | null;
+    totalCount?: number;
   };
 }
 
@@ -429,9 +430,20 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type OpportunityPreviewPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+    """
+    Total number of candidates matching the opportunity
+    """
+    totalCount: Int
+  }
+
   type OpportunityPreviewConnection {
     edges: [OpportunityPreviewEdge!]!
-    pageInfo: PageInfo!
+    pageInfo: OpportunityPreviewPageInfo!
   }
 
   extend type Query {
@@ -1126,76 +1138,100 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
 
       let userIds: string[];
-      // let totalCount: number; // TODO: Use totalCount when implementing pagination
+      let totalCount: number;
 
       if (opportunity.flags?.preview) {
         userIds = opportunity.flags.preview.userIds;
-        // totalCount = opportunity.flags.preview.totalCount; // TODO: Use totalCount when implementing pagination
+        totalCount = opportunity.flags.preview.totalCount;
       } else {
-        // TODO: Uncomment when Gondul service is ready
-        // const keywords = await opportunity.keywords;
-        // const validatedPayload = {
-        //   opportunity: {
-        //     title: opportunity.title,
-        //     tldr: opportunity.tldr,
-        //     content: opportunity.content,
-        //     meta: opportunity.meta,
-        //     location: opportunity.location,
-        //     state: opportunity.state,
-        //     type: opportunity.type,
-        //     keywords: keywords.map((k) => k.keyword),
-        //   },
-        // };
-
-        // Call the gondul preview endpoint with circuit breaker
-        // TODO: Remove this temporary mock return and use validatedPayload with Gondul
-        const gondulResult = {
-          userIds: ['user1', 'user2', 'user3'],
-          totalCount: 3,
+        const keywords = await opportunity.keywords;
+        const validatedPayload = {
+          opportunity: {
+            title: opportunity.title,
+            tldr: opportunity.tldr,
+            content: opportunity.content,
+            meta: opportunity.meta,
+            location: opportunity.location,
+            state: opportunity.state,
+            type: opportunity.type,
+            keywords: keywords.map((k) => k.keyword),
+          },
         };
 
-        await ctx.con.getRepository(OpportunityJob).update(
-          { id: opportunity.id },
-          {
-            flags: updateFlagsStatement<OpportunityJob>({
-              preview: gondulResult,
-            }),
-          },
-        );
+        // Call the gondul preview endpoint with circuit breaker
+        try {
+          const gondulClient = getGondulClient();
+          const gondulResult = await gondulClient.garmr.execute(async () => {
+            const response = await fetch(
+              `${process.env.GONDUL_ORIGIN}/preview`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(validatedPayload),
+              },
+            );
+            if (!response.ok) {
+              throw new Error('Failed to fetch opportunity preview');
+            }
+            return await response.json();
+          });
 
-        userIds = gondulResult.userIds;
-        // totalCount = gondulResult.totalCount; // TODO: Use totalCount when implementing pagination
-      }
-
-      return await graphorm.queryPaginated<GQLOpportunityPreviewUser>(
-        ctx,
-        info,
-        () => !!after,
-        (nodeSize) => nodeSize === first,
-        (_, i) => offsetToCursor(offset + i + 1),
-        (builder) => {
-          const orderByParams = userIds.reduce(
-            (acc, id, i) => {
-              acc[`userId${i}`] = id;
-              return acc;
+          await ctx.con.getRepository(OpportunityJob).update(
+            { id: opportunity.id },
+            {
+              flags: updateFlagsStatement<OpportunityJob>({
+                preview: gondulResult,
+              }),
             },
-            {} as Record<string, string>,
           );
 
-          builder.queryBuilder
-            .where(`${builder.alias}.id IN (:...userIds)`, {
-              userIds: userIds,
-            })
-            .setParameters(orderByParams)
-            .orderBy(
-              `array_position(ARRAY[${userIds.map((_, i) => `:userId${i}`).join(',')}], ${builder.alias}.id)`,
-              'ASC',
+          userIds = gondulResult.userIds;
+          totalCount = gondulResult.totalCount;
+        } catch (error) {
+          throw error;
+        }
+      }
+
+      const connection =
+        await graphorm.queryPaginated<GQLOpportunityPreviewUser>(
+          ctx,
+          info,
+          () => !!after,
+          (nodeSize) => nodeSize === first,
+          (_, i) => offsetToCursor(offset + i + 1),
+          (builder) => {
+            const orderByParams = userIds.reduce(
+              (acc, id, i) => {
+                acc[`userId${i}`] = id;
+                return acc;
+              },
+              {} as Record<string, string>,
             );
-          return builder;
+
+            builder.queryBuilder
+              .where(`${builder.alias}.id IN (:...userIds)`, {
+                userIds: userIds,
+              })
+              .setParameters(orderByParams)
+              .orderBy(
+                `array_position(ARRAY[${userIds.map((_, i) => `:userId${i}`).join(',')}], ${builder.alias}.id)`,
+                'ASC',
+              );
+            return builder;
+          },
+          undefined,
+          true,
+        );
+
+      return {
+        ...connection,
+        pageInfo: {
+          ...connection.pageInfo,
+          totalCount,
         },
-        undefined,
-        true,
-      );
+      };
     },
   },
   Mutation: {
