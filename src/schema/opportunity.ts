@@ -73,7 +73,13 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, QueryFailedError, type DeepPartial } from 'typeorm';
+import {
+  In,
+  Not,
+  QueryFailedError,
+  type DeepPartial,
+  JsonContains,
+} from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
   OrganizationLinkType,
@@ -1114,8 +1120,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
-          // where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
-          where: { id: '89f3daff-d6bb-4652-8f9c-b9f7254c9af1' },
+          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
           relations: { keywords: true },
         }),
       );
