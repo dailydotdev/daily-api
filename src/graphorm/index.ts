@@ -1718,6 +1718,22 @@ const obj = new GraphORM({
       },
     },
   },
+  OpportunityPreviewCompany: {
+    from: 'UserExperience',
+    requiredColumns: ['userId', 'verified', 'type', 'startedAt'],
+    additionalQuery: (_, alias, qb) =>
+      qb.leftJoin('company', 'c', `c.id = ${alias}."companyId"`),
+    fields: {
+      name: {
+        rawSelect: true,
+        select: (_, alias) => `COALESCE(c.name, ${alias}."customCompanyName")`,
+      },
+      favicon: {
+        rawSelect: true,
+        select: () => 'NULL',
+      },
+    },
+  },
   OpportunityPreviewUser: {
     from: 'User',
     requiredColumns: ['id'],
@@ -1770,14 +1786,26 @@ const obj = new GraphORM({
       seniority: {
         select: 'experienceLevel',
       },
+      company: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .andWhere(`${childAlias}.verified = true`)
+              .andWhere(`${childAlias}.type = '1'`)
+              .orderBy(`${childAlias}."startedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
       location: {
         select: (_, alias) => `
           COALESCE(
             (
               SELECT jsonb_build_object(
-                'city', location->>0->>'city',
-                'subdivision', location->>0->>'subdivision',
-                'country', location->>0->>'country'
+                'city', location->0->>'city',
+                'subdivision', location->0->>'subdivision',
+                'country', location->0->>'country'
               )
               FROM user_candidate_preference
               WHERE "userId" = ${alias}.id
@@ -1798,27 +1826,7 @@ const obj = new GraphORM({
           return null;
         },
       },
-      company: {
-        select: (_, alias, qb) =>
-          qb
-            .select(`COALESCE(c.name, ue."customCompanyName") as company_name`)
-            .from('user_experience', 'ue')
-            .leftJoin('company', 'c', 'c.id = ue."companyId"')
-            .where(`ue."userId" = ${alias}.id`)
-            .andWhere('ue.verified = true')
-            .andWhere('ue.type = :type', { type: 1 })
-            .orderBy('ue."startedAt"', 'DESC')
-            .limit(1),
-        transform: (
-          companyName: string | null,
-        ): { name: string; favicon?: string } | null => {
-          if (!companyName) return null;
-          return {
-            name: companyName,
-            favicon: undefined,
-          };
-        },
-      },
+
       lastActivity: {
         select: () => 'NULL',
         transform: async (_, ctx, parent) => {
@@ -1871,23 +1879,18 @@ const obj = new GraphORM({
         },
       },
       activeSquads: {
-        select: (_, alias, qb) =>
-          qb
-            .select(
-              `
-              ARRAY(
-                SELECT sm."sourceId"
-                FROM source_member sm
-                INNER JOIN source s ON s.id = sm."sourceId"
-                WHERE sm."userId" = ${alias}.id
-                  AND s.type = :squadType
-                  AND s.active = true
-                ORDER BY sm."createdAt" DESC
-                LIMIT 5
-              )
-            `,
-            )
-            .setParameter('squadType', SourceType.Squad),
+        select: (_, alias) => `
+          ARRAY(
+            SELECT sm."sourceId"
+            FROM source_member sm
+            INNER JOIN source s ON s.id = sm."sourceId"
+            WHERE sm."userId" = ${alias}.id
+              AND s.type = '${SourceType.Squad}'
+              AND s.active = true
+            ORDER BY sm."createdAt" DESC
+            LIMIT 5
+          )
+        `,
         transform: (squadIds: string[] | null): string[] | null => {
           return squadIds && squadIds.length > 0 ? squadIds : null;
         },
