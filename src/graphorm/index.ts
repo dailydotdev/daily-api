@@ -1891,9 +1891,6 @@ const obj = new GraphORM({
             LIMIT 5
           )
         `,
-        transform: (squadIds: string[] | null): string[] | null => {
-          return squadIds && squadIds.length > 0 ? squadIds : null;
-        },
       },
     },
   },

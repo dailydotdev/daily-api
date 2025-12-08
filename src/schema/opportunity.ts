@@ -1202,26 +1202,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           (nodeSize) => nodeSize === first,
           (_, i) => offsetToCursor(offset + i + 1),
           (builder) => {
-            const orderByParams = userIds.reduce(
-              (acc, id, i) => {
-                acc[`userId${i}`] = id;
-                return acc;
-              },
-              {} as Record<string, string>,
-            );
-
-            builder.queryBuilder
-              .where(`${builder.alias}.id IN (:...userIds)`, {
-                userIds: userIds,
-              })
-              .setParameters(orderByParams)
-              .orderBy(
-                `array_position(ARRAY[${userIds.map((_, i) => `:userId${i}`).join(',')}], ${builder.alias}.id)`,
-                'ASC',
-              );
+            builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
+              userIds: userIds,
+            });
             return builder;
           },
-          undefined,
+          (nodes) => {
+            // Sort nodes in JavaScript based on userIds order
+            const userIdIndexMap = new Map(
+              userIds.map((id, index) => [id, index]),
+            );
+            return nodes.sort((a, b) => {
+              const indexA = userIdIndexMap.get(a.id) ?? Infinity;
+              const indexB = userIdIndexMap.get(b.id) ?? Infinity;
+              return indexA - indexB;
+            });
+          },
           true,
         );
 
