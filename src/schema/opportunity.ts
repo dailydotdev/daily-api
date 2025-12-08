@@ -1,5 +1,6 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
+import { GraphQLResolveInfo } from 'graphql';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
@@ -72,7 +73,13 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, QueryFailedError, type DeepPartial } from 'typeorm';
+import {
+  In,
+  Not,
+  QueryFailedError,
+  type DeepPartial,
+  JsonContains,
+} from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
   OrganizationLinkType,
@@ -81,6 +88,7 @@ import {
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { queryReadReplica } from '../common/queryReadReplica';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
 import { slackClient } from '../common/slack';
@@ -91,6 +99,7 @@ import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
+import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 
 export interface GQLOpportunity
   extends Pick<
@@ -124,6 +133,41 @@ export type GQLOpportunityScreeningQuestion = Pick<
 > & {
   order: number;
 };
+
+export interface GQLTopReaderBadge {
+  tag: string;
+  issuedAt: Date;
+}
+
+export interface GQLOpportunityPreviewUser extends Pick<User, 'id'> {
+  profileImage: string | null;
+  anonId: string;
+  description: string | null;
+  openToWork: boolean;
+  seniority: string | null;
+  location: string | null;
+  company: { name: string; favicon?: string } | null;
+  lastActivity: Date | null;
+  topTags: string[] | null;
+  recentlyRead: GQLTopReaderBadge[] | null;
+  activeSquads: string[] | null;
+}
+
+export interface GQLOpportunityPreviewEdge {
+  node: GQLOpportunityPreviewUser;
+  cursor: string;
+}
+
+export interface GQLOpportunityPreviewConnection {
+  edges: GQLOpportunityPreviewEdge[];
+  pageInfo: {
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor: string | null;
+    endCursor: string | null;
+    totalCount?: number;
+  };
+}
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -299,6 +343,109 @@ export const typeDefs = /* GraphQL */ `
     keywords: [UserCandidateKeyword!]!
   }
 
+  type OpportunityPreviewCompany {
+    name: String!
+    favicon: String
+  }
+
+  """
+  Top reader badge with tag and issue date
+  """
+  type TopReaderBadge {
+    """
+    The keyword/tag name
+    """
+    tag: String!
+
+    """
+    When the badge was issued
+    """
+    issuedAt: DateTime!
+  }
+
+  type OpportunityPreviewUser {
+    """
+    Real user ID
+    """
+    id: String!
+
+    """
+    User profile image
+    """
+    profileImage: String
+
+    """
+    Anonymized ID (e.g., anon #1002)
+    """
+    anonId: String!
+
+    """
+    User description/bio
+    """
+    description: String
+
+    """
+    Whether the user is open to work
+    """
+    openToWork: Boolean!
+
+    """
+    User seniority level
+    """
+    seniority: String
+
+    """
+    User location (from preferences or geo flags)
+    """
+    location: String
+
+    """
+    Active company from experience
+    """
+    company: OpportunityPreviewCompany
+
+    """
+    Last activity timestamp
+    """
+    lastActivity: DateTime
+
+    """
+    Top tags for the user
+    """
+    topTags: [String!]
+
+    """
+    Recently read badges with tags and issue dates (limit 3)
+    """
+    recentlyRead: [UserTopReader!]
+
+    """
+    Active squad IDs
+    """
+    activeSquads: [String!]
+  }
+
+  type OpportunityPreviewEdge {
+    node: OpportunityPreviewUser!
+    cursor: String!
+  }
+
+  type OpportunityPreviewPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+    """
+    Total number of candidates matching the opportunity
+    """
+    totalCount: Int
+  }
+
+  type OpportunityPreviewConnection {
+    edges: [OpportunityPreviewEdge!]!
+    pageInfo: OpportunityPreviewPageInfo!
+  }
+
   extend type Query {
     """
     Get the public information about a Opportunity listing
@@ -373,6 +520,21 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): OpportunityMatchConnection! @auth
+
+    """
+    Get a preview of potential candidate matches for an opportunity owned by the anonymous user
+    """
+    opportunityPreview(
+      """
+      Number of users to return
+      """
+      first: Int
+
+      """
+      Cursor for pagination
+      """
+      after: String
+    ): OpportunityPreviewConnection!
   }
 
   input SalaryExpectationInput {
@@ -959,6 +1121,114 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           readReplica: true,
         },
       ),
+    opportunityPreview: async (
+      _,
+      args: ConnectionArguments,
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLOpportunityPreviewConnection> => {
+      const { after, first = 20 } = args;
+      const offset = after ? cursorToOffset(after) : 0;
+
+      const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
+          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
+          relations: { keywords: true },
+        }),
+      );
+
+      let userIds: string[];
+      let totalCount: number;
+
+      if (opportunity.flags?.preview) {
+        userIds = opportunity.flags.preview.userIds;
+        totalCount = opportunity.flags.preview.totalCount;
+      } else {
+        const keywords = await opportunity.keywords;
+        const validatedPayload = {
+          opportunity: {
+            title: opportunity.title,
+            tldr: opportunity.tldr,
+            content: opportunity.content,
+            meta: opportunity.meta,
+            location: opportunity.location,
+            state: opportunity.state,
+            type: opportunity.type,
+            keywords: keywords.map((k) => k.keyword),
+          },
+        };
+
+        // Call the gondul preview endpoint with circuit breaker
+        try {
+          const gondulClient = getGondulClient();
+          const gondulResult = await gondulClient.garmr.execute(async () => {
+            const response = await fetch(
+              `${process.env.GONDUL_ORIGIN}/preview`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(validatedPayload),
+              },
+            );
+            if (!response.ok) {
+              throw new Error('Failed to fetch opportunity preview');
+            }
+            return await response.json();
+          });
+
+          await ctx.con.getRepository(OpportunityJob).update(
+            { id: opportunity.id },
+            {
+              flags: updateFlagsStatement<OpportunityJob>({
+                preview: gondulResult,
+              }),
+            },
+          );
+
+          userIds = gondulResult.userIds;
+          totalCount = gondulResult.totalCount;
+        } catch (error) {
+          throw error;
+        }
+      }
+
+      const connection =
+        await graphorm.queryPaginated<GQLOpportunityPreviewUser>(
+          ctx,
+          info,
+          () => !!after,
+          (nodeSize) => nodeSize === first,
+          (_, i) => offsetToCursor(offset + i + 1),
+          (builder) => {
+            builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
+              userIds: userIds,
+            });
+            return builder;
+          },
+          (nodes) => {
+            // Sort nodes in JavaScript based on userIds order
+            const userIdIndexMap = new Map(
+              userIds.map((id, index) => [id, index]),
+            );
+            return nodes.sort((a, b) => {
+              const indexA = userIdIndexMap.get(a.id) ?? Infinity;
+              const indexB = userIdIndexMap.get(b.id) ?? Infinity;
+              return indexA - indexB;
+            });
+          },
+          true,
+        );
+
+      return {
+        ...connection,
+        pageInfo: {
+          ...connection.pageInfo,
+          totalCount,
+        },
+      };
+    },
   },
   Mutation: {
     updateCandidatePreferences: async (

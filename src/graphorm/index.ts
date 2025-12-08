@@ -21,6 +21,7 @@ import {
   type PostFlagsPublic,
   type Campaign,
   type OrganizationLink,
+  SourceType,
 } from '../entity';
 import {
   OrganizationMemberRole,
@@ -36,6 +37,7 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
+  getUserTopReadingTags,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
@@ -64,6 +66,7 @@ import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
+import { snotraClient } from '../integrations/snotra';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1712,6 +1715,182 @@ const obj = new GraphORM({
       salaryExpectation: {
         jsonType: true,
         transform: nullIfNotSameUserById,
+      },
+    },
+  },
+  OpportunityPreviewCompany: {
+    from: 'UserExperience',
+    requiredColumns: ['userId', 'verified', 'type', 'startedAt'],
+    additionalQuery: (_, alias, qb) =>
+      qb.leftJoin('company', 'c', `c.id = ${alias}."companyId"`),
+    fields: {
+      name: {
+        rawSelect: true,
+        select: (_, alias) => `COALESCE(c.name, ${alias}."customCompanyName")`,
+      },
+      favicon: {
+        rawSelect: true,
+        select: () => 'NULL',
+      },
+    },
+  },
+  OpportunityPreviewUser: {
+    from: 'User',
+    requiredColumns: ['id'],
+    fields: {
+      profileImage: {
+        select: 'image',
+      },
+      anonId: {
+        select: () => 'NULL',
+        transform: (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) return null;
+
+          // Deterministic hash from userId
+          let hash = 0;
+          for (let i = 0; i < user.id.length; i++) {
+            hash = (hash << 5) - hash + user.id.charCodeAt(i);
+            hash = hash & hash;
+          }
+          const totalCount =
+            (ctx as Context & { previewTotalCount?: number })
+              .previewTotalCount || 1000;
+          const anonNumber = (Math.abs(hash) % totalCount) + 1;
+          return `anon #${anonNumber}`;
+        },
+      },
+      description: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          try {
+            const profile = await snotraClient.getProfile({
+              user_id: user.id,
+            });
+            return profile?.profile_text || null;
+          } catch (error) {
+            return null;
+          }
+        },
+      },
+      openToWork: {
+        select: (_, alias, qb) =>
+          qb
+            .select('ucp.status')
+            .from('user_candidate_preference', 'ucp')
+            .where(`ucp."userId" = ${alias}.id`)
+            .limit(1),
+        transform: (status: number | null): boolean => status === 1,
+      },
+      seniority: {
+        select: 'experienceLevel',
+      },
+      company: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .andWhere(`${childAlias}.verified = true`)
+              .andWhere(`${childAlias}.type = '1'`)
+              .orderBy(`${childAlias}."startedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
+      location: {
+        select: (_, alias) => `
+          COALESCE(
+            (
+              SELECT jsonb_build_object(
+                'city', location->0->>'city',
+                'subdivision', location->0->>'subdivision',
+                'country', location->0->>'country'
+              )
+              FROM user_candidate_preference
+              WHERE "userId" = ${alias}.id
+              LIMIT 1
+            ),
+            ${alias}.flags
+          )
+        `,
+        transform: (data: Record<string, unknown>): string | null => {
+          if (!data) return null;
+
+          if (data.city || data.subdivision || data.country) {
+            return [data.city, data.subdivision, data.country]
+              .filter(Boolean)
+              .join(', ');
+          }
+
+          return null;
+        },
+      },
+
+      lastActivity: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) {
+            return null;
+          }
+          return await ctx.dataLoader.userLastActive.load({
+            userId: user.id,
+          });
+        },
+      },
+      topTags: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) {
+            return null;
+          }
+          try {
+            const tags = await getUserTopReadingTags(ctx.con, {
+              userId: user.id,
+              limit: 5,
+              readLimit: 100,
+            });
+            return tags && tags.length > 0 ? tags.map((t) => t.tag) : null;
+          } catch (error) {
+            return null;
+          }
+        },
+      },
+      recentlyRead: {
+        select: (_, alias, qb) =>
+          qb.select(`
+              ARRAY(
+                SELECT jsonb_build_object(
+                  'tag', utr."keywordValue",
+                  'issuedAt', utr."issuedAt"
+                )
+                FROM user_top_reader utr
+                WHERE utr."userId" = ${alias}.id
+                ORDER BY utr."issuedAt" DESC
+                LIMIT 3
+              )
+            `),
+        transform: (
+          badges: Array<{ tag: string; issuedAt: string }> | null,
+        ): Array<{ tag: string; issuedAt: string }> | null => {
+          return badges && badges.length > 0 ? badges : null;
+        },
+      },
+      activeSquads: {
+        select: (_, alias) => `
+          ARRAY(
+            SELECT sm."sourceId"
+            FROM source_member sm
+            INNER JOIN source s ON s.id = sm."sourceId"
+            WHERE sm."userId" = ${alias}.id
+              AND s.type = '${SourceType.Squad}'
+              AND s.active = true
+            ORDER BY sm."createdAt" DESC
+            LIMIT 5
+          )
+        `,
       },
     },
   },
