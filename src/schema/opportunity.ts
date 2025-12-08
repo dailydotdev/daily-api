@@ -310,8 +310,19 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type OpportunityMatchPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean
+    startCursor: String
+    endCursor: String
+    """
+    Total number of matches for the given status filter
+    """
+    totalCount: Int!
+  }
+
   type OpportunityMatchConnection {
-    pageInfo: PageInfo!
+    pageInfo: OpportunityMatchPageInfo!
     edges: [OpportunityMatchEdge!]!
   }
 
@@ -497,6 +508,10 @@ export const typeDefs = /* GraphQL */ `
       Id of the Opportunity
       """
       opportunityId: ID!
+      """
+      Filter by match status (allowed: candidate_accepted, recruiter_accepted, recruiter_rejected)
+      """
+      status: OpportunityMatchStatus
       """
       Paginate after opaque cursor
       """
@@ -1044,12 +1059,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     opportunityMatches: async (
       _,
-      args: ConnectionArguments & { opportunityId: string },
+      args: ConnectionArguments & {
+        opportunityId: string;
+        status?: OpportunityMatchStatus;
+      },
       ctx: AuthContext,
       info,
     ) => {
       if (!ctx.userId) {
         throw new NotFoundError('Not found!');
+      }
+
+      // Allowed statuses for this query
+      const allowedStatuses = [
+        OpportunityMatchStatus.CandidateAccepted,
+        OpportunityMatchStatus.RecruiterAccepted,
+        OpportunityMatchStatus.RecruiterRejected,
+      ];
+
+      // Validate status if provided
+      if (args.status && !allowedStatuses.includes(args.status)) {
+        throw new ValidationError(
+          `Invalid status. Allowed values: ${allowedStatuses.join(', ')}`,
+        );
       }
 
       // First verify the user has access to this opportunity
@@ -1061,44 +1093,57 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         isTeamMember: ctx.isTeamMember,
       });
 
-      return await queryPaginatedByDate<
-        GQLOpportunityMatch,
-        'updatedAt',
-        typeof args
-      >(
-        ctx,
-        info,
-        args,
-        { key: 'updatedAt', maxSize: 50 },
-        {
-          queryBuilder: (builder) => {
-            builder.queryBuilder
-              .where({ opportunityId: args.opportunityId })
-              .andWhere(`${builder.alias}.status IN (:...statuses)`, {
-                statuses: [
-                  OpportunityMatchStatus.CandidateAccepted,
-                  OpportunityMatchStatus.RecruiterAccepted,
-                  OpportunityMatchStatus.RecruiterRejected,
-                ],
-              })
-              // Order by candidate_accepted status first (priority 0), then others (priority 1)
-              // Then by updatedAt ascending (oldest first) within each group
-              .addOrderBy(
-                `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
-                'ASC',
-              )
-              .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
-              .setParameter(
-                'candidateAcceptedStatus',
-                OpportunityMatchStatus.CandidateAccepted,
-              );
+      // If status is provided, filter by that status; otherwise use all allowed statuses
+      const statusesToFilter = args.status ? [args.status] : allowedStatuses;
 
-            return builder;
+      const [connection, totalCount] = await Promise.all([
+        queryPaginatedByDate<GQLOpportunityMatch, 'updatedAt', typeof args>(
+          ctx,
+          info,
+          args,
+          { key: 'updatedAt', maxSize: 50 },
+          {
+            queryBuilder: (builder) => {
+              builder.queryBuilder
+                .where({ opportunityId: args.opportunityId })
+                .andWhere(`${builder.alias}.status IN (:...statuses)`, {
+                  statuses: statusesToFilter,
+                })
+                // Order by candidate_accepted status first (priority 0), then others (priority 1)
+                // Then by updatedAt ascending (oldest first) within each group
+                .addOrderBy(
+                  `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
+                  'ASC',
+                )
+                .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
+                .setParameter(
+                  'candidateAcceptedStatus',
+                  OpportunityMatchStatus.CandidateAccepted,
+                );
+
+              return builder;
+            },
+            orderByKey: 'ASC',
+            readReplica: true,
           },
-          orderByKey: 'ASC',
-          readReplica: true,
+        ),
+        queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(OpportunityMatch).count({
+            where: {
+              opportunityId: args.opportunityId,
+              status: In(statusesToFilter),
+            },
+          }),
+        ),
+      ]);
+
+      return {
+        ...connection,
+        pageInfo: {
+          ...connection.pageInfo,
+          totalCount,
         },
-      );
+      };
     },
     userOpportunityMatches: async (
       _,
