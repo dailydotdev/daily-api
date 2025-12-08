@@ -17,6 +17,7 @@ import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
   getBufferFromStream,
   toGQLEnum,
+  uniqueifyArray,
   updateFlagsStatement,
 } from '../common';
 import {
@@ -100,6 +101,7 @@ import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
+import { getRandomMockCompanies } from '../common/opportunity/companies';
 
 export interface GQLOpportunity
   extends Pick<
@@ -167,6 +169,12 @@ export interface GQLOpportunityPreviewConnection {
     endCursor: string | null;
     totalCount?: number;
   };
+}
+
+export interface GQLOpportunityPreviewDetails {
+  tags: string[];
+  companies: Array<{ name: string; favicon?: string }>;
+  squads: string[];
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -412,7 +420,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Top tags for the user
     """
-    topTags: [String!]
+    topTags: [String!]!
 
     """
     Recently read badges with tags and issue dates (limit 3)
@@ -422,7 +430,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Active squad IDs
     """
-    activeSquads: [String!]
+    activeSquads: [String!]!
   }
 
   type OpportunityPreviewEdge {
@@ -444,6 +452,24 @@ export const typeDefs = /* GraphQL */ `
   type OpportunityPreviewConnection {
     edges: [OpportunityPreviewEdge!]!
     pageInfo: OpportunityPreviewPageInfo!
+  }
+
+  """
+  Aggregated details from opportunity preview users
+  """
+  type OpportunityPreviewDetails {
+    """
+    Unique tags from all preview users
+    """
+    tags: [String!]
+    """
+    Unique companies from all preview users
+    """
+    companies: [OpportunityPreviewCompany!]
+    """
+    Unique squads from all preview users
+    """
+    squads: [String!]
   }
 
   extend type Query {
@@ -535,6 +561,11 @@ export const typeDefs = /* GraphQL */ `
       """
       after: String
     ): OpportunityPreviewConnection!
+
+    """
+    Get aggregated details (tags, companies, squads) from opportunity preview users
+    """
+    opportunityPreviewDetails: OpportunityPreviewDetails!
   }
 
   input SalaryExpectationInput {
@@ -1227,6 +1258,55 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...connection.pageInfo,
           totalCount,
         },
+      };
+    },
+    opportunityPreviewDetails: async (
+      _,
+      __,
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLOpportunityPreviewDetails> => {
+      const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
+          // where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
+          where: { id: '89f3daff-d6bb-4652-8f9c-b9f7254c9af1' },
+        }),
+      );
+
+      // Only use cached preview data - don't call Gondul
+      if (!opportunity.flags?.preview) {
+        return {
+          tags: [],
+          companies: [],
+          squads: [],
+        };
+      }
+
+      const userIds = opportunity.flags.preview.userIds;
+
+      // Query all users to get their details
+      const users = await graphorm.query<GQLOpportunityPreviewDetails>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
+            userIds: userIds,
+          });
+          return builder;
+        },
+        true,
+      );
+
+      const tags = uniqueifyArray(users.flatMap((user) => user.tags || []));
+
+      const companies = getRandomMockCompanies();
+
+      const squads = uniqueifyArray(users.flatMap((user) => user.squads || []));
+
+      return {
+        tags,
+        companies,
+        squads,
       };
     },
   },
