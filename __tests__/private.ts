@@ -30,6 +30,7 @@ import { OpportunityState } from '@dailydotdev/schema';
 import { generateShortId } from '../src/ids';
 import { OpportunityUser } from '../src/entity/opportunities/user';
 import { OpportunityUserType } from '../src/entity/opportunities/types';
+import { QuestionFeedback } from '../src/entity/questions/QuestionFeedback';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -1246,6 +1247,17 @@ describe('POST /p/newOpportunity', () => {
     expect(['javascript', 'typescript', 'react']).toEqual(
       expect.arrayContaining(keywords.map((k) => k.keyword)),
     );
+
+    const questionsFeedback = await con.getRepository(QuestionFeedback).find({
+      where: { opportunityId: opportunity?.id },
+    });
+    expect(questionsFeedback).toHaveLength(1);
+
+    expect(questionsFeedback[0]).toMatchObject({
+      opportunityId: opportunity?.id,
+      title: 'Why did you reject this opportunity?',
+      placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
+    });
   });
 
   it('should create opportunity with keywords and render markdown content', async () => {

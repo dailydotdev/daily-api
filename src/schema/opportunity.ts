@@ -92,6 +92,7 @@ import { getBrokkrClient } from '../common/brokkr';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
+import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 
 export interface GQLOpportunity
@@ -2075,6 +2076,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   },
                 } as DeepPartial<OpportunityJob>),
               );
+
+            await addOpportunityDefaultQuestionFeedback({
+              entityManager,
+              opportunityId: opportunity.id,
+            });
 
             await entityManager.getRepository(OpportunityKeyword).insert(
               parsedOpportunity.keywords.map((keyword) => ({
