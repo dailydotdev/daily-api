@@ -3,6 +3,7 @@ import z from 'zod';
 import { organizationLinksSchema } from './organizations';
 import { fileUploadSchema, urlParseSchema } from './common';
 import { parseBigInt } from '../utils';
+import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
@@ -254,4 +255,17 @@ export const createSharedSlackChannelSchema = z.object({
       /^[a-z0-9-_]+$/,
       'Channel name can only contain lowercase letters, numbers, hyphens, and underscores',
     ),
+});
+
+export const opportunityMatchesQuerySchema = z.object({
+  opportunityId: z.string(),
+  status: z
+    .enum([
+      OpportunityMatchStatus.CandidateAccepted,
+      OpportunityMatchStatus.RecruiterAccepted,
+      OpportunityMatchStatus.RecruiterRejected,
+    ])
+    .optional(),
+  after: z.string().optional(),
+  first: z.number().optional(),
 });
