@@ -195,67 +195,6 @@ const organizationLink = (type: OrganizationLinkType) => ({
     links?.filter((link) => link.type === type),
 });
 
-// Shared field definitions for opportunity preview entities
-const opportunityPreviewVerifiedCompany: GraphORMField = {
-  relation: {
-    isMany: false,
-    customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
-      qb
-        .where(`${childAlias}."userId" = ${parentAlias}.id`)
-        .andWhere(`${childAlias}.verified = true`)
-        .andWhere(`${childAlias}.type = '1'`)
-        .orderBy(`${childAlias}."startedAt"`, 'DESC')
-        .limit(1),
-  },
-};
-
-const opportunityPreviewUserTopTags: GraphORMField = {
-  select: (_, alias) => `
-    COALESCE(
-      (
-        SELECT ARRAY(
-          SELECT tag
-          FROM (
-            SELECT
-              pk.keyword AS tag,
-              COUNT(*) AS count
-            FROM (
-              SELECT v."postId"
-              FROM "view" v
-              WHERE v."userId" = ${alias}.id
-                AND v.hidden = false
-              ORDER BY v.timestamp DESC
-              LIMIT 100
-            ) recent_reads
-            JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
-            WHERE pk.status = 'allow'
-              AND pk.keyword != 'general-programming'
-            GROUP BY pk.keyword
-            ORDER BY COUNT(*) DESC
-            LIMIT 5
-          ) top_tags
-        )
-      ),
-      ARRAY[]::text[]
-    )
-  `,
-};
-
-const opportunityPreviewActiveSquads: GraphORMField = {
-  select: (_, alias) => `
-    ARRAY(
-      SELECT sm."sourceId"
-      FROM source_member sm
-      INNER JOIN source s ON s.id = sm."sourceId"
-      WHERE sm."userId" = ${alias}.id
-        AND s.type = '${SourceType.Squad}'
-        AND s.active = true
-      ORDER BY sm."createdAt" DESC
-      LIMIT 5
-    )
-  `,
-};
-
 const obj = new GraphORM({
   User: {
     requiredColumns: ['id', 'username', 'createdAt'],
@@ -1794,18 +1733,6 @@ const obj = new GraphORM({
       },
     },
   },
-  OpportunityPreviewDetails: {
-    from: 'User',
-    requiredColumns: ['id'],
-    fields: {
-      companies: {
-        select: () => 'NULL',
-        transform: () => [],
-      },
-      tags: opportunityPreviewUserTopTags,
-      squads: opportunityPreviewActiveSquads,
-    },
-  },
   OpportunityPreviewUser: {
     from: 'User',
     requiredColumns: ['id'],
@@ -1858,7 +1785,18 @@ const obj = new GraphORM({
       seniority: {
         select: 'experienceLevel',
       },
-      company: opportunityPreviewVerifiedCompany,
+      company: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .andWhere(`${childAlias}.verified = true`)
+              .andWhere(`${childAlias}.type = '1'`)
+              .orderBy(`${childAlias}."startedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
       location: {
         select: (_, alias) => `
           COALESCE(
@@ -1900,7 +1838,37 @@ const obj = new GraphORM({
           });
         },
       },
-      topTags: opportunityPreviewUserTopTags,
+      topTags: {
+        select: (_, alias) => `
+    COALESCE(
+      (
+        SELECT ARRAY(
+          SELECT tag
+          FROM (
+            SELECT
+              pk.keyword AS tag,
+              COUNT(*) AS count
+            FROM (
+              SELECT v."postId"
+              FROM "view" v
+              WHERE v."userId" = ${alias}.id
+                AND v.hidden = false
+              ORDER BY v.timestamp DESC
+              LIMIT 100
+            ) recent_reads
+            JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
+            WHERE pk.status = 'allow'
+              AND pk.keyword != 'general-programming'
+            GROUP BY pk.keyword
+            ORDER BY COUNT(*) DESC
+            LIMIT 5
+          ) top_tags
+        )
+      ),
+      ARRAY[]::text[]
+    )
+  `,
+      },
       recentlyRead: {
         select: (_, alias, qb) =>
           qb.select(`
@@ -1921,7 +1889,20 @@ const obj = new GraphORM({
           return badges && badges.length > 0 ? badges : null;
         },
       },
-      activeSquads: opportunityPreviewActiveSquads,
+      activeSquads: {
+        select: (_, alias) => `
+    ARRAY(
+      SELECT sm."sourceId"
+      FROM source_member sm
+      INNER JOIN source s ON s.id = sm."sourceId"
+      WHERE sm."userId" = ${alias}.id
+        AND s.type = '${SourceType.Squad}'
+        AND s.active = true
+      ORDER BY sm."createdAt" DESC
+      LIMIT 5
+    )
+  `,
+      },
     },
   },
 });

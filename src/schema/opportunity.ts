@@ -160,6 +160,13 @@ export interface GQLOpportunityPreviewEdge {
   cursor: string;
 }
 
+export interface GQLOpportunityPreviewResult {
+  totalCount: number;
+  tags: string[] | null;
+  companies: Array<{ name: string; favicon?: string }> | null;
+  squads: string[] | null;
+}
+
 export interface GQLOpportunityPreviewConnection {
   edges: GQLOpportunityPreviewEdge[];
   pageInfo: {
@@ -167,8 +174,9 @@ export interface GQLOpportunityPreviewConnection {
     hasPreviousPage: boolean;
     startCursor: string | null;
     endCursor: string | null;
-    totalCount?: number;
   };
+  result: GQLOpportunityPreviewResult;
+  opportunity: GQLOpportunity;
 }
 
 export interface GQLOpportunityPreviewDetails {
@@ -443,15 +451,20 @@ export const typeDefs = /* GraphQL */ `
     hasPreviousPage: Boolean!
     startCursor: String
     endCursor: String
-    """
-    Total number of candidates matching the opportunity
-    """
+  }
+
+  type OpportunityPreviewResult {
+    tags: [String!]!
+    companies: [OpportunityPreviewCompany!]!
+    squads: [String!]!
     totalCount: Int
   }
 
   type OpportunityPreviewConnection {
     edges: [OpportunityPreviewEdge!]!
     pageInfo: OpportunityPreviewPageInfo!
+    result: OpportunityPreviewResult
+    opportunity: Opportunity
   }
 
   """
@@ -561,11 +574,6 @@ export const typeDefs = /* GraphQL */ `
       """
       after: String
     ): OpportunityPreviewConnection!
-
-    """
-    Get aggregated details (tags, companies, squads) from opportunity preview users
-    """
-    opportunityPreviewDetails: OpportunityPreviewDetails!
   }
 
   input SalaryExpectationInput {
@@ -1162,10 +1170,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const offset = after ? cursorToOffset(after) : 0;
       const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
-          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
+          where: { id: '89f3daff-d6bb-4652-8f9c-b9f7254c9af1' },
           relations: { keywords: true },
         }),
       );
+      const keywords = await opportunity.keywords;
 
       let userIds: string[];
       let totalCount: number;
@@ -1174,7 +1183,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userIds = opportunity.flags.preview.userIds;
         totalCount = opportunity.flags.preview.totalCount;
       } else {
-        const keywords = await opportunity.keywords;
         const validatedPayload = {
           opportunity: {
             title: opportunity.title,
@@ -1251,61 +1259,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           true,
         );
 
-      return {
-        ...connection,
-        pageInfo: {
-          ...connection.pageInfo,
-          totalCount,
-        },
-      };
-    },
-    opportunityPreviewDetails: async (
-      _,
-      __,
-      ctx: Context,
-      info: GraphQLResolveInfo,
-    ): Promise<GQLOpportunityPreviewDetails> => {
-      const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
-          select: ['flags'],
-          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
-        }),
+      const tags = uniqueifyArray(
+        connection.edges.flatMap(({ node }) => node.topTags || []),
       );
-
-      // Only use cached preview data - don't call Gondul
-      if (!opportunity.flags?.preview) {
-        return {
-          tags: [],
-          companies: [],
-          squads: [],
-        };
-      }
-
-      const userIds = opportunity.flags.preview.userIds;
-
-      // Query all users to get their details
-      const users = await graphorm.query<GQLOpportunityPreviewDetails>(
-        ctx,
-        info,
-        (builder) => {
-          builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
-            userIds: userIds,
-          });
-          return builder;
-        },
-        true,
-      );
-
-      const tags = uniqueifyArray(users.flatMap((user) => user.tags || []));
 
       const companies = getShowcaseCompanies();
 
-      const squads = uniqueifyArray(users.flatMap((user) => user.squads || []));
+      const squads = uniqueifyArray(
+        connection.edges.flatMap(({ node }) => node.activeSquads || []),
+      );
 
       return {
-        tags,
-        companies,
-        squads,
+        ...connection,
+        result: {
+          tags,
+          companies,
+          squads,
+          totalCount,
+        },
+        opportunity,
       };
     },
   },
