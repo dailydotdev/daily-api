@@ -53,13 +53,6 @@ export type PostFlags = Partial<{
   savedTime: number;
   generatedAt: Date;
   dedupKey: string;
-  // Recommendation signals
-  specificity: string;
-  intent: string;
-  // Quality signals
-  substanceDepth: string;
-  titleContentAlignment: string;
-  selfPromotionScore: number;
 }>;
 
 export type PostFlagsPublic = Pick<
@@ -77,6 +70,13 @@ export type PostContentQuality = Partial<{
   is_ai_probability: number;
   is_clickbait_probability: number;
   manual_clickbait_probability: number;
+  // Recommendation signals
+  specificity: string;
+  intent: string;
+  // Quality signals
+  substance_depth: string;
+  title_content_alignment: string;
+  self_promotion_score: number;
 }>;
 
 export const translateablePostFields = [

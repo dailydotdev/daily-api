@@ -564,7 +564,7 @@ it('should save a new post with recommendation and quality signals', async () =>
     title: 'Title',
     url: 'https://post.com',
     source_id: 'a',
-    extra: {
+    content_quality: {
       specificity: 'high',
       intent: 'tutorial',
       substance_depth: 'deep',
@@ -575,11 +575,11 @@ it('should save a new post with recommendation and quality signals', async () =>
   const posts = await con.getRepository(Post).find();
   expect(posts.length).toEqual(4);
   const post = posts[3];
-  expect(post.flags.specificity).toEqual('high');
-  expect(post.flags.intent).toEqual('tutorial');
-  expect(post.flags.substanceDepth).toEqual('deep');
-  expect(post.flags.titleContentAlignment).toEqual('aligned');
-  expect(post.flags.selfPromotionScore).toEqual(0.25);
+  expect(post.contentQuality.specificity).toEqual('high');
+  expect(post.contentQuality.intent).toEqual('tutorial');
+  expect(post.contentQuality.substance_depth).toEqual('deep');
+  expect(post.contentQuality.title_content_alignment).toEqual('aligned');
+  expect(post.contentQuality.self_promotion_score).toEqual(0.25);
 });
 
 it('do not save post if source can not be found', async () => {
@@ -1360,7 +1360,7 @@ describe('on post update', () => {
     await expectSuccessfulBackground(worker, {
       id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
       post_id: postId,
-      extra: {
+      content_quality: {
         specificity: 'medium',
         intent: 'reference',
         substance_depth: 'surface',
@@ -1373,11 +1373,13 @@ describe('on post update', () => {
       id: postId,
     });
 
-    expect(updatedPost?.flags.specificity).toEqual('medium');
-    expect(updatedPost?.flags.intent).toEqual('reference');
-    expect(updatedPost?.flags.substanceDepth).toEqual('surface');
-    expect(updatedPost?.flags.titleContentAlignment).toEqual('misaligned');
-    expect(updatedPost?.flags.selfPromotionScore).toEqual(0.75);
+    expect(updatedPost?.contentQuality.specificity).toEqual('medium');
+    expect(updatedPost?.contentQuality.intent).toEqual('reference');
+    expect(updatedPost?.contentQuality.substance_depth).toEqual('surface');
+    expect(updatedPost?.contentQuality.title_content_alignment).toEqual(
+      'misaligned',
+    );
+    expect(updatedPost?.contentQuality.self_promotion_score).toEqual(0.75);
   });
 
   describe('vordr', () => {

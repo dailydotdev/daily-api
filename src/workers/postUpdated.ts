@@ -81,11 +81,6 @@ interface Data {
     content: string;
     video_id?: string;
     duration?: number;
-    specificity?: string;
-    intent?: string;
-    substance_depth?: string;
-    title_content_alignment?: string;
-    self_promotion_score?: number;
   };
   meta?: {
     scraped_html?: string;
@@ -612,11 +607,6 @@ const fixData = async ({
         private: privacy,
         showOnFeed: !data?.order,
         sentAnalyticsReport: privacy || !authorId,
-        specificity: data?.extra?.specificity,
-        intent: data?.extra?.intent,
-        substanceDepth: data?.extra?.substance_depth,
-        titleContentAlignment: data?.extra?.title_content_alignment,
-        selfPromotionScore: data?.extra?.self_promotion_score,
       },
       yggdrasilId: data?.id,
       type: data?.content_type as PostType,
