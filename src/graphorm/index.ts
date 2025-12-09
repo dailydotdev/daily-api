@@ -1878,23 +1878,13 @@ const obj = new GraphORM({
   `,
       },
       recentlyRead: {
-        select: (_, alias, qb) =>
-          qb.select(`
-              ARRAY(
-                SELECT jsonb_build_object(
-                  'tag', utr."keywordValue",
-                  'issuedAt', utr."issuedAt"
-                )
-                FROM user_top_reader utr
-                WHERE utr."userId" = ${alias}.id
-                ORDER BY utr."issuedAt" DESC
-                LIMIT 3
-              )
-            `),
-        transform: (
-          badges: Array<{ tag: string; issuedAt: string }> | null,
-        ): Array<{ tag: string; issuedAt: string }> | null => {
-          return badges && badges.length > 0 ? badges : null;
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'userId',
+          order: 'DESC',
+          sort: 'issuedAt',
+          limit: 3,
         },
       },
       activeSquads: {
