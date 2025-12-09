@@ -1170,7 +1170,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const offset = after ? cursorToOffset(after) : 0;
       const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
-          where: { id: '89f3daff-d6bb-4652-8f9c-b9f7254c9af1' },
+          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
           relations: { keywords: true },
         }),
       );
