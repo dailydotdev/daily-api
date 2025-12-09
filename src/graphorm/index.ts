@@ -1601,6 +1601,7 @@ const obj = new GraphORM({
     },
   },
   OpportunityMatch: {
+    requiredColumns: ['updatedAt'],
     ignoredColumns: ['engagementProfile'],
     fields: {
       createdAt: {

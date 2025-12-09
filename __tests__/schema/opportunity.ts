@@ -774,11 +774,13 @@ describe('query opportunityMatches', () => {
   const GET_OPPORTUNITY_MATCHES_QUERY = /* GraphQL */ `
     query GetOpportunityMatches(
       $opportunityId: ID!
+      $status: OpportunityMatchStatus
       $first: Int
       $after: String
     ) {
       opportunityMatches(
         opportunityId: $opportunityId
+        status: $status
         first: $first
         after: $after
       ) {
@@ -787,6 +789,7 @@ describe('query opportunityMatches', () => {
           hasPreviousPage
           endCursor
           startCursor
+          totalCount
         }
         edges {
           node {
@@ -1101,6 +1104,70 @@ describe('query opportunityMatches', () => {
     expect(user2Match.node.candidatePreferences.role).toBe('Senior Developer');
     // salaryExpectation should be null for recruiter viewing another candidate
     expect(user2Match.node.candidatePreferences.salaryExpectation).toBeNull();
+  });
+
+  it('should filter by candidate_accepted status when provided', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: 'candidate_accepted',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityMatches.edges).toHaveLength(1);
+    expect(res.data.opportunityMatches.edges[0].node.status).toBe(
+      'candidate_accepted',
+    );
+    expect(res.data.opportunityMatches.edges[0].node.userId).toBe('2');
+  });
+
+  it('should reject invalid status values', async () => {
+    loggedUser = '1';
+
+    // 'pending' is not an allowed status for this query
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITY_MATCHES_QUERY,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          status: 'pending',
+          first: 10,
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should return totalCount of matches for the given status filter', async () => {
+    loggedUser = '1';
+
+    // Test with no status filter - should count all allowed statuses
+    const resAll = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+      },
+    });
+
+    expect(resAll.errors).toBeFalsy();
+    expect(resAll.data.opportunityMatches.pageInfo.totalCount).toBe(3);
+
+    // Test with candidate_accepted status filter
+    const resFiltered = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: 'candidate_accepted',
+        first: 10,
+      },
+    });
+
+    expect(resFiltered.errors).toBeFalsy();
+    expect(resFiltered.data.opportunityMatches.pageInfo.totalCount).toBe(1);
   });
 });
 
