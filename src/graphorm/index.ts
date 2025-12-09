@@ -1800,7 +1800,7 @@ const obj = new GraphORM({
             qb
               .where(`${childAlias}."userId" = ${parentAlias}.id`)
               .andWhere(`${childAlias}.verified = true`)
-              .andWhere(`${childAlias}.type = '1'`)
+              .andWhere(`${childAlias}.type = 'work'`)
               .orderBy(`${childAlias}."startedAt"`, 'DESC')
               .limit(1),
         },
