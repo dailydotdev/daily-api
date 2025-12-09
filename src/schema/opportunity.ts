@@ -7,7 +7,6 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
-  Opportunity,
   BrokkrParseRequest,
   OpportunityContent,
   OpportunityState,
@@ -102,6 +101,7 @@ import { randomUUID } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
+import { Opportunity } from '../entity/opportunities/Opportunity';
 
 export interface GQLOpportunity
   extends Pick<
@@ -176,7 +176,6 @@ export interface GQLOpportunityPreviewConnection {
     endCursor: string | null;
   };
   result: GQLOpportunityPreviewResult;
-  opportunity: GQLOpportunity;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -1253,7 +1252,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           squads,
           totalCount,
         },
-        opportunity,
       };
     },
   },
