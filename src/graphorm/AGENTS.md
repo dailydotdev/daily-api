@@ -241,7 +241,7 @@ export const resolvers = {
             .limit(1);
           return builder;
         },
-        true // readReplica: Use read replica for better performance
+        true // for better performance for read queries are required, take into account potential replication lag if doing reads right after writes
       );
     }
   }
