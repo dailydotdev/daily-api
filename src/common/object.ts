@@ -51,7 +51,6 @@ export const validateRegex = <T extends ObjectLiteral>(
 
   return mutatedData as T;
 };
-
 export const nameRegex = new RegExp(/^(.){1,60}$/);
 // Updated to support Unicode word characters (including accented characters)
 export const socialHandleRegex = new RegExp(/^@?([\p{L}\p{N}_-]){1,39}$/iu);
