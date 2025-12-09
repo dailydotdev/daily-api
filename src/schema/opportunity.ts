@@ -17,6 +17,7 @@ import {
   getBufferFromStream,
   toGQLEnum,
   uniqueifyArray,
+  uniqueifyObjectArray,
   updateFlagsStatement,
 } from '../common';
 import {
@@ -1282,10 +1283,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const companies = getShowcaseCompanies();
 
-      const squads = uniqueifyArray(
+      const squads = uniqueifyObjectArray(
         connection.edges.flatMap(({ node }) =>
           (node.activeSquads || []).map((squad) => squad),
         ),
+        (squad) => squad.handle,
       );
 
       return {
