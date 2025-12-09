@@ -166,7 +166,7 @@ export interface GQLOpportunityPreviewResult {
   totalCount: number;
   tags: string[] | null;
   companies: Array<{ name: string; favicon?: string }> | null;
-  squads: string[] | null;
+  squads: GQLSource[] | null;
 }
 
 export interface GQLOpportunityPreviewConnection {
@@ -463,7 +463,7 @@ export const typeDefs = /* GraphQL */ `
   type OpportunityPreviewResult {
     tags: [String!]!
     companies: [OpportunityPreviewCompany!]!
-    squads: [String!]!
+    squads: [Source!]!
     totalCount: Int
   }
 
