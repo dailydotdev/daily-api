@@ -101,10 +101,7 @@ import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
-import {
-  getRandomMockCompanies,
-  getShowcaseCompanies,
-} from '../common/opportunity/companies';
+import { getShowcaseCompanies } from '../common/opportunity/companies';
 
 export interface GQLOpportunity
   extends Pick<
