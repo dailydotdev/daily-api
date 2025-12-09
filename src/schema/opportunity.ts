@@ -17,6 +17,7 @@ import {
   getBufferFromStream,
   toGQLEnum,
   uniqueifyArray,
+  uniqueifyObjectArray,
   updateFlagsStatement,
 } from '../common';
 import {
@@ -166,7 +167,7 @@ export interface GQLOpportunityPreviewResult {
   totalCount: number;
   tags: string[] | null;
   companies: Array<{ name: string; favicon?: string }> | null;
-  squads: string[] | null;
+  squads: GQLSource[] | null;
 }
 
 export interface GQLOpportunityPreviewConnection {
@@ -463,7 +464,7 @@ export const typeDefs = /* GraphQL */ `
   type OpportunityPreviewResult {
     tags: [String!]!
     companies: [OpportunityPreviewCompany!]!
-    squads: [String!]!
+    squads: [Source!]!
     totalCount: Int
   }
 
@@ -1282,10 +1283,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const companies = getShowcaseCompanies();
 
-      const squads = uniqueifyArray(
+      const squads = uniqueifyObjectArray(
         connection.edges.flatMap(({ node }) =>
-          (node.activeSquads || []).map((squad) => squad.id),
+          (node.activeSquads || []).map((squad) => squad),
         ),
+        (squad) => squad.handle,
       );
 
       return {

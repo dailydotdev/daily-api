@@ -100,7 +100,7 @@ export const uniqueifyArray = <T>(array: T[]): T[] => {
   return [...new Set(array)];
 };
 
-export /**
+/**
  * Remove duplicate values from an array of objects per unique key
  *
  * @template T
@@ -110,7 +110,7 @@ export /**
  * @param {(item: T, index: number, uniqueKey: string) => R} [processItem] Optional function to process the item before adding it to the result array
  * @return {*}  {R[]}
  */
-const uniqueifyObjectArray = <T, R = T>(
+export const uniqueifyObjectArray = <T, R = T>(
   array: T[],
   uniqueKey: (item: T) => string,
   processItem?: (item: T, index: number, uniqueKey: string) => R,
