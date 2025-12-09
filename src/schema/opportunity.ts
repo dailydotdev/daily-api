@@ -179,12 +179,6 @@ export interface GQLOpportunityPreviewConnection {
   opportunity: GQLOpportunity;
 }
 
-export interface GQLOpportunityPreviewDetails {
-  tags: string[];
-  companies: Array<{ name: string; favicon?: string }>;
-  squads: string[];
-}
-
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
   ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
@@ -465,24 +459,6 @@ export const typeDefs = /* GraphQL */ `
     pageInfo: OpportunityPreviewPageInfo!
     result: OpportunityPreviewResult
     opportunity: Opportunity
-  }
-
-  """
-  Aggregated details from opportunity preview users
-  """
-  type OpportunityPreviewDetails {
-    """
-    Unique tags from all preview users
-    """
-    tags: [String!]
-    """
-    Unique companies from all preview users
-    """
-    companies: [OpportunityPreviewCompany!]
-    """
-    Unique squads from all preview users
-    """
-    squads: [String!]
   }
 
   extend type Query {
