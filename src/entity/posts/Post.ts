@@ -53,6 +53,13 @@ export type PostFlags = Partial<{
   savedTime: number;
   generatedAt: Date;
   dedupKey: string;
+  // Recommendation signals
+  specificity: string;
+  intent: string;
+  // Quality signals
+  substanceDepth: string;
+  titleContentAlignment: string;
+  selfPromotionScore: number;
 }>;
 
 export type PostFlagsPublic = Pick<
