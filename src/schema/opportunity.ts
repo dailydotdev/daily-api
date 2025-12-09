@@ -65,6 +65,7 @@ import {
   opportunityUpdateStateSchema,
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
+  opportunityMatchesQuerySchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -319,8 +320,19 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type OpportunityMatchPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean
+    startCursor: String
+    endCursor: String
+    """
+    Total number of matches for the given status filter
+    """
+    totalCount: Int!
+  }
+
   type OpportunityMatchConnection {
-    pageInfo: PageInfo!
+    pageInfo: OpportunityMatchPageInfo!
     edges: [OpportunityMatchEdge!]!
   }
 
@@ -511,6 +523,10 @@ export const typeDefs = /* GraphQL */ `
       Id of the Opportunity
       """
       opportunityId: ID!
+      """
+      Filter by match status (allowed: candidate_accepted, recruiter_accepted, recruiter_rejected)
+      """
+      status: OpportunityMatchStatus
       """
       Paginate after opaque cursor
       """
@@ -1058,7 +1074,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     opportunityMatches: async (
       _,
-      args: ConnectionArguments & { opportunityId: string },
+      args: ConnectionArguments & {
+        opportunityId: string;
+        status?: OpportunityMatchStatus;
+      },
       ctx: AuthContext,
       info,
     ) => {
@@ -1066,53 +1085,75 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Not found!');
       }
 
+      // Validate and parse args using Zod schema
+      const validatedArgs = opportunityMatchesQuerySchema.parse(args);
+
       // First verify the user has access to this opportunity
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
         userId: ctx.userId,
-        opportunityId: args.opportunityId,
+        opportunityId: validatedArgs.opportunityId,
         permission: OpportunityPermissions.UpdateState,
         isTeamMember: ctx.isTeamMember,
       });
 
-      return await queryPaginatedByDate<
-        GQLOpportunityMatch,
-        'updatedAt',
-        typeof args
-      >(
-        ctx,
-        info,
-        args,
-        { key: 'updatedAt', maxSize: 50 },
-        {
-          queryBuilder: (builder) => {
-            builder.queryBuilder
-              .where({ opportunityId: args.opportunityId })
-              .andWhere(`${builder.alias}.status IN (:...statuses)`, {
-                statuses: [
-                  OpportunityMatchStatus.CandidateAccepted,
-                  OpportunityMatchStatus.RecruiterAccepted,
-                  OpportunityMatchStatus.RecruiterRejected,
-                ],
-              })
-              // Order by candidate_accepted status first (priority 0), then others (priority 1)
-              // Then by updatedAt ascending (oldest first) within each group
-              .addOrderBy(
-                `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
-                'ASC',
-              )
-              .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
-              .setParameter(
-                'candidateAcceptedStatus',
-                OpportunityMatchStatus.CandidateAccepted,
-              );
+      // If status is provided, filter by that status; otherwise use all allowed statuses
+      const statusesToFilter = validatedArgs.status
+        ? [validatedArgs.status]
+        : [
+            OpportunityMatchStatus.CandidateAccepted,
+            OpportunityMatchStatus.RecruiterAccepted,
+            OpportunityMatchStatus.RecruiterRejected,
+          ];
 
-            return builder;
+      const [connection, totalCount] = await Promise.all([
+        queryPaginatedByDate<GQLOpportunityMatch, 'updatedAt', typeof args>(
+          ctx,
+          info,
+          args,
+          { key: 'updatedAt', maxSize: 50 },
+          {
+            queryBuilder: (builder) => {
+              builder.queryBuilder
+                .where({ opportunityId: validatedArgs.opportunityId })
+                .andWhere(`${builder.alias}.status IN (:...statuses)`, {
+                  statuses: statusesToFilter,
+                })
+                // Order by candidate_accepted status first (priority 0), then others (priority 1)
+                // Then by updatedAt ascending (oldest first) within each group
+                .addOrderBy(
+                  `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
+                  'ASC',
+                )
+                .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
+                .setParameter(
+                  'candidateAcceptedStatus',
+                  OpportunityMatchStatus.CandidateAccepted,
+                );
+
+              return builder;
+            },
+            orderByKey: 'ASC',
+            readReplica: true,
           },
-          orderByKey: 'ASC',
-          readReplica: true,
+        ),
+        queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(OpportunityMatch).count({
+            where: {
+              opportunityId: validatedArgs.opportunityId,
+              status: In(statusesToFilter),
+            },
+          }),
+        ),
+      ]);
+
+      return {
+        ...connection,
+        pageInfo: {
+          ...connection.pageInfo,
+          totalCount,
         },
-      );
+      };
     },
     userOpportunityMatches: async (
       _,
