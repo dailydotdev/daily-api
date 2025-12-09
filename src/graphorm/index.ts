@@ -1737,7 +1737,7 @@ const obj = new GraphORM({
       },
       favicon: {
         rawSelect: true,
-        select: () => 'NULL',
+        select: () => 'c.image',
       },
     },
   },
