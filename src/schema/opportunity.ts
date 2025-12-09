@@ -103,6 +103,7 @@ import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/que
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
 import { Opportunity } from '../entity/opportunities/Opportunity';
+import type { GQLSource } from './sources';
 
 export interface GQLOpportunity
   extends Pick<
@@ -153,7 +154,7 @@ export interface GQLOpportunityPreviewUser extends Pick<User, 'id'> {
   lastActivity: Date | null;
   topTags: string[] | null;
   recentlyRead: GQLTopReaderBadge[] | null;
-  activeSquads: string[] | null;
+  activeSquads: GQLSource[] | null;
 }
 
 export interface GQLOpportunityPreviewEdge {
@@ -309,6 +310,7 @@ export const typeDefs = /* GraphQL */ `
     feedback: [ScreeningAnswer!]!
     applicationRank: ApplicationRank!
     engagementProfile: EngagementProfile
+    previewUser: OpportunityPreviewUser
   }
 
   type OpportunityMatchEdge {
@@ -441,9 +443,9 @@ export const typeDefs = /* GraphQL */ `
     recentlyRead: [UserTopReader!]
 
     """
-    Active squad IDs
+    Active squads
     """
-    activeSquads: [String!]!
+    activeSquads: [Source!]!
   }
 
   type OpportunityPreviewEdge {
@@ -1281,7 +1283,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const companies = getShowcaseCompanies();
 
       const squads = uniqueifyArray(
-        connection.edges.flatMap(({ node }) => node.activeSquads || []),
+        connection.edges.flatMap(({ node }) =>
+          (node.activeSquads || []).map((squad) => squad.id),
+        ),
       );
 
       return {
