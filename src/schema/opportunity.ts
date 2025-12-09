@@ -469,7 +469,6 @@ export const typeDefs = /* GraphQL */ `
     edges: [OpportunityPreviewEdge!]!
     pageInfo: OpportunityPreviewPageInfo!
     result: OpportunityPreviewResult
-    opportunity: Opportunity
   }
 
   extend type Query {
