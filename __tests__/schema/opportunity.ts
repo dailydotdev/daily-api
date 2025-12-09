@@ -909,6 +909,75 @@ describe('query opportunityMatches', () => {
     });
   });
 
+  it('should include previewUser with additional information', async () => {
+    loggedUser = '1';
+
+    const GET_OPPORTUNITY_MATCHES_WITH_PREVIEW_USER_QUERY = /* GraphQL */ `
+      query GetOpportunityMatchesWithPreviewUser(
+        $opportunityId: ID!
+        $first: Int
+      ) {
+        opportunityMatches(opportunityId: $opportunityId, first: $first) {
+          edges {
+            node {
+              userId
+              status
+              previewUser {
+                id
+                profileImage
+                anonId
+                description
+                openToWork
+                seniority
+                location
+                topTags
+                activeSquads {
+                  id
+                  name
+                  handle
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(
+      GET_OPPORTUNITY_MATCHES_WITH_PREVIEW_USER_QUERY,
+      {
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          first: 10,
+        },
+      },
+    );
+
+    expect(res.errors).toBeFalsy();
+
+    const acceptedMatch = res.data.opportunityMatches.edges.find(
+      (e: { node: { status: string } }) =>
+        e.node.status === 'candidate_accepted',
+    );
+
+    expect(acceptedMatch.node.previewUser).toBeDefined();
+    expect(acceptedMatch.node.previewUser.id).toBe('2');
+    expect(acceptedMatch.node.previewUser.anonId).toBeTruthy();
+    expect(Array.isArray(acceptedMatch.node.previewUser.topTags)).toBe(true);
+    expect(Array.isArray(acceptedMatch.node.previewUser.activeSquads)).toBe(
+      true,
+    );
+    // Verify activeSquads contains Source objects with expected fields
+    if (acceptedMatch.node.previewUser.activeSquads.length > 0) {
+      expect(acceptedMatch.node.previewUser.activeSquads[0]).toHaveProperty(
+        'id',
+      );
+      expect(acceptedMatch.node.previewUser.activeSquads[0]).toHaveProperty(
+        'name',
+      );
+    }
+  });
+
   it('should include screening, feedback, and application rank', async () => {
     loggedUser = '1';
 

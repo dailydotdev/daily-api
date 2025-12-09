@@ -1643,6 +1643,13 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+      previewUser: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserCandidatePreference: {
@@ -1891,18 +1898,23 @@ const obj = new GraphORM({
         },
       },
       activeSquads: {
-        select: (_, alias) => `
-    ARRAY(
-      SELECT sm."sourceId"
-      FROM source_member sm
-      INNER JOIN source s ON s.id = sm."sourceId"
-      WHERE sm."userId" = ${alias}.id
-        AND s.type = '${SourceType.Squad}'
-        AND s.active = true
-      ORDER BY sm."createdAt" DESC
-      LIMIT 5
-    )
-  `,
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                SourceMember,
+                'sm',
+                `sm."sourceId" = "${childAlias}".id`,
+              )
+              .where(`sm."userId" = ${parentAlias}.id`)
+              .andWhere(`"${childAlias}".type = :squadType`, {
+                squadType: SourceType.Squad,
+              })
+              .andWhere(`"${childAlias}".active = true`)
+              .orderBy('sm."createdAt"', 'DESC')
+              .limit(5),
+        },
       },
     },
   },
