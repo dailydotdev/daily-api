@@ -34,6 +34,8 @@ Use background workers when:
 
 ## Worker Types
 
+> **Note**: Only `TypedWorker` and its variants are supported. The legacy `Worker` interface is deprecated and should not be used for new workers.
+
 ### Typed Workers (`TypedWorker`)
 
 **Standard approach** for all new workers. Uses the `PubSubSchema` type system to ensure message structure matches expectations and provides full type safety.
@@ -63,7 +65,7 @@ const worker: TypedWorker<'post-upvoted'> = {
 
 ### Typed Workers with Protobuf
 
-For Protobuf messages (from external services), you need to provide a `parseMessage` function:
+For Protobuf messages (from `@dailydotdev/schema` or external services), you need to provide a `parseMessage` function:
 
 ```typescript
 import { TypedWorker } from './worker';
@@ -108,6 +110,10 @@ const worker: ExperimentWorker = {
   subscription: 'api.experiment-allocated',
   handler: async (message, con, logger, pubsub, experimentAllocationClient) => {
     // experimentAllocationClient available for A/B test tracking
+    
+    // IMPORTANT: Always call waitForSend() before exiting to ensure
+    // allocations are sent to GrowthBook
+    await experimentAllocationClient.waitForSend();
   },
 };
 
@@ -159,24 +165,17 @@ export default worker;
 
 ### Step 3: Register the Worker
 
-Add your worker to `src/workers/index.ts`. There are three worker arrays:
+Add your worker to `src/workers/index.ts`. There are two worker arrays:
 
-1. **`typedWorkers`** - TypedWorker instances (preferred for new workers)
-2. **`workers`** - Legacy Worker instances (still used for CDC and some older workers)
-3. **`personalizedDigestWorkers`** - Separate array for digest workers (run in dedicated process)
+1. **`typedWorkers`** - TypedWorker instances (standard for all workers)
+2. **`personalizedDigestWorkers`** - Separate array for digest workers (run in dedicated process)
 
 ```typescript
 import myNewWorker from './myNewWorker';
 
-// For TypedWorker instances (recommended)
 export const typedWorkers: BaseTypedWorker<any>[] = [
   // ... existing workers
   myNewWorker,
-];
-
-// For legacy Worker instances
-export const workers: Worker[] = [
-  // ... existing workers
 ];
 ```
 
@@ -228,14 +227,13 @@ CDC allows us to react to database changes without distributed transactions. Deb
 ### CDC Worker Example
 
 ```typescript
-import { Worker, messageToJson } from './worker';
-import { ChangeMessage } from '../types';
+import { TypedWorker } from './worker';
 
-const worker: Worker = {
+const worker: TypedWorker<'api.changes'> = {
   subscription: 'api-cdc',
   maxMessages: 20, // Process multiple messages at once
   handler: async (message, con, logger): Promise<void> => {
-    const data: ChangeMessage<any> = messageToJson(message);
+    const { data } = message;
     
     // Skip heartbeat and read operations
     if (
@@ -363,7 +361,7 @@ For critical workers, configure a dead letter queue:
 
 ### Integration Testing
 
-Tests use a real database connection (reset before each test run). Create tests in `__tests__/workers/`:
+Tests use a real database connection (data is cleared after each test run). Create tests in `__tests__/workers/`:
 
 ```typescript
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
@@ -407,7 +405,7 @@ describe('myWorker', () => {
 
 ## Best Practices
 
-1. **Use Typed Workers for New Workers**: Use `TypedWorker` for all new workers. The `Worker` interface is still used for CDC workers and some legacy workers.
+1. **Use Typed Workers**: Use `TypedWorker` for all workers. This ensures type safety and consistency across the codebase.
 2. **Use `triggerTypedEvent`**: Always use `triggerTypedEvent` to publish typed messages. Use the helper functions in `src/common/pubsub.ts` for specific event types.
 3. **Idempotency**: Design workers to handle duplicate messages gracefully
 4. **Logging**: Log with context (messageId, relevant data)
@@ -436,7 +434,7 @@ describe('myWorker', () => {
 
 1. Ensure message type is in `PubSubSchema`
 2. Verify `TypedWorker` generic matches topic name
-3. Check `parseMessage` for Protobuf messages
+3. For Protobuf messages (`@dailydotdev/schema`), ensure `parseMessage` is defined - it's required and the linter will warn if missing
 
 ## Related Documentation
 
