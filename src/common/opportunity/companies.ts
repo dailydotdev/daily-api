@@ -1,5 +1,4 @@
-// Mock company list for opportunity preview
-const MOCK_COMPANIES = [
+const SHOWCASE_COMPANIES = [
   {
     name: 'Microsoft',
     favicon: 'https://www.microsoft.com/',
@@ -202,7 +201,7 @@ const MOCK_COMPANIES = [
   },
 ];
 
-export const getRandomMockCompanies = () => {
-  const shuffled = [...MOCK_COMPANIES].sort(() => Math.random() - 0.5);
+export const getShowcaseCompanies = () => {
+  const shuffled = [...SHOWCASE_COMPANIES].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 6);
 };

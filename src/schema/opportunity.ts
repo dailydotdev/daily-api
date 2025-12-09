@@ -101,7 +101,10 @@ import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
-import { getRandomMockCompanies } from '../common/opportunity/companies';
+import {
+  getRandomMockCompanies,
+  getShowcaseCompanies,
+} from '../common/opportunity/companies';
 
 export interface GQLOpportunity
   extends Pick<
@@ -1160,7 +1163,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLOpportunityPreviewConnection> => {
       const { after, first = 20 } = args;
       const offset = after ? cursorToOffset(after) : 0;
-
       const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
           where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
@@ -1268,8 +1270,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLOpportunityPreviewDetails> => {
       const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
-          // where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
-          where: { id: '89f3daff-d6bb-4652-8f9c-b9f7254c9af1' },
+          select: ['flags'],
+          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
         }),
       );
 
@@ -1299,7 +1301,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const tags = uniqueifyArray(users.flatMap((user) => user.tags || []));
 
-      const companies = getRandomMockCompanies();
+      const companies = getShowcaseCompanies();
 
       const squads = uniqueifyArray(users.flatMap((user) => user.squads || []));
 
