@@ -65,6 +65,7 @@ import {
   opportunityUpdateStateSchema,
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
+  opportunityMatchesQuerySchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -1070,31 +1071,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Not found!');
       }
 
-      // Allowed statuses for this query
-      const allowedStatuses = [
-        OpportunityMatchStatus.CandidateAccepted,
-        OpportunityMatchStatus.RecruiterAccepted,
-        OpportunityMatchStatus.RecruiterRejected,
-      ];
-
-      // Validate status if provided
-      if (args.status && !allowedStatuses.includes(args.status)) {
-        throw new ValidationError(
-          `Invalid status. Allowed values: ${allowedStatuses.join(', ')}`,
-        );
-      }
+      // Validate and parse args using Zod schema
+      const validatedArgs = opportunityMatchesQuerySchema.parse(args);
 
       // First verify the user has access to this opportunity
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
         userId: ctx.userId,
-        opportunityId: args.opportunityId,
+        opportunityId: validatedArgs.opportunityId,
         permission: OpportunityPermissions.UpdateState,
         isTeamMember: ctx.isTeamMember,
       });
 
       // If status is provided, filter by that status; otherwise use all allowed statuses
-      const statusesToFilter = args.status ? [args.status] : allowedStatuses;
+      const statusesToFilter = validatedArgs.status
+        ? [validatedArgs.status]
+        : [
+            OpportunityMatchStatus.CandidateAccepted,
+            OpportunityMatchStatus.RecruiterAccepted,
+            OpportunityMatchStatus.RecruiterRejected,
+          ];
 
       const [connection, totalCount] = await Promise.all([
         queryPaginatedByDate<GQLOpportunityMatch, 'updatedAt', typeof args>(
@@ -1105,7 +1101,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           {
             queryBuilder: (builder) => {
               builder.queryBuilder
-                .where({ opportunityId: args.opportunityId })
+                .where({ opportunityId: validatedArgs.opportunityId })
                 .andWhere(`${builder.alias}.status IN (:...statuses)`, {
                   statuses: statusesToFilter,
                 })
@@ -1130,7 +1126,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         queryReadReplica(ctx.con, ({ queryRunner }) =>
           queryRunner.manager.getRepository(OpportunityMatch).count({
             where: {
-              opportunityId: args.opportunityId,
+              opportunityId: validatedArgs.opportunityId,
               status: In(statusesToFilter),
             },
           }),

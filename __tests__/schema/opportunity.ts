@@ -1128,7 +1128,7 @@ describe('query opportunityMatches', () => {
   it('should reject invalid status values', async () => {
     loggedUser = '1';
 
-    // 'pending' is not an allowed status for this query - validation happens at GraphQL level
+    // 'pending' is not an allowed status for this query
     await testQueryErrorCode(
       client,
       {
@@ -1139,7 +1139,7 @@ describe('query opportunityMatches', () => {
           first: 10,
         },
       },
-      'GRAPHQL_VALIDATION_FAILED',
+      'ZOD_VALIDATION_ERROR',
     );
   });
 
