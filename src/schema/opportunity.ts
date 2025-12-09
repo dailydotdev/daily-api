@@ -1284,7 +1284,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const squads = uniqueifyArray(
         connection.edges.flatMap(({ node }) =>
-          (node.activeSquads || []).map((squad) => squad.id),
+          (node.activeSquads || []).map((squad) => squad),
         ),
       );
 
