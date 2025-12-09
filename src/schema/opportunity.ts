@@ -7,7 +7,6 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
-  Opportunity,
   BrokkrParseRequest,
   OpportunityContent,
   OpportunityState,
@@ -17,6 +16,7 @@ import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
   getBufferFromStream,
   toGQLEnum,
+  uniqueifyArray,
   updateFlagsStatement,
 } from '../common';
 import {
@@ -101,6 +101,8 @@ import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
+import { getShowcaseCompanies } from '../common/opportunity/companies';
+import { Opportunity } from '../entity/opportunities/Opportunity';
 
 export interface GQLOpportunity
   extends Pick<
@@ -159,6 +161,13 @@ export interface GQLOpportunityPreviewEdge {
   cursor: string;
 }
 
+export interface GQLOpportunityPreviewResult {
+  totalCount: number;
+  tags: string[] | null;
+  companies: Array<{ name: string; favicon?: string }> | null;
+  squads: string[] | null;
+}
+
 export interface GQLOpportunityPreviewConnection {
   edges: GQLOpportunityPreviewEdge[];
   pageInfo: {
@@ -166,8 +175,8 @@ export interface GQLOpportunityPreviewConnection {
     hasPreviousPage: boolean;
     startCursor: string | null;
     endCursor: string | null;
-    totalCount?: number;
   };
+  result: GQLOpportunityPreviewResult;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -424,7 +433,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Top tags for the user
     """
-    topTags: [String!]
+    topTags: [String!]!
 
     """
     Recently read badges with tags and issue dates (limit 3)
@@ -434,7 +443,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Active squad IDs
     """
-    activeSquads: [String!]
+    activeSquads: [String!]!
   }
 
   type OpportunityPreviewEdge {
@@ -447,15 +456,20 @@ export const typeDefs = /* GraphQL */ `
     hasPreviousPage: Boolean!
     startCursor: String
     endCursor: String
-    """
-    Total number of candidates matching the opportunity
-    """
+  }
+
+  type OpportunityPreviewResult {
+    tags: [String!]!
+    companies: [OpportunityPreviewCompany!]!
+    squads: [String!]!
     totalCount: Int
   }
 
   type OpportunityPreviewConnection {
     edges: [OpportunityPreviewEdge!]!
     pageInfo: OpportunityPreviewPageInfo!
+    result: OpportunityPreviewResult
+    opportunity: Opportunity
   }
 
   extend type Query {
@@ -1170,13 +1184,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLOpportunityPreviewConnection> => {
       const { after, first = 20 } = args;
       const offset = after ? cursorToOffset(after) : 0;
-
       const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
           where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
           relations: { keywords: true },
         }),
       );
+      const keywords = await opportunity.keywords;
 
       let userIds: string[];
       let totalCount: number;
@@ -1185,7 +1199,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userIds = opportunity.flags.preview.userIds;
         totalCount = opportunity.flags.preview.totalCount;
       } else {
-        const keywords = await opportunity.keywords;
         const validatedPayload = {
           opportunity: {
             title: opportunity.title,
@@ -1262,10 +1275,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           true,
         );
 
+      const tags = uniqueifyArray(
+        connection.edges.flatMap(({ node }) => node.topTags || []),
+      );
+
+      const companies = getShowcaseCompanies();
+
+      const squads = uniqueifyArray(
+        connection.edges.flatMap(({ node }) => node.activeSquads || []),
+      );
+
       return {
         ...connection,
-        pageInfo: {
-          ...connection.pageInfo,
+        result: {
+          tags,
+          companies,
+          squads,
           totalCount,
         },
       };

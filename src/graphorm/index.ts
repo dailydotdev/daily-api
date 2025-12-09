@@ -37,7 +37,6 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
-  getUserTopReadingTags,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
@@ -1841,23 +1840,35 @@ const obj = new GraphORM({
         },
       },
       topTags: {
-        select: () => 'NULL',
-        transform: async (_, ctx, parent) => {
-          const user = parent as User;
-          if (!user.id) {
-            return null;
-          }
-          try {
-            const tags = await getUserTopReadingTags(ctx.con, {
-              userId: user.id,
-              limit: 5,
-              readLimit: 100,
-            });
-            return tags && tags.length > 0 ? tags.map((t) => t.tag) : null;
-          } catch (error) {
-            return null;
-          }
-        },
+        select: (_, alias) => `
+    COALESCE(
+      (
+        SELECT ARRAY(
+          SELECT tag
+          FROM (
+            SELECT
+              pk.keyword AS tag,
+              COUNT(*) AS count
+            FROM (
+              SELECT v."postId"
+              FROM "view" v
+              WHERE v."userId" = ${alias}.id
+                AND v.hidden = false
+              ORDER BY v.timestamp DESC
+              LIMIT 100
+            ) recent_reads
+            JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
+            WHERE pk.status = 'allow'
+              AND pk.keyword != 'general-programming'
+            GROUP BY pk.keyword
+            ORDER BY COUNT(*) DESC
+            LIMIT 5
+          ) top_tags
+        )
+      ),
+      ARRAY[]::text[]
+    )
+  `,
       },
       recentlyRead: {
         select: (_, alias, qb) =>
@@ -1881,17 +1892,17 @@ const obj = new GraphORM({
       },
       activeSquads: {
         select: (_, alias) => `
-          ARRAY(
-            SELECT sm."sourceId"
-            FROM source_member sm
-            INNER JOIN source s ON s.id = sm."sourceId"
-            WHERE sm."userId" = ${alias}.id
-              AND s.type = '${SourceType.Squad}'
-              AND s.active = true
-            ORDER BY sm."createdAt" DESC
-            LIMIT 5
-          )
-        `,
+    ARRAY(
+      SELECT sm."sourceId"
+      FROM source_member sm
+      INNER JOIN source s ON s.id = sm."sourceId"
+      WHERE sm."userId" = ${alias}.id
+        AND s.type = '${SourceType.Squad}'
+        AND s.active = true
+      ORDER BY sm."createdAt" DESC
+      LIMIT 5
+    )
+  `,
       },
     },
   },
