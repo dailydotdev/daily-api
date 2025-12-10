@@ -168,6 +168,7 @@ export interface GQLOpportunityPreviewResult {
   tags: string[] | null;
   companies: Array<{ name: string; favicon?: string }> | null;
   squads: GQLSource[] | null;
+  opportunityId: string;
 }
 
 export interface GQLOpportunityPreviewConnection {
@@ -466,6 +467,7 @@ export const typeDefs = /* GraphQL */ `
     companies: [OpportunityPreviewCompany!]!
     squads: [Source!]!
     totalCount: Int
+    opportunityId: String!
   }
 
   type OpportunityPreviewConnection {
@@ -1297,6 +1299,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           companies,
           squads,
           totalCount,
+          opportunityId: opportunity.id,
         },
       };
     },
