@@ -519,7 +519,10 @@ export const notifyNewPaddleRecruiterTransaction = async ({
       fields: [
         {
           type: 'mrkdwn',
-          text: concatTextToNewline('*Organization:*', organization.name),
+          text: concatTextToNewline(
+            '*Organization:*',
+            organization?.name || 'Unknown',
+          ),
         },
       ],
     },
