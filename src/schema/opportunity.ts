@@ -568,6 +568,11 @@ export const typeDefs = /* GraphQL */ `
       Cursor for pagination
       """
       after: String
+
+      """
+      Opportunity ID
+      """
+      opportunityId: ID
     ): OpportunityPreviewConnection!
   }
 
@@ -1182,18 +1187,41 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ),
     opportunityPreview: async (
       _,
-      args: ConnectionArguments,
+      args: ConnectionArguments & { opportunityId?: string },
       ctx: Context,
       info: GraphQLResolveInfo,
     ): Promise<GQLOpportunityPreviewConnection> => {
       const { after, first = 20 } = args;
       const offset = after ? cursorToOffset(after) : 0;
-      const opportunity = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(OpportunityJob).findOneOrFail({
-          where: { flags: JsonContains({ anonUserId: ctx.trackingId }) },
-          relations: { keywords: true },
-        }),
-      );
+
+      let opportunity: OpportunityJob;
+
+      if (args.opportunityId) {
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId || '',
+          opportunityId: args.opportunityId,
+          permission: OpportunityPermissions.ViewDraft,
+          isTeamMember: ctx.isTeamMember,
+        });
+
+        opportunity = await ctx.con
+          .getRepository(OpportunityJob)
+          .findOneOrFail({
+            where: { id: args.opportunityId },
+            relations: { keywords: true },
+          });
+      } else {
+        opportunity = await ctx.con
+          .getRepository(OpportunityJob)
+          .findOneOrFail({
+            where: {
+              flags: JsonContains({ anonUserId: ctx.trackingId }),
+            },
+            relations: { keywords: true },
+          });
+      }
+
       const keywords = await opportunity.keywords;
 
       let userIds: string[];
