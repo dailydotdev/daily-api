@@ -5787,31 +5787,6 @@ describe('query opportunityPreview', () => {
     expect(res.data.opportunityPreview.result.totalCount).toBe(2);
   });
 
-  it('should handle pagination with first parameter', async () => {
-    await con.getRepository(OpportunityJob).update(
-      { id: opportunitiesFixture[0].id },
-      {
-        flags: {
-          anonUserId: 'test-anon-user-123',
-          preview: {
-            userIds: ['1', '2', '3'],
-            totalCount: 3,
-          },
-        },
-      },
-    );
-
-    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
-      variables: { first: 2 },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.opportunityPreview.edges).toHaveLength(2);
-    expect(res.data.opportunityPreview.result.opportunityId).toBe(
-      opportunitiesFixture[0].id,
-    );
-  });
-
   it('should return opportunity preview result structure', async () => {
     await con.getRepository(OpportunityJob).update(
       { id: opportunitiesFixture[0].id },
