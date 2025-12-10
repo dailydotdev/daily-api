@@ -5715,3 +5715,129 @@ describe('mutation createSharedSlackChannel', () => {
     expect(res.errors).toBeTruthy();
   });
 });
+
+describe('query opportunityPreview', () => {
+  const OPPORTUNITY_PREVIEW_QUERY = /* GraphQL */ `
+    query OpportunityPreview($first: Int, $after: String) {
+      opportunityPreview(first: $first, after: $after) {
+        edges {
+          node {
+            id
+            anonId
+            topTags
+          }
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          startCursor
+          endCursor
+        }
+        result {
+          tags
+          companies {
+            name
+            favicon
+          }
+          squads {
+            id
+            handle
+          }
+          totalCount
+          opportunityId
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    trackingId = 'test-anon-user-123';
+  });
+
+  afterEach(() => {
+    trackingId = undefined;
+  });
+
+  it('should return preview with opportunityId', async () => {
+    // Create an opportunity with cached preview data
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: ['1', '2'],
+            totalCount: 2,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+    expect(res.data.opportunityPreview.result.totalCount).toBe(2);
+  });
+
+  it('should handle pagination with first parameter', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: ['1', '2', '3'],
+            totalCount: 3,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 2 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview.edges).toHaveLength(2);
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+  });
+
+  it('should return opportunity preview result structure', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: ['1'],
+            totalCount: 1,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const result = res.data.opportunityPreview.result;
+    expect(result).toMatchObject({
+      opportunityId: opportunitiesFixture[0].id,
+      totalCount: 1,
+      tags: expect.any(Array),
+      companies: expect.any(Array),
+      squads: expect.any(Array),
+    });
+  });
+});
