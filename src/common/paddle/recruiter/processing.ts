@@ -27,7 +27,7 @@ export const createOpportunitySubscription = async ({
   const data = getPaddleSubscriptionData({ event });
   const con = await createOrGetConnection();
   const { opportunity_id, user_id } = recruiterPaddleCustomDataSchema.parse(
-    data.customData,
+    event.data.customData,
   );
 
   const subscriptionType = extractSubscriptionCycle(
@@ -82,10 +82,9 @@ export const cancelRecruiterSubscription = async ({
 }: {
   event: SubscriptionCanceledEvent;
 }) => {
-  const data = getPaddleSubscriptionData({ event });
   const con = await createOrGetConnection();
   const { opportunity_id, user_id } = recruiterPaddleCustomDataSchema.parse(
-    data.customData,
+    event.data.customData,
   );
 
   const opportunity = await con.getRepository(OpportunityJob).findOneOrFail({
