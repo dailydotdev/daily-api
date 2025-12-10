@@ -2077,8 +2077,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLOpportunity> => {
-      if (ctx.userId) {
-        throw new ForbiddenError('Not available for authenticated users yet');
+      if (!(ctx.userId || ctx.trackingId)) {
+        throw new ValidationError('User identifier is required');
       }
 
       const parseOpportunityPayload =
@@ -2175,6 +2175,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityResult = await ctx.con.transaction(
           async (entityManager) => {
+            const flags: Opportunity['flags'] = {};
+
+            if (!ctx.userId) {
+              flags.anonUserId = ctx.trackingId; // save tracking id to attribute later
+            }
+
             const opportunity = await entityManager
               .getRepository(OpportunityJob)
               .save(
@@ -2182,9 +2188,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                   ...parsedOpportunity,
                   state: OpportunityState.DRAFT,
                   content: opportunityContent,
-                  flags: {
-                    anonUserId: ctx.trackingId, // save tracking id to attribute later
-                  },
+                  flags,
                 } as DeepPartial<OpportunityJob>),
               );
 
@@ -2199,6 +2203,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 keyword: keyword.keyword,
               })),
             );
+
+            if (ctx.userId) {
+              await entityManager
+                .getRepository(OpportunityUserRecruiter)
+                .insert(
+                  entityManager.getRepository(OpportunityUserRecruiter).create({
+                    opportunityId: opportunity.id,
+                    userId: ctx.userId,
+                  }),
+                );
+            }
 
             return opportunity;
           },
