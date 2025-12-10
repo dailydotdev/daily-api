@@ -5818,8 +5818,12 @@ describe('mutation createSharedSlackChannel', () => {
 
 describe('query opportunityPreview', () => {
   const OPPORTUNITY_PREVIEW_QUERY = /* GraphQL */ `
-    query OpportunityPreview($first: Int, $after: String) {
-      opportunityPreview(first: $first, after: $after) {
+    query OpportunityPreview($first: Int, $after: String, $opportunityId: ID) {
+      opportunityPreview(
+        first: $first
+        after: $after
+        opportunityId: $opportunityId
+      ) {
         edges {
           node {
             id
@@ -5914,5 +5918,38 @@ describe('query opportunityPreview', () => {
       companies: expect.any(Array),
       squads: expect.any(Array),
     });
+  });
+
+  it('should return preview based on opportunityId for logged in user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          preview: {
+            userIds: ['1', '2'],
+            totalCount: 2,
+          },
+        },
+      },
+    );
+
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: '1',
+    });
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10, opportunityId: opportunitiesFixture[0].id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+    expect(res.data.opportunityPreview.result.totalCount).toBe(2);
   });
 });
