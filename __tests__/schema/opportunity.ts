@@ -5543,22 +5543,122 @@ describe('mutation parseOpportunity', () => {
     expect(body.errors[0].message).toBe('File type not supported');
   });
 
-  it('should not allow authenticated users to parse opportunity', async () => {
+  it('should parse opportunity for authenticated user', async () => {
     loggedUser = '1';
 
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        payload: {
-          url: 'https://example.com/opportunity',
+    trackingId = 'anon1';
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    expect(body.data.parseOpportunity).toMatchObject({
+      title: 'Mocked Opportunity Title',
+      tldr: 'This is a mocked TL;DR of the opportunity.',
+      keywords: [
+        { keyword: 'mock' },
+        { keyword: 'opportunity' },
+        { keyword: 'test' },
+      ],
+      meta: {
+        employmentType: EmploymentType.FULL_TIME,
+        seniorityLevel: SeniorityLevel.SENIOR,
+        roleType: RoleType.Auto,
+        salary: {
+          min: 1000,
+          max: 2000,
+          period: SalaryPeriod.MONTHLY,
         },
+      },
+      content: {
+        overview: {
+          content: 'This is the overview of the mocked opportunity.',
+          html: '<p>This is the overview of the mocked opportunity.</p>\n',
+        },
+        responsibilities: {
+          content: 'These are the responsibilities of the mocked opportunity.',
+          html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
+        },
+        requirements: {
+          content: 'These are the requirements of the mocked opportunity.',
+          html: '<p>These are the requirements of the mocked opportunity.</p>\n',
+        },
+      },
+      location: [
+        {
+          city: 'San Francisco',
+          country: 'USA',
+          subdivision: 'CA',
+          type: LocationType.REMOTE,
+        },
+      ],
+      questions: [],
+      feedbackQuestions: [
+        {
+          title: 'Why did you reject this opportunity?',
+          placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
+        },
+      ],
+    });
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: body.data.parseOpportunity.id,
       },
     });
 
-    expect(res.errors).toBeDefined();
-    expect(res.errors?.[0].extensions.code).toBe('FORBIDDEN');
-    expect(res.errors?.[0].message).toBe(
-      'Not available for authenticated users yet',
-    );
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.state).toBe(OpportunityState.DRAFT);
+
+    const opportunityRecruiter = await con
+      .getRepository(OpportunityUserRecruiter)
+      .findOne({
+        where: {
+          opportunityId: body.data.parseOpportunity.id,
+          userId: loggedUser,
+        },
+      });
+
+    expect(opportunityRecruiter).toBeDefined();
   });
 });
 
