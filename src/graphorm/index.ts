@@ -66,6 +66,8 @@ import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
 import { snotraClient } from '../integrations/snotra';
+import type { Opportunity } from '../entity/opportunities/Opportunity';
+import { SubscriptionStatus } from '../common/plus';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1574,6 +1576,12 @@ const obj = new GraphORM({
                 feedbackType: QuestionType.Feedback,
               })
               .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
+        },
+      },
+      paid: {
+        select: 'subscriptionFlags',
+        transform: (value: Opportunity['subscriptionFlags']): boolean => {
+          return value?.status === SubscriptionStatus.Active;
         },
       },
     },

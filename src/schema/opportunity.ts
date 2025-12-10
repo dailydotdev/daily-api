@@ -277,6 +277,7 @@ export const typeDefs = /* GraphQL */ `
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
     feedbackQuestions: [OpportunityFeedbackQuestion]!
+    paid: Boolean!
   }
 
   type OpportunityMatchDescription {

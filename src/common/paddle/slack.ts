@@ -13,6 +13,7 @@ import { SubscriptionProvider } from '../plus';
 import { logger } from '../../logger';
 import { Organization } from '../../entity';
 import { JsonContains } from 'typeorm';
+import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 
 export const notifyNewPaddleCoresTransaction = async ({
   data,
@@ -378,6 +379,147 @@ export const notifyNewPaddleOrganizationTransaction = async ({
         {
           type: 'mrkdwn',
           text: concatTextToNewline('*Seats:*', organization.seats.toString()),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost:*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: currencyCode,
+            }).format((parseFloat(total) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency:*', currencyCode),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Cost (local):*',
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: localCurrencyCode,
+            }).format((parseFloat(localTotal) || 0) / 100),
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Currency (local):*', localCurrencyCode),
+        },
+      ],
+    },
+  ];
+
+  await webhooks.transactions.send({ blocks });
+};
+
+export const notifyNewPaddleRecruiterTransaction = async ({
+  event,
+}: {
+  event: TransactionCompletedEvent;
+}) => {
+  const con = await createOrGetConnection();
+
+  const { data } = event;
+  const { customData } = data ?? {};
+
+  const { user_id: purchasedById } = (customData ?? {}) as PaddleCustomData;
+  const opportunity = await con.getRepository(OpportunityJob).findOneOrFail({
+    where: {
+      subscriptionFlags: JsonContains({
+        subscriptionId: data.subscriptionId,
+      }),
+    },
+    relations: {
+      organization: true,
+    },
+  });
+  const flags = opportunity?.subscriptionFlags;
+
+  const origin = data?.origin;
+  const productId = data?.items?.[0].price?.productId;
+
+  const total = data?.items?.[0]?.price?.unitPrice?.amount || '0';
+  const currencyCode =
+    data?.items?.[0]?.price?.unitPrice?.currencyCode || 'USD';
+
+  const localTotal = data?.details?.totals?.total || '0';
+  const localCurrencyCode = data?.currencyCode || 'USD';
+
+  const organization = await opportunity.organization;
+
+  if (origin === 'subscription_recurring') {
+    return;
+  }
+
+  const subscriptionCycle =
+    flags?.cycle || data.billingDetails?.paymentTerms.interval;
+
+  const blocks = [
+    {
+      type: 'header',
+      text: {
+        type: 'plain_text',
+        text: 'New job subscription :tears-of-joy-office: :paddle:',
+        emoji: true,
+      },
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Transaction ID:*',
+            `<https://vendors.paddle.com/transactions-v2/${data.id}|${data.id}>`,
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Customer ID:*',
+            `<https://vendors.paddle.com/customers-v2/${data.customerId}|${data.customerId}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Type:*',
+            `<https://vendors.paddle.com/products-v2/${productId}|${subscriptionCycle}>`,
+          ),
+        },
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline(
+            '*Purchased by:*',
+            `<https://app.daily.dev/${purchasedById}|${purchasedById}>`,
+          ),
+        },
+      ],
+    },
+    {
+      type: 'section',
+      fields: [
+        {
+          type: 'mrkdwn',
+          text: concatTextToNewline('*Organization:*', organization.name),
         },
       ],
     },
