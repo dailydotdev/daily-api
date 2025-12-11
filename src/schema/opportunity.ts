@@ -1285,11 +1285,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userIds = opportunity.flags.preview.userIds;
         totalCount = opportunity.flags.preview.totalCount;
       } else {
+        const opportunityContent: Record<string, unknown> = {};
+
+        // since this is json endpoint we need to make sure all keys are present
+        // even if empty, remove this when we move to protobuf service call
+        Object.keys(new OpportunityContent()).forEach((key) => {
+          const opportunityKey = key as keyof OpportunityContent;
+
+          opportunityContent[opportunityKey] =
+            opportunity.content[opportunityKey] || {};
+        });
+
         const validatedPayload = {
           opportunity: {
             title: opportunity.title,
             tldr: opportunity.tldr,
-            content: opportunity.content,
+            content: opportunityContent,
             meta: opportunity.meta,
             location: opportunity.location,
             state: opportunity.state,
