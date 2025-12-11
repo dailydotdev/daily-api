@@ -1120,19 +1120,24 @@ describe('query feedByIds', () => {
     );
   });
 
-  it('should not authorize when no user is not team member', async () => {
+  it('should not authorize when no user is not team member and more then 10 post ids', async () => {
     loggedUser = '1';
     await testQueryErrorCode(
       client,
       {
         query: QUERY,
-        variables: { first: 10, postIds: ['p1', 'p2'] },
+        variables: {
+          first: 10,
+          postIds: Array(11)
+            .fill(undefined)
+            .map((_, index) => `p${index + 1}`),
+        },
       },
       'FORBIDDEN',
     );
   });
 
-  it('should return feed by ids for team member', async () => {
+  it('should return feed by ids', async () => {
     loggedUser = '1';
     state = await initializeGraphQLTesting(
       (req) => new MockContext(con, loggedUser, [], req, true),
