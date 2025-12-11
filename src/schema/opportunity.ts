@@ -1344,7 +1344,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             },
           );
 
-          userIds = gondulResult.userIds;
+          userIds = gondulResult.userIds.slice(0, 20);
           totalCount = gondulResult.totalCount;
         } catch (error) {
           throw error;
