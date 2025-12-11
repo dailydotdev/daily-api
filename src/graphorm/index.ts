@@ -1578,10 +1578,12 @@ const obj = new GraphORM({
               .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
         },
       },
-      paid: {
+      subscriptionStatus: {
         select: 'subscriptionFlags',
-        transform: (value: Opportunity['subscriptionFlags']): boolean => {
-          return value?.status === SubscriptionStatus.Active;
+        transform: (
+          value: Opportunity['subscriptionFlags'],
+        ): SubscriptionStatus => {
+          return value?.status || SubscriptionStatus.None;
         },
       },
     },
