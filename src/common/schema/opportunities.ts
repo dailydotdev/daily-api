@@ -4,6 +4,8 @@ import { organizationLinksSchema } from './organizations';
 import { fileUploadSchema, urlParseSchema } from './common';
 import { parseBigInt } from '../utils';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
+import { SubscriptionCycles } from '../../paddle';
+import { SubscriptionProvider, SubscriptionStatus } from '../plus/subscription';
 
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
@@ -269,3 +271,27 @@ export const opportunityMatchesQuerySchema = z.object({
   after: z.string().optional(),
   first: z.number().optional(),
 });
+
+export const opportunitySubscriptionFlagsSchema = z
+  .object({
+    subscriptionId: z.string({
+      error: 'Subscription ID is required',
+    }),
+    priceId: z.string({
+      error: 'Price ID is required',
+    }),
+    cycle: z
+      .enum(SubscriptionCycles, {
+        error: 'Invalid subscription cycle',
+      })
+      .nullish(),
+    createdAt: z.preprocess((value) => new Date(value as string), z.date()),
+    updatedAt: z.preprocess((value) => new Date(value as string), z.date()),
+    provider: z.enum(SubscriptionProvider, {
+      error: 'Invalid subscription provider',
+    }),
+    status: z.enum(SubscriptionStatus, {
+      error: 'Invalid subscription status',
+    }),
+  })
+  .partial();

@@ -10,7 +10,7 @@
     "feature": "cores_pricing_ids",
     "variant": "cores_default",
     "createdAt": "2025-04-23T11:45:36.548Z",
-    "value": "[{\"title\":\"100 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q5nezsvh8nz900e0amxzz\",\"ios\":\"cores_100\"},\"coresValue\":100},{\"title\":\"300 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q6er5mnsz8sw29bb2j4n4\",\"ios\":\"cores_300\"},\"coresValue\":300},{\"title\":\"600 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q71dgtxzsv89ht75zhffj\",\"ios\":\"cores_600\"},\"coresValue\":600},{\"title\":\"1,200 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q7v1ndyc5j01q6q2vq0e2\",\"ios\":\"cores_1200\"},\"coresValue\":1200},{\"title\":\"2,400 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q864c61s876jdvhpcav7c\",\"ios\":\"cores_2400\"},\"coresValue\":2400},{\"title\":\"5,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q8h90cnr475ebb2bppqsd\",\"ios\":\"cores_5000\"},\"coresValue\":5000},{\"title\":\"8,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q8vn7mhxcztxcbrksqq97\",\"ios\":\"cores_8000\"},\"coresValue\":8000},{\"title\":\"12,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q9dq16epxasg025crpqt1\",\"ios\":\"cores_12000\"},\"coresValue\":12000},{\"title\":\"25,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q9xyg7apk8wn7jh5a7tye\",\"ios\":\"cores_25000\"},\"coresValue\":25000}]",  
+    "value": "[{\"title\":\"100 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q5nezsvh8nz900e0amxzz\",\"ios\":\"cores_100\"},\"coresValue\":100},{\"title\":\"300 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q6er5mnsz8sw29bb2j4n4\",\"ios\":\"cores_300\"},\"coresValue\":300},{\"title\":\"600 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q71dgtxzsv89ht75zhffj\",\"ios\":\"cores_600\"},\"coresValue\":600},{\"title\":\"1,200 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q7v1ndyc5j01q6q2vq0e2\",\"ios\":\"cores_1200\"},\"coresValue\":1200},{\"title\":\"2,400 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q864c61s876jdvhpcav7c\",\"ios\":\"cores_2400\"},\"coresValue\":2400},{\"title\":\"5,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q8h90cnr475ebb2bppqsd\",\"ios\":\"cores_5000\"},\"coresValue\":5000},{\"title\":\"8,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q8vn7mhxcztxcbrksqq97\",\"ios\":\"cores_8000\"},\"coresValue\":8000},{\"title\":\"12,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q9dq16epxasg025crpqt1\",\"ios\":\"cores_12000\"},\"coresValue\":12000},{\"title\":\"25,000 Cores\",\"idMap\":{\"paddle\":\"pri_01jp2q9xyg7apk8wn7jh5a7tye\",\"ios\":\"cores_25000\"},\"coresValue\":25000}]",
     "type": "productPricing"
   },
   {
@@ -18,6 +18,13 @@
     "variant": "organization_default",
     "createdAt": "2025-04-08T10:41:57.489Z",
     "value": "[{\"appsId\":\"annual\",\"title\":\"Annual\",\"caption\":{\"copy\":\"Save 25%\",\"color\":\"success\"},\"idMap\":{\"paddle\":\"pri_01jvm26zgvd5djwd0wjzz9np4s\"}},{\"appsId\":\"monthly\",\"title\":\"Monthly\",\"idMap\":{\"paddle\":\"pri_01jvm24pryx74g1pq0tn6bvamb\"}}]",
+    "type": "productPricing"
+  },
+  {
+    "feature": "recruiter_pricing_ids",
+    "variant": "recruiter_default",
+    "createdAt": "2025-12-10T13:45:08.395Z",
+    "value": "[{\"title\":\"Job Slot (Starter Tier)\",\"appsId\":\"\",\"idMap\":{\"paddle\":\"pri_01kbq0p5g7qw8zb1e8esf7qjw2\",\"ios\":\"\"}},{\"title\":\"Job Slot (Boost Tier)\",\"appsId\":\"\",\"idMap\":{\"paddle\":\"pri_01kbq0pv4mxbar7qt1nzs694r1\",\"ios\":\"\"}}]",
     "type": "productPricing"
   }
 ]
