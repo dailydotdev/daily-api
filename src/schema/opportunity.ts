@@ -1108,7 +1108,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {
           queryBuilder: (builder) => {
             if (args?.state) {
-              builder.queryBuilder.where({ state: args.state });
+              const validatedInput = z
+                .object({ state: z.enum(OpportunityState).nullish() })
+                .parse(args);
+              builder.queryBuilder.where({ state: validatedInput.state });
             }
             if (!ctx.isTeamMember) {
               builder.queryBuilder
@@ -1298,7 +1301,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           const gondulClient = getGondulClient();
           const gondulResult = await gondulClient.garmr.execute(async () => {
             const response = await fetch(
-              `${process.env.GONDUL_ORIGIN}/preview`,
+              `${process.env.GONDUL_ORIGIN}/api/v1/opportunity/preview`,
               {
                 method: 'POST',
                 headers: {
