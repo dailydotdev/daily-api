@@ -1092,9 +1092,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ) => {
-      // Default to LIVE opportunities if no state is provided
-      const opportunityState = args.state ?? OpportunityState.LIVE;
-
       if (!ctx.userId) {
         throw new NotFoundError('Not found!');
       }
@@ -1110,8 +1107,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         { key: 'createdAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder.where({ state: opportunityState });
-
             if (!ctx.isTeamMember) {
               builder.queryBuilder
                 .innerJoin(
