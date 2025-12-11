@@ -1583,7 +1583,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         builder.limit(limit).offset(offset),
       {
         fetchQueryParams: async (ctx, { postIds }): Promise<void> => {
-          // limit to 50 for non-team members, eg. for brief
+          // limit for non-team members, eg. for brief
           if (postIds.length > briefingPostIdsMaxItems) {
             if (!ctx.isTeamMember) {
               throw new ForbiddenError(
