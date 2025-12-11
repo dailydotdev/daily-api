@@ -67,6 +67,7 @@ import {
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
+  gondulOpportunityPreviewResultSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -1284,11 +1285,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userIds = opportunity.flags.preview.userIds;
         totalCount = opportunity.flags.preview.totalCount;
       } else {
+        const opportunityContent: Record<string, unknown> = {};
+
+        // since this is json endpoint we need to make sure all keys are present
+        // even if empty, remove this when we move to protobuf service call
+        Object.keys(new OpportunityContent()).forEach((key) => {
+          const opportunityKey = key as keyof OpportunityContent;
+
+          opportunityContent[opportunityKey] =
+            opportunity.content[opportunityKey] || {};
+        });
+
         const validatedPayload = {
           opportunity: {
             title: opportunity.title,
             tldr: opportunity.tldr,
-            content: opportunity.content,
+            content: opportunityContent,
             meta: opportunity.meta,
             location: opportunity.location,
             state: opportunity.state,
@@ -1314,7 +1326,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             if (!response.ok) {
               throw new Error('Failed to fetch opportunity preview');
             }
-            return await response.json();
+            const { user_ids, total_count } =
+              gondulOpportunityPreviewResultSchema.parse(await response.json());
+
+            return {
+              userIds: user_ids,
+              totalCount: total_count,
+            };
           });
 
           await ctx.con.getRepository(OpportunityJob).update(
