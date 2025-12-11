@@ -1396,48 +1396,51 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         isTeamMember: ctx.isTeamMember,
       });
 
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(OpportunityMatch)
+          .createQueryBuilder('match')
+          .select('COUNT(*)', 'reached')
+          .addSelect(
+            `COUNT(CASE WHEN match.status != :pending THEN 1 END)`,
+            'considered',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateRejected THEN 1 END)`,
+            'decided',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateAccepted THEN 1 END)`,
+            'forReview',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :recruiterAccepted THEN 1 END)`,
+            'introduced',
+          )
+          .where('match.opportunityId = :opportunityId', { opportunityId })
+          .setParameter('pending', OpportunityMatchStatus.Pending)
+          .setParameter(
+            'candidateRejected',
+            OpportunityMatchStatus.CandidateRejected,
+          )
+          .setParameter(
+            'candidateAccepted',
+            OpportunityMatchStatus.CandidateAccepted,
+          )
+          .setParameter(
+            'recruiterAccepted',
+            OpportunityMatchStatus.RecruiterAccepted,
+          )
+          .getRawOne<{
+            reached: string;
+            considered: string;
+            decided: string;
+            forReview: string;
+            introduced: string;
+          }>(),
+      );
+
       // Get counts per status using SQL aggregation
-      const result = await ctx.con
-        .getRepository(OpportunityMatch)
-        .createQueryBuilder('match')
-        .select('COUNT(*)', 'reached')
-        .addSelect(
-          `COUNT(CASE WHEN match.status != :pending THEN 1 END)`,
-          'considered',
-        )
-        .addSelect(
-          `COUNT(CASE WHEN match.status = :candidateRejected THEN 1 END)`,
-          'decided',
-        )
-        .addSelect(
-          `COUNT(CASE WHEN match.status = :candidateAccepted THEN 1 END)`,
-          'forReview',
-        )
-        .addSelect(
-          `COUNT(CASE WHEN match.status = :recruiterAccepted THEN 1 END)`,
-          'introduced',
-        )
-        .where('match.opportunityId = :opportunityId', { opportunityId })
-        .setParameter('pending', OpportunityMatchStatus.Pending)
-        .setParameter(
-          'candidateRejected',
-          OpportunityMatchStatus.CandidateRejected,
-        )
-        .setParameter(
-          'candidateAccepted',
-          OpportunityMatchStatus.CandidateAccepted,
-        )
-        .setParameter(
-          'recruiterAccepted',
-          OpportunityMatchStatus.RecruiterAccepted,
-        )
-        .getRawOne<{
-          reached: string;
-          considered: string;
-          decided: string;
-          forReview: string;
-          introduced: string;
-        }>();
 
       return {
         matched: 12_000, // Mock value as requested
