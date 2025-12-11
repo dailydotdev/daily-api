@@ -1107,6 +1107,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         { key: 'createdAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
+            if (args?.state) {
+              builder.queryBuilder.where({ state: args?.state });
+            }
             if (!ctx.isTeamMember) {
               builder.queryBuilder
                 .innerJoin(
