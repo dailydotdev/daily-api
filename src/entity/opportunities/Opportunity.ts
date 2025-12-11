@@ -19,6 +19,8 @@ import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
 import type { QuestionFeedback } from '../questions/QuestionFeedback';
+import type { opportunitySubscriptionFlagsSchema } from '../../common/schema/opportunities';
+import type z from 'zod';
 
 export type OpportunityFlags = Partial<{
   anonUserId: string | null;
@@ -104,4 +106,7 @@ export class Opportunity {
 
   @Column({ type: 'jsonb', default: {} })
   flags: OpportunityFlags;
+
+  @Column({ type: 'jsonb', default: {} })
+  subscriptionFlags: z.infer<typeof opportunitySubscriptionFlagsSchema>;
 }
