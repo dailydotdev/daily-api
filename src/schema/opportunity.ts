@@ -1093,9 +1093,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ) => {
-      // Default to LIVE opportunities if no state is provided
-      const opportunityState = args.state ?? OpportunityState.LIVE;
-
       if (!ctx.userId) {
         throw new NotFoundError('Not found!');
       }
@@ -1111,8 +1108,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         { key: 'createdAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder.where({ state: opportunityState });
-
+            if (args?.state) {
+              const validatedInput = z
+                .object({ state: z.enum(OpportunityState).nullish() })
+                .parse(args);
+              builder.queryBuilder.where({ state: validatedInput.state });
+            }
             if (!ctx.isTeamMember) {
               builder.queryBuilder
                 .innerJoin(
@@ -1301,7 +1302,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           const gondulClient = getGondulClient();
           const gondulResult = await gondulClient.garmr.execute(async () => {
             const response = await fetch(
-              `${process.env.GONDUL_ORIGIN}/preview`,
+              `${process.env.GONDUL_ORIGIN}/api/v1/opportunity/preview`,
               {
                 method: 'POST',
                 headers: {
