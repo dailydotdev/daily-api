@@ -67,6 +67,7 @@ import {
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
+  gondulOpportunityPreviewResultSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -1314,7 +1315,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             if (!response.ok) {
               throw new Error('Failed to fetch opportunity preview');
             }
-            return await response.json();
+            const { user_ids, total_count } =
+              gondulOpportunityPreviewResultSchema.parse(await response.json());
+
+            return {
+              userIds: user_ids,
+              totalCount: total_count,
+            };
           });
 
           await ctx.con.getRepository(OpportunityJob).update(

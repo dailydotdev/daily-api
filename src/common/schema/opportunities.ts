@@ -295,3 +295,8 @@ export const opportunitySubscriptionFlagsSchema = z
     }),
   })
   .partial();
+
+export const gondulOpportunityPreviewResultSchema = z.object({
+  user_ids: z.array(z.string()),
+  total_count: z.number().int().nonnegative(),
+});
