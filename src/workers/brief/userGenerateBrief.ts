@@ -3,7 +3,11 @@ import { markdown } from '../../common/markdown';
 import { BriefPost } from '../../entity/posts/BriefPost';
 import type { TypedWorker } from '../worker';
 import { triggerTypedEvent } from '../../common/typedPubsub';
-import { Briefing, BriefingSection } from '@dailydotdev/schema';
+import {
+  Briefing,
+  BriefingSection,
+  type BriefingItem,
+} from '@dailydotdev/schema';
 import { updateFlagsStatement } from '../../common';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import {
@@ -17,6 +21,26 @@ import { getPostVisible, parseReadTime } from '../../entity/posts/utils';
 import { UserActionType } from '../../entity/user/UserAction';
 import { Not } from 'typeorm';
 
+const generateItemLinkMarkdown = ({ item }: { item: BriefingItem }): string => {
+  if (!item.postIds.length) {
+    return '';
+  }
+
+  const readMoreUrl = new URL(process.env.COMMENTS_PREFIX);
+
+  if (item.postIds.length === 1) {
+    readMoreUrl.pathname = `/posts/${item.postIds[0]}`;
+  } else {
+    readMoreUrl.pathname = '/feed-by-ids';
+
+    item.postIds.slice(0, briefingPostIdsMaxItems).forEach((postId) => {
+      readMoreUrl.searchParams.append('id', postId);
+    });
+  }
+
+  return ` [Read more](${readMoreUrl.toString()})`;
+};
+
 const generateMarkdown = (data: Briefing): string => {
   let markdown = '';
 
@@ -25,18 +49,7 @@ const generateMarkdown = (data: Briefing): string => {
       markdown += `## ${section.title}\n\n`;
 
       for (const item of section.items) {
-        const readMoreUrl = new URL(
-          `${process.env.COMMENTS_PREFIX}/feed-by-ids`,
-        );
-        const hasPostIds = item.postIds && item.postIds.length > 0;
-
-        if (hasPostIds) {
-          item.postIds.slice(0, briefingPostIdsMaxItems).forEach((postId) => {
-            readMoreUrl.searchParams.append('id', postId);
-          });
-        }
-
-        markdown += `- **${item.title}**: ${item.body}${hasPostIds ? ` [Read more](${readMoreUrl.toString()})` : ''}\n`;
+        markdown += `- **${item.title}**: ${item.body}${generateItemLinkMarkdown({ item })}\n`;
       }
 
       markdown += '\n';

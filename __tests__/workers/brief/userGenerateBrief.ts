@@ -678,6 +678,11 @@ describe('userGenerateBrief worker', () => {
                   'post-14',
                 ],
               },
+              {
+                title: 'AI lied again',
+                body: 'Enough said...',
+                postIds: ['post-1'],
+              },
             ],
           },
         ],
@@ -716,7 +721,8 @@ describe('userGenerateBrief worker', () => {
 ## Good to know
 
 - **AI agents are still pretty dumb, and dangerous**: Salesforce's CRMArena-Pro benchmark found AI agents only 58% successful on single tasks and 35% on multi-step CRM tasks, often mishandling sensitive data due to poor confidentiality awareness.
-- **Threads gets Fediverse feed**: Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date. [Read more](http://localhost:5002/feed-by-ids?id=post-4&id=post-5&id=post-6&id=post-7&id=post-8&id=post-9&id=post-10&id=post-11&id=post-12&id=post-13)`);
+- **Threads gets Fediverse feed**: Meta's Threads now offers a dedicated opt-in feed for ActivityPub content and improved profile search for Fediverse users, marking its most prominent integration with the open social web to date. [Read more](http://localhost:5002/feed-by-ids?id=post-4&id=post-5&id=post-6&id=post-7&id=post-8&id=post-9&id=post-10&id=post-11&id=post-12&id=post-13)
+- **AI lied again**: Enough said... [Read more](http://localhost:5002/posts/post-1)`);
 
     expect(triggerTypedEvent).toHaveBeenCalledWith(
       expect.anything(),
