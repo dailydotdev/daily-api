@@ -22,7 +22,7 @@ import { UserActionType } from '../../entity/user/UserAction';
 import { Not } from 'typeorm';
 
 const generateItemLinkMarkdown = ({ item }: { item: BriefingItem }): string => {
-  if (!item.postIds.length) {
+  if (!item.postIds?.length) {
     return '';
   }
 
