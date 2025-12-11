@@ -182,6 +182,15 @@ export interface GQLOpportunityPreviewConnection {
   result: GQLOpportunityPreviewResult;
 }
 
+export interface GQLOpportunityStats {
+  matched: number;
+  reached: number;
+  considered: number;
+  decided: number;
+  forReview: number;
+  introduced: number;
+}
+
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
   ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
@@ -477,6 +486,38 @@ export const typeDefs = /* GraphQL */ `
     result: OpportunityPreviewResult
   }
 
+  type OpportunityStats {
+    """
+    Mock value for matched candidates
+    """
+    matched: Int!
+
+    """
+    Total count of all matches regardless of status
+    """
+    reached: Int!
+
+    """
+    Count of matches that are not pending (all statuses except pending)
+    """
+    considered: Int!
+
+    """
+    Count of candidate_rejected matches
+    """
+    decided: Int!
+
+    """
+    Count of candidate_accepted matches
+    """
+    forReview: Int!
+
+    """
+    Count of recruiter_accepted matches
+    """
+    introduced: Int!
+  }
+
   extend type Query {
     """
     Get the public information about a Opportunity listing
@@ -575,6 +616,16 @@ export const typeDefs = /* GraphQL */ `
       """
       opportunityId: ID
     ): OpportunityPreviewConnection!
+
+    """
+    Get statistics for an opportunity's matches
+    """
+    opportunityStats(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+    ): OpportunityStats! @auth
   }
 
   input SalaryExpectationInput {
@@ -1330,6 +1381,75 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           totalCount,
           opportunityId: opportunity.id,
         },
+      };
+    },
+    opportunityStats: async (
+      _,
+      { opportunityId }: { opportunityId: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunityStats> => {
+      // Verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(OpportunityMatch)
+          .createQueryBuilder('match')
+          .select('COUNT(*)', 'reached')
+          .addSelect(
+            `COUNT(CASE WHEN match.status != :pending THEN 1 END)`,
+            'considered',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateRejected THEN 1 END)`,
+            'decided',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateAccepted THEN 1 END)`,
+            'forReview',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :recruiterAccepted THEN 1 END)`,
+            'introduced',
+          )
+          .where('match.opportunityId = :opportunityId', { opportunityId })
+          .setParameter('pending', OpportunityMatchStatus.Pending)
+          .setParameter(
+            'candidateRejected',
+            OpportunityMatchStatus.CandidateRejected,
+          )
+          .setParameter(
+            'candidateAccepted',
+            OpportunityMatchStatus.CandidateAccepted,
+          )
+          .setParameter(
+            'recruiterAccepted',
+            OpportunityMatchStatus.RecruiterAccepted,
+          )
+          .getRawOne<{
+            reached: string;
+            considered: string;
+            decided: string;
+            forReview: string;
+            introduced: string;
+          }>(),
+      );
+
+      // Get counts per status using SQL aggregation
+
+      return {
+        matched: 12_000, // Mock value as requested
+        reached: parseInt(result?.reached || '0', 10),
+        considered: parseInt(result?.considered || '0', 10),
+        decided: parseInt(result?.decided || '0', 10),
+        forReview: parseInt(result?.forReview || '0', 10),
+        introduced: parseInt(result?.introduced || '0', 10),
       };
     },
   },
