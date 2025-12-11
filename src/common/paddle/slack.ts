@@ -436,7 +436,11 @@ export const notifyNewPaddleRecruiterTransaction = async ({
   const { customData } = data ?? {};
 
   const { user_id: purchasedById } = (customData ?? {}) as PaddleCustomData;
-  const opportunity = await con.getRepository(OpportunityJob).findOneOrFail({
+  const opportunity: Pick<
+    OpportunityJob,
+    'subscriptionFlags' | 'organization'
+  > = await con.getRepository(OpportunityJob).findOneOrFail({
+    select: ['id', 'subscriptionFlags', 'organization', 'organizationId'],
     where: {
       subscriptionFlags: JsonContains({
         subscriptionId: data.subscriptionId,

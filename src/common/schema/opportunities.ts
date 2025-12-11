@@ -285,10 +285,8 @@ export const opportunitySubscriptionFlagsSchema = z
         error: 'Invalid subscription cycle',
       })
       .nullish(),
-    createdAt: z.preprocess(
-      (value) => new Date(value as string),
-      z.date().optional(),
-    ),
+    createdAt: z.preprocess((value) => new Date(value as string), z.date()),
+    updatedAt: z.preprocess((value) => new Date(value as string), z.date()),
     provider: z.enum(SubscriptionProvider, {
       error: 'Invalid subscription provider',
     }),

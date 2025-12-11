@@ -47,11 +47,14 @@ export const createOpportunitySubscription = async ({
     return false;
   }
 
-  const opportunity = await con.getRepository(OpportunityJob).findOneOrFail({
-    where: {
-      id: opportunity_id,
-    },
-  });
+  const opportunity: Pick<OpportunityJob, 'id'> = await con
+    .getRepository(OpportunityJob)
+    .findOneOrFail({
+      select: ['id'],
+      where: {
+        id: opportunity_id,
+      },
+    });
 
   await ensureOpportunityPermissions({
     con: con.manager,
@@ -67,7 +70,8 @@ export const createOpportunitySubscription = async ({
     {
       subscriptionFlags: updateSubscriptionFlags<OpportunityJob>({
         cycle: subscriptionType,
-        createdAt: data.startedAt ?? undefined,
+        createdAt: data.startedAt ?? new Date(),
+        updatedAt: new Date(),
         subscriptionId: data.id,
         priceId: data.items[0].price.id,
         provider: SubscriptionProvider.Paddle,
@@ -87,11 +91,14 @@ export const cancelRecruiterSubscription = async ({
     event.data.customData,
   );
 
-  const opportunity = await con.getRepository(OpportunityJob).findOneOrFail({
-    where: {
-      id: opportunity_id,
-    },
-  });
+  const opportunity: Pick<OpportunityJob, 'id'> = await con
+    .getRepository(OpportunityJob)
+    .findOneOrFail({
+      select: ['id'],
+      where: {
+        id: opportunity_id,
+      },
+    });
 
   await ensureOpportunityPermissions({
     con: con.manager,
@@ -100,9 +107,10 @@ export const cancelRecruiterSubscription = async ({
     permission: OpportunityPermissions.Edit,
   });
 
-  const subscriptionFlags = {
+  const subscriptionFlags: OpportunityJob['subscriptionFlags'] = {
     cycle: null,
     status: SubscriptionStatus.Expired,
+    updatedAt: new Date(),
   };
 
   con.getRepository(OpportunityJob).update(
