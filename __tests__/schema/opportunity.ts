@@ -5953,3 +5953,47 @@ describe('query opportunityPreview', () => {
     expect(res.data.opportunityPreview.result.totalCount).toBe(2);
   });
 });
+
+describe('query opportunityStats', () => {
+  const OPPORTUNITY_STATS_QUERY = /* GraphQL */ `
+    query OpportunityStats($opportunityId: ID!) {
+      opportunityStats(opportunityId: $opportunityId) {
+        matched
+        reached
+        considered
+        decided
+        forReview
+        introduced
+      }
+    }
+  `;
+
+  it('should return stats for opportunity with multiple match statuses', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(OPPORTUNITY_STATS_QUERY, {
+      variables: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityStats).toEqual({
+      matched: 12_000, // Mock value
+      reached: 4, // Total: pending(1), candidate_accepted(1), recruiter_accepted(1), recruiter_rejected(1)
+      considered: 3, // All except pending
+      decided: 0, // No candidate_rejected in fixture
+      forReview: 1, // candidate_accepted
+      introduced: 1, // recruiter_accepted
+    });
+  });
+
+  it('should deny access if user is not a recruiter for the opportunity', async () => {
+    loggedUser = '3'; // User 3 is not a recruiter for opportunity 0
+
+    const res = await client.query(OPPORTUNITY_STATS_QUERY, {
+      variables: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toBe('FORBIDDEN');
+  });
+});
