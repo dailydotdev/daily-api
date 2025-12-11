@@ -8,6 +8,7 @@ import { updateFlagsStatement } from '../../common';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import {
   briefFeedClient,
+  briefingPostIdsMaxItems,
   getUserConfigForBriefingRequest,
 } from '../../common/brief';
 import { queryReadReplica } from '../../common/queryReadReplica';
@@ -24,7 +25,18 @@ const generateMarkdown = (data: Briefing): string => {
       markdown += `## ${section.title}\n\n`;
 
       for (const item of section.items) {
-        markdown += `- **${item.title}**: ${item.body}\n`;
+        const readMoreUrl = new URL(
+          `${process.env.COMMENTS_PREFIX}/feed-by-ids`,
+        );
+        const hasPostIds = item.postIds && item.postIds.length > 0;
+
+        if (hasPostIds) {
+          item.postIds.slice(0, briefingPostIdsMaxItems).forEach((postId) => {
+            readMoreUrl.searchParams.append('id', postId);
+          });
+        }
+
+        markdown += `- **${item.title}**: ${item.body}${hasPostIds ? ` [Read more](${readMoreUrl.toString()})` : ''}\n`;
       }
 
       markdown += '\n';
