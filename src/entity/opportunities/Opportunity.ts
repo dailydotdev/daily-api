@@ -21,7 +21,6 @@ import type { QuestionScreening } from '../questions/QuestionScreening';
 import type { QuestionFeedback } from '../questions/QuestionFeedback';
 import type { opportunitySubscriptionFlagsSchema } from '../../common/schema/opportunities';
 import type z from 'zod';
-import { KeywordFlags } from '../Keyword';
 
 export type OpportunityFlags = Partial<{
   anonUserId: string | null;
