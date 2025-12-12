@@ -317,3 +317,5 @@ export type TLocation = {
 export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
 
 export const acceptedOpportunityExtensions = acceptedResumeExtensions;
+
+export const opportunityMatchBatchSize = 50;

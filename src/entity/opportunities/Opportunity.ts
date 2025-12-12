@@ -28,7 +28,10 @@ export type OpportunityFlags = Partial<{
     userIds: string[];
     totalCount: number;
   };
+  batchSize: number;
 }>;
+
+export type OpportunityFlagsPublic = Pick<OpportunityFlags, 'batchSize'>;
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })

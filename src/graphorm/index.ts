@@ -42,7 +42,12 @@ import {
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { type ContentLanguage, type I18nRecord, UserVote } from '../types';
+import {
+  type ContentLanguage,
+  type I18nRecord,
+  opportunityMatchBatchSize,
+  UserVote,
+} from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -66,7 +71,10 @@ import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
 import { snotraClient } from '../integrations/snotra';
-import type { Opportunity } from '../entity/opportunities/Opportunity';
+import type {
+  Opportunity,
+  OpportunityFlagsPublic,
+} from '../entity/opportunities/Opportunity';
 import { SubscriptionStatus } from '../common/plus';
 
 const existsByUserAndPost =
@@ -1584,6 +1592,14 @@ const obj = new GraphORM({
           value: Opportunity['subscriptionFlags'],
         ): SubscriptionStatus => {
           return value?.status || SubscriptionStatus.None;
+        },
+      },
+      flags: {
+        jsonType: true,
+        transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
+          return {
+            batchSize: value?.batchSize ?? opportunityMatchBatchSize,
+          };
         },
       },
     },

@@ -96,7 +96,10 @@ import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
 import { slackClient } from '../common/slack';
 import { fileTypeFromBuffer } from 'file-type';
-import { acceptedOpportunityFileTypes } from '../types';
+import {
+  acceptedOpportunityFileTypes,
+  opportunityMatchBatchSize,
+} from '../types';
 import { getBrokkrClient } from '../common/brokkr';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
@@ -110,7 +113,14 @@ import type { GQLSource } from './sources';
 export interface GQLOpportunity
   extends Pick<
     Opportunity,
-    'id' | 'type' | 'state' | 'title' | 'tldr' | 'content' | 'keywords'
+    | 'id'
+    | 'type'
+    | 'state'
+    | 'title'
+    | 'tldr'
+    | 'content'
+    | 'keywords'
+    | 'flags'
   > {
   createdAt: Date;
   updatedAt: Date;
@@ -273,6 +283,13 @@ export const typeDefs = /* GraphQL */ `
     edges: [OpportunityEdge!]!
   }
 
+  """
+  Flags for the opportunity
+  """
+  type OpportunityFlagsPublic {
+    batchSize: Int
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -288,6 +305,7 @@ export const typeDefs = /* GraphQL */ `
     questions: [OpportunityScreeningQuestion]!
     feedbackQuestions: [OpportunityFeedbackQuestion]!
     subscriptionStatus: SubscriptionStatus!
+    flags: OpportunityFlagsPublic
   }
 
   type OpportunityMatchDescription {
@@ -2348,6 +2366,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             if (!ctx.userId) {
               flags.anonUserId = ctx.trackingId; // save tracking id to attribute later
             }
+
+            flags.batchSize = opportunityMatchBatchSize;
 
             const opportunity = await entityManager
               .getRepository(OpportunityJob)
