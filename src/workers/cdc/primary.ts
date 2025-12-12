@@ -165,6 +165,7 @@ import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
 import { enrichCompanyForExperience } from '../../common/companyEnrichment';
+import { Company } from '../../entity/Company';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1206,6 +1207,29 @@ const onUserCompanyCompanyChange = async (
     await con
       .getRepository(UserExperienceWork)
       .update({ userId, companyId: companyId! }, { verified: true });
+
+    // Link experiences that have matching customCompanyName but no companyId yet
+    const company = await con
+      .getRepository(Company)
+      .findOneBy({ id: companyId! });
+    if (company) {
+      const companyNames = [company.name.toLowerCase()];
+      if (company.altName) {
+        companyNames.push(company.altName.toLowerCase());
+      }
+
+      await con
+        .getRepository(UserExperience)
+        .createQueryBuilder()
+        .update()
+        .set({ companyId: companyId! })
+        .where('userId = :userId', { userId })
+        .andWhere('companyId IS NULL')
+        .andWhere('LOWER("customCompanyName") IN (:...companyNames)', {
+          companyNames,
+        })
+        .execute();
+    }
   }
 };
 
