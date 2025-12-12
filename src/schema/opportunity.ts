@@ -96,7 +96,10 @@ import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
 import { slackClient } from '../common/slack';
 import { fileTypeFromBuffer } from 'file-type';
-import { acceptedOpportunityFileTypes } from '../types';
+import {
+  acceptedOpportunityFileTypes,
+  opportunityMatchBatchSize,
+} from '../types';
 import { getBrokkrClient } from '../common/brokkr';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
@@ -2364,7 +2367,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               flags.anonUserId = ctx.trackingId; // save tracking id to attribute later
             }
 
-            flags.batchSize = 50;
+            flags.batchSize = opportunityMatchBatchSize;
 
             const opportunity = await entityManager
               .getRepository(OpportunityJob)

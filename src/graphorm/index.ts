@@ -42,7 +42,12 @@ import {
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { type ContentLanguage, type I18nRecord, UserVote } from '../types';
+import {
+  type ContentLanguage,
+  type I18nRecord,
+  opportunityMatchBatchSize,
+  UserVote,
+} from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -1593,7 +1598,7 @@ const obj = new GraphORM({
         jsonType: true,
         transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
           return {
-            batchSize: value?.batchSize ?? 50,
+            batchSize: value?.batchSize ?? opportunityMatchBatchSize,
           };
         },
       },
