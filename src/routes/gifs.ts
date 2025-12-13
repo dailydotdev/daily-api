@@ -31,7 +31,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       const params = new URLSearchParams({
-        q: encodeURIComponent(q),
+        q: q,
         key: process.env.TENOR_API_KEY!,
         limit: limit.toString(),
       });
