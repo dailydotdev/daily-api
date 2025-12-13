@@ -8,8 +8,15 @@ import {
 
 type TenorGif = {
   id: string;
-  media: Array<{ gif?: { url: string }; mediumgif?: { url: string } }>;
-  content_description?: string;
+  title: string;
+  media_formats: Record<string, unknown>;
+  content_description: string;
+  url: string;
+};
+
+type TenorResponse = {
+  results: TenorGif[];
+  next?: string;
 };
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
@@ -35,31 +42,36 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       const tenorRes = await fetch(
-        `https://g.tenor.com/v1/search?${params.toString()}`,
+        `https://tenor.googleapis.com/v2/search?${params.toString()}`,
       );
 
-      const tenorJson = await tenorRes.json();
+      const tenorJson = (await tenorRes.json()) as TenorResponse;
 
-      const gifs: Gif[] = (tenorJson.results ?? []).map((item: TenorGif) => ({
-        id: item.id,
-        url: item.media[0]?.gif?.url || '',
-        preview: item.media[0]?.mediumgif?.url || '',
-        title: item.content_description || '',
-      }));
+      const gifs: Gif[] = tenorJson.results.map((item: TenorGif) => {
+        const mediaFormats = item.media_formats as Record<
+          string,
+          { url?: string }
+        >;
+        return {
+          id: item.id,
+          url: mediaFormats.gif?.url || '',
+          preview: mediaFormats.mediumgif?.url || mediaFormats.gif?.url || '',
+          title: item.content_description || item.title || '',
+        };
+      });
 
       return res.send({
         gifs,
-        next: tenorJson.next, // Pass through Tenor's pagination token
+        next: tenorJson.next,
       });
     } catch (error) {
-      console.error('Error fetching gifs:', error);
       return res.status(500).send({ error: 'Failed to fetch gifs' });
     }
   });
   fastify.post('/favorite', async (req, res) => {
     try {
       const con = await createOrGetConnection();
-      console.log('--- req user id', req.userId);
+
       const existingFavorites = await con
         .getRepository(UserIntegrationGif)
         .findOne({
@@ -104,7 +116,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
       return res.send({ favorites: gifs });
     } catch (e) {
-      console.error('*** favorite err', e);
       return res.status(500).send({ error: 'Failed to favorite gif' });
     }
   });
