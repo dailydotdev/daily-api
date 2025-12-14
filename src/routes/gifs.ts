@@ -5,19 +5,8 @@ import {
   UserIntegrationType,
   type Gif,
 } from '../entity/UserIntegration';
+import { tenorClient } from '../integrations/tenor';
 
-type TenorGif = {
-  id: string;
-  title: string;
-  media_formats: Record<string, unknown>;
-  content_description: string;
-  url: string;
-};
-
-type TenorResponse = {
-  results: TenorGif[];
-  next?: string;
-};
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
     try {
@@ -26,45 +15,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const limit = parseInt(query.limit ?? '10', 10);
       const pos = query.pos;
 
-      if (!q) {
-        return res.send({ gifs: [], next: undefined });
-      }
+      const result = await tenorClient.search({ q, limit, pos });
 
-      const params = new URLSearchParams({
-        q: q,
-        key: process.env.TENOR_API_KEY!,
-        limit: limit.toString(),
-      });
-
-      if (pos) {
-        params.append('pos', pos);
-      }
-
-      const tenorRes = await fetch(
-        `https://tenor.googleapis.com/v2/search?${params.toString()}`,
-      );
-
-      const tenorJson = (await tenorRes.json()) as TenorResponse;
-
-      const gifs: Gif[] = tenorJson.results.map((item: TenorGif) => {
-        const mediaFormats = item.media_formats as Record<
-          string,
-          { url?: string }
-        >;
-        return {
-          id: item.id,
-          url: mediaFormats.gif?.url || '',
-          preview: mediaFormats.mediumgif?.url || mediaFormats.gif?.url || '',
-          title: item.content_description || item.title || '',
-        };
-      });
-
-      return res.send({
-        gifs,
-        next: tenorJson.next,
-      });
-    } catch (error) {
-      return res.status(500).send({ error: 'Failed to fetch gifs' });
+      return res.send(result);
+    } catch {
+      return res.send({ gifs: [], next: undefined });
     }
   });
   fastify.post('/favorite', async (req, res) => {
@@ -117,8 +72,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       return res.send({ gifs });
-    } catch (e) {
-      return res.status(500).send({ error: 'Failed to toggle favorite gif' });
+    } catch {
+      return res.send({ gifs: [] });
     }
   });
   fastify.get('/favorites', async (req, res) => {
@@ -141,8 +96,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       });
 
       return res.send({ gifs: favorites });
-    } catch (e) {
-      return res.status(500).send({ error: 'Failed to fetch favorite gifs' });
+    } catch {
+      return res.send({ gifs: [] });
     }
   });
 }
