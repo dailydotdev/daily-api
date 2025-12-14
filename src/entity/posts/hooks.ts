@@ -123,9 +123,10 @@ export const generateContentHash = (content: string): string => {
 /**
  * Generate deduplication key based on post type and content
  */
-export const generateDeduplicationKey = (
+export const generateDeduplicationKey = async (
   post: DeepPartial<Post>,
-): string | undefined => {
+  con: DataSource | EntityManager,
+): Promise<string | undefined> => {
   if (!post.type || ![PostType.Share, PostType.Freeform].includes(post.type)) {
     return undefined;
   }
@@ -135,7 +136,17 @@ export const generateDeduplicationKey = (
     post.type === PostType.Share &&
     (post as DeepPartial<SharePost>).sharedPostId
   ) {
-    return (post as DeepPartial<SharePost>).sharedPostId;
+    const sharedPost = await con.getRepository(Post).findOne({
+      where: {
+        id: (post as DeepPartial<SharePost>).sharedPostId,
+      },
+      select: ['flags'],
+    });
+
+    return (
+      sharedPost?.flags.dedupKey ||
+      (post as DeepPartial<SharePost>).sharedPostId
+    );
   }
 
   // For freeform posts, generate hash from content or title
@@ -169,8 +180,9 @@ export const generateDeduplicationKey = (
  */
 export const applyDeduplicationHook = async <T extends DeepPartial<Post>>(
   post: T,
+  con: DataSource | EntityManager,
 ): Promise<T> => {
-  const dedupKey = generateDeduplicationKey(post);
+  const dedupKey = await generateDeduplicationKey(post, con);
   if (dedupKey) {
     return {
       ...post,
@@ -193,9 +205,13 @@ export const applyDeduplicationHookForUpdate = async <
 >(
   post: T,
   existingPost: DeepPartial<Post>,
+  con: DataSource | EntityManager,
 ): Promise<T> => {
-  const dedupKey = generateDeduplicationKey({ ...existingPost, ...post });
-  if (dedupKey) {
+  const dedupKey = await generateDeduplicationKey(
+    { ...existingPost, ...post },
+    con,
+  );
+  if (dedupKey !== undefined) {
     return {
       ...post,
       flags: {
