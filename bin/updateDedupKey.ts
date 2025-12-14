@@ -37,7 +37,7 @@ const main = async () => {
     for (const post of posts) {
       try {
         // Apply deduplication hook to generate dedup key
-        const updatedPost = await applyDeduplicationHook(post);
+        const updatedPost = await applyDeduplicationHook(post, con);
 
         // Check if dedup key was generated
         if (
