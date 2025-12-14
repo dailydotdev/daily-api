@@ -23,12 +23,12 @@ import type {
   SubscriptionProvider,
   SubscriptionStatus,
 } from '../../common/plus';
-import type { UserJobPreferences } from './UserJobPreferences';
 import type { UserExperience } from './experiences/UserExperience';
 import type { NotificationPreferenceStatus } from '../../notifications/common';
 import type { UserCandidatePreference } from './UserCandidatePreference';
 import type { UserCandidateKeyword } from './UserCandidateKeyword';
 import type { UserCandidateAnswer } from './UserCandidateAnswer';
+import type { DatasetLocation } from '../dataset/DatasetLocation';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -44,6 +44,7 @@ export type UserFlags = Partial<{
     lng: number | null | undefined;
   };
   subdivision: string | null;
+  lastCVParseAt: Date | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
@@ -308,15 +309,6 @@ export class User {
   @Column({ type: 'boolean', default: true })
   awardNotifications: boolean;
 
-  @OneToOne(
-    'UserJobPreferences',
-    (preferences: UserJobPreferences) => preferences.user,
-    {
-      onDelete: 'CASCADE',
-    },
-  )
-  jobPreferences: Promise<UserJobPreferences>;
-
   @OneToMany(
     'UserExperience',
     (experience: UserExperience) => experience.user,
@@ -349,4 +341,19 @@ export class User {
     { lazy: true },
   )
   candidateAnswers: Promise<UserCandidateAnswer[]>;
+
+  @Column({ type: 'text', default: null })
+  locationId: string | null;
+
+  @Index('IDX_user_hideExperience')
+  @Column({ type: 'boolean', default: false })
+  hideExperience: boolean;
+
+  @ManyToOne('DatasetLocation', { lazy: true })
+  @JoinColumn({
+    name: 'locationId',
+    foreignKeyConstraintName: 'FK_user_locationId',
+  })
+  @Index('IDX_user_locationId')
+  location: Promise<DatasetLocation>;
 }

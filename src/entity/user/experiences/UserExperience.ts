@@ -1,64 +1,110 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
-  JoinTable,
-  ManyToMany,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   TableInheritance,
+  UpdateDateColumn,
 } from 'typeorm';
 import type { User } from '../User';
-import type { UserSkill } from '../UserSkill';
-import { ExperienceStatus, UserExperienceType } from './types';
+import { UserExperienceType } from './types';
+import type { Company } from '../../Company';
+import { LocationType } from '@dailydotdev/schema';
+import type { DatasetLocation } from '../../dataset/DatasetLocation';
+import type { UserExperienceSkill } from './UserExperienceSkill';
+
+export type UserExperienceFlags = Partial<{
+  import: string;
+}>;
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
 export class UserExperience {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryGeneratedColumn('uuid', {
+    primaryKeyConstraintName: 'PK_user_experience_id',
+  })
   id: string;
 
   @Column()
+  @Index('IDX_user_experience_userId')
   userId: string;
 
-  @ManyToOne('User', (user: User) => user.experiences, {
-    onDelete: 'CASCADE',
-  })
-  @JoinColumn({ name: 'userId' })
+  @ManyToOne('User', { lazy: true, onDelete: 'CASCADE' })
+  @JoinColumn({ foreignKeyConstraintName: 'FK_user_experience_user_userId' })
   user: Promise<User>;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  customCompanyName: string | null;
+
+  @Column({ nullable: true, default: null })
+  companyId: string | null;
+
+  @ManyToOne('Company', { lazy: true, onDelete: 'CASCADE' })
+  @JoinColumn({
+    foreignKeyConstraintName: 'FK_user_experience_company_companyId',
+  })
+  company: Promise<Company>;
 
   @Column({ type: 'text' })
   title: string;
 
-  @Column({ type: 'text', default: '' })
-  description: string;
+  @Column({ type: 'text', nullable: true })
+  subtitle: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
 
   @Column({ type: 'timestamp' })
-  startDate: Date;
+  startedAt: Date;
 
   @Column({ type: 'timestamp', nullable: true })
-  endDate: Date;
+  endedAt: Date | null;
 
-  @Column({
-    type: 'text',
-    nullable: false,
-  })
+  @Column({ type: 'text', nullable: false })
+  @Index('IDX_user_experience_type')
   type: UserExperienceType;
 
-  @Column({
-    type: 'text',
-    default: ExperienceStatus.Draft,
-  })
-  status: ExperienceStatus;
+  @Column({ type: 'text', default: null })
+  locationId: string | null;
 
   @Column({ type: 'jsonb', default: {} })
-  flags: Record<string, unknown>;
+  customLocation: Partial<{
+    city: string | null;
+    subdivision: string | null;
+    country: string | null;
+  }>;
 
-  @ManyToMany('UserSkill', (skill: UserSkill) => skill.experiences)
-  @JoinTable({
-    name: 'user_experience_skills',
-    joinColumn: { name: 'experienceId', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'skillSlug', referencedColumnName: 'slug' },
+  @ManyToOne('DatasetLocation', { lazy: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'locationId',
+    foreignKeyConstraintName: 'FK_user_experience_dataset_location_locationId',
   })
-  skills: Promise<UserSkill[]>;
+  location: Promise<DatasetLocation>;
+
+  @Column({
+    type: 'integer',
+    comment: 'LocationType from protobuf schema',
+    default: null,
+  })
+  locationType: LocationType | null;
+
+  @CreateDateColumn({ type: 'timestamp' })
+  createdAt: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  updatedAt: Date;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: UserExperienceFlags;
+
+  @OneToMany(
+    'UserExperienceSkill',
+    (skill: UserExperienceSkill) => skill.experience,
+    { lazy: true },
+  )
+  skills: Promise<UserExperienceSkill[]>;
 }

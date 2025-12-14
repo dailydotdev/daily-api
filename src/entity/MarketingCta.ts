@@ -12,6 +12,14 @@ export type MarketingCtaFlags = {
   ctaText: string;
 };
 
+export const defaultMarketingCtaTargets = {
+  webapp: true,
+  extension: true,
+  ios: true,
+};
+
+export type MarketingCtaTargets = typeof defaultMarketingCtaTargets;
+
 export enum MarketingCtaStatus {
   Active = 'active',
   Inactive = 'inactive',
@@ -34,4 +42,7 @@ export class MarketingCta {
 
   @Column({ type: 'jsonb', default: {} })
   flags: MarketingCtaFlags;
+
+  @Column({ type: 'jsonb', default: defaultMarketingCtaTargets })
+  targets: MarketingCtaTargets = defaultMarketingCtaTargets;
 }

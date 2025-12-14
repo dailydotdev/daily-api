@@ -51,6 +51,7 @@ const { serviceAccount } = createServiceAccountAndGrantRoles(
     { name: 'objUser', role: 'roles/storage.objectUser' },
     { name: 'bigqueryJobUser', role: 'roles/bigquery.jobUser' },
     { name: 'bigqueryDataViwer', role: 'roles/bigquery.dataViewer' },
+    { name: 'tokenCreator', role: 'roles/iam.serviceAccountTokenCreator' },
   ],
   isAdhocEnv,
 );
@@ -152,16 +153,16 @@ if (isPersonalizedDigestEnabled) {
 
 const memory = 860;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '600m',
-  memory: '620Mi',
+  cpu: '500m',
+  memory: '575Mi',
 };
 const apiLimits: pulumi.Input<{ memory: string }> = {
   memory: `${memory}Mi`,
 };
 
-const wsMemory = 1280;
+const wsMemory = 1600;
 const wsRequests: pulumi.Input<{ cpu: string; memory: string }> = {
-  cpu: '300m',
+  cpu: '75m',
   memory: '800Mi',
 };
 const wsLimits: pulumi.Input<{
@@ -176,10 +177,10 @@ const bgRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   memory: '256Mi',
 };
 
-const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '320Mi' };
+const temporalLimits: pulumi.Input<{ memory: string }> = { memory: '560Mi' };
 const temporalRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '10m',
-  memory: '256Mi',
+  memory: '280Mi',
 };
 
 const initialDelaySeconds = 20;
@@ -225,6 +226,10 @@ if (!isAdhocEnv) {
   });
 
   podAnnotations['gke-gcsfuse/volumes'] = 'true';
+  podAnnotations['gke-gcsfuse/cpu-request'] = '10m';
+  podAnnotations['gke-gcsfuse/memory-request'] = '32Mi';
+  podAnnotations['gke-gcsfuse/cpu-limit'] = '0';
+  podAnnotations['gke-gcsfuse/memory-limit'] = '0';
 }
 
 const jwtEnv = [
@@ -340,7 +345,7 @@ if (isAdhocEnv) {
       requests: apiRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
+      metric: { type: 'memory_cpu', cpu: 120, memory: 130 },
       createService: true,
       enableCdn: true,
       disableLifecycle: true,
@@ -365,21 +370,21 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
-        {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
-        },
         ...commonEnv,
         ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-ws`,
+        },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
-      minReplicas: 3,
+      minReplicas: 2,
       maxReplicas: 10,
       limits: wsLimits,
       requests: wsRequests,
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 85, memory: 130 },
+      metric: { type: 'memory_cpu', cpu: 150, memory: 150 },
       disableLifecycle: true,
       spot: { enabled: true },
       podAnnotations: podAnnotations,
@@ -387,9 +392,16 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      env: [...commonEnv, ...jwtEnv],
+      env: [
+        ...commonEnv,
+        ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-bg`,
+        },
+      ],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
-      minReplicas: 3,
+      minReplicas: 2,
       maxReplicas: 10,
       limits: bgLimits,
       requests: bgRequests,
@@ -415,7 +427,7 @@ if (isAdhocEnv) {
       maxReplicas: 3,
       limits: temporalLimits,
       requests: temporalRequests,
-      metric: { type: 'memory_cpu', cpu: 80, memory: 130 },
+      metric: { type: 'memory_cpu', cpu: 200, memory: 130 },
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
@@ -429,19 +441,23 @@ if (isAdhocEnv) {
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
         ...commonEnv,
         ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-private`,
+        },
       ],
-      minReplicas: 2,
-      maxReplicas: 2,
+      minReplicas: 1,
+      maxReplicas: 4,
       requests: {
-        memory: '450Mi',
+        memory: '350Mi',
         cpu: '10m',
       },
       limits: {
-        memory: '510Mi',
+        memory: '700Mi',
       },
       readinessProbe,
       livenessProbe,
-      metric: { type: 'memory_cpu', cpu: 85 },
+      metric: { type: 'memory_cpu', cpu: 200, memory: 150 },
       createService: true,
       serviceType: 'ClusterIP',
       disableLifecycle: true,
@@ -453,15 +469,19 @@ if (isAdhocEnv) {
   if (isPersonalizedDigestEnabled) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
-      env: [...commonEnv, ...jwtEnv],
+      env: [
+        ...commonEnv,
+        ...jwtEnv,
+        {
+          name: 'SERVICE_NAME',
+          value: `${envVars.serviceName as string}-personalized-digest`,
+        },
+      ],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
-      maxReplicas: 2,
+      maxReplicas: 4,
+      requests: { cpu: '50m', memory: '256Mi' },
       limits: { memory: '1Gi' },
-      requests: {
-        cpu: '200m',
-        memory: '512Mi',
-      },
       metric: {
         type: 'pubsub',
         labels: {
@@ -470,10 +490,7 @@ if (isAdhocEnv) {
         },
         targetAverageValue: 100_000,
       },
-      spot: {
-        enabled: true,
-        weight: 70,
-      },
+      spot: { enabled: true },
       podAnnotations: podAnnotations,
       ...vols,
     });
@@ -488,12 +505,12 @@ const migrations: ApplicationSuiteArgs['migrations'] = {
     args: isAdhocEnv
       ? ['npm', 'run', 'db:migrate:latest']
       : [
-        'node',
-        './node_modules/typeorm/cli.js',
-        'migration:run',
-        '-d',
-        'src/data-source.js',
-      ],
+          'node',
+          './node_modules/typeorm/cli.js',
+          'migration:run',
+          '-d',
+          'src/data-source.js',
+        ],
   },
 };
 
@@ -531,10 +548,12 @@ const [apps] = deployApplicationSuite(
           value: 'true',
         },
       ],
-      // TODO: split limit and request
+      requests: {
+        cpu: '50m',
+        memory: '450Mi'
+      },
       limits: {
-        cpu: '100m',
-        memory: '800Mi',
+        memory: '900Mi',
       },
     },
     additionalSecrets: [
@@ -552,25 +571,24 @@ const [apps] = deployApplicationSuite(
           'key.pem': Buffer.from(temporalCert.key).toString('base64'),
         },
       },
-      ...additionalSecrets
+      ...additionalSecrets,
     ],
     apps: appsArgs,
     crons: isAdhocEnv
       ? []
       : crons.map((cron) => ({
-        nameSuffix: cron.name,
-        args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
-        schedule: cron.schedule,
-        limits: cron.limits ?? bgLimits,
-        requests: cron.requests ?? bgRequests,
-        activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
-        spot: {
-          enabled: true,
-          weight: 70,
-        },
-        podAnnotations: podAnnotations,
-        ...vols,
-      })),
+          nameSuffix: cron.name,
+          args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
+          schedule: cron.schedule,
+          limits: cron.limits ?? bgLimits,
+          requests: cron.requests ?? bgRequests,
+          activeDeadlineSeconds: cron.activeDeadlineSeconds ?? 300,
+          spot: {
+            enabled: true,
+          },
+          podAnnotations: podAnnotations,
+          ...vols,
+        })),
     isAdhocEnv,
     dependsOn,
   },
@@ -730,13 +748,11 @@ if (!isAdhocEnv) {
         tag: '6b73adea1357df3e755dfc083c3a89bd2ccc348b',
       },
       resources: {
-        // TODO: adjust resources based on the actual usage
         requests: {
-          cpu: '1',
-          memory: '2048Mi',
+          cpu: '50m',
+          memory: '512Mi',
         },
         limits: {
-          // 4GiB
           memory: '4096Mi',
         },
       },

@@ -48,6 +48,9 @@ export class OpportunityMatch {
   @Column({ type: 'jsonb', default: '[]' })
   screening: Array<Screening>;
 
+  @Column({ type: 'jsonb', default: '[]' })
+  feedback: Array<Screening>;
+
   @Column({ type: 'jsonb', default: '{}' })
   applicationRank: z.infer<typeof applicationScoreSchema>;
 

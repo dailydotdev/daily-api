@@ -85,6 +85,7 @@ import { ContentPreferenceSource } from '../entity/contentPreference/ContentPref
 import { randomUUID } from 'crypto';
 import { SourceMemberRoles } from '../roles';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
+import { briefingPostIdsMaxItems } from '../common/brief';
 
 interface GQLTagsCategory {
   id: string;
@@ -1581,11 +1582,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
       {
-        fetchQueryParams: async (ctx): Promise<void> => {
-          if (!ctx.isTeamMember) {
-            throw new ForbiddenError(
-              'Access denied! You need to be authorized to perform this action!',
-            );
+        fetchQueryParams: async (ctx, { postIds }): Promise<void> => {
+          // limit for non-team members, eg. for brief
+          if (postIds.length > briefingPostIdsMaxItems) {
+            if (!ctx.isTeamMember) {
+              throw new ForbiddenError(
+                'Access denied! You need to be authorized to perform this action!',
+              );
+            }
           }
         },
       },

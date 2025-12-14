@@ -37,6 +37,8 @@ export const CORES_FEATURE_KEY = 'cores_pricing_ids';
 export const DEFAULT_CORES_METADATA = 'cores_default';
 export const ORGANIZATION_FEATURE_KEY = 'organization_pricing_ids';
 export const DEFAULT_ORGANIZATION_METADATA = 'organization_default';
+export const RECRUITER_FEATURE_KEY = 'recruiter_pricing_ids';
+export const DEFAULT_RECRUITER_METADATA = 'recruiter_default';
 
 export interface BasePricingMetadata {
   appsId: string;
@@ -119,16 +121,24 @@ export const getCoresPricingMetadata = async ({
 }: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
   getPaddleMetadata({ con, feature: CORES_FEATURE_KEY, variant });
 
+export const getRecruiterPricingMetadata = async ({
+  con,
+  variant,
+}: Omit<GetMetadataProps, 'feature'>): Promise<BasePricingMetadata[]> =>
+  getPaddleMetadata({ con, feature: RECRUITER_FEATURE_KEY, variant });
+
 const featureKey: Record<PurchaseType, string> = {
   [PurchaseType.Plus]: PLUS_FEATURE_KEY,
   [PurchaseType.Organization]: ORGANIZATION_FEATURE_KEY,
   [PurchaseType.Cores]: CORES_FEATURE_KEY,
+  [PurchaseType.Recruiter]: RECRUITER_FEATURE_KEY,
 };
 
 const defaultVariant: Record<PurchaseType, string> = {
   [PurchaseType.Plus]: DEFAULT_PLUS_METADATA,
   [PurchaseType.Organization]: DEFAULT_ORGANIZATION_METADATA,
   [PurchaseType.Cores]: DEFAULT_CORES_METADATA,
+  [PurchaseType.Recruiter]: DEFAULT_RECRUITER_METADATA,
 };
 
 export const getPricingDuration = (
@@ -168,6 +178,8 @@ export const getPricingMetadata = async (
       return getPlusOrganizationPricingMetadata({ con, variant });
     case PurchaseType.Cores:
       return getCoresPricingMetadata({ con, variant });
+    case PurchaseType.Recruiter:
+      return getRecruiterPricingMetadata({ con, variant });
     default:
       throw new Error('Invalid pricing type');
   }

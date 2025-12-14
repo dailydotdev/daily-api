@@ -58,6 +58,7 @@ import {
   endOfYear,
   subYears,
 } from 'date-fns';
+import { logger } from '../logger';
 
 type GQLSearchSession = Pick<SearchSession, 'id' | 'prompt' | 'createdAt'>;
 
@@ -563,6 +564,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ? mimirSearchRes.result.map((id) => id.postId)
         : ['nosuchid'];
 
+      logger.info({ mimirSearchRes, searchReq }, 'mimir search result');
       const res = await mimirSearchResolver(
         source,
         {

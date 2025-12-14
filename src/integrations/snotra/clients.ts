@@ -1,29 +1,55 @@
-import { ISnotraClient, UserStatePayload, UserStateResponse } from './types';
 import { RequestInit } from 'node-fetch';
+import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { retryFetchParse } from '../retry';
+import { ISnotraClient, ProfileRequest, ProfileResponse } from './types';
 
 export class SnotraClient implements ISnotraClient {
-  private readonly url: string;
   private readonly fetchOptions: RequestInit;
+  private readonly garmr: IGarmrService;
 
   constructor(
-    url = process.env.SNOTRA_ORIGIN,
-    fetchOptions: RequestInit = globalFetchOptions,
+    private readonly url: string,
+    options?: {
+      fetchOptions?: RequestInit;
+      garmr?: IGarmrService;
+    },
   ) {
-    this.url = url;
+    const {
+      fetchOptions = globalFetchOptions,
+      garmr = new GarmrNoopService(),
+    } = options || {};
+
     this.fetchOptions = fetchOptions;
+    this.garmr = garmr;
   }
 
-  fetchUserState(payload: UserStatePayload): Promise<UserStateResponse> {
-    return retryFetchParse(
-      `${this.url}/api/v1/user/profile`,
-      {
-        ...this.fetchOptions,
-        method: 'POST',
-        body: JSON.stringify(payload),
-      },
-      { retries: 5 },
-    );
+  getProfile(request: ProfileRequest): Promise<ProfileResponse> {
+    return this.garmr.execute(() => {
+      return retryFetchParse<ProfileResponse>(
+        `${this.url}/api/v1/memstore/profile`,
+        {
+          ...this.fetchOptions,
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(request),
+        },
+      );
+    });
   }
 }
+
+const garmrSnotraService = new GarmrService({
+  service: SnotraClient.name,
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
+});
+
+export const snotraClient = new SnotraClient(process.env.SNOTRA_ORIGIN!, {
+  garmr: garmrSnotraService,
+});

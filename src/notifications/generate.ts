@@ -33,6 +33,7 @@ import {
   type NotificationPostAnalyticsContext,
   type NotificationWarmIntroContext,
   type NotificationStreakRestoreContext,
+  type NotificationParsedCVProfileContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -196,7 +197,7 @@ export const notificationTitleMap: Record<
   new_user_welcome: systemTitle,
   announcements: systemTitle,
   in_app_purchases: systemTitle,
-  new_opportunity_match: () => `New opportunity waiting for you`,
+  new_opportunity_match: () => `New job match waiting for you`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
   },
@@ -206,6 +207,13 @@ export const notificationTitleMap: Record<
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>
     `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
+  parsed_cv_profile: (ctx: NotificationParsedCVProfileContext) => {
+    if (ctx.status === 'success') {
+      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!`;
+    }
+
+    return `We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
+  },
 };
 
 export const generateNotificationMap: Record<
@@ -583,7 +591,7 @@ export const generateNotificationMap: Record<
     ctx: NotificationWarmIntroContext,
   ) => {
     return builder
-      .targetUrl('system')
+      .targetUrl(process.env.COMMENTS_PREFIX)
       .referenceOpportunity(ctx.opportunityId)
       .uniqueKey(ctx.userIds[0])
       .icon(NotificationIcon.Opportunity)
@@ -592,5 +600,16 @@ export const generateNotificationMap: Record<
       .description(
         `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
       );
+  },
+  parsed_cv_profile: (
+    builder: NotificationBuilder,
+    ctx: NotificationUserContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceUser(ctx.user)
+      .avatarUser(ctx.user)
+      .targetUser(ctx.user)
+      .uniqueKey(new Date().toISOString());
   },
 };

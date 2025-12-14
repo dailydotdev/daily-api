@@ -2,16 +2,28 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   PrimaryColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
+/*
+  CompanyType.Company looks awkward today
+  but this is supposed to be for Organization entity which will have Company and School as types
+  We will eventually deprecate this table and move to Organization entity
+*/
 export enum CompanyType {
-  Business = 'business',
+  Company = 'company',
   School = 'school',
 }
 
 @Entity()
+@Index('IDX_company_name_trgm', { synchronize: false })
+@Index('IDX_company_name_lower', { synchronize: false })
+@Index('IDX_company_name_slugify', { synchronize: false })
+@Index('IDX_company_altName_trgm', { synchronize: false })
+@Index('IDX_company_altName_lower', { synchronize: false })
+@Index('IDX_company_altName_slugify', { synchronize: false })
 export class Company {
   @PrimaryColumn({ type: 'text' })
   id: string;
@@ -33,7 +45,14 @@ export class Company {
 
   @Column({
     type: 'text',
-    default: CompanyType.Business,
+    nullable: true,
+    default: null,
   })
-  type = CompanyType.Business;
+  altName: string | null;
+
+  @Column({
+    type: 'text',
+    default: CompanyType.Company,
+  })
+  type = CompanyType.Company;
 }

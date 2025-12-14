@@ -1043,6 +1043,7 @@ export const typeDefs = /* GraphQL */ `
     shares: Int!
     reachAds: Int!
     impressionsAds: Int!
+    clicks: Int!
   }
 
   type PostAnalyticsPublic {

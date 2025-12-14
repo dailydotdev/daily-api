@@ -15,9 +15,22 @@ import {
 } from '../entity/user/utils';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { kvasir } from './private/kvasir';
-import snotra from './private/snotra';
 import rpc from './private/rpc';
 import { connectRpcPlugin } from '../common/connectRpc';
+import { Opportunity } from '../entity/opportunities/Opportunity';
+import { opportunityCreateSchema } from '../common/schema/opportunities';
+import { markdown } from '../common/markdown';
+import {
+  OpportunityContent,
+  OpportunityState,
+  OpportunityType,
+  type OpportunityMeta,
+} from '@dailydotdev/schema';
+import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
+import { OpportunityKeyword } from '../entity/OpportunityKeyword';
+import { logger } from '../logger';
+import { claimAnonOpportunities } from '../common/opportunity/user';
+import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 
 interface SearchUsername {
   search: string;
@@ -45,6 +58,25 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     await addClaimableItemsToUser(con, body);
 
+    if (body.id && operationResult.status === 'ok') {
+      const opportunities = await claimAnonOpportunities({
+        anonUserId: body.id,
+        userId: operationResult.userId,
+        con: con.manager,
+      });
+
+      if (opportunities.length > 0) {
+        logger.info(
+          {
+            anonUserId: body.id,
+            userId: operationResult.userId,
+            opportunities,
+          },
+          'Claimed anon opportunities for new user',
+        );
+      }
+    }
+
     return res.status(200).send(operationResult);
   });
   fastify.post<{ Body: UpdateUserEmailData }>(
@@ -71,6 +103,78 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(200).send(operationResult);
     },
   );
+  fastify.post<{ Body: Opportunity }>('/newOpportunity', async (req, res) => {
+    if (!req.service) {
+      return res.status(404).send();
+    }
+
+    const opportunity = opportunityCreateSchema.safeParse(req.body);
+    if (opportunity.error) {
+      logger.error(
+        {
+          opportunity,
+        },
+        'failed to store opportunity',
+      );
+      return res.status(500).send();
+    }
+
+    const con = await createOrGetConnection();
+    await con.transaction(async (entityManager) => {
+      const { keywords, content, ...opportunityUpdate } = opportunity.data;
+
+      const renderedContent: Record<string, { content: string; html: string }> =
+        {};
+
+      Object.entries(content || {}).forEach(([key, value]) => {
+        if (typeof value.content !== 'string') {
+          return;
+        }
+
+        renderedContent[key] = {
+          content: value.content,
+          html: markdown.render(value.content),
+        };
+      });
+
+      const opportunityContent = new OpportunityContent(renderedContent);
+
+      const opportunityJob = await entityManager
+        .getRepository(OpportunityJob)
+        .createQueryBuilder()
+        .insert()
+        .values({
+          ...opportunityUpdate,
+          content: opportunityContent,
+          meta: opportunity.data.meta as OpportunityMeta,
+          state: OpportunityState.DRAFT,
+          type: OpportunityType.JOB,
+        })
+        .execute();
+
+      const id = opportunityJob.raw?.[0]?.id;
+
+      if (!id) {
+        return res.status(500).send();
+      }
+
+      await addOpportunityDefaultQuestionFeedback({
+        entityManager,
+        opportunityId: id,
+      });
+
+      if (Array.isArray(keywords)) {
+        await entityManager.getRepository(OpportunityKeyword).insert(
+          keywords.map((keyword) => ({
+            opportunityId: id,
+            keyword: keyword.keyword,
+          })),
+        );
+      }
+    });
+
+    return res.status(200).send('');
+  });
   fastify.get<{ Querystring: SearchUsername }>(
     '/checkUsername',
     async (req, res) => {
@@ -183,7 +287,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.register(kvasir, { prefix: '/kvasir' });
-  fastify.register(snotra, { prefix: '/snotra' });
   fastify.register(connectRpcPlugin, {
     routes: rpc,
     prefix: '/rpc',

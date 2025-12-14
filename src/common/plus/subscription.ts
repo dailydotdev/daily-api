@@ -7,6 +7,7 @@ export enum PurchaseType {
   Cores = 'cores',
   Plus = 'plus',
   Organization = 'organization',
+  Recruiter = 'recruiter',
 }
 
 export enum PlusPlanType {
@@ -18,4 +19,5 @@ export enum SubscriptionStatus {
   Active = 'active',
   Expired = 'expired',
   Cancelled = 'cancelled',
+  None = 'none',
 }

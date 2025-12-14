@@ -5,6 +5,7 @@ import { isNullOrUndefined } from './object';
 import { remoteConfig } from '../remoteConfig';
 import { ChangeObject } from '../types';
 import { logger } from '../logger';
+import slugify from 'slugify';
 
 const REMOVE_SPECIAL_CHARACTERS_REGEX = /[^a-zA-Z0-9-_#.]/g;
 
@@ -18,6 +19,8 @@ export const ghostUser = {
   id: '404',
   username: 'ghost',
   name: 'Deleted user',
+  image:
+    'https://media.daily.dev/image/upload/s--hNIUzLiO--/f_auto/v1705327420/public/ghost_vlftth',
 };
 
 export const deletedPost = {
@@ -97,7 +100,7 @@ export const uniqueifyArray = <T>(array: T[]): T[] => {
   return [...new Set(array)];
 };
 
-export /**
+/**
  * Remove duplicate values from an array of objects per unique key
  *
  * @template T
@@ -107,7 +110,7 @@ export /**
  * @param {(item: T, index: number, uniqueKey: string) => R} [processItem] Optional function to process the item before adding it to the result array
  * @return {*}  {R[]}
  */
-const uniqueifyObjectArray = <T, R = T>(
+export const uniqueifyObjectArray = <T, R = T>(
   array: T[],
   uniqueKey: (item: T) => string,
   processItem?: (item: T, index: number, uniqueKey: string) => R,
@@ -308,3 +311,12 @@ export const getBufferFromStream = async (
     stream.on('error', (err) => reject(err));
   });
 };
+
+export const textToSlug = (text: string): string =>
+  slugify(text, {
+    lower: true,
+    strict: true,
+    trim: true,
+    locale: 'en',
+    replacement: '-',
+  }).substring(0, 100);

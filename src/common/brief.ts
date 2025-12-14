@@ -190,3 +190,5 @@ export const getBriefGenerationCost = async (
 
   return pricingConfig[type];
 };
+
+export const briefingPostIdsMaxItems = 10;

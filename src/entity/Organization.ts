@@ -23,6 +23,7 @@ export class Organization {
   @PrimaryColumn({
     type: 'text',
     primaryKeyConstraintName: 'PK_organization_organization_id',
+    default: () => 'uuid_generate_v4()',
   })
   id: string;
 
@@ -33,10 +34,11 @@ export class Organization {
   updatedAt: Date;
 
   @Column({ type: 'text' })
+  @Index('IDX_organization_name_unique', { unique: true })
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  image: string;
+  image: string | null;
 
   @Column({ type: 'smallint', default: 1 })
   seats: number;

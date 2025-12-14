@@ -64,6 +64,7 @@ import { generateCampaignPostEmail } from '../common/campaign/post';
 import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
+import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -121,11 +122,12 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   campaign_squad_completed: '83',
   campaign_post_first_milestone: '80',
   campaign_squad_first_milestone: '82',
-  new_opportunity_match: '',
+  new_opportunity_match: '87',
   post_analytics: '',
   poll_result: '84',
   poll_result_author: '84',
   warm_intro: '85',
+  parsed_cv_profile: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1054,8 +1056,21 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   in_app_purchases: async () => {
     return null;
   },
-  new_opportunity_match: async () => {
-    return null;
+  new_opportunity_match: async (con, _, notification) => {
+    const [foundUser, opportunityMatch] = await Promise.all([
+      con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
+      con.getRepository(OpportunityMatch).findOneByOrFail({
+        opportunityId: notification.referenceId,
+        userId: notification.uniqueKey,
+      }),
+    ]);
+    if (!foundUser || !opportunityMatch) {
+      return null;
+    }
+
+    return {
+      opportunity_link: notification.targetUrl,
+    };
   },
   post_analytics: async () => {
     return null;
@@ -1119,10 +1134,21 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
+    const recruiterUser = await con
+      .getRepository(OpportunityUserRecruiter)
+      .findOneBy({
+        opportunityId: notif.referenceId,
+      });
+    const recruiter = await recruiterUser?.user;
+
     return {
-      title: `It's a match!`,
+      title: `[Action Required] It's a match!`,
       copy: warmIntro,
+      cc: recruiter?.email,
     };
+  },
+  parsed_cv_profile: async () => {
+    return null;
   },
 };
 
@@ -1193,7 +1219,14 @@ const worker: Worker = {
                 identifiers: {
                   id: user.id,
                 },
-                to: user.email,
+                to: [
+                  user.email,
+                  !isNullOrUndefined(templateData?.cc)
+                    ? templateData.cc
+                    : undefined,
+                ]
+                  .filter(Boolean)
+                  .join(','),
                 send_at:
                   !isNullOrUndefined(templateData.sendAtMs) &&
                   templateData.sendAtMs > Date.now()

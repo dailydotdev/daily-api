@@ -24,6 +24,7 @@ import {
   FreeformPost,
   Post,
   PostMention,
+  PostOrigin,
   PostQuestion,
   PostRelation,
   PostRelationType,
@@ -1353,7 +1354,11 @@ describe('query post', () => {
       }
     `;
 
-    it('should return public analytics', async () => {
+    it('should return public analytics for author', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(Post).update('p1', { authorId: '1' });
+
       await con.getRepository(PostAnalytics).save({
         id: 'p1',
         impressions: 110,
@@ -1369,6 +1374,48 @@ describe('query post', () => {
       expect(res.data.post).toEqual({
         id: 'p1',
         analytics: { impressions: 420 },
+      });
+    });
+
+    it('should return public analytics for scout', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(Post).update('p1', { scoutId: '1' });
+
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: { impressions: 420 },
+      });
+    });
+
+    it('should return null if user is not author or scout', async () => {
+      await con.getRepository(PostAnalytics).save({
+        id: 'p1',
+        impressions: 110,
+        impressionsAds: 310,
+      });
+
+      const res = await client.query(LOCAL_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      expect(res.data.post).toEqual({
+        id: 'p1',
+        analytics: null,
       });
     });
   });
@@ -3905,6 +3952,50 @@ describe('mutation submitExternalLink', () => {
     expect(sharedPost.authorId).toEqual('1');
     expect(sharedPost.title).toEqual('My comment');
     expect(sharedPost.visible).toEqual(true);
+  });
+
+  it('should trigger content request when sharing existing post without title and summary', async () => {
+    loggedUser = '1';
+
+    // Create a post without title and summary
+    await con.getRepository(ArticlePost).save({
+      id: 'p_no_metadata',
+      shortId: 'p_no_metadata',
+      url: 'http://example.com/no-metadata',
+      canonicalUrl: 'http://example.com/no-metadata',
+      image: 'https://daily.dev/image.jpg',
+      sourceId: 'a',
+      title: null,
+      summary: null,
+      visible: false,
+      createdAt: new Date(),
+      type: PostType.Article,
+      private: false,
+      origin: PostOrigin.Squad,
+      yggdrasilId: randomUUID(),
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, url: 'http://example.com/no-metadata' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(notifyContentRequested).toBeCalledTimes(1);
+    expect(jest.mocked(notifyContentRequested).mock.calls[0].slice(1)).toEqual([
+      {
+        id: 'p_no_metadata',
+        url: 'http://example.com/no-metadata',
+        origin: PostOrigin.Squad,
+      },
+    ]);
+
+    // Verify share post was created
+    const sharedPost = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ sharedPostId: 'p_no_metadata' });
+    expect(sharedPost.authorId).toEqual('1');
+    expect(sharedPost.title).toEqual('My comment');
   });
 
   it('should share existing post by redirector link', async () => {
@@ -10173,6 +10264,7 @@ describe('query post analytics', () => {
         shares
         reachAds
         impressionsAds
+        clicks
       }
     }
   `;
@@ -10231,6 +10323,8 @@ describe('query post analytics', () => {
           reachAds: 7,
           reachAll: 12,
           impressionsAds: 25,
+          clicks: 11,
+          goToLink: 5,
         });
       }),
     );
@@ -10255,7 +10349,7 @@ describe('query post analytics', () => {
 
     expect(res.errors).toBeFalsy();
 
-    expect(res.data.postAnalytics).toMatchObject({
+    expect(res.data.postAnalytics).toEqual({
       id: 'p1-paq',
       impressions: 35,
       reach: 12,
@@ -10273,6 +10367,7 @@ describe('query post analytics', () => {
       awards: 2,
       reachAds: 7,
       impressionsAds: 25,
+      clicks: 16,
     });
   });
 

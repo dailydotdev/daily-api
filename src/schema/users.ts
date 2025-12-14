@@ -14,6 +14,7 @@ import {
   MarketingCta,
   Post,
   PostStats,
+  Settings,
   User,
   UserFlagsPublic,
   UserMarketingCta,
@@ -50,7 +51,6 @@ import {
 } from '../common/datePageGenerator';
 import {
   checkAndClearUserStreak,
-  checkJobPreferenceParamsValidity,
   CioTransactionalMessageTemplateId,
   clearFile,
   DayOfWeek,
@@ -64,7 +64,6 @@ import {
   GQLUserStreak,
   GQLUserStreakTz,
   type GQLUserTopReader,
-  isProfileCompleteById,
   mapCloudinaryUrl,
   parseBigInt,
   playwrightUser,
@@ -116,6 +115,7 @@ import {
 import { markdown } from '../common/markdown';
 import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
 import {
+  fallbackImages,
   generateStorageKey,
   RESUME_BUCKET_NAME,
   StorageKey,
@@ -166,13 +166,9 @@ import {
 import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 import { syncNotificationFlagsToCio } from '../cio';
-import {
-  UserCompensation,
-  UserJobPreferences,
-  WorkLocationType,
-} from '../entity/user/UserJobPreferences';
-import { completeVerificationForExperienceByUserCompany } from '../common/userExperience';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { createLocationFromMapbox } from '../entity/dataset/utils';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -205,9 +201,22 @@ export interface GQLUpdateUserInput {
   notificationFlags?: UserNotificationFlags;
 }
 
+export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
+  externalLocationId?: string;
+  cover?: string;
+  readme?: string;
+  hideExperience?: boolean;
+}
+
 interface GQLUserParameters {
   data: GQLUpdateUserInput;
   upload: Promise<FileUpload>;
+}
+
+interface GQLUserInfoParameters {
+  data: GQLUpdateUserInfoInput;
+  upload?: Promise<FileUpload>;
+  coverUpload?: Promise<FileUpload>;
 }
 
 export interface GQLUser {
@@ -308,16 +317,6 @@ export interface SendReportArgs {
   tags?: string[];
 }
 
-export interface GQLUserJobPreferences {
-  openToOpportunities: boolean;
-  preferredRoles: string[];
-  preferredLocationType: WorkLocationType | null;
-  openToRelocation: boolean;
-  currentTotalComp: Partial<UserCompensation>;
-}
-
-type UserJobPreferencesInput = GQLUserJobPreferences;
-
 export const typeDefs = /* GraphQL */ `
   type Company {
     id: String!
@@ -346,6 +345,29 @@ export const typeDefs = /* GraphQL */ `
     Company connected to this record
     """
     company: Company
+  }
+
+  type DatasetLocation {
+    """
+    ID of the location
+    """
+    id: String!
+    """
+    Country of the location
+    """
+    country: String!
+    """
+    City of the location
+    """
+    city: String
+    """
+    Subdivision of the location
+    """
+    subdivision: String
+    """
+    External ID of the location
+    """
+    externalId: String
   }
 
   """
@@ -509,6 +531,14 @@ export const typeDefs = /* GraphQL */ `
     Role for Cores access
     """
     coresRole: Int
+    """
+    Where the user is located
+    """
+    location: DatasetLocation
+    """
+    Whether to hide user's experience
+    """
+    hideExperience: Boolean
   }
 
   """
@@ -533,32 +563,6 @@ export const typeDefs = /* GraphQL */ `
     Amount of the salary preference
     """
     amount: Int
-  }
-
-  """
-  User job preferences
-  """
-  type UserJobPreferences {
-    """
-    Whether the user is open to opportunities
-    """
-    openToOpportunities: Boolean!
-    """
-    Preferred roles of the user
-    """
-    preferredRoles: [String!]!
-    """
-    Preferred location type of the user
-    """
-    preferredLocationType: String
-    """
-    Whether the user is open to relocation
-    """
-    openToRelocation: Boolean!
-    """
-    Current total compensation of the user
-    """
-    currentTotalComp: UserTotalCompensation!
   }
 
   """
@@ -691,6 +695,144 @@ export const typeDefs = /* GraphQL */ `
     Flags for the user
     """
     flags: UserFlagsPublic
+  }
+
+  """
+  Update user info input with extended fields
+  """
+  input UpdateUserInfoInput {
+    """
+    Full name of the user
+    """
+    name: String
+    """
+    Email for the user
+    """
+    email: String
+    """
+    Profile image of the user
+    """
+    image: String
+    """
+    The cover image of the user
+    """
+    cover: String
+    """
+    Username (handle) of the user
+    """
+    username: String
+    """
+    Bio of the user
+    """
+    bio: String
+    """
+    Twitter handle of the user
+    """
+    twitter: String
+    """
+    Github handle of the user
+    """
+    github: String
+    """
+    Hashnode handle of the user
+    """
+    hashnode: String
+    """
+    Bluesky profile of the user
+    """
+    bluesky: String
+    """
+    Roadmap profile of the user
+    """
+    roadmap: String
+    """
+    Threads profile of the user
+    """
+    threads: String
+    """
+    Codepen profile of the user
+    """
+    codepen: String
+    """
+    Reddit profile of the user
+    """
+    reddit: String
+    """
+    Stackoverflow profile of the user
+    """
+    stackoverflow: String
+    """
+    Youtube profile of the user
+    """
+    youtube: String
+    """
+    Linkedin profile of the user
+    """
+    linkedin: String
+    """
+    Mastodon profile of the user
+    """
+    mastodon: String
+    """
+    Preferred timezone of the user that affects data
+    """
+    timezone: String
+    """
+    Preferred day of the week to start the week
+    """
+    weekStart: Int
+    """
+    Current company of the user
+    """
+    company: String
+    """
+    Title of user from their company
+    """
+    title: String
+    """
+    User website
+    """
+    portfolio: String
+    """
+    If the user has accepted marketing
+    """
+    acceptedMarketing: Boolean
+    """
+    If the user's info is confirmed
+    """
+    infoConfirmed: Boolean
+    """
+    Experience level of the user
+    """
+    experienceLevel: String
+    """
+    Preferred language of the user
+    """
+    language: String
+    """
+    Default feed id for the user
+    """
+    defaultFeedId: String
+    """
+    Flags for the user
+    """
+    flags: UserFlagsPublic
+    """
+    id of the location selected by the user
+    """
+    locationId: String
+    """
+    External location ID selected by the user
+    """
+    externalLocationId: String
+    """
+    The user's readme
+    """
+    readme: String
+    """
+    Whether to hide user's experience
+    """
+    hideExperience: Boolean
   }
 
   type TagsReadingStatus {
@@ -1083,11 +1225,6 @@ export const typeDefs = /* GraphQL */ `
     Get current user's notification preferences
     """
     notificationSettings: JSON @auth
-
-    """
-    Get job preferences for the current user
-    """
-    userJobPreferences: UserJobPreferences @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1109,6 +1246,15 @@ export const typeDefs = /* GraphQL */ `
     Update user profile information
     """
     updateUserProfile(data: UpdateUserInput, upload: Upload): User @auth
+
+    """
+    Update user info with extended fields
+    """
+    updateUserInfo(
+      data: UpdateUserInfoInput
+      upload: Upload
+      coverUpload: Upload
+    ): User @auth
 
     """
     Hide user's read history
@@ -1305,32 +1451,6 @@ export const typeDefs = /* GraphQL */ `
     Update user's notification preferences
     """
     updateNotificationSettings(notificationFlags: JSON!): EmptyResponse @auth
-
-    """
-    Update job preferences for the current user
-    """
-    updateUserJobPreferences(
-      """
-      Whether the user is open to opportunities
-      """
-      openToOpportunities: Boolean!
-      """
-      Preferred roles of the user
-      """
-      preferredRoles: [String!]!
-      """
-      Preferred location type of the user
-      """
-      preferredLocationType: String
-      """
-      Whether the user is open to relocation
-      """
-      openToRelocation: Boolean!
-      """
-      Current total compensation of the user
-      """
-      currentTotalComp: UserTotalCompensationInput!
-    ): UserJobPreferences @auth
   }
 `;
 
@@ -1498,7 +1618,12 @@ const getUserStreakQuery = async (
       .addSelect('u.id', 'userId')
       .addSelect('u.timezone', 'timezone')
       .addSelect('u."weekStart"', 'weekStart')
+      .addSelect(
+        'COALESCE(s."optOutReadingStreak", false)',
+        'optOutReadingStreak',
+      )
       .innerJoin(User, 'u', `"${builder.alias}"."userId" = u.id`)
+      .leftJoin(Settings, 's', 's."userId" = u.id')
       .where(`"${builder.alias}"."userId" = :id`, {
         id: id,
       }),
@@ -1724,8 +1849,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
       info,
-    ): Promise<GQLUserStreak> => {
+    ): Promise<GQLUserStreak | null> => {
       const streak = await getUserStreakQuery(ctx.userId, ctx, info);
+
+      // Check if user has opted out of reading streaks
+      if (streak?.optOutReadingStreak) {
+        return null;
+      }
 
       if (!streak) {
         return {
@@ -1753,8 +1883,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { id }: userStreakProfileArgs,
       ctx: Context,
       info,
-    ): Promise<GQLUserStreak> => {
+    ): Promise<GQLUserStreak | null> => {
       const streak = await getUserStreakQuery(id, ctx, info);
+
+      // Check if user has opted out of reading streaks
+      if (streak?.optOutReadingStreak) {
+        return null;
+      }
 
       if (!streak) {
         return {
@@ -2243,20 +2378,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...user?.notificationFlags,
       };
     },
-    userJobPreferences: async (
-      _,
-      __,
-      ctx: AuthContext,
-      info: GraphQLResolveInfo,
-    ): Promise<GQLUserJobPreferences> => {
-      return graphorm.queryOneOrFail<GQLUserJobPreferences>(
-        ctx,
-        info,
-        (builder) => builder,
-        UserJobPreferences,
-        true,
-      );
-    },
   },
   Mutation: {
     clearImage: async (
@@ -2278,7 +2399,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return { _: true };
     },
-    // add mutation to clear images
     updateUserProfile: async (
       _,
       { data, upload }: GQLUserParameters,
@@ -2305,6 +2425,158 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       try {
         const updatedUser = { ...user, ...data, image: avatar };
+        updatedUser.email = updatedUser.email?.toLowerCase();
+
+        const marketingFlag = updatedUser.acceptedMarketing
+          ? {
+              email: NotificationPreferenceStatus.Subscribed,
+              inApp: NotificationPreferenceStatus.Subscribed,
+            }
+          : {
+              email: NotificationPreferenceStatus.Muted,
+              inApp: NotificationPreferenceStatus.Muted,
+            };
+
+        if (
+          !user.infoConfirmed &&
+          updatedUser.email &&
+          updatedUser.username &&
+          updatedUser.name
+        ) {
+          updatedUser.infoConfirmed = true;
+        }
+
+        await repo.update(
+          { id: user.id },
+          {
+            ...updatedUser,
+            permalink: undefined,
+            flags: data?.flags ? updateFlagsStatement(data.flags) : undefined,
+            notificationFlags: updateNotificationFlags({
+              marketing: marketingFlag,
+            }),
+          },
+        );
+
+        return updatedUser;
+      } catch (originalError) {
+        const err = originalError as TypeORMQueryFailedError;
+
+        if (err.code === TypeOrmError.DUPLICATE_ENTRY) {
+          const uniqueColumns: Array<keyof User> = [
+            'username',
+            'github',
+            'twitter',
+            'hashnode',
+            'roadmap',
+            'threads',
+            'codepen',
+            'reddit',
+            'stackoverflow',
+            'youtube',
+            'linkedin',
+            'bluesky',
+            'mastodon',
+          ];
+
+          uniqueColumns.forEach((uniqueColumn) => {
+            if (err.message.indexOf(`users_${uniqueColumn}_unique`) > -1) {
+              throw new ValidationError(
+                JSON.stringify({
+                  [uniqueColumn]: `${uniqueColumn} already exists`,
+                }),
+              );
+            }
+          });
+        }
+        throw err;
+      }
+    },
+    updateUserInfo: async (
+      _,
+      { data, upload, coverUpload }: GQLUserInfoParameters,
+      ctx: AuthContext,
+    ): Promise<GQLUser> => {
+      const repo = ctx.con.getRepository(User);
+      const user = await repo.findOneBy({ id: ctx.userId });
+
+      if (!user) {
+        throw new AuthenticationError('Unauthorized!');
+      }
+
+      if (!ctx.service) {
+        // Only accept email changes from Service calls
+        delete data.email;
+        delete data.infoConfirmed;
+      }
+      data = await validateUserUpdate(user, data, ctx.con);
+      let location: DatasetLocation | null = null;
+
+      if (data.externalLocationId) {
+        location = await ctx.con.getRepository(DatasetLocation).findOne({
+          where: { externalId: data.externalLocationId },
+        });
+
+        if (!location) {
+          location = await createLocationFromMapbox(
+            ctx.con,
+            data.externalLocationId,
+          );
+        }
+      }
+
+      const filesToClear = [];
+
+      if ((!data.image || !!upload) && user.image) {
+        filesToClear.push(
+          clearFile({ referenceId: user.id, preset: UploadPreset.Avatar }),
+        );
+      }
+
+      if ((!data.cover || !!coverUpload) && user.cover) {
+        filesToClear.push(
+          clearFile({
+            referenceId: user.id,
+            preset: UploadPreset.ProfileCover,
+          }),
+        );
+      }
+
+      await Promise.all(filesToClear);
+
+      const cloudinaryUrl = process.env.CLOUDINARY_URL || null;
+
+      const [avatar, cover] = await Promise.all([
+        (async () => {
+          if (upload && cloudinaryUrl) {
+            const file = await upload;
+            return (await uploadAvatar(user.id, file.createReadStream())).url;
+          }
+          return data.image || fallbackImages.avatar;
+        })(),
+        (async () => {
+          if (coverUpload && cloudinaryUrl) {
+            const file = await coverUpload;
+            return (await uploadProfileCover(user.id, file.createReadStream()))
+              .url;
+          }
+          return data.cover || null;
+        })(),
+      ]);
+
+      const readmeHtml = markdown.render(data.readme || '');
+
+      try {
+        delete data.externalLocationId;
+
+        const updatedUser = {
+          ...user,
+          ...data,
+          image: avatar,
+          cover,
+          readmeHtml,
+          locationId: location?.id || null,
+        };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
         const marketingFlag = updatedUser.acceptedMarketing
@@ -2614,6 +2886,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {
           cv: {},
           cvParsed: {},
+          cvParsedMarkdown: null,
         },
       );
       return { _: true };
@@ -2687,17 +2960,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         if (existingUserCompanyEmail.verified) {
-          // user has already verified this email, but want to verify work experience
-          const verifyUserCompany =
-            await completeVerificationForExperienceByUserCompany(
-              ctx.con,
-              existingUserCompanyEmail,
-            );
-
-          if (verifyUserCompany) {
-            return { _: true };
-          }
-
           throw new ValidationError('This email has already been verified');
         }
 
@@ -2762,17 +3024,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const updatedRecord = { ...userCompany, verified: true };
 
-      await ctx.con.transaction(async (manager) => {
-        await Promise.all([
-          // Save verified record
-          manager.getRepository(UserCompany).save(updatedRecord),
-          // Verify user experience if exists
-          completeVerificationForExperienceByUserCompany(
-            manager.connection,
-            updatedRecord,
-          ),
-        ]);
-      });
+      await ctx.con.getRepository(UserCompany).save(updatedRecord);
 
       return await graphorm.queryOneOrFail<GQLUserCompany>(
         ctx,
@@ -3068,42 +3320,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return { _: true };
-    },
-    updateUserJobPreferences: async (
-      _,
-      params: UserJobPreferencesInput,
-      ctx: AuthContext,
-    ) => {
-      const { data: preferences, success: isValid } =
-        checkJobPreferenceParamsValidity(params);
-
-      if (!isValid) {
-        throw new ValidationError(
-          'Invalid job preferences data. Please check your input.',
-        );
-      }
-
-      const isProfileComplete = await isProfileCompleteById(
-        ctx.con,
-        ctx.userId,
-      );
-
-      if (!isProfileComplete && preferences.openToOpportunities) {
-        throw new ValidationError(
-          'Open to opportunities can only be set if the profile is complete',
-        );
-      }
-
-      await ctx.con
-        .getRepository(UserJobPreferences)
-        .upsert({ ...preferences, userId: ctx.userId }, ['userId']);
-
-      return {
-        ...preferences,
-        userId: ctx.userId,
-        openToOpportunities:
-          preferences.openToOpportunities && isProfileComplete,
-      };
     },
   },
   User: {

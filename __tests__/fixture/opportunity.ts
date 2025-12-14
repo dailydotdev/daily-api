@@ -17,6 +17,7 @@ import {
   SocialMediaType,
 } from '../../src/common/schema/organizations';
 import type { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
+import type { QuestionFeedback } from '../../src/entity/questions/QuestionFeedback';
 import { demoCompany } from '../../src/common';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
@@ -94,6 +95,7 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
         currency: 'USD',
         period: SalaryPeriod.ANNUAL,
       },
+      equity: true,
     },
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
@@ -231,8 +233,8 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
         period: SalaryPeriod.ANNUAL,
       },
     },
-    createdAt: new Date('2023-01-01'),
-    updatedAt: new Date('2023-01-01'),
+    createdAt: new Date('2023-01-03'),
+    updatedAt: new Date('2023-01-03'),
     organizationId: demoCompany.id,
     location: [
       {
@@ -292,6 +294,11 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     userId: '1',
     status: OpportunityMatchStatus.Pending,
     description: { reasoning: 'Interested candidate' },
+    screening: [
+      { screening: 'What is your favorite language?', answer: 'TypeScript' },
+    ],
+    feedback: [],
+    applicationRank: { score: 85, description: 'Strong candidate' },
     createdAt: new Date('2023-01-03'),
     updatedAt: new Date('2023-01-03'),
   },
@@ -300,6 +307,15 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     userId: '2',
     status: OpportunityMatchStatus.CandidateAccepted,
     description: { reasoning: 'Accepted candidate' },
+    screening: [
+      { screening: 'What is your favorite language?', answer: 'JavaScript' },
+    ],
+    feedback: [{ screening: 'How did you hear about us?', answer: 'LinkedIn' }],
+    applicationRank: {
+      score: 90,
+      description: 'Excellent fit',
+      warmIntro: 'Great background in React',
+    },
     createdAt: new Date('2023-01-04'),
     updatedAt: new Date('2023-01-04'),
   },
@@ -308,7 +324,50 @@ export const opportunityMatchesFixture: DeepPartial<OpportunityMatch>[] = [
     userId: '1',
     status: OpportunityMatchStatus.Pending,
     description: { reasoning: 'Interested candidate' },
+    screening: [],
+    feedback: [],
+    applicationRank: {},
     createdAt: new Date('2023-01-03'),
     updatedAt: new Date('2023-01-03'),
   },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+    userId: '4',
+    status: OpportunityMatchStatus.RecruiterAccepted,
+    description: { reasoning: 'Excellent candidate' },
+    screening: [{ screening: 'What is your favorite language?', answer: 'Go' }],
+    feedback: [],
+    applicationRank: { score: 95, description: 'Top candidate' },
+    createdAt: new Date('2023-01-06'),
+    updatedAt: new Date('2023-01-06'),
+  },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+    userId: '3',
+    status: OpportunityMatchStatus.RecruiterRejected,
+    description: { reasoning: 'Not a good fit' },
+    screening: [],
+    feedback: [],
+    applicationRank: { score: 60 },
+    createdAt: new Date('2023-01-05'),
+    updatedAt: new Date('2023-01-05'),
+  },
 ];
+
+export const opportunityFeedbackQuestionsFixture: DeepPartial<QuestionFeedback>[] =
+  [
+    {
+      id: '850e8400-e29b-41d4-a716-446655440001',
+      title: 'How did you hear about this opportunity?',
+      placeholder: 'e.g., LinkedIn, friend, etc.',
+      opportunityId: opportunitiesFixture[0].id,
+      questionOrder: 0,
+    },
+    {
+      id: '850e8400-e29b-41d4-a716-446655440002',
+      title: 'What interests you most about this role?',
+      placeholder: 'Your answer here...',
+      opportunityId: opportunitiesFixture[0].id,
+      questionOrder: 1,
+    },
+  ];

@@ -2,8 +2,10 @@ import { TypedWorker } from '../worker';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
-import { Alerts, Feature, FeatureType } from '../../entity';
+import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
+import { logger } from '../../logger';
+import { updateFlagsStatement } from '../../common';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -17,6 +19,15 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
         );
       }
 
+      const user = await con.getRepository(User).findOneBy({ id: userId });
+      if (!user) {
+        logger.error(
+          { opportunityId, userId },
+          'storeCandidateOpportunityMatch: User not found',
+        );
+        return;
+      }
+
       const description = opportunityMatchDescriptionSchema.parse({
         reasoning,
         reasoningShort,
@@ -24,6 +35,14 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
       });
 
       await con.transaction(async (manager) => {
+        // Check if match already exists to determine if this is a new insert
+        const existingMatch = await manager
+          .getRepository(OpportunityMatch)
+          .findOne({
+            where: { userId, opportunityId },
+            select: ['userId', 'opportunityId'],
+          });
+
         await manager.getRepository(OpportunityMatch).upsert(
           {
             userId,
@@ -36,18 +55,17 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
           },
         );
 
-        // TODO: Temporary until we happy to launch
-        const isTeamMember = await con.getRepository(Feature).exists({
-          where: {
-            userId,
-            feature: FeatureType.Team,
-            value: 1,
-          },
-        });
-        if (isTeamMember) {
-          await manager
-            .getRepository(Alerts)
-            .update({ userId, opportunityId: IsNull() }, { opportunityId });
+        // Only update alert if this is a new match (insert)
+        if (!existingMatch) {
+          await manager.getRepository(Alerts).update(
+            { userId, opportunityId: IsNull() },
+            {
+              opportunityId,
+              flags: updateFlagsStatement<Alerts>({
+                hasSeenOpportunity: false,
+              }),
+            },
+          );
         }
       });
     },

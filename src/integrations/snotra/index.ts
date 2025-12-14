@@ -1,2 +1,2 @@
 export * from './types';
-export { SnotraClient } from './clients';
+export { SnotraClient, snotraClient } from './clients';

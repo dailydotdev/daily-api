@@ -33,18 +33,40 @@ import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import { opentelemetry } from '../src/telemetry/opentelemetry';
 import { logger } from '../src/logger';
-import { createRouterTransport } from '@connectrpc/connect';
+import {
+  Code as ConnectCode,
+  ConnectError,
+  createRouterTransport,
+} from '@connectrpc/connect';
 import {
   ApplicationService as GondulService,
   Credits,
   TransferType,
   type TransferStatus,
   ScreeningQuestionsResponse,
+  BrokkrService,
+  ExtractMarkdownResponse,
+  ParseCVResponse,
+  ParseError,
+  ParseOpportunityResponse,
+  Opportunity,
+  OpportunityMeta,
+  OpportunityContent,
+  EmploymentType,
+  SeniorityLevel,
+  Salary,
+  SalaryPeriod,
+  OpportunityContent_ContentBlock,
+  Location,
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
 import { Message as ProtobufMessage } from '@bufbuild/protobuf';
 import { GarmrService } from '../src/integrations/garmr';
+import { userExperienceCertificationFixture } from './fixture/profile/certification';
+import { userExperienceEducationFixture } from './fixture/profile/education';
+import { userExperienceProjectFixture } from './fixture/profile/project';
+import { userExperienceWorkFixture } from './fixture/profile/work';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -55,6 +77,7 @@ export class MockContext extends Context {
   logger: FastifyLoggerInstance;
   contentLanguage: ContentLanguage;
   mockRegion: string;
+  mockTrackingId: string | undefined;
 
   constructor(
     con: DataSource,
@@ -64,6 +87,7 @@ export class MockContext extends Context {
     isTeamMember = false,
     isPlus = false,
     region = '',
+    trackingId: string | undefined = undefined,
   ) {
     super(mock<FastifyRequest>(), con);
     this.mockSpan = mock<opentelemetry.Span>();
@@ -76,6 +100,7 @@ export class MockContext extends Context {
     this.mockIsPlus = isPlus;
     this.logger = mock<FastifyLoggerInstance>();
     this.mockRegion = region;
+    this.mockTrackingId = trackingId;
 
     if (req?.headers['content-language']) {
       this.contentLanguage = req.headers['content-language'] as ContentLanguage;
@@ -91,7 +116,7 @@ export class MockContext extends Context {
   }
 
   get trackingId(): string | null {
-    return this.mockUserId;
+    return this.mockTrackingId || this.mockUserId;
   }
 
   get isTeamMember(): boolean {
@@ -424,6 +449,85 @@ export const doNotFake: FakeableAPI[] = [
   'setTimeout',
   'clearTimeout',
 ];
+
+export const createMockBrokkrTransport = () =>
+  createRouterTransport(({ service }) => {
+    service(BrokkrService, {
+      extractMarkdown: (request) => {
+        if (request.blobName === 'error.pdf') {
+          throw new ConnectError('Not found', ConnectCode.NotFound);
+        }
+
+        return new ExtractMarkdownResponse({
+          content: `# Extracted content for ${request.blobName} in ${request.bucketName}`,
+        });
+      },
+      parseCV: (request) => {
+        if (request.blobName === 'empty-cv-mock') {
+          return new ParseCVResponse({
+            errors: [new ParseError({ message: 'Empty CV' })],
+          });
+        }
+
+        return new ParseCVResponse({
+          parsedCv: JSON.stringify([
+            userExperienceCertificationFixture[0],
+            userExperienceEducationFixture[0],
+            userExperienceProjectFixture[0],
+            userExperienceWorkFixture[0],
+          ]),
+        });
+      },
+      parseOpportunity: () => {
+        return new ParseOpportunityResponse({
+          opportunity: new Opportunity({
+            title: 'Mocked Opportunity Title',
+            tldr: 'This is a mocked TL;DR of the opportunity.',
+            keywords: ['mock', 'opportunity', 'test'],
+            meta: new OpportunityMeta({
+              employmentType: EmploymentType.FULL_TIME,
+              seniorityLevel: SeniorityLevel.SENIOR,
+              roleType: 0.5,
+              salary: new Salary({
+                min: BigInt(1000),
+                max: BigInt(2000),
+                currency: 'USD',
+                period: SalaryPeriod.MONTHLY,
+              }),
+            }),
+            location: [
+              new Location({
+                country: 'USA',
+                city: 'San Francisco',
+                subdivision: 'CA',
+                type: 1,
+              }),
+            ],
+            content: new OpportunityContent({
+              overview: new OpportunityContent_ContentBlock({
+                content: 'This is the overview of the mocked opportunity.',
+              }),
+              responsibilities: new OpportunityContent_ContentBlock({
+                content:
+                  'These are the responsibilities of the mocked opportunity.',
+              }),
+              requirements: new OpportunityContent_ContentBlock({
+                content:
+                  'These are the requirements of the mocked opportunity.',
+              }),
+              whatYoullDo: new OpportunityContent_ContentBlock({
+                content: 'This is what you will do in the mocked opportunity.',
+              }),
+              interviewProcess: new OpportunityContent_ContentBlock({
+                content:
+                  'This is the interview process of the mocked opportunity.',
+              }),
+            }),
+          }),
+        });
+      },
+    });
+  });
 
 export const createMockNjordTransport = () => {
   return createRouterTransport(({ service }) => {

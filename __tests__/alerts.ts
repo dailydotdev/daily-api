@@ -101,6 +101,7 @@ describe('query userAlerts', () => {
     const res = await client.query(QUERY);
 
     delete expected.userId;
+    delete expected.flags;
 
     expect(res.data.userAlerts).toEqual({
       ...expected,
@@ -275,6 +276,7 @@ describe('dedicated api routes', () => {
         await repo.findOneByOrFail({ userId: '1' })!,
       );
       delete expected['userId'];
+      delete expected['flags'];
 
       loggedUser = '1';
       const res = await authorizeRequest(
@@ -406,7 +408,7 @@ describe('mutation clearOpportunityAlert', () => {
   it('should clear opportunityId from alerts', async () => {
     loggedUser = '1';
 
-    saveFixtures(con, OpportunityJob, [
+    await saveFixtures(con, OpportunityJob, [
       {
         ...opportunitiesFixture[0],
         id: '45bef485-ba42-4fd9-8c8c-a2ea4b2d1d62',
@@ -427,5 +429,105 @@ describe('mutation clearOpportunityAlert', () => {
       .getRepository(Alerts)
       .findOneByOrFail({ userId: '1' });
     expect(alerts.opportunityId).toBeNull();
+  });
+});
+
+describe('mutation updateHasSeenOpportunity', () => {
+  const MUTATION = (hasSeenOpportunity?: boolean) => /* GraphQL */ `
+    mutation UpdateHasSeenOpportunity {
+      updateHasSeenOpportunity${hasSeenOpportunity !== undefined ? `(hasSeenOpportunity: ${hasSeenOpportunity})` : ''} {
+        _
+      }
+    }
+  `;
+
+  it('should not authorize when not logged in', () =>
+    testMutationErrorCode(client, { mutation: MUTATION() }, 'UNAUTHENTICATED'));
+
+  it('should set hasSeenOpportunity flag to true by default', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Alerts).save(
+      con.getRepository(Alerts).create({
+        userId: '1',
+        flags: { hasSeenOpportunity: false },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION());
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.flags.hasSeenOpportunity).toBe(true);
+  });
+
+  it('should set hasSeenOpportunity flag to true when explicitly passed', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Alerts).save(
+      con.getRepository(Alerts).create({
+        userId: '1',
+        flags: { hasSeenOpportunity: false },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION(true));
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.flags.hasSeenOpportunity).toBe(true);
+  });
+
+  it('should set hasSeenOpportunity flag to false when passed', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Alerts).save(
+      con.getRepository(Alerts).create({
+        userId: '1',
+        flags: { hasSeenOpportunity: true },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION(false));
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.flags.hasSeenOpportunity).toBe(false);
+  });
+
+  it('should preserve existing flags when updating hasSeenOpportunity', async () => {
+    loggedUser = '1';
+
+    const lastReferralDate = new Date('2023-02-05 12:00:00');
+    await con.getRepository(Alerts).save(
+      con.getRepository(Alerts).create({
+        userId: '1',
+        flags: {
+          hasSeenOpportunity: false,
+          lastReferralReminder: lastReferralDate,
+        },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION(true));
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.flags.hasSeenOpportunity).toBe(true);
+    // JSONB stores dates as ISO strings
+    expect(alerts.flags.lastReferralReminder).toEqual(
+      lastReferralDate.toISOString(),
+    );
+  });
+
+  it('should work when alerts record does not have flags set', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(Alerts).save(
+      con.getRepository(Alerts).create({
+        userId: '1',
+      }),
+    );
+
+    const res = await client.mutate(MUTATION());
+    expect(res.errors).toBeFalsy();
+    const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alerts.flags.hasSeenOpportunity).toBe(true);
   });
 });

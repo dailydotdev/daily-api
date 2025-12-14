@@ -12,6 +12,8 @@ import { TrendingPost } from '../src/entity/TrendingPost';
 import { TrendingSource } from '../src/entity/TrendingSource';
 import { TrendingTag } from '../src/entity/TrendingTag';
 import { UserStats } from '../src/entity/user/UserStats';
+import z from 'zod';
+import { zodToParseArgs } from './common';
 
 const importEntity = async (
   con: DataSource,
@@ -50,8 +52,21 @@ const viewsToRefresh = [
   UserStats,
 ];
 
+const paramsSchema = z.object({
+  // if the user wants to run the script for a specific entity
+  entity: z.string().optional().meta({ short: 'e' }),
+});
+
 const start = async (): Promise<void> => {
+  const params = zodToParseArgs(paramsSchema);
   const con = await createOrGetConnection();
+
+  if (params.entity) {
+    console.log('importing specific entity for: ', params.entity);
+    return await importEntity(con, params.entity);
+  }
+
+  await importEntity(con, 'Autocomplete');
   await importEntity(con, 'ExperimentVariant');
   await importEntity(con, 'AdvancedSettings');
   await importEntity(con, 'SourceCategory');
@@ -70,6 +85,7 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'OpportunityJob');
   await importEntity(con, 'OpportunityKeyword');
   await importEntity(con, 'OpportunityUserRecruiter');
+  await importEntity(con, 'OpportunityMatch');
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);

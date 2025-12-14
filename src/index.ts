@@ -157,7 +157,7 @@ export default async function app(
 
   app.register(MercuriusGQLUpload, {
     maxFileSize: GQL_MAX_FILE_SIZE,
-    maxFiles: 1,
+    maxFiles: 2,
   });
 
   app.register(mercurius, {
@@ -322,6 +322,12 @@ export default async function app(
           userReadingRankHistory: true,
           userReadHistory: true,
           autocompleteKeywords: {
+            ttl: 3600,
+          },
+          autocomplete: {
+            ttl: 3600,
+          },
+          autocompleteLocation: {
             ttl: 3600,
           },
         },

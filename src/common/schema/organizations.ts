@@ -13,6 +13,7 @@ export enum SocialMediaType {
   X = 'x',
   GitHub = 'github',
   Crunchbase = 'crunchbase',
+  LinkedIn = 'linkedin',
 }
 
 export const organizationSubscriptionFlagsSchema = z.object({
@@ -38,16 +39,18 @@ export const organizationSubscriptionFlagsSchema = z.object({
 });
 
 const linksSchemaBase = {
-  title: z.string(),
+  title: z.string().nullable(),
   link: z.url(),
 };
 
 export const organizationLinksSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal(OrganizationLinkType.Social),
-    socialType: z.enum(SocialMediaType, {
-      error: 'Invalid social media type',
-    }),
+    socialType: z
+      .enum(SocialMediaType, {
+        error: 'Invalid social media type',
+      })
+      .nullable(),
     ...linksSchemaBase,
   }),
   z.object({

@@ -47,7 +47,6 @@ declare global {
       SENDGRID_WEBHOOK_ANALYTICS_KEY: string;
       SCRAPER_URL: string;
       NODE_ENV: 'development' | 'production' | 'test';
-      SNOTRA_ORIGIN: string;
       LOFN_ORIGIN: string;
       INTERNAL_FEED: string;
       ROASTER_URL: string;
@@ -69,16 +68,19 @@ declare global {
       NJORD_ORIGIN: string;
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;
-      SKADI_API_ORIGIN: string;
       SKADI_API_ORIGIN_V2: string;
 
       APPLE_APP_APPLE_ID: string;
       APPLE_APP_BUNDLE_ID: string;
+      APPLE_ISSUER_ID: string;
+      APPLE_APP_STORE_SERVER_CLIENT_KEY: string;
+      APPLE_APP_STORE_SERVER_CLIENT_KEY_ID: string;
 
       GEOIP_PATH?: string;
       RESUME_BUCKET_NAME: string;
       EMPLOYMENT_AGREEMENT_BUCKET_NAME: string;
       GONDUL_ORIGIN: string;
+      BROKKR_ORIGIN: string;
     }
   }
 }
@@ -304,3 +306,16 @@ export type ServiceClient<T extends ServiceType> = {
   instance: Client<T>;
   garmr: GarmrService;
 };
+
+export type TLocation = {
+  id: string;
+  country: string;
+  subdivision: string | null;
+  city: string | null;
+};
+
+export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
+
+export const acceptedOpportunityExtensions = acceptedResumeExtensions;
+
+export const opportunityMatchBatchSize = 50;

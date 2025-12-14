@@ -6,7 +6,7 @@ config:
       secure: AAABAGND38ZY4hSe1YR2RTh/JyY3g3pBsK8Ovm4FCs6Et4ihLMPkAvZUKDy+T6N1Wg1OEmO3q9JMeB3dNGZ3ptLDTEDZ8bpAh7FBBMuZGxeC81i1XwzCNAMPzKwm2m3ZJkSSWRdxkEp8m+0qfpiPCscYGpeKCmRJUZqDHuMUl1S+kMAK4CQn+xdCtDLhI+9EqujfNyyGXaPzw1UkEMAF7RZs5GSWvoTOWIwN5N4TC7Uwi3dZq2COQcGJ2RdjCFDtbq3uDoq7kLsgQsCxG02hJnjzxlbRzpm+CVq6Alkj1v0FgpzY7kdX2xpBnjNz9Rd7ILOYni6PMcvF+uM1FJRnUxcZMExM8sS7Lm14CPdi/IjTRXvu7ie+FNmRbotEypb2fBLHLxrcrn4EtB/6ihTFfg2mCOMY3I74laKihU3hjpUR3YpVS3Eio+cEYB5SBdxIexA2Ff7TIyJe6dY3VwoeB9Ln3VqU4KtWEvOIKArZK+lR4GL1qmlEFshB8OvjHoLBnBWoMKXSXkyO9kTaQUEPRjyrxKgLLkRVHsp04aTW95VZQRkykUvzGGAFkUwiTKeC4/SPPkOpbl41dHfQL2lWGvMlfuwoi0lDwM1vbM/XEmASjVghvReZYE9/qnY09VnI1E8=
   api:clickhouseSync:
     keys:
-      slot.name: "clickhouse_sync"
+      slot.name: 'clickhouse_sync'
     vars:
       clickhouse_database:
         secure: AAABAFXhGil+ZGIYbGEIU71Q2eQslzMjGAkeeW0LumXI3GA=
@@ -22,14 +22,24 @@ config:
     secure: AAABAHdC/62trKcIoEduX+v3nBKj/KJ1XDNPRwwEwqcq33TLhqLrVq9oJfFsq/aX
   api:debeziumDbUser:
     secure: AAABAO0E/09gCux4t78RzYaMt9h+ZVFXNo6KS9mwLuKX11/HvmX7sg==
-  api:enablePersonalizedDigest: "true"
+  api:enablePersonalizedDigest: 'true'
   api:env:
+    anthropicApiUrl: https://api.anthropic.com/v1/messages
+    anthropicVersion: "2023-06-01"
+    anthropicApiKey:
+      secure: AAABAHEzcSWbWl8xVDhOLgPCopvQnihNX6MIzyG/JbaYeGA3p1qrJ3UEQhOvBg7kMoIbx9u+0CRC102IldakBAlxx0l9l9kCDSE/JqqfCfjiLT5mjdLISRE5q2dQz+MaqqVzqm0MzaIQQkWBmOxeJAxRxQ/+/dWdla8RMWKG+Q7PnrH8vS8PeNKASRQ=
     accessSecret:
       secure: AAABALdzzBMEk2sKYDjFrWsbsdYJDOvfDfmnOmaj6lvRkds8E6SYw1RNgQ/hpCky9W8BeJXFzu2b0W6jD30KkA==
     analyticsUrl: http://analytics-api
     apiConfigFeatureKey: api-config
     appleAppAppleId: 6740634400
     appleAppBundleId: dev.daily.app
+    appleIssuerId:
+      secure: AAABAK7J9W93y2dJnNDSiDfzwj2+bSPdo3uOswwQE/vX4RrWSVtPndgGY4EStNzK5dAyV34Osd5Ktekn9wHyEeptNN4=
+    appleAppStoreServerClientKey:
+      secure: AAABAPaOTw3J1adzb3RaGgZYE7eywB9UHAw85tagbYBXaIzM6MxQI7vgSFUP5bbvMwuZVaZ2F2aB5WXn0V6ZcoqV/OCGJk/XygbjovFqMlqCEjO4ovRu0Cjck+82nJYk6hPuLqsTUw6C0aJUBour4a1o2Jl04X5XRcUUTTanguOyFlWxSUxVDZ6As9DGuFYsNV3jIhhiAtgC1IHZH/luyURuUkprm7iHKvdlVqMO9ctne+PQ2bMVWCSGvJeXt/oQDWRQT9UHxnbD7LSgWDmMAbd4aaXD/YE/gN220FSzeV7EsiXUb4+NyPtP6dSc4GSKVfa7keGn57KZK+U+duFZjhEqch8uenb0RO28zvyYYcbbcpsd7TvggwbBgqc2cTJXUA==
+    appleAppStoreServerClientKeyId:
+      secure: AAABAOxbRgC+Npj/q0uRCmHXjAnMs8W507CAyKb50ndVgQkx1YKyYPZb
     validLanguagesFeatureKey: valid_languages
     cdcWorkerMaxMessages: 1
     cioApiKey:
@@ -53,8 +63,7 @@ config:
     digestQueueConcurrency: 1000
     experimentationKey:
       secure: AAABADH0xT7H6UeMlZG0fUEGjohQ1dvwcbIgJ3WMI5wfqScub3Qp3nvUDhska0DunbFmvj7IrtH07noRL1lCYg==
-    skadiApiOrigin: http://skadi-post-boost-api.daily.svc.cluster.local
-    skadiApiOriginV2: http://skadi-api-server.daily.svc.cluster.local
+    skadiApiOriginV2: http://skadi-boost-api-server.daily.svc.cluster.local
     freyjaOrigin: http://freyja.freyja
     growthbookApiConfigClientKey:
       secure: AAABAJEgS6b8xZv0j06KOawyNMdkTpGmzKs7Ryed5SofiLp3vSTjxhqQuKSVsaHjR5s=
@@ -116,7 +125,6 @@ config:
       secure: AAABABnP+xVyOkzYEXf/7ImrzhbJzc0k+eH5JI03jdJZYBWNUt9cwLHXJ5uyzFmA8mD2x4adt1DawYGNDhM0J/ukvQBPqzdAOjvW4AY8ykqHTSXzxbJojMeOuSO+4YeopZhv2J7xa+gTxipkvZR5hhA=
     slackWebhook:
       secure: AAABANMRr419hiCx/eBF5NJvKB8LDGb8GffeQzg5PxXoD5A9iQn7cPM30aB0jl3cWTKX65VrDShNl+GO86zvRIq4nXvwpjSdi/ToCHDBxyg7sIIQvngrlJuPQ9da+fj426VWkg5fFnwg02QuxMoHqrM=
-    snotraOrigin: http://snotra-user-api.snotra
     submitArticleThreshold: 250
     temporalAddress:
       secure: AAABANwsKzHI+0YqeyYAYySZLL0vAIPZaiKEofEpe8cyj9foEnhVI1rhGT/t4uhvGv94kXHsa34jaQ==
@@ -171,7 +179,18 @@ config:
     employmentAgreementBucketName:
       secure: AAABALYmrJB/AIJh7SXF/2vStsA+vCbPUZ3GVJH/JgIxRg9azoA5A/BZkpSUYHwbVGMLP4yNZpc9Js3/2ISG
     gondulOrigin:
-      secure: AAABANvfb9iJDOmbRPpMpkPzBLpeKTHsLCsFkNfU38yn53ZKUmeP0PA34uVGPZp+y4luHmEFXRE/jy/4rFwr9ZoVtufE59aa7J5AtVJcYY1VlumIY6P5olg=
+      secure: AAABAGjjPkdIOygNSpVtBILtv6W4LBCtBJVtjROFM0k8e5WOgvyIwd6ogQEVNk9XRuFWOt3HtowA1vqLFGOf/Iq9V02Si78ZklQXikSPMgzB3ai5vMET1dCG2Q==
+    brokkrOrigin:
+      secure: AAABABvk5Zi2sL2p8Gjl4vwVS+Ge+P2S3Jo8yDBOTNMZ6FZ1WquX+DqQkvE1YBTCvSMy9kmd+TCsRzeV3LrTC0Xbnlh7PxLog7fseJS37GUJ
+    slackRecruiterWebhook:
+      secure: AAABANouDkXZrXKlBhPnSmgjwQS/mb+qPaFmD/vpxeEkdCx4pfnsjYOsdOQFvsH6KcXb7BNGnnEtpEBUaeb3CNNMUbc2/JP80iNsnJSrF4hx5zBEYEPlMi0rmTXAJ4nc087FooqlV031idBJLxyNLDU=
+    snotraOrigin:
+      secure: AAABAGav+Zu5sB3oCBC6iBCp1igmACgiKlwl0YkDsLawDBUGaPKulWIr8v/hUnwuTsLgaVS3A1azmw50v+PRKhJPblETkKZpqNB4JCnrQ92k
+    mapboxAccessToken:
+      secure: AAABAGQ/EX6kte5JXzyFrBmYlob0zx+IyG7RIbbcpySfexg2C6aqhoAJQ+aaXCw9UaVXMbMlncgnVvCWnhmR361glY6aDeNfUFXEBYARRJRnZJjXWPXw6KJEWinueHakjMeTpTelCQ2bCBXS0TzEtEE/n0HDqynumezR7A==
+    mapboxGeocodingUrl: https://api.mapbox.com/search/geocode/v6/forward
+    slackBotToken:
+      secure: AAABAH+UKbv4/Uoc9jYySYeAr7m+W7OCm/kQa9/3LCrKURh3TcPqgNPqF1ugLg31AAfsT4qVafpb0jiZm+ZCfDTYzrCfPmebxLjV0AAkHAy3kHgLK1v6YNGH
   api:k8s:
     host: subs.daily.dev
     namespace: daily

@@ -5,6 +5,7 @@ import { AuthContext, BaseContext, Context } from '../Context';
 import { DataSource, QueryRunner } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
 import { GQLEmptyResponse } from './common';
+import { updateFlagsStatement } from '../common';
 
 interface GQLAlerts {
   filter: boolean;
@@ -189,6 +190,13 @@ export const typeDefs = /* GraphQL */ `
     Reset opportunity alert
     """
     clearOpportunityAlert: EmptyResponse! @auth
+
+    """
+    Update the hasSeenOpportunity flag
+    """
+    updateHasSeenOpportunity(
+      hasSeenOpportunity: Boolean = true
+    ): EmptyResponse! @auth
   }
 
   extend type Query {
@@ -200,13 +208,17 @@ export const typeDefs = /* GraphQL */ `
 `;
 
 /**
- * Remove the flags from the alerts object
+ * Remove the non public flags from the alerts object
  * @param alerts
  */
 export const saveReturnAlerts = (alerts: Alerts) => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { flags, ...data } = alerts;
-  return data;
+  return {
+    ...data,
+    flags: {
+      hasSeenOpportunity: flags?.hasSeenOpportunity,
+    },
+  };
 };
 
 interface GQLAlertInputInternalInput {
@@ -312,6 +324,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await updateAlerts(ctx.con, ctx.userId, { opportunityId: null });
+      return { _: true };
+    },
+    updateHasSeenOpportunity: async (
+      _,
+      { hasSeenOpportunity = true }: { hasSeenOpportunity?: boolean },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.getRepository(Alerts).update(
+        { userId: ctx.userId },
+        {
+          flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity }),
+        },
+      );
       return { _: true };
     },
   },

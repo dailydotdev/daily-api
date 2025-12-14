@@ -71,7 +71,9 @@ jest.mock('@slack/web-api', () => ({
         }),
       },
       chat: {
-        postMessage: slackPostMessage,
+        get postMessage() {
+          return slackPostMessage;
+        },
       },
     };
   },

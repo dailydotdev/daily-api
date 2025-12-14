@@ -39,6 +39,7 @@ import {
   MarketingCta,
   Post,
   PostReport,
+  Settings,
   Source,
   SourceMember,
   User,
@@ -58,30 +59,32 @@ import {
 } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import {
-  bskySocialUrlMatch,
   CioTransactionalMessageTemplateId,
-  codepenSocialUrlMatch,
   DayOfWeek,
   encrypt,
   getTimezonedStartOfISOWeek,
   ghostUser,
-  githubSocialUrlMatch,
   type GQLUserTopReader,
-  linkedinSocialUrlMatch,
-  mastodonSocialUrlMatch,
   portfolioLimit,
-  redditSocialUrlMatch,
-  roadmapShSocialUrlMatch,
   sendEmail,
-  socialUrlMatch,
-  stackoverflowSocialUrlMatch,
   systemUser,
-  threadsSocialUrlMatch,
-  twitterSocialUrlMatch,
   updateFlagsStatement,
   updateSubscriptionFlags,
   UploadPreset,
 } from '../src/common';
+import {
+  blueskySchema,
+  codepenSchema,
+  githubSchema,
+  linkedinSchema,
+  mastodonSchema,
+  portfolioSchema,
+  redditSchema,
+  roadmapSchema,
+  stackoverflowSchema,
+  threadsSchema,
+  twitterSchema,
+} from '../src/common/schema/socials';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
@@ -146,12 +149,6 @@ import {
   DEFAULT_NOTIFICATION_SETTINGS,
   NotificationType,
 } from '../src/notifications/common';
-import { UserWorkExperience } from '../src/entity/user/experiences/UserWorkExperience';
-import { ExperienceStatus } from '../src/entity/user/experiences/types';
-import {
-  UserJobPreferences,
-  WorkLocationType,
-} from '../src/entity/user/UserJobPreferences';
 import { UserCandidatePreference } from '../src/entity/user/UserCandidatePreference';
 
 jest.mock('../src/common/geo', () => ({
@@ -616,6 +613,20 @@ describe('query userStreaks', () => {
     loggedUser = '1';
     const res = await client.query(QUERY);
     expect(res.errors).toBeFalsy();
+  });
+
+  it('should return null when user has opted out of reading streaks', async () => {
+    loggedUser = '1';
+    await con.getRepository(Settings).save({
+      userId: loggedUser,
+      optOutReadingStreak: true,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreak: null,
+    });
   });
 
   const expectStreak = async (
@@ -1735,6 +1746,22 @@ describe('query userStreaksProfile', () => {
 
     const streak = await repo.findOneBy({ userId });
     expect(streak.currentStreak).toEqual(5);
+  });
+
+  it('should return null when user has opted out of reading streaks', async () => {
+    const userId = '2';
+    await con.getRepository(Settings).save({
+      userId,
+      optOutReadingStreak: true,
+    });
+
+    const res = await client.query(QUERY_BY_USER_ID, {
+      variables: { id: userId },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data).toEqual({
+      userStreakProfile: null,
+    });
   });
 });
 
@@ -3838,12 +3865,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(githubSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(githubSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = githubSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(githubSocialUrlMatch.test(item)).toBe(false);
+      expect(githubSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3872,12 +3900,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(twitterSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(twitterSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = twitterSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(twitterSocialUrlMatch.test(item)).toBe(false);
+      expect(twitterSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3900,11 +3929,11 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(bskySocialUrlMatch.test(item)).toBe(true);
+      expect(blueskySchema.safeParse(item).success).toBe(true);
     });
 
     invalid.forEach((item) => {
-      expect(bskySocialUrlMatch.test(item)).toBe(false);
+      expect(blueskySchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3925,12 +3954,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(roadmapShSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(roadmapShSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = roadmapSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(roadmapShSocialUrlMatch.test(item)).toBe(false);
+      expect(roadmapSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3955,12 +3985,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(threadsSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(threadsSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = threadsSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(threadsSocialUrlMatch.test(item)).toBe(false);
+      expect(threadsSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3981,12 +4012,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(codepenSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(codepenSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = codepenSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(codepenSocialUrlMatch.test(item)).toBe(false);
+      expect(codepenSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4010,12 +4042,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(redditSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(redditSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = redditSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(redditSocialUrlMatch.test(item)).toBe(false);
+      expect(redditSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4024,9 +4057,9 @@ describe('mutation updateUserProfile', () => {
       'stackoverflow.com/users/999999/lee',
       'https://stackoverflow.com/users/999999/lee',
       'https://stackoverflow.com/users/999999/lee/',
+      '999999/lee',
     ];
     const invalid = [
-      '99999/lee',
       'lee',
       'lee#',
       'http://stackoverflow.com/lee',
@@ -4039,14 +4072,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(stackoverflowSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(stackoverflowSocialUrlMatch)?.groups?.value).toBe(
-        '999999/lee',
-      );
+      const result = stackoverflowSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('999999/lee');
     });
 
     invalid.forEach((item) => {
-      expect(stackoverflowSocialUrlMatch.test(item)).toBe(false);
+      expect(stackoverflowSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4067,12 +4099,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(linkedinSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(linkedinSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = linkedinSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(linkedinSocialUrlMatch.test(item)).toBe(false);
+      expect(linkedinSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4092,12 +4125,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(mastodonSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(mastodonSocialUrlMatch)?.groups?.value).toBe(item);
+      const result = mastodonSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe(item);
     });
 
     invalid.forEach((item) => {
-      expect(mastodonSocialUrlMatch.test(item)).toBe(false);
+      expect(mastodonSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4124,12 +4158,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(socialUrlMatch.test(item)).toBe(true);
-      expect(item.match(socialUrlMatch)?.groups?.value).toBe(item);
+      const result = portfolioSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe(item);
     });
 
     invalid.forEach((item) => {
-      expect(socialUrlMatch.test(item)).toBe(false);
+      expect(portfolioSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -7343,304 +7378,6 @@ describe('mutation updateNotificationSettings', () => {
   });
 });
 
-describe('user job preferences', () => {
-  const QUERY = `
-    query UserJobPreferences {
-      userJobPreferences {
-        openToOpportunities
-        preferredRoles
-        preferredLocationType
-        openToRelocation
-        currentTotalComp {
-          currency
-          amount
-        }
-      }
-    }
-  `;
-
-  beforeEach(async () => {
-    // Set up a user with job preferences
-    await con.getRepository(UserJobPreferences).save({
-      userId: '1',
-      openToOpportunities: true,
-      preferredRoles: ['Software Engineer', 'Frontend Developer'],
-      preferredLocationType: 'remote',
-      openToRelocation: false,
-      currentTotalComp: {
-        currency: 'USD',
-        amount: 10,
-      },
-    });
-
-    await saveFixtures(con, UserJobPreferences, [
-      {
-        userId: '1',
-        openToOpportunities: true,
-        preferredRoles: ['Software Engineer', 'Frontend Developer'],
-        preferredLocationType: WorkLocationType.Remote,
-        openToRelocation: false,
-        currentTotalComp: {
-          currency: 'USD',
-          amount: 10,
-        },
-      },
-      {
-        userId: '2',
-        openToOpportunities: true,
-        preferredRoles: [],
-        preferredLocationType: WorkLocationType.Remote,
-        openToRelocation: false,
-        currentTotalComp: {
-          currency: 'USD',
-          amount: 10,
-        },
-      },
-    ]);
-
-    // Set up a user with a complete profile
-    await con.getRepository(User).update('1', {
-      flags: {
-        country: 'US',
-      },
-    });
-
-    // Add work experience to make sure profile is complete
-    await saveFixtures(con, UserWorkExperience, [
-      {
-        userId: '1',
-        title: 'Software Engineer',
-        status: ExperienceStatus.Published,
-        description: '',
-        startDate: new Date(),
-      },
-      {
-        userId: '1',
-        title: 'Senior Software Engineer',
-        status: ExperienceStatus.Published,
-        description: '',
-        startDate: new Date(),
-      },
-      {
-        userId: '1',
-        title: 'Software Developer',
-        status: ExperienceStatus.Published,
-        description: '',
-        startDate: new Date(),
-      },
-      {
-        userId: '1',
-        title: 'Frontend Developer',
-        status: ExperienceStatus.Published,
-        description: '',
-        startDate: new Date(),
-      },
-      {
-        userId: '1',
-        title: 'Draft Job Title',
-        status: ExperienceStatus.Draft,
-        description: '',
-        startDate: new Date(),
-      },
-    ]);
-  });
-
-  describe('query userJobPreferences', () => {
-    it('should throw error on query as guest', async () => {
-      return testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
-    });
-
-    it('should return user job preferences', async () => {
-      loggedUser = '1';
-      const res = await client.query(QUERY);
-      expect(res.errors).toBeFalsy();
-      expect(res.data.userJobPreferences).toMatchObject({
-        openToOpportunities: true,
-        preferredRoles: ['Software Engineer', 'Frontend Developer'],
-        preferredLocationType: 'remote',
-        openToRelocation: false,
-        currentTotalComp: {
-          currency: 'USD',
-          amount: 10,
-        },
-      });
-    });
-
-    it('should force openToOpportunities to false if profile is not complete', async () => {
-      loggedUser = '2'; // User without job preferences
-      const res = await client.query(QUERY);
-      expect(res.errors).toBeFalsy();
-      expect(res.data.userJobPreferences).toMatchObject({
-        // fetched as false even if is true on preferences since have no experiences
-        openToOpportunities: false,
-        preferredRoles: [],
-        preferredLocationType: WorkLocationType.Remote,
-        openToRelocation: false,
-        currentTotalComp: {},
-      });
-    });
-  });
-
-  describe('mutation updateUserJobPreferences', () => {
-    const MUTATION = `
-    mutation UpdateUserJobPreferences(
-      $openToOpportunities: Boolean!
-      $preferredRoles: [String!]!
-      $preferredLocationType: String
-      $openToRelocation: Boolean!
-      $currentTotalComp: UserTotalCompensationInput!
-    ) {
-      updateUserJobPreferences(
-        openToOpportunities: $openToOpportunities
-        preferredRoles: $preferredRoles
-        preferredLocationType: $preferredLocationType
-        openToRelocation: $openToRelocation
-        currentTotalComp: $currentTotalComp
-      ) {
-        openToOpportunities
-        preferredRoles
-        preferredLocationType
-        openToRelocation
-        currentTotalComp {
-          currency
-          amount
-        }
-      }
-    }
-  `;
-
-    it('should throw error on mutation as guest', async () => {
-      return testMutationErrorCode(
-        client,
-        {
-          mutation: MUTATION,
-          variables: {
-            openToOpportunities: true,
-            preferredRoles: ['Software Engineer'],
-            preferredLocationType: 'remote',
-            openToRelocation: false,
-            currentTotalComp: {},
-          },
-        },
-        'UNAUTHENTICATED',
-      );
-    });
-
-    it('should update user job preferences', async () => {
-      loggedUser = '1';
-      const variables = {
-        openToOpportunities: false,
-        preferredRoles: ['Product Manager', 'Project Manager'],
-        preferredLocationType: WorkLocationType.Remote,
-        openToRelocation: true,
-        currentTotalComp: {
-          currency: 'EUR',
-          amount: 10,
-        },
-      };
-
-      const res = await client.mutate(MUTATION, { variables });
-      expect(res.errors).toBeFalsy();
-      expect(res.data.updateUserJobPreferences).toMatchObject({
-        openToOpportunities: false,
-        preferredRoles: ['Product Manager', 'Project Manager'],
-        preferredLocationType: WorkLocationType.Remote,
-        openToRelocation: true,
-        currentTotalComp: {
-          currency: 'EUR',
-          amount: 10,
-        },
-      });
-
-      // Verify database state
-      const updatedPrefs = await con
-        .getRepository('UserJobPreferences')
-        .findOne({
-          where: { userId: '1' },
-        });
-      expect(updatedPrefs).toMatchObject({
-        openToOpportunities: false,
-        preferredRoles: ['Product Manager', 'Project Manager'],
-        preferredLocationType: WorkLocationType.Remote,
-        openToRelocation: true,
-        currentTotalComp: {
-          currency: 'EUR',
-          amount: 10,
-        },
-      });
-    });
-
-    it('should throw error on invalid job preferences', async () => {
-      loggedUser = '1';
-
-      // Test with too many preferred roles
-      const variables = {
-        openToOpportunities: true,
-        preferredRoles: [
-          'Role 1',
-          'Role 2',
-          'Role 3',
-          'Role 4',
-          'Role 5',
-          'Role 6',
-        ],
-        preferredLocationType: 'remote',
-        openToRelocation: false,
-        currentTotalComp: {},
-      };
-
-      return testMutationErrorCode(
-        client,
-        { mutation: MUTATION, variables },
-        'GRAPHQL_VALIDATION_FAILED',
-        'Invalid job preferences data. Please check your input.',
-      );
-    });
-
-    it('should not update user job preferences of other user', async () => {
-      // Create job preferences for user 2
-      await con.getRepository('UserJobPreferences').save({
-        userId: '2',
-        openToOpportunities: false,
-        preferredRoles: ['Designer'],
-        preferredLocationType: 'on_site',
-        openToRelocation: true,
-        currentTotalComp: {
-          currency: 'GBP',
-          amount: 20,
-        },
-      });
-
-      // Log in as user 1
-      loggedUser = '1';
-
-      // Try to update user 2's preferences by setting userId
-      const variables = {
-        userId: '2', // This should be ignored
-        openToOpportunities: true,
-        preferredRoles: ['Hacker'],
-        preferredLocationType: 'remote',
-        openToRelocation: false,
-        currentTotalComp: {},
-      };
-
-      const res = await client.mutate(MUTATION, { variables });
-      expect(res.errors).toBeFalsy();
-
-      // Verify that user 1's preferences were updated, not user 2's
-      const user1Prefs = await con.getRepository('UserJobPreferences').findOne({
-        where: { userId: '1' },
-      });
-      expect(user1Prefs?.preferredRoles).toContain('Hacker');
-
-      const user2Prefs = await con.getRepository('UserJobPreferences').findOne({
-        where: { userId: '2' },
-      });
-      expect(user2Prefs?.preferredRoles).toEqual(['Designer']);
-    });
-  });
-});
-
 describe('mutation clearResume', () => {
   const MUTATION = /* GraphQL */ `
     mutation ClearResume {
@@ -7656,6 +7393,7 @@ describe('mutation clearResume', () => {
         userId: '1',
         cv: { blob: 'blobname' },
         cvParsed: { some: 'data' },
+        cvParsedMarkdown: '# Sample CV',
       },
     ]);
   });
@@ -7688,6 +7426,7 @@ describe('mutation clearResume', () => {
 
     expect(ucp.cv).toEqual({});
     expect(ucp.cvParsed).toEqual({});
+    expect(ucp.cvParsedMarkdown).toEqual(null);
   });
 
   it('should handle case when user has no candidate preferences', async () => {

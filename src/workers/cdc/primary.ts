@@ -154,11 +154,17 @@ import {
   notifyCandidatePreferenceChange,
   notifyOpportunityMatchAccepted,
   notifyRecruiterCandidateMatchAccepted,
+  notifyRecruiterCandidateMatchRejected,
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { PollPost } from '../../entity/posts/PollPost';
+import { UserExperienceWork } from '../../entity/user/experiences/UserExperienceWork';
+import { UserExperience } from '../../entity/user/experiences/UserExperience';
+import { UserExperienceType } from '../../entity/user/experiences/types';
+import { cio, identifyUserOpportunities } from '../../cio';
+import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1180,7 +1186,7 @@ const onUserStreakChange = async (
 };
 
 const onUserCompanyCompanyChange = async (
-  _: DataSource,
+  con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserCompany>,
 ) => {
@@ -1194,6 +1200,12 @@ const onUserCompanyCompanyChange = async (
     await triggerTypedEvent(logger, 'api.v1.user-company-approved', {
       userCompany: data.payload.after!,
     });
+
+    const { userId, companyId } = data.payload.after!;
+
+    await con
+      .getRepository(UserExperienceWork)
+      .update({ userId, companyId: companyId! }, { verified: true });
   }
 };
 
@@ -1283,6 +1295,11 @@ const onOpportunityMatchChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<OpportunityMatch>,
 ) => {
+  await identifyUserOpportunities({
+    con,
+    cio,
+    userId: data.payload.after?.userId ?? data.payload.before?.userId ?? '',
+  });
   if (data.payload.op === 'u') {
     if (
       data.payload.after?.status === OpportunityMatchStatus.CandidateAccepted &&
@@ -1310,6 +1327,15 @@ const onOpportunityMatchChange = async (
     ) {
       await notifyCandidateOpportunityMatchRejected({
         con,
+        logger,
+        data: data.payload.after!,
+      });
+    }
+    if (
+      data.payload.after?.status === OpportunityMatchStatus.RecruiterRejected &&
+      data?.payload.before?.status !== OpportunityMatchStatus.RecruiterRejected
+    ) {
+      await notifyRecruiterCandidateMatchRejected({
         logger,
         data: data.payload.after!,
       });
@@ -1457,6 +1483,87 @@ export const onCampaignChange = async (
   }
 };
 
+const onUserExperienceChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserExperience>,
+) => {
+  const experience = data.payload.after;
+
+  if (
+    !experience ||
+    ![UserExperienceType.Work, UserExperienceType.Education].includes(
+      experience?.type,
+    )
+  ) {
+    return;
+  }
+
+  // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
+  if (
+    data.payload.op === 'c' &&
+    experience.customCompanyName &&
+    !experience.companyId
+  ) {
+    await enrichCompanyForExperience(
+      con,
+      {
+        experienceId: experience.id,
+        customCompanyName: experience.customCompanyName,
+        experienceType: experience.type,
+      },
+      logger,
+    );
+  }
+
+  // Work-specific verification logic
+  if (experience.type !== UserExperienceType.Work) {
+    return;
+  }
+
+  const work = experience as ChangeObject<UserExperienceWork>;
+
+  if (!work.companyId) {
+    if (work.verified) {
+      await con
+        .getRepository(UserExperienceWork)
+        .update({ id: work.id }, { verified: false });
+    }
+
+    return;
+  }
+
+  if (data.payload.op === 'c') {
+    const isVerified = await con.getRepository(UserCompany).existsBy({
+      companyId: work.companyId,
+      userId: work.userId,
+      verified: true,
+    });
+
+    if (isVerified) {
+      await con
+        .getRepository(UserExperienceWork)
+        .update({ id: work.id }, { verified: true });
+    }
+  }
+
+  if (data.payload.op === 'u') {
+    if (data.payload.before?.companyId === work.companyId) {
+      return;
+    }
+
+    const isVerified = await con.getRepository(UserCompany).existsBy({
+      companyId: work.companyId,
+      userId: work.userId,
+      verified: true,
+    });
+
+    await con
+      .getRepository(UserExperienceWork)
+      .update({ id: work.id }, { verified: isVerified });
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1587,6 +1694,9 @@ const worker: Worker = {
           break;
         case getTableName(con, Campaign):
           await onCampaignChange(con, logger, data);
+          break;
+        case getTableName(con, UserExperience):
+          await onUserExperienceChange(con, logger, data);
           break;
       }
     } catch (err) {

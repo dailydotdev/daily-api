@@ -1,15 +1,33 @@
 import {
+  AppStoreServerAPIClient,
+  ConsumptionStatus,
+  DeliveryStatus,
   Environment,
   JWSTransactionDecodedPayload,
+  LifetimeDollarsPurchased,
+  LifetimeDollarsRefunded,
+  Platform,
+  PlayTime,
   ResponseBodyV2DecodedPayload,
+  UserStatus,
+  type ConsumptionRequest,
 } from '@apple/app-store-server-library';
+import { RefundPreference } from '@apple/app-store-server-library/dist/models/RefundPreference';
+import { JsonContains } from 'typeorm';
 import type { User } from '../../entity/user/User';
 import {
+  getAccountTenure,
   getAnalyticsEventFromAppleNotification,
   getAppleTransactionType,
   logAppleAnalyticsEvent,
 } from './utils';
-import { AppleTransactionType } from './types';
+import {
+  appleAppStoreServerClientKey,
+  appleAppStoreServerClientKeyId,
+  appleIssuerId,
+  AppleTransactionType,
+  bundleId,
+} from './types';
 import {
   UserTransaction,
   UserTransactionProcessor,
@@ -280,4 +298,63 @@ export const handleCoresPurchase = async ({
   }
 
   return transaction;
+};
+
+export const handleCoresConsumptionRequest = async ({
+  transactionInfo,
+  user,
+  environment,
+}: {
+  transactionInfo: JWSTransactionDecodedPayload;
+  user: Pick<User, 'id' | 'subscriptionFlags' | 'coresRole' | 'createdAt'>;
+  environment: Environment;
+}) => {
+  if (!transactionInfo.transactionId) {
+    throw new Error('Missing transactionId in transactionInfo');
+  }
+
+  if (!user.subscriptionFlags?.appAccountToken) {
+    throw new Error('Missing appAccountToken in user subscription flags');
+  }
+
+  const apiClient = new AppStoreServerAPIClient(
+    appleAppStoreServerClientKey,
+    appleAppStoreServerClientKeyId,
+    appleIssuerId,
+    bundleId,
+    environment,
+  );
+
+  const con = await createOrGetConnection();
+
+  const deliveryStatus = await con.getRepository(UserTransaction).exists({
+    where: {
+      receiverId: user.id,
+      flags: JsonContains({ providerId: transactionInfo.transactionId }),
+    },
+  });
+
+  const consumptionRequest: ConsumptionRequest = {
+    accountTenure: getAccountTenure(user),
+    appAccountToken: user.subscriptionFlags.appAccountToken,
+    consumptionStatus: ConsumptionStatus.FULLY_CONSUMED, // It is assumed that the user has fully consumed the in-app purchase
+    customerConsented: true,
+    deliveryStatus: deliveryStatus
+      ? DeliveryStatus.DELIVERED_AND_WORKING_PROPERLY
+      : DeliveryStatus.DID_NOT_DELIVER_DUE_TO_SERVER_OUTAGE,
+    refundPreference: RefundPreference.PREFER_DECLINE,
+    userStatus: UserStatus.ACTIVE,
+
+    // Values we don't track or care about, but are required by Apple
+    sampleContentProvided: false,
+    lifetimeDollarsPurchased: LifetimeDollarsPurchased.UNDECLARED,
+    lifetimeDollarsRefunded: LifetimeDollarsRefunded.UNDECLARED,
+    platform: Platform.UNDECLARED,
+    playTime: PlayTime.UNDECLARED,
+  };
+
+  await apiClient.sendConsumptionData(
+    transactionInfo.transactionId,
+    consumptionRequest,
+  );
 };

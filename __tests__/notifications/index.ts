@@ -10,6 +10,7 @@ import {
   NotificationDoneByContext,
   NotificationGiftPlusContext,
   type NotificationOpportunityMatchContext,
+  type NotificationParsedCVProfileContext,
   type NotificationPostAnalyticsContext,
   NotificationPostContext,
   NotificationPostModerationContext,
@@ -1223,9 +1224,7 @@ describe('generateNotification', () => {
     expect(actual.notification.referenceType).toEqual('opportunity');
     expect(actual.notification.uniqueKey).toEqual(userId);
     expect(actual.notification.icon).toEqual('Opportunity');
-    expect(actual.notification.title).toEqual(
-      'New opportunity waiting for you',
-    );
+    expect(actual.notification.title).toEqual('New job match waiting for you');
     expect(actual.notification.description).toEqual(
       '<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> Based on your React and TypeScript skills</span>',
     );
@@ -2150,7 +2149,7 @@ describe('warm intro notifications', () => {
     expect(actual.notification.description).toEqual(
       `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
     );
-    expect(actual.notification.targetUrl).toEqual('system');
+    expect(actual.notification.targetUrl).toEqual('http://localhost:5002');
     expect(actual.notification.uniqueKey).toEqual('1');
     expect(actual.avatars).toEqual([
       {
@@ -2170,5 +2169,75 @@ describe('warm intro notifications', () => {
       },
     ]);
     expect(actual.attachments.length).toEqual(0);
+  });
+});
+
+describe('parsed_cv_profile notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should notify when parsed CV profile is ready', async () => {
+    const type = NotificationType.ParsedCVProfile;
+    const ctx: NotificationParsedCVProfileContext = {
+      userIds: ['1'],
+      user: usersFixture[0] as Reference<User>,
+      status: 'success',
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('1');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/idoshamun',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+    expect(actual.notification.title).toBe(
+      'Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!',
+    );
+  });
+
+  it('should notify when parsed CV profile failed', async () => {
+    const type = NotificationType.ParsedCVProfile;
+    const ctx: NotificationParsedCVProfileContext = {
+      userIds: ['1'],
+      user: usersFixture[0] as Reference<User>,
+      status: 'failed',
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('1');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/idoshamun',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+
+    expect(actual.notification.title).toBe(
+      "We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.",
+    );
   });
 });

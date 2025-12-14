@@ -21,6 +21,7 @@ import {
   type PostFlagsPublic,
   type Campaign,
   type OrganizationLink,
+  SourceType,
 } from '../entity';
 import {
   OrganizationMemberRole,
@@ -36,13 +37,17 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
-  isProfileCompleteById,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { type ContentLanguage, type I18nRecord, UserVote } from '../types';
+import {
+  type ContentLanguage,
+  type I18nRecord,
+  opportunityMatchBatchSize,
+  UserVote,
+} from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -60,14 +65,17 @@ import {
   ContentPreferenceOrganization,
   ContentPreferenceOrganizationStatus,
 } from '../entity/contentPreference/ContentPreferenceOrganization';
-import {
-  UserCompensation,
-  WorkLocationType,
-} from '../entity/user/UserJobPreferences';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
+import { QuestionType } from '../entity/questions/types';
+import { snotraClient } from '../integrations/snotra';
+import type {
+  Opportunity,
+  OpportunityFlagsPublic,
+} from '../entity/opportunities/Opportunity';
+import { SubscriptionStatus } from '../common/plus';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -105,6 +113,15 @@ const nullIfNotSameUser = <T>(
   const user = parent as Pick<User, 'id'>;
 
   return ctx.userId === user.id ? value : null;
+};
+
+const nullIfNotSameUserById = <T>(
+  value: T,
+  ctx: Context,
+  parent: unknown,
+): T | null => {
+  const entity = parent as { userId: string };
+  return ctx.userId === entity.userId ? value : null;
 };
 
 const checkIfTitleIsClickbait = (value?: string): boolean => {
@@ -654,6 +671,25 @@ const obj = new GraphORM({
           order: 'ASC',
           parentColumn: 'id',
           childColumn: 'postId',
+        },
+      },
+      analytics: {
+        transform: (value: number, ctx, parent): number | null => {
+          const post = parent as Post;
+
+          const isAuthor = post?.authorId && ctx.userId === post.authorId;
+
+          if (isAuthor) {
+            return value;
+          }
+
+          const isScout = post?.scoutId && ctx.userId === post.scoutId;
+
+          if (isScout) {
+            return value;
+          }
+
+          return null;
         },
       },
     },
@@ -1357,49 +1393,6 @@ const obj = new GraphORM({
       },
     },
   },
-  UserJobPreferences: {
-    requiredColumns: [
-      'userId',
-      'openToOpportunities',
-      'preferredRoles',
-      'preferredLocationType',
-      'openToRelocation',
-      'currentTotalComp',
-    ],
-    additionalQuery: (ctx, alias, qb) =>
-      qb.andWhere(`"${alias}"."userId" = :currentUserId`, {
-        currentUserId: ctx.userId,
-      }),
-    fields: {
-      openToOpportunities: {
-        transform: async (value: boolean, ctx: Context) => {
-          if (!ctx.userId) {
-            return false;
-          }
-
-          const isProfileComplete = await isProfileCompleteById(
-            ctx.con,
-            ctx.userId,
-          );
-
-          return value && isProfileComplete;
-        },
-      },
-      preferredRoles: {
-        transform: (value: string[] | null) => value || [],
-      },
-      preferredLocationType: {
-        transform: (value: WorkLocationType | null) => value,
-      },
-      openToRelocation: {
-        transform: (value: boolean | null) => value ?? false,
-      },
-      currentTotalComp: {
-        jsonType: true,
-        transform: (value: Partial<UserCompensation> | null) => value || {},
-      },
-    },
-  },
   Campaign: {
     requiredColumns: ['id', 'userId'],
     fields: {
@@ -1475,6 +1468,14 @@ const obj = new GraphORM({
           `;
         },
       },
+      clicks: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}.clicks + ${alias}."clicksAds" + ${alias}."goToLink", 0)
+          `;
+        },
+      },
     },
   },
   PostAnalyticsHistory: {
@@ -1510,6 +1511,7 @@ const obj = new GraphORM({
     },
   },
   Opportunity: {
+    requiredColumns: ['id', 'createdAt'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -1556,6 +1558,50 @@ const obj = new GraphORM({
           childColumn: 'opportunityId',
         },
       },
+      questions: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."type" = :screeningType`, {
+                screeningType: QuestionType.Screening,
+              })
+              .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
+        },
+      },
+      feedbackQuestions: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."opportunityId" = "${parentAlias}".id`)
+              .andWhere(`${childAlias}."type" = :feedbackType`, {
+                feedbackType: QuestionType.Feedback,
+              })
+              .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
+        },
+      },
+      subscriptionStatus: {
+        select: 'subscriptionFlags',
+        transform: (
+          value: Opportunity['subscriptionFlags'],
+        ): SubscriptionStatus => {
+          return value?.status || SubscriptionStatus.None;
+        },
+      },
+      flags: {
+        jsonType: true,
+        transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
+          return {
+            batchSize: value?.batchSize ?? opportunityMatchBatchSize,
+          };
+        },
+      },
     },
   },
   OpportunityScreeningQuestion: {
@@ -1569,7 +1615,20 @@ const obj = new GraphORM({
       },
     },
   },
+  OpportunityFeedbackQuestion: {
+    from: 'QuestionFeedback',
+    requiredColumns: ['questionOrder'],
+    additionalQuery: (_, alias, qb) =>
+      qb.orderBy(`${alias}."questionOrder"`, 'ASC'),
+    fields: {
+      order: {
+        alias: { field: 'questionOrder', type: 'int' },
+      },
+    },
+  },
   OpportunityMatch: {
+    requiredColumns: ['updatedAt'],
+    ignoredColumns: ['engagementProfile'],
     fields: {
       createdAt: {
         transform: transformDate,
@@ -1581,6 +1640,9 @@ const obj = new GraphORM({
         jsonType: true,
       },
       screening: {
+        jsonType: true,
+      },
+      feedback: {
         jsonType: true,
       },
       applicationRank: {
@@ -1600,16 +1662,34 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+      candidatePreferences: {
+        relation: {
+          isMany: false,
+          childColumn: 'userId',
+          parentColumn: 'userId',
+        },
+      },
+      previewUser: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserCandidatePreference: {
+    requiredColumns: ['userId'],
+    ignoredColumns: ['signedUrl'],
     fields: {
       cv: {
         jsonType: true,
-        transform: (value: GCSBlob) => ({
-          ...value,
-          lastModified: transformDate(value?.lastModified),
-        }),
+        transform: async (value: GCSBlob) => {
+          return {
+            ...value,
+            lastModified: transformDate(value?.lastModified),
+          };
+        },
       },
       employmentAgreement: {
         jsonType: true,
@@ -1620,6 +1700,7 @@ const obj = new GraphORM({
       },
       salaryExpectation: {
         jsonType: true,
+        transform: nullIfNotSameUserById,
       },
       location: {
         jsonType: true,
@@ -1629,6 +1710,226 @@ const obj = new GraphORM({
           isMany: true,
           parentColumn: 'userId',
           childColumn: 'userId',
+        },
+      },
+    },
+  },
+  Location: {
+    from: 'DatasetLocation',
+  },
+  UserExperience: {
+    fields: {
+      startedAt: {
+        transform: transformDate,
+      },
+      endedAt: {
+        transform: transformDate,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+      customLocation: {
+        jsonType: true,
+      },
+    },
+  },
+  OpportunityMatchCandidatePreference: {
+    from: 'UserCandidatePreference',
+    fields: {
+      cv: {
+        jsonType: true,
+        transform: async (value: GCSBlob) => {
+          return {
+            ...value,
+            lastModified: transformDate(value?.lastModified),
+          };
+        },
+      },
+      salaryExpectation: {
+        jsonType: true,
+        transform: nullIfNotSameUserById,
+      },
+    },
+  },
+  OpportunityPreviewCompany: {
+    from: 'UserExperience',
+    requiredColumns: ['userId', 'verified', 'type', 'startedAt'],
+    additionalQuery: (_, alias, qb) =>
+      qb.leftJoin('company', 'c', `c.id = ${alias}."companyId"`),
+    fields: {
+      name: {
+        rawSelect: true,
+        select: (_, alias) => `COALESCE(c.name, ${alias}."customCompanyName")`,
+      },
+      favicon: {
+        rawSelect: true,
+        select: () => 'c.image',
+      },
+    },
+  },
+  OpportunityPreviewUser: {
+    from: 'User',
+    requiredColumns: ['id'],
+    fields: {
+      profileImage: {
+        select: 'image',
+      },
+      anonId: {
+        select: () => 'NULL',
+        transform: (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) return null;
+
+          // Deterministic hash from userId
+          let hash = 0;
+          for (let i = 0; i < user.id.length; i++) {
+            hash = (hash << 5) - hash + user.id.charCodeAt(i);
+            hash = hash & hash;
+          }
+          const totalCount =
+            (ctx as Context & { previewTotalCount?: number })
+              .previewTotalCount || 1000;
+          const anonNumber = (Math.abs(hash) % totalCount) + 1;
+          return `anon #${anonNumber}`;
+        },
+      },
+      description: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          try {
+            const profile = await snotraClient.getProfile({
+              user_id: user.id,
+            });
+            return profile?.profile_text || null;
+          } catch (error) {
+            return null;
+          }
+        },
+      },
+      openToWork: {
+        select: (_, alias, qb) =>
+          qb
+            .select('ucp.status')
+            .from('user_candidate_preference', 'ucp')
+            .where(`ucp."userId" = ${alias}.id`)
+            .limit(1),
+        transform: (status: number | null): boolean => status === 1,
+      },
+      seniority: {
+        select: 'experienceLevel',
+      },
+      company: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .andWhere(`${childAlias}.verified = true`)
+              .andWhere(`${childAlias}.type = 'work'`)
+              .orderBy(`${childAlias}."startedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
+      location: {
+        select: (_, alias) => `
+          COALESCE(
+            (
+              SELECT jsonb_build_object(
+                'city', location->0->>'city',
+                'subdivision', location->0->>'subdivision',
+                'country', location->0->>'country'
+              )
+              FROM user_candidate_preference
+              WHERE "userId" = ${alias}.id
+              LIMIT 1
+            ),
+            ${alias}.flags
+          )
+        `,
+        transform: (data: Record<string, unknown>): string | null => {
+          if (!data) return null;
+
+          if (data.city || data.subdivision || data.country) {
+            return [data.city, data.subdivision, data.country]
+              .filter(Boolean)
+              .join(', ');
+          }
+
+          return null;
+        },
+      },
+
+      lastActivity: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) {
+            return null;
+          }
+          return await ctx.dataLoader.userLastActive.load({
+            userId: user.id,
+          });
+        },
+      },
+      topTags: {
+        select: (_, alias) => `
+    COALESCE(
+      (
+        SELECT ARRAY(
+          SELECT tag
+          FROM (
+            SELECT
+              pk.keyword AS tag,
+              COUNT(*) AS count
+            FROM (
+              SELECT v."postId"
+              FROM "view" v
+              WHERE v."userId" = ${alias}.id
+                AND v.hidden = false
+              ORDER BY v.timestamp DESC
+              LIMIT 100
+            ) recent_reads
+            JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
+            WHERE pk.status = 'allow'
+              AND pk.keyword != 'general-programming'
+            GROUP BY pk.keyword
+            ORDER BY COUNT(*) DESC
+            LIMIT 5
+          ) top_tags
+        )
+      ),
+      ARRAY[]::text[]
+    )
+  `,
+      },
+      recentlyRead: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'userId',
+          order: 'DESC',
+          sort: 'issuedAt',
+          limit: 3,
+        },
+      },
+      activeSquads: {
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                SourceMember,
+                'sm',
+                `sm."sourceId" = "${childAlias}".id`,
+              )
+              .where(`sm."userId" = ${parentAlias}.id`)
+              .andWhere(`"${childAlias}".type = :squadType`, {
+                squadType: SourceType.Squad,
+              })
+              .andWhere(`"${childAlias}".active = true`)
+              .orderBy('sm."createdAt"', 'DESC')
+              .limit(5),
         },
       },
     },

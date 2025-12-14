@@ -1,19 +1,13 @@
-export type UserStatePayload = {
+// Keep the type flexible to allow for future changes
+export interface ProfileRequest {
   user_id: string;
-  post_rank_count?: number;
-  providers: {
-    personalise: Record<string, never>;
-  };
-};
+}
 
-export type UserState = 'personalised' | 'non_personalised';
-
-export type UserStateResponse = {
-  personalise: {
-    state: UserState;
-  };
-};
+export interface ProfileResponse {
+  profile_text: string;
+  update_at: string;
+}
 
 export interface ISnotraClient {
-  fetchUserState(payload: UserStatePayload): Promise<UserStateResponse>;
+  getProfile(request: ProfileRequest): Promise<ProfileResponse>;
 }
