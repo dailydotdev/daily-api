@@ -24,7 +24,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const query = req.query as { q?: string; limit?: string; pos?: string };
       const q = query.q ?? '';
       const limit = parseInt(query.limit ?? '10', 10);
-      const pos = query.pos; // Pagination token from Tenor
+      const pos = query.pos;
 
       if (!q) {
         return res.send({ gifs: [], next: undefined });
@@ -36,7 +36,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         limit: limit.toString(),
       });
 
-      // Add pos parameter if it exists (for pagination)
       if (pos) {
         params.append('pos', pos);
       }
@@ -81,16 +80,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
         });
 
-      const newFavorite = req.body as Gif;
+      const gifToToggle = req.body as Gif;
       const gifs: Gif[] = [];
       if (existingFavorites?.meta) {
         gifs.push(...existingFavorites.meta.favorites);
       }
 
-      if (gifs.find((g) => g.id === newFavorite.id))
-        return res.status(403).send({ error: 'Gif already favorited' });
+      const existingIndex = gifs.findIndex((g) => g.id === gifToToggle.id);
 
-      gifs.push(newFavorite);
+      if (existingIndex !== -1) {
+        gifs.splice(existingIndex, 1);
+      } else {
+        gifs.push(gifToToggle);
+      }
 
       if (existingFavorites) {
         await con.getRepository(UserIntegrationGif).update(
@@ -114,9 +116,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         });
       }
 
-      return res.send({ favorites: gifs });
+      return res.send({ gifs });
     } catch (e) {
-      return res.status(500).send({ error: 'Failed to favorite gif' });
+      return res.status(500).send({ error: 'Failed to toggle favorite gif' });
     }
   });
   fastify.get('/favorites', async (req, res) => {
@@ -138,7 +140,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         }
       });
 
-      return res.send({ favorites });
+      return res.send({ gifs: favorites });
     } catch (e) {
       return res.status(500).send({ error: 'Failed to fetch favorite gifs' });
     }
