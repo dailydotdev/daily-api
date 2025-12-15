@@ -4,7 +4,6 @@ import {
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
   CandidateRejectedOpportunityMessage,
-  LocationType,
   MatchedCandidate,
   OpportunityMessage,
   RecruiterAcceptedCandidateMatchMessage,
@@ -399,18 +398,40 @@ export const notifyJobOpportunity = async ({
     ...users.map((u) => u.userId),
   ]);
 
+  // Map continent names to their codes
+  const continentMap: Record<string, string> = {
+    Africa: 'AF',
+    Antarctica: 'AN',
+    Asia: 'AS',
+    Europe: 'EU',
+    'North America': 'NA',
+    'South America': 'SA',
+    Oceania: 'OC',
+  };
+
+  // Check if the location country is a continent and return only continent code
+  const locationData = locations?.[0];
+  const datasetLocation = locationData ? await locationData.location : null;
+  const locationCountry = datasetLocation?.country;
+  const continentCode = locationCountry ? continentMap[locationCountry] : null;
+
+  const locationPayload = continentCode
+    ? { continent: continentCode }
+    : {
+        ...datasetLocation,
+        // Convert null values to undefined for protobuf compatibility
+        subdivision: datasetLocation?.subdivision ?? undefined,
+        city: datasetLocation?.city ?? undefined,
+        type: locationData?.type,
+      };
+
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords.map((k) => k.keyword),
-      location: [
-        {
-          ...locations?.[0]?.location,
-          type: locations?.[0]?.type,
-        },
-      ],
+      location: [locationPayload],
     },
     organization: {
       ...organization,
