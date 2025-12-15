@@ -1392,7 +1392,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           (_, i) => offsetToCursor(offset + i + 1),
           (builder) => {
             builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
-              userIds: userIds,
+              userIds: userIds.length ? userIds : ['nosuchid'],
             });
             return builder;
           },
