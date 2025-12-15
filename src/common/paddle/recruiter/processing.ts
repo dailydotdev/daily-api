@@ -101,6 +101,7 @@ export const createOpportunitySubscription = async ({
             items: data.items.map((item) => {
               return {
                 priceId: item.price.id,
+                quantity: item.quantity,
               };
             }),
           }),

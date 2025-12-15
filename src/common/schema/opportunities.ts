@@ -295,6 +295,9 @@ export const recruiterSubscriptionFlagsSchema = z
         priceId: z.string({
           error: 'Price ID is required',
         }),
+        quantity: z.number().int().min(1, {
+          error: 'Quantity must be at least 1',
+        }),
       }),
       {
         error: 'At least one subscription item is required',
