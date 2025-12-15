@@ -88,6 +88,9 @@ import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../common/schema/organizations';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
@@ -236,8 +239,12 @@ export const typeDefs = /* GraphQL */ `
     city: String
     country: String
     subdivision: String
-    continent: String
-    type: ProtoEnumValue
+  }
+
+  type OpportunityLocation {
+    id: ID!
+    location: Location!
+    type: ProtoEnumValue!
   }
 
   type OpportunityMeta {
@@ -298,7 +305,7 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     content: OpportunityContent!
     meta: OpportunityMeta!
-    location: [Location]!
+    locations: [OpportunityLocation]!
     organization: Organization
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
@@ -732,6 +739,8 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     meta: OpportunityMetaInput
     location: [LocationInput]
+    externalLocationId: String
+    locationType: ProtoEnumValue
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
@@ -1314,13 +1323,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             opportunity.content[opportunityKey] || {};
         });
 
+        // Fetch locations from OpportunityLocation table
+        const opportunityLocations = await ctx.con
+          .getRepository(OpportunityLocation)
+          .find({
+            where: { opportunityId: opportunity.id },
+            relations: ['location'],
+          });
+
+        const locations = await Promise.all(
+          opportunityLocations.map(async (ol) => {
+            const datasetLocation = await ol.location;
+            return {
+              country: datasetLocation.country,
+              city: datasetLocation.city,
+              subdivision: datasetLocation.subdivision,
+              type: ol.type,
+            };
+          }),
+        );
+
         const validatedPayload = {
           opportunity: {
             title: opportunity.title,
             tldr: opportunity.tldr,
             content: opportunityContent,
             meta: opportunity.meta,
-            location: opportunity.location,
+            location: locations,
             state: opportunity.state,
             type: opportunity.type,
             keywords: keywords.map((k) => k.keyword),
@@ -1856,6 +1885,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           questions,
           organization,
           recruiter,
+          externalLocationId,
+          locationType,
           ...opportunityUpdate
         } = opportunity;
 
@@ -1889,6 +1920,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('contentJson', opportunityContent.toJsonString())
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
+
+        // Handle location updates
+        if (externalLocationId !== undefined) {
+          // If externalLocationId is provided, replace all locations with the new one
+          await entityManager.getRepository(OpportunityLocation).delete({
+            opportunityId: id,
+          });
+
+          if (externalLocationId) {
+            let location = await entityManager
+              .getRepository(DatasetLocation)
+              .findOne({
+                where: { externalId: externalLocationId },
+              });
+            if (!location) {
+              location = await createLocationFromMapbox(
+                ctx.con,
+                externalLocationId,
+              );
+            }
+
+            // Create new OpportunityLocation relationship
+            if (location) {
+              await entityManager.getRepository(OpportunityLocation).insert({
+                opportunityId: id,
+                locationId: location.id,
+                type: locationType || 1,
+              });
+            }
+          }
+        } else if (locationType !== undefined && locationType !== null) {
+          // If only locationType is provided (no externalLocationId), update existing locations
+          await entityManager
+            .getRepository(OpportunityLocation)
+            .update({ opportunityId: id }, { type: locationType });
+        }
 
         if (organization || organizationImage) {
           const opportunityJob = await entityManager

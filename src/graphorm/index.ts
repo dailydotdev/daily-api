@@ -1532,9 +1532,6 @@ const obj = new GraphORM({
       meta: {
         jsonType: true,
       },
-      location: {
-        jsonType: true,
-      },
       recruiters: {
         relation: {
           isMany: true,
@@ -1552,6 +1549,13 @@ const obj = new GraphORM({
         },
       },
       keywords: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'opportunityId',
+        },
+      },
+      locations: {
         relation: {
           isMany: true,
           parentColumn: 'id',
@@ -1600,6 +1604,18 @@ const obj = new GraphORM({
           return {
             batchSize: value?.batchSize ?? opportunityMatchBatchSize,
           };
+        },
+      },
+    },
+  },
+  OpportunityLocation: {
+    requiredColumns: ['id', 'type'],
+    fields: {
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
         },
       },
     },
