@@ -2177,6 +2177,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           where: { id },
           relations: {
             organization: true,
+            locations: {
+              location: true,
+            },
           },
         });
 
@@ -2189,7 +2192,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const result = await gondulClient.garmr.execute(async () => {
         return await gondulClient.instance.screeningQuestions(
           new ScreeningQuestionsRequest({
-            jobOpportunity: createOpportunityPrompt({ opportunity }),
+            jobOpportunity: await createOpportunityPrompt({ opportunity }),
           }),
         );
       });
