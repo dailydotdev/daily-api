@@ -19,8 +19,6 @@ import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
 import type { QuestionFeedback } from '../questions/QuestionFeedback';
-import type { opportunitySubscriptionFlagsSchema } from '../../common/schema/opportunities';
-import type z from 'zod';
 
 export type OpportunityFlags = Partial<{
   anonUserId: string | null;
@@ -29,9 +27,13 @@ export type OpportunityFlags = Partial<{
     totalCount: number;
   };
   batchSize: number;
+  plan: string;
 }>;
 
-export type OpportunityFlagsPublic = Pick<OpportunityFlags, 'batchSize'>;
+export type OpportunityFlagsPublic = Pick<
+  OpportunityFlags,
+  'batchSize' | 'plan'
+>;
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -109,7 +111,4 @@ export class Opportunity {
 
   @Column({ type: 'jsonb', default: {} })
   flags: OpportunityFlags;
-
-  @Column({ type: 'jsonb', default: {} })
-  subscriptionFlags: z.infer<typeof opportunitySubscriptionFlagsSchema>;
 }

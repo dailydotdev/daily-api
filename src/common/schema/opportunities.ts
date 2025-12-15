@@ -272,13 +272,10 @@ export const opportunityMatchesQuerySchema = z.object({
   first: z.number().optional(),
 });
 
-export const opportunitySubscriptionFlagsSchema = z
+export const recruiterSubscriptionFlagsSchema = z
   .object({
     subscriptionId: z.string({
       error: 'Subscription ID is required',
-    }),
-    priceId: z.string({
-      error: 'Price ID is required',
     }),
     cycle: z
       .enum(SubscriptionCycles, {
@@ -293,10 +290,25 @@ export const opportunitySubscriptionFlagsSchema = z
     status: z.enum(SubscriptionStatus, {
       error: 'Invalid subscription status',
     }),
+    items: z.array(
+      z.object({
+        priceId: z.string({
+          error: 'Price ID is required',
+        }),
+      }),
+      {
+        error: 'At least one subscription item is required',
+      },
+    ),
   })
   .partial();
 
 export const gondulOpportunityPreviewResultSchema = z.object({
   user_ids: z.array(z.string()),
   total_count: z.number().int().nonnegative(),
+});
+
+export const opportunityUpdateSubscriptionSchema = z.object({
+  id: z.uuid(),
+  priceId: z.string(),
 });
