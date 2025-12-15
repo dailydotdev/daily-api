@@ -84,9 +84,8 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
-  const { match, candidatePreference, keywords } = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
+  const { match, candidatePreference, keywords, locationData } =
+    await queryReadReplica(con, async ({ queryRunner }) => {
       const [match, candidatePreference] = await Promise.all([
         queryRunner.manager.getRepository(OpportunityMatch).findOneBy({
           opportunityId: data.opportunityId,
@@ -102,9 +101,14 @@ export const notifyOpportunityMatchAccepted = async ({
         candidatePreference,
       );
 
-      return { match, candidatePreference, keywords };
-    },
-  );
+      // Fetch relational location if available
+      let locationData = null;
+      if (candidatePreference?.locationId && candidatePreference?.location) {
+        locationData = await candidatePreference.location;
+      }
+
+      return { match, candidatePreference, keywords, locationData };
+    });
 
   if (!match) {
     logger.warn(
@@ -127,6 +131,19 @@ export const notifyOpportunityMatchAccepted = async ({
       ? new Date(candidatePreference.cv.lastModified)
       : candidatePreference.cv.lastModified;
 
+  // Prioritize relational location over customLocation
+  const locationArray = locationData
+    ? [
+        {
+          ...locationData,
+          // Convert null to undefined for protobuf compatibility
+          subdivision: locationData.subdivision ?? undefined,
+          city: locationData.city ?? undefined,
+          externalId: locationData.externalId ?? undefined,
+        },
+      ]
+    : candidatePreference.customLocation || [];
+
   const message = new CandidateAcceptedOpportunityMessage({
     opportunityId: match.opportunityId,
     userId: match.userId,
@@ -135,6 +152,7 @@ export const notifyOpportunityMatchAccepted = async ({
     screening: match.screening,
     candidatePreference: {
       ...candidatePreference,
+      location: locationArray,
       salaryExpectation: new Salary({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)
@@ -430,9 +448,8 @@ export const notifyCandidatePreferenceChange = async ({
   logger: FastifyBaseLogger;
   userId: string;
 }) => {
-  const { candidatePreference, keywords } = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
+  const { candidatePreference, keywords, locationData } =
+    await queryReadReplica(con, async ({ queryRunner }) => {
       const candidatePreference = await queryRunner.manager
         .getRepository(UserCandidatePreference)
         .findOneBy({ userId: userId });
@@ -442,9 +459,14 @@ export const notifyCandidatePreferenceChange = async ({
         candidatePreference,
       );
 
-      return { candidatePreference, keywords };
-    },
-  );
+      // Fetch relational location if available
+      let locationData = null;
+      if (candidatePreference?.locationId && candidatePreference?.location) {
+        locationData = await candidatePreference.location;
+      }
+
+      return { candidatePreference, keywords, locationData };
+    });
 
   if (!candidatePreference) {
     logger.warn(
@@ -459,9 +481,23 @@ export const notifyCandidatePreferenceChange = async ({
       ? new Date(candidatePreference.cv.lastModified)
       : candidatePreference?.cv?.lastModified;
 
+  // Prioritize relational location over customLocation
+  const locationArray = locationData
+    ? [
+        {
+          ...locationData,
+          // Convert null to undefined for protobuf compatibility
+          subdivision: locationData.subdivision ?? undefined,
+          city: locationData.city ?? undefined,
+          externalId: locationData.externalId ?? undefined,
+        },
+      ]
+    : candidatePreference.customLocation || [];
+
   const message = new CandidatePreferenceUpdated({
     payload: {
       ...candidatePreference,
+      location: locationArray,
       salaryExpectation: new Salary({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)

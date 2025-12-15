@@ -25,6 +25,8 @@ import {
   OpportunityUserType,
 } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { createLocationFromMapbox } from '../entity/dataset/utils';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
@@ -762,6 +764,7 @@ export const typeDefs = /* GraphQL */ `
       employmentType: [ProtoEnumValue]
       salaryExpectation: SalaryExpectationInput
       location: [LocationInput]
+      externalLocationId: String
       locationType: [ProtoEnumValue]
       customKeywords: Boolean
     ): EmptyResponse @auth
@@ -1502,10 +1505,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw preferences.error;
       }
 
+      // Handle externalLocationId -> locationId mapping
+      let location: DatasetLocation | null = null;
+      if (preferences.data.externalLocationId) {
+        location = await con.getRepository(DatasetLocation).findOne({
+          where: { externalId: preferences.data.externalLocationId },
+        });
+
+        if (!location) {
+          location = await createLocationFromMapbox(
+            con,
+            preferences.data.externalLocationId,
+          );
+        }
+      }
+
       await con.getRepository(UserCandidatePreference).upsert(
         {
           userId,
-          ...preferences.data,
+          status: preferences.data.status,
+          role: preferences.data.role,
+          roleType: preferences.data.roleType,
+          employmentType: preferences.data.employmentType,
+          salaryExpectation: preferences.data.salaryExpectation,
+          locationType: preferences.data.locationType,
+          customKeywords: preferences.data.customKeywords,
+          locationId: location?.id ?? null,
         },
         {
           conflictPaths: ['userId'],
@@ -2471,6 +2496,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...cv,
         signedUrl,
       };
+    },
+    location: async (parent: UserCandidatePreference) => {
+      // Prioritize relational location over customLocation for backward compatibility
+      if (parent.locationId && parent.location) {
+        const datasetLocation = await parent.location;
+        if (datasetLocation) {
+          return [datasetLocation];
+        }
+      }
+      // Fall back to customLocation (legacy field)
+      return parent.customLocation || [];
     },
   },
 });
