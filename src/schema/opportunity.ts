@@ -82,6 +82,7 @@ import {
   QueryFailedError,
   type DeepPartial,
   JsonContains,
+  EntityManager,
 } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
@@ -1035,6 +1036,276 @@ async function updateCandidateMatchStatus(
   });
 }
 
+/**
+ * Renders markdown content for opportunity fields
+ * Converts markdown strings to HTML for storage
+ */
+function renderOpportunityContent(
+  content: Record<string, { content?: string }> | undefined,
+): OpportunityContent {
+  const renderedContent: Record<string, { content: string; html: string }> = {};
+
+  Object.entries(content || {}).forEach(([key, value]) => {
+    if (typeof value.content !== 'string') {
+      return;
+    }
+
+    renderedContent[key] = {
+      content: value.content,
+      html: markdown.render(value.content),
+    };
+  });
+
+  return new OpportunityContent(renderedContent);
+}
+
+/**
+ * Handles opportunity location updates
+ * Creates or updates locations based on externalLocationId and locationType
+ */
+async function handleOpportunityLocationUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  externalLocationId: string | null | undefined,
+  locationType: number | undefined | null,
+  ctx: AuthContext,
+): Promise<void> {
+  if (externalLocationId !== undefined) {
+    // If externalLocationId is provided, replace all locations with the new one
+    await entityManager.getRepository(OpportunityLocation).delete({
+      opportunityId,
+    });
+
+    if (externalLocationId) {
+      let location = await entityManager
+        .getRepository(DatasetLocation)
+        .findOne({
+          where: { externalId: externalLocationId },
+        });
+      if (!location) {
+        location = await createLocationFromMapbox(ctx.con, externalLocationId);
+      }
+
+      // Create new OpportunityLocation relationship
+      if (location) {
+        await entityManager.getRepository(OpportunityLocation).insert({
+          opportunityId,
+          locationId: location.id,
+          type: locationType || 1,
+        });
+      }
+    }
+  } else if (locationType !== undefined && locationType !== null) {
+    // If only locationType is provided (no externalLocationId), update existing locations
+    await entityManager
+      .getRepository(OpportunityLocation)
+      .update({ opportunityId }, { type: locationType });
+  }
+}
+
+/**
+ * Handles organization creation, updates, and image uploads for an opportunity
+ * Creates new organizations or updates existing ones, with support for image uploads
+ */
+async function handleOpportunityOrganizationUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  organization: Record<string, unknown> | null | undefined,
+  organizationImage: Promise<FileUpload> | undefined,
+): Promise<void> {
+  if (!organization && !organizationImage) {
+    return;
+  }
+
+  const opportunityJob = await entityManager
+    .getRepository(OpportunityJob)
+    .findOne({
+      where: { id: opportunityId },
+      select: ['organizationId'],
+    });
+
+  let organizationId = opportunityJob?.organizationId;
+
+  let organizationUpdate: Record<string, unknown> = {
+    ...organization,
+  };
+
+  if (organizationId) {
+    delete organizationUpdate.name; // prevent name updates on existing organizations
+  }
+
+  if (!organizationId) {
+    // create new organization and assign to opportunity here inline
+    // TODO: ideally this should be refactored later to separate mutation
+
+    try {
+      const organizationInsertResult = await entityManager
+        .getRepository(Organization)
+        .insert(organizationUpdate);
+
+      organizationId = organizationInsertResult.identifiers[0].id as string;
+
+      await entityManager
+        .getRepository(OpportunityJob)
+        .update({ id: opportunityId }, { organizationId });
+
+      // values were applied during insert
+      organizationUpdate = {};
+    } catch (insertError) {
+      if (insertError instanceof QueryFailedError) {
+        const queryFailedError = insertError as TypeORMQueryFailedError;
+
+        if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (
+            insertError.message.indexOf('IDX_organization_name_unique') > -1
+          ) {
+            throw new ConflictError(
+              'Organization with this name already exists',
+            );
+          }
+        }
+      }
+
+      throw insertError;
+    }
+  }
+
+  // Handle image upload
+  if (organizationImage) {
+    const { createReadStream } = await organizationImage;
+    const stream = createReadStream();
+    const { url: imageUrl } = await uploadOrganizationImage(
+      organizationId,
+      stream,
+    );
+    organizationUpdate.image = imageUrl;
+  }
+
+  if (Object.keys(organizationUpdate).length > 0) {
+    await entityManager
+      .getRepository(Organization)
+      .update({ id: organizationId }, organizationUpdate);
+  }
+}
+
+/**
+ * Handles opportunity keywords updates
+ * Replaces all existing keywords with the new set
+ */
+async function handleOpportunityKeywordsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  keywords: Array<{ keyword: string }> | undefined,
+): Promise<void> {
+  if (!Array.isArray(keywords)) {
+    return;
+  }
+
+  await entityManager.getRepository(OpportunityKeyword).delete({
+    opportunityId,
+  });
+
+  await entityManager.getRepository(OpportunityKeyword).insert(
+    keywords.map((keyword) => ({
+      opportunityId,
+      keyword: keyword.keyword,
+    })),
+  );
+}
+
+/**
+ * Handles opportunity screening questions updates
+ * Validates questions ownership and upserts them with proper ordering
+ */
+async function handleOpportunityScreeningQuestionsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  questions:
+    | Array<{ id?: string; title: string; placeholder?: string | null }>
+    | undefined,
+): Promise<void> {
+  if (!Array.isArray(questions)) {
+    return;
+  }
+
+  const questionIds = questions.map((item) => item.id).filter(Boolean);
+
+  const hasQuestionsFromOtherOpportunity = await entityManager
+    .getRepository(QuestionScreening)
+    .exists({
+      where: { id: In(questionIds), opportunityId: Not(opportunityId) },
+    });
+
+  if (hasQuestionsFromOtherOpportunity) {
+    throw new ConflictError('Not allowed to edit some questions!');
+  }
+
+  await entityManager.getRepository(QuestionScreening).delete({
+    id: Not(In(questionIds)),
+    opportunityId,
+  });
+
+  await entityManager.getRepository(QuestionScreening).upsert(
+    questions.map((question, index) => {
+      return entityManager.getRepository(QuestionScreening).create({
+        id: question.id,
+        opportunityId,
+        title: question.title,
+        placeholder: question.placeholder ?? undefined,
+        questionOrder: index,
+      });
+    }),
+    { conflictPaths: ['id'] },
+  );
+}
+
+/**
+ * Handles recruiter information updates for an opportunity
+ * Validates recruiter is assigned to the opportunity and updates their profile
+ */
+async function handleOpportunityRecruiterUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  recruiter: { userId: string; title?: string; bio?: string } | undefined,
+  ctx: AuthContext,
+): Promise<void> {
+  if (!recruiter) {
+    return;
+  }
+
+  // Check if the recruiter is part of the recruiters for this opportunity
+  const existingRecruiter = await entityManager
+    .getRepository(OpportunityUserRecruiter)
+    .findOne({
+      where: {
+        opportunityId,
+        userId: recruiter.userId,
+        type: OpportunityUserType.Recruiter,
+      },
+    });
+
+  if (!existingRecruiter) {
+    ctx.log.error(
+      { opportunityId, userId: recruiter.userId },
+      'Recruiter is not part of this opportunity',
+    );
+    throw new ForbiddenError(
+      'Access denied! Recruiter is not part of this opportunity',
+    );
+  }
+
+  // Update the recruiter's title and bio on the User entity
+  await entityManager.getRepository(User).update(
+    {
+      id: recruiter.userId,
+    },
+    {
+      title: recruiter.title,
+      bio: recruiter.bio,
+    },
+  );
+}
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -1890,23 +2161,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...opportunityUpdate
         } = opportunity;
 
-        const renderedContent: Record<
-          string,
-          { content: string; html: string }
-        > = {};
-
-        Object.entries(content || {}).forEach(([key, value]) => {
-          if (typeof value.content !== 'string') {
-            return;
-          }
-
-          renderedContent[key] = {
-            content: value.content,
-            html: markdown.render(value.content),
-          };
-        });
-
-        const opportunityContent = new OpportunityContent(renderedContent);
+        const opportunityContent = renderOpportunityContent(content);
 
         await entityManager
           .getRepository(OpportunityJob)
@@ -1921,195 +2176,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
 
-        // Handle location updates
-        if (externalLocationId !== undefined) {
-          // If externalLocationId is provided, replace all locations with the new one
-          await entityManager.getRepository(OpportunityLocation).delete({
-            opportunityId: id,
-          });
+        await handleOpportunityLocationUpdate(
+          entityManager,
+          id,
+          externalLocationId,
+          locationType,
+          ctx,
+        );
 
-          if (externalLocationId) {
-            let location = await entityManager
-              .getRepository(DatasetLocation)
-              .findOne({
-                where: { externalId: externalLocationId },
-              });
-            if (!location) {
-              location = await createLocationFromMapbox(
-                ctx.con,
-                externalLocationId,
-              );
-            }
+        await handleOpportunityOrganizationUpdate(
+          entityManager,
+          id,
+          organization,
+          organizationImage,
+        );
 
-            // Create new OpportunityLocation relationship
-            if (location) {
-              await entityManager.getRepository(OpportunityLocation).insert({
-                opportunityId: id,
-                locationId: location.id,
-                type: locationType || 1,
-              });
-            }
-          }
-        } else if (locationType !== undefined && locationType !== null) {
-          // If only locationType is provided (no externalLocationId), update existing locations
-          await entityManager
-            .getRepository(OpportunityLocation)
-            .update({ opportunityId: id }, { type: locationType });
-        }
+        await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 
-        if (organization || organizationImage) {
-          const opportunityJob = await entityManager
-            .getRepository(OpportunityJob)
-            .findOne({
-              where: { id },
-              select: ['organizationId'],
-            });
+        await handleOpportunityScreeningQuestionsUpdate(
+          entityManager,
+          id,
+          questions,
+        );
 
-          let organizationId = opportunityJob?.organizationId;
-
-          let organizationUpdate: Record<string, unknown> = {
-            ...organization,
-          };
-
-          if (organizationId) {
-            delete organizationUpdate.name; // prevent name updates on existing organizations
-          }
-
-          if (!organizationId) {
-            // create new organization and assign to opportunity here inline
-            // TODO: ideally this should be refactored later to separate mutation
-
-            try {
-              const organizationInsertResult = await entityManager
-                .getRepository(Organization)
-                .insert(organizationUpdate);
-
-              organizationId = organizationInsertResult.identifiers[0]
-                .id as string;
-
-              await entityManager
-                .getRepository(OpportunityJob)
-                .update({ id }, { organizationId });
-
-              // values were applied during insert
-              organizationUpdate = {};
-            } catch (insertError) {
-              if (insertError instanceof QueryFailedError) {
-                const queryFailedError = insertError as TypeORMQueryFailedError;
-
-                if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
-                  if (
-                    insertError.message.indexOf(
-                      'IDX_organization_name_unique',
-                    ) > -1
-                  ) {
-                    throw new ConflictError(
-                      'Organization with this name already exists',
-                    );
-                  }
-                }
-              }
-
-              throw insertError;
-            }
-          }
-
-          // Handle image upload
-          if (organizationImage) {
-            const { createReadStream } = await organizationImage;
-            const stream = createReadStream();
-            const { url: imageUrl } = await uploadOrganizationImage(
-              organizationId,
-              stream,
-            );
-            organizationUpdate.image = imageUrl;
-          }
-
-          if (Object.keys(organizationUpdate).length > 0) {
-            await entityManager
-              .getRepository(Organization)
-              .update({ id: organizationId }, organizationUpdate);
-          }
-        }
-
-        if (Array.isArray(keywords)) {
-          await entityManager.getRepository(OpportunityKeyword).delete({
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(OpportunityKeyword).insert(
-            keywords.map((keyword) => ({
-              opportunityId: id,
-              keyword: keyword.keyword,
-            })),
-          );
-        }
-
-        if (Array.isArray(questions)) {
-          const questionIds = questions.map((item) => item.id).filter(Boolean);
-
-          const hasQuestionsFromOtherOpportunity = await entityManager
-            .getRepository(QuestionScreening)
-            .exists({
-              where: { id: In(questionIds), opportunityId: Not(id) },
-            });
-
-          if (hasQuestionsFromOtherOpportunity) {
-            throw new ConflictError('Not allowed to edit some questions!');
-          }
-
-          await entityManager.getRepository(QuestionScreening).delete({
-            id: Not(In(questionIds)),
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(QuestionScreening).upsert(
-            questions.map((question, index) => {
-              return entityManager.getRepository(QuestionScreening).create({
-                id: question.id,
-                opportunityId: id,
-                title: question.title,
-                placeholder: question.placeholder,
-                questionOrder: index,
-              });
-            }),
-            { conflictPaths: ['id'] },
-          );
-        }
-
-        if (recruiter) {
-          // Check if the recruiter is part of the recruiters for this opportunity
-          const existingRecruiter = await entityManager
-            .getRepository(OpportunityUserRecruiter)
-            .findOne({
-              where: {
-                opportunityId: id,
-                userId: recruiter.userId,
-                type: OpportunityUserType.Recruiter,
-              },
-            });
-
-          if (!existingRecruiter) {
-            ctx.log.error(
-              { opportunityId: id, userId: recruiter.userId },
-              'Recruiter is not part of this opportunity',
-            );
-            throw new ForbiddenError(
-              'Access denied! Recruiter is not part of this opportunity',
-            );
-          }
-
-          // Update the recruiter's title and bio on the User entity
-          await entityManager.getRepository(User).update(
-            {
-              id: recruiter.userId,
-            },
-            {
-              title: recruiter.title,
-              bio: recruiter.bio,
-            },
-          );
-        }
+        await handleOpportunityRecruiterUpdate(
+          entityManager,
+          id,
+          recruiter,
+          ctx,
+        );
       });
 
       return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
