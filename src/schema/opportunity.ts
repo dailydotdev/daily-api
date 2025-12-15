@@ -2217,7 +2217,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           });
 
           const availableSeats =
-            organization.recruiterSubscriptionFlags.items?.length || 0;
+            organization.recruiterSubscriptionFlags.items?.reduce(
+              (total, item) => {
+                return total + item.quantity;
+              },
+              0,
+            ) || 0;
 
           const liveOpportunitiesCount = await ctx.con
             .getRepository(OpportunityJob)
@@ -2314,9 +2319,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
-      const availableSeatsForPlan = subscription.items.filter(
-        (item) => item.price.id === priceId,
-      ).length;
+      const availableSeatsForPlan = subscription.items
+        .filter((item) => item.price.id === priceId)
+        .reduce((total, item) => total + item.quantity, 0);
 
       if (liveOpportunitiesCount >= availableSeatsForPlan) {
         throw new PaymentRequiredError(
