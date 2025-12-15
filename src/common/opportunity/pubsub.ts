@@ -4,6 +4,7 @@ import {
   CandidateAcceptedOpportunityMessage,
   CandidatePreferenceUpdated,
   CandidateRejectedOpportunityMessage,
+  LocationType,
   MatchedCandidate,
   OpportunityMessage,
   RecruiterAcceptedCandidateMatchMessage,
@@ -324,9 +325,8 @@ export const notifyJobOpportunity = async ({
   logger: FastifyBaseLogger;
   opportunityId: string;
 }) => {
-  const [opportunity, organization, keywords, users] = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
+  const [opportunity, organization, keywords, users, locations] =
+    await queryReadReplica(con, async ({ queryRunner }) => {
       const opportunity = await queryRunner.manager
         .getRepository(OpportunityJob)
         .findOneOrFail({
@@ -335,18 +335,19 @@ export const notifyJobOpportunity = async ({
             organization: true,
             keywords: true,
             users: true,
+            locations: true,
           },
         });
 
-      const [organization, keywords, users] = await Promise.all([
+      const [organization, keywords, users, locations] = await Promise.all([
         opportunity.organization,
         opportunity.keywords,
         opportunity.users,
+        opportunity.locations,
       ]);
 
-      return [opportunity, organization, keywords, users];
-    },
-  );
+      return [opportunity, organization, keywords, users, locations];
+    });
 
   if (!organization) {
     logger.warn(
@@ -404,6 +405,12 @@ export const notifyJobOpportunity = async ({
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords.map((k) => k.keyword),
+      location: [
+        {
+          ...locations?.[0]?.location,
+          type: locations?.[0]?.type,
+        },
+      ],
     },
     organization: {
       ...organization,
