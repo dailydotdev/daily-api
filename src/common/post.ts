@@ -481,7 +481,7 @@ export const createSourcePostModeration = async ({
   });
 
   const content = `${args.title} ${args.content}`.trim();
-  const dedupKey = generateDeduplicationKey(args);
+  const dedupKey = await generateDeduplicationKey(args, con);
 
   const [warningReason, vordr] = await Promise.all([
     getModerationWarningFlag({

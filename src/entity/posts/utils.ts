@@ -308,7 +308,7 @@ export const preparePostForInsert = async <T extends DeepPartial<Post>>(
   context: PreparePostContext,
 ): Promise<T> => {
   let preparedPost = await applyVordrHook(post, context);
-  preparedPost = await applyDeduplicationHook(preparedPost);
+  preparedPost = await applyDeduplicationHook(preparedPost, context.con);
 
   return preparedPost;
 };
@@ -330,6 +330,7 @@ export const preparePostForUpdate = async <T extends DeepPartial<Post>>(
   preparedUpdates = await applyDeduplicationHookForUpdate(
     preparedUpdates,
     existingPost,
+    context.con,
   );
   return preparedUpdates;
 };
