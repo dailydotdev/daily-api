@@ -25,8 +25,6 @@ import {
   OpportunityUserType,
 } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
