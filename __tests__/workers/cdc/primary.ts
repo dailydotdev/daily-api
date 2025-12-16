@@ -6809,7 +6809,7 @@ describe('user_candidate_preference', () => {
         min: 100000,
         currency: 'EUR',
       },
-      location: [
+      customLocation: [
         {
           type: 1, // LocationType.REMOTE
           country: 'Germany',

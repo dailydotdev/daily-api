@@ -1706,7 +1706,7 @@ describe('query getCandidatePreferences', () => {
           lastModified: new Date('2024-10-10T10:00:00Z'),
         },
         salaryExpectation: { min: '50000', period: SalaryPeriod.ANNUAL },
-        location: [
+        customLocation: [
           { country: 'Norway' },
           { city: 'London', country: 'UK', continent: 'Europe' },
         ],
@@ -1914,7 +1914,6 @@ describe('mutation updateCandidatePreferences', () => {
         roleType: 1.0,
         employmentType: [1, 3],
         salaryExpectation: { min: 70000, period: 1 },
-        location: [{ city: 'Berlin', country: 'Germany' }],
         locationType: [1, 2],
         customKeywords: true,
       },
@@ -1934,7 +1933,6 @@ describe('mutation updateCandidatePreferences', () => {
       roleType: 1.0,
       employmentType: [1, 3], // FULL_TIME, CONTRACT
       salaryExpectation: { min: '70000', period: 1 }, // ANNUAL
-      location: [{ city: 'Berlin', country: 'Germany' }],
       locationType: [1, 2], // REMOTE, ONSITE
       customKeywords: true,
     });
