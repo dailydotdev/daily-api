@@ -5321,7 +5321,7 @@ describe('mutation parseOpportunity', () => {
 
     const body = res.body;
     expect(body.errors).toBeFalsy();
-    console.log(body.data.parseOpportunity);
+
     expect(body.data.parseOpportunity).toMatchObject({
       title: 'Mocked Opportunity Title',
       tldr: 'This is a mocked TL;DR of the opportunity.',
