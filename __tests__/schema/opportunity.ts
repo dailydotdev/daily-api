@@ -77,6 +77,8 @@ import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import * as brokkrCommon from '../../src/common/brokkr';
 import { randomUUID } from 'node:crypto';
+import { updateRecruiterSubscriptionFlags } from '../../src/common';
+import { SubscriptionStatus } from '../../src/common/plus';
 
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
@@ -5037,6 +5039,25 @@ describe('mutation updateOpportunityState', () => {
       type: OpportunityUserType.Recruiter,
     });
 
+    await con.getRepository(Organization).update(
+      {
+        id: organizationsFixture[0].id,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
+
     await testMutationErrorCode(
       client,
       {
@@ -5075,6 +5096,25 @@ describe('mutation updateOpportunityState', () => {
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[3].id;
+
+    await con.getRepository(Organization).update(
+      {
+        id: opportunitiesFixture[3].organizationId!,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
 
     await con.getRepository(OpportunityUser).save({
       opportunityId,
@@ -5171,6 +5211,168 @@ describe('mutation updateOpportunityState', () => {
       },
       'CONFLICT',
       'Opportunity must have an organization assigned',
+    );
+  });
+
+  it('should update state to CLOSED state', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      title: 'Test',
+      tldr: 'Test',
+      state: OpportunityState.LIVE,
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(Organization).update(
+      {
+        id: organizationsFixture[0].id,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: opportunity.id, state: OpportunityState.CLOSED },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const after = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunity.id });
+    expect(after.state).toBe(OpportunityState.CLOSED);
+  });
+
+  it('should throw conflict on CLOSED transition when subscription is missing', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      title: 'Test',
+      tldr: 'Test',
+      state: OpportunityState.LIVE,
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunity.id, state: OpportunityState.CLOSED },
+      },
+      'CONFLICT',
+      'Opportunity subscription not found',
+    );
+  });
+
+  it('should throw conflict on LIVE transition when subscription is not active yet', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      title: 'Test',
+      tldr: 'Test',
+      state: OpportunityState.DRAFT,
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunity.id, state: OpportunityState.LIVE },
+      },
+      'CONFLICT',
+      'Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.',
+    );
+  });
+
+  it('should throw payment required on LIVE transition when no more allowed seats', async () => {
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[3].id;
+
+    await con.getRepository(Organization).update(
+      {
+        id: opportunitiesFixture[3].organizationId!,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [],
+          }),
+      },
+    );
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(OpportunityKeyword).save({
+      opportunityId,
+      keyword: 'typescript',
+    });
+    await con.getRepository(QuestionScreening).save({
+      opportunityId,
+      title: 'Tell us about a recent project',
+      questionOrder: 0,
+    });
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+      },
+    );
+
+    const before = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunityId });
+    expect(before.state).toBe(OpportunityState.DRAFT);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunityId, state: OpportunityState.LIVE },
+      },
+      'PAYMENT_REQUIRED',
+      'Your subscription allows for 0 live opportunities. Please upgrade your subscription to add more or pause other live opportunities.',
     );
   });
 });
