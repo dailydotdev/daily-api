@@ -87,7 +87,7 @@ export const createOpportunitySubscription = async ({
   await con.transaction(async (entityManager) => {
     await entityManager.getRepository(Organization).update(
       {
-        id: opportunity.id,
+        id: organization.id,
       },
       {
         recruiterSubscriptionFlags:
@@ -166,7 +166,7 @@ export const cancelRecruiterSubscription = async ({
 
   con.getRepository(Organization).update(
     {
-      id: opportunity.id,
+      id: organization.id,
     },
     {
       recruiterSubscriptionFlags:
