@@ -22,56 +22,26 @@ export const createLocationFromMapbox = async (
 };
 
 /**
- * Find an existing location in the dataset_location table based on city, country, and subdivision.
- * Falls back to country+subdivision, then country only if more specific matches aren't found.
+ * Find an existing location in the dataset_location table based on iso2 country code.
  */
 export const findDatasetLocation = async (
   con: DataSource,
   locationData: {
-    city?: string | null;
-    country?: string | null;
-    subdivision?: string | null;
+    iso2?: string | null;
   },
 ): Promise<DatasetLocation | null> => {
-  const { city, country, subdivision } = locationData;
+  const { iso2 } = locationData;
 
-  if (!country) {
+  if (!iso2) {
     return null;
   }
 
   const repo = con.manager.getRepository(DatasetLocation);
 
-  // Try to find exact match: city + country + subdivision
-  if (city && subdivision) {
-    const exactMatch = await repo.findOne({
-      where: { city, country, subdivision },
-    });
-    if (exactMatch) return exactMatch;
-  }
-
-  // Try city + country (subdivision null)
-  if (city) {
-    const cityCountryMatch = await repo.findOne({
-      where: { city, country },
-    });
-    if (cityCountryMatch) return cityCountryMatch;
-  }
-
-  // Try country + subdivision (city null)
-  if (subdivision) {
-    const countrySubdivisionMatch = await repo.findOne({
-      where: { country, subdivision },
-    });
-    if (countrySubdivisionMatch) return countrySubdivisionMatch;
-  }
-
-  // Try country only (city and subdivision null)
-  const countryOnlyMatch = await repo.findOne({
-    where: { country },
+  // Find location by iso2 country code
+  const location = await repo.findOne({
+    where: { iso2: iso2.toUpperCase() },
   });
-  if (countryOnlyMatch) return countryOnlyMatch;
 
-  // Location not found - return null
-  // We don't create new locations without proper iso2/iso3 codes
-  return null;
+  return location;
 };

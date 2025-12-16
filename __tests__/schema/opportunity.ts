@@ -5262,6 +5262,9 @@ describe('mutation parseOpportunity', () => {
 
     await deleteKeysByPattern(`${rateLimiterName}:*`);
 
+    // Ensure dataset locations are available
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+
     const transport = createMockBrokkrTransport();
 
     const serviceClient = {
@@ -5358,9 +5361,9 @@ describe('mutation parseOpportunity', () => {
         {
           type: LocationType.REMOTE,
           location: {
-            city: 'San Francisco',
+            city: null,
             country: 'USA',
-            subdivision: 'CA',
+            subdivision: null,
           },
         },
       ],
@@ -5473,9 +5476,9 @@ describe('mutation parseOpportunity', () => {
         {
           type: LocationType.REMOTE,
           location: {
-            city: 'San Francisco',
+            city: null,
             country: 'USA',
-            subdivision: 'CA',
+            subdivision: null,
           },
         },
       ],
@@ -5651,9 +5654,9 @@ describe('mutation parseOpportunity', () => {
         {
           type: LocationType.REMOTE,
           location: {
-            city: 'San Francisco',
+            city: null,
             country: 'USA',
-            subdivision: 'CA',
+            subdivision: null,
           },
         },
       ],

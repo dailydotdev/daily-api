@@ -2559,9 +2559,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         // Extract and process locations
         const locationData = (parsedOpportunity.location || []) as Array<{
-          city?: string;
-          country?: string;
-          subdivision?: string;
+          iso2?: string;
           type?: number;
         }>;
 
@@ -2593,9 +2591,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             // Create OpportunityLocation entries for each location
             for (const loc of locationData) {
               const datasetLocation = await findDatasetLocation(ctx.con, {
-                city: loc.city,
-                country: loc.country,
-                subdivision: loc.subdivision,
+                iso2: loc.iso2,
               });
 
               if (datasetLocation) {

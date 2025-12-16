@@ -61,6 +61,7 @@ export const opportunityCreateSchema = z.object({
         city: z.string().nonempty().max(240).optional(),
         subdivision: z.string().nonempty().max(240).optional(),
         type: z.coerce.number().min(1),
+        iso2: z.string().nonempty().max(2).optional(),
       }),
     )
     .optional(),
