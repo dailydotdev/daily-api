@@ -76,6 +76,7 @@ import type {
   OpportunityFlagsPublic,
 } from '../entity/opportunities/Opportunity';
 import { SubscriptionStatus } from '../common/plus';
+import { isNullOrUndefined } from '../common/object';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1714,6 +1715,32 @@ const obj = new GraphORM({
       },
       location: {
         jsonType: true,
+        select: (_, alias) => `
+          COALESCE(
+            CASE
+              WHEN ${alias}."locationId" IS NOT NULL THEN
+                (
+                  SELECT jsonb_build_array(
+                    jsonb_build_object(
+                      'city', dl.city,
+                      'subdivision', dl.subdivision,
+                      'country', dl.country
+                    )
+                  )
+                  FROM dataset_location dl
+                  WHERE dl.id = ${alias}."locationId"
+                )
+              ELSE NULL
+            END,
+            ${alias}."customLocation"
+          )
+        `,
+        transform: (value: unknown) => {
+          console.log(value);
+          if (isNullOrUndefined(value)) return [];
+          if (Array.isArray(value)) return value;
+          return [value];
+        },
       },
       keywords: {
         relation: {
@@ -1843,18 +1870,22 @@ const obj = new GraphORM({
       },
       location: {
         select: (_, alias) => `
-          COALESCE(
-            (
-              SELECT jsonb_build_object(
-                'city', location->0->>'city',
-                'subdivision', location->0->>'subdivision',
-                'country', location->0->>'country'
-              )
-              FROM user_candidate_preference
-              WHERE "userId" = ${alias}.id
-              LIMIT 1
-            ),
-            ${alias}.flags
+          (
+            SELECT COALESCE(
+              (
+                SELECT jsonb_build_object(
+                  'city', dl.city,
+                  'subdivision', dl.subdivision,
+                  'country', dl.country
+                )
+                FROM dataset_location dl
+                WHERE dl.id = ucp."locationId"
+              ),
+              ucp."customLocation"->0
+            )
+            FROM user_candidate_preference ucp
+            WHERE ucp."userId" = ${alias}.id
+            LIMIT 1
           )
         `,
         transform: (data: Record<string, unknown>): string | null => {
