@@ -1099,7 +1099,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
-
+      console.log(preferences);
       if (preferences) {
         return preferences;
       }
@@ -2496,17 +2496,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...cv,
         signedUrl,
       };
-    },
-    location: async (parent: UserCandidatePreference) => {
-      // Prioritize relational location over customLocation for backward compatibility
-      if (parent.locationId && parent.location) {
-        const datasetLocation = await parent.location;
-        if (datasetLocation) {
-          return [datasetLocation];
-        }
-      }
-      // Fall back to customLocation (legacy field)
-      return parent.customLocation || [];
     },
   },
 });

@@ -85,27 +85,23 @@ export const notifyOpportunityMatchAccepted = async ({
   }
 
   const { match, candidatePreference, keywords, locationData } =
-    await queryReadReplica(con, async ({ queryRunner }) => {
+    await con.transaction(async (manager) => {
       const [match, candidatePreference] = await Promise.all([
-        queryRunner.manager.getRepository(OpportunityMatch).findOneBy({
+        manager.getRepository(OpportunityMatch).findOneBy({
           opportunityId: data.opportunityId,
           userId: data.userId,
         }),
-        queryRunner.manager
+        manager
           .getRepository(UserCandidatePreference)
-          .findOneBy({ userId: data.userId }),
+          .findOne({ where: { userId: data.userId }, relations: ['location'] }),
       ]);
 
       const keywords = await fetchCandidateKeywords(
-        queryRunner.manager,
+        manager,
         candidatePreference,
       );
 
-      // Fetch relational location if available
-      let locationData = null;
-      if (candidatePreference?.locationId && candidatePreference?.location) {
-        locationData = await candidatePreference.location;
-      }
+      const locationData = await candidatePreference?.location;
 
       return { match, candidatePreference, keywords, locationData };
     });
@@ -448,25 +444,22 @@ export const notifyCandidatePreferenceChange = async ({
   logger: FastifyBaseLogger;
   userId: string;
 }) => {
-  const { candidatePreference, keywords, locationData } =
-    await queryReadReplica(con, async ({ queryRunner }) => {
-      const candidatePreference = await queryRunner.manager
+  const { candidatePreference, keywords, locationData } = await con.transaction(
+    async (manager) => {
+      const candidatePreference = await manager
         .getRepository(UserCandidatePreference)
-        .findOneBy({ userId: userId });
+        .findOne({ where: { userId: userId }, relations: ['location'] });
 
       const keywords = await fetchCandidateKeywords(
-        queryRunner.manager,
+        manager,
         candidatePreference,
       );
 
-      // Fetch relational location if available
-      let locationData = null;
-      if (candidatePreference?.locationId && candidatePreference?.location) {
-        locationData = await candidatePreference.location;
-      }
+      const locationData = await candidatePreference?.location;
 
       return { candidatePreference, keywords, locationData };
-    });
+    },
+  );
 
   if (!candidatePreference) {
     logger.warn(
