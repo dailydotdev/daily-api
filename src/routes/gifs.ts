@@ -6,6 +6,7 @@ import {
   type Gif,
 } from '../entity/UserIntegration';
 import { tenorClient } from '../integrations/tenor';
+import { logger } from '../logger';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
@@ -18,7 +19,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const result = await tenorClient.search({ q, limit, pos });
 
       return res.send(result);
-    } catch {
+    } catch (err) {
+      logger.error({ err }, 'Error searching gifs');
       return res.send({ gifs: [], next: undefined });
     }
   });
@@ -72,7 +74,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
 
       return res.send({ gifs });
-    } catch {
+    } catch (err) {
+      logger.error({ err }, 'Error toggling favorite gif');
       return res.send({ gifs: [] });
     }
   });
@@ -96,7 +99,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       });
 
       return res.send({ gifs: favorites });
-    } catch {
+    } catch (err) {
+      logger.error({ err }, 'Error getting favorited gifs');
+
       return res.send({ gifs: [] });
     }
   });
