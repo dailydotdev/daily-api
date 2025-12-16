@@ -137,12 +137,14 @@ const getUserLeaderboardForStat = async ({
       }
     >();
 
-  return users.map(({ score, ...user }) => {
-    return {
-      score,
-      user: user,
-    };
-  });
+  return users
+    .filter((user) => !!user.id)
+    .map(({ score, ...user }) => {
+      return {
+        score,
+        user: user,
+      };
+    });
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
