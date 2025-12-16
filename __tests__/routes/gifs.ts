@@ -112,6 +112,19 @@ describe('GET /gifs', () => {
 
     expect(body).toEqual({ gifs: [], next: undefined });
   });
+
+  it('should preserve pagination position when rate limited', async () => {
+    // When rate limited, the client returns empty gifs but preserves the position
+    // so the user can retry the same page
+    mockTenorSearch.mockResolvedValue({ gifs: [], next: 'page-2' });
+
+    const { body } = await request(app.server)
+      .get('/gifs')
+      .query({ q: 'test', pos: 'page-2' })
+      .expect(200);
+
+    expect(body).toEqual({ gifs: [], next: 'page-2' });
+  });
 });
 
 describe('POST /gifs/favorite', () => {

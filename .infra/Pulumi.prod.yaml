@@ -191,6 +191,9 @@ config:
     mapboxGeocodingUrl: https://api.mapbox.com/search/geocode/v6/forward
     slackBotToken:
       secure: AAABAH+UKbv4/Uoc9jYySYeAr7m+W7OCm/kQa9/3LCrKURh3TcPqgNPqF1ugLg31AAfsT4qVafpb0jiZm+ZCfDTYzrCfPmebxLjV0AAkHAy3kHgLK1v6YNGH
+    tenorApiKey:
+      secure: AAABAApa5GEV473b7T+WtKazqzPbyQDc7qFT3SZjqmU1LL1n24jwcpn2/bwRINsUz4vwduduqh0/0ey1JpoWfEFJ1LvxlLk=
+    tenorGifSearchUrl: https://tenor.googleapis.com/v2/search
   api:k8s:
     host: subs.daily.dev
     namespace: daily

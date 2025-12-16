@@ -1,3 +1,4 @@
+import fetch from 'node-fetch';
 import { GarmrService, IGarmrService, GarmrNoopService } from '../garmr';
 import type { Gif } from '../../entity/UserIntegration';
 import {
@@ -7,6 +8,19 @@ import {
   TenorSearchResponse,
   TenorGif,
 } from './types';
+import { getRedisObject, setRedisObjectWithExpiry } from '../../redis';
+
+const TENOR_CACHE_TTL_SECONDS = 3 * 60 * 60; // 3 hours
+const TENOR_CACHE_KEY_PREFIX = 'tenor:search';
+
+const generateCacheKey = (params: TenorSearchParams): string => {
+  const { q, limit = 10, pos } = params;
+  const parts = [TENOR_CACHE_KEY_PREFIX, q, limit.toString()];
+  if (pos) {
+    parts.push(pos);
+  }
+  return parts.join(':');
+};
 
 export class TenorClient implements ITenorClient {
   private readonly apiKey: string;
@@ -29,6 +43,13 @@ export class TenorClient implements ITenorClient {
       return { gifs: [], next: undefined };
     }
 
+    const cacheKey = generateCacheKey(params);
+
+    const cached = await getRedisObject(cacheKey);
+    if (cached) {
+      return JSON.parse(cached) as TenorSearchResult;
+    }
+
     return this.garmr.execute(async () => {
       const searchParams = new URLSearchParams({
         q,
@@ -43,6 +64,11 @@ export class TenorClient implements ITenorClient {
       const response = await fetch(
         `${process.env.TENOR_GIF_SEARCH_URL}?${searchParams.toString()}`,
       );
+
+      if (response.status === 429) {
+        // if rate limited, return empty result but preserve pagination position
+        return { gifs: [], next: pos };
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -62,10 +88,18 @@ export class TenorClient implements ITenorClient {
         title: item.content_description || item.title || '',
       }));
 
-      return {
+      const result: TenorSearchResult = {
         gifs,
         next: data.next,
       };
+
+      await setRedisObjectWithExpiry(
+        cacheKey,
+        JSON.stringify(result),
+        TENOR_CACHE_TTL_SECONDS,
+      );
+
+      return result;
     });
   }
 }
