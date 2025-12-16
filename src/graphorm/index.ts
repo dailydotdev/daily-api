@@ -1556,7 +1556,6 @@ const obj = new GraphORM({
           childColumn: 'opportunityId',
         },
       },
-
       questions: {
         relation: {
           isMany: true,

@@ -8,6 +8,7 @@ import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
   BrokkrParseRequest,
+  LocationType,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
@@ -90,7 +91,10 @@ import {
   SocialMediaType,
 } from '../common/schema/organizations';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
+import {
+  createLocationFromMapbox,
+  findDatasetLocation,
+} from '../entity/dataset/utils';
 import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
@@ -2232,11 +2236,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       });
 
-      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+      return await graphorm.queryOneOrFail<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ id });
 
-        return builder;
-      });
+          return builder;
+        },
+      );
     },
     clearOrganizationImage: async (
       _,
@@ -2549,6 +2557,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityContent = new OpportunityContent(renderedContent);
 
+        // Extract and process locations
+        const locationData = (parsedOpportunity.location || []) as Array<{
+          city?: string;
+          country?: string;
+          subdivision?: string;
+          type?: number;
+        }>;
+
         const opportunityResult = await ctx.con.transaction(
           async (entityManager) => {
             const flags: Opportunity['flags'] = {};
@@ -2559,16 +2575,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             flags.batchSize = opportunityMatchBatchSize;
 
+            // Remove location from parsedOpportunity as it's now relational
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { location, ...opportunityData } = parsedOpportunity;
+
             const opportunity = await entityManager
               .getRepository(OpportunityJob)
               .save(
                 entityManager.getRepository(OpportunityJob).create({
-                  ...parsedOpportunity,
+                  ...opportunityData,
                   state: OpportunityState.DRAFT,
                   content: opportunityContent,
                   flags,
                 } as DeepPartial<OpportunityJob>),
               );
+
+            // Create OpportunityLocation entries for each location
+            for (const loc of locationData) {
+              const datasetLocation = await findDatasetLocation(ctx.con, {
+                city: loc.city,
+                country: loc.country,
+                subdivision: loc.subdivision,
+              });
+
+              if (datasetLocation) {
+                await entityManager.getRepository(OpportunityLocation).save({
+                  opportunityId: opportunity.id,
+                  locationId: datasetLocation.id,
+                  type: loc.type || LocationType.REMOTE,
+                });
+              }
+            }
 
             await addOpportunityDefaultQuestionFeedback({
               entityManager,
@@ -2597,11 +2634,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         );
 
-        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-          builder.queryBuilder.where({ id: opportunityResult.id });
+        return await graphorm.queryOneOrFail<GQLOpportunity>(
+          ctx,
+          info,
+          (builder) => {
+            builder.queryBuilder.where({ id: opportunityResult.id });
 
-          return builder;
-        });
+            return builder;
+          },
+        );
       } catch (error) {
         throw error;
       } finally {
