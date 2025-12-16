@@ -18,7 +18,7 @@ import {
 } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
-import { ChangeObject } from '../../types';
+import { ChangeObject, continentMap } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { UserCandidateKeyword } from '../../entity/user/UserCandidateKeyword';
@@ -397,17 +397,6 @@ export const notifyJobOpportunity = async ({
     ...organizationMembers.map((m) => m.userId),
     ...users.map((u) => u.userId),
   ]);
-
-  // Map continent names to their codes
-  const continentMap: Record<string, string> = {
-    Africa: 'AF',
-    Antarctica: 'AN',
-    Asia: 'AS',
-    Europe: 'EU',
-    'North America': 'NA',
-    'South America': 'SA',
-    Oceania: 'OC',
-  };
 
   // Check if the location country is a continent and return only continent code
   const locationData = locations?.[0];
