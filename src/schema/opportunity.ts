@@ -140,8 +140,9 @@ export interface GQLOpportunityMatch
 export interface GQLUserCandidatePreference
   extends Omit<
     UserCandidatePreference,
-    'userId' | 'user' | 'updatedAt' | 'cvParsed'
+    'userId' | 'user' | 'updatedAt' | 'cvParsed' | 'location'
   > {
+  location?: Array<DatasetLocation>;
   keywords?: Array<{ keyword: string }>;
 }
 
@@ -1099,13 +1100,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
-      console.log(preferences);
+
       if (preferences) {
         return preferences;
       }
 
       return {
         ...new UserCandidatePreference(),
+        location: [],
         keywords: [],
       };
     },

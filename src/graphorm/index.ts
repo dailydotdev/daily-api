@@ -76,6 +76,7 @@ import type {
   OpportunityFlagsPublic,
 } from '../entity/opportunities/Opportunity';
 import { SubscriptionStatus } from '../common/plus';
+import { isNullOrUndefined } from '../common/object';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1703,6 +1704,7 @@ const obj = new GraphORM({
         transform: nullIfNotSameUserById,
       },
       location: {
+        jsonType: true,
         select: (_, alias) => `
           COALESCE(
             CASE
@@ -1724,8 +1726,8 @@ const obj = new GraphORM({
           )
         `,
         transform: (value: unknown) => {
-          // Ensure we always return an array
-          if (!value) return [];
+          console.log(value);
+          if (isNullOrUndefined(value)) return [];
           if (Array.isArray(value)) return value;
           return [value];
         },
