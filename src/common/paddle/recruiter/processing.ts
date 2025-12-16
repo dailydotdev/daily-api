@@ -90,7 +90,7 @@ export const createOpportunitySubscription = async ({
     permission: OpportunityPermissions.Edit,
   });
 
-  if (data.items.length > 1) {
+  if (event.data?.items?.length > 1) {
     throw new Error(
       'Multiple recruiter subscription items not supported on creation, check payment manually',
     );
