@@ -1736,7 +1736,6 @@ const obj = new GraphORM({
           )
         `,
         transform: (value: unknown) => {
-          console.log(value);
           if (isNullOrUndefined(value)) return [];
           if (Array.isArray(value)) return value;
           return [value];
