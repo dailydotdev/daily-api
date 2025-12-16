@@ -12,12 +12,18 @@ import {
 } from '../../plus/subscription';
 import { logger } from '../../../logger';
 import { OpportunityJob } from '../../../entity/opportunities/OpportunityJob';
-import { recruiterPaddleCustomDataSchema } from './types';
+import {
+  recruiterPaddleCustomDataSchema,
+  recruiterPaddlePricingCustomDataSchema,
+} from './types';
 import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
 } from '../../opportunity/accessControl';
-import { updateRecruiterSubscriptionFlags } from '../../utils';
+import {
+  updateFlagsStatement,
+  updateRecruiterSubscriptionFlags,
+} from '../../utils';
 import { OpportunityState } from '@dailydotdev/schema';
 import { Organization } from '../../../entity/Organization';
 
@@ -84,6 +90,24 @@ export const createOpportunitySubscription = async ({
     permission: OpportunityPermissions.Edit,
   });
 
+  if (data.items.length > 1) {
+    throw new Error(
+      'Multiple recruiter subscription items not supported on creation, check payment manually',
+    );
+  }
+
+  const price = event.data?.items?.[0]?.price;
+
+  if (!price) {
+    throw new Error(
+      'Price information missing from recruiter subscription data',
+    );
+  }
+
+  const priceCustomData = recruiterPaddlePricingCustomDataSchema.parse(
+    price.customData,
+  );
+
   await con.transaction(async (entityManager) => {
     await entityManager.getRepository(Organization).update(
       {
@@ -114,6 +138,10 @@ export const createOpportunitySubscription = async ({
       },
       {
         state: OpportunityState.IN_REVIEW,
+        flags: updateFlagsStatement<OpportunityJob>({
+          batchSize: priceCustomData.batch_size,
+          plan: price.id,
+        }),
       },
     );
   });
