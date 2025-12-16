@@ -24,7 +24,7 @@
     "feature": "recruiter_pricing_ids",
     "variant": "recruiter_default",
     "createdAt": "2025-12-10T13:45:08.395Z",
-    "value": "[{\"title\":\"Job Slot (Starter Tier)\",\"appsId\":\"\",\"idMap\":{\"paddle\":\"pri_01kbq0p5g7qw8zb1e8esf7qjw2\",\"ios\":\"\"}},{\"title\":\"Job Slot (Boost Tier)\",\"appsId\":\"\",\"idMap\":{\"paddle\":\"pri_01kbq0pv4mxbar7qt1nzs694r1\",\"ios\":\"\"}}]",
+    "value": "[{\"title\":\"Starter\",\"appsId\":\"\",\"idMap\":{\"paddle\":\"pri_01kbq0p5g7qw8zb1e8esf7qjw2\",\"ios\":\"\"}},{\"title\":\"Boost\",\"appsId\":\"\",\"idMap\":{\"paddle\":\"pri_01kbq0pv4mxbar7qt1nzs694r1\",\"ios\":\"\"}}]",
     "type": "productPricing"
   }
 ]

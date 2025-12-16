@@ -43,6 +43,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import {
   ConflictError,
   NotFoundError,
+  PaymentRequiredError,
   TypeOrmError,
   type TypeORMQueryFailedError,
 } from '../errors';
@@ -69,6 +70,7 @@ import {
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
   gondulOpportunityPreviewResultSchema,
+  opportunityUpdateSubscriptionSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -117,6 +119,9 @@ import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
 import { Opportunity } from '../entity/opportunities/Opportunity';
 import type { GQLSource } from './sources';
+import { SubscriptionStatus } from '../common/plus';
+import { paddleInstance } from '../common/paddle';
+import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 
 export interface GQLOpportunity
   extends Pick<
@@ -301,6 +306,7 @@ export const typeDefs = /* GraphQL */ `
   """
   type OpportunityFlagsPublic {
     batchSize: Int
+    plan: String
   }
 
   type Opportunity {
@@ -317,7 +323,6 @@ export const typeDefs = /* GraphQL */ `
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
     feedbackQuestions: [OpportunityFeedbackQuestion]!
-    subscriptionStatus: SubscriptionStatus!
     flags: OpportunityFlagsPublic
   }
 
@@ -923,6 +928,15 @@ export const typeDefs = /* GraphQL */ `
       Name of the channel to create (lowercase letters, numbers, hyphens, and underscores only)
       """
       channelName: String!
+    ): EmptyResponse @auth
+
+    addOpportunitySeat(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      priceId: String!
     ): EmptyResponse @auth
   }
 `;
@@ -2370,9 +2384,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
+      const organization = await opportunity.organization;
+
       switch (state) {
         case OpportunityState.LIVE: {
-          if (!opportunity.organizationId) {
+          if (!organization) {
             throw new ConflictError(
               `Opportunity must have an organization assigned`,
             );
@@ -2382,6 +2398,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             throw new ConflictError(`Opportunity is closed`);
           }
 
+          if (
+            organization.recruiterSubscriptionFlags.status !==
+            SubscriptionStatus.Active
+          ) {
+            throw new ConflictError(
+              `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
+            );
+          }
+
           opportunityStateLiveSchema.parse({
             ...opportunity,
             organization: await opportunity.organization,
@@ -2389,10 +2414,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             questions: await opportunity.questions,
           });
 
+          const availableSeats =
+            organization.recruiterSubscriptionFlags.items?.reduce(
+              (total, item) => {
+                return total + item.quantity;
+              },
+              0,
+            ) || 0;
+
+          const liveOpportunitiesCount = await ctx.con
+            .getRepository(OpportunityJob)
+            .count({
+              where: {
+                organizationId: organization.id,
+                state: OpportunityState.LIVE,
+              },
+            });
+
+          if (liveOpportunitiesCount >= availableSeats) {
+            throw new PaymentRequiredError(
+              `Your subscription allows for ${availableSeats} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
+            );
+          }
+
           await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
 
           break;
         }
+        case OpportunityState.CLOSED:
+          if (opportunity.state !== OpportunityState.LIVE) {
+            throw new ConflictError(`This opportunity is not live`);
+          }
+
+          const subscriptionid =
+            organization.recruiterSubscriptionFlags.subscriptionId;
+
+          if (!subscriptionid) {
+            throw new ConflictError(`Opportunity subscription not found`);
+          }
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
         default:
           throw new ConflictError('Invalid state transition');
       }
@@ -2400,6 +2463,106 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         _: true,
       };
+    },
+    addOpportunitySeat: async (
+      _,
+      payload,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, priceId } =
+        opportunityUpdateSubscriptionSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+          },
+        });
+
+      const organization = await opportunity.organization;
+
+      if (!organization) {
+        throw new NotFoundError(
+          'Opportunity must have organization to update subscription',
+        );
+      }
+
+      const subscriptionid =
+        organization.recruiterSubscriptionFlags.subscriptionId;
+
+      if (!subscriptionid) {
+        throw new ConflictError(`Opportunity subscription not found`);
+      }
+
+      const subscription =
+        await paddleInstance.subscriptions.get(subscriptionid);
+
+      const liveOpportunitiesCount = await ctx.con
+        .getRepository(OpportunityJob)
+        .count({
+          where: {
+            organizationId: organization.id,
+            state: OpportunityState.LIVE,
+            flags: JsonContains({ plan: priceId }),
+          },
+        });
+
+      const availableSeatsForPlan = subscription.items
+        .filter((item) => item.price.id === priceId)
+        .reduce((total, item) => total + item.quantity, 0);
+
+      if (liveOpportunitiesCount >= availableSeatsForPlan) {
+        throw new PaymentRequiredError(
+          `Your subscription allows for ${availableSeatsForPlan} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
+        );
+      }
+
+      const subscriptionItems = subscription.items.map((item) => {
+        return {
+          priceId: item.price.id,
+          quantity: item.quantity,
+        };
+      }) as ISubscriptionUpdateItem[];
+
+      // find the existing price item
+      const priceItem = subscriptionItems.find(
+        (item) => item.priceId === priceId,
+      );
+
+      const quantityToAdd = 1;
+
+      // if not found, add new item with quantity 1, else increment quantity
+      if (!priceItem) {
+        subscriptionItems.push({ priceId, quantity: quantityToAdd });
+      } else {
+        priceItem.quantity += quantityToAdd;
+      }
+
+      await paddleInstance.subscriptions.update(subscriptionid, {
+        prorationBillingMode: 'prorated_immediately',
+        items: subscriptionItems,
+      });
+
+      await ctx.con.getRepository(OpportunityJob).update(
+        { id },
+        {
+          flags: updateFlagsStatement<OpportunityJob>({
+            plan: priceId,
+          }),
+        },
+      );
+
+      return { _: true };
     },
     createSharedSlackChannel: async (
       _,

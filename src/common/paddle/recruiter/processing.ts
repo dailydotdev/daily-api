@@ -17,7 +17,9 @@ import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
 } from '../../opportunity/accessControl';
-import { updateSubscriptionFlags } from '../../utils';
+import { updateRecruiterSubscriptionFlags } from '../../utils';
+import { OpportunityState } from '@dailydotdev/schema';
+import { Organization } from '../../../entity/Organization';
 
 export const createOpportunitySubscription = async ({
   event,
@@ -47,14 +49,33 @@ export const createOpportunitySubscription = async ({
     return false;
   }
 
-  const opportunity: Pick<OpportunityJob, 'id'> = await con
-    .getRepository(OpportunityJob)
-    .findOneOrFail({
-      select: ['id'],
-      where: {
-        id: opportunity_id,
-      },
-    });
+  const opportunity: Pick<
+    OpportunityJob,
+    'id' | 'organizationId' | 'organization'
+  > = await con.getRepository(OpportunityJob).findOneOrFail({
+    select: ['id', 'organizationId', 'organization'],
+    where: {
+      id: opportunity_id,
+    },
+    relations: {
+      organization: true,
+    },
+  });
+
+  const organization = await opportunity.organization;
+
+  if (!organization) {
+    throw new Error(
+      'Opportunity does not have organization during payment processing, can not assign subscription, manual fixup needed',
+    );
+  }
+
+  if (
+    organization.recruiterSubscriptionFlags?.status ===
+    SubscriptionStatus.Active
+  ) {
+    throw new Error('Organization already has active recruiter subscription');
+  }
 
   await ensureOpportunityPermissions({
     con: con.manager,
@@ -63,22 +84,39 @@ export const createOpportunitySubscription = async ({
     permission: OpportunityPermissions.Edit,
   });
 
-  await con.getRepository(OpportunityJob).update(
-    {
-      id: opportunity.id,
-    },
-    {
-      subscriptionFlags: updateSubscriptionFlags<OpportunityJob>({
-        cycle: subscriptionType,
-        createdAt: data.startedAt ?? new Date(),
-        updatedAt: new Date(),
-        subscriptionId: data.id,
-        priceId: data.items[0].price.id,
-        provider: SubscriptionProvider.Paddle,
-        status: SubscriptionStatus.Active,
-      }),
-    },
-  );
+  await con.transaction(async (entityManager) => {
+    await entityManager.getRepository(Organization).update(
+      {
+        id: organization.id,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            cycle: subscriptionType,
+            createdAt: data.startedAt ?? new Date(),
+            updatedAt: new Date(),
+            subscriptionId: data.id,
+            provider: SubscriptionProvider.Paddle,
+            status: SubscriptionStatus.Active,
+            items: data.items.map((item) => {
+              return {
+                priceId: item.price.id,
+                quantity: item.quantity,
+              };
+            }),
+          }),
+      },
+    );
+
+    await entityManager.getRepository(OpportunityJob).update(
+      {
+        id: opportunity.id,
+      },
+      {
+        state: OpportunityState.IN_REVIEW,
+      },
+    );
+  });
 };
 
 export const cancelRecruiterSubscription = async ({
@@ -91,14 +129,18 @@ export const cancelRecruiterSubscription = async ({
     event.data.customData,
   );
 
-  const opportunity: Pick<OpportunityJob, 'id'> = await con
-    .getRepository(OpportunityJob)
-    .findOneOrFail({
-      select: ['id'],
-      where: {
-        id: opportunity_id,
-      },
-    });
+  const opportunity: Pick<
+    OpportunityJob,
+    'id' | 'organizationId' | 'organization'
+  > = await con.getRepository(OpportunityJob).findOneOrFail({
+    select: ['id', 'organizationId', 'organization'],
+    where: {
+      id: opportunity_id,
+    },
+    relations: {
+      organization: true,
+    },
+  });
 
   await ensureOpportunityPermissions({
     con: con.manager,
@@ -107,19 +149,28 @@ export const cancelRecruiterSubscription = async ({
     permission: OpportunityPermissions.Edit,
   });
 
-  const subscriptionFlags: OpportunityJob['subscriptionFlags'] = {
+  const organization = await opportunity.organization;
+
+  if (!organization) {
+    throw new Error(
+      'Opportunity does not have organization during payment processing, can not cancel subscription, manual fixup needed',
+    );
+  }
+
+  const subscriptionFlags: Organization['recruiterSubscriptionFlags'] = {
     cycle: null,
-    status: SubscriptionStatus.Expired,
+    status: SubscriptionStatus.Cancelled,
     updatedAt: new Date(),
+    items: [],
   };
 
-  con.getRepository(OpportunityJob).update(
+  con.getRepository(Organization).update(
     {
-      id: opportunity.id,
+      id: organization.id,
     },
     {
-      subscriptionFlags:
-        updateSubscriptionFlags<OpportunityJob>(subscriptionFlags),
+      recruiterSubscriptionFlags:
+        updateRecruiterSubscriptionFlags<Organization>(subscriptionFlags),
     },
   );
 };
