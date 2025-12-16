@@ -6,6 +6,8 @@ import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { Organization } from '../../src/entity/Organization';
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import { OpportunityLocation } from '../../src/entity/opportunities/OpportunityLocation';
 import createOrGetConnection from '../../src/db';
 import {
   authorizeRequest,
@@ -29,6 +31,8 @@ import {
   opportunityQuestionsFixture,
   opportunityFeedbackQuestionsFixture,
   organizationsFixture,
+  datasetLocationsFixture,
+  opportunityLocationsFixture,
 } from '../fixture/opportunity';
 import {
   OpportunityUser,
@@ -143,7 +147,9 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Keyword, keywordsFixture);
   await saveFixtures(con, Organization, organizationsFixture);
+  await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
   await saveFixtures(con, Opportunity, opportunitiesFixture);
+  await saveFixtures(con, OpportunityLocation, opportunityLocationsFixture);
   await saveFixtures(con, QuestionScreening, opportunityQuestionsFixture);
   await saveFixtures(
     con,
@@ -209,9 +215,11 @@ describe('query opportunityById', () => {
           }
           equity
         }
-        location {
-          city
-          country
+        locations {
+          location {
+            city
+            country
+          }
           type
         }
         organization {
@@ -295,10 +303,12 @@ describe('query opportunityById', () => {
         },
         equity: true,
       },
-      location: [
+      locations: [
         {
-          city: null,
-          country: 'Norway',
+          location: {
+            city: null,
+            country: 'Norway',
+          },
           type: 1,
         },
       ],
@@ -1601,9 +1611,12 @@ describe('query userOpportunityMatches', () => {
                 id
                 title
                 state
-                location {
-                  city
-                  country
+                locations {
+                  location {
+                    city
+                    country
+                  }
+                  type
                 }
                 organization {
                   id
@@ -1634,10 +1647,13 @@ describe('query userOpportunityMatches', () => {
       id: '550e8400-e29b-41d4-a716-446655440001',
       title: 'Senior Full Stack Developer',
       state: 2, // LIVE
-      location: [
+      locations: [
         {
-          city: null,
-          country: 'Norway',
+          location: {
+            city: null,
+            country: 'Norway',
+          },
+          type: 1,
         },
       ],
       organization: {
@@ -1671,8 +1687,6 @@ describe('query getCandidatePreferences', () => {
           city
           country
           subdivision
-          continent
-          type
         }
         locationType
         employmentType
@@ -1781,8 +1795,8 @@ describe('query getCandidatePreferences', () => {
         period: 1,
       },
       location: [
-        { country: 'Norway' },
-        { city: 'London', country: 'UK', continent: 'Europe' },
+        { country: 'Norway', city: null, subdivision: null },
+        { city: 'London', country: 'UK', subdivision: null },
       ],
       locationType: [1, 3],
       employmentType: [1, 2, 3],
@@ -3851,10 +3865,12 @@ describe('mutation editOpportunity', () => {
             period
           }
         }
-        location {
-          city
-          country
+        locations {
           type
+          location {
+            city
+            country
+          }
         }
         keywords {
           keyword
@@ -3924,7 +3940,6 @@ describe('mutation editOpportunity', () => {
         payload: {
           title: 'Updated Senior Full Stack Developer',
           tldr: 'Updated TLDR',
-          location: [{ country: 'Germany', type: LocationType.REMOTE }],
           meta: {
             employmentType: EmploymentType.INTERNSHIP,
             teamSize: 100,
@@ -3941,7 +3956,15 @@ describe('mutation editOpportunity', () => {
       id: opportunitiesFixture[0].id,
       title: 'Updated Senior Full Stack Developer',
       tldr: 'Updated TLDR',
-      location: [{ country: 'Germany', city: null, type: 1 }],
+      locations: [
+        {
+          type: 1,
+          location: {
+            city: null,
+            country: 'Norway',
+          },
+        },
+      ],
       meta: {
         employmentType: EmploymentType.INTERNSHIP,
         teamSize: 100,
@@ -4894,14 +4917,6 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
         title: 'Opportunity without questions',
         tldr: 'TLDR',
         state: OpportunityState.DRAFT,
-        location: [
-          {
-            type: LocationType.HYBRID,
-            city: 'Varaždin',
-            subdivision: 'Varaždinska',
-            country: 'Croatia',
-          },
-        ],
         meta: {
           seniorityLevel: SeniorityLevel.SENIOR,
           employmentType: EmploymentType.PART_TIME,
@@ -4912,6 +4927,11 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
         },
       }),
     );
+    await con.getRepository(OpportunityLocation).save({
+      opportunityId: opportunity.id,
+      locationId: '660e8400-e29b-41d4-a716-446655440001',
+      type: LocationType.HYBRID,
+    });
 
     await con.getRepository(OpportunityUser).save({
       opportunityId: opportunity.id,
@@ -4943,7 +4963,7 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
 
     expect(clientSpy).toHaveBeenCalledTimes(1);
     expect(clientSpy).toHaveBeenCalledWith({
-      jobOpportunity: `**Location:** HYBRID, Varaždin, Varaždinska, Croatia
+      jobOpportunity: `**Location:** HYBRID, Norway
 **Job Type:** PART_TIME
 **Seniority Level:** SENIOR
 
@@ -5415,10 +5435,12 @@ describe('mutation parseOpportunity', () => {
             period
           }
         }
-        location {
-          city
-          country
-          subdivision
+        locations {
+          location {
+            city
+            country
+            subdivision
+          }
           type
         }
         keywords {
@@ -5441,6 +5463,9 @@ describe('mutation parseOpportunity', () => {
     jest.clearAllMocks();
 
     await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+    // Ensure dataset locations are available
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
 
     const transport = createMockBrokkrTransport();
 
@@ -5534,12 +5559,14 @@ describe('mutation parseOpportunity', () => {
           html: '<p>These are the requirements of the mocked opportunity.</p>\n',
         },
       },
-      location: [
+      locations: [
         {
-          city: 'San Francisco',
-          country: 'USA',
-          subdivision: 'CA',
           type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'USA',
+            subdivision: null,
+          },
         },
       ],
       questions: [],
@@ -5647,12 +5674,14 @@ describe('mutation parseOpportunity', () => {
           html: '<p>These are the requirements of the mocked opportunity.</p>\n',
         },
       },
-      location: [
+      locations: [
         {
-          city: 'San Francisco',
-          country: 'USA',
-          subdivision: 'CA',
           type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'USA',
+            subdivision: null,
+          },
         },
       ],
       questions: [],
@@ -5823,12 +5852,14 @@ describe('mutation parseOpportunity', () => {
           html: '<p>These are the requirements of the mocked opportunity.</p>\n',
         },
       },
-      location: [
+      locations: [
         {
-          city: 'San Francisco',
-          country: 'USA',
-          subdivision: 'CA',
           type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'USA',
+            subdivision: null,
+          },
         },
       ],
       questions: [],

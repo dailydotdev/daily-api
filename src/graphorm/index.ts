@@ -1529,9 +1529,6 @@ const obj = new GraphORM({
       meta: {
         jsonType: true,
       },
-      location: {
-        jsonType: true,
-      },
       recruiters: {
         relation: {
           isMany: true,
@@ -1590,6 +1587,18 @@ const obj = new GraphORM({
             batchSize: value?.batchSize ?? opportunityMatchBatchSize,
             plan: value?.plan,
           };
+        },
+      },
+    },
+  },
+  OpportunityLocation: {
+    requiredColumns: ['id', 'type'],
+    fields: {
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
         },
       },
     },
@@ -1715,7 +1724,6 @@ const obj = new GraphORM({
           )
         `,
         transform: (value: unknown) => {
-          console.log(value);
           if (isNullOrUndefined(value)) return [];
           if (Array.isArray(value)) return value;
           return [value];
