@@ -41,7 +41,7 @@ jobs:
           name: Test
           command: |
             TEST=$(./node_modules/.bin/jest --listTests)
-            echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings
+            echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings --timings-type=name
           environment:
             NODE_OPTIONS: --max-old-space-size=4096
             JEST_JUNIT_OUTPUT_DIR: ./test-results
