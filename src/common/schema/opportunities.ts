@@ -151,7 +151,20 @@ export const opportunityEditSchema = z
           period: z.number(),
         })
         .partial()
-        .optional(),
+        .optional()
+        .refine(
+          (data) => {
+            if (data?.min && data?.max) {
+              return data.max >= data.min && data.max <= data.min * 1.25;
+            }
+
+            return true;
+          },
+          {
+            error:
+              'Min salary must be less than or equal to max salary and no more than 25% lower',
+          },
+        ),
       seniorityLevel: z.number(),
       roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
     }),

@@ -3956,7 +3956,7 @@ describe('mutation editOpportunity', () => {
           meta: {
             employmentType: EmploymentType.INTERNSHIP,
             teamSize: 100,
-            salary: { min: 100, max: 200, period: SalaryPeriod.HOURLY },
+            salary: { min: 180, max: 200, period: SalaryPeriod.HOURLY },
             seniorityLevel: SeniorityLevel.VP,
             roleType: RoleType.Managerial,
           },
@@ -3982,7 +3982,7 @@ describe('mutation editOpportunity', () => {
         employmentType: EmploymentType.INTERNSHIP,
         teamSize: 100,
         salary: {
-          min: 100,
+          min: 180,
           max: 200,
           period: SalaryPeriod.HOURLY,
         },
