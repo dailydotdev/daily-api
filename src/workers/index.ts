@@ -73,6 +73,7 @@ import { storeCandidateApplicationScore } from './opportunity/storeCandidateAppl
 import { extractCVMarkdown } from './extractCVMarkdown';
 import candidateAcceptedOpportunitySlack from './candidateAcceptedOpportunitySlack';
 import recruiterRejectedCandidateMatchEmail from './recruiterRejectedCandidateMatchEmail';
+import { opportunityPreviewResultWorker } from './opportunity/opportunityPreviewResult';
 
 export { Worker } from './worker';
 
@@ -149,6 +150,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   extractCVMarkdown,
   candidateAcceptedOpportunitySlack,
   recruiterRejectedCandidateMatchEmail,
+  opportunityPreviewResultWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
