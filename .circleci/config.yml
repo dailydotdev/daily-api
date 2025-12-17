@@ -1,27 +1,16 @@
 version: 2.1
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.16.10
-  pulumi: pulumi/pulumi@2.1.0
-  gcp-cli: circleci/gcp-cli@3.3.1
+  common: dailydotdev/common@0.0.12
 jobs:
-  build:
-    docker:
-      - image: cimg/node:22.16
+  build-app:
+    executor:
+      name: common/node
+      tag: "22.16"
     steps:
-      - checkout
-      - restore_cache:
-          key: dependency-v4-cache-{{ checksum "pnpm-lock.yaml" }}
-      - run:
-          name: Install dependencies
-          command: |
-            pnpm install
+      - common/setup-node
       - run:
           name: Build
           command: pnpm run build
-      - save_cache:
-          key: dependency-v4-cache-{{ checksum "pnpm-lock.yaml" }}
-          paths:
-            - ./node_modules
       - persist_to_workspace:
           root: .
           paths:
@@ -37,29 +26,13 @@ jobs:
       - image: redis/redis-stack:7.2.0-v13
     parallelism: 6
     steps:
-      - checkout
-      - restore_cache:
-          key: dependency-v4-cache-{{ checksum "pnpm-lock.yaml" }}
-      - run:
-          name: Wait for PostgreSQL
-          command: |
-            for i in `seq 1 10`;
-            do
-            nc -z localhost 5432 && echo Success && exit 0
-            echo -n .
-            sleep 1
-            done
-            echo Failed waiting for Postgress && exit 1
-      - run:
-          name: Wait for Redis
-          command: |
-            for i in `seq 1 10`;
-            do
-            nc -z localhost 6379 && echo Success && exit 0
-            echo -n .
-            sleep 1
-            done
-            echo Failed waiting for Redis && exit 1
+      - common/setup-node
+      - common/wait-for:
+          protocol: postgresql
+          host: "postgres://postgresql:12345@localhost:5432/api_test?sslmode=disable"
+      - common/wait-for:
+          protocol: redis
+          host: "redis://127.0.0.1:6379"
       - run:
           name: Test
           command: |
@@ -71,95 +44,33 @@ jobs:
             JEST_JUNIT_OUTPUT_DIR: ./test-results
       - store_test_results:
           path: ./test-results
-  build_and_push_docker:
-    machine:
-      docker_layer_caching: true
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - gcp-gcr/build-image:
-          image: $CIRCLE_PROJECT_REPONAME
-          tag: $CIRCLE_SHA1
-          registry-url: us.gcr.io
-      - gcp-gcr/gcr-auth
-      - gcp-gcr/push-image:
-          image: $CIRCLE_PROJECT_REPONAME
-          tag: $CIRCLE_SHA1
-          registry-url: us.gcr.io
-  pulumi_preview:
-    docker:
-      - image: cimg/node:22.16
-    steps:
-      - checkout
-      - pulumi/login
-      - run:
-          name: Install dependencies
-          command: pnpm install --frozen-lockfile
-          working_directory: .infra
-      - run:
-          name: Pulumi preview
-          command: pulumi preview --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
-          working_directory: .infra
-  pulumi_up:
-    circleci_ip_ranges: true
-    docker:
-      - image: cimg/node:22.16
-    environment:
-      USE_GKE_GCLOUD_AUTH_PLUGIN: 'True'
-    steps:
-      - checkout
-      - gcp-cli/setup:
-          components: gke-gcloud-auth-plugin
-      - pulumi/login
-      - run:
-          name: Install dependencies
-          command: pnpm install --frozen-lockfile
-          working_directory: .infra
-      - run:
-          name: Pulumi up
-          command: pulumi up -r -y --suppress-outputs --stack dailydotdev/prod -c tag=$CIRCLE_SHA1
-          working_directory: .infra
 workflows:
   build:
     jobs:
-      - build
+      - build-app
       - test:
           requires:
-            - build
+            - build-app
           filters:
             branches:
-              ignore: master
-      - build_and_push_docker:
-          requires:
-            - build
+              ignore: main
+      - common/build-docker:
           context: GCR
-          filters:
-            branches:
-              ignore: /pull\/[0-9]+/
-      - pulumi_preview:
+          requires:
+            - build-app
+          attach-workspace: true
+          registry-url: us.gcr.io
+          push-latest: << pipeline.git.branch.is_default >>
+      - common/pulumi-preview:
           context: PROD
           filters:
             branches:
               ignore:
-                - /pull\/[0-9]+/
                 - main
-      - pulumi_up:
+      - common/pulumi-up:
           requires:
-            - build_and_push_docker
+            - common/build-docker
           context: PROD
-          filters:
-            branches:
-              only:
-                - main
-      - gcp-gcr/add-image-tag:
-          requires:
-            - build_and_push_docker
-          context: GCR
-          image: $CIRCLE_PROJECT_REPONAME
-          source-tag: $CIRCLE_SHA1
-          target-tag: latest
-          registry-url: us.gcr.io
           filters:
             branches:
               only:
