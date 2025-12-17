@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  common: dailydotdev/common@0.0.12
+  common: dailydotdev/common@0.0.13
 jobs:
   build-app:
     executor:
@@ -30,10 +30,10 @@ jobs:
       - common/setup-node
       - common/wait-for:
           protocol: postgresql
-          host: "postgres://postgresql:12345@localhost:5432/api_test?sslmode=disable"
+          target: "postgres://postgresql:12345@localhost:5432/api_test?sslmode=disable"
       - common/wait-for:
           protocol: redis
-          host: "redis://127.0.0.1:6379"
+          target: "redis://127.0.0.1:6379"
       - run:
           name: Test
           command: |
