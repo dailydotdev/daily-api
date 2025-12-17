@@ -12,8 +12,10 @@ import { Organization } from '../../src/entity/Organization';
 import {
   organizationsFixture,
   opportunitiesFixture,
+  datasetLocationsFixture,
 } from '../fixture/opportunity';
 import { usersFixture } from '../fixture/user';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 
 // Spy on the webhooks.recruiter.send method
 const mockRecruiterSend = jest
@@ -29,6 +31,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   jest.resetAllMocks();
+  await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
   await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, OpportunityJob, opportunitiesFixture);
   await saveFixtures(con, User, usersFixture);

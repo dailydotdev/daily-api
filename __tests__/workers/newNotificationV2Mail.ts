@@ -100,10 +100,13 @@ import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../src/entity/opportunities/types';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
   opportunityMatchesFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import { datasetLocationFixture } from '../fixture/profile/experience';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -1872,6 +1875,7 @@ describe('user_post_added notification', () => {
 
 describe('new_opportunity_match notification', () => {
   it('should send email', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
@@ -2755,6 +2759,7 @@ describe('poll result notifications', () => {
 
 describe('warm_intro notification', () => {
   it('should send email to both candidate and recruiter', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);

@@ -3,7 +3,10 @@ import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { crons } from '../../src/cron/index';
-import { organizationsFixture } from '../fixture/opportunity';
+import {
+  datasetLocationsFixture,
+  organizationsFixture,
+} from '../fixture/opportunity';
 import { userExperienceWorkFixture } from '../fixture/profile/work';
 import { Organization } from '../../src/entity/Organization';
 import { insertOrIgnoreUserExperienceSkills } from '../../src/entity/user/experiences/UserExperienceSkill';
@@ -38,6 +41,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.clearAllMocks();
 
+  await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
   await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Company, companyFixture);
