@@ -10,6 +10,10 @@ import { logger } from '../logger';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
+    if (!req.userId) {
+      return res.status(401).send();
+    }
+
     try {
       const query = req.query as { q?: string; limit?: string; pos?: string };
       const q = query.q ?? '';
@@ -25,6 +29,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
   });
   fastify.post('/favorite', async (req, res) => {
+    if (!req.userId) {
+      return res.status(401).send();
+    }
+
     try {
       const con = await createOrGetConnection();
 
@@ -80,6 +88,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
   });
   fastify.get('/favorites', async (req, res) => {
+    if (!req.userId) {
+      return res.status(401).send();
+    }
+
     try {
       const con = await createOrGetConnection();
       const existingFavorites = await con

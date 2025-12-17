@@ -37,10 +37,17 @@ beforeEach(async () => {
 });
 
 describe('GET /gifs', () => {
+  it('should return 401 when user is not authenticated', async () => {
+    await request(app.server).get('/gifs').expect(401);
+  });
+
   it('should return empty gifs when no query is provided', async () => {
     mockTenorSearch.mockResolvedValue({ gifs: [], next: undefined });
 
-    const { body } = await request(app.server).get('/gifs').expect(200);
+    const { body } = await authorizeRequest(
+      request(app.server).get('/gifs'),
+      '1',
+    ).expect(200);
 
     expect(body).toEqual({ gifs: [], next: undefined });
     expect(mockTenorSearch).toHaveBeenCalledWith({
@@ -71,10 +78,10 @@ describe('GET /gifs', () => {
       next: 'next-page-token',
     });
 
-    const { body } = await request(app.server)
-      .get('/gifs')
-      .query({ q: 'funny', limit: '20' })
-      .expect(200);
+    const { body } = await authorizeRequest(
+      request(app.server).get('/gifs').query({ q: 'funny', limit: '20' }),
+      '1',
+    ).expect(200);
 
     expect(body).toEqual({
       gifs: mockGifs,
@@ -90,10 +97,10 @@ describe('GET /gifs', () => {
   it('should pass pagination position to tenor search', async () => {
     mockTenorSearch.mockResolvedValue({ gifs: [], next: undefined });
 
-    await request(app.server)
-      .get('/gifs')
-      .query({ q: 'test', pos: 'page-token' })
-      .expect(200);
+    await authorizeRequest(
+      request(app.server).get('/gifs').query({ q: 'test', pos: 'page-token' }),
+      '1',
+    ).expect(200);
 
     expect(mockTenorSearch).toHaveBeenCalledWith({
       q: 'test',
@@ -105,10 +112,10 @@ describe('GET /gifs', () => {
   it('should return empty gifs when tenor search fails', async () => {
     mockTenorSearch.mockRejectedValue(new Error('Tenor API error'));
 
-    const { body } = await request(app.server)
-      .get('/gifs')
-      .query({ q: 'test' })
-      .expect(200);
+    const { body } = await authorizeRequest(
+      request(app.server).get('/gifs').query({ q: 'test' }),
+      '1',
+    ).expect(200);
 
     expect(body).toEqual({ gifs: [], next: undefined });
   });
@@ -118,10 +125,10 @@ describe('GET /gifs', () => {
     // so the user can retry the same page
     mockTenorSearch.mockResolvedValue({ gifs: [], next: 'page-2' });
 
-    const { body } = await request(app.server)
-      .get('/gifs')
-      .query({ q: 'test', pos: 'page-2' })
-      .expect(200);
+    const { body } = await authorizeRequest(
+      request(app.server).get('/gifs').query({ q: 'test', pos: 'page-2' }),
+      '1',
+    ).expect(200);
 
     expect(body).toEqual({ gifs: [], next: 'page-2' });
   });
@@ -134,6 +141,13 @@ describe('POST /gifs/favorite', () => {
     preview: 'https://tenor.com/gif1-preview.gif',
     title: 'Funny cat',
   };
+
+  it('should return 401 when user is not authenticated', async () => {
+    await request(app.server)
+      .post('/gifs/favorite')
+      .send(gifToFavorite)
+      .expect(401);
+  });
 
   it('should add a gif to favorites for authenticated user', async () => {
     const { body } = await authorizeRequest(
@@ -242,6 +256,10 @@ describe('POST /gifs/favorite', () => {
 });
 
 describe('GET /gifs/favorites', () => {
+  it('should return 401 when user is not authenticated', async () => {
+    await request(app.server).get('/gifs/favorites').expect(401);
+  });
+
   it('should return empty array when user has no favorites', async () => {
     const { body } = await authorizeRequest(
       request(app.server).get('/gifs/favorites'),
