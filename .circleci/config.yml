@@ -10,7 +10,12 @@ jobs:
       - common/setup-node
       - run:
           name: Build
-          command: pnpm run build
+          command: |
+            pnpm run build
+      - run:
+          name: Lint
+          command: |
+            pnpm run lint
       - persist_to_workspace:
           root: .
           paths:
