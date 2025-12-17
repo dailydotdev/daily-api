@@ -6,13 +6,15 @@ import { AuthContext, BaseContext } from '../Context';
 import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
-  autocompleteBaseSchema,
   autocompleteCompanySchema,
   autocompleteKeywordsSchema,
+  autocompleteLocationSchema,
   autocompleteSchema,
+  LocationDataset,
 } from '../common/schema/autocompletes';
 import type z from 'zod';
 import { Company, CompanyType } from '../entity/Company';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { mapboxClient } from '../integrations/mapbox/clients';
 
 interface AutocompleteData {
@@ -34,6 +36,7 @@ interface GQLLocation {
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AutocompleteType, 'AutocompleteType')}
   ${toGQLEnum(CompanyType, 'CompanyType')}
+  ${toGQLEnum(LocationDataset, 'LocationDataset')}
 
   type AutocompleteData {
     result: [String]!
@@ -60,11 +63,13 @@ export const typeDefs = /* GraphQL */ `
       @cacheControl(maxAge: 3600)
 
     """
-    Get autocomplete based on type
+    Get location autocomplete
     """
-    autocompleteLocation(query: String!): [Location]!
-      @auth
-      @cacheControl(maxAge: 3600)
+    autocompleteLocation(
+      query: String!
+      dataset: LocationDataset
+      limit: Int = 5
+    ): [Location]! @auth @cacheControl(maxAge: 3600)
 
     autocompleteKeywords(
       query: String!
@@ -103,13 +108,37 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
     },
     autocompleteLocation: async (
       _,
-      payload: z.infer<typeof autocompleteSchema>,
+      payload: z.infer<typeof autocompleteLocationSchema>,
+      ctx: AuthContext,
     ): Promise<GQLLocation[]> => {
-      const { query } = autocompleteBaseSchema.parse(payload);
+      const { query, dataset, limit } =
+        autocompleteLocationSchema.parse(payload);
 
       try {
+        if (dataset === LocationDataset.Internal) {
+          const results = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+            queryRunner.manager
+              .createQueryBuilder(DatasetLocation, 'dl')
+              .where('dl.country ILIKE :query', { query: `%${query}%` })
+              .orWhere('dl.city ILIKE :query', { query: `%${query}%` })
+              .orWhere('dl.subdivision ILIKE :query', { query: `%${query}%` })
+              .orderBy('dl.country', 'ASC')
+              .addOrderBy('dl.subdivision', 'ASC')
+              .addOrderBy('dl.city', 'ASC')
+              .limit(limit)
+              .getMany(),
+          );
+
+          return results.map((location) => ({
+            id: location.id,
+            country: location.country,
+            city: location.city,
+            subdivision: location.subdivision,
+          }));
+        }
+
         // Use the new Mapbox client with Garmr integration
-        const data = await mapboxClient.autocomplete(query);
+        const data = await mapboxClient.autocomplete(query, limit);
 
         return data.features.map((feature) => ({
           id: feature.properties.mapbox_id,
