@@ -106,7 +106,6 @@ import {
   organizationsFixture,
 } from '../fixture/opportunity';
 import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
-import { datasetLocationFixture } from '../fixture/profile/experience';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
