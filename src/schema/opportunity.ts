@@ -1650,13 +1650,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const locations = await Promise.all(
           opportunityLocations.map(async (ol) => {
-            const datasetLocation = await ol.location;
-            return {
-              country: datasetLocation.country,
-              city: datasetLocation.city,
-              subdivision: datasetLocation.subdivision,
-              type: ol.type,
-            };
+            return ol.location;
           }),
         );
 
@@ -1671,7 +1665,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           content: opportunityContent,
           meta: opportunity.meta,
           location: locations.map((item) => {
-            return LocationMessage.fromJson(item);
+            return new LocationMessage({
+              ...item,
+              city: item.city || undefined,
+              subdivision: item.subdivision || undefined,
+              country: item.country || undefined,
+            });
           }),
           keywords: keywords.map((k) => k.keyword),
           flags: opportunity.flags,
