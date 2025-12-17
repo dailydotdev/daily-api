@@ -41,10 +41,11 @@ jobs:
           name: Test
           command: |
             TEST=$(./node_modules/.bin/jest --listTests)
-            echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings --timings-type=name
+            echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings
           environment:
             NODE_OPTIONS: --max-old-space-size=4096
             JEST_JUNIT_OUTPUT_DIR: ./test-results
+            JEST_JUNIT_ADD_FILE_ATTRIBUTE: "true"
       - store_test_results:
           path: ./test-results
       - store_artifacts:
