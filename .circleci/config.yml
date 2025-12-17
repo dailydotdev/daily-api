@@ -22,6 +22,7 @@ jobs:
       - image: postgres:17-alpine
         environment:
           POSTGRES_DB: api_test
+          POSTGRES_USER: postgresql
           POSTGRES_PASSWORD: 12345
       - image: redis/redis-stack:7.2.0-v13
     parallelism: 6
