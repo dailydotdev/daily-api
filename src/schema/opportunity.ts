@@ -5,7 +5,7 @@ import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
-import graphorm from '../graphorm';
+import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
   BrokkrParseRequest,
   LocationType,
@@ -176,6 +176,7 @@ export interface GQLOpportunityPreviewUser extends Pick<User, 'id'> {
   openToWork: boolean;
   seniority: string | null;
   location: string | null;
+  locationVerified: LocationVerificationStatus;
   company: { name: string; favicon?: string } | null;
   lastActivity: Date | null;
   topTags: string[] | null;
@@ -220,6 +221,7 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
   ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
   ${toGQLEnum(SocialMediaType, 'SocialMediaType')}
+  ${toGQLEnum(LocationVerificationStatus, 'LocationVerificationStatus')}
 
   type OpportunityContentBlock {
     content: String
@@ -470,6 +472,11 @@ export const typeDefs = /* GraphQL */ `
     User location (from preferences or geo flags)
     """
     location: String
+
+    """
+    Location verification status: geoip (inferred from geo flags), user_provided (from dataset_location or custom), or verified (future use)
+    """
+    locationVerified: LocationVerificationStatus!
 
     """
     Active company from experience

@@ -74,6 +74,12 @@ import { snotraClient } from '../integrations/snotra';
 import type { OpportunityFlagsPublic } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
 
+export enum LocationVerificationStatus {
+  GeoIP = 'geoip',
+  UserProvided = 'user_provided',
+  Verified = 'verified',
+}
+
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
   (ctx: Context, alias: string, qb: QueryBuilder): string => {
@@ -1838,7 +1844,7 @@ const obj = new GraphORM({
             .from('user_candidate_preference', 'ucp')
             .where(`ucp."userId" = ${alias}.id`)
             .limit(1),
-        transform: (status: number | null): boolean => status === 1,
+        transform: (status: number | null): boolean => status !== 1,
       },
       seniority: {
         select: 'experienceLevel',
@@ -1857,22 +1863,32 @@ const obj = new GraphORM({
       },
       location: {
         select: (_, alias) => `
-          (
-            SELECT COALESCE(
-              (
-                SELECT jsonb_build_object(
-                  'city', dl.city,
-                  'subdivision', dl.subdivision,
-                  'country', dl.country
+          COALESCE(
+            (
+              SELECT COALESCE(
+                (
+                  SELECT jsonb_build_object(
+                    'city', dl.city,
+                    'subdivision', dl.subdivision,
+                    'country', dl.country
+                  )
+                  FROM dataset_location dl
+                  WHERE dl.id = ucp."locationId"
+                ),
+                ucp."customLocation"->0
+              )
+              FROM user_candidate_preference ucp
+              WHERE ucp."userId" = ${alias}.id
+              LIMIT 1
+            ),
+            CASE
+              WHEN ${alias}.flags->'country' IS NOT NULL OR ${alias}.flags->'city' IS NOT NULL THEN
+                jsonb_build_object(
+                  'city', ${alias}.flags->'city',
+                  'country', ${alias}.flags->'country'
                 )
-                FROM dataset_location dl
-                WHERE dl.id = ucp."locationId"
-              ),
-              ucp."customLocation"->0
-            )
-            FROM user_candidate_preference ucp
-            WHERE ucp."userId" = ${alias}.id
-            LIMIT 1
+              ELSE NULL
+            END
           )
         `,
         transform: (data: Record<string, unknown>): string | null => {
@@ -1887,7 +1903,19 @@ const obj = new GraphORM({
           return null;
         },
       },
-
+      locationVerified: {
+        select: (_, alias, qb) =>
+          qb
+            .select(
+              `CASE WHEN ucp."locationId" IS NOT NULL OR ucp."customLocation" IS NOT NULL THEN '${LocationVerificationStatus.UserProvided}' ELSE '${LocationVerificationStatus.GeoIP}' END`,
+            )
+            .from('user_candidate_preference', 'ucp')
+            .where(`ucp."userId" = ${alias}.id`)
+            .limit(1),
+        transform: (status: string | null): LocationVerificationStatus =>
+          (status as LocationVerificationStatus) ??
+          LocationVerificationStatus.GeoIP,
+      },
       lastActivity: {
         select: () => 'NULL',
         transform: async (_, ctx, parent) => {
