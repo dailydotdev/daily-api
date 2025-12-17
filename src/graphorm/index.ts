@@ -1742,7 +1742,14 @@ const obj = new GraphORM({
     from: 'DatasetLocation',
   },
   UserExperience: {
+    requiredColumns: ['userId'],
     fields: {
+      isOwner: {
+        select: 'userId',
+        transform: (userId: string, ctx: Context): boolean => {
+          return !!ctx.userId && ctx.userId === userId;
+        },
+      },
       startedAt: {
         transform: transformDate,
       },
