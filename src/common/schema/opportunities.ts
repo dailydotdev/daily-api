@@ -97,29 +97,31 @@ export const opportunityCreateParseSchema = opportunityCreateSchema
 
       return val;
     }, opportunityCreateSchema.shape.keywords),
-    meta: opportunityCreateSchema.shape.meta.extend({
-      teamSize: opportunityCreateSchema.shape.meta.shape.teamSize.optional(),
-      salary: z
-        .object({
-          min: z.preprocess((val: bigint) => {
-            if (typeof val === 'undefined') {
-              return val;
-            }
+    meta: opportunityCreateSchema.shape.meta
+      .extend({
+        teamSize: opportunityCreateSchema.shape.meta.shape.teamSize.optional(),
+        salary: z
+          .object({
+            min: z.preprocess((val: bigint) => {
+              if (typeof val === 'undefined') {
+                return val;
+              }
 
-            return parseBigInt(val);
-          }, z.number().int().nonnegative().max(100_000_000).optional()),
-          max: z.preprocess((val: bigint) => {
-            if (typeof val === 'undefined') {
-              return val;
-            }
+              return parseBigInt(val);
+            }, z.number().int().nonnegative().max(100_000_000).optional()),
+            max: z.preprocess((val: bigint) => {
+              if (typeof val === 'undefined') {
+                return val;
+              }
 
-            return parseBigInt(val);
-          }, z.number().int().nonnegative().max(100_000_000).optional()),
-          period: z.number(),
-        })
-        .partial()
-        .optional(),
-    }),
+              return parseBigInt(val);
+            }, z.number().int().nonnegative().max(100_000_000).optional()),
+            period: z.number(),
+          })
+          .partial()
+          .optional(),
+      })
+      .partial(),
   });
 
 export const opportunityEditSchema = z
