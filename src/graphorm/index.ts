@@ -1865,7 +1865,6 @@ const obj = new GraphORM({
                     'city', dl.city,
                     'subdivision', dl.subdivision,
                     'country', dl.country,
-                    'verified', true
                   )
                   FROM dataset_location dl
                   WHERE dl.id = ucp."locationId"
@@ -1885,7 +1884,6 @@ const obj = new GraphORM({
                 jsonb_build_object(
                   'city', ${alias}.flags->'city',
                   'country', ${alias}.flags->'country',
-                  'verified', false
                 )
               ELSE NULL
             END
