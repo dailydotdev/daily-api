@@ -22,7 +22,6 @@ jobs:
       - image: postgres:17-alpine
         environment:
           POSTGRES_DB: api_test
-          POSTGRES_USER: postgresql
           POSTGRES_PASSWORD: 12345
       - image: redis/redis-stack:7.2.0-v13
     parallelism: 6
@@ -30,7 +29,7 @@ jobs:
       - common/setup-node
       - common/wait-for:
           protocol: postgresql
-          target: "postgres://postgresql:12345@localhost:5432/api_test?sslmode=disable"
+          target: "postgres://postgres:12345@localhost:5432/api_test?sslmode=disable"
       - common/wait-for:
           protocol: redis
           target: "redis://127.0.0.1:6379"
