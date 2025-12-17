@@ -13,6 +13,7 @@ import {
   authorizeRequest,
   createGarmrMock,
   createMockBrokkrTransport,
+  createMockGondulOpportunityServiceTransport,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -48,6 +49,7 @@ import {
   CompanyStage,
   EmploymentType,
   LocationType,
+  OpportunityService,
   OpportunityState,
   SalaryPeriod,
   SeniorityLevel,
@@ -80,9 +82,11 @@ import * as gondulModule from '../../src/common/gondul';
 import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import * as brokkrCommon from '../../src/common/brokkr';
+import * as gondulCommon from '../../src/common/gondul';
 import { randomUUID } from 'node:crypto';
 import { updateRecruiterSubscriptionFlags } from '../../src/common';
 import { SubscriptionStatus } from '../../src/common/plus';
+import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
 
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
@@ -6107,13 +6111,29 @@ describe('query opportunityPreview', () => {
           }
           totalCount
           opportunityId
+          status
         }
       }
     }
   `;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     trackingId = 'test-anon-user-123';
+
+    jest
+      .spyOn(gondulCommon, 'getGondulOpportunityServiceClient')
+      .mockImplementation((): ServiceClient<typeof OpportunityService> => {
+        const transport = createMockGondulOpportunityServiceTransport();
+
+        const serviceClient = {
+          instance: createClient(OpportunityService, transport),
+          garmr: createGarmrMock(),
+        };
+
+        return serviceClient;
+      });
   });
 
   afterEach(() => {
@@ -6174,6 +6194,7 @@ describe('query opportunityPreview', () => {
       tags: expect.any(Array),
       companies: expect.any(Array),
       squads: expect.any(Array),
+      status: OpportunityPreviewStatus.READY,
     });
   });
 
@@ -6187,6 +6208,7 @@ describe('query opportunityPreview', () => {
           preview: {
             userIds: ['1', '2'],
             totalCount: 2,
+            status: OpportunityPreviewStatus.READY,
           },
         },
       },
@@ -6208,6 +6230,97 @@ describe('query opportunityPreview', () => {
       opportunitiesFixture[0].id,
     );
     expect(res.data.opportunityPreview.result.totalCount).toBe(2);
+    expect(res.data.opportunityPreview.result.status).toBe(
+      OpportunityPreviewStatus.READY,
+    );
+  });
+
+  it('should indicate async generation is in progress', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+    expect(res.data.opportunityPreview.result.totalCount).toBe(0);
+    expect(res.data.opportunityPreview.edges).toHaveLength(0);
+    expect(res.data.opportunityPreview.result.status).toBe(
+      OpportunityPreviewStatus.PENDING,
+    );
+  });
+
+  it('should fallback status to unspecified for empty result for backward compatibility', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: [],
+            totalCount: 0,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const result = res.data.opportunityPreview.result;
+    expect(res.data.opportunityPreview.edges).toHaveLength(0);
+    expect(result).toMatchObject({
+      opportunityId: opportunitiesFixture[0].id,
+      totalCount: 0,
+      tags: expect.any(Array),
+      companies: expect.any(Array),
+      squads: expect.any(Array),
+      status: OpportunityPreviewStatus.UNSPECIFIED,
+    });
+  });
+
+  it('should fallback to ready when there is result for backward compatibility', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: ['1'],
+            totalCount: 1,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const result = res.data.opportunityPreview.result;
+    expect(result).toMatchObject({
+      opportunityId: opportunitiesFixture[0].id,
+      totalCount: 1,
+      tags: expect.any(Array),
+      companies: expect.any(Array),
+      squads: expect.any(Array),
+      status: OpportunityPreviewStatus.READY,
+    });
   });
 });
 

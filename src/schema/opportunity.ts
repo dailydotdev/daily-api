@@ -12,10 +12,13 @@ import {
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
+  Opportunity as OpportunityMessage,
+  Location as LocationMessage,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
   getBufferFromStream,
+  getSecondsTimestamp,
   toGQLEnum,
   uniqueifyArray,
   uniqueifyObjectArray,
@@ -69,7 +72,6 @@ import {
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
-  gondulOpportunityPreviewResultSchema,
   opportunityUpdateSubscriptionSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
@@ -98,7 +100,10 @@ import {
   findDatasetLocation,
 } from '../entity/dataset/utils';
 import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
-import { getGondulClient } from '../common/gondul';
+import {
+  getGondulClient,
+  getGondulOpportunityServiceClient,
+} from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -122,6 +127,7 @@ import type { GQLSource } from './sources';
 import { SubscriptionStatus } from '../common/plus';
 import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
+import { OpportunityPreviewStatus } from '../common/opportunity/types';
 
 export interface GQLOpportunity
   extends Pick<
@@ -195,6 +201,7 @@ export interface GQLOpportunityPreviewResult {
   companies: Array<{ name: string; favicon?: string }> | null;
   squads: GQLSource[] | null;
   opportunityId: string;
+  status: OpportunityPreviewStatus;
 }
 
 export interface GQLOpportunityPreviewConnection {
@@ -522,6 +529,7 @@ export const typeDefs = /* GraphQL */ `
     squads: [Source!]!
     totalCount: Int
     opportunityId: String!
+    status: ProtoEnumValue!
   }
 
   type OpportunityPreviewConnection {
@@ -1629,12 +1637,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const keywords = await opportunity.keywords;
 
-      let userIds: string[];
-      let totalCount: number;
+      let opportunityPreview: OpportunityJob['flags']['preview'] = {
+        userIds: [],
+        totalCount: 0,
+        status: OpportunityPreviewStatus.UNSPECIFIED,
+      };
 
       if (opportunity.flags?.preview) {
-        userIds = opportunity.flags.preview.userIds;
-        totalCount = opportunity.flags.preview.totalCount;
+        opportunityPreview = opportunity.flags.preview;
+
+        if (!opportunityPreview.status) {
+          const isEmptyPreview = opportunityPreview.userIds.length === 0;
+
+          opportunityPreview.status = isEmptyPreview
+            ? OpportunityPreviewStatus.UNSPECIFIED
+            : OpportunityPreviewStatus.READY;
+        }
       } else {
         const opportunityContent: Record<string, unknown> = {};
 
@@ -1667,59 +1685,42 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }),
         );
 
-        const validatedPayload = {
-          opportunity: {
-            title: opportunity.title,
-            tldr: opportunity.tldr,
-            content: opportunityContent,
-            meta: opportunity.meta,
-            location: locations,
-            state: opportunity.state,
-            type: opportunity.type,
-            keywords: keywords.map((k) => k.keyword),
-          },
-        };
+        const opportunityMessage = new OpportunityMessage({
+          id: opportunity.id,
+          createdAt: getSecondsTimestamp(opportunity.createdAt),
+          updatedAt: getSecondsTimestamp(opportunity.updatedAt),
+          type: opportunity.type,
+          state: opportunity.state,
+          title: opportunity.title,
+          tldr: opportunity.tldr,
+          content: opportunityContent,
+          meta: opportunity.meta,
+          location: locations.map((item) => {
+            return LocationMessage.fromJson(item);
+          }),
+          keywords: keywords.map((k) => k.keyword),
+          flags: opportunity.flags,
+        });
 
-        // Call the gondul preview endpoint with circuit breaker
-        try {
-          const gondulClient = getGondulClient();
-          const gondulResult = await gondulClient.garmr.execute(async () => {
-            const response = await fetch(
-              `${process.env.GONDUL_ORIGIN}/api/v1/opportunity/preview`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(validatedPayload),
-              },
-            );
-            if (!response.ok) {
-              throw new Error('Failed to fetch opportunity preview');
-            }
-            const { user_ids, total_count } =
-              gondulOpportunityPreviewResultSchema.parse(await response.json());
+        const gondulOpportunityServiceClient =
+          getGondulOpportunityServiceClient();
 
-            return {
-              userIds: user_ids,
-              totalCount: total_count,
-            };
-          });
-
-          await ctx.con.getRepository(OpportunityJob).update(
-            { id: opportunity.id },
-            {
-              flags: updateFlagsStatement<OpportunityJob>({
-                preview: gondulResult,
-              }),
-            },
+        await gondulOpportunityServiceClient.garmr.execute(() => {
+          return gondulOpportunityServiceClient.instance.preview(
+            opportunityMessage,
           );
+        });
 
-          userIds = gondulResult.userIds.slice(0, 20);
-          totalCount = gondulResult.totalCount;
-        } catch (error) {
-          throw error;
-        }
+        opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+
+        await ctx.con.getRepository(OpportunityJob).update(
+          { id: opportunity.id },
+          {
+            flags: updateFlagsStatement<OpportunityJob>({
+              preview: opportunityPreview,
+            }),
+          },
+        );
       }
 
       const connection =
@@ -1731,14 +1732,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           (_, i) => offsetToCursor(offset + i + 1),
           (builder) => {
             builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
-              userIds: userIds.length ? userIds : ['nosuchid'],
+              userIds: opportunityPreview.userIds.length
+                ? opportunityPreview.userIds
+                : ['nosuchid'],
             });
             return builder;
           },
           (nodes) => {
             // Sort nodes in JavaScript based on userIds order
             const userIdIndexMap = new Map(
-              userIds.map((id, index) => [id, index]),
+              opportunityPreview.userIds.map((id, index) => [id, index]),
             );
             return nodes.sort((a, b) => {
               const indexA = userIdIndexMap.get(a.id) ?? Infinity;
@@ -1768,7 +1771,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           tags,
           companies,
           squads,
-          totalCount,
+          totalCount: opportunityPreview.totalCount,
+          status: opportunityPreview.status,
           opportunityId: opportunity.id,
         },
       };
