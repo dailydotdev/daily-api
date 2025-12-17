@@ -472,6 +472,11 @@ export const typeDefs = /* GraphQL */ `
     location: String
 
     """
+    Whether the location is verified (from dataset_location or custom) or inferred from geo flags
+    """
+    locationVerified: Boolean
+
+    """
     Active company from experience
     """
     company: OpportunityPreviewCompany
