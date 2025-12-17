@@ -146,8 +146,8 @@ beforeEach(async () => {
 
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Keyword, keywordsFixture);
-  await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+  await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, Opportunity, opportunitiesFixture);
   await saveFixtures(con, OpportunityLocation, opportunityLocationsFixture);
   await saveFixtures(con, QuestionScreening, opportunityQuestionsFixture);
@@ -228,7 +228,11 @@ describe('query opportunityById', () => {
           image
           website
           description
-          location
+          location {
+            city
+            country
+            subdivision
+          }
           customLinks {
             ...Link
           }
@@ -318,7 +322,11 @@ describe('query opportunityById', () => {
         image: 'https://example.com/logo.png',
         website: 'https://daily.dev',
         description: 'A platform for developers',
-        location: 'San Francisco',
+        location: {
+          city: 'San Francisco',
+          country: 'USA',
+          subdivision: 'CA',
+        },
         customLinks: [
           {
             type: 'custom',
@@ -4338,7 +4346,10 @@ describe('mutation editOpportunity', () => {
             description
             perks
             founded
-            location
+            location {
+              city
+              country
+            }
             category
             size
             stage
@@ -4356,7 +4367,7 @@ describe('mutation editOpportunity', () => {
             description: 'Updated description',
             perks: ['Remote work', 'Flexible hours'],
             founded: 2021,
-            location: 'Berlin, Germany',
+            externalLocationId: 'norway-remote',
             category: 'Technology',
             size: CompanySize.COMPANY_SIZE_51_200,
             stage: CompanyStage.SERIES_B,
@@ -4371,7 +4382,10 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
+      location: {
+        city: null,
+        country: 'Norway',
+      },
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
@@ -4387,10 +4401,13 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
+    });
+    const location = await organization.location;
+    expect(location).toMatchObject({
+      country: 'Norway',
     });
   });
 
@@ -4522,7 +4539,10 @@ describe('mutation editOpportunity', () => {
             description
             perks
             founded
-            location
+            location {
+              city
+              country
+            }
             category
             size
             stage
@@ -4564,7 +4584,7 @@ describe('mutation editOpportunity', () => {
             description: 'Updated description',
             perks: ['Remote work', 'Flexible hours'],
             founded: 2021,
-            location: 'Berlin, Germany',
+            externalLocationId: 'norway-remote',
             category: 'Technology',
             size: CompanySize.COMPANY_SIZE_51_200,
             stage: CompanyStage.SERIES_B,
@@ -4580,7 +4600,10 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
+      location: {
+        city: null,
+        country: 'Norway',
+      },
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
@@ -4597,10 +4620,13 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
+    });
+    const location = await organization.location;
+    expect(location).toMatchObject({
+      country: 'Norway',
     });
 
     const opportunityAfter = await con

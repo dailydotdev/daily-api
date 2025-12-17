@@ -74,7 +74,7 @@ export class Organization {
     name: 'locationId',
     foreignKeyConstraintName: 'FK_organization_dataset_location_locationId',
   })
-  datasetLocation: Promise<DatasetLocation> | null;
+  location: Promise<DatasetLocation> | null;
 
   @Column({ type: 'text', default: null })
   category: string;

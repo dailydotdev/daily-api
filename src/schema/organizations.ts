@@ -740,27 +740,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
 
         // Handle location update
-        if (externalLocationId !== undefined) {
-          if (externalLocationId) {
-            let location = await ctx.con
-              .getRepository(DatasetLocation)
-              .findOne({
-                where: { externalId: externalLocationId },
-              });
-            if (!location) {
-              location = await createLocationFromMapbox(
-                ctx.con,
-                externalLocationId,
-              );
-            }
-
-            if (location) {
-              updatePayload.locationId = location.id;
-            }
-          } else {
-            // If externalLocationId is explicitly null, clear the locationId
-            updatePayload.locationId = null;
+        if (externalLocationId) {
+          let location = await ctx.con.getRepository(DatasetLocation).findOne({
+            where: { externalId: externalLocationId },
+          });
+          if (!location) {
+            location = await createLocationFromMapbox(
+              ctx.con,
+              externalLocationId,
+            );
           }
+
+          if (location) {
+            updatePayload.locationId = location.id;
+          }
+        } else {
+          // If externalLocationId is explicitly null, clear the locationId
+          updatePayload.locationId = null;
         }
 
         await ctx.con.getRepository(Organization).update(id, updatePayload);

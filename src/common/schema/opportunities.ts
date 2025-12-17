@@ -167,14 +167,14 @@ export const opportunityEditSchema = z
     organization: z
       .object({
         name: z.string().nonempty().max(60).optional(),
-        website: z.string().max(500).nullable().optional(),
-        description: z.string().max(2000).nullable().optional(),
-        perks: z.array(z.string().max(240)).max(50).nullable().optional(),
-        founded: z.number().int().min(1800).max(2100).nullable().optional(),
-        externalLocationId: z.string().max(500).nullable().optional(),
-        category: z.string().max(240).nullable().optional(),
-        size: z.number().int().nullable().optional(),
-        stage: z.number().int().nullable().optional(),
+        website: z.string().max(500).nullish(),
+        description: z.string().max(2000).nullish(),
+        perks: z.array(z.string().max(240)).max(50).nullish(),
+        founded: z.number().int().min(1800).max(2100).nullish(),
+        externalLocationId: z.string().max(500).nullish(),
+        category: z.string().max(240).nullish(),
+        size: z.number().int().nullish(),
+        stage: z.number().int().nullish(),
         links: z.array(organizationLinksSchema).max(50).optional(),
       })
       .nullish(),
