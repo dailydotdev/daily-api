@@ -23,7 +23,7 @@
     "lint": "eslint . --ext .js,.ts --max-warnings 0",
     "start": "pnpm run cli api",
     "start:background": "pnpm run cli background",
-    "pretest": "pnpm run lint && cross-env NODE_ENV=test pnpm run db:migrate:reset",
+    "pretest": "cross-env NODE_ENV=test pnpm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
     "typeorm": "typeorm-ts-node-commonjs",
     "prepare": "corepack enable || true"
