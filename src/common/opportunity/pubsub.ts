@@ -430,7 +430,8 @@ export const notifyJobOpportunity = async ({
       };
 
   const organizationLocation = await organization.location;
-
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { location, locationId, ...restOrganization } = organization;
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
@@ -440,14 +441,16 @@ export const notifyJobOpportunity = async ({
       location: [locationPayload],
     },
     organization: {
-      ...organization,
+      ...restOrganization,
       createdAt: getSecondsTimestamp(organization.createdAt),
       updatedAt: getSecondsTimestamp(organization.updatedAt),
-      location: new Location({
-        country: organizationLocation?.country,
-        city: organizationLocation?.city || undefined,
-        subdivision: organizationLocation?.subdivision || undefined,
-        iso2: organizationLocation?.iso2,
+      ...(organizationLocation && {
+        location: new Location({
+          country: organizationLocation.country,
+          city: organizationLocation.city || undefined,
+          subdivision: organizationLocation.subdivision || undefined,
+          iso2: organizationLocation.iso2,
+        }),
       }),
     },
     excludedUserIds,
