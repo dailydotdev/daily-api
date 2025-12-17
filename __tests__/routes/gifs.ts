@@ -10,7 +10,7 @@ import { usersFixture } from '../fixture';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import request from 'supertest';
-import { tenorClient } from '../../src/integrations/tenor';
+import { tenorClient } from '../../src/integrations/tenor/clients';
 
 let app: FastifyInstance;
 let con: DataSource;

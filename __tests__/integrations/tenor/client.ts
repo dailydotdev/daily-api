@@ -7,7 +7,7 @@ import {
   getRedisObjectExpiry,
 } from '../../../src/redis';
 
-const TENOR_API_URL = 'https://tenor.googleapis.com';
+const TENOR_API_URL = process.env.TENOR_GIF_SEARCH_URL!;
 const TENOR_SEARCH_PATH = '/v2/search';
 
 describe('TenorClient', () => {
