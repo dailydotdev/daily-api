@@ -63,7 +63,7 @@ export const typeDefs = /* GraphQL */ `
       @cacheControl(maxAge: 3600)
 
     """
-    Get location autocomplete
+    Get autocomplete based on type
     """
     autocompleteLocation(
       query: String!

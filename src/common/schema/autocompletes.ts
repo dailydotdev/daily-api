@@ -27,7 +27,7 @@ export const autocompleteKeywordsSchema = z.object({
 });
 
 export const autocompleteLocationSchema = z.object({
-  query: z.string().trim().toLowerCase().normalize().min(1).nonempty(),
+  query: z.string().trim().toLowerCase().normalize().min(1),
   limit: z.number().min(1).max(50).default(5),
   dataset: z.enum(LocationDataset).default(LocationDataset.External),
 });
