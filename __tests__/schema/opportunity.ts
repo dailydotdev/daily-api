@@ -51,6 +51,7 @@ import {
   LocationType,
   OpportunityService,
   OpportunityState,
+  OpportunityType,
   SalaryPeriod,
   SeniorityLevel,
 } from '@dailydotdev/schema';
@@ -6122,16 +6123,16 @@ describe('query opportunityPreview', () => {
 
     trackingId = 'test-anon-user-123';
 
+    const transport = createMockGondulOpportunityServiceTransport();
+
+    const serviceClient = {
+      instance: createClient(OpportunityService, transport),
+      garmr: createGarmrMock(),
+    };
+
     jest
       .spyOn(gondulCommon, 'getGondulOpportunityServiceClient')
       .mockImplementation((): ServiceClient<typeof OpportunityService> => {
-        const transport = createMockGondulOpportunityServiceTransport();
-
-        const serviceClient = {
-          instance: createClient(OpportunityService, transport),
-          garmr: createGarmrMock(),
-        };
-
         return serviceClient;
       });
   });
@@ -6320,6 +6321,65 @@ describe('query opportunityPreview', () => {
       companies: expect.any(Array),
       squads: expect.any(Array),
       status: OpportunityPreviewStatus.READY,
+    });
+  });
+
+  it('should send valid opportunity data to gondul', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+        },
+      },
+    );
+
+    const opportunityPreviewSpy = jest.spyOn(
+      gondulModule.getGondulOpportunityServiceClient().instance,
+      'preview',
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(opportunityPreviewSpy).toHaveBeenCalledTimes(1);
+    expect(opportunityPreviewSpy.mock.calls[0][0]).toEqual({
+      content: {
+        interviewProcess: { content: '' },
+        overview: {
+          content: 'We are looking for a Senior Full Stack Developer...',
+          html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+        },
+        requirements: { content: '' },
+        responsibilities: { content: '' },
+        whatYoullDo: { content: '' },
+      },
+      createdAt: expect.any(Number),
+      flags: {},
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      keywords: ['webdev', 'fullstack', 'Fortune 500'],
+      location: [{ country: 'Norway', iso2: 'NO' }],
+      meta: {
+        employmentType: EmploymentType.FULL_TIME,
+        equity: true,
+        roleType: 0,
+        salary: {
+          currency: 'USD',
+          max: 120000,
+          min: 60000,
+          period: SalaryPeriod.ANNUAL,
+        },
+        seniorityLevel: SeniorityLevel.SENIOR,
+        teamSize: 10,
+      },
+      state: OpportunityState.LIVE,
+      title: 'Senior Full Stack Developer',
+      tldr: 'Join our team as a Senior Full Stack Developer',
+      type: OpportunityType.JOB,
+      updatedAt: expect.any(Number),
     });
   });
 });
