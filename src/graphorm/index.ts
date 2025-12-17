@@ -1869,11 +1869,7 @@ const obj = new GraphORM({
                   FROM dataset_location dl
                   WHERE dl.id = ucp."locationId"
                 ),
-                CASE
-                  WHEN ucp."customLocation"->0 IS NOT NULL THEN
-                    jsonb_set(ucp."customLocation"->0, '{verified}', 'true')
-                  ELSE NULL
-                END
+                ucp."customLocation"->0
               )
               FROM user_candidate_preference ucp
               WHERE ucp."userId" = ${alias}.id
