@@ -66,4 +66,26 @@ describe('opportunityPreviewResult worker', () => {
       ),
     ).rejects.toThrow('Missing opportunityId in opportunity preview result');
   });
+
+  it('should save only first 20 userIds', async () => {
+    const applicationScoreData = new OpportunityPreviewResult({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userIds: new Array(25).fill(undefined).map((_, i) => `${i + 1}`),
+      totalCount: 3,
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.opportunity-preview-results'>(
+      worker,
+      applicationScoreData,
+    );
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.flags.preview?.userIds.length).toBe(20);
+  });
 });

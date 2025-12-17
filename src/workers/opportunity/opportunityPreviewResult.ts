@@ -21,7 +21,7 @@ export const opportunityPreviewResultWorker: TypedWorker<'gondul.v1.opportunity-
         {
           flags: updateFlagsStatement<OpportunityJob>({
             preview: {
-              userIds,
+              userIds: userIds.slice(0, 20),
               totalCount,
               status: OpportunityPreviewStatus.READY,
             },
