@@ -558,6 +558,30 @@ it('save a post as private if source is private', async () => {
   expect(posts[3].flags.private).toBe(true);
 });
 
+it('should save a new post with recommendation and quality signals', async () => {
+  await expectSuccessfulBackground(worker, {
+    id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    title: 'Title',
+    url: 'https://post.com',
+    source_id: 'a',
+    content_quality: {
+      specificity: 'high',
+      intent: 'tutorial',
+      substance_depth: 'deep',
+      title_content_alignment: 'aligned',
+      self_promotion_score: 0.25,
+    },
+  });
+  const posts = await con.getRepository(Post).find();
+  expect(posts.length).toEqual(4);
+  const post = posts[3];
+  expect(post.contentQuality.specificity).toEqual('high');
+  expect(post.contentQuality.intent).toEqual('tutorial');
+  expect(post.contentQuality.substance_depth).toEqual('deep');
+  expect(post.contentQuality.title_content_alignment).toEqual('aligned');
+  expect(post.contentQuality.self_promotion_score).toEqual(0.25);
+});
+
 it('do not save post if source can not be found', async () => {
   await expectSuccessfulBackground(worker, {
     id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
@@ -1323,6 +1347,39 @@ describe('on post update', () => {
     expect(updatedPost?.contentQuality).toMatchObject({
       is_ai_probability: 0.52,
     });
+  });
+
+  it('should update post with recommendation and quality signals', async () => {
+    const postId = 'p1';
+
+    await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    });
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      content_quality: {
+        specificity: 'medium',
+        intent: 'reference',
+        substance_depth: 'surface',
+        title_content_alignment: 'misaligned',
+        self_promotion_score: 0.75,
+      },
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+
+    expect(updatedPost?.contentQuality.specificity).toEqual('medium');
+    expect(updatedPost?.contentQuality.intent).toEqual('reference');
+    expect(updatedPost?.contentQuality.substance_depth).toEqual('surface');
+    expect(updatedPost?.contentQuality.title_content_alignment).toEqual(
+      'misaligned',
+    );
+    expect(updatedPost?.contentQuality.self_promotion_score).toEqual(0.75);
   });
 
   describe('vordr', () => {

@@ -37,13 +37,17 @@ import {
   domainOnly,
   getSmartTitle,
   getTranslationRecord,
-  getUserTopReadingTags,
   transformDate,
 } from '../common';
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { type ContentLanguage, type I18nRecord, UserVote } from '../types';
+import {
+  type ContentLanguage,
+  type I18nRecord,
+  opportunityMatchBatchSize,
+  UserVote,
+} from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -67,6 +71,8 @@ import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
 import { snotraClient } from '../integrations/snotra';
+import type { OpportunityFlagsPublic } from '../entity/opportunities/Opportunity';
+import { isNullOrUndefined } from '../common/object';
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1523,9 +1529,6 @@ const obj = new GraphORM({
       meta: {
         jsonType: true,
       },
-      location: {
-        jsonType: true,
-      },
       recruiters: {
         relation: {
           isMany: true,
@@ -1577,6 +1580,27 @@ const obj = new GraphORM({
               .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
         },
       },
+      flags: {
+        jsonType: true,
+        transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
+          return {
+            batchSize: value?.batchSize ?? opportunityMatchBatchSize,
+            plan: value?.plan,
+          };
+        },
+      },
+    },
+  },
+  OpportunityLocation: {
+    requiredColumns: ['id', 'type'],
+    fields: {
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
+        },
+      },
     },
   },
   OpportunityScreeningQuestion: {
@@ -1602,6 +1626,7 @@ const obj = new GraphORM({
     },
   },
   OpportunityMatch: {
+    requiredColumns: ['updatedAt'],
     ignoredColumns: ['engagementProfile'],
     fields: {
       createdAt: {
@@ -1643,6 +1668,13 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+      previewUser: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserCandidatePreference: {
@@ -1671,6 +1703,31 @@ const obj = new GraphORM({
       },
       location: {
         jsonType: true,
+        select: (_, alias) => `
+          COALESCE(
+            CASE
+              WHEN ${alias}."locationId" IS NOT NULL THEN
+                (
+                  SELECT jsonb_build_array(
+                    jsonb_build_object(
+                      'city', dl.city,
+                      'subdivision', dl.subdivision,
+                      'country', dl.country
+                    )
+                  )
+                  FROM dataset_location dl
+                  WHERE dl.id = ${alias}."locationId"
+                )
+              ELSE NULL
+            END,
+            ${alias}."customLocation"
+          )
+        `,
+        transform: (value: unknown) => {
+          if (isNullOrUndefined(value)) return [];
+          if (Array.isArray(value)) return value;
+          return [value];
+        },
       },
       keywords: {
         relation: {
@@ -1730,7 +1787,7 @@ const obj = new GraphORM({
       },
       favicon: {
         rawSelect: true,
-        select: () => 'NULL',
+        select: () => 'c.image',
       },
     },
   },
@@ -1793,25 +1850,29 @@ const obj = new GraphORM({
             qb
               .where(`${childAlias}."userId" = ${parentAlias}.id`)
               .andWhere(`${childAlias}.verified = true`)
-              .andWhere(`${childAlias}.type = '1'`)
+              .andWhere(`${childAlias}.type = 'work'`)
               .orderBy(`${childAlias}."startedAt"`, 'DESC')
               .limit(1),
         },
       },
       location: {
         select: (_, alias) => `
-          COALESCE(
-            (
-              SELECT jsonb_build_object(
-                'city', location->0->>'city',
-                'subdivision', location->0->>'subdivision',
-                'country', location->0->>'country'
-              )
-              FROM user_candidate_preference
-              WHERE "userId" = ${alias}.id
-              LIMIT 1
-            ),
-            ${alias}.flags
+          (
+            SELECT COALESCE(
+              (
+                SELECT jsonb_build_object(
+                  'city', dl.city,
+                  'subdivision', dl.subdivision,
+                  'country', dl.country
+                )
+                FROM dataset_location dl
+                WHERE dl.id = ucp."locationId"
+              ),
+              ucp."customLocation"->0
+            )
+            FROM user_candidate_preference ucp
+            WHERE ucp."userId" = ${alias}.id
+            LIMIT 1
           )
         `,
         transform: (data: Record<string, unknown>): string | null => {
@@ -1840,57 +1901,64 @@ const obj = new GraphORM({
         },
       },
       topTags: {
-        select: () => 'NULL',
-        transform: async (_, ctx, parent) => {
-          const user = parent as User;
-          if (!user.id) {
-            return null;
-          }
-          try {
-            const tags = await getUserTopReadingTags(ctx.con, {
-              userId: user.id,
-              limit: 5,
-              readLimit: 100,
-            });
-            return tags && tags.length > 0 ? tags.map((t) => t.tag) : null;
-          } catch (error) {
-            return null;
-          }
-        },
+        select: (_, alias) => `
+    COALESCE(
+      (
+        SELECT ARRAY(
+          SELECT tag
+          FROM (
+            SELECT
+              pk.keyword AS tag,
+              COUNT(*) AS count
+            FROM (
+              SELECT v."postId"
+              FROM "view" v
+              WHERE v."userId" = ${alias}.id
+                AND v.hidden = false
+              ORDER BY v.timestamp DESC
+              LIMIT 100
+            ) recent_reads
+            JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
+            WHERE pk.status = 'allow'
+              AND pk.keyword != 'general-programming'
+            GROUP BY pk.keyword
+            ORDER BY COUNT(*) DESC
+            LIMIT 5
+          ) top_tags
+        )
+      ),
+      ARRAY[]::text[]
+    )
+  `,
       },
       recentlyRead: {
-        select: (_, alias, qb) =>
-          qb.select(`
-              ARRAY(
-                SELECT jsonb_build_object(
-                  'tag', utr."keywordValue",
-                  'issuedAt', utr."issuedAt"
-                )
-                FROM user_top_reader utr
-                WHERE utr."userId" = ${alias}.id
-                ORDER BY utr."issuedAt" DESC
-                LIMIT 3
-              )
-            `),
-        transform: (
-          badges: Array<{ tag: string; issuedAt: string }> | null,
-        ): Array<{ tag: string; issuedAt: string }> | null => {
-          return badges && badges.length > 0 ? badges : null;
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'userId',
+          order: 'DESC',
+          sort: 'issuedAt',
+          limit: 3,
         },
       },
       activeSquads: {
-        select: (_, alias) => `
-          ARRAY(
-            SELECT sm."sourceId"
-            FROM source_member sm
-            INNER JOIN source s ON s.id = sm."sourceId"
-            WHERE sm."userId" = ${alias}.id
-              AND s.type = '${SourceType.Squad}'
-              AND s.active = true
-            ORDER BY sm."createdAt" DESC
-            LIMIT 5
-          )
-        `,
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                SourceMember,
+                'sm',
+                `sm."sourceId" = "${childAlias}".id`,
+              )
+              .where(`sm."userId" = ${parentAlias}.id`)
+              .andWhere(`"${childAlias}".type = :squadType`, {
+                squadType: SourceType.Squad,
+              })
+              .andWhere(`"${childAlias}".active = true`)
+              .orderBy('sm."createdAt"', 'DESC')
+              .limit(5),
+        },
       },
     },
   },

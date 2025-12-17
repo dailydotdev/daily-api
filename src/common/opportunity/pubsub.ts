@@ -18,7 +18,7 @@ import {
 } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
-import { ChangeObject } from '../../types';
+import { ChangeObject, continentMap } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { UserCandidateKeyword } from '../../entity/user/UserCandidateKeyword';
@@ -84,27 +84,27 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
-  const { match, candidatePreference, keywords } = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
+  const { match, candidatePreference, keywords, locationData } =
+    await con.transaction(async (manager) => {
       const [match, candidatePreference] = await Promise.all([
-        queryRunner.manager.getRepository(OpportunityMatch).findOneBy({
+        manager.getRepository(OpportunityMatch).findOneBy({
           opportunityId: data.opportunityId,
           userId: data.userId,
         }),
-        queryRunner.manager
+        manager
           .getRepository(UserCandidatePreference)
-          .findOneBy({ userId: data.userId }),
+          .findOne({ where: { userId: data.userId }, relations: ['location'] }),
       ]);
 
       const keywords = await fetchCandidateKeywords(
-        queryRunner.manager,
+        manager,
         candidatePreference,
       );
 
-      return { match, candidatePreference, keywords };
-    },
-  );
+      const locationData = await candidatePreference?.location;
+
+      return { match, candidatePreference, keywords, locationData };
+    });
 
   if (!match) {
     logger.warn(
@@ -127,6 +127,19 @@ export const notifyOpportunityMatchAccepted = async ({
       ? new Date(candidatePreference.cv.lastModified)
       : candidatePreference.cv.lastModified;
 
+  // Prioritize relational location over customLocation
+  const locationArray = locationData
+    ? [
+        {
+          ...locationData,
+          // Convert null to undefined for protobuf compatibility
+          subdivision: locationData.subdivision ?? undefined,
+          city: locationData.city ?? undefined,
+          externalId: locationData.externalId ?? undefined,
+        },
+      ]
+    : candidatePreference.customLocation || [];
+
   const message = new CandidateAcceptedOpportunityMessage({
     opportunityId: match.opportunityId,
     userId: match.userId,
@@ -135,6 +148,7 @@ export const notifyOpportunityMatchAccepted = async ({
     screening: match.screening,
     candidatePreference: {
       ...candidatePreference,
+      location: locationArray,
       salaryExpectation: new Salary({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)
@@ -324,9 +338,8 @@ export const notifyJobOpportunity = async ({
   logger: FastifyBaseLogger;
   opportunityId: string;
 }) => {
-  const [opportunity, organization, keywords, users] = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
+  const [opportunity, organization, keywords, users, locations] =
+    await queryReadReplica(con, async ({ queryRunner }) => {
       const opportunity = await queryRunner.manager
         .getRepository(OpportunityJob)
         .findOneOrFail({
@@ -335,18 +348,19 @@ export const notifyJobOpportunity = async ({
             organization: true,
             keywords: true,
             users: true,
+            locations: true,
           },
         });
 
-      const [organization, keywords, users] = await Promise.all([
+      const [organization, keywords, users, locations] = await Promise.all([
         opportunity.organization,
         opportunity.keywords,
         opportunity.users,
+        opportunity.locations,
       ]);
 
-      return [opportunity, organization, keywords, users];
-    },
-  );
+      return [opportunity, organization, keywords, users, locations];
+    });
 
   if (!organization) {
     logger.warn(
@@ -398,12 +412,29 @@ export const notifyJobOpportunity = async ({
     ...users.map((u) => u.userId),
   ]);
 
+  // Check if the location country is a continent and return only continent code
+  const locationData = locations?.[0];
+  const datasetLocation = locationData ? await locationData.location : null;
+  const locationCountry = datasetLocation?.country;
+  const continentCode = locationCountry ? continentMap[locationCountry] : null;
+
+  const locationPayload = continentCode
+    ? { continent: continentCode }
+    : {
+        ...datasetLocation,
+        // Convert null values to undefined for protobuf compatibility
+        subdivision: datasetLocation?.subdivision ?? undefined,
+        city: datasetLocation?.city ?? undefined,
+        type: locationData?.type,
+      };
+
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords.map((k) => k.keyword),
+      location: [locationPayload],
     },
     organization: {
       ...organization,
@@ -430,19 +461,20 @@ export const notifyCandidatePreferenceChange = async ({
   logger: FastifyBaseLogger;
   userId: string;
 }) => {
-  const { candidatePreference, keywords } = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
-      const candidatePreference = await queryRunner.manager
+  const { candidatePreference, keywords, locationData } = await con.transaction(
+    async (manager) => {
+      const candidatePreference = await manager
         .getRepository(UserCandidatePreference)
-        .findOneBy({ userId: userId });
+        .findOne({ where: { userId: userId }, relations: ['location'] });
 
       const keywords = await fetchCandidateKeywords(
-        queryRunner.manager,
+        manager,
         candidatePreference,
       );
 
-      return { candidatePreference, keywords };
+      const locationData = await candidatePreference?.location;
+
+      return { candidatePreference, keywords, locationData };
     },
   );
 
@@ -459,9 +491,23 @@ export const notifyCandidatePreferenceChange = async ({
       ? new Date(candidatePreference.cv.lastModified)
       : candidatePreference?.cv?.lastModified;
 
+  // Prioritize relational location over customLocation
+  const locationArray = locationData
+    ? [
+        {
+          ...locationData,
+          // Convert null to undefined for protobuf compatibility
+          subdivision: locationData.subdivision ?? undefined,
+          city: locationData.city ?? undefined,
+          externalId: locationData.externalId ?? undefined,
+        },
+      ]
+    : candidatePreference.customLocation || [];
+
   const message = new CandidatePreferenceUpdated({
     payload: {
       ...candidatePreference,
+      location: locationArray,
       salaryExpectation: new Salary({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)

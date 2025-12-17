@@ -317,3 +317,16 @@ export type TLocation = {
 export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
 
 export const acceptedOpportunityExtensions = acceptedResumeExtensions;
+
+export const opportunityMatchBatchSize = 50;
+
+// Map continent names to their codes
+export const continentMap: Record<string, string> = {
+  Africa: 'AF',
+  Antarctica: 'AN',
+  Asia: 'AS',
+  Europe: 'EU',
+  'North America': 'NA',
+  'South America': 'SA',
+  Oceania: 'OC',
+};

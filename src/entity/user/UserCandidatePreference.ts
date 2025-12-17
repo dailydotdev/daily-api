@@ -4,6 +4,7 @@ import {
   Entity,
   Index,
   JoinColumn,
+  ManyToOne,
   OneToOne,
   PrimaryColumn,
   UpdateDateColumn,
@@ -23,6 +24,7 @@ import type {
   UserCandidateCV,
 } from '../../common/schema/userCandidate';
 import { listAllProtoEnumValues } from '../../common';
+import type { DatasetLocation } from '../dataset/DatasetLocation';
 
 export type SalaryExpectation = z.infer<typeof salaryExpectationSchema>;
 
@@ -83,9 +85,21 @@ export class UserCandidatePreference {
   @Column({
     type: 'jsonb',
     default: [],
-    comment: 'Location from protobuf schema',
+    comment: 'Custom location from protobuf schema (legacy)',
   })
-  location: Array<Location> = [];
+  customLocation: Array<Location> = [];
+
+  @Column({ type: 'text', nullable: true, default: null })
+  @Index('IDX_user_candidate_preference_locationId')
+  locationId: string | null;
+
+  @ManyToOne('DatasetLocation', { lazy: true, onDelete: 'SET NULL' })
+  @JoinColumn({
+    name: 'locationId',
+    foreignKeyConstraintName:
+      'FK_user_candidate_preference_dataset_location_locationId',
+  })
+  location: Promise<DatasetLocation> | null;
 
   @Column({
     type: 'integer',

@@ -3,6 +3,9 @@ import z from 'zod';
 import { organizationLinksSchema } from './organizations';
 import { fileUploadSchema, urlParseSchema } from './common';
 import { parseBigInt } from '../utils';
+import { OpportunityMatchStatus } from '../../entity/opportunities/types';
+import { SubscriptionCycles } from '../../paddle';
+import { SubscriptionProvider, SubscriptionStatus } from '../plus/subscription';
 
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
@@ -58,6 +61,7 @@ export const opportunityCreateSchema = z.object({
         city: z.string().nonempty().max(240).optional(),
         subdivision: z.string().nonempty().max(240).optional(),
         type: z.coerce.number().min(1),
+        iso2: z.string().nonempty().max(2).optional(),
       }),
     )
     .optional(),
@@ -130,36 +134,11 @@ export const opportunityEditSchema = z
       )
       .min(1)
       .max(100),
-    location: z.array(
-      z
-        .object({
-          country: z.string().max(240),
-          city: z.string().max(240).optional(),
-          subdivision: z.string().max(240).optional(),
-          continent: z
-            .union([z.literal('Europe'), z.literal(''), z.undefined()])
-            .optional(),
-          type: z.coerce.number().min(1),
-        })
-        .superRefine((val, ctx) => {
-          const present = [
-            val.country && val.country.trim() !== '',
-            val.city && val.city.trim() !== '',
-            val.subdivision && val.subdivision.trim() !== '',
-            // continent counts only if it is "Europe" (empty string should not count)
-            val.continent === 'Europe',
-          ].some(Boolean);
-
-          if (!present) {
-            ctx.addIssue({
-              code: 'custom',
-              message:
-                'At least one of country, city, subdivision, or continent must be provided.',
-              path: [''], // form-level error
-            });
-          }
-        }),
+    externalLocationId: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().nullish().default(null),
     ),
+    locationType: z.coerce.number().nullish().default(null),
     meta: z.object({
       employmentType: z.coerce.number().min(1),
       teamSize: z.number().int().nonnegative().min(1).max(1_000_000),
@@ -185,18 +164,20 @@ export const opportunityEditSchema = z
       )
       .min(1)
       .max(3),
-    organization: z.object({
-      name: z.string().nonempty().max(60).optional(),
-      website: z.string().max(500).nullable().optional(),
-      description: z.string().max(2000).nullable().optional(),
-      perks: z.array(z.string().max(240)).max(50).nullable().optional(),
-      founded: z.number().int().min(1800).max(2100).nullable().optional(),
-      location: z.string().max(500).nullable().optional(),
-      category: z.string().max(240).nullable().optional(),
-      size: z.number().int().nullable().optional(),
-      stage: z.number().int().nullable().optional(),
-      links: z.array(organizationLinksSchema).max(50).optional(),
-    }),
+    organization: z
+      .object({
+        name: z.string().nonempty().max(60).optional(),
+        website: z.string().max(500).nullable().optional(),
+        description: z.string().max(2000).nullable().optional(),
+        perks: z.array(z.string().max(240)).max(50).nullable().optional(),
+        founded: z.number().int().min(1800).max(2100).nullable().optional(),
+        location: z.string().max(500).nullable().optional(),
+        category: z.string().max(240).nullable().optional(),
+        size: z.number().int().nullable().optional(),
+        stage: z.number().int().nullable().optional(),
+        links: z.array(organizationLinksSchema).max(50).optional(),
+      })
+      .nullish(),
     recruiter: z.object({
       userId: z.string(),
       title: z.string().max(240).optional(),
@@ -254,4 +235,61 @@ export const createSharedSlackChannelSchema = z.object({
       /^[a-z0-9-_]+$/,
       'Channel name can only contain lowercase letters, numbers, hyphens, and underscores',
     ),
+});
+
+export const opportunityMatchesQuerySchema = z.object({
+  opportunityId: z.string(),
+  status: z
+    .enum([
+      OpportunityMatchStatus.CandidateAccepted,
+      OpportunityMatchStatus.RecruiterAccepted,
+      OpportunityMatchStatus.RecruiterRejected,
+    ])
+    .optional(),
+  after: z.string().optional(),
+  first: z.number().optional(),
+});
+
+export const recruiterSubscriptionFlagsSchema = z
+  .object({
+    subscriptionId: z.string({
+      error: 'Subscription ID is required',
+    }),
+    cycle: z
+      .enum(SubscriptionCycles, {
+        error: 'Invalid subscription cycle',
+      })
+      .nullish(),
+    createdAt: z.preprocess((value) => new Date(value as string), z.date()),
+    updatedAt: z.preprocess((value) => new Date(value as string), z.date()),
+    provider: z.enum(SubscriptionProvider, {
+      error: 'Invalid subscription provider',
+    }),
+    status: z.enum(SubscriptionStatus, {
+      error: 'Invalid subscription status',
+    }),
+    items: z.array(
+      z.object({
+        priceId: z.string({
+          error: 'Price ID is required',
+        }),
+        quantity: z.number().int().min(1, {
+          error: 'Quantity must be at least 1',
+        }),
+      }),
+      {
+        error: 'At least one subscription item is required',
+      },
+    ),
+  })
+  .partial();
+
+export const gondulOpportunityPreviewResultSchema = z.object({
+  user_ids: z.array(z.string()),
+  total_count: z.number().int().nonnegative(),
+});
+
+export const opportunityUpdateSubscriptionSchema = z.object({
+  id: z.uuid(),
+  priceId: z.string(),
 });

@@ -14,6 +14,7 @@ import type {
   organizationSubscriptionFlagsSchema,
 } from '../common/schema/organizations';
 import type { CompanySize, CompanyStage } from '@dailydotdev/schema';
+import type { recruiterSubscriptionFlagsSchema } from '../common/schema/opportunities';
 
 export type OrganizationLink = z.infer<typeof organizationLinksSchema>;
 
@@ -87,4 +88,7 @@ export class Organization {
     { lazy: true },
   )
   members: Promise<ContentPreferenceOrganization[]>;
+
+  @Column({ type: 'jsonb', default: {} })
+  recruiterSubscriptionFlags: z.infer<typeof recruiterSubscriptionFlagsSchema>;
 }

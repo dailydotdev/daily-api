@@ -218,3 +218,12 @@ export class ParseCVProfileError extends Error {
     }
   }
 }
+
+// Return 402 HTTP status code
+export class PaymentRequiredError extends ApolloError {
+  constructor(message: string, extensions: Record<string, unknown> = {}) {
+    super(message, 'PAYMENT_REQUIRED', extensions);
+
+    Object.defineProperty(this, 'name', { value: 'PaymentRequiredError' });
+  }
+}

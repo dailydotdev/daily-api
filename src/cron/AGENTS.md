@@ -56,7 +56,7 @@ Create a new file in `src/cron/` directory following this pattern:
 import { Cron } from './cron';
 import { YourEntity } from '../entity';
 
-const cron: Cron = {
+export const yourCronName: Cron = {
   name: 'your-cron-name', // Must match name in .infra/crons.ts
   handler: async (con, logger, pubsub) => {
     // Your cron logic here
@@ -75,8 +75,6 @@ const cron: Cron = {
     logger.info({ count: results.length }, 'Cron job completed');
   },
 };
-
-export default cron;
 ```
 
 ### Step 2: Register in Index
@@ -84,11 +82,11 @@ export default cron;
 Add your cron to `src/cron/index.ts`:
 
 ```typescript
-import yourCron from './yourCron';
+import { yourCronName } from './yourCronName';
 
 export const crons: Cron[] = [
   // ... existing crons
-  yourCron,
+  yourCronName,
 ];
 ```
 
@@ -202,21 +200,32 @@ handler: async (con, logger, pubsub) => {
 
 ### 6. Testing
 
-Create tests in `__tests__/cron/` directory:
+Create tests in `__tests__/cron/` directory. Tests use a real database connection (reset before each test run):
 
 ```typescript
-import cron from '../../src/cron/yourCron';
+import { yourCronName } from '../../src/cron/yourCronName';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import { YourEntity } from '../../src/entity';
+import { DataSource } from 'typeorm';
+import createOrGetConnection from '../../src/db';
 
-describe('yourCron', () => {
-  it('should execute successfully', async () => {
-    const mockCon = createMockConnection();
-    const mockLogger = createMockLogger();
-    const mockPubsub = createMockPubsub();
-    
-    await cron.handler(mockCon, mockLogger, mockPubsub);
-    
-    // Assertions
-  });
+let con: DataSource;
+
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
+
+beforeEach(async () => {
+  // Set up test fixtures
+  await saveFixtures(con, YourEntity, yourFixtures);
+});
+
+it('should execute successfully', async () => {
+  await expectSuccessfulCron(yourCronName);
+  
+  // Verify database state after cron execution
+  const results = await con.getRepository(YourEntity).find();
+  expect(results).toHaveLength(expectedLength);
 });
 ```
 
@@ -225,7 +234,7 @@ describe('yourCron', () => {
 ### Incremental Processing with Checkpoints
 
 ```typescript
-const cron: Cron = {
+export const incrementalUpdate: Cron = {
   name: 'incremental-update',
   handler: async (con) => {
     const checkpointKey = 'last_incremental_update';
@@ -290,13 +299,13 @@ handler: async (con, logger) => {
 
 ### Kubernetes CronJobs
 
-Crons are deployed as Kubernetes CronJobs via Pulumi:
+Crons are deployed as Kubernetes CronJobs via Pulumi (see `.infra/index.ts` lines 577-591):
 
 - **Command**: `['dumb-init', 'node', 'bin/cli', 'cron', '<cron-name>']`
-- **Spot Instances**: Enabled by default (70% weight) for cost optimization
-- **Default Limits**: Memory and CPU limits can be overridden per cron
-- **Default Deadline**: 300 seconds (5 minutes), configurable per cron
-- **Adhoc Environments**: Crons are disabled in adhoc environments (see `.infra/index.ts`)
+- **Spot Instances**: Enabled by default for all crons
+- **Default Limits**: Uses background worker limits (`512Mi` memory) unless overridden per cron
+- **Default Deadline**: 300 seconds (5 minutes), configurable per cron via `activeDeadlineSeconds`
+- **Adhoc Environments**: Crons are disabled in adhoc environments
 
 ### Resource Configuration
 
