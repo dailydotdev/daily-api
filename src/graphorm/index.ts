@@ -1376,6 +1376,13 @@ const obj = new GraphORM({
       customLinks: organizationLink(OrganizationLinkType.Custom),
       socialLinks: organizationLink(OrganizationLinkType.Social),
       pressLinks: organizationLink(OrganizationLinkType.Press),
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
+        },
+      },
     },
   },
   OrganizationMember: {

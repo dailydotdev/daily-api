@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { crons } from '../../src/cron/index';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
@@ -12,6 +13,7 @@ import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import { subDays } from 'date-fns';
 import { Organization } from '../../src/entity/Organization';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 
 let con: DataSource;
 
@@ -22,6 +24,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.clearAllMocks();
 
+  await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
   await saveFixtures(con, Organization, organizationsFixture);
 
   await saveFixtures(

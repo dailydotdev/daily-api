@@ -747,7 +747,7 @@ export const typeDefs = /* GraphQL */ `
     description: String
     perks: [String!]
     founded: Int
-    location: String
+    externalLocationId: String
     category: String
     size: Int
     stage: Int
@@ -1105,30 +1105,26 @@ async function handleOpportunityLocationUpdate(
   locationType: number | undefined | null,
   ctx: AuthContext,
 ): Promise<void> {
-  if (externalLocationId !== undefined) {
+  if (externalLocationId) {
     // If externalLocationId is provided, replace all locations with the new one
     await entityManager.getRepository(OpportunityLocation).delete({
       opportunityId,
     });
 
-    if (externalLocationId) {
-      let location = await entityManager
-        .getRepository(DatasetLocation)
-        .findOne({
-          where: { externalId: externalLocationId },
-        });
-      if (!location) {
-        location = await createLocationFromMapbox(ctx.con, externalLocationId);
-      }
+    let location = await entityManager.getRepository(DatasetLocation).findOne({
+      where: { externalId: externalLocationId },
+    });
+    if (!location) {
+      location = await createLocationFromMapbox(ctx.con, externalLocationId);
+    }
 
-      // Create new OpportunityLocation relationship
-      if (location) {
-        await entityManager.getRepository(OpportunityLocation).insert({
-          opportunityId,
-          locationId: location.id,
-          type: locationType || 1,
-        });
-      }
+    // Create new OpportunityLocation relationship
+    if (location) {
+      await entityManager.getRepository(OpportunityLocation).insert({
+        opportunityId,
+        locationId: location.id,
+        type: locationType || 1,
+      });
     }
   } else if (locationType !== undefined && locationType !== null) {
     // If only locationType is provided (no externalLocationId), update existing locations
@@ -1164,6 +1160,35 @@ async function handleOpportunityOrganizationUpdate(
   let organizationUpdate: Record<string, unknown> = {
     ...organization,
   };
+
+  // Handle externalLocationId -> locationId mapping
+  if (organizationUpdate.externalLocationId !== undefined) {
+    const externalLocationId = organizationUpdate.externalLocationId as
+      | string
+      | null;
+    delete organizationUpdate.externalLocationId;
+
+    if (externalLocationId) {
+      let location = await entityManager
+        .getRepository(DatasetLocation)
+        .findOne({
+          where: { externalId: externalLocationId },
+        });
+      if (!location) {
+        location = await createLocationFromMapbox(
+          entityManager.connection,
+          externalLocationId,
+        );
+      }
+
+      if (location) {
+        organizationUpdate.locationId = location.id;
+      }
+    } else {
+      // If externalLocationId is explicitly null, clear the locationId
+      organizationUpdate.locationId = null;
+    }
+  }
 
   if (organizationId) {
     delete organizationUpdate.name; // prevent name updates on existing organizations
