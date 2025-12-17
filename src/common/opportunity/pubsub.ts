@@ -9,6 +9,7 @@ import {
   RecruiterAcceptedCandidateMatchMessage,
   Salary,
   UserCV,
+  Location,
 } from '@dailydotdev/schema';
 import {
   debeziumTimeToDate,
@@ -428,6 +429,8 @@ export const notifyJobOpportunity = async ({
         type: locationData?.type,
       };
 
+  const organizationLocation = await organization.location;
+
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
@@ -440,6 +443,12 @@ export const notifyJobOpportunity = async ({
       ...organization,
       createdAt: getSecondsTimestamp(organization.createdAt),
       updatedAt: getSecondsTimestamp(organization.updatedAt),
+      location: new Location({
+        country: organizationLocation?.country,
+        city: organizationLocation?.city || undefined,
+        subdivision: organizationLocation?.subdivision || undefined,
+        iso2: organizationLocation?.iso2,
+      }),
     },
     excludedUserIds,
   });
