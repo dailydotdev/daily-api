@@ -320,3 +320,13 @@ export const textToSlug = (text: string): string =>
     locale: 'en',
     replacement: '-',
   }).substring(0, 100);
+
+export const updateRecruiterSubscriptionFlags = <
+  Entity extends {
+    recruiterSubscriptionFlags: object;
+  },
+>(
+  update: Partial<Entity['recruiterSubscriptionFlags']>,
+): (() => string) => {
+  return () => `recruiterSubscriptionFlags || '${JSON.stringify(update)}'`;
+};

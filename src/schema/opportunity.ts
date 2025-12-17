@@ -8,6 +8,7 @@ import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm from '../graphorm';
 import {
   BrokkrParseRequest,
+  LocationType,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
@@ -25,8 +26,6 @@ import {
   OpportunityUserType,
 } from '../entity/opportunities/types';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
 import type { GQLEmptyResponse } from './common';
 import {
   candidatePreferenceSchema,
@@ -44,6 +43,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import {
   ConflictError,
   NotFoundError,
+  PaymentRequiredError,
   TypeOrmError,
   type TypeORMQueryFailedError,
 } from '../errors';
@@ -70,6 +70,7 @@ import {
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
   gondulOpportunityPreviewResultSchema,
+  opportunityUpdateSubscriptionSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -84,12 +85,19 @@ import {
   QueryFailedError,
   type DeepPartial,
   JsonContains,
+  EntityManager,
 } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../common/schema/organizations';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import {
+  createLocationFromMapbox,
+  findDatasetLocation,
+} from '../entity/dataset/utils';
+import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
 import { getGondulClient } from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
@@ -111,6 +119,9 @@ import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
 import { Opportunity } from '../entity/opportunities/Opportunity';
 import type { GQLSource } from './sources';
+import { SubscriptionStatus } from '../common/plus';
+import { paddleInstance } from '../common/paddle';
+import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 
 export interface GQLOpportunity
   extends Pick<
@@ -239,8 +250,12 @@ export const typeDefs = /* GraphQL */ `
     city: String
     country: String
     subdivision: String
-    continent: String
-    type: ProtoEnumValue
+  }
+
+  type OpportunityLocation {
+    id: ID!
+    location: Location!
+    type: ProtoEnumValue!
   }
 
   type OpportunityMeta {
@@ -291,6 +306,7 @@ export const typeDefs = /* GraphQL */ `
   """
   type OpportunityFlagsPublic {
     batchSize: Int
+    plan: String
   }
 
   type Opportunity {
@@ -301,13 +317,12 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     content: OpportunityContent!
     meta: OpportunityMeta!
-    location: [Location]!
+    locations: [OpportunityLocation]!
     organization: Organization
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
     feedbackQuestions: [OpportunityFeedbackQuestion]!
-    subscriptionStatus: SubscriptionStatus!
     flags: OpportunityFlagsPublic
   }
 
@@ -735,6 +750,8 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     meta: OpportunityMetaInput
     location: [LocationInput]
+    externalLocationId: String
+    locationType: ProtoEnumValue
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
@@ -912,6 +929,15 @@ export const typeDefs = /* GraphQL */ `
       """
       channelName: String!
     ): EmptyResponse @auth
+
+    addOpportunitySeat(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      priceId: String!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -1028,6 +1054,276 @@ async function updateCandidateMatchStatus(
       },
     );
   });
+}
+
+/**
+ * Renders markdown content for opportunity fields
+ * Converts markdown strings to HTML for storage
+ */
+function renderOpportunityContent(
+  content: Record<string, { content?: string }> | undefined,
+): OpportunityContent {
+  const renderedContent: Record<string, { content: string; html: string }> = {};
+
+  Object.entries(content || {}).forEach(([key, value]) => {
+    if (typeof value.content !== 'string') {
+      return;
+    }
+
+    renderedContent[key] = {
+      content: value.content,
+      html: markdown.render(value.content),
+    };
+  });
+
+  return new OpportunityContent(renderedContent);
+}
+
+/**
+ * Handles opportunity location updates
+ * Creates or updates locations based on externalLocationId and locationType
+ */
+async function handleOpportunityLocationUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  externalLocationId: string | null | undefined,
+  locationType: number | undefined | null,
+  ctx: AuthContext,
+): Promise<void> {
+  if (externalLocationId !== undefined) {
+    // If externalLocationId is provided, replace all locations with the new one
+    await entityManager.getRepository(OpportunityLocation).delete({
+      opportunityId,
+    });
+
+    if (externalLocationId) {
+      let location = await entityManager
+        .getRepository(DatasetLocation)
+        .findOne({
+          where: { externalId: externalLocationId },
+        });
+      if (!location) {
+        location = await createLocationFromMapbox(ctx.con, externalLocationId);
+      }
+
+      // Create new OpportunityLocation relationship
+      if (location) {
+        await entityManager.getRepository(OpportunityLocation).insert({
+          opportunityId,
+          locationId: location.id,
+          type: locationType || 1,
+        });
+      }
+    }
+  } else if (locationType !== undefined && locationType !== null) {
+    // If only locationType is provided (no externalLocationId), update existing locations
+    await entityManager
+      .getRepository(OpportunityLocation)
+      .update({ opportunityId }, { type: locationType });
+  }
+}
+
+/**
+ * Handles organization creation, updates, and image uploads for an opportunity
+ * Creates new organizations or updates existing ones, with support for image uploads
+ */
+async function handleOpportunityOrganizationUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  organization: Record<string, unknown> | null | undefined,
+  organizationImage: Promise<FileUpload> | undefined,
+): Promise<void> {
+  if (!organization && !organizationImage) {
+    return;
+  }
+
+  const opportunityJob = await entityManager
+    .getRepository(OpportunityJob)
+    .findOne({
+      where: { id: opportunityId },
+      select: ['organizationId'],
+    });
+
+  let organizationId = opportunityJob?.organizationId;
+
+  let organizationUpdate: Record<string, unknown> = {
+    ...organization,
+  };
+
+  if (organizationId) {
+    delete organizationUpdate.name; // prevent name updates on existing organizations
+  }
+
+  if (!organizationId) {
+    // create new organization and assign to opportunity here inline
+    // TODO: ideally this should be refactored later to separate mutation
+
+    try {
+      const organizationInsertResult = await entityManager
+        .getRepository(Organization)
+        .insert(organizationUpdate);
+
+      organizationId = organizationInsertResult.identifiers[0].id as string;
+
+      await entityManager
+        .getRepository(OpportunityJob)
+        .update({ id: opportunityId }, { organizationId });
+
+      // values were applied during insert
+      organizationUpdate = {};
+    } catch (insertError) {
+      if (insertError instanceof QueryFailedError) {
+        const queryFailedError = insertError as TypeORMQueryFailedError;
+
+        if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (
+            insertError.message.indexOf('IDX_organization_name_unique') > -1
+          ) {
+            throw new ConflictError(
+              'Organization with this name already exists',
+            );
+          }
+        }
+      }
+
+      throw insertError;
+    }
+  }
+
+  // Handle image upload
+  if (organizationImage) {
+    const { createReadStream } = await organizationImage;
+    const stream = createReadStream();
+    const { url: imageUrl } = await uploadOrganizationImage(
+      organizationId,
+      stream,
+    );
+    organizationUpdate.image = imageUrl;
+  }
+
+  if (Object.keys(organizationUpdate).length > 0) {
+    await entityManager
+      .getRepository(Organization)
+      .update({ id: organizationId }, organizationUpdate);
+  }
+}
+
+/**
+ * Handles opportunity keywords updates
+ * Replaces all existing keywords with the new set
+ */
+async function handleOpportunityKeywordsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  keywords: Array<{ keyword: string }> | undefined,
+): Promise<void> {
+  if (!Array.isArray(keywords)) {
+    return;
+  }
+
+  await entityManager.getRepository(OpportunityKeyword).delete({
+    opportunityId,
+  });
+
+  await entityManager.getRepository(OpportunityKeyword).insert(
+    keywords.map((keyword) => ({
+      opportunityId,
+      keyword: keyword.keyword,
+    })),
+  );
+}
+
+/**
+ * Handles opportunity screening questions updates
+ * Validates questions ownership and upserts them with proper ordering
+ */
+async function handleOpportunityScreeningQuestionsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  questions:
+    | Array<{ id?: string; title: string; placeholder?: string | null }>
+    | undefined,
+): Promise<void> {
+  if (!Array.isArray(questions)) {
+    return;
+  }
+
+  const questionIds = questions.map((item) => item.id).filter(Boolean);
+
+  const hasQuestionsFromOtherOpportunity = await entityManager
+    .getRepository(QuestionScreening)
+    .exists({
+      where: { id: In(questionIds), opportunityId: Not(opportunityId) },
+    });
+
+  if (hasQuestionsFromOtherOpportunity) {
+    throw new ConflictError('Not allowed to edit some questions!');
+  }
+
+  await entityManager.getRepository(QuestionScreening).delete({
+    id: Not(In(questionIds)),
+    opportunityId,
+  });
+
+  await entityManager.getRepository(QuestionScreening).upsert(
+    questions.map((question, index) => {
+      return entityManager.getRepository(QuestionScreening).create({
+        id: question.id,
+        opportunityId,
+        title: question.title,
+        placeholder: question.placeholder ?? undefined,
+        questionOrder: index,
+      });
+    }),
+    { conflictPaths: ['id'] },
+  );
+}
+
+/**
+ * Handles recruiter information updates for an opportunity
+ * Validates recruiter is assigned to the opportunity and updates their profile
+ */
+async function handleOpportunityRecruiterUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  recruiter: { userId: string; title?: string; bio?: string } | undefined,
+  ctx: AuthContext,
+): Promise<void> {
+  if (!recruiter) {
+    return;
+  }
+
+  // Check if the recruiter is part of the recruiters for this opportunity
+  const existingRecruiter = await entityManager
+    .getRepository(OpportunityUserRecruiter)
+    .findOne({
+      where: {
+        opportunityId,
+        userId: recruiter.userId,
+        type: OpportunityUserType.Recruiter,
+      },
+    });
+
+  if (!existingRecruiter) {
+    ctx.log.error(
+      { opportunityId, userId: recruiter.userId },
+      'Recruiter is not part of this opportunity',
+    );
+    throw new ForbiddenError(
+      'Access denied! Recruiter is not part of this opportunity',
+    );
+  }
+
+  // Update the recruiter's title and bio on the User entity
+  await entityManager.getRepository(User).update(
+    {
+      id: recruiter.userId,
+    },
+    {
+      title: recruiter.title,
+      bio: recruiter.bio,
+    },
+  );
 }
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -1319,13 +1615,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             opportunity.content[opportunityKey] || {};
         });
 
+        // Fetch locations from OpportunityLocation table
+        const opportunityLocations = await ctx.con
+          .getRepository(OpportunityLocation)
+          .find({
+            where: { opportunityId: opportunity.id },
+            relations: ['location'],
+          });
+
+        const locations = await Promise.all(
+          opportunityLocations.map(async (ol) => {
+            const datasetLocation = await ol.location;
+            return {
+              country: datasetLocation.country,
+              city: datasetLocation.city,
+              subdivision: datasetLocation.subdivision,
+              type: ol.type,
+            };
+          }),
+        );
+
         const validatedPayload = {
           opportunity: {
             title: opportunity.title,
             tldr: opportunity.tldr,
             content: opportunityContent,
             meta: opportunity.meta,
-            location: opportunity.location,
+            location: locations,
             state: opportunity.state,
             type: opportunity.type,
             keywords: keywords.map((k) => k.keyword),
@@ -1883,26 +2199,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           questions,
           organization,
           recruiter,
+          externalLocationId,
+          locationType,
           ...opportunityUpdate
         } = opportunity;
 
-        const renderedContent: Record<
-          string,
-          { content: string; html: string }
-        > = {};
-
-        Object.entries(content || {}).forEach(([key, value]) => {
-          if (typeof value.content !== 'string') {
-            return;
-          }
-
-          renderedContent[key] = {
-            content: value.content,
-            html: markdown.render(value.content),
-          };
-        });
-
-        const opportunityContent = new OpportunityContent(renderedContent);
+        const opportunityContent = renderOpportunityContent(content);
 
         await entityManager
           .getRepository(OpportunityJob)
@@ -1917,166 +2219,46 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
 
-        if (organization || organizationImage) {
-          const opportunityJob = await entityManager
-            .getRepository(OpportunityJob)
-            .findOne({
-              where: { id },
-              select: ['organizationId'],
-            });
+        await handleOpportunityLocationUpdate(
+          entityManager,
+          id,
+          externalLocationId,
+          locationType,
+          ctx,
+        );
 
-          let organizationId = opportunityJob?.organizationId;
+        await handleOpportunityOrganizationUpdate(
+          entityManager,
+          id,
+          organization,
+          organizationImage,
+        );
 
-          let organizationUpdate: Record<string, unknown> = {
-            ...organization,
-          };
+        await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 
-          if (organizationId) {
-            delete organizationUpdate.name; // prevent name updates on existing organizations
-          }
+        await handleOpportunityScreeningQuestionsUpdate(
+          entityManager,
+          id,
+          questions,
+        );
 
-          if (!organizationId) {
-            // create new organization and assign to opportunity here inline
-            // TODO: ideally this should be refactored later to separate mutation
-
-            try {
-              const organizationInsertResult = await entityManager
-                .getRepository(Organization)
-                .insert(organizationUpdate);
-
-              organizationId = organizationInsertResult.identifiers[0]
-                .id as string;
-
-              await entityManager
-                .getRepository(OpportunityJob)
-                .update({ id }, { organizationId });
-
-              // values were applied during insert
-              organizationUpdate = {};
-            } catch (insertError) {
-              if (insertError instanceof QueryFailedError) {
-                const queryFailedError = insertError as TypeORMQueryFailedError;
-
-                if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
-                  if (
-                    insertError.message.indexOf(
-                      'IDX_organization_name_unique',
-                    ) > -1
-                  ) {
-                    throw new ConflictError(
-                      'Organization with this name already exists',
-                    );
-                  }
-                }
-              }
-
-              throw insertError;
-            }
-          }
-
-          // Handle image upload
-          if (organizationImage) {
-            const { createReadStream } = await organizationImage;
-            const stream = createReadStream();
-            const { url: imageUrl } = await uploadOrganizationImage(
-              organizationId,
-              stream,
-            );
-            organizationUpdate.image = imageUrl;
-          }
-
-          if (Object.keys(organizationUpdate).length > 0) {
-            await entityManager
-              .getRepository(Organization)
-              .update({ id: organizationId }, organizationUpdate);
-          }
-        }
-
-        if (Array.isArray(keywords)) {
-          await entityManager.getRepository(OpportunityKeyword).delete({
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(OpportunityKeyword).insert(
-            keywords.map((keyword) => ({
-              opportunityId: id,
-              keyword: keyword.keyword,
-            })),
-          );
-        }
-
-        if (Array.isArray(questions)) {
-          const questionIds = questions.map((item) => item.id).filter(Boolean);
-
-          const hasQuestionsFromOtherOpportunity = await entityManager
-            .getRepository(QuestionScreening)
-            .exists({
-              where: { id: In(questionIds), opportunityId: Not(id) },
-            });
-
-          if (hasQuestionsFromOtherOpportunity) {
-            throw new ConflictError('Not allowed to edit some questions!');
-          }
-
-          await entityManager.getRepository(QuestionScreening).delete({
-            id: Not(In(questionIds)),
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(QuestionScreening).upsert(
-            questions.map((question, index) => {
-              return entityManager.getRepository(QuestionScreening).create({
-                id: question.id,
-                opportunityId: id,
-                title: question.title,
-                placeholder: question.placeholder,
-                questionOrder: index,
-              });
-            }),
-            { conflictPaths: ['id'] },
-          );
-        }
-
-        if (recruiter) {
-          // Check if the recruiter is part of the recruiters for this opportunity
-          const existingRecruiter = await entityManager
-            .getRepository(OpportunityUserRecruiter)
-            .findOne({
-              where: {
-                opportunityId: id,
-                userId: recruiter.userId,
-                type: OpportunityUserType.Recruiter,
-              },
-            });
-
-          if (!existingRecruiter) {
-            ctx.log.error(
-              { opportunityId: id, userId: recruiter.userId },
-              'Recruiter is not part of this opportunity',
-            );
-            throw new ForbiddenError(
-              'Access denied! Recruiter is not part of this opportunity',
-            );
-          }
-
-          // Update the recruiter's title and bio on the User entity
-          await entityManager.getRepository(User).update(
-            {
-              id: recruiter.userId,
-            },
-            {
-              title: recruiter.title,
-              bio: recruiter.bio,
-            },
-          );
-        }
+        await handleOpportunityRecruiterUpdate(
+          entityManager,
+          id,
+          recruiter,
+          ctx,
+        );
       });
 
-      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+      return await graphorm.queryOneOrFail<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ id });
 
-        return builder;
-      });
+          return builder;
+        },
+      );
     },
     clearOrganizationImage: async (
       _,
@@ -2137,6 +2319,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           where: { id },
           relations: {
             organization: true,
+            locations: {
+              location: true,
+            },
           },
         });
 
@@ -2149,7 +2334,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const result = await gondulClient.garmr.execute(async () => {
         return await gondulClient.instance.screeningQuestions(
           new ScreeningQuestionsRequest({
-            jobOpportunity: createOpportunityPrompt({ opportunity }),
+            jobOpportunity: await createOpportunityPrompt({ opportunity }),
           }),
         );
       });
@@ -2199,9 +2384,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
+      const organization = await opportunity.organization;
+
       switch (state) {
         case OpportunityState.LIVE: {
-          if (!opportunity.organizationId) {
+          if (!organization) {
             throw new ConflictError(
               `Opportunity must have an organization assigned`,
             );
@@ -2211,6 +2398,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             throw new ConflictError(`Opportunity is closed`);
           }
 
+          if (
+            organization.recruiterSubscriptionFlags.status !==
+            SubscriptionStatus.Active
+          ) {
+            throw new ConflictError(
+              `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
+            );
+          }
+
           opportunityStateLiveSchema.parse({
             ...opportunity,
             organization: await opportunity.organization,
@@ -2218,10 +2414,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             questions: await opportunity.questions,
           });
 
+          const availableSeats =
+            organization.recruiterSubscriptionFlags.items?.reduce(
+              (total, item) => {
+                return total + item.quantity;
+              },
+              0,
+            ) || 0;
+
+          const liveOpportunitiesCount = await ctx.con
+            .getRepository(OpportunityJob)
+            .count({
+              where: {
+                organizationId: organization.id,
+                state: OpportunityState.LIVE,
+              },
+            });
+
+          if (liveOpportunitiesCount >= availableSeats) {
+            throw new PaymentRequiredError(
+              `Your subscription allows for ${availableSeats} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
+            );
+          }
+
           await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
 
           break;
         }
+        case OpportunityState.CLOSED:
+          if (opportunity.state !== OpportunityState.LIVE) {
+            throw new ConflictError(`This opportunity is not live`);
+          }
+
+          const subscriptionid =
+            organization.recruiterSubscriptionFlags.subscriptionId;
+
+          if (!subscriptionid) {
+            throw new ConflictError(`Opportunity subscription not found`);
+          }
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
         default:
           throw new ConflictError('Invalid state transition');
       }
@@ -2229,6 +2463,106 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         _: true,
       };
+    },
+    addOpportunitySeat: async (
+      _,
+      payload,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { id, priceId } =
+        opportunityUpdateSubscriptionSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+          },
+        });
+
+      const organization = await opportunity.organization;
+
+      if (!organization) {
+        throw new NotFoundError(
+          'Opportunity must have organization to update subscription',
+        );
+      }
+
+      const subscriptionid =
+        organization.recruiterSubscriptionFlags.subscriptionId;
+
+      if (!subscriptionid) {
+        throw new ConflictError(`Opportunity subscription not found`);
+      }
+
+      const subscription =
+        await paddleInstance.subscriptions.get(subscriptionid);
+
+      const liveOpportunitiesCount = await ctx.con
+        .getRepository(OpportunityJob)
+        .count({
+          where: {
+            organizationId: organization.id,
+            state: OpportunityState.LIVE,
+            flags: JsonContains({ plan: priceId }),
+          },
+        });
+
+      const availableSeatsForPlan = subscription.items
+        .filter((item) => item.price.id === priceId)
+        .reduce((total, item) => total + item.quantity, 0);
+
+      if (liveOpportunitiesCount >= availableSeatsForPlan) {
+        throw new PaymentRequiredError(
+          `Your subscription allows for ${availableSeatsForPlan} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
+        );
+      }
+
+      const subscriptionItems = subscription.items.map((item) => {
+        return {
+          priceId: item.price.id,
+          quantity: item.quantity,
+        };
+      }) as ISubscriptionUpdateItem[];
+
+      // find the existing price item
+      const priceItem = subscriptionItems.find(
+        (item) => item.priceId === priceId,
+      );
+
+      const quantityToAdd = 1;
+
+      // if not found, add new item with quantity 1, else increment quantity
+      if (!priceItem) {
+        subscriptionItems.push({ priceId, quantity: quantityToAdd });
+      } else {
+        priceItem.quantity += quantityToAdd;
+      }
+
+      await paddleInstance.subscriptions.update(subscriptionid, {
+        prorationBillingMode: 'prorated_immediately',
+        items: subscriptionItems,
+      });
+
+      await ctx.con.getRepository(OpportunityJob).update(
+        { id },
+        {
+          flags: updateFlagsStatement<OpportunityJob>({
+            plan: priceId,
+          }),
+        },
+      );
+
+      return { _: true };
     },
     createSharedSlackChannel: async (
       _,
@@ -2386,6 +2720,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityContent = new OpportunityContent(renderedContent);
 
+        // Extract and process locations
+        const locationData = (parsedOpportunity.location || []) as Array<{
+          iso2?: string;
+          type?: number;
+        }>;
+
         const opportunityResult = await ctx.con.transaction(
           async (entityManager) => {
             const flags: Opportunity['flags'] = {};
@@ -2396,16 +2736,35 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             flags.batchSize = opportunityMatchBatchSize;
 
+            // Remove location from parsedOpportunity as it's now relational
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { location, ...opportunityData } = parsedOpportunity;
+
             const opportunity = await entityManager
               .getRepository(OpportunityJob)
               .save(
                 entityManager.getRepository(OpportunityJob).create({
-                  ...parsedOpportunity,
+                  ...opportunityData,
                   state: OpportunityState.DRAFT,
                   content: opportunityContent,
                   flags,
                 } as DeepPartial<OpportunityJob>),
               );
+
+            // Create OpportunityLocation entries for each location
+            for (const loc of locationData) {
+              const datasetLocation = await findDatasetLocation(ctx.con, {
+                iso2: loc.iso2,
+              });
+
+              if (datasetLocation) {
+                await entityManager.getRepository(OpportunityLocation).save({
+                  opportunityId: opportunity.id,
+                  locationId: datasetLocation.id,
+                  type: loc.type || LocationType.REMOTE,
+                });
+              }
+            }
 
             await addOpportunityDefaultQuestionFeedback({
               entityManager,
@@ -2434,11 +2793,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         );
 
-        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-          builder.queryBuilder.where({ id: opportunityResult.id });
+        return await graphorm.queryOneOrFail<GQLOpportunity>(
+          ctx,
+          info,
+          (builder) => {
+            builder.queryBuilder.where({ id: opportunityResult.id });
 
-          return builder;
-        });
+            return builder;
+          },
+        );
       } catch (error) {
         throw error;
       } finally {

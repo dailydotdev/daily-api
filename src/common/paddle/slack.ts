@@ -14,6 +14,7 @@ import { logger } from '../../logger';
 import { Organization } from '../../entity';
 import { JsonContains } from 'typeorm';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
+import { recruiterPaddleCustomDataSchema } from './recruiter/types';
 
 export const notifyNewPaddleCoresTransaction = async ({
   data,
@@ -433,24 +434,28 @@ export const notifyNewPaddleRecruiterTransaction = async ({
   const con = await createOrGetConnection();
 
   const { data } = event;
-  const { customData } = data ?? {};
-
-  const { user_id: purchasedById } = (customData ?? {}) as PaddleCustomData;
+  const { opportunity_id, user_id: purchasedById } =
+    recruiterPaddleCustomDataSchema.parse(event.data.customData);
   const opportunity: Pick<
     OpportunityJob,
-    'subscriptionFlags' | 'organization'
+    'id' | 'organization' | 'organizationId'
   > = await con.getRepository(OpportunityJob).findOneOrFail({
-    select: ['id', 'subscriptionFlags', 'organization', 'organizationId'],
+    select: ['id', 'organization', 'organizationId'],
     where: {
-      subscriptionFlags: JsonContains({
-        subscriptionId: data.subscriptionId,
-      }),
+      id: opportunity_id,
     },
     relations: {
       organization: true,
     },
   });
-  const flags = opportunity?.subscriptionFlags;
+
+  const organization = await opportunity.organization;
+
+  if (!organization) {
+    return;
+  }
+
+  const flags = organization?.recruiterSubscriptionFlags;
 
   const origin = data?.origin;
   const productId = data?.items?.[0].price?.productId;
@@ -461,8 +466,6 @@ export const notifyNewPaddleRecruiterTransaction = async ({
 
   const localTotal = data?.details?.totals?.total || '0';
   const localCurrencyCode = data?.currencyCode || 'USD';
-
-  const organization = await opportunity.organization;
 
   if (origin === 'subscription_recurring') {
     return;

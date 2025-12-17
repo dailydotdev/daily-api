@@ -500,6 +500,7 @@ export const createMockBrokkrTransport = () =>
                 country: 'USA',
                 city: 'San Francisco',
                 subdivision: 'CA',
+                iso2: 'US',
                 type: 1,
               }),
             ],

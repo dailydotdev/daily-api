@@ -19,8 +19,7 @@ import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
 import type { QuestionFeedback } from '../questions/QuestionFeedback';
-import type { opportunitySubscriptionFlagsSchema } from '../../common/schema/opportunities';
-import type z from 'zod';
+import type { OpportunityLocation } from './OpportunityLocation';
 
 export type OpportunityFlags = Partial<{
   anonUserId: string | null;
@@ -29,9 +28,13 @@ export type OpportunityFlags = Partial<{
     totalCount: number;
   };
   batchSize: number;
+  plan: string;
 }>;
 
-export type OpportunityFlagsPublic = Pick<OpportunityFlags, 'batchSize'>;
+export type OpportunityFlagsPublic = Pick<
+  OpportunityFlags,
+  'batchSize' | 'plan'
+>;
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -107,9 +110,13 @@ export class Opportunity {
   )
   feedbackQuestions: Promise<QuestionFeedback[]>;
 
-  @Column({ type: 'jsonb', default: {} })
-  flags: OpportunityFlags;
+  @OneToMany(
+    'OpportunityLocation',
+    (location: OpportunityLocation) => location.opportunity,
+    { lazy: true },
+  )
+  locations: Promise<OpportunityLocation[]>;
 
   @Column({ type: 'jsonb', default: {} })
-  subscriptionFlags: z.infer<typeof opportunitySubscriptionFlagsSchema>;
+  flags: OpportunityFlags;
 }
