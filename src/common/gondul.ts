@@ -1,7 +1,10 @@
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import { GarmrService } from '../integrations/garmr';
 import { createClient } from '@connectrpc/connect';
-import { ApplicationService as GondulService } from '@dailydotdev/schema';
+import {
+  ApplicationService as GondulService,
+  OpportunityService as GondulOpportunityService,
+} from '@dailydotdev/schema';
 import type { ServiceClient } from '../types';
 
 const transport = createGrpcTransport({
@@ -27,6 +30,23 @@ export const getGondulClient = (
   return {
     instance: createClient<typeof GondulService>(
       GondulService,
+      clientTransport,
+    ),
+    garmr: garmGondulService,
+  };
+};
+
+const gondulOpportunityServerTransport = createGrpcTransport({
+  baseUrl: process.env.GONDUL_OPPORTUNITY_SERVER_ORIGIN,
+  httpVersion: '2',
+});
+
+export const getGondulOpportunityServiceClient = (
+  clientTransport = gondulOpportunityServerTransport,
+): ServiceClient<typeof GondulOpportunityService> => {
+  return {
+    instance: createClient<typeof GondulOpportunityService>(
+      GondulOpportunityService,
       clientTransport,
     ),
     garmr: garmGondulService,

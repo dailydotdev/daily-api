@@ -2910,10 +2910,10 @@ describe('function feedToFilters', () => {
       },
     ]);
     const filters = await feedToFilters(con, '1', '1');
-    expect(filters.excludeSources).toEqual([
-      'excludedSource',
-      'settingsCombinationSource',
-    ]);
+    expect(filters.excludeSources).toEqual(
+      expect.arrayContaining(['excludedSource', 'settingsCombinationSource']),
+    );
+    expect(filters.excludeSources).toHaveLength(2);
   });
 
   it('should return filters having following sources based on content preference', async () => {

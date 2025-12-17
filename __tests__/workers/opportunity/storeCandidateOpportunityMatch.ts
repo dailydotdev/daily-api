@@ -7,10 +7,12 @@ import { User, Organization, Alerts } from '../../../src/entity';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import { usersFixture } from '../../fixture';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
   organizationsFixture,
 } from '../../fixture/opportunity';
 import { MatchedCandidate } from '@dailydotdev/schema';
+import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 
 let con: DataSource;
 
@@ -21,6 +23,7 @@ beforeAll(async () => {
 describe('storeCandidateOpportunityMatch worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);

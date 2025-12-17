@@ -80,6 +80,7 @@ declare global {
       RESUME_BUCKET_NAME: string;
       EMPLOYMENT_AGREEMENT_BUCKET_NAME: string;
       GONDUL_ORIGIN: string;
+      GONDUL_OPPORTUNITY_SERVER_ORIGIN: string;
       BROKKR_ORIGIN: string;
     }
   }
@@ -319,3 +320,14 @@ export const acceptedOpportunityFileTypes = acceptedResumeFileTypes;
 export const acceptedOpportunityExtensions = acceptedResumeExtensions;
 
 export const opportunityMatchBatchSize = 50;
+
+// Map continent names to their codes
+export const continentMap: Record<string, string> = {
+  Africa: 'AF',
+  Antarctica: 'AN',
+  Asia: 'AS',
+  Europe: 'EU',
+  'North America': 'NA',
+  'South America': 'SA',
+  Oceania: 'OC',
+};

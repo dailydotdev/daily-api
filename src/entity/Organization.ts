@@ -4,6 +4,8 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryColumn,
   UpdateDateColumn,
@@ -14,6 +16,8 @@ import type {
   organizationSubscriptionFlagsSchema,
 } from '../common/schema/organizations';
 import type { CompanySize, CompanyStage } from '@dailydotdev/schema';
+import type { recruiterSubscriptionFlagsSchema } from '../common/schema/opportunities';
+import type { DatasetLocation } from './dataset/DatasetLocation';
 
 export type OrganizationLink = z.infer<typeof organizationLinksSchema>;
 
@@ -61,8 +65,16 @@ export class Organization {
   @Column({ type: 'int', default: null })
   founded: number;
 
-  @Column({ type: 'text', default: null })
-  location: string;
+  @Column({ type: 'text', default: null, nullable: true })
+  @Index('IDX_organization_locationId')
+  locationId: string | null;
+
+  @ManyToOne('DatasetLocation', { lazy: true, nullable: true })
+  @JoinColumn({
+    name: 'locationId',
+    foreignKeyConstraintName: 'FK_organization_dataset_location_locationId',
+  })
+  location: Promise<DatasetLocation> | null;
 
   @Column({ type: 'text', default: null })
   category: string;
@@ -87,4 +99,7 @@ export class Organization {
     { lazy: true },
   )
   members: Promise<ContentPreferenceOrganization[]>;
+
+  @Column({ type: 'jsonb', default: {} })
+  recruiterSubscriptionFlags: z.infer<typeof recruiterSubscriptionFlagsSchema>;
 }

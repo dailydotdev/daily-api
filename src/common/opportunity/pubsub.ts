@@ -9,6 +9,7 @@ import {
   RecruiterAcceptedCandidateMatchMessage,
   Salary,
   UserCV,
+  Location,
 } from '@dailydotdev/schema';
 import {
   debeziumTimeToDate,
@@ -18,7 +19,7 @@ import {
 } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
-import { ChangeObject } from '../../types';
+import { ChangeObject, continentMap } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { UserCandidateKeyword } from '../../entity/user/UserCandidateKeyword';
@@ -338,9 +339,8 @@ export const notifyJobOpportunity = async ({
   logger: FastifyBaseLogger;
   opportunityId: string;
 }) => {
-  const [opportunity, organization, keywords, users] = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
+  const [opportunity, organization, keywords, users, locations] =
+    await queryReadReplica(con, async ({ queryRunner }) => {
       const opportunity = await queryRunner.manager
         .getRepository(OpportunityJob)
         .findOneOrFail({
@@ -349,18 +349,19 @@ export const notifyJobOpportunity = async ({
             organization: true,
             keywords: true,
             users: true,
+            locations: true,
           },
         });
 
-      const [organization, keywords, users] = await Promise.all([
+      const [organization, keywords, users, locations] = await Promise.all([
         opportunity.organization,
         opportunity.keywords,
         opportunity.users,
+        opportunity.locations,
       ]);
 
-      return [opportunity, organization, keywords, users];
-    },
-  );
+      return [opportunity, organization, keywords, users, locations];
+    });
 
   if (!organization) {
     logger.warn(
@@ -412,17 +413,45 @@ export const notifyJobOpportunity = async ({
     ...users.map((u) => u.userId),
   ]);
 
+  // Check if the location country is a continent and return only continent code
+  const locationData = locations?.[0];
+  const datasetLocation = locationData ? await locationData.location : null;
+  const locationCountry = datasetLocation?.country;
+  const continentCode = locationCountry ? continentMap[locationCountry] : null;
+
+  const locationPayload = continentCode
+    ? { continent: continentCode }
+    : {
+        ...datasetLocation,
+        // Convert null values to undefined for protobuf compatibility
+        subdivision: datasetLocation?.subdivision ?? undefined,
+        city: datasetLocation?.city ?? undefined,
+        type: locationData?.type,
+      };
+
+  const organizationLocation = await organization.location;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { location, locationId, ...restOrganization } = organization;
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords.map((k) => k.keyword),
+      location: [locationPayload],
     },
     organization: {
-      ...organization,
+      ...restOrganization,
       createdAt: getSecondsTimestamp(organization.createdAt),
       updatedAt: getSecondsTimestamp(organization.updatedAt),
+      ...(organizationLocation && {
+        location: new Location({
+          country: organizationLocation.country,
+          city: organizationLocation.city || undefined,
+          subdivision: organizationLocation.subdivision || undefined,
+          iso2: organizationLocation.iso2,
+        }),
+      }),
     },
     excludedUserIds,
   });

@@ -71,12 +71,14 @@ import { OrganizationLinkType } from '../common/schema/organizations';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
 import { snotraClient } from '../integrations/snotra';
-import type {
-  Opportunity,
-  OpportunityFlagsPublic,
-} from '../entity/opportunities/Opportunity';
-import { SubscriptionStatus } from '../common/plus';
+import type { OpportunityFlagsPublic } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
+
+export enum LocationVerificationStatus {
+  GeoIP = 'geoip',
+  UserProvided = 'user_provided',
+  Verified = 'verified',
+}
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -1374,6 +1376,13 @@ const obj = new GraphORM({
       customLinks: organizationLink(OrganizationLinkType.Custom),
       socialLinks: organizationLink(OrganizationLinkType.Social),
       pressLinks: organizationLink(OrganizationLinkType.Press),
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
+        },
+      },
     },
   },
   OrganizationMember: {
@@ -1533,9 +1542,6 @@ const obj = new GraphORM({
       meta: {
         jsonType: true,
       },
-      location: {
-        jsonType: true,
-      },
       recruiters: {
         relation: {
           isMany: true,
@@ -1587,20 +1593,25 @@ const obj = new GraphORM({
               .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
         },
       },
-      subscriptionStatus: {
-        select: 'subscriptionFlags',
-        transform: (
-          value: Opportunity['subscriptionFlags'],
-        ): SubscriptionStatus => {
-          return value?.status || SubscriptionStatus.None;
-        },
-      },
       flags: {
         jsonType: true,
         transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
           return {
             batchSize: value?.batchSize ?? opportunityMatchBatchSize,
+            plan: value?.plan,
           };
+        },
+      },
+    },
+  },
+  OpportunityLocation: {
+    requiredColumns: ['id', 'type'],
+    fields: {
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
         },
       },
     },
@@ -1726,7 +1737,6 @@ const obj = new GraphORM({
           )
         `,
         transform: (value: unknown) => {
-          console.log(value);
           if (isNullOrUndefined(value)) return [];
           if (Array.isArray(value)) return value;
           return [value];
@@ -1841,7 +1851,7 @@ const obj = new GraphORM({
             .from('user_candidate_preference', 'ucp')
             .where(`ucp."userId" = ${alias}.id`)
             .limit(1),
-        transform: (status: number | null): boolean => status === 1,
+        transform: (status: number | null): boolean => status !== 1,
       },
       seniority: {
         select: 'experienceLevel',
@@ -1860,22 +1870,32 @@ const obj = new GraphORM({
       },
       location: {
         select: (_, alias) => `
-          (
-            SELECT COALESCE(
-              (
-                SELECT jsonb_build_object(
-                  'city', dl.city,
-                  'subdivision', dl.subdivision,
-                  'country', dl.country
+          COALESCE(
+            (
+              SELECT COALESCE(
+                (
+                  SELECT jsonb_build_object(
+                    'city', dl.city,
+                    'subdivision', dl.subdivision,
+                    'country', dl.country
+                  )
+                  FROM dataset_location dl
+                  WHERE dl.id = ucp."locationId"
+                ),
+                ucp."customLocation"->0
+              )
+              FROM user_candidate_preference ucp
+              WHERE ucp."userId" = ${alias}.id
+              LIMIT 1
+            ),
+            CASE
+              WHEN ${alias}.flags->'country' IS NOT NULL OR ${alias}.flags->'city' IS NOT NULL THEN
+                jsonb_build_object(
+                  'city', ${alias}.flags->'city',
+                  'country', ${alias}.flags->'country'
                 )
-                FROM dataset_location dl
-                WHERE dl.id = ucp."locationId"
-              ),
-              ucp."customLocation"->0
-            )
-            FROM user_candidate_preference ucp
-            WHERE ucp."userId" = ${alias}.id
-            LIMIT 1
+              ELSE NULL
+            END
           )
         `,
         transform: (data: Record<string, unknown>): string | null => {
@@ -1890,7 +1910,19 @@ const obj = new GraphORM({
           return null;
         },
       },
-
+      locationVerified: {
+        select: (_, alias, qb) =>
+          qb
+            .select(
+              `CASE WHEN ucp."locationId" IS NOT NULL OR ucp."customLocation" IS NOT NULL THEN '${LocationVerificationStatus.UserProvided}' ELSE '${LocationVerificationStatus.GeoIP}' END`,
+            )
+            .from('user_candidate_preference', 'ucp')
+            .where(`ucp."userId" = ${alias}.id`)
+            .limit(1),
+        transform: (status: string | null): LocationVerificationStatus =>
+          (status as LocationVerificationStatus) ??
+          LocationVerificationStatus.GeoIP,
+      },
       lastActivity: {
         select: () => 'NULL',
         transform: async (_, ctx, parent) => {
