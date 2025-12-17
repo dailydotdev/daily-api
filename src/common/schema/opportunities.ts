@@ -171,7 +171,7 @@ export const opportunityEditSchema = z
         description: z.string().max(2000).nullable().optional(),
         perks: z.array(z.string().max(240)).max(50).nullable().optional(),
         founded: z.number().int().min(1800).max(2100).nullable().optional(),
-        location: z.string().max(500).nullable().optional(),
+        externalLocationId: z.string().max(500).nullable().optional(),
         category: z.string().max(240).nullable().optional(),
         size: z.number().int().nullable().optional(),
         stage: z.number().int().nullable().optional(),

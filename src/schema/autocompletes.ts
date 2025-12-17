@@ -107,6 +107,15 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
     ): Promise<GQLLocation[]> => {
       const { query } = autocompleteBaseSchema.parse(payload);
 
+      return [
+        {
+          id: 'custom-123',
+          country: 'The Netherlands',
+          city: 'Amsterdam',
+          subdivision: 'Noord-Holland',
+        },
+      ];
+
       try {
         // Use the new Mapbox client with Garmr integration
         const data = await mapboxClient.autocomplete(query);
