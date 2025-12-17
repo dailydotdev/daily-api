@@ -74,6 +74,12 @@ import { snotraClient } from '../integrations/snotra';
 import type { OpportunityFlagsPublic } from '../entity/opportunities/Opportunity';
 import { isNullOrUndefined } from '../common/object';
 
+export enum LocationVerificationStatus {
+  GeoIP = 'geoip',
+  UserProvided = 'user_provided',
+  Verified = 'verified',
+}
+
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
   (ctx: Context, alias: string, qb: QueryBuilder): string => {
@@ -1864,7 +1870,7 @@ const obj = new GraphORM({
                   SELECT jsonb_build_object(
                     'city', dl.city,
                     'subdivision', dl.subdivision,
-                    'country', dl.country,
+                    'country', dl.country
                   )
                   FROM dataset_location dl
                   WHERE dl.id = ucp."locationId"
@@ -1879,7 +1885,7 @@ const obj = new GraphORM({
               WHEN ${alias}.flags->'country' IS NOT NULL OR ${alias}.flags->'city' IS NOT NULL THEN
                 jsonb_build_object(
                   'city', ${alias}.flags->'city',
-                  'country', ${alias}.flags->'country',
+                  'country', ${alias}.flags->'country'
                 )
               ELSE NULL
             END
@@ -1901,12 +1907,14 @@ const obj = new GraphORM({
         select: (_, alias, qb) =>
           qb
             .select(
-              'CASE WHEN ucp."locationId" IS NOT NULL OR ucp."customLocation" IS NOT NULL THEN true ELSE false END',
+              `CASE WHEN ucp."locationId" IS NOT NULL OR ucp."customLocation" IS NOT NULL THEN '${LocationVerificationStatus.UserProvided}' ELSE '${LocationVerificationStatus.GeoIP}' END`,
             )
             .from('user_candidate_preference', 'ucp')
             .where(`ucp."userId" = ${alias}.id`)
             .limit(1),
-        transform: (verified: boolean | null): boolean => verified ?? false,
+        transform: (status: string | null): LocationVerificationStatus =>
+          (status as LocationVerificationStatus) ??
+          LocationVerificationStatus.GeoIP,
       },
       lastActivity: {
         select: () => 'NULL',
