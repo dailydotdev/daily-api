@@ -5,8 +5,8 @@ import {
   UserIntegrationType,
   type Gif,
 } from '../entity/UserIntegration';
-import { tenorClient } from '../integrations/tenor';
 import { logger } from '../logger';
+import { tenorClient } from '../integrations/tenor/clients';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get('/', async (req, res) => {
