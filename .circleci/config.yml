@@ -34,9 +34,12 @@ jobs:
           protocol: redis
           target: "redis://127.0.0.1:6379"
       - run:
-          name: Test
+          name: Prepare test database
           command: |
             pnpm run pretest
+      - run:
+          name: Test
+          command: |
             TEST=$(./node_modules/.bin/jest --listTests)
             echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --runInBand --reporters=default --reporters=jest-junit --" --split-by=timings
           environment:
