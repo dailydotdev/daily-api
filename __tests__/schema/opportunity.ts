@@ -5188,6 +5188,14 @@ describe('mutation updateOpportunityState', () => {
           responsibilities: { content: 'Responsibilities content', html: '' },
           requirements: { content: 'Requirements content', html: '' },
         },
+        meta: {
+          ...opportunitiesFixture[3].meta,
+          salary: {
+            ...opportunitiesFixture[3].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
+        },
       },
     );
 
@@ -5405,6 +5413,14 @@ describe('mutation updateOpportunityState', () => {
           overview: { content: 'Overview content', html: '' },
           responsibilities: { content: 'Responsibilities content', html: '' },
           requirements: { content: 'Requirements content', html: '' },
+        },
+        meta: {
+          ...opportunitiesFixture[3].meta,
+          salary: {
+            ...opportunitiesFixture[3].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
         },
       },
     );
