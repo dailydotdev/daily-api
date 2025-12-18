@@ -441,6 +441,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.candidate-preference-updated',
     subscription: 'api.parse-cv-profile',
   },
+  {
+    topic: 'gondul.v1.opportunity-preview-results',
+    subscription: 'api.opportunity-preview-result',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

@@ -55,7 +55,9 @@ export const nameRegex = new RegExp(/^(.){1,60}$/);
 // Updated to support Unicode word characters (including accented characters)
 export const socialHandleRegex = new RegExp(/^@?([\p{L}\p{N}_-]){1,39}$/iu);
 // Updated to support Unicode word characters (including accented characters)
-export const handleRegex = new RegExp(/^@?[\p{L}\p{N}]([\p{L}\p{N}_]){2,38}$/iu);
+export const handleRegex = new RegExp(
+  /^@?[\p{L}\p{N}]([\p{L}\p{N}_]){2,38}$/iu,
+);
 export const descriptionRegex = new RegExp(/^[\S\s]{1,250}$/);
 // Originated from: https://github.com/colinhacks/zod/blob/8552233c77426f77d3586cc877f7aec1aa0aa45b/src/types.ts#L599-L600
 export const emailRegex = new RegExp(

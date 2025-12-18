@@ -5,6 +5,8 @@ import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { createLocationFromMapbox } from '../entity/dataset/utils';
 import {
   isRoleAtLeast,
   OrganizationMemberRole,
@@ -175,11 +177,6 @@ export const typeDefs = /* GraphQL */ `
     founded: Int
 
     """
-    The location of the organization
-    """
-    location: String
-
-    """
     The category of the organization
     """
     category: String
@@ -200,6 +197,11 @@ export const typeDefs = /* GraphQL */ `
     customLinks: [OrganizationLink!]
     socialLinks: [OrganizationLink!]
     pressLinks: [OrganizationLink!]
+
+    """
+    The structured location from dataset
+    """
+    location: Location
   }
 
   type ProratedPricePreview {
@@ -328,6 +330,11 @@ export const typeDefs = /* GraphQL */ `
       Avatar image for the organization
       """
       image: Upload
+
+      """
+      External location ID from Mapbox for the organization location
+      """
+      externalLocationId: String
     ): UserOrganization! @auth
 
     """
@@ -523,6 +530,7 @@ export const updateOrganizationSchema = z.object({
   }),
   name: z.string().trim().min(1, 'Organization name is required'),
   image: z.instanceof(Promise<FileHandle>).optional(),
+  externalLocationId: z.string().optional(),
 });
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -708,7 +716,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       if (parseResult.error) {
         throw parseResult.error;
       }
-      const { id, name, image } = parseResult.data;
+      const { id, name, image, externalLocationId } = parseResult.data;
 
       await ensureOrganizationRole(ctx, {
         organizationId: id,
@@ -716,7 +724,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       try {
-        const updatePayload: Partial<Pick<Organization, 'name' | 'image'>> = {
+        const updatePayload: Partial<
+          Pick<Organization, 'name' | 'image' | 'locationId'>
+        > = {
           name,
         };
 
@@ -727,6 +737,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           const { url: imageUrl } = await uploadOrganizationImage(id, stream);
 
           updatePayload.image = imageUrl;
+        }
+
+        // Handle location update
+        if (externalLocationId) {
+          let location = await ctx.con.getRepository(DatasetLocation).findOne({
+            where: { externalId: externalLocationId },
+          });
+          if (!location) {
+            location = await createLocationFromMapbox(
+              ctx.con,
+              externalLocationId,
+            );
+          }
+
+          if (location) {
+            updatePayload.locationId = location.id;
+          }
+        } else {
+          // If externalLocationId is explicitly null, clear the locationId
+          updatePayload.locationId = null;
         }
 
         await ctx.con.getRepository(Organization).update(id, updatePayload);

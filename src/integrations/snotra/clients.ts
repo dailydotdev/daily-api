@@ -27,7 +27,7 @@ export class SnotraClient implements ISnotraClient {
   getProfile(request: ProfileRequest): Promise<ProfileResponse> {
     return this.garmr.execute(() => {
       return retryFetchParse<ProfileResponse>(
-        `${this.url}/api/v1/memstore/profile`,
+        `${this.url}/api/v1/memstore/shortprofile`,
         {
           ...this.fetchOptions,
           method: 'POST',

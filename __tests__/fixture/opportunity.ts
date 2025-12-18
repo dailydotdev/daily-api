@@ -29,7 +29,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     image: 'https://example.com/logo.png',
     website: 'https://daily.dev',
     description: 'A platform for developers',
-    location: 'San Francisco',
+    locationId: '660e8400-e29b-41d4-a716-446655440003',
     links: [
       {
         type: OrganizationLinkType.Custom,
@@ -59,7 +59,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     image: 'https://example.com/logo.png',
     website: 'https://yearly.dev',
     description: 'A platform for others',
-    location: 'Skatval',
+    locationId: '660e8400-e29b-41d4-a716-446655440001',
     links: [],
   },
   {
@@ -68,7 +68,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     image: 'https://example.com/logo.png',
     website: 'https://monthly.dev',
     description: 'Another platform for developers',
-    location: 'Oslo',
+    locationId: '660e8400-e29b-41d4-a716-446655440001',
     links: [],
   },
 ];

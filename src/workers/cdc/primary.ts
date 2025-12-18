@@ -1412,7 +1412,7 @@ const onOrganizationChange = async (
       'description',
       'perks',
       'founded',
-      'location',
+      'locationId',
       'size',
       'category',
       'stage',
