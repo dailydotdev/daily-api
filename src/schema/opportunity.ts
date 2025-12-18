@@ -5,17 +5,20 @@ import { GraphQLResolveInfo } from 'graphql';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
-import graphorm from '../graphorm';
+import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
   BrokkrParseRequest,
   LocationType,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
+  Opportunity as OpportunityMessage,
+  Location as LocationMessage,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
   getBufferFromStream,
+  getSecondsTimestamp,
   toGQLEnum,
   uniqueifyArray,
   uniqueifyObjectArray,
@@ -69,7 +72,6 @@ import {
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
-  gondulOpportunityPreviewResultSchema,
   opportunityUpdateSubscriptionSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
@@ -98,7 +100,10 @@ import {
   findDatasetLocation,
 } from '../entity/dataset/utils';
 import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
-import { getGondulClient } from '../common/gondul';
+import {
+  getGondulClient,
+  getGondulOpportunityServiceClient,
+} from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -122,6 +127,7 @@ import type { GQLSource } from './sources';
 import { SubscriptionStatus } from '../common/plus';
 import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
+import { OpportunityPreviewStatus } from '../common/opportunity/types';
 
 export interface GQLOpportunity
   extends Pick<
@@ -176,6 +182,7 @@ export interface GQLOpportunityPreviewUser extends Pick<User, 'id'> {
   openToWork: boolean;
   seniority: string | null;
   location: string | null;
+  locationVerified: LocationVerificationStatus;
   company: { name: string; favicon?: string } | null;
   lastActivity: Date | null;
   topTags: string[] | null;
@@ -194,6 +201,7 @@ export interface GQLOpportunityPreviewResult {
   companies: Array<{ name: string; favicon?: string }> | null;
   squads: GQLSource[] | null;
   opportunityId: string;
+  status: OpportunityPreviewStatus;
 }
 
 export interface GQLOpportunityPreviewConnection {
@@ -220,6 +228,7 @@ export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
   ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
   ${toGQLEnum(SocialMediaType, 'SocialMediaType')}
+  ${toGQLEnum(LocationVerificationStatus, 'LocationVerificationStatus')}
 
   type OpportunityContentBlock {
     content: String
@@ -472,6 +481,11 @@ export const typeDefs = /* GraphQL */ `
     location: String
 
     """
+    Location verification status: geoip (inferred from geo flags), user_provided (from dataset_location or custom), or verified (future use)
+    """
+    locationVerified: LocationVerificationStatus!
+
+    """
     Active company from experience
     """
     company: OpportunityPreviewCompany
@@ -515,6 +529,7 @@ export const typeDefs = /* GraphQL */ `
     squads: [Source!]!
     totalCount: Int
     opportunityId: String!
+    status: ProtoEnumValue!
   }
 
   type OpportunityPreviewConnection {
@@ -732,7 +747,7 @@ export const typeDefs = /* GraphQL */ `
     description: String
     perks: [String!]
     founded: Int
-    location: String
+    externalLocationId: String
     category: String
     size: Int
     stage: Int
@@ -1090,30 +1105,26 @@ async function handleOpportunityLocationUpdate(
   locationType: number | undefined | null,
   ctx: AuthContext,
 ): Promise<void> {
-  if (externalLocationId !== undefined) {
+  if (externalLocationId) {
     // If externalLocationId is provided, replace all locations with the new one
     await entityManager.getRepository(OpportunityLocation).delete({
       opportunityId,
     });
 
-    if (externalLocationId) {
-      let location = await entityManager
-        .getRepository(DatasetLocation)
-        .findOne({
-          where: { externalId: externalLocationId },
-        });
-      if (!location) {
-        location = await createLocationFromMapbox(ctx.con, externalLocationId);
-      }
+    let location = await entityManager.getRepository(DatasetLocation).findOne({
+      where: { externalId: externalLocationId },
+    });
+    if (!location) {
+      location = await createLocationFromMapbox(ctx.con, externalLocationId);
+    }
 
-      // Create new OpportunityLocation relationship
-      if (location) {
-        await entityManager.getRepository(OpportunityLocation).insert({
-          opportunityId,
-          locationId: location.id,
-          type: locationType || 1,
-        });
-      }
+    // Create new OpportunityLocation relationship
+    if (location) {
+      await entityManager.getRepository(OpportunityLocation).insert({
+        opportunityId,
+        locationId: location.id,
+        type: locationType || 1,
+      });
     }
   } else if (locationType !== undefined && locationType !== null) {
     // If only locationType is provided (no externalLocationId), update existing locations
@@ -1149,6 +1160,35 @@ async function handleOpportunityOrganizationUpdate(
   let organizationUpdate: Record<string, unknown> = {
     ...organization,
   };
+
+  // Handle externalLocationId -> locationId mapping
+  if (organizationUpdate.externalLocationId !== undefined) {
+    const externalLocationId = organizationUpdate.externalLocationId as
+      | string
+      | null;
+    delete organizationUpdate.externalLocationId;
+
+    if (externalLocationId) {
+      let location = await entityManager
+        .getRepository(DatasetLocation)
+        .findOne({
+          where: { externalId: externalLocationId },
+        });
+      if (!location) {
+        location = await createLocationFromMapbox(
+          entityManager.connection,
+          externalLocationId,
+        );
+      }
+
+      if (location) {
+        organizationUpdate.locationId = location.id;
+      }
+    } else {
+      // If externalLocationId is explicitly null, clear the locationId
+      organizationUpdate.locationId = null;
+    }
+  }
 
   if (organizationId) {
     delete organizationUpdate.name; // prevent name updates on existing organizations
@@ -1597,12 +1637,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const keywords = await opportunity.keywords;
 
-      let userIds: string[];
-      let totalCount: number;
+      let opportunityPreview: OpportunityJob['flags']['preview'] = {
+        userIds: [],
+        totalCount: 0,
+        status: OpportunityPreviewStatus.UNSPECIFIED,
+      };
 
       if (opportunity.flags?.preview) {
-        userIds = opportunity.flags.preview.userIds;
-        totalCount = opportunity.flags.preview.totalCount;
+        opportunityPreview = opportunity.flags.preview;
+
+        if (!opportunityPreview.status) {
+          const isEmptyPreview = opportunityPreview.userIds.length === 0;
+
+          opportunityPreview.status = isEmptyPreview
+            ? OpportunityPreviewStatus.UNSPECIFIED
+            : OpportunityPreviewStatus.READY;
+        }
       } else {
         const opportunityContent: Record<string, unknown> = {};
 
@@ -1625,69 +1675,51 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const locations = await Promise.all(
           opportunityLocations.map(async (ol) => {
-            const datasetLocation = await ol.location;
-            return {
-              country: datasetLocation.country,
-              city: datasetLocation.city,
-              subdivision: datasetLocation.subdivision,
-              type: ol.type,
-            };
+            return ol.location;
           }),
         );
 
-        const validatedPayload = {
-          opportunity: {
-            title: opportunity.title,
-            tldr: opportunity.tldr,
-            content: opportunityContent,
-            meta: opportunity.meta,
-            location: locations,
-            state: opportunity.state,
-            type: opportunity.type,
-            keywords: keywords.map((k) => k.keyword),
-          },
-        };
+        const opportunityMessage = new OpportunityMessage({
+          id: opportunity.id,
+          createdAt: getSecondsTimestamp(opportunity.createdAt),
+          updatedAt: getSecondsTimestamp(opportunity.updatedAt),
+          type: opportunity.type,
+          state: opportunity.state,
+          title: opportunity.title,
+          tldr: opportunity.tldr,
+          content: opportunityContent,
+          meta: opportunity.meta,
+          location: locations.map((item) => {
+            return new LocationMessage({
+              ...item,
+              city: item.city || undefined,
+              subdivision: item.subdivision || undefined,
+              country: item.country || undefined,
+            });
+          }),
+          keywords: keywords.map((k) => k.keyword),
+          flags: opportunity.flags,
+        });
 
-        // Call the gondul preview endpoint with circuit breaker
-        try {
-          const gondulClient = getGondulClient();
-          const gondulResult = await gondulClient.garmr.execute(async () => {
-            const response = await fetch(
-              `${process.env.GONDUL_ORIGIN}/api/v1/opportunity/preview`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(validatedPayload),
-              },
-            );
-            if (!response.ok) {
-              throw new Error('Failed to fetch opportunity preview');
-            }
-            const { user_ids, total_count } =
-              gondulOpportunityPreviewResultSchema.parse(await response.json());
+        const gondulOpportunityServiceClient =
+          getGondulOpportunityServiceClient();
 
-            return {
-              userIds: user_ids,
-              totalCount: total_count,
-            };
-          });
-
-          await ctx.con.getRepository(OpportunityJob).update(
-            { id: opportunity.id },
-            {
-              flags: updateFlagsStatement<OpportunityJob>({
-                preview: gondulResult,
-              }),
-            },
+        await gondulOpportunityServiceClient.garmr.execute(() => {
+          return gondulOpportunityServiceClient.instance.preview(
+            opportunityMessage,
           );
+        });
 
-          userIds = gondulResult.userIds.slice(0, 20);
-          totalCount = gondulResult.totalCount;
-        } catch (error) {
-          throw error;
-        }
+        opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+
+        await ctx.con.getRepository(OpportunityJob).update(
+          { id: opportunity.id },
+          {
+            flags: updateFlagsStatement<OpportunityJob>({
+              preview: opportunityPreview,
+            }),
+          },
+        );
       }
 
       const connection =
@@ -1699,14 +1731,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           (_, i) => offsetToCursor(offset + i + 1),
           (builder) => {
             builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
-              userIds: userIds.length ? userIds : ['nosuchid'],
+              userIds: opportunityPreview.userIds.length
+                ? opportunityPreview.userIds
+                : ['nosuchid'],
             });
             return builder;
           },
           (nodes) => {
             // Sort nodes in JavaScript based on userIds order
             const userIdIndexMap = new Map(
-              userIds.map((id, index) => [id, index]),
+              opportunityPreview.userIds.map((id, index) => [id, index]),
             );
             return nodes.sort((a, b) => {
               const indexA = userIdIndexMap.get(a.id) ?? Infinity;
@@ -1736,7 +1770,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           tags,
           companies,
           squads,
-          totalCount,
+          totalCount: opportunityPreview.totalCount,
+          status: opportunityPreview.status,
           opportunityId: opportunity.id,
         },
       };

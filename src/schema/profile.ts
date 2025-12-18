@@ -78,6 +78,7 @@ export const typeDefs = /* GraphQL */ `
     verified: Boolean
     customCompanyName: String
     customLocation: Location
+    isOwner: Boolean
 
     # custom props per child entity
     url: String

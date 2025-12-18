@@ -20,12 +20,14 @@ import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
 import type { QuestionFeedback } from '../questions/QuestionFeedback';
 import type { OpportunityLocation } from './OpportunityLocation';
+import type { OpportunityPreviewStatus } from '../../common/opportunity/types';
 
 export type OpportunityFlags = Partial<{
   anonUserId: string | null;
   preview: {
     userIds: string[];
     totalCount: number;
+    status: OpportunityPreviewStatus;
   };
   batchSize: number;
   plan: string;

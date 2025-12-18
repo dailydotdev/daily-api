@@ -191,6 +191,8 @@ config:
     mapboxGeocodingUrl: https://api.mapbox.com/search/geocode/v6/forward
     slackBotToken:
       secure: AAABAH+UKbv4/Uoc9jYySYeAr7m+W7OCm/kQa9/3LCrKURh3TcPqgNPqF1ugLg31AAfsT4qVafpb0jiZm+ZCfDTYzrCfPmebxLjV0AAkHAy3kHgLK1v6YNGH
+    gondulOpportunityServerOrigin:
+      secure: AAABADfUUbSK5WvKYJM6lgpfvaPChqDYdUolX6Kv6/TMy0D7hWJWPbkipmq9W8vXbkuM97XzU2RlJGFB/9eiVfEdB6jBvu2C9iu5GbJ276481jB8Q+lw1do=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
