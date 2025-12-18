@@ -153,6 +153,7 @@ describe('query userExperiences', () => {
             startedAt
             endedAt
             createdAt
+            isOwner
             company {
               id
               name
@@ -206,6 +207,7 @@ describe('query userExperiences', () => {
       description: 'Working on API infrastructure',
       startedAt: '2022-01-01T00:00:00.000Z',
       createdAt: '2022-01-01T00:00:00.000Z',
+      isOwner: true,
       company: {
         id: 'company-1',
         name: 'Daily.dev',
@@ -317,6 +319,7 @@ describe('query userExperiences', () => {
     expect(res.data.userExperiences.edges).toHaveLength(1);
     expect(res.data.userExperiences.edges[0].node).toMatchObject({
       id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+      isOwner: false,
     });
   });
 
@@ -443,6 +446,7 @@ describe('query userExperienceById', () => {
         startedAt
         endedAt
         createdAt
+        isOwner
         company {
           id
           name
@@ -467,6 +471,7 @@ describe('query userExperienceById', () => {
       subtitle: 'Backend Team',
       description: 'Working on API infrastructure',
       endedAt: null,
+      isOwner: true,
       company: {
         name: 'Daily.dev',
       },
@@ -527,6 +532,7 @@ describe('query userExperienceById', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperienceById).toMatchObject({
       id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      isOwner: false,
     });
   });
 
@@ -541,6 +547,7 @@ describe('query userExperienceById', () => {
     expect(res.data.userExperienceById).toMatchObject({
       id: 'd4e5f6a7-89ab-4def-c012-456789012345',
       title: 'Product Manager',
+      isOwner: false,
     });
   });
 
