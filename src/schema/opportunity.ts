@@ -2756,10 +2756,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const opportunityContent = new OpportunityContent(renderedContent);
 
         // Extract and process locations
-        const locationData = (parsedOpportunity.location || []) as Array<{
-          iso2?: string;
-          type?: number;
-        }>;
+        const locationData = parsedOpportunity.location || [];
 
         const opportunityResult = await ctx.con.transaction(
           async (entityManager) => {
@@ -2788,9 +2785,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
             // Create OpportunityLocation entries for each location
             for (const loc of locationData) {
-              const datasetLocation = await findDatasetLocation(ctx.con, {
-                iso2: loc.iso2,
-              });
+              const datasetLocation = await findDatasetLocation(ctx.con, loc);
 
               if (datasetLocation) {
                 await entityManager.getRepository(OpportunityLocation).save({
