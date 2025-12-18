@@ -15,7 +15,7 @@ import { tenorClient } from '../../src/integrations/tenor/clients';
 let app: FastifyInstance;
 let con: DataSource;
 
-jest.mock('../../src/integrations/tenor', () => ({
+jest.mock('../../src/integrations/tenor/clients', () => ({
   tenorClient: {
     search: jest.fn(),
   },
