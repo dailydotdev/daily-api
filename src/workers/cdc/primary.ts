@@ -1388,7 +1388,6 @@ const onOpportunityChange = async (
       con,
       logger,
       opportunityId: data.payload.after!.id,
-      isUpdate: true,
     });
     if (data.payload.after?.state !== OpportunityState.LIVE) {
       await con
@@ -1447,7 +1446,6 @@ const onOrganizationChange = async (
           con,
           logger,
           opportunityId: opportunity.id,
-          isUpdate: true,
         });
       }),
     );
