@@ -2511,7 +2511,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           if (!newPlan) {
             throw new PaymentRequiredError(
-              `Your don't have any more seats available. Please upgrade your subscription to add more seats.`,
+              `Your don't have any more seats available. Please update your subscription to add more seats.`,
             );
           }
 
