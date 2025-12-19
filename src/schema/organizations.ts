@@ -5,8 +5,7 @@ import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 import {
   isRoleAtLeast,
   OrganizationMemberRole,
@@ -741,15 +740,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         // Handle location update
         if (externalLocationId) {
-          let location = await ctx.con.getRepository(DatasetLocation).findOne({
-            where: { externalId: externalLocationId },
-          });
-          if (!location) {
-            location = await createLocationFromMapbox(
-              ctx.con,
-              externalLocationId,
-            );
-          }
+          const location = await findOrCreateDatasetLocation(
+            ctx.con,
+            externalLocationId,
+          );
 
           if (location) {
             updatePayload.locationId = location.id;

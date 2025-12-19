@@ -168,7 +168,7 @@ import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchem
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -2510,20 +2510,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         delete data.infoConfirmed;
       }
       data = await validateUserUpdate(user, data, ctx.con);
-      let location: DatasetLocation | null = null;
-
-      if (data.externalLocationId) {
-        location = await ctx.con.getRepository(DatasetLocation).findOne({
-          where: { externalId: data.externalLocationId },
-        });
-
-        if (!location) {
-          location = await createLocationFromMapbox(
-            ctx.con,
-            data.externalLocationId,
-          );
-        }
-      }
+      const location = await findOrCreateDatasetLocation(
+        ctx.con,
+        data.externalLocationId,
+      );
 
       const filesToClear = [];
 

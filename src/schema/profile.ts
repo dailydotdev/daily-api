@@ -26,7 +26,7 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 import { User } from '../entity/user/User';
 interface GQLUserExperience {
   id: string;
@@ -326,18 +326,10 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
     ): Promise<GQLUserExperience> => {
       const result = await generateExperienceToSave(ctx, args);
 
-      let location: DatasetLocation | null = null;
-      if (result.parsedInput.externalLocationId) {
-        location = await ctx.con.getRepository(DatasetLocation).findOne({
-          where: { externalId: result.parsedInput.externalLocationId },
-        });
-        if (!location) {
-          location = await createLocationFromMapbox(
-            ctx.con,
-            result.parsedInput.externalLocationId,
-          );
-        }
-      }
+      const location = await findOrCreateDatasetLocation(
+        ctx.con,
+        result.parsedInput.externalLocationId,
+      );
 
       const entity = await ctx.con.transaction(async (con) => {
         const repo = con.getRepository(UserExperienceWork);
