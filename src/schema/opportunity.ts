@@ -2564,7 +2564,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .count({
           where: {
             organizationId: organization.id,
-            state: OpportunityState.LIVE,
+            state: In([OpportunityState.LIVE, OpportunityState.IN_REVIEW]),
             flags: JsonContains({ plan: priceId }),
           },
         });
