@@ -167,7 +167,6 @@ import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 
 export interface GQLUpdateUserInput {

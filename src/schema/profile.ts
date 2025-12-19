@@ -15,7 +15,6 @@ import type { Connection } from 'graphql-relay';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { Company } from '../entity/Company';
 import type { GraphQLResolveInfo } from 'graphql';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
 import {
   AutocompleteType,
