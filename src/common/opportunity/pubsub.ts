@@ -334,12 +334,10 @@ export const notifyJobOpportunity = async ({
   con,
   logger,
   opportunityId,
-  isUpdate = false,
 }: {
   con: DataSource;
   logger: FastifyBaseLogger;
   opportunityId: string;
-  isUpdate?: boolean;
 }) => {
   const [opportunity, organization, keywords, users, locations] =
     await queryReadReplica(con, async ({ queryRunner }) => {
@@ -458,11 +456,8 @@ export const notifyJobOpportunity = async ({
     excludedUserIds,
   });
 
-  const topicName = isUpdate
-    ? 'api.v1.opportunity-updated'
-    : 'api.v1.opportunity-added';
   try {
-    await triggerTypedEvent(logger, topicName, message);
+    await triggerTypedEvent(logger, 'api.v1.opportunity-added', message);
   } catch (_err) {
     const err = _err as Error;
     logger.error({ err, message }, 'failed to send opportunity event');
