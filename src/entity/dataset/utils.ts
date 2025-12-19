@@ -26,9 +26,7 @@ export const createLocationFromMapbox = async (
  */
 export const findDatasetLocation = async (
   con: DataSource,
-  locationData: {
-    iso2?: string | null;
-  },
+  locationData: Partial<Pick<DatasetLocation, 'iso2' | 'city' | 'subdivision'>>,
 ): Promise<DatasetLocation | null> => {
   const { iso2 } = locationData;
 
@@ -36,12 +34,14 @@ export const findDatasetLocation = async (
     return null;
   }
 
-  const repo = con.manager.getRepository(DatasetLocation);
+  const locationQuery = con.manager
+    .getRepository(DatasetLocation)
+    .createQueryBuilder()
+    .where('iso2 = :iso2Only', { iso2Only: iso2 })
+    .andWhere('city IS NULL')
+    .andWhere('subdivision IS NULL');
 
-  // Find location by iso2 country code
-  const location = await repo.findOne({
-    where: { iso2: iso2.toUpperCase() },
-  });
+  const location = await locationQuery.getOne();
 
   return location;
 };
