@@ -6917,10 +6917,10 @@ describe('organization', () => {
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
-      'api.v1.opportunity-added',
+      'api.v1.opportunity-updated',
     );
     expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
-      'api.v1.opportunity-added',
+      'api.v1.opportunity-updated',
     );
   });
 
