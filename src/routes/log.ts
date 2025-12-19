@@ -1,4 +1,8 @@
-import { FastifyInstance } from 'fastify';
+import { FastifyInstance, FastifyReply } from 'fastify';
+import { retryFetch } from '../integrations/retry';
+import { WEBAPP_MAGIC_IMAGE_PREFIX } from '../config';
+import createOrGetConnection from '../db';
+import { User } from '../entity';
 
 // Record types matching the webapp's RecordType enum
 const RecordType = {
@@ -25,7 +29,7 @@ const MOCK_LOG_DATA = {
 
   // Card 2: When You Read
   peakDay: 'Thursday',
-  readingPattern: 'night',
+  readingPattern: 'night' as const,
   patternPercentile: 8,
   activityHeatmap: Array(7)
     .fill(null)
@@ -113,7 +117,7 @@ const MOCK_LOG_DATA = {
   ],
 
   // Card 8: Archetype
-  archetype: 'COLLECTOR',
+  archetype: 'COLLECTOR' as const,
   archetypeStat: 'Only 12% of developers read as late as you',
   archetypePercentile: 12,
 
@@ -123,7 +127,100 @@ const MOCK_LOG_DATA = {
   shareCount: 24853,
 };
 
+// Valid card types for log share images (welcome is not shareable)
+const VALID_CARD_TYPES = [
+  'total-impact',
+  'when-you-read',
+  'topic-evolution',
+  'favorite-sources',
+  'community',
+  'contributions',
+  'records',
+  'archetype',
+  'share',
+] as const;
+
+type CardType = (typeof VALID_CARD_TYPES)[number];
+
+/**
+ * Extract only the data needed for a specific card type.
+ * This keeps the base64 URL payload small.
+ */
+function extractCardData(card: CardType, logData: typeof MOCK_LOG_DATA) {
+  switch (card) {
+    case 'total-impact':
+      return {
+        totalPosts: logData.totalPosts,
+        totalReadingTime: logData.totalReadingTime,
+        daysActive: logData.daysActive,
+        totalImpactPercentile: logData.totalImpactPercentile,
+      };
+    case 'when-you-read':
+      return {
+        peakDay: logData.peakDay,
+        readingPattern: logData.readingPattern,
+        patternPercentile: logData.patternPercentile,
+        activityHeatmap: logData.activityHeatmap,
+      };
+    case 'topic-evolution':
+      return {
+        topicJourney: logData.topicJourney,
+        uniqueTopics: logData.uniqueTopics,
+        evolutionPercentile: logData.evolutionPercentile,
+      };
+    case 'favorite-sources':
+      return {
+        topSources: logData.topSources,
+        uniqueSources: logData.uniqueSources,
+        sourcePercentile: logData.sourcePercentile,
+        sourceLoyaltyName: logData.sourceLoyaltyName,
+      };
+    case 'community':
+      return {
+        upvotesGiven: logData.upvotesGiven,
+        commentsWritten: logData.commentsWritten,
+        postsBookmarked: logData.postsBookmarked,
+        upvotePercentile: logData.upvotePercentile,
+        commentPercentile: logData.commentPercentile,
+        bookmarkPercentile: logData.bookmarkPercentile,
+      };
+    case 'contributions':
+      return {
+        postsCreated: logData.postsCreated,
+        totalViews: logData.totalViews,
+        commentsReceived: logData.commentsReceived,
+        upvotesReceived: logData.upvotesReceived,
+        reputationEarned: logData.reputationEarned,
+        creatorPercentile: logData.creatorPercentile,
+      };
+    case 'records':
+      return {
+        records: logData.records,
+      };
+    case 'archetype':
+      return {
+        archetype: logData.archetype,
+        archetypeStat: logData.archetypeStat,
+        archetypePercentile: logData.archetypePercentile,
+      };
+    case 'share':
+      return {
+        archetype: logData.archetype,
+        archetypeStat: logData.archetypeStat,
+        totalPosts: logData.totalPosts,
+        daysActive: logData.daysActive,
+        records: logData.records,
+      };
+    default:
+      return logData;
+  }
+}
+
 export default async function (fastify: FastifyInstance): Promise<void> {
+  /**
+   * GET /log
+   * Returns the user's log data for the year
+   */
   fastify.get('/', async (req, res) => {
     if (!req.userId) {
       return res.status(401).send({ error: 'Unauthorized' });
@@ -131,5 +228,113 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
     // TODO: Replace mock data with actual user data based on req.userId
     return res.send(MOCK_LOG_DATA);
+  });
+
+  /**
+   * GET /log/images?card=xxx&userId=xxx
+   *
+   * Generates a share image for a specific Log card.
+   * Requires authentication. The userId query param must match the authenticated user
+   * for cache key uniqueness.
+   */
+  fastify.get<{
+    Querystring: { card?: string; userId?: string };
+  }>('/images', async (req, res): Promise<FastifyReply> => {
+    // Require authentication
+    if (!req.userId) {
+      return res.status(401).send({ error: 'Unauthorized' });
+    }
+
+    const { card, userId } = req.query;
+
+    // Validate card type
+    if (!card || !VALID_CARD_TYPES.includes(card as CardType)) {
+      return res.status(400).send({
+        error: 'Invalid card type',
+        validTypes: VALID_CARD_TYPES,
+      });
+    }
+
+    // Validate userId matches authenticated user (for cache key integrity)
+    if (userId && userId !== req.userId) {
+      return res.status(403).send({ error: 'User ID mismatch' });
+    }
+
+    try {
+      // Fetch user profile for personalization
+      const con = await createOrGetConnection();
+      const user = await con
+        .getRepository(User)
+        .findOne({ where: { id: req.userId }, select: ['image', 'username'] });
+
+      if (!user) {
+        return res.status(404).send({ error: 'User not found' });
+      }
+
+      // Fetch user's log data
+      // TODO: Replace with actual data fetching based on req.userId
+      const logData = MOCK_LOG_DATA;
+
+      // Extract only the data needed for this card type
+      const cardData = extractCardData(card as CardType, logData);
+
+      // Combine card data with user profile for personalization
+      const payloadData = {
+        ...cardData,
+        userImage: user.image,
+        username: user.username,
+      };
+
+      // Encode data as base64url for URL-safe transmission
+      const encoded = Buffer.from(JSON.stringify(payloadData)).toString(
+        'base64url',
+      );
+
+      // Build image-generator URL
+      const imageUrl = new URL(
+        `${WEBAPP_MAGIC_IMAGE_PREFIX}/log`,
+        process.env.COMMENTS_PREFIX,
+      );
+      imageUrl.searchParams.set('card', card);
+      imageUrl.searchParams.set('data', encoded);
+
+      req.log.info(
+        { url: imageUrl.toString(), card },
+        'Generating log share image',
+      );
+
+      // Call scraper service to screenshot the page
+      const response = await retryFetch(
+        `${process.env.SCRAPER_URL}/screenshot`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            url: imageUrl.toString(),
+            selector: '#screenshot_wrapper',
+          }),
+          headers: { 'content-type': 'application/json' },
+        },
+      );
+
+      if (!response.ok) {
+        req.log.error(
+          { status: response.status, card },
+          'Scraper failed to generate image',
+        );
+        return res.status(500).send({ error: 'Failed to generate image' });
+      }
+
+      // Return the image with cache headers
+      // Cache key includes userId in the URL for per-user uniqueness
+      return res
+        .type('image/png')
+        .header('cross-origin-opener-policy', 'cross-origin')
+        .header('cross-origin-resource-policy', 'cross-origin')
+        .header('cache-control', 'public, max-age=3600, s-maxage=3600')
+        .send(await response.buffer());
+    } catch (err) {
+      req.log.error({ err, card }, 'Error generating log share image');
+      return res.status(500).send({ error: 'Internal server error' });
+    }
   });
 }
