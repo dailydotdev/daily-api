@@ -4211,7 +4211,7 @@ describe('mutation editOpportunity', () => {
         expect(extensions.issues.length).toEqual(1);
         expect(extensions.issues[0].code).toEqual('too_big');
         expect(extensions.issues[0].message).toEqual(
-          'Too big: expected array to have <=3 items',
+          'No more than three questions are allowed',
         );
         expect(extensions.issues[0].path).toEqual(['questions']);
       },
