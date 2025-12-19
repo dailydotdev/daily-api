@@ -22,6 +22,7 @@ import {
   toGQLEnum,
   uniqueifyObjectArray,
   updateFlagsStatement,
+  updateRecruiterSubscriptionFlags,
 } from '../common';
 import {
   OpportunityMatchStatus,
@@ -71,7 +72,7 @@ import {
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
-  opportunityUpdateSubscriptionSchema,
+  addOpportunitySeatsSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -785,6 +786,15 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
+  input OpportunitySeatInput {
+    priceId: String!
+    quantity: Int!
+  }
+
+  input AddOpportunitySeatsInput {
+    seats: [OpportunitySeatInput!]!
+  }
+
   extend type Mutation {
     """
     Updates the authenticated candidate's saved preferences
@@ -944,13 +954,13 @@ export const typeDefs = /* GraphQL */ `
       channelName: String!
     ): EmptyResponse @auth
 
-    addOpportunitySeat(
+    addOpportunitySeats(
       """
       Id of the Opportunity
       """
       id: ID!
 
-      priceId: String!
+      payload: AddOpportunitySeatsInput!
     ): EmptyResponse @auth
   }
 `;
@@ -2439,7 +2449,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const organization = await opportunity.organization;
 
       switch (state) {
-        case OpportunityState.LIVE: {
+        case OpportunityState.IN_REVIEW: {
           if (!organization) {
             throw new ConflictError(
               `Opportunity must have an organization assigned`,
@@ -2466,30 +2476,54 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             questions: await opportunity.questions,
           });
 
-          const availableSeats =
-            organization.recruiterSubscriptionFlags.items?.reduce(
-              (total, item) => {
-                return total + item.quantity;
-              },
-              0,
-            ) || 0;
-
-          const liveOpportunitiesCount = await ctx.con
-            .getRepository(OpportunityJob)
-            .count({
+          const liveOpportunities: Pick<OpportunityJob, 'flags'>[] =
+            await ctx.con.getRepository(OpportunityJob).find({
+              select: ['flags'],
               where: {
                 organizationId: organization.id,
-                state: OpportunityState.LIVE,
+                state: In([OpportunityState.LIVE, OpportunityState.IN_REVIEW]),
               },
+              take: 100,
             });
 
-          if (liveOpportunitiesCount >= availableSeats) {
+          const organizationPlans = [
+            ...(organization.recruiterSubscriptionFlags.items || []),
+          ];
+
+          // look through live opportunities and decrement plan quantities
+          // to figure out how many seats are left
+          liveOpportunities.reduce((acc, opportunity) => {
+            const planPriceId = opportunity.flags?.plan;
+
+            const planForOpportunity = organizationPlans.find(
+              (plan) => plan.priceId === planPriceId,
+            );
+
+            if (planForOpportunity) {
+              planForOpportunity.quantity -= 1;
+            }
+
+            return acc;
+          }, organizationPlans);
+
+          // for now just assign first plan available
+          const newPlan = organizationPlans.find((plan) => plan.quantity > 0);
+
+          if (!newPlan) {
             throw new PaymentRequiredError(
-              `Your subscription allows for ${availableSeats} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
+              `Your don't have any more seats available. Please update your subscription to add more seats.`,
             );
           }
 
-          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+          await ctx.con.getRepository(OpportunityJob).update(
+            { id },
+            {
+              state,
+              flags: updateFlagsStatement<OpportunityJob>({
+                plan: newPlan.priceId,
+              }),
+            },
+          );
 
           break;
         }
@@ -2516,13 +2550,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         _: true,
       };
     },
-    addOpportunitySeat: async (
+    addOpportunitySeats: async (
       _,
-      payload,
+      { id, payload }: { id: string; payload: unknown },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const { id, priceId } =
-        opportunityUpdateSubscriptionSchema.parse(payload);
+      const { seats } = addOpportunitySeatsSchema.parse(payload);
 
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
@@ -2559,26 +2592,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const subscription =
         await paddleInstance.subscriptions.get(subscriptionid);
 
-      const liveOpportunitiesCount = await ctx.con
-        .getRepository(OpportunityJob)
-        .count({
-          where: {
-            organizationId: organization.id,
-            state: In([OpportunityState.LIVE, OpportunityState.IN_REVIEW]),
-            flags: JsonContains({ plan: priceId }),
-          },
-        });
-
-      const availableSeatsForPlan = subscription.items
-        .filter((item) => item.price.id === priceId)
-        .reduce((total, item) => total + item.quantity, 0);
-
-      if (liveOpportunitiesCount >= availableSeatsForPlan) {
-        throw new PaymentRequiredError(
-          `Your subscription allows for ${availableSeatsForPlan} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
-        );
-      }
-
       const subscriptionItems = subscription.items.map((item) => {
         return {
           priceId: item.price.id,
@@ -2586,33 +2599,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }) as ISubscriptionUpdateItem[];
 
-      // find the existing price item
-      const priceItem = subscriptionItems.find(
-        (item) => item.priceId === priceId,
-      );
+      seats.forEach((seat) => {
+        const { priceId } = seat;
 
-      const quantityToAdd = 1;
+        // find the existing price item
+        const priceItem = subscriptionItems.find(
+          (item) => item.priceId === priceId,
+        );
 
-      // if not found, add new item with quantity 1, else increment quantity
-      if (!priceItem) {
-        subscriptionItems.push({ priceId, quantity: quantityToAdd });
-      } else {
-        priceItem.quantity += quantityToAdd;
-      }
+        const quantityToAdd = 1;
 
-      await paddleInstance.subscriptions.update(subscriptionid, {
-        prorationBillingMode: 'prorated_immediately',
-        items: subscriptionItems,
+        // if not found, add new item with quantity 1, else increment quantity
+        if (!priceItem) {
+          subscriptionItems.push({ priceId, quantity: quantityToAdd });
+        } else {
+          priceItem.quantity += quantityToAdd;
+        }
       });
 
-      await ctx.con.getRepository(OpportunityJob).update(
-        { id },
+      const updateResult = await paddleInstance.subscriptions.update(
+        subscriptionid,
         {
-          flags: updateFlagsStatement<OpportunityJob>({
-            plan: priceId,
-          }),
+          prorationBillingMode: 'prorated_immediately',
+          items: subscriptionItems,
         },
       );
+
+      await ctx.con.getRepository(Organization).update(organization.id, {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            items: updateResult.items.map((item) => {
+              return {
+                priceId: item.price.id,
+                quantity: item.quantity,
+              };
+            }),
+          }),
+      });
 
       return { _: true };
     },

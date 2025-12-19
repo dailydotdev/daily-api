@@ -192,13 +192,24 @@ export const cancelRecruiterSubscription = async ({
     items: [],
   };
 
-  con.getRepository(Organization).update(
-    {
-      id: organization.id,
-    },
-    {
-      recruiterSubscriptionFlags:
-        updateRecruiterSubscriptionFlags<Organization>(subscriptionFlags),
-    },
-  );
+  await con.transaction(async (entityManager) => {
+    await entityManager.getRepository(Organization).update(
+      {
+        id: organization.id,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>(subscriptionFlags),
+      },
+    );
+
+    await entityManager.getRepository(OpportunityJob).update(
+      {
+        organizationId: organization.id,
+      },
+      {
+        state: OpportunityState.CLOSED,
+      },
+    );
+  });
 };

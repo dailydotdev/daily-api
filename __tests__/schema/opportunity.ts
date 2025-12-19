@@ -4211,7 +4211,7 @@ describe('mutation editOpportunity', () => {
         expect(extensions.issues.length).toEqual(1);
         expect(extensions.issues[0].code).toEqual('too_big');
         expect(extensions.issues[0].message).toEqual(
-          'Too big: expected array to have <=3 items',
+          'No more than three questions are allowed',
         );
         expect(extensions.issues[0].path).toEqual(['questions']);
       },
@@ -5072,7 +5072,7 @@ describe('mutation updateOpportunityState', () => {
     );
   });
 
-  it('should return validation error when required data is missing for LIVE state', async () => {
+  it('should return validation error when required data is missing for IN_REVIEW state', async () => {
     loggedUser = '1';
 
     const opportunity = await con.getRepository(OpportunityJob).save({
@@ -5113,7 +5113,7 @@ describe('mutation updateOpportunityState', () => {
         mutation: MUTATION,
         variables: {
           id: opportunity.id,
-          state: OpportunityState.LIVE,
+          state: OpportunityState.IN_REVIEW,
         },
       },
       'ZOD_VALIDATION_ERROR',
@@ -5141,7 +5141,80 @@ describe('mutation updateOpportunityState', () => {
     );
   });
 
-  it('should update state to LIVE when data is valid', async () => {
+  it('should not allow LIVE state transition', async () => {
+    loggedUser = '1';
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[3].id;
+
+    await con.getRepository(Organization).update(
+      {
+        id: opportunitiesFixture[3].organizationId!,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(OpportunityKeyword).save({
+      opportunityId,
+      keyword: 'typescript',
+    });
+    await con.getRepository(QuestionScreening).save({
+      opportunityId,
+      title: 'Tell us about a recent project',
+      questionOrder: 0,
+    });
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+        meta: {
+          ...opportunitiesFixture[3].meta,
+          salary: {
+            ...opportunitiesFixture[3].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
+        },
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunityId,
+          state: OpportunityState.LIVE,
+        },
+      },
+      'CONFLICT',
+      'Invalid state transition',
+    );
+  });
+
+  it('should update state to IN_REVIEW when data is valid', async () => {
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[3].id;
@@ -5205,7 +5278,7 @@ describe('mutation updateOpportunityState', () => {
     expect(before.state).toBe(OpportunityState.DRAFT);
 
     const res = await client.mutate(MUTATION, {
-      variables: { id: opportunityId, state: OpportunityState.LIVE },
+      variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
     });
 
     expect(res.errors).toBeFalsy();
@@ -5214,10 +5287,10 @@ describe('mutation updateOpportunityState', () => {
     const after = await con
       .getRepository(Opportunity)
       .findOneByOrFail({ id: opportunityId });
-    expect(after.state).toBe(OpportunityState.LIVE);
+    expect(after.state).toBe(OpportunityState.IN_REVIEW);
   });
 
-  it('should throw conflict on LIVE transition if opportunity is CLOSED', async () => {
+  it('should throw conflict on IN_REVIEW transition if opportunity is CLOSED', async () => {
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[0].id; // already LIVE
@@ -5236,14 +5309,14 @@ describe('mutation updateOpportunityState', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: opportunityId, state: OpportunityState.LIVE },
+        variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
       },
       'CONFLICT',
       'Opportunity is closed',
     );
   });
 
-  it('should throw conflict on LIVE transition if opportunity does not have organization', async () => {
+  it('should throw conflict on IN_REVIEW transition if opportunity does not have organization', async () => {
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[0].id;
@@ -5264,7 +5337,7 @@ describe('mutation updateOpportunityState', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: opportunityId, state: OpportunityState.LIVE },
+        variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
       },
       'CONFLICT',
       'Opportunity must have an organization assigned',
@@ -5345,7 +5418,7 @@ describe('mutation updateOpportunityState', () => {
     );
   });
 
-  it('should throw conflict on LIVE transition when subscription is not active yet', async () => {
+  it('should throw conflict on IN_REVIEW transition when subscription is not active yet', async () => {
     loggedUser = '1';
 
     const opportunity = await con.getRepository(OpportunityJob).save({
@@ -5365,14 +5438,14 @@ describe('mutation updateOpportunityState', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: opportunity.id, state: OpportunityState.LIVE },
+        variables: { id: opportunity.id, state: OpportunityState.IN_REVIEW },
       },
       'CONFLICT',
       'Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.',
     );
   });
 
-  it('should throw payment required on LIVE transition when no more allowed seats', async () => {
+  it('should throw payment required on IN_REVIEW transition when no more allowed seats', async () => {
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[3].id;
@@ -5434,10 +5507,10 @@ describe('mutation updateOpportunityState', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: opportunityId, state: OpportunityState.LIVE },
+        variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
       },
       'PAYMENT_REQUIRED',
-      'Your subscription allows for 0 live opportunities. Please upgrade your subscription to add more or pause other live opportunities.',
+      "Your don't have any more seats available. Please update your subscription to add more seats.",
     );
   });
 });
