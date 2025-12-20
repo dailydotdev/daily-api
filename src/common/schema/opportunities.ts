@@ -173,12 +173,24 @@ export const opportunityEditSchema = z
       .array(
         z.object({
           id: z.uuid().optional(),
-          title: z.string().nonempty().max(480),
-          placeholder: z.string().max(480).nullable().optional(),
+          title: z.string().nonempty().max(480, {
+            error: 'Question title is too long',
+          }),
+          placeholder: z
+            .string()
+            .max(480, {
+              error: 'Placeholder is too long',
+            })
+            .nullable()
+            .optional(),
         }),
       )
-      .min(1)
-      .max(3),
+      .min(1, {
+        error: 'At least one question is required',
+      })
+      .max(3, {
+        error: 'No more than three questions are allowed',
+      }),
     organization: z
       .object({
         name: z.string().nonempty().max(60).optional(),
@@ -304,7 +316,30 @@ export const gondulOpportunityPreviewResultSchema = z.object({
   total_count: z.number().int().nonnegative(),
 });
 
-export const opportunityUpdateSubscriptionSchema = z.object({
-  id: z.uuid(),
-  priceId: z.string(),
+export const maxRecruiterSeats = 50;
+
+export const addOpportunitySeatsSchema = z.object({
+  seats: z
+    .array(
+      z.object({
+        priceId: z.string().nonempty('Select a price option'),
+        quantity: z
+          .number()
+          .nonnegative()
+          .min(1, 'Enter the number of seats')
+          .max(maxRecruiterSeats, {
+            error: `You can add up to ${maxRecruiterSeats} seats at a time`,
+          }),
+      }),
+      {
+        error: 'At least one seat is required',
+      },
+    )
+    .min(1, {
+      error: 'At least one seat is required',
+    })
+    // number of pricing ids that can be in cart, just arbitrarily limit to 10
+    .max(10, {
+      error: 'You can add up to 10 different price options at a time',
+    }),
 });

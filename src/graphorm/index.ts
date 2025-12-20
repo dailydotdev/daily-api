@@ -23,6 +23,7 @@ import {
   type OrganizationLink,
   SourceType,
 } from '../entity';
+import { type Organization } from '../entity/Organization';
 import {
   OrganizationMemberRole,
   SourceMemberRoles,
@@ -1381,6 +1382,20 @@ const obj = new GraphORM({
           isMany: false,
           childColumn: 'id',
           parentColumn: 'locationId',
+        },
+      },
+      recruiterTotalSeats: {
+        select: (_, alias) => {
+          return `${alias}."recruiterSubscriptionFlags"->'items'`;
+        },
+        transform: (
+          value: Organization['recruiterSubscriptionFlags']['items'] | null,
+        ) => {
+          if (!value) {
+            return 0;
+          }
+
+          return value.length;
         },
       },
     },
