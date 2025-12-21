@@ -49,7 +49,6 @@ import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
-  NotificationBaseContext,
   NotificationCampaignContext,
   NotificationCollectionContext,
   NotificationCommentContext,

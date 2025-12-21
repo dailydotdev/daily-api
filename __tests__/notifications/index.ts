@@ -1,7 +1,6 @@
 import {
   generateNotificationV2,
   type NotificationAwardContext,
-  NotificationBaseContext,
   NotificationBookmarkContext,
   NotificationBundleV2,
   type NotificationCampaignContext,
@@ -57,7 +56,6 @@ import {
   createSquadWelcomePost,
   emptyImage,
   notificationsLink,
-  scoutArticleLink,
   squadsFeaturedPage,
 } from '../../src/common';
 import { usersFixture } from '../fixture/user';

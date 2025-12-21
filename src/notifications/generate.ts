@@ -5,7 +5,6 @@ import {
   generateDevCard,
   getOrganizationPermalink,
   notificationsLink,
-  scoutArticleLink,
   squadsFeaturedPage,
   subscribeNotificationsLink,
 } from '../common';

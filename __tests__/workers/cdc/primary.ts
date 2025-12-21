@@ -128,7 +128,6 @@ import {
 import { randomUUID } from 'crypto';
 import { DataSource, Not } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { TypeOrmError } from '../../../src/errors';
 import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { badUsersFixture, usersFixture } from '../../fixture/user';
