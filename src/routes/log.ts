@@ -106,7 +106,7 @@ const MOCK_LOG_DATA = {
     {
       type: RecordType.BINGE_DAY,
       label: 'Biggest Binge',
-      value: '34 posts on Mar 12',
+      value: '34 posts',
       percentile: 3,
     },
     {
@@ -207,9 +207,17 @@ function extractCardData(card: CardType, logData: typeof MOCK_LOG_DATA) {
       return {
         archetype: logData.archetype,
         archetypeStat: logData.archetypeStat,
+        archetypePercentile: logData.archetypePercentile,
         totalPosts: logData.totalPosts,
+        totalReadingTime: logData.totalReadingTime,
         daysActive: logData.daysActive,
         records: logData.records,
+        uniqueTopics: logData.uniqueTopics,
+        uniqueSources: logData.uniqueSources,
+        upvotesGiven: logData.upvotesGiven,
+        commentsWritten: logData.commentsWritten,
+        postsBookmarked: logData.postsBookmarked,
+        activityHeatmap: logData.activityHeatmap,
       };
     default:
       return logData;
@@ -293,7 +301,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       // Build image-generator URL
       const imageUrl = new URL(
         `${WEBAPP_MAGIC_IMAGE_PREFIX}/log`,
-        process.env.COMMENTS_PREFIX,
+        'https://dailydev-log-2025.preview.app.daily.dev', // TODO: process.env.COMMENTS_PREFIX
       );
       imageUrl.searchParams.set('card', card);
       imageUrl.searchParams.set('data', encoded);
