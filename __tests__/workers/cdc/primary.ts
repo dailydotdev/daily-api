@@ -60,8 +60,6 @@ import {
   UserMarketingCta,
   UserNotification,
   UserPost,
-  UserState,
-  UserStateKey,
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
@@ -103,7 +101,6 @@ import {
   notifySourcePrivacyUpdated,
   notifySourceReport,
   notifySquadFeaturedUpdated,
-  notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUsernameChanged,
   notifyUserReadmeUpdated,
@@ -216,7 +213,6 @@ jest.mock('../../../src/common', () => ({
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
   notifySubmissionRejected: jest.fn(),
-  notifySubmissionGrantedAccess: jest.fn(),
   notifyNewPostMention: jest.fn(),
   notifyNewCommentMention: jest.fn(),
   notifyNewNotification: jest.fn(),
@@ -843,52 +839,6 @@ describe('user', () => {
         table: 'user',
       }),
     );
-    const [state] = await con.getRepository(UserState).find();
-    expect(state?.key).toEqual(UserStateKey.CommunityLinkAccess);
-  });
-
-  it('should throw an error when creating user state and not related to duplicate entry', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      reputation: submissionAccessThreshold,
-    };
-    after.id = '1234567890123456789012345678901234567'; // 37 characters - exceeds limit
-    try {
-      await expectSuccessfulBackground(
-        worker,
-        mockChangeMessage<ObjectType>({
-          after,
-          before: base,
-          op: 'u',
-          table: 'user',
-        }),
-      );
-      expect(true).toBeFalsy(); // ensure the worker threw an error and not reach this code
-    } catch (ex) {
-      const state = await con.getRepository(UserState).find();
-      expect(state.length).toEqual(0);
-      expect(ex.code).not.toEqual(TypeOrmError.DUPLICATE_ENTRY);
-    }
-  });
-
-  it('should handle the thrown error when user state already exists', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      reputation: submissionAccessThreshold,
-    };
-    const repo = con.getRepository(UserState);
-    await repo.save({ userId: '1', key: UserStateKey.CommunityLinkAccess });
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'user',
-      }),
-    );
-    const state = await con.getRepository(UserState).find();
-    expect(state.length).toEqual(1);
   });
 
   it('should call notifyReputationIncrease when the user reputation has increased', async () => {
@@ -1131,28 +1081,6 @@ describe('user', () => {
         await con.getRepository(SourceUser).countBy({ userId: '2' }),
       ).toEqual(0);
     });
-  });
-});
-
-describe('user_state', () => {
-  type ObjectType = UserState;
-  it('should notify on user state is created with the right key', async () => {
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after: {
-          userId: defaultUser.id,
-          key: UserStateKey.CommunityLinkAccess,
-          value: false,
-        },
-        op: 'c',
-        table: 'user_state',
-      }),
-    );
-    expect(notifySubmissionGrantedAccess).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
-    ).toEqual(['1']);
   });
 });
 

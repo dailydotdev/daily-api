@@ -205,29 +205,6 @@ it('should set parameters for community_picks_succeeded email', async () => {
   expect(args.transactional_message_id).toEqual('27');
 });
 
-it('should set parameters for community_picks_granted email', async () => {
-  const ctx: NotificationBaseContext = {
-    userIds: ['1'],
-  };
-
-  const notificationId = await saveNotificationV2Fixture(
-    con,
-    NotificationType.CommunityPicksGranted,
-    ctx,
-  );
-  await expectSuccessfulBackground(worker, {
-    notification: {
-      id: notificationId,
-      userId: '1',
-    },
-  });
-  expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock
-    .calls[0][0] as SendEmailRequestWithTemplate;
-  expect(args.message_data).toEqual({});
-  expect(args.transactional_message_id).toEqual('26');
-});
-
 it('should set parameters for article_picked email', async () => {
   const post = await con.getRepository(ArticlePost).save(postsFixture[0]);
   const ctx: NotificationPostContext = {

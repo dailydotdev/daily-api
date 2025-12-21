@@ -48,7 +48,6 @@ const viewsTopic = pubsub.topic('views');
 const postBannedOrRemovedTopic = pubsub.topic('post-banned-or-removed');
 const sourceFeedAddedTopic = pubsub.topic('source-feed-added');
 const sourceFeedRemovedTopic = pubsub.topic('source-feed-removed');
-const communityLinkAccessTopic = pubsub.topic('community-link-access');
 const communityLinkRejectedTopic = pubsub.topic('community-link-rejected');
 const newNotificationTopic = pubsub.topic('api.v1.new-notification');
 const newPostMentionTopic = pubsub.topic('api.v1.new-post-mention');
@@ -271,11 +270,6 @@ export const notifySubmissionRejected = async (
   log: EventLogger,
   submission: ChangeObject<Submission>,
 ): Promise<void> => publishEvent(log, communityLinkRejectedTopic, submission);
-
-export const notifySubmissionGrantedAccess = async (
-  log: EventLogger,
-  userId: string,
-): Promise<void> => publishEvent(log, communityLinkAccessTopic, { userId });
 
 export const notifySourceMemberRoleChanged = async (
   log: EventLogger,

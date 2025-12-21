@@ -1,7 +1,6 @@
 import { messageToJson, TypedNotificationWorker, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';
 import { communityPicksFailed } from './communityPicksFailed';
-import { communityPicksGranted } from './communityPicksGranted';
 import { articleNewCommentPostCommented } from './articleNewCommentPostCommented';
 import { articleUpvoteMilestone } from './articleUpvoteMilestone';
 import { articleReportApproved } from './articleReportApproved';
@@ -87,7 +86,6 @@ export function notificationWorkerToWorker(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const notificationWorkers: TypedNotificationWorker<any>[] = [
   communityPicksFailed,
-  communityPicksGranted,
   articleNewCommentPostCommented,
   articleNewCommentCommentCommented,
   articleUpvoteMilestone,

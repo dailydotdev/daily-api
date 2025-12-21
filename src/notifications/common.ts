@@ -26,7 +26,6 @@ import type { UserNotificationFlags } from '../entity/user/User';
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
   CommunityPicksSucceeded = 'community_picks_succeeded',
-  CommunityPicksGranted = 'community_picks_granted',
   ArticlePicked = 'article_picked',
   ArticleNewComment = 'article_new_comment',
   ArticleUpvoteMilestone = 'article_upvote_milestone',

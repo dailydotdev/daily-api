@@ -67,8 +67,6 @@ export const notificationTitleMap: Record<
   community_picks_failed: systemTitle,
   community_picks_succeeded: () =>
     `<b>Community Picks:</b> A link you scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
-  community_picks_granted: () =>
-    `<b>Community Picks:</b> You have earned enough reputation to <span class="text-theme-color-cabbage">scout and submit</span> links.`,
   article_picked: () =>
     `Congrats! <b>Your post</b> got <span class="text-theme-color-cabbage">listed</span> on the daily.dev feed!`,
   article_new_comment: (ctx: NotificationCommenterContext) =>
@@ -256,12 +254,6 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.CommunityPicks)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
-  community_picks_granted: (builder) =>
-    builder
-      .referenceSystem()
-      .icon(NotificationIcon.DailyDev)
-      .description(`<u>Submit your first post now!</u>`)
-      .targetUrl(scoutArticleLink),
   article_picked: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.DailyDev)
