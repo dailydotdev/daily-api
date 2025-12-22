@@ -89,6 +89,7 @@ export const opportunityCreateSchema = z.object({
 export const opportunityCreateParseSchema = opportunityCreateSchema
   .omit({ organizationId: true })
   .extend({
+    tldr: z.string().max(480).optional().default(''),
     keywords: z.preprocess((val) => {
       if (Array.isArray(val)) {
         return val.map((keyword) => {
@@ -124,7 +125,9 @@ export const opportunityCreateParseSchema = opportunityCreateSchema
           .optional(),
       })
       .partial()
-      .optional(),
+      .optional()
+      .default({}),
+    content: opportunityContentSchema.partial().optional().default({}),
   });
 
 export const opportunityEditSchema = z
