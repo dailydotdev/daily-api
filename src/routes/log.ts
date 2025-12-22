@@ -106,7 +106,7 @@ const MOCK_LOG_DATA = {
     {
       type: RecordType.BINGE_DAY,
       label: 'Biggest Binge',
-      value: '34 posts on Mar 12',
+      value: '34 posts',
       percentile: 3,
     },
     {
@@ -207,9 +207,17 @@ function extractCardData(card: CardType, logData: typeof MOCK_LOG_DATA) {
       return {
         archetype: logData.archetype,
         archetypeStat: logData.archetypeStat,
+        archetypePercentile: logData.archetypePercentile,
         totalPosts: logData.totalPosts,
+        totalReadingTime: logData.totalReadingTime,
         daysActive: logData.daysActive,
         records: logData.records,
+        uniqueTopics: logData.uniqueTopics,
+        uniqueSources: logData.uniqueSources,
+        upvotesGiven: logData.upvotesGiven,
+        commentsWritten: logData.commentsWritten,
+        postsBookmarked: logData.postsBookmarked,
+        activityHeatmap: logData.activityHeatmap,
       };
     default:
       return logData;
@@ -219,14 +227,23 @@ function extractCardData(card: CardType, logData: typeof MOCK_LOG_DATA) {
 export default async function (fastify: FastifyInstance): Promise<void> {
   /**
    * GET /log
-   * Returns the user's log data for the year
+   * Returns the user's log data for the year.
+   * Returns 404 if user doesn't have enough data (no JSON file exists).
    */
   fastify.get('/', async (req, res) => {
     if (!req.userId) {
       return res.status(401).send({ error: 'Unauthorized' });
     }
 
-    // TODO: Replace mock data with actual user data based on req.userId
+    // TODO: Replace with actual JSON file lookup based on req.userId
+    // In production, this will check if the user's JSON file exists
+    const userDataExists = true;
+
+    if (!userDataExists) {
+      return res.status(404).send({ error: 'No log data available' });
+    }
+
+    // TODO: Replace mock data with actual user data from JSON file
     return res.send(MOCK_LOG_DATA);
   });
 
@@ -271,8 +288,16 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send({ error: 'User not found' });
       }
 
+      // TODO: Replace with actual JSON file lookup based on req.userId
+      // In production, this will check if the user's JSON file exists
+      const userDataExists = true;
+
+      if (!userDataExists) {
+        return res.status(404).send({ error: 'No log data available' });
+      }
+
       // Fetch user's log data
-      // TODO: Replace with actual data fetching based on req.userId
+      // TODO: Replace with actual data fetching from JSON file
       const logData = MOCK_LOG_DATA;
 
       // Extract only the data needed for this card type
@@ -293,7 +318,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       // Build image-generator URL
       const imageUrl = new URL(
         `${WEBAPP_MAGIC_IMAGE_PREFIX}/log`,
-        process.env.COMMENTS_PREFIX,
+        'https://dailydev-log-2025.preview.app.daily.dev', // TODO: process.env.COMMENTS_PREFIX
       );
       imageUrl.searchParams.set('card', card);
       imageUrl.searchParams.set('data', encoded);
