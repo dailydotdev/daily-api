@@ -2464,7 +2464,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             organization.recruiterSubscriptionFlags.status !==
             SubscriptionStatus.Active
           ) {
-            throw new ConflictError(
+            throw new PaymentRequiredError(
               `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
             );
           }
