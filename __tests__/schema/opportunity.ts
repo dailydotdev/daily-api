@@ -5444,7 +5444,7 @@ describe('mutation updateOpportunityState', () => {
         mutation: MUTATION,
         variables: { id: opportunity.id, state: OpportunityState.IN_REVIEW },
       },
-      'CONFLICT',
+      'PAYMENT_REQUIRED',
       'Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.',
     );
   });
