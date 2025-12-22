@@ -88,6 +88,7 @@ import {
   type DeepPartial,
   JsonContains,
   EntityManager,
+  IsNull,
 } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
@@ -2869,6 +2870,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             // Remove location from parsedOpportunity as it's now relational
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { location, ...opportunityData } = parsedOpportunity;
+
+            // if user is logged in, associate them with their existing organization
+            if (ctx.userId) {
+              const existingOrganizationOpportunity: Pick<
+                OpportunityJob,
+                'id' | 'organizationId'
+              > | null = await entityManager
+                .getRepository(OpportunityJob)
+                .findOne({
+                  select: ['id', 'organizationId'],
+                  where: {
+                    users: {
+                      userId: ctx.userId,
+                    },
+                    organizationId: Not(IsNull()),
+                  },
+                });
+
+              if (existingOrganizationOpportunity) {
+                opportunityData.organizationId =
+                  existingOrganizationOpportunity.organizationId;
+              }
+            }
 
             const opportunity = await entityManager
               .getRepository(OpportunityJob)
