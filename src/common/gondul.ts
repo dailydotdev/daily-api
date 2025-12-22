@@ -7,11 +7,6 @@ import {
 } from '@dailydotdev/schema';
 import type { ServiceClient } from '../types';
 
-const transport = createGrpcTransport({
-  baseUrl: process.env.GONDUL_ORIGIN,
-  httpVersion: '2',
-});
-
 const garmGondulService = new GarmrService({
   service: 'gondul',
   breakerOpts: {
@@ -24,8 +19,13 @@ const garmGondulService = new GarmrService({
   },
 });
 
+const gondulOpportunityServerTransport = createGrpcTransport({
+  baseUrl: process.env.GONDUL_OPPORTUNITY_SERVER_ORIGIN,
+  httpVersion: '2',
+});
+
 export const getGondulClient = (
-  clientTransport = transport,
+  clientTransport = gondulOpportunityServerTransport,
 ): ServiceClient<typeof GondulService> => {
   return {
     instance: createClient<typeof GondulService>(
@@ -35,11 +35,6 @@ export const getGondulClient = (
     garmr: garmGondulService,
   };
 };
-
-const gondulOpportunityServerTransport = createGrpcTransport({
-  baseUrl: process.env.GONDUL_OPPORTUNITY_SERVER_ORIGIN,
-  httpVersion: '2',
-});
 
 export const getGondulOpportunityServiceClient = (
   clientTransport = gondulOpportunityServerTransport,
