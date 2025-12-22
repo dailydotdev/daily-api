@@ -210,9 +210,6 @@ export type PubSubSchema = {
     commentMention: ChangeObject<CommentMention>;
   };
   'community-link-rejected': ChangeObject<Submission>;
-  'community-link-access': {
-    userId: string;
-  };
   'user-reputation-updated': {
     user: ChangeObject<User>;
     userAfter: ChangeObject<User>;
