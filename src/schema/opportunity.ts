@@ -945,6 +945,11 @@ export const typeDefs = /* GraphQL */ `
     """
     createSharedSlackChannel(
       """
+      Organization ID
+      """
+      organizationId: ID!
+
+      """
       Email address of the user to invite
       """
       email: String!
