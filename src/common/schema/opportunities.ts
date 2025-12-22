@@ -43,9 +43,24 @@ export const opportunityContentSchema = z.object({
   }).optional(),
 });
 
+const opportunityMetaBaseSchema = z.object({
+  employmentType: z.coerce.number().min(1).optional(),
+  teamSize: z.number().int().nonnegative().min(1).max(1_000_000).optional(),
+  salary: z
+    .object({
+      min: z.number().int().nonnegative().max(100_000_000),
+      max: z.number().int().nonnegative().max(100_000_000),
+      period: z.number(),
+    })
+    .partial()
+    .optional(),
+  seniorityLevel: z.number().optional(),
+  roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]).optional(),
+});
+
 export const opportunityCreateSchema = z.object({
   title: z.string().nonempty().max(240),
-  tldr: z.string().nonempty().max(480),
+  tldr: z.string().nonempty().max(480).optional(),
   keywords: z
     .array(
       z.object({
@@ -53,34 +68,22 @@ export const opportunityCreateSchema = z.object({
       }),
     )
     .min(1)
-    .max(100),
+    .max(100)
+    .optional(),
   location: z
     .array(
       z.object({
-        country: z.string().nonempty().max(240),
+        country: z.string('No location could be extracted').nonempty().max(240),
         city: z.string().nonempty().max(240).optional(),
         subdivision: z.string().nonempty().max(240).optional(),
-        type: z.coerce.number().min(1),
+        type: z.coerce.number().min(1).optional(),
         iso2: z.string().nonempty().max(2).optional(),
       }),
     )
     .optional(),
   organizationId: z.string(),
-  meta: z.object({
-    employmentType: z.coerce.number().min(1),
-    teamSize: z.number().int().nonnegative().min(1).max(1_000_000),
-    salary: z
-      .object({
-        min: z.number().int().nonnegative().max(100_000_000),
-        max: z.number().int().nonnegative().max(100_000_000),
-        period: z.number(),
-      })
-      .partial()
-      .optional(),
-    seniorityLevel: z.number(),
-    roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
-  }),
-  content: opportunityContentSchema.partial(),
+  meta: opportunityMetaBaseSchema.optional(),
+  content: opportunityContentSchema.partial().optional(),
 });
 
 export const opportunityCreateParseSchema = opportunityCreateSchema
@@ -97,9 +100,8 @@ export const opportunityCreateParseSchema = opportunityCreateSchema
 
       return val;
     }, opportunityCreateSchema.shape.keywords),
-    meta: opportunityCreateSchema.shape.meta
+    meta: opportunityMetaBaseSchema
       .extend({
-        teamSize: opportunityCreateSchema.shape.meta.shape.teamSize.optional(),
         salary: z
           .object({
             min: z.preprocess((val: bigint) => {
@@ -121,7 +123,8 @@ export const opportunityCreateParseSchema = opportunityCreateSchema
           .partial()
           .optional(),
       })
-      .partial(),
+      .partial()
+      .optional(),
   });
 
 export const opportunityEditSchema = z
@@ -253,6 +256,7 @@ export const parseOpportunitySchema = z
   );
 
 export const createSharedSlackChannelSchema = z.object({
+  organizationId: z.string().uuid('Organization ID must be a valid UUID'),
   email: z.string().email('Email must be a valid email address'),
   channelName: z
     .string()
@@ -308,6 +312,7 @@ export const recruiterSubscriptionFlagsSchema = z
         error: 'At least one subscription item is required',
       },
     ),
+    hasSlackConnection: z.string().optional(),
   })
   .partial();
 
