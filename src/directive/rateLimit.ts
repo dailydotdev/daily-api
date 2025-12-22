@@ -101,6 +101,11 @@ export const onLimit: RateLimitOnLimit<Context> = (
     case 'verifyUserCompanyCode':
       counters?.api?.rateLimit?.add(1, { type: 'verifyUserCompanyCode' });
       throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });
+    case 'parseOpportunity':
+      counters?.api?.rateLimit?.add(1, { type: 'parseOpportunity' });
+      throw new RateLimitError({
+        message: `You tried to parse job too many times. Try again in ${period} or contact team for assistance.`,
+      });
     default:
       counters?.api?.rateLimit?.add(1, { type: 'default' });
       throw new RateLimitError({ msBeforeNextReset: resource.msBeforeNext });

@@ -58,6 +58,8 @@ import {
   SalaryPeriod,
   OpportunityContent_ContentBlock,
   Location,
+  OpportunityService,
+  OpportunityPreviewResponse,
 } from '@dailydotdev/schema';
 import { createClient, type ClickHouseClient } from '@clickhouse/client';
 import * as clickhouseCommon from '../src/common/clickhouse';
@@ -67,6 +69,7 @@ import { userExperienceCertificationFixture } from './fixture/profile/certificat
 import { userExperienceEducationFixture } from './fixture/profile/education';
 import { userExperienceProjectFixture } from './fixture/profile/project';
 import { userExperienceWorkFixture } from './fixture/profile/work';
+import { randomUUID } from 'node:crypto';
 
 export class MockContext extends Context {
   mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
@@ -500,6 +503,7 @@ export const createMockBrokkrTransport = () =>
                 country: 'USA',
                 city: 'San Francisco',
                 subdivision: 'CA',
+                iso2: 'US',
                 type: 1,
               }),
             ],
@@ -706,5 +710,17 @@ export const createGarmrMock = () => {
     retryOpts: {
       maxAttempts: Infinity,
     },
+  });
+};
+
+export const createMockGondulOpportunityServiceTransport = () => {
+  return createRouterTransport(({ service }) => {
+    service(OpportunityService, {
+      preview: (request) => {
+        return new OpportunityPreviewResponse({
+          opportunityId: request.id || randomUUID(),
+        });
+      },
+    });
   });
 };

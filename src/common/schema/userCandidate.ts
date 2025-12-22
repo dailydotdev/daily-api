@@ -68,6 +68,10 @@ export const candidatePreferenceSchema = z.object({
       }),
     )
     .optional(),
+  externalLocationId: z.preprocess(
+    (val) => (val === '' ? null : val),
+    z.string().nullish().default(null),
+  ),
   locationType: z
     .array(
       z

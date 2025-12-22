@@ -6,19 +6,20 @@ import {
 import type { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { textFromEnumValue } from '../protobuf';
 
-export const createOpportunityPrompt = ({
+export const createOpportunityPrompt = async ({
   opportunity,
 }: {
   opportunity: OpportunityJob;
 }) => {
+  const locations = await opportunity.locations;
+  const firstLocation = locations?.[0];
+  const locationData = firstLocation ? await firstLocation.location : null;
+
   const promptData = {
-    locationType: textFromEnumValue(
-      LocationType,
-      opportunity.location?.[0]?.type,
-    ),
-    city: opportunity.location?.[0]?.city,
-    subdivision: opportunity.location?.[0]?.subdivision,
-    country: opportunity.location?.[0]?.country,
+    locationType: textFromEnumValue(LocationType, firstLocation?.type),
+    city: locationData?.city,
+    subdivision: locationData?.subdivision,
+    country: locationData?.country,
     jobType: textFromEnumValue(
       EmploymentType,
       opportunity.meta?.employmentType,

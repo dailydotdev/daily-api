@@ -19,6 +19,8 @@ import {
 import type { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
 import type { QuestionFeedback } from '../../src/entity/questions/QuestionFeedback';
 import { demoCompany } from '../../src/common';
+import type { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import type { OpportunityLocation } from '../../src/entity/opportunities/OpportunityLocation';
 
 export const organizationsFixture: DeepPartial<Organization>[] = [
   {
@@ -27,7 +29,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     image: 'https://example.com/logo.png',
     website: 'https://daily.dev',
     description: 'A platform for developers',
-    location: 'San Francisco',
+    locationId: '660e8400-e29b-41d4-a716-446655440003',
     links: [
       {
         type: OrganizationLinkType.Custom,
@@ -57,7 +59,7 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     image: 'https://example.com/logo.png',
     website: 'https://yearly.dev',
     description: 'A platform for others',
-    location: 'Skatval',
+    locationId: '660e8400-e29b-41d4-a716-446655440001',
     links: [],
   },
   {
@@ -66,8 +68,66 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
     image: 'https://example.com/logo.png',
     website: 'https://monthly.dev',
     description: 'Another platform for developers',
-    location: 'Oslo',
+    locationId: '660e8400-e29b-41d4-a716-446655440001',
     links: [],
+  },
+];
+
+export const datasetLocationsFixture: DeepPartial<DatasetLocation>[] = [
+  {
+    id: '660e8400-e29b-41d4-a716-446655440001',
+    country: 'Norway',
+    city: null,
+    subdivision: null,
+    iso2: 'NO',
+    iso3: 'NOR',
+    externalId: 'norway-remote',
+  },
+  {
+    id: '660e8400-e29b-41d4-a716-446655440002',
+    country: 'USA',
+    city: null,
+    subdivision: null,
+    iso2: 'US',
+    iso3: 'USA',
+    externalId: 'usa-hybrid',
+  },
+  {
+    id: '660e8400-e29b-41d4-a716-446655440003',
+    country: 'USA',
+    city: 'San Francisco',
+    subdivision: 'CA',
+    iso2: 'US',
+    iso3: 'USA',
+    externalId: 'usa-sf-ca',
+  },
+];
+
+export const opportunityLocationsFixture: DeepPartial<OpportunityLocation>[] = [
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+    locationId: '660e8400-e29b-41d4-a716-446655440001',
+    type: LocationType.REMOTE,
+  },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+    locationId: '660e8400-e29b-41d4-a716-446655440002',
+    type: LocationType.HYBRID,
+  },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440003',
+    locationId: '660e8400-e29b-41d4-a716-446655440001',
+    type: LocationType.REMOTE,
+  },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440004',
+    locationId: '660e8400-e29b-41d4-a716-446655440002',
+    type: LocationType.HYBRID,
+  },
+  {
+    opportunityId: '550e8400-e29b-41d4-a716-446655440005',
+    locationId: '660e8400-e29b-41d4-a716-446655440001',
+    type: LocationType.REMOTE,
   },
 ];
 
@@ -100,12 +160,6 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
     organizationId: '550e8400-e29b-41d4-a716-446655440000',
-    location: [
-      {
-        type: LocationType.REMOTE,
-        country: 'Norway',
-      },
-    ],
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
@@ -134,12 +188,6 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
     createdAt: new Date('2023-01-02'),
     updatedAt: new Date('2023-01-02'),
     organizationId: '550e8400-e29b-41d4-a716-446655440000',
-    location: [
-      {
-        type: LocationType.HYBRID,
-        country: 'USA',
-      },
-    ],
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440003',
@@ -168,12 +216,6 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
     createdAt: new Date('2023-01-01'),
     updatedAt: new Date('2023-01-01'),
     organizationId: '550e8400-e29b-41d4-a716-446655440000',
-    location: [
-      {
-        type: LocationType.REMOTE,
-        country: 'Norway',
-      },
-    ],
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440004',
@@ -202,12 +244,6 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
     createdAt: new Date('2023-01-02'),
     updatedAt: new Date('2023-01-02'),
     organizationId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
-    location: [
-      {
-        type: LocationType.HYBRID,
-        country: 'USA',
-      },
-    ],
   },
   {
     id: '550e8400-e29b-41d4-a716-446655440005',
@@ -236,12 +272,6 @@ export const opportunitiesFixture: DeepPartial<OpportunityJob>[] = [
     createdAt: new Date('2023-01-03'),
     updatedAt: new Date('2023-01-03'),
     organizationId: demoCompany.id,
-    location: [
-      {
-        type: LocationType.REMOTE,
-        country: 'Norway',
-      },
-    ],
   },
 ];
 

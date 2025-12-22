@@ -1406,15 +1406,21 @@ const onOpportunityChange = async (
   if (
     data.payload.op === 'u' &&
     data.payload.after?.type === OpportunityType.JOB &&
-    data.payload.before?.state === OpportunityState.LIVE &&
-    data.payload.after?.state !== OpportunityState.LIVE
+    data.payload.before?.state === OpportunityState.LIVE
   ) {
-    await con
-      .getRepository(Alerts)
-      .update(
-        { opportunityId: data.payload.after!.id },
-        { opportunityId: null },
-      );
+    await notifyJobOpportunity({
+      con,
+      logger,
+      opportunityId: data.payload.after!.id,
+    });
+    if (data.payload.after?.state !== OpportunityState.LIVE) {
+      await con
+        .getRepository(Alerts)
+        .update(
+          { opportunityId: data.payload.after!.id },
+          { opportunityId: null },
+        );
+    }
   }
 };
 
@@ -1436,7 +1442,7 @@ const onOrganizationChange = async (
       'description',
       'perks',
       'founded',
-      'location',
+      'locationId',
       'size',
       'category',
       'stage',

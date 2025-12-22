@@ -6,11 +6,14 @@ import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { Organization } from '../../src/entity/Organization';
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import { OpportunityLocation } from '../../src/entity/opportunities/OpportunityLocation';
 import createOrGetConnection from '../../src/db';
 import {
   authorizeRequest,
   createGarmrMock,
   createMockBrokkrTransport,
+  createMockGondulOpportunityServiceTransport,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -29,8 +32,13 @@ import {
   opportunityQuestionsFixture,
   opportunityFeedbackQuestionsFixture,
   organizationsFixture,
+  datasetLocationsFixture,
+  opportunityLocationsFixture,
 } from '../fixture/opportunity';
-import { OpportunityUser } from '../../src/entity/opportunities/user';
+import {
+  OpportunityUser,
+  OpportunityUserRecruiter,
+} from '../../src/entity/opportunities/user';
 import {
   OpportunityMatchStatus,
   OpportunityUserType,
@@ -41,7 +49,9 @@ import {
   CompanyStage,
   EmploymentType,
   LocationType,
+  OpportunityService,
   OpportunityState,
+  OpportunityType,
   SalaryPeriod,
   SeniorityLevel,
 } from '@dailydotdev/schema';
@@ -73,7 +83,33 @@ import * as gondulModule from '../../src/common/gondul';
 import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import * as brokkrCommon from '../../src/common/brokkr';
+import * as gondulCommon from '../../src/common/gondul';
 import { randomUUID } from 'node:crypto';
+import { updateRecruiterSubscriptionFlags } from '../../src/common';
+import { SubscriptionStatus } from '../../src/common/plus';
+import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
+
+// Mock Slack WebClient
+const mockConversationsCreate = jest.fn();
+const mockConversationsInviteShared = jest.fn();
+const mockConversationsJoin = jest.fn();
+
+jest.mock('@slack/web-api', () => ({
+  ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
+  WebClient: jest.fn().mockImplementation(() => ({
+    conversations: {
+      get create() {
+        return mockConversationsCreate;
+      },
+      get inviteShared() {
+        return mockConversationsInviteShared;
+      },
+      get join() {
+        return mockConversationsJoin;
+      },
+    },
+  })),
+}));
 
 const deleteFileFromBucket = jest.spyOn(googleCloud, 'deleteFileFromBucket');
 const uploadEmploymentAgreementFromBuffer = jest.spyOn(
@@ -115,8 +151,10 @@ beforeEach(async () => {
 
   await saveFixtures(con, User, usersFixture);
   await saveFixtures(con, Keyword, keywordsFixture);
+  await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
   await saveFixtures(con, Organization, organizationsFixture);
   await saveFixtures(con, Opportunity, opportunitiesFixture);
+  await saveFixtures(con, OpportunityLocation, opportunityLocationsFixture);
   await saveFixtures(con, QuestionScreening, opportunityQuestionsFixture);
   await saveFixtures(
     con,
@@ -182,9 +220,11 @@ describe('query opportunityById', () => {
           }
           equity
         }
-        location {
-          city
-          country
+        locations {
+          location {
+            city
+            country
+          }
           type
         }
         organization {
@@ -193,7 +233,11 @@ describe('query opportunityById', () => {
           image
           website
           description
-          location
+          location {
+            city
+            country
+            subdivision
+          }
           customLinks {
             ...Link
           }
@@ -268,10 +312,12 @@ describe('query opportunityById', () => {
         },
         equity: true,
       },
-      location: [
+      locations: [
         {
-          city: null,
-          country: 'Norway',
+          location: {
+            city: null,
+            country: 'Norway',
+          },
           type: 1,
         },
       ],
@@ -281,7 +327,11 @@ describe('query opportunityById', () => {
         image: 'https://example.com/logo.png',
         website: 'https://daily.dev',
         description: 'A platform for developers',
-        location: 'San Francisco',
+        location: {
+          city: 'San Francisco',
+          country: 'USA',
+          subdivision: 'CA',
+        },
         customLinks: [
           {
             type: 'custom',
@@ -749,11 +799,13 @@ describe('query opportunityMatches', () => {
   const GET_OPPORTUNITY_MATCHES_QUERY = /* GraphQL */ `
     query GetOpportunityMatches(
       $opportunityId: ID!
+      $status: OpportunityMatchStatus
       $first: Int
       $after: String
     ) {
       opportunityMatches(
         opportunityId: $opportunityId
+        status: $status
         first: $first
         after: $after
       ) {
@@ -762,6 +814,7 @@ describe('query opportunityMatches', () => {
           hasPreviousPage
           endCursor
           startCursor
+          totalCount
         }
         edges {
           node {
@@ -879,6 +932,75 @@ describe('query opportunityMatches', () => {
       status: 1,
       role: 'Senior Developer',
     });
+  });
+
+  it('should include previewUser with additional information', async () => {
+    loggedUser = '1';
+
+    const GET_OPPORTUNITY_MATCHES_WITH_PREVIEW_USER_QUERY = /* GraphQL */ `
+      query GetOpportunityMatchesWithPreviewUser(
+        $opportunityId: ID!
+        $first: Int
+      ) {
+        opportunityMatches(opportunityId: $opportunityId, first: $first) {
+          edges {
+            node {
+              userId
+              status
+              previewUser {
+                id
+                profileImage
+                anonId
+                description
+                openToWork
+                seniority
+                location
+                topTags
+                activeSquads {
+                  id
+                  name
+                  handle
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(
+      GET_OPPORTUNITY_MATCHES_WITH_PREVIEW_USER_QUERY,
+      {
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          first: 10,
+        },
+      },
+    );
+
+    expect(res.errors).toBeFalsy();
+
+    const acceptedMatch = res.data.opportunityMatches.edges.find(
+      (e: { node: { status: string } }) =>
+        e.node.status === 'candidate_accepted',
+    );
+
+    expect(acceptedMatch.node.previewUser).toBeDefined();
+    expect(acceptedMatch.node.previewUser.id).toBe('2');
+    expect(acceptedMatch.node.previewUser.anonId).toBeTruthy();
+    expect(Array.isArray(acceptedMatch.node.previewUser.topTags)).toBe(true);
+    expect(Array.isArray(acceptedMatch.node.previewUser.activeSquads)).toBe(
+      true,
+    );
+    // Verify activeSquads contains Source objects with expected fields
+    if (acceptedMatch.node.previewUser.activeSquads.length > 0) {
+      expect(acceptedMatch.node.previewUser.activeSquads[0]).toHaveProperty(
+        'id',
+      );
+      expect(acceptedMatch.node.previewUser.activeSquads[0]).toHaveProperty(
+        'name',
+      );
+    }
   });
 
   it('should include screening, feedback, and application rank', async () => {
@@ -1076,6 +1198,70 @@ describe('query opportunityMatches', () => {
     expect(user2Match.node.candidatePreferences.role).toBe('Senior Developer');
     // salaryExpectation should be null for recruiter viewing another candidate
     expect(user2Match.node.candidatePreferences.salaryExpectation).toBeNull();
+  });
+
+  it('should filter by candidate_accepted status when provided', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: 'candidate_accepted',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityMatches.edges).toHaveLength(1);
+    expect(res.data.opportunityMatches.edges[0].node.status).toBe(
+      'candidate_accepted',
+    );
+    expect(res.data.opportunityMatches.edges[0].node.userId).toBe('2');
+  });
+
+  it('should reject invalid status values', async () => {
+    loggedUser = '1';
+
+    // 'pending' is not an allowed status for this query
+    await testQueryErrorCode(
+      client,
+      {
+        query: GET_OPPORTUNITY_MATCHES_QUERY,
+        variables: {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          status: 'pending',
+          first: 10,
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should return totalCount of matches for the given status filter', async () => {
+    loggedUser = '1';
+
+    // Test with no status filter - should count all allowed statuses
+    const resAll = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        first: 10,
+      },
+    });
+
+    expect(resAll.errors).toBeFalsy();
+    expect(resAll.data.opportunityMatches.pageInfo.totalCount).toBe(3);
+
+    // Test with candidate_accepted status filter
+    const resFiltered = await client.query(GET_OPPORTUNITY_MATCHES_QUERY, {
+      variables: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: 'candidate_accepted',
+        first: 10,
+      },
+    });
+
+    expect(resFiltered.errors).toBeFalsy();
+    expect(resFiltered.data.opportunityMatches.pageInfo.totalCount).toBe(1);
   });
 });
 
@@ -1438,9 +1624,12 @@ describe('query userOpportunityMatches', () => {
                 id
                 title
                 state
-                location {
-                  city
-                  country
+                locations {
+                  location {
+                    city
+                    country
+                  }
+                  type
                 }
                 organization {
                   id
@@ -1471,10 +1660,13 @@ describe('query userOpportunityMatches', () => {
       id: '550e8400-e29b-41d4-a716-446655440001',
       title: 'Senior Full Stack Developer',
       state: 2, // LIVE
-      location: [
+      locations: [
         {
-          city: null,
-          country: 'Norway',
+          location: {
+            city: null,
+            country: 'Norway',
+          },
+          type: 1,
         },
       ],
       organization: {
@@ -1508,8 +1700,6 @@ describe('query getCandidatePreferences', () => {
           city
           country
           subdivision
-          continent
-          type
         }
         locationType
         employmentType
@@ -1543,7 +1733,7 @@ describe('query getCandidatePreferences', () => {
           lastModified: new Date('2024-10-10T10:00:00Z'),
         },
         salaryExpectation: { min: '50000', period: SalaryPeriod.ANNUAL },
-        location: [
+        customLocation: [
           { country: 'Norway' },
           { city: 'London', country: 'UK', continent: 'Europe' },
         ],
@@ -1618,8 +1808,8 @@ describe('query getCandidatePreferences', () => {
         period: 1,
       },
       location: [
-        { country: 'Norway' },
-        { city: 'London', country: 'UK', continent: 'Europe' },
+        { country: 'Norway', city: null, subdivision: null },
+        { city: 'London', country: 'UK', subdivision: null },
       ],
       locationType: [1, 3],
       employmentType: [1, 2, 3],
@@ -1751,7 +1941,6 @@ describe('mutation updateCandidatePreferences', () => {
         roleType: 1.0,
         employmentType: [1, 3],
         salaryExpectation: { min: 70000, period: 1 },
-        location: [{ city: 'Berlin', country: 'Germany' }],
         locationType: [1, 2],
         customKeywords: true,
       },
@@ -1771,7 +1960,6 @@ describe('mutation updateCandidatePreferences', () => {
       roleType: 1.0,
       employmentType: [1, 3], // FULL_TIME, CONTRACT
       salaryExpectation: { min: '70000', period: 1 }, // ANNUAL
-      location: [{ city: 'Berlin', country: 'Germany' }],
       locationType: [1, 2], // REMOTE, ONSITE
       customKeywords: true,
     });
@@ -3690,10 +3878,12 @@ describe('mutation editOpportunity', () => {
             period
           }
         }
-        location {
-          city
-          country
+        locations {
           type
+          location {
+            city
+            country
+          }
         }
         keywords {
           keyword
@@ -3763,11 +3953,10 @@ describe('mutation editOpportunity', () => {
         payload: {
           title: 'Updated Senior Full Stack Developer',
           tldr: 'Updated TLDR',
-          location: [{ country: 'Germany', type: LocationType.REMOTE }],
           meta: {
             employmentType: EmploymentType.INTERNSHIP,
             teamSize: 100,
-            salary: { min: 100, max: 200, period: SalaryPeriod.HOURLY },
+            salary: { min: 180, max: 200, period: SalaryPeriod.HOURLY },
             seniorityLevel: SeniorityLevel.VP,
             roleType: RoleType.Managerial,
           },
@@ -3780,12 +3969,20 @@ describe('mutation editOpportunity', () => {
       id: opportunitiesFixture[0].id,
       title: 'Updated Senior Full Stack Developer',
       tldr: 'Updated TLDR',
-      location: [{ country: 'Germany', city: null, type: 1 }],
+      locations: [
+        {
+          type: 1,
+          location: {
+            city: null,
+            country: 'Norway',
+          },
+        },
+      ],
       meta: {
         employmentType: EmploymentType.INTERNSHIP,
         teamSize: 100,
         salary: {
-          min: 100,
+          min: 180,
           max: 200,
           period: SalaryPeriod.HOURLY,
         },
@@ -4014,7 +4211,7 @@ describe('mutation editOpportunity', () => {
         expect(extensions.issues.length).toEqual(1);
         expect(extensions.issues[0].code).toEqual('too_big');
         expect(extensions.issues[0].message).toEqual(
-          'Too big: expected array to have <=3 items',
+          'No more than three questions are allowed',
         );
         expect(extensions.issues[0].path).toEqual(['questions']);
       },
@@ -4154,7 +4351,10 @@ describe('mutation editOpportunity', () => {
             description
             perks
             founded
-            location
+            location {
+              city
+              country
+            }
             category
             size
             stage
@@ -4172,7 +4372,7 @@ describe('mutation editOpportunity', () => {
             description: 'Updated description',
             perks: ['Remote work', 'Flexible hours'],
             founded: 2021,
-            location: 'Berlin, Germany',
+            externalLocationId: 'norway-remote',
             category: 'Technology',
             size: CompanySize.COMPANY_SIZE_51_200,
             stage: CompanyStage.SERIES_B,
@@ -4187,7 +4387,10 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
+      location: {
+        city: null,
+        country: 'Norway',
+      },
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
@@ -4203,10 +4406,13 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
+    });
+    const location = await organization.location;
+    expect(location).toMatchObject({
+      country: 'Norway',
     });
   });
 
@@ -4338,7 +4544,10 @@ describe('mutation editOpportunity', () => {
             description
             perks
             founded
-            location
+            location {
+              city
+              country
+            }
             category
             size
             stage
@@ -4380,7 +4589,7 @@ describe('mutation editOpportunity', () => {
             description: 'Updated description',
             perks: ['Remote work', 'Flexible hours'],
             founded: 2021,
-            location: 'Berlin, Germany',
+            externalLocationId: 'norway-remote',
             category: 'Technology',
             size: CompanySize.COMPANY_SIZE_51_200,
             stage: CompanyStage.SERIES_B,
@@ -4396,7 +4605,10 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
+      location: {
+        city: null,
+        country: 'Norway',
+      },
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
@@ -4413,10 +4625,13 @@ describe('mutation editOpportunity', () => {
       description: 'Updated description',
       perks: ['Remote work', 'Flexible hours'],
       founded: 2021,
-      location: 'Berlin, Germany',
       category: 'Technology',
       size: CompanySize.COMPANY_SIZE_51_200,
       stage: CompanyStage.SERIES_B,
+    });
+    const location = await organization.location;
+    expect(location).toMatchObject({
+      country: 'Norway',
     });
 
     const opportunityAfter = await con
@@ -4733,14 +4948,6 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
         title: 'Opportunity without questions',
         tldr: 'TLDR',
         state: OpportunityState.DRAFT,
-        location: [
-          {
-            type: LocationType.HYBRID,
-            city: 'Varaždin',
-            subdivision: 'Varaždinska',
-            country: 'Croatia',
-          },
-        ],
         meta: {
           seniorityLevel: SeniorityLevel.SENIOR,
           employmentType: EmploymentType.PART_TIME,
@@ -4751,6 +4958,11 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
         },
       }),
     );
+    await con.getRepository(OpportunityLocation).save({
+      opportunityId: opportunity.id,
+      locationId: '660e8400-e29b-41d4-a716-446655440001',
+      type: LocationType.HYBRID,
+    });
 
     await con.getRepository(OpportunityUser).save({
       opportunityId: opportunity.id,
@@ -4782,7 +4994,7 @@ describe('mutation recommendOpportunityScreeningQuestions', () => {
 
     expect(clientSpy).toHaveBeenCalledTimes(1);
     expect(clientSpy).toHaveBeenCalledWith({
-      jobOpportunity: `**Location:** HYBRID, Varaždin, Varaždinska, Croatia
+      jobOpportunity: `**Location:** HYBRID, Norway
 **Job Type:** PART_TIME
 **Seniority Level:** SENIOR
 
@@ -4860,7 +5072,7 @@ describe('mutation updateOpportunityState', () => {
     );
   });
 
-  it('should return validation error when required data is missing for LIVE state', async () => {
+  it('should return validation error when required data is missing for IN_REVIEW state', async () => {
     loggedUser = '1';
 
     const opportunity = await con.getRepository(OpportunityJob).save({
@@ -4876,13 +5088,32 @@ describe('mutation updateOpportunityState', () => {
       type: OpportunityUserType.Recruiter,
     });
 
+    await con.getRepository(Organization).update(
+      {
+        id: organizationsFixture[0].id,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
+
     await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
         variables: {
           id: opportunity.id,
-          state: OpportunityState.LIVE,
+          state: OpportunityState.IN_REVIEW,
         },
       },
       'ZOD_VALIDATION_ERROR',
@@ -4910,10 +5141,30 @@ describe('mutation updateOpportunityState', () => {
     );
   });
 
-  it('should update state to LIVE when data is valid', async () => {
+  it('should not allow LIVE state transition', async () => {
+    loggedUser = '1';
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[3].id;
+
+    await con.getRepository(Organization).update(
+      {
+        id: opportunitiesFixture[3].organizationId!,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
 
     await con.getRepository(OpportunityUser).save({
       opportunityId,
@@ -4938,6 +5189,86 @@ describe('mutation updateOpportunityState', () => {
           responsibilities: { content: 'Responsibilities content', html: '' },
           requirements: { content: 'Requirements content', html: '' },
         },
+        meta: {
+          ...opportunitiesFixture[3].meta,
+          salary: {
+            ...opportunitiesFixture[3].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
+        },
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: opportunityId,
+          state: OpportunityState.LIVE,
+        },
+      },
+      'CONFLICT',
+      'Invalid state transition',
+    );
+  });
+
+  it('should update state to IN_REVIEW when data is valid', async () => {
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[3].id;
+
+    await con.getRepository(Organization).update(
+      {
+        id: opportunitiesFixture[3].organizationId!,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(OpportunityKeyword).save({
+      opportunityId,
+      keyword: 'typescript',
+    });
+    await con.getRepository(QuestionScreening).save({
+      opportunityId,
+      title: 'Tell us about a recent project',
+      questionOrder: 0,
+    });
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+        meta: {
+          ...opportunitiesFixture[3].meta,
+          salary: {
+            ...opportunitiesFixture[3].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
+        },
       },
     );
 
@@ -4947,7 +5278,7 @@ describe('mutation updateOpportunityState', () => {
     expect(before.state).toBe(OpportunityState.DRAFT);
 
     const res = await client.mutate(MUTATION, {
-      variables: { id: opportunityId, state: OpportunityState.LIVE },
+      variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
     });
 
     expect(res.errors).toBeFalsy();
@@ -4956,10 +5287,10 @@ describe('mutation updateOpportunityState', () => {
     const after = await con
       .getRepository(Opportunity)
       .findOneByOrFail({ id: opportunityId });
-    expect(after.state).toBe(OpportunityState.LIVE);
+    expect(after.state).toBe(OpportunityState.IN_REVIEW);
   });
 
-  it('should throw conflict on LIVE transition if opportunity is CLOSED', async () => {
+  it('should throw conflict on IN_REVIEW transition if opportunity is CLOSED', async () => {
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[0].id; // already LIVE
@@ -4978,14 +5309,14 @@ describe('mutation updateOpportunityState', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: opportunityId, state: OpportunityState.LIVE },
+        variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
       },
       'CONFLICT',
       'Opportunity is closed',
     );
   });
 
-  it('should throw conflict on LIVE transition if opportunity does not have organization', async () => {
+  it('should throw conflict on IN_REVIEW transition if opportunity does not have organization', async () => {
     loggedUser = '1';
 
     const opportunityId = opportunitiesFixture[0].id;
@@ -5006,10 +5337,180 @@ describe('mutation updateOpportunityState', () => {
       client,
       {
         mutation: MUTATION,
-        variables: { id: opportunityId, state: OpportunityState.LIVE },
+        variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
       },
       'CONFLICT',
       'Opportunity must have an organization assigned',
+    );
+  });
+
+  it('should update state to CLOSED state', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      title: 'Test',
+      tldr: 'Test',
+      state: OpportunityState.LIVE,
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(Organization).update(
+      {
+        id: organizationsFixture[0].id,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [
+              {
+                priceId: 'test',
+                quantity: 1,
+              },
+            ],
+          }),
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { id: opportunity.id, state: OpportunityState.CLOSED },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const after = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunity.id });
+    expect(after.state).toBe(OpportunityState.CLOSED);
+  });
+
+  it('should throw conflict on CLOSED transition when subscription is missing', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      title: 'Test',
+      tldr: 'Test',
+      state: OpportunityState.LIVE,
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunity.id, state: OpportunityState.CLOSED },
+      },
+      'CONFLICT',
+      'Opportunity subscription not found',
+    );
+  });
+
+  it('should throw conflict on IN_REVIEW transition when subscription is not active yet', async () => {
+    loggedUser = '1';
+
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      title: 'Test',
+      tldr: 'Test',
+      state: OpportunityState.DRAFT,
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunity.id, state: OpportunityState.IN_REVIEW },
+      },
+      'CONFLICT',
+      'Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.',
+    );
+  });
+
+  it('should throw payment required on IN_REVIEW transition when no more allowed seats', async () => {
+    loggedUser = '1';
+
+    const opportunityId = opportunitiesFixture[3].id;
+
+    await con.getRepository(Organization).update(
+      {
+        id: opportunitiesFixture[3].organizationId!,
+      },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [],
+          }),
+      },
+    );
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(OpportunityKeyword).save({
+      opportunityId,
+      keyword: 'typescript',
+    });
+    await con.getRepository(QuestionScreening).save({
+      opportunityId,
+      title: 'Tell us about a recent project',
+      questionOrder: 0,
+    });
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+        meta: {
+          ...opportunitiesFixture[3].meta,
+          salary: {
+            ...opportunitiesFixture[3].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
+        },
+      },
+    );
+
+    const before = await con
+      .getRepository(Opportunity)
+      .findOneByOrFail({ id: opportunityId });
+    expect(before.state).toBe(OpportunityState.DRAFT);
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
+      },
+      'PAYMENT_REQUIRED',
+      "Your don't have any more seats available. Please update your subscription to add more seats.",
     );
   });
 });
@@ -5054,10 +5555,12 @@ describe('mutation parseOpportunity', () => {
             period
           }
         }
-        location {
-          city
-          country
-          subdivision
+        locations {
+          location {
+            city
+            country
+            subdivision
+          }
           type
         }
         keywords {
@@ -5065,6 +5568,10 @@ describe('mutation parseOpportunity', () => {
         }
         questions {
           id
+          title
+          placeholder
+        }
+        feedbackQuestions {
           title
           placeholder
         }
@@ -5076,6 +5583,9 @@ describe('mutation parseOpportunity', () => {
     jest.clearAllMocks();
 
     await deleteKeysByPattern(`${rateLimiterName}:*`);
+
+    // Ensure dataset locations are available
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
 
     const transport = createMockBrokkrTransport();
 
@@ -5169,15 +5679,23 @@ describe('mutation parseOpportunity', () => {
           html: '<p>These are the requirements of the mocked opportunity.</p>\n',
         },
       },
-      location: [
+      locations: [
         {
-          city: 'San Francisco',
-          country: 'USA',
-          subdivision: 'CA',
           type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'USA',
+            subdivision: null,
+          },
         },
       ],
       questions: [],
+      feedbackQuestions: [
+        {
+          title: 'Why did you reject this opportunity?',
+          placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
+        },
+      ],
     });
 
     const opportunity = await con.getRepository(OpportunityJob).findOne({
@@ -5276,12 +5794,14 @@ describe('mutation parseOpportunity', () => {
           html: '<p>These are the requirements of the mocked opportunity.</p>\n',
         },
       },
-      location: [
+      locations: [
         {
-          city: 'San Francisco',
-          country: 'USA',
-          subdivision: 'CA',
           type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'USA',
+            subdivision: null,
+          },
         },
       ],
       questions: [],
@@ -5372,21 +5892,627 @@ describe('mutation parseOpportunity', () => {
     expect(body.errors[0].message).toBe('File type not supported');
   });
 
-  it('should not allow authenticated users to parse opportunity', async () => {
+  it('should parse opportunity for authenticated user', async () => {
     loggedUser = '1';
 
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        payload: {
-          url: 'https://example.com/opportunity',
+    trackingId = 'anon1';
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    expect(body.data.parseOpportunity).toMatchObject({
+      title: 'Mocked Opportunity Title',
+      tldr: 'This is a mocked TL;DR of the opportunity.',
+      keywords: [
+        { keyword: 'mock' },
+        { keyword: 'opportunity' },
+        { keyword: 'test' },
+      ],
+      meta: {
+        employmentType: EmploymentType.FULL_TIME,
+        seniorityLevel: SeniorityLevel.SENIOR,
+        roleType: RoleType.Auto,
+        salary: {
+          min: 1000,
+          max: 2000,
+          period: SalaryPeriod.MONTHLY,
         },
+      },
+      content: {
+        overview: {
+          content: 'This is the overview of the mocked opportunity.',
+          html: '<p>This is the overview of the mocked opportunity.</p>\n',
+        },
+        responsibilities: {
+          content: 'These are the responsibilities of the mocked opportunity.',
+          html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
+        },
+        requirements: {
+          content: 'These are the requirements of the mocked opportunity.',
+          html: '<p>These are the requirements of the mocked opportunity.</p>\n',
+        },
+      },
+      locations: [
+        {
+          type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'USA',
+            subdivision: null,
+          },
+        },
+      ],
+      questions: [],
+      feedbackQuestions: [
+        {
+          title: 'Why did you reject this opportunity?',
+          placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
+        },
+      ],
+    });
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: body.data.parseOpportunity.id,
       },
     });
 
-    expect(res.errors).toBeDefined();
-    expect(res.errors?.[0].extensions.code).toBe('FORBIDDEN');
-    expect(res.errors?.[0].message).toBe(
-      'Not available for authenticated users yet',
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.state).toBe(OpportunityState.DRAFT);
+
+    const opportunityRecruiter = await con
+      .getRepository(OpportunityUserRecruiter)
+      .findOne({
+        where: {
+          opportunityId: body.data.parseOpportunity.id,
+          userId: loggedUser,
+        },
+      });
+
+    expect(opportunityRecruiter).toBeDefined();
+  });
+});
+
+describe('mutation createSharedSlackChannel', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CreateSharedSlackChannel($email: String!, $channelName: String!) {
+      createSharedSlackChannel(email: $email, channelName: $channelName) {
+        _
+      }
+    }
+  `;
+
+  beforeEach(() => {
+    // Reset all mocks before each test
+    mockConversationsCreate.mockReset();
+    mockConversationsInviteShared.mockReset();
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          email: 'user@example.com',
+          channelName: 'test-channel',
+        },
+      },
+      'UNAUTHENTICATED',
     );
+  });
+
+  it('should forbid non-recruiters from creating slack channels', async () => {
+    loggedUser = '5'; // User 5 is not a recruiter in fixtures
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          email: 'user@example.com',
+          channelName: 'test-channel',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should create slack channel and invite user successfully', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Mock successful Slack API responses
+    mockConversationsCreate.mockResolvedValue({
+      ok: true,
+      channel: {
+        id: 'C1234567890',
+        name: 'test-channel',
+      },
+    });
+
+    mockConversationsInviteShared.mockResolvedValue({
+      ok: true,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        email: 'user@example.com',
+        channelName: 'test-channel',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSharedSlackChannel).toEqual({ _: true });
+
+    // Verify Slack API calls were made
+    expect(mockConversationsCreate).toHaveBeenCalledWith({
+      name: 'test-channel',
+      is_private: false,
+    });
+    expect(mockConversationsInviteShared).toHaveBeenCalledWith({
+      channel: 'C1234567890',
+      emails: ['user@example.com'],
+      external_limited: true,
+    });
+  });
+
+  it('should handle slack channel creation failure', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Mock failed channel creation (no channel in response)
+    mockConversationsCreate.mockResolvedValue({
+      ok: false,
+      error: 'name_taken',
+      channel: undefined,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        email: 'user@example.com',
+        channelName: 'existing-channel',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createSharedSlackChannel).toEqual({ _: false });
+
+    // Should not proceed to invite if channel creation fails
+    expect(mockConversationsInviteShared).not.toHaveBeenCalled();
+  });
+
+  it('should handle invitation failure', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    mockConversationsCreate.mockResolvedValue({
+      ok: true,
+      channel: {
+        id: 'C1234567890',
+        name: 'test-channel',
+      },
+    });
+
+    mockConversationsInviteShared.mockRejectedValue(
+      new Error('Failed to invite user'),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        email: 'user@example.com',
+        channelName: 'test-channel',
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+});
+
+describe('query opportunityPreview', () => {
+  const OPPORTUNITY_PREVIEW_QUERY = /* GraphQL */ `
+    query OpportunityPreview($first: Int, $after: String, $opportunityId: ID) {
+      opportunityPreview(
+        first: $first
+        after: $after
+        opportunityId: $opportunityId
+      ) {
+        edges {
+          node {
+            id
+            anonId
+            topTags
+          }
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          startCursor
+          endCursor
+        }
+        result {
+          tags
+          companies {
+            name
+            favicon
+          }
+          squads {
+            id
+            handle
+          }
+          totalCount
+          opportunityId
+          status
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    trackingId = 'test-anon-user-123';
+
+    const transport = createMockGondulOpportunityServiceTransport();
+
+    const serviceClient = {
+      instance: createClient(OpportunityService, transport),
+      garmr: createGarmrMock(),
+    };
+
+    jest
+      .spyOn(gondulCommon, 'getGondulOpportunityServiceClient')
+      .mockImplementation((): ServiceClient<typeof OpportunityService> => {
+        return serviceClient;
+      });
+  });
+
+  afterEach(() => {
+    trackingId = undefined;
+  });
+
+  it('should return preview with opportunityId', async () => {
+    // Create an opportunity with cached preview data
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: ['1', '2'],
+            totalCount: 2,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+    expect(res.data.opportunityPreview.result.totalCount).toBe(2);
+  });
+
+  it('should return opportunity preview result structure', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: ['1'],
+            totalCount: 1,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const result = res.data.opportunityPreview.result;
+    expect(result).toMatchObject({
+      opportunityId: opportunitiesFixture[0].id,
+      totalCount: 1,
+      tags: expect.any(Array),
+      companies: expect.any(Array),
+      squads: expect.any(Array),
+      status: OpportunityPreviewStatus.READY,
+    });
+  });
+
+  it('should return preview based on opportunityId for logged in user', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          preview: {
+            userIds: ['1', '2'],
+            totalCount: 2,
+            status: OpportunityPreviewStatus.READY,
+          },
+        },
+      },
+    );
+
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: '1',
+    });
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10, opportunityId: opportunitiesFixture[0].id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+    expect(res.data.opportunityPreview.result.totalCount).toBe(2);
+    expect(res.data.opportunityPreview.result.status).toBe(
+      OpportunityPreviewStatus.READY,
+    );
+  });
+
+  it('should indicate async generation is in progress', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+    expect(res.data.opportunityPreview.result.totalCount).toBe(0);
+    expect(res.data.opportunityPreview.edges).toHaveLength(0);
+    expect(res.data.opportunityPreview.result.status).toBe(
+      OpportunityPreviewStatus.PENDING,
+    );
+  });
+
+  it('should fallback status to unspecified for empty result for backward compatibility', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: [],
+            totalCount: 0,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const result = res.data.opportunityPreview.result;
+    expect(res.data.opportunityPreview.edges).toHaveLength(0);
+    expect(result).toMatchObject({
+      opportunityId: opportunitiesFixture[0].id,
+      totalCount: 0,
+      tags: expect.any(Array),
+      companies: expect.any(Array),
+      squads: expect.any(Array),
+      status: OpportunityPreviewStatus.UNSPECIFIED,
+    });
+  });
+
+  it('should fallback to ready when there is result for backward compatibility', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+          preview: {
+            userIds: ['1'],
+            totalCount: 1,
+          },
+        },
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const result = res.data.opportunityPreview.result;
+    expect(result).toMatchObject({
+      opportunityId: opportunitiesFixture[0].id,
+      totalCount: 1,
+      tags: expect.any(Array),
+      companies: expect.any(Array),
+      squads: expect.any(Array),
+      status: OpportunityPreviewStatus.READY,
+    });
+  });
+
+  it('should send valid opportunity data to gondul', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+        },
+      },
+    );
+
+    const opportunityPreviewSpy = jest.spyOn(
+      gondulModule.getGondulOpportunityServiceClient().instance,
+      'preview',
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(opportunityPreviewSpy).toHaveBeenCalledTimes(1);
+    expect(opportunityPreviewSpy.mock.calls[0][0]).toEqual({
+      content: {
+        interviewProcess: { content: '' },
+        overview: {
+          content: 'We are looking for a Senior Full Stack Developer...',
+          html: '<p>We are looking for a Senior Full Stack Developer...</p>',
+        },
+        requirements: { content: '' },
+        responsibilities: { content: '' },
+        whatYoullDo: { content: '' },
+      },
+      createdAt: expect.any(Number),
+      flags: {},
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      keywords: ['webdev', 'fullstack', 'Fortune 500'],
+      location: [{ country: 'Norway', iso2: 'NO' }],
+      meta: {
+        employmentType: EmploymentType.FULL_TIME,
+        equity: true,
+        roleType: 0,
+        salary: {
+          currency: 'USD',
+          max: 120000,
+          min: 60000,
+          period: SalaryPeriod.ANNUAL,
+        },
+        seniorityLevel: SeniorityLevel.SENIOR,
+        teamSize: 10,
+      },
+      state: OpportunityState.LIVE,
+      title: 'Senior Full Stack Developer',
+      tldr: 'Join our team as a Senior Full Stack Developer',
+      type: OpportunityType.JOB,
+      updatedAt: expect.any(Number),
+    });
+  });
+});
+
+describe('query opportunityStats', () => {
+  const OPPORTUNITY_STATS_QUERY = /* GraphQL */ `
+    query OpportunityStats($opportunityId: ID!) {
+      opportunityStats(opportunityId: $opportunityId) {
+        matched
+        reached
+        considered
+        decided
+        forReview
+        introduced
+      }
+    }
+  `;
+
+  it('should return stats for opportunity with multiple match statuses', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(OPPORTUNITY_STATS_QUERY, {
+      variables: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityStats).toEqual({
+      matched: 12_000, // Mock value
+      reached: 4, // Total: pending(1), candidate_accepted(1), recruiter_accepted(1), recruiter_rejected(1)
+      considered: 3, // All except pending
+      decided: 0, // No candidate_rejected in fixture
+      forReview: 1, // candidate_accepted
+      introduced: 1, // recruiter_accepted
+    });
+  });
+
+  it('should deny access if user is not a recruiter for the opportunity', async () => {
+    loggedUser = '3'; // User 3 is not a recruiter for opportunity 0
+
+    const res = await client.query(OPPORTUNITY_STATS_QUERY, {
+      variables: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toBe('FORBIDDEN');
   });
 });

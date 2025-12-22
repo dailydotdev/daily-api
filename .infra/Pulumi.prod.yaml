@@ -63,8 +63,7 @@ config:
     digestQueueConcurrency: 1000
     experimentationKey:
       secure: AAABADH0xT7H6UeMlZG0fUEGjohQ1dvwcbIgJ3WMI5wfqScub3Qp3nvUDhska0DunbFmvj7IrtH07noRL1lCYg==
-    skadiApiOrigin: http://skadi-post-boost-api.daily.svc.cluster.local
-    skadiApiOriginV2: http://skadi-api-server.daily.svc.cluster.local
+    skadiApiOriginV2: http://skadi-boost-api-server.daily.svc.cluster.local
     freyjaOrigin: http://freyja.freyja
     growthbookApiConfigClientKey:
       secure: AAABAJEgS6b8xZv0j06KOawyNMdkTpGmzKs7Ryed5SofiLp3vSTjxhqQuKSVsaHjR5s=
@@ -180,7 +179,7 @@ config:
     employmentAgreementBucketName:
       secure: AAABALYmrJB/AIJh7SXF/2vStsA+vCbPUZ3GVJH/JgIxRg9azoA5A/BZkpSUYHwbVGMLP4yNZpc9Js3/2ISG
     gondulOrigin:
-      secure: AAABANvfb9iJDOmbRPpMpkPzBLpeKTHsLCsFkNfU38yn53ZKUmeP0PA34uVGPZp+y4luHmEFXRE/jy/4rFwr9ZoVtufE59aa7J5AtVJcYY1VlumIY6P5olg=
+      secure: AAABAGjjPkdIOygNSpVtBILtv6W4LBCtBJVtjROFM0k8e5WOgvyIwd6ogQEVNk9XRuFWOt3HtowA1vqLFGOf/Iq9V02Si78ZklQXikSPMgzB3ai5vMET1dCG2Q==
     brokkrOrigin:
       secure: AAABABvk5Zi2sL2p8Gjl4vwVS+Ge+P2S3Jo8yDBOTNMZ6FZ1WquX+DqQkvE1YBTCvSMy9kmd+TCsRzeV3LrTC0Xbnlh7PxLog7fseJS37GUJ
     slackRecruiterWebhook:
@@ -190,6 +189,10 @@ config:
     mapboxAccessToken:
       secure: AAABAGQ/EX6kte5JXzyFrBmYlob0zx+IyG7RIbbcpySfexg2C6aqhoAJQ+aaXCw9UaVXMbMlncgnVvCWnhmR361glY6aDeNfUFXEBYARRJRnZJjXWPXw6KJEWinueHakjMeTpTelCQ2bCBXS0TzEtEE/n0HDqynumezR7A==
     mapboxGeocodingUrl: https://api.mapbox.com/search/geocode/v6/forward
+    slackBotToken:
+      secure: AAABAH+UKbv4/Uoc9jYySYeAr7m+W7OCm/kQa9/3LCrKURh3TcPqgNPqF1ugLg31AAfsT4qVafpb0jiZm+ZCfDTYzrCfPmebxLjV0AAkHAy3kHgLK1v6YNGH
+    gondulOpportunityServerOrigin:
+      secure: AAABADfUUbSK5WvKYJM6lgpfvaPChqDYdUolX6Kv6/TMy0D7hWJWPbkipmq9W8vXbkuM97XzU2RlJGFB/9eiVfEdB6jBvu2C9iu5GbJ276481jB8Q+lw1do=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

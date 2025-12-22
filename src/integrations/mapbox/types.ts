@@ -56,5 +56,5 @@ export interface MapboxResponse {
 
 export interface IMapboxClient extends IGarmrClient {
   geocode(query: string): Promise<MapboxResponse>;
-  autocomplete(query: string): Promise<MapboxResponse>;
+  autocomplete(query: string, limit?: number): Promise<MapboxResponse>;
 }

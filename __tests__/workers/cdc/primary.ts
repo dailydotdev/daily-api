@@ -179,6 +179,7 @@ import {
 } from '../../../src/entity/opportunities/types';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
   organizationsFixture,
 } from '../../fixture/opportunity';
@@ -194,6 +195,7 @@ import { UserExperience } from '../../../src/entity/user/experiences/UserExperie
 import { UserExperienceWork } from '../../../src/entity/user/experiences/UserExperienceWork';
 import { UserExperienceType } from '../../../src/entity/user/experiences/types';
 import { Company } from '../../../src/entity/Company';
+import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -3828,6 +3830,33 @@ describe('post content updated', () => {
       ],
     );
   });
+
+  it('should notify on share post updated', async () => {
+    const after: ChangeObject<SharePost> = {
+      ...contentUpdatedPost,
+      type: PostType.Share,
+      sharedPostId: 'sp1',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<SharePost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
+      [
+        'api.v1.content-updated',
+        {
+          sharedPostId: 'sp1',
+          type: PostType.Share,
+        },
+      ],
+    );
+  });
 });
 
 describe('user streak change', () => {
@@ -6159,6 +6188,7 @@ describe('opportunity match', () => {
         bio: 'Here to break things',
       },
     );
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await con.getRepository(UserCandidatePreference).save({
@@ -6423,6 +6453,7 @@ describe('opportunity match', () => {
 describe('opportunity', () => {
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await con.getRepository(Feed).save([
@@ -6989,7 +7020,7 @@ describe('user_candidate_preference', () => {
         min: 100000,
         currency: 'EUR',
       },
-      location: [
+      customLocation: [
         {
           type: 1, // LocationType.REMOTE
           country: 'Germany',
@@ -7048,6 +7079,7 @@ describe('user_candidate_preference', () => {
 
 describe('organization', () => {
   beforeEach(async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
   });

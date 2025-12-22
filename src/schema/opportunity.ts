@@ -1,22 +1,28 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
+import { GraphQLResolveInfo } from 'graphql';
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
-import graphorm from '../graphorm';
+import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
-  Opportunity,
   BrokkrParseRequest,
+  LocationType,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
+  Opportunity as OpportunityMessage,
+  Location as LocationMessage,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
   getBufferFromStream,
+  getSecondsTimestamp,
   toGQLEnum,
+  uniqueifyObjectArray,
   updateFlagsStatement,
+  updateRecruiterSubscriptionFlags,
 } from '../common';
 import {
   OpportunityMatchStatus,
@@ -40,6 +46,7 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import {
   ConflictError,
   NotFoundError,
+  PaymentRequiredError,
   TypeOrmError,
   type TypeORMQueryFailedError,
 } from '../errors';
@@ -62,7 +69,10 @@ import {
   opportunityEditSchema,
   opportunityStateLiveSchema,
   opportunityUpdateStateSchema,
+  createSharedSlackChannelSchema,
   parseOpportunitySchema,
+  opportunityMatchesQuerySchema,
+  addOpportunitySeatsSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -71,28 +81,65 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, QueryFailedError, type DeepPartial } from 'typeorm';
+import {
+  In,
+  Not,
+  QueryFailedError,
+  type DeepPartial,
+  JsonContains,
+  EntityManager,
+} from 'typeorm';
 import { Organization } from '../entity/Organization';
 import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../common/schema/organizations';
-import { getGondulClient } from '../common/gondul';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import {
+  createLocationFromMapbox,
+  findDatasetLocation,
+} from '../entity/dataset/utils';
+import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
+import {
+  getGondulClient,
+  getGondulOpportunityServiceClient,
+} from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { queryReadReplica } from '../common/queryReadReplica';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
+import { slackClient } from '../common/slack';
 import { fileTypeFromBuffer } from 'file-type';
-import { acceptedOpportunityFileTypes } from '../types';
+import {
+  acceptedOpportunityFileTypes,
+  opportunityMatchBatchSize,
+} from '../types';
 import { getBrokkrClient } from '../common/brokkr';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
+import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
+import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
+import { getShowcaseCompanies } from '../common/opportunity/companies';
+import { Opportunity } from '../entity/opportunities/Opportunity';
+import type { GQLSource } from './sources';
+import { SubscriptionStatus } from '../common/plus';
+import { paddleInstance } from '../common/paddle';
+import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
+import { OpportunityPreviewStatus } from '../common/opportunity/types';
 
 export interface GQLOpportunity
   extends Pick<
     Opportunity,
-    'id' | 'type' | 'state' | 'title' | 'tldr' | 'content' | 'keywords'
+    | 'id'
+    | 'type'
+    | 'state'
+    | 'title'
+    | 'tldr'
+    | 'content'
+    | 'keywords'
+    | 'flags'
   > {
   createdAt: Date;
   updatedAt: Date;
@@ -110,8 +157,9 @@ export interface GQLOpportunityMatch
 export interface GQLUserCandidatePreference
   extends Omit<
     UserCandidatePreference,
-    'userId' | 'user' | 'updatedAt' | 'cvParsed'
+    'userId' | 'user' | 'updatedAt' | 'cvParsed' | 'location'
   > {
+  location?: Array<DatasetLocation>;
   keywords?: Array<{ keyword: string }>;
 }
 
@@ -122,10 +170,65 @@ export type GQLOpportunityScreeningQuestion = Pick<
   order: number;
 };
 
+export interface GQLTopReaderBadge {
+  tag: string;
+  issuedAt: Date;
+}
+
+export interface GQLOpportunityPreviewUser extends Pick<User, 'id'> {
+  profileImage: string | null;
+  anonId: string;
+  description: string | null;
+  openToWork: boolean;
+  seniority: string | null;
+  location: string | null;
+  locationVerified: LocationVerificationStatus;
+  company: { name: string; favicon?: string } | null;
+  lastActivity: Date | null;
+  topTags: string[] | null;
+  recentlyRead: GQLTopReaderBadge[] | null;
+  activeSquads: GQLSource[] | null;
+}
+
+export interface GQLOpportunityPreviewEdge {
+  node: GQLOpportunityPreviewUser;
+  cursor: string;
+}
+
+export interface GQLOpportunityPreviewResult {
+  totalCount: number;
+  tags: string[] | null;
+  companies: Array<{ name: string; favicon?: string }> | null;
+  squads: GQLSource[] | null;
+  opportunityId: string;
+  status: OpportunityPreviewStatus;
+}
+
+export interface GQLOpportunityPreviewConnection {
+  edges: GQLOpportunityPreviewEdge[];
+  pageInfo: {
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor: string | null;
+    endCursor: string | null;
+  };
+  result: GQLOpportunityPreviewResult;
+}
+
+export interface GQLOpportunityStats {
+  matched: number;
+  reached: number;
+  considered: number;
+  decided: number;
+  forReview: number;
+  introduced: number;
+}
+
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
   ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
   ${toGQLEnum(SocialMediaType, 'SocialMediaType')}
+  ${toGQLEnum(LocationVerificationStatus, 'LocationVerificationStatus')}
 
   type OpportunityContentBlock {
     content: String
@@ -156,8 +259,12 @@ export const typeDefs = /* GraphQL */ `
     city: String
     country: String
     subdivision: String
-    continent: String
-    type: ProtoEnumValue
+  }
+
+  type OpportunityLocation {
+    id: ID!
+    location: Location!
+    type: ProtoEnumValue!
   }
 
   type OpportunityMeta {
@@ -203,6 +310,14 @@ export const typeDefs = /* GraphQL */ `
     edges: [OpportunityEdge!]!
   }
 
+  """
+  Flags for the opportunity
+  """
+  type OpportunityFlagsPublic {
+    batchSize: Int
+    plan: String
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -211,12 +326,13 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     content: OpportunityContent!
     meta: OpportunityMeta!
-    location: [Location]!
+    locations: [OpportunityLocation]!
     organization: Organization
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
     feedbackQuestions: [OpportunityFeedbackQuestion]!
+    flags: OpportunityFlagsPublic
   }
 
   type OpportunityMatchDescription {
@@ -252,6 +368,7 @@ export const typeDefs = /* GraphQL */ `
     feedback: [ScreeningAnswer!]!
     applicationRank: ApplicationRank!
     engagementProfile: EngagementProfile
+    previewUser: OpportunityPreviewUser
   }
 
   type OpportunityMatchEdge {
@@ -263,8 +380,19 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type OpportunityMatchPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean
+    startCursor: String
+    endCursor: String
+    """
+    Total number of matches for the given status filter
+    """
+    totalCount: Int!
+  }
+
   type OpportunityMatchConnection {
-    pageInfo: PageInfo!
+    pageInfo: OpportunityMatchPageInfo!
     edges: [OpportunityMatchEdge!]!
   }
 
@@ -294,6 +422,152 @@ export const typeDefs = /* GraphQL */ `
     companySize: [ProtoEnumValue]!
     customKeywords: Boolean
     keywords: [UserCandidateKeyword!]!
+  }
+
+  type OpportunityPreviewCompany {
+    name: String!
+    favicon: String
+  }
+
+  """
+  Top reader badge with tag and issue date
+  """
+  type TopReaderBadge {
+    """
+    The keyword/tag name
+    """
+    tag: String!
+
+    """
+    When the badge was issued
+    """
+    issuedAt: DateTime!
+  }
+
+  type OpportunityPreviewUser {
+    """
+    Real user ID
+    """
+    id: String!
+
+    """
+    User profile image
+    """
+    profileImage: String
+
+    """
+    Anonymized ID (e.g., anon #1002)
+    """
+    anonId: String!
+
+    """
+    User description/bio
+    """
+    description: String
+
+    """
+    Whether the user is open to work
+    """
+    openToWork: Boolean!
+
+    """
+    User seniority level
+    """
+    seniority: String
+
+    """
+    User location (from preferences or geo flags)
+    """
+    location: String
+
+    """
+    Location verification status: geoip (inferred from geo flags), user_provided (from dataset_location or custom), or verified (future use)
+    """
+    locationVerified: LocationVerificationStatus!
+
+    """
+    Active company from experience
+    """
+    company: OpportunityPreviewCompany
+
+    """
+    Last activity timestamp
+    """
+    lastActivity: DateTime
+
+    """
+    Top tags for the user
+    """
+    topTags: [String!]!
+
+    """
+    Recently read badges with tags and issue dates (limit 3)
+    """
+    recentlyRead: [UserTopReader!]
+
+    """
+    Active squads
+    """
+    activeSquads: [Source!]!
+  }
+
+  type OpportunityPreviewEdge {
+    node: OpportunityPreviewUser!
+    cursor: String!
+  }
+
+  type OpportunityPreviewPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+  }
+
+  type OpportunityPreviewResult {
+    tags: [String!]!
+    companies: [OpportunityPreviewCompany!]!
+    squads: [Source!]!
+    totalCount: Int
+    opportunityId: String!
+    status: ProtoEnumValue!
+  }
+
+  type OpportunityPreviewConnection {
+    edges: [OpportunityPreviewEdge!]!
+    pageInfo: OpportunityPreviewPageInfo!
+    result: OpportunityPreviewResult
+  }
+
+  type OpportunityStats {
+    """
+    Mock value for matched candidates
+    """
+    matched: Int!
+
+    """
+    Total count of all matches regardless of status
+    """
+    reached: Int!
+
+    """
+    Count of matches that are not pending (all statuses except pending)
+    """
+    considered: Int!
+
+    """
+    Count of candidate_rejected matches
+    """
+    decided: Int!
+
+    """
+    Count of candidate_accepted matches
+    """
+    forReview: Int!
+
+    """
+    Count of recruiter_accepted matches
+    """
+    introduced: Int!
   }
 
   extend type Query {
@@ -348,6 +622,10 @@ export const typeDefs = /* GraphQL */ `
       """
       opportunityId: ID!
       """
+      Filter by match status (allowed: candidate_accepted, recruiter_accepted, recruiter_rejected)
+      """
+      status: OpportunityMatchStatus
+      """
       Paginate after opaque cursor
       """
       after: String
@@ -370,6 +648,36 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): OpportunityMatchConnection! @auth
+
+    """
+    Get a preview of potential candidate matches for an opportunity owned by the anonymous user
+    """
+    opportunityPreview(
+      """
+      Number of users to return
+      """
+      first: Int
+
+      """
+      Cursor for pagination
+      """
+      after: String
+
+      """
+      Opportunity ID
+      """
+      opportunityId: ID
+    ): OpportunityPreviewConnection!
+
+    """
+    Get statistics for an opportunity's matches
+    """
+    opportunityStats(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+    ): OpportunityStats! @auth
   }
 
   input SalaryExpectationInput {
@@ -439,7 +747,7 @@ export const typeDefs = /* GraphQL */ `
     description: String
     perks: [String!]
     founded: Int
-    location: String
+    externalLocationId: String
     category: String
     size: Int
     stage: Int
@@ -457,6 +765,8 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     meta: OpportunityMetaInput
     location: [LocationInput]
+    externalLocationId: String
+    locationType: ProtoEnumValue
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
@@ -476,6 +786,15 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
+  input OpportunitySeatInput {
+    priceId: String!
+    quantity: Int!
+  }
+
+  input AddOpportunitySeatsInput {
+    seats: [OpportunitySeatInput!]!
+  }
+
   extend type Mutation {
     """
     Updates the authenticated candidate's saved preferences
@@ -487,6 +806,7 @@ export const typeDefs = /* GraphQL */ `
       employmentType: [ProtoEnumValue]
       salaryExpectation: SalaryExpectationInput
       location: [LocationInput]
+      externalLocationId: String
       locationType: [ProtoEnumValue]
       customKeywords: Boolean
     ): EmptyResponse @auth
@@ -618,6 +938,30 @@ export const typeDefs = /* GraphQL */ `
     """
     parseOpportunity(payload: ParseOpportunityInput!): Opportunity!
       @rateLimit(limit: 5, duration: 3600)
+
+    """
+    Create a shared Slack channel and invite a user by email
+    """
+    createSharedSlackChannel(
+      """
+      Email address of the user to invite
+      """
+      email: String!
+
+      """
+      Name of the channel to create (lowercase letters, numbers, hyphens, and underscores only)
+      """
+      channelName: String!
+    ): EmptyResponse @auth
+
+    addOpportunitySeats(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      payload: AddOpportunitySeatsInput!
+    ): EmptyResponse @auth
   }
 `;
 
@@ -736,6 +1080,301 @@ async function updateCandidateMatchStatus(
   });
 }
 
+/**
+ * Renders markdown content for opportunity fields
+ * Converts markdown strings to HTML for storage
+ */
+function renderOpportunityContent(
+  content: Record<string, { content?: string }> | undefined,
+): OpportunityContent {
+  const renderedContent: Record<string, { content: string; html: string }> = {};
+
+  Object.entries(content || {}).forEach(([key, value]) => {
+    if (typeof value.content !== 'string') {
+      return;
+    }
+
+    renderedContent[key] = {
+      content: value.content,
+      html: markdown.render(value.content),
+    };
+  });
+
+  return new OpportunityContent(renderedContent);
+}
+
+/**
+ * Handles opportunity location updates
+ * Creates or updates locations based on externalLocationId and locationType
+ */
+async function handleOpportunityLocationUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  externalLocationId: string | null | undefined,
+  locationType: number | undefined | null,
+  ctx: AuthContext,
+): Promise<void> {
+  if (externalLocationId) {
+    // If externalLocationId is provided, replace all locations with the new one
+    await entityManager.getRepository(OpportunityLocation).delete({
+      opportunityId,
+    });
+
+    let location = await entityManager.getRepository(DatasetLocation).findOne({
+      where: { externalId: externalLocationId },
+    });
+    if (!location) {
+      location = await createLocationFromMapbox(ctx.con, externalLocationId);
+    }
+
+    // Create new OpportunityLocation relationship
+    if (location) {
+      await entityManager.getRepository(OpportunityLocation).insert({
+        opportunityId,
+        locationId: location.id,
+        type: locationType || 1,
+      });
+    }
+  } else if (locationType !== undefined && locationType !== null) {
+    // If only locationType is provided (no externalLocationId), update existing locations
+    await entityManager
+      .getRepository(OpportunityLocation)
+      .update({ opportunityId }, { type: locationType });
+  }
+}
+
+/**
+ * Handles organization creation, updates, and image uploads for an opportunity
+ * Creates new organizations or updates existing ones, with support for image uploads
+ */
+async function handleOpportunityOrganizationUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  organization: Record<string, unknown> | null | undefined,
+  organizationImage: Promise<FileUpload> | undefined,
+): Promise<void> {
+  if (!organization && !organizationImage) {
+    return;
+  }
+
+  const opportunityJob = await entityManager
+    .getRepository(OpportunityJob)
+    .findOne({
+      where: { id: opportunityId },
+      select: ['organizationId'],
+    });
+
+  let organizationId = opportunityJob?.organizationId;
+
+  let organizationUpdate: Record<string, unknown> = {
+    ...organization,
+  };
+
+  // Handle externalLocationId -> locationId mapping
+  if (organizationUpdate.externalLocationId !== undefined) {
+    const externalLocationId = organizationUpdate.externalLocationId as
+      | string
+      | null;
+    delete organizationUpdate.externalLocationId;
+
+    if (externalLocationId) {
+      let location = await entityManager
+        .getRepository(DatasetLocation)
+        .findOne({
+          where: { externalId: externalLocationId },
+        });
+      if (!location) {
+        location = await createLocationFromMapbox(
+          entityManager.connection,
+          externalLocationId,
+        );
+      }
+
+      if (location) {
+        organizationUpdate.locationId = location.id;
+      }
+    } else {
+      // If externalLocationId is explicitly null, clear the locationId
+      organizationUpdate.locationId = null;
+    }
+  }
+
+  if (organizationId) {
+    delete organizationUpdate.name; // prevent name updates on existing organizations
+  }
+
+  if (!organizationId) {
+    // create new organization and assign to opportunity here inline
+    // TODO: ideally this should be refactored later to separate mutation
+
+    try {
+      const organizationInsertResult = await entityManager
+        .getRepository(Organization)
+        .insert(organizationUpdate);
+
+      organizationId = organizationInsertResult.identifiers[0].id as string;
+
+      await entityManager
+        .getRepository(OpportunityJob)
+        .update({ id: opportunityId }, { organizationId });
+
+      // values were applied during insert
+      organizationUpdate = {};
+    } catch (insertError) {
+      if (insertError instanceof QueryFailedError) {
+        const queryFailedError = insertError as TypeORMQueryFailedError;
+
+        if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
+          if (
+            insertError.message.indexOf('IDX_organization_name_unique') > -1
+          ) {
+            throw new ConflictError(
+              'Organization with this name already exists',
+            );
+          }
+        }
+      }
+
+      throw insertError;
+    }
+  }
+
+  // Handle image upload
+  if (organizationImage) {
+    const { createReadStream } = await organizationImage;
+    const stream = createReadStream();
+    const { url: imageUrl } = await uploadOrganizationImage(
+      organizationId,
+      stream,
+    );
+    organizationUpdate.image = imageUrl;
+  }
+
+  if (Object.keys(organizationUpdate).length > 0) {
+    await entityManager
+      .getRepository(Organization)
+      .update({ id: organizationId }, organizationUpdate);
+  }
+}
+
+/**
+ * Handles opportunity keywords updates
+ * Replaces all existing keywords with the new set
+ */
+async function handleOpportunityKeywordsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  keywords: Array<{ keyword: string }> | undefined,
+): Promise<void> {
+  if (!Array.isArray(keywords)) {
+    return;
+  }
+
+  await entityManager.getRepository(OpportunityKeyword).delete({
+    opportunityId,
+  });
+
+  await entityManager.getRepository(OpportunityKeyword).insert(
+    keywords.map((keyword) => ({
+      opportunityId,
+      keyword: keyword.keyword,
+    })),
+  );
+}
+
+/**
+ * Handles opportunity screening questions updates
+ * Validates questions ownership and upserts them with proper ordering
+ */
+async function handleOpportunityScreeningQuestionsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  questions:
+    | Array<{ id?: string; title: string; placeholder?: string | null }>
+    | undefined,
+): Promise<void> {
+  if (!Array.isArray(questions)) {
+    return;
+  }
+
+  const questionIds = questions.map((item) => item.id).filter(Boolean);
+
+  const hasQuestionsFromOtherOpportunity = await entityManager
+    .getRepository(QuestionScreening)
+    .exists({
+      where: { id: In(questionIds), opportunityId: Not(opportunityId) },
+    });
+
+  if (hasQuestionsFromOtherOpportunity) {
+    throw new ConflictError('Not allowed to edit some questions!');
+  }
+
+  await entityManager.getRepository(QuestionScreening).delete({
+    id: Not(In(questionIds)),
+    opportunityId,
+  });
+
+  await entityManager.getRepository(QuestionScreening).upsert(
+    questions.map((question, index) => {
+      return entityManager.getRepository(QuestionScreening).create({
+        id: question.id,
+        opportunityId,
+        title: question.title,
+        placeholder: question.placeholder ?? undefined,
+        questionOrder: index,
+      });
+    }),
+    { conflictPaths: ['id'] },
+  );
+}
+
+/**
+ * Handles recruiter information updates for an opportunity
+ * Validates recruiter is assigned to the opportunity and updates their profile
+ */
+async function handleOpportunityRecruiterUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  recruiter: { userId: string; title?: string; bio?: string } | undefined,
+  ctx: AuthContext,
+): Promise<void> {
+  if (!recruiter) {
+    return;
+  }
+
+  // Check if the recruiter is part of the recruiters for this opportunity
+  const existingRecruiter = await entityManager
+    .getRepository(OpportunityUserRecruiter)
+    .findOne({
+      where: {
+        opportunityId,
+        userId: recruiter.userId,
+        type: OpportunityUserType.Recruiter,
+      },
+    });
+
+  if (!existingRecruiter) {
+    ctx.log.error(
+      { opportunityId, userId: recruiter.userId },
+      'Recruiter is not part of this opportunity',
+    );
+    throw new ForbiddenError(
+      'Access denied! Recruiter is not part of this opportunity',
+    );
+  }
+
+  // Update the recruiter's title and bio on the User entity
+  await entityManager.getRepository(User).update(
+    {
+      id: recruiter.userId,
+    },
+    {
+      title: recruiter.title,
+      bio: recruiter.bio,
+    },
+  );
+}
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -813,6 +1452,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return {
         ...new UserCandidatePreference(),
+        location: [],
         keywords: [],
       };
     },
@@ -822,9 +1462,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ) => {
-      // Default to LIVE opportunities if no state is provided
-      const opportunityState = args.state ?? OpportunityState.LIVE;
-
       if (!ctx.userId) {
         throw new NotFoundError('Not found!');
       }
@@ -840,8 +1477,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         { key: 'createdAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder.where({ state: opportunityState });
-
+            if (args?.state) {
+              const validatedInput = z
+                .object({ state: z.enum(OpportunityState).nullish() })
+                .parse(args);
+              builder.queryBuilder.where({ state: validatedInput.state });
+            }
             if (!ctx.isTeamMember) {
               builder.queryBuilder
                 .innerJoin(
@@ -864,7 +1505,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     opportunityMatches: async (
       _,
-      args: ConnectionArguments & { opportunityId: string },
+      args: ConnectionArguments & {
+        opportunityId: string;
+        status?: OpportunityMatchStatus;
+      },
       ctx: AuthContext,
       info,
     ) => {
@@ -872,53 +1516,75 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Not found!');
       }
 
+      // Validate and parse args using Zod schema
+      const validatedArgs = opportunityMatchesQuerySchema.parse(args);
+
       // First verify the user has access to this opportunity
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
         userId: ctx.userId,
-        opportunityId: args.opportunityId,
+        opportunityId: validatedArgs.opportunityId,
         permission: OpportunityPermissions.UpdateState,
         isTeamMember: ctx.isTeamMember,
       });
 
-      return await queryPaginatedByDate<
-        GQLOpportunityMatch,
-        'updatedAt',
-        typeof args
-      >(
-        ctx,
-        info,
-        args,
-        { key: 'updatedAt', maxSize: 50 },
-        {
-          queryBuilder: (builder) => {
-            builder.queryBuilder
-              .where({ opportunityId: args.opportunityId })
-              .andWhere(`${builder.alias}.status IN (:...statuses)`, {
-                statuses: [
-                  OpportunityMatchStatus.CandidateAccepted,
-                  OpportunityMatchStatus.RecruiterAccepted,
-                  OpportunityMatchStatus.RecruiterRejected,
-                ],
-              })
-              // Order by candidate_accepted status first (priority 0), then others (priority 1)
-              // Then by updatedAt ascending (oldest first) within each group
-              .addOrderBy(
-                `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
-                'ASC',
-              )
-              .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
-              .setParameter(
-                'candidateAcceptedStatus',
-                OpportunityMatchStatus.CandidateAccepted,
-              );
+      // If status is provided, filter by that status; otherwise use all allowed statuses
+      const statusesToFilter = validatedArgs.status
+        ? [validatedArgs.status]
+        : [
+            OpportunityMatchStatus.CandidateAccepted,
+            OpportunityMatchStatus.RecruiterAccepted,
+            OpportunityMatchStatus.RecruiterRejected,
+          ];
 
-            return builder;
+      const [connection, totalCount] = await Promise.all([
+        queryPaginatedByDate<GQLOpportunityMatch, 'updatedAt', typeof args>(
+          ctx,
+          info,
+          args,
+          { key: 'updatedAt', maxSize: 50 },
+          {
+            queryBuilder: (builder) => {
+              builder.queryBuilder
+                .where({ opportunityId: validatedArgs.opportunityId })
+                .andWhere(`${builder.alias}.status IN (:...statuses)`, {
+                  statuses: statusesToFilter,
+                })
+                // Order by candidate_accepted status first (priority 0), then others (priority 1)
+                // Then by updatedAt ascending (oldest first) within each group
+                .addOrderBy(
+                  `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
+                  'ASC',
+                )
+                .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
+                .setParameter(
+                  'candidateAcceptedStatus',
+                  OpportunityMatchStatus.CandidateAccepted,
+                );
+
+              return builder;
+            },
+            orderByKey: 'ASC',
+            readReplica: true,
           },
-          orderByKey: 'ASC',
-          readReplica: true,
+        ),
+        queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(OpportunityMatch).count({
+            where: {
+              opportunityId: validatedArgs.opportunityId,
+              status: In(statusesToFilter),
+            },
+          }),
+        ),
+      ]);
+
+      return {
+        ...connection,
+        pageInfo: {
+          ...connection.pageInfo,
+          totalCount,
         },
-      );
+      };
     },
     userOpportunityMatches: async (
       _,
@@ -941,6 +1607,271 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           readReplica: true,
         },
       ),
+    opportunityPreview: async (
+      _,
+      args: ConnectionArguments & { opportunityId?: string },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLOpportunityPreviewConnection> => {
+      const { after, first = 20 } = args;
+      const offset = after ? cursorToOffset(after) : 0;
+
+      let opportunity: OpportunityJob;
+
+      if (args.opportunityId) {
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId || '',
+          opportunityId: args.opportunityId,
+          permission: OpportunityPermissions.ViewDraft,
+          isTeamMember: ctx.isTeamMember,
+        });
+
+        opportunity = await ctx.con
+          .getRepository(OpportunityJob)
+          .findOneOrFail({
+            where: { id: args.opportunityId },
+            relations: { keywords: true },
+          });
+      } else {
+        opportunity = await ctx.con
+          .getRepository(OpportunityJob)
+          .findOneOrFail({
+            where: {
+              flags: JsonContains({ anonUserId: ctx.trackingId }),
+            },
+            relations: { keywords: true },
+          });
+      }
+
+      const keywords = await opportunity.keywords;
+
+      let opportunityPreview: OpportunityJob['flags']['preview'] = {
+        userIds: [],
+        totalCount: 0,
+        status: OpportunityPreviewStatus.UNSPECIFIED,
+      };
+
+      if (opportunity.flags?.preview) {
+        opportunityPreview = opportunity.flags.preview;
+
+        if (!opportunityPreview.status) {
+          const isEmptyPreview = opportunityPreview.userIds.length === 0;
+
+          opportunityPreview.status = isEmptyPreview
+            ? OpportunityPreviewStatus.UNSPECIFIED
+            : OpportunityPreviewStatus.READY;
+        }
+      } else {
+        const opportunityContent: Record<string, unknown> = {};
+
+        // since this is json endpoint we need to make sure all keys are present
+        // even if empty, remove this when we move to protobuf service call
+        Object.keys(new OpportunityContent()).forEach((key) => {
+          const opportunityKey = key as keyof OpportunityContent;
+
+          opportunityContent[opportunityKey] =
+            opportunity.content[opportunityKey] || {};
+        });
+
+        // Fetch locations from OpportunityLocation table
+        const opportunityLocations = await ctx.con
+          .getRepository(OpportunityLocation)
+          .find({
+            where: { opportunityId: opportunity.id },
+            relations: ['location'],
+          });
+
+        const locations = await Promise.all(
+          opportunityLocations.map(async (ol) => {
+            return ol.location;
+          }),
+        );
+
+        const opportunityMessage = new OpportunityMessage({
+          id: opportunity.id,
+          createdAt: getSecondsTimestamp(opportunity.createdAt),
+          updatedAt: getSecondsTimestamp(opportunity.updatedAt),
+          type: opportunity.type,
+          state: opportunity.state,
+          title: opportunity.title,
+          tldr: opportunity.tldr,
+          content: opportunityContent,
+          meta: opportunity.meta,
+          location: locations.map((item) => {
+            return new LocationMessage({
+              ...item,
+              city: item.city || undefined,
+              subdivision: item.subdivision || undefined,
+              country: item.country || undefined,
+            });
+          }),
+          keywords: keywords.map((k) => k.keyword),
+          flags: opportunity.flags,
+        });
+
+        const gondulOpportunityServiceClient =
+          getGondulOpportunityServiceClient();
+
+        await gondulOpportunityServiceClient.garmr.execute(() => {
+          return gondulOpportunityServiceClient.instance.preview(
+            opportunityMessage,
+          );
+        });
+
+        opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+
+        await ctx.con.getRepository(OpportunityJob).update(
+          { id: opportunity.id },
+          {
+            flags: updateFlagsStatement<OpportunityJob>({
+              preview: opportunityPreview,
+            }),
+          },
+        );
+      }
+
+      const connection =
+        await graphorm.queryPaginated<GQLOpportunityPreviewUser>(
+          ctx,
+          info,
+          () => !!after,
+          (nodeSize) => nodeSize === first,
+          (_, i) => offsetToCursor(offset + i + 1),
+          (builder) => {
+            builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
+              userIds: opportunityPreview.userIds.length
+                ? opportunityPreview.userIds
+                : ['nosuchid'],
+            });
+            return builder;
+          },
+          (nodes) => {
+            // Sort nodes in JavaScript based on userIds order
+            const userIdIndexMap = new Map(
+              opportunityPreview.userIds.map((id, index) => [id, index]),
+            );
+            return nodes.sort((a, b) => {
+              const indexA = userIdIndexMap.get(a.id) ?? Infinity;
+              const indexB = userIdIndexMap.get(b.id) ?? Infinity;
+              return indexA - indexB;
+            });
+          },
+          true,
+        );
+
+      const flatTags = connection.edges.flatMap(({ node }) => {
+        return node.topTags || [];
+      });
+      const uniqueTagsMap = flatTags.reduce(
+        (acc, item) => {
+          // map tags to how much they appear across all users
+          if (typeof acc[item] === 'undefined') {
+            acc[item] = 1;
+          } else {
+            acc[item] += 1;
+          }
+
+          return acc;
+        },
+        {} as Record<string, number>,
+      );
+      // final map and sort to get X tags that appear the most
+      const tags = Object.entries(uniqueTagsMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 16)
+        .map(([tag]) => tag);
+
+      const companies = getShowcaseCompanies();
+
+      const squads = uniqueifyObjectArray(
+        connection.edges.flatMap(({ node }) =>
+          (node.activeSquads || []).map((squad) => squad),
+        ),
+        (squad) => squad.handle,
+      );
+
+      return {
+        ...connection,
+        result: {
+          tags,
+          companies,
+          squads,
+          totalCount: opportunityPreview.totalCount,
+          status: opportunityPreview.status,
+          opportunityId: opportunity.id,
+        },
+      };
+    },
+    opportunityStats: async (
+      _,
+      { opportunityId }: { opportunityId: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunityStats> => {
+      // Verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(OpportunityMatch)
+          .createQueryBuilder('match')
+          .select('COUNT(*)', 'reached')
+          .addSelect(
+            `COUNT(CASE WHEN match.status != :pending THEN 1 END)`,
+            'considered',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateRejected THEN 1 END)`,
+            'decided',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateAccepted THEN 1 END)`,
+            'forReview',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :recruiterAccepted THEN 1 END)`,
+            'introduced',
+          )
+          .where('match.opportunityId = :opportunityId', { opportunityId })
+          .setParameter('pending', OpportunityMatchStatus.Pending)
+          .setParameter(
+            'candidateRejected',
+            OpportunityMatchStatus.CandidateRejected,
+          )
+          .setParameter(
+            'candidateAccepted',
+            OpportunityMatchStatus.CandidateAccepted,
+          )
+          .setParameter(
+            'recruiterAccepted',
+            OpportunityMatchStatus.RecruiterAccepted,
+          )
+          .getRawOne<{
+            reached: string;
+            considered: string;
+            decided: string;
+            forReview: string;
+            introduced: string;
+          }>(),
+      );
+
+      // Get counts per status using SQL aggregation
+
+      return {
+        matched: 12_000, // Mock value as requested
+        reached: parseInt(result?.reached || '0', 10),
+        considered: parseInt(result?.considered || '0', 10),
+        decided: parseInt(result?.decided || '0', 10),
+        forReview: parseInt(result?.forReview || '0', 10),
+        introduced: parseInt(result?.introduced || '0', 10),
+      };
+    },
   },
   Mutation: {
     updateCandidatePreferences: async (
@@ -954,10 +1885,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw preferences.error;
       }
 
+      // Handle externalLocationId -> locationId mapping
+      let location: DatasetLocation | null = null;
+      if (preferences.data.externalLocationId) {
+        location = await con.getRepository(DatasetLocation).findOne({
+          where: { externalId: preferences.data.externalLocationId },
+        });
+
+        if (!location) {
+          location = await createLocationFromMapbox(
+            con,
+            preferences.data.externalLocationId,
+          );
+        }
+      }
+
       await con.getRepository(UserCandidatePreference).upsert(
         {
           userId,
-          ...preferences.data,
+          status: preferences.data.status,
+          role: preferences.data.role,
+          roleType: preferences.data.roleType,
+          employmentType: preferences.data.employmentType,
+          salaryExpectation: preferences.data.salaryExpectation,
+          locationType: preferences.data.locationType,
+          customKeywords: preferences.data.customKeywords,
+          locationId: location?.id ?? null,
         },
         {
           conflictPaths: ['userId'],
@@ -1308,26 +2261,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           questions,
           organization,
           recruiter,
+          externalLocationId,
+          locationType,
           ...opportunityUpdate
         } = opportunity;
 
-        const renderedContent: Record<
-          string,
-          { content: string; html: string }
-        > = {};
-
-        Object.entries(content || {}).forEach(([key, value]) => {
-          if (typeof value.content !== 'string') {
-            return;
-          }
-
-          renderedContent[key] = {
-            content: value.content,
-            html: markdown.render(value.content),
-          };
-        });
-
-        const opportunityContent = new OpportunityContent(renderedContent);
+        const opportunityContent = renderOpportunityContent(content);
 
         await entityManager
           .getRepository(OpportunityJob)
@@ -1342,166 +2281,46 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
 
-        if (organization || organizationImage) {
-          const opportunityJob = await entityManager
-            .getRepository(OpportunityJob)
-            .findOne({
-              where: { id },
-              select: ['organizationId'],
-            });
+        await handleOpportunityLocationUpdate(
+          entityManager,
+          id,
+          externalLocationId,
+          locationType,
+          ctx,
+        );
 
-          let organizationId = opportunityJob?.organizationId;
+        await handleOpportunityOrganizationUpdate(
+          entityManager,
+          id,
+          organization,
+          organizationImage,
+        );
 
-          let organizationUpdate: Record<string, unknown> = {
-            ...organization,
-          };
+        await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 
-          if (organizationId) {
-            delete organizationUpdate.name; // prevent name updates on existing organizations
-          }
+        await handleOpportunityScreeningQuestionsUpdate(
+          entityManager,
+          id,
+          questions,
+        );
 
-          if (!organizationId) {
-            // create new organization and assign to opportunity here inline
-            // TODO: ideally this should be refactored later to separate mutation
-
-            try {
-              const organizationInsertResult = await entityManager
-                .getRepository(Organization)
-                .insert(organizationUpdate);
-
-              organizationId = organizationInsertResult.identifiers[0]
-                .id as string;
-
-              await entityManager
-                .getRepository(OpportunityJob)
-                .update({ id }, { organizationId });
-
-              // values were applied during insert
-              organizationUpdate = {};
-            } catch (insertError) {
-              if (insertError instanceof QueryFailedError) {
-                const queryFailedError = insertError as TypeORMQueryFailedError;
-
-                if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
-                  if (
-                    insertError.message.indexOf(
-                      'IDX_organization_name_unique',
-                    ) > -1
-                  ) {
-                    throw new ConflictError(
-                      'Organization with this name already exists',
-                    );
-                  }
-                }
-              }
-
-              throw insertError;
-            }
-          }
-
-          // Handle image upload
-          if (organizationImage) {
-            const { createReadStream } = await organizationImage;
-            const stream = createReadStream();
-            const { url: imageUrl } = await uploadOrganizationImage(
-              organizationId,
-              stream,
-            );
-            organizationUpdate.image = imageUrl;
-          }
-
-          if (Object.keys(organizationUpdate).length > 0) {
-            await entityManager
-              .getRepository(Organization)
-              .update({ id: organizationId }, organizationUpdate);
-          }
-        }
-
-        if (Array.isArray(keywords)) {
-          await entityManager.getRepository(OpportunityKeyword).delete({
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(OpportunityKeyword).insert(
-            keywords.map((keyword) => ({
-              opportunityId: id,
-              keyword: keyword.keyword,
-            })),
-          );
-        }
-
-        if (Array.isArray(questions)) {
-          const questionIds = questions.map((item) => item.id).filter(Boolean);
-
-          const hasQuestionsFromOtherOpportunity = await entityManager
-            .getRepository(QuestionScreening)
-            .exists({
-              where: { id: In(questionIds), opportunityId: Not(id) },
-            });
-
-          if (hasQuestionsFromOtherOpportunity) {
-            throw new ConflictError('Not allowed to edit some questions!');
-          }
-
-          await entityManager.getRepository(QuestionScreening).delete({
-            id: Not(In(questionIds)),
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(QuestionScreening).upsert(
-            questions.map((question, index) => {
-              return entityManager.getRepository(QuestionScreening).create({
-                id: question.id,
-                opportunityId: id,
-                title: question.title,
-                placeholder: question.placeholder,
-                questionOrder: index,
-              });
-            }),
-            { conflictPaths: ['id'] },
-          );
-        }
-
-        if (recruiter) {
-          // Check if the recruiter is part of the recruiters for this opportunity
-          const existingRecruiter = await entityManager
-            .getRepository(OpportunityUserRecruiter)
-            .findOne({
-              where: {
-                opportunityId: id,
-                userId: recruiter.userId,
-                type: OpportunityUserType.Recruiter,
-              },
-            });
-
-          if (!existingRecruiter) {
-            ctx.log.error(
-              { opportunityId: id, userId: recruiter.userId },
-              'Recruiter is not part of this opportunity',
-            );
-            throw new ForbiddenError(
-              'Access denied! Recruiter is not part of this opportunity',
-            );
-          }
-
-          // Update the recruiter's title and bio on the User entity
-          await entityManager.getRepository(User).update(
-            {
-              id: recruiter.userId,
-            },
-            {
-              title: recruiter.title,
-              bio: recruiter.bio,
-            },
-          );
-        }
+        await handleOpportunityRecruiterUpdate(
+          entityManager,
+          id,
+          recruiter,
+          ctx,
+        );
       });
 
-      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+      return await graphorm.queryOneOrFail<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ id });
 
-        return builder;
-      });
+          return builder;
+        },
+      );
     },
     clearOrganizationImage: async (
       _,
@@ -1562,6 +2381,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           where: { id },
           relations: {
             organization: true,
+            locations: {
+              location: true,
+            },
           },
         });
 
@@ -1574,7 +2396,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const result = await gondulClient.garmr.execute(async () => {
         return await gondulClient.instance.screeningQuestions(
           new ScreeningQuestionsRequest({
-            jobOpportunity: createOpportunityPrompt({ opportunity }),
+            jobOpportunity: await createOpportunityPrompt({ opportunity }),
           }),
         );
       });
@@ -1624,9 +2446,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
+      const organization = await opportunity.organization;
+
       switch (state) {
-        case OpportunityState.LIVE: {
-          if (!opportunity.organizationId) {
+        case OpportunityState.IN_REVIEW: {
+          if (!organization) {
             throw new ConflictError(
               `Opportunity must have an organization assigned`,
             );
@@ -1636,6 +2460,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             throw new ConflictError(`Opportunity is closed`);
           }
 
+          if (
+            organization.recruiterSubscriptionFlags.status !==
+            SubscriptionStatus.Active
+          ) {
+            throw new ConflictError(
+              `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
+            );
+          }
+
           opportunityStateLiveSchema.parse({
             ...opportunity,
             organization: await opportunity.organization,
@@ -1643,10 +2476,72 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             questions: await opportunity.questions,
           });
 
-          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+          const liveOpportunities: Pick<OpportunityJob, 'flags'>[] =
+            await ctx.con.getRepository(OpportunityJob).find({
+              select: ['flags'],
+              where: {
+                organizationId: organization.id,
+                state: In([OpportunityState.LIVE, OpportunityState.IN_REVIEW]),
+              },
+              take: 100,
+            });
+
+          const organizationPlans = [
+            ...(organization.recruiterSubscriptionFlags.items || []),
+          ];
+
+          // look through live opportunities and decrement plan quantities
+          // to figure out how many seats are left
+          liveOpportunities.reduce((acc, opportunity) => {
+            const planPriceId = opportunity.flags?.plan;
+
+            const planForOpportunity = organizationPlans.find(
+              (plan) => plan.priceId === planPriceId,
+            );
+
+            if (planForOpportunity) {
+              planForOpportunity.quantity -= 1;
+            }
+
+            return acc;
+          }, organizationPlans);
+
+          // for now just assign first plan available
+          const newPlan = organizationPlans.find((plan) => plan.quantity > 0);
+
+          if (!newPlan) {
+            throw new PaymentRequiredError(
+              `Your don't have any more seats available. Please update your subscription to add more seats.`,
+            );
+          }
+
+          await ctx.con.getRepository(OpportunityJob).update(
+            { id },
+            {
+              state,
+              flags: updateFlagsStatement<OpportunityJob>({
+                plan: newPlan.priceId,
+              }),
+            },
+          );
 
           break;
         }
+        case OpportunityState.CLOSED:
+          if (opportunity.state !== OpportunityState.LIVE) {
+            throw new ConflictError(`This opportunity is not live`);
+          }
+
+          const subscriptionid =
+            organization.recruiterSubscriptionFlags.subscriptionId;
+
+          if (!subscriptionid) {
+            throw new ConflictError(`Opportunity subscription not found`);
+          }
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
         default:
           throw new ConflictError('Invalid state transition');
       }
@@ -1654,6 +2549,145 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         _: true,
       };
+    },
+    addOpportunitySeats: async (
+      _,
+      { id, payload }: { id: string; payload: unknown },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { seats } = addOpportunitySeatsSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+          },
+        });
+
+      const organization = await opportunity.organization;
+
+      if (!organization) {
+        throw new NotFoundError(
+          'Opportunity must have organization to update subscription',
+        );
+      }
+
+      const subscriptionid =
+        organization.recruiterSubscriptionFlags.subscriptionId;
+
+      if (!subscriptionid) {
+        throw new ConflictError(`Opportunity subscription not found`);
+      }
+
+      const subscription =
+        await paddleInstance.subscriptions.get(subscriptionid);
+
+      const subscriptionItems = subscription.items.map((item) => {
+        return {
+          priceId: item.price.id,
+          quantity: item.quantity,
+        };
+      }) as ISubscriptionUpdateItem[];
+
+      seats.forEach((seat) => {
+        const { priceId } = seat;
+
+        // find the existing price item
+        const priceItem = subscriptionItems.find(
+          (item) => item.priceId === priceId,
+        );
+
+        const quantityToAdd = 1;
+
+        // if not found, add new item with quantity 1, else increment quantity
+        if (!priceItem) {
+          subscriptionItems.push({ priceId, quantity: quantityToAdd });
+        } else {
+          priceItem.quantity += quantityToAdd;
+        }
+      });
+
+      const updateResult = await paddleInstance.subscriptions.update(
+        subscriptionid,
+        {
+          prorationBillingMode: 'prorated_immediately',
+          items: subscriptionItems,
+        },
+      );
+
+      await ctx.con.getRepository(Organization).update(organization.id, {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            items: updateResult.items.map((item) => {
+              return {
+                priceId: item.price.id,
+                quantity: item.quantity,
+              };
+            }),
+          }),
+      });
+
+      return { _: true };
+    },
+    createSharedSlackChannel: async (
+      _,
+      payload: z.infer<typeof createSharedSlackChannelSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      // Check if the user is a recruiter
+      const isRecruiter = await ctx.con
+        .getRepository(OpportunityUserRecruiter)
+        .findOne({
+          where: {
+            userId: ctx.userId,
+            type: OpportunityUserType.Recruiter,
+          },
+        });
+
+      if (!isRecruiter) {
+        throw new ForbiddenError(
+          'Access denied! Only recruiters can create Slack channels',
+        );
+      }
+
+      try {
+        const { channelName, email } = payload;
+
+        const createResult = await slackClient.createConversation(
+          channelName,
+          false,
+        );
+
+        if (!createResult?.channel) {
+          return { _: false };
+        }
+
+        await slackClient.inviteSharedToConversation(
+          createResult.channel.id as string,
+          [email],
+          true,
+        );
+
+        return { _: true };
+      } catch (originalError) {
+        const error = originalError as Error;
+
+        if (error.message === 'An API error occurred: name_taken') {
+          throw new ConflictError('Channel name already exists');
+        }
+
+        throw error;
+      }
     },
     parseOpportunity: async (
       _,
@@ -1665,8 +2699,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLOpportunity> => {
-      if (ctx.userId) {
-        throw new ForbiddenError('Not available for authenticated users yet');
+      if (!(ctx.userId || ctx.trackingId)) {
+        throw new ValidationError('User identifier is required');
       }
 
       const parseOpportunityPayload =
@@ -1761,20 +2795,51 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityContent = new OpportunityContent(renderedContent);
 
+        // Extract and process locations
+        const locationData = parsedOpportunity.location || [];
+
         const opportunityResult = await ctx.con.transaction(
           async (entityManager) => {
+            const flags: Opportunity['flags'] = {};
+
+            if (!ctx.userId) {
+              flags.anonUserId = ctx.trackingId; // save tracking id to attribute later
+            }
+
+            flags.batchSize = opportunityMatchBatchSize;
+
+            // Remove location from parsedOpportunity as it's now relational
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { location, ...opportunityData } = parsedOpportunity;
+
             const opportunity = await entityManager
               .getRepository(OpportunityJob)
               .save(
                 entityManager.getRepository(OpportunityJob).create({
-                  ...parsedOpportunity,
+                  ...opportunityData,
                   state: OpportunityState.DRAFT,
                   content: opportunityContent,
-                  flags: {
-                    anonUserId: ctx.trackingId, // save tracking id to attribute later
-                  },
+                  flags,
                 } as DeepPartial<OpportunityJob>),
               );
+
+            // Create OpportunityLocation entries for each location
+            for (const loc of locationData) {
+              const datasetLocation = await findDatasetLocation(ctx.con, loc);
+
+              if (datasetLocation) {
+                await entityManager.getRepository(OpportunityLocation).save({
+                  opportunityId: opportunity.id,
+                  locationId: datasetLocation.id,
+                  type: loc.type || LocationType.REMOTE,
+                });
+              }
+            }
+
+            await addOpportunityDefaultQuestionFeedback({
+              entityManager,
+              opportunityId: opportunity.id,
+            });
 
             await entityManager.getRepository(OpportunityKeyword).insert(
               parsedOpportunity.keywords.map((keyword) => ({
@@ -1783,15 +2848,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               })),
             );
 
+            if (ctx.userId) {
+              await entityManager
+                .getRepository(OpportunityUserRecruiter)
+                .insert(
+                  entityManager.getRepository(OpportunityUserRecruiter).create({
+                    opportunityId: opportunity.id,
+                    userId: ctx.userId,
+                  }),
+                );
+            }
+
             return opportunity;
           },
         );
 
-        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-          builder.queryBuilder.where({ id: opportunityResult.id });
+        return await graphorm.queryOneOrFail<GQLOpportunity>(
+          ctx,
+          info,
+          (builder) => {
+            builder.queryBuilder.where({ id: opportunityResult.id });
 
-          return builder;
-        });
+            return builder;
+          },
+        );
       } catch (error) {
         throw error;
       } finally {

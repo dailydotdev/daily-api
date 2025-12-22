@@ -20,3 +20,28 @@ export const createLocationFromMapbox = async (
     iso3: properties.context?.country?.country_code_alpha_3?.toUpperCase(),
   });
 };
+
+/**
+ * Find an existing location in the dataset_location table based on iso2 country code.
+ */
+export const findDatasetLocation = async (
+  con: DataSource,
+  locationData: Partial<Pick<DatasetLocation, 'iso2' | 'city' | 'subdivision'>>,
+): Promise<DatasetLocation | null> => {
+  const { iso2 } = locationData;
+
+  if (!iso2) {
+    return null;
+  }
+
+  const locationQuery = con.manager
+    .getRepository(DatasetLocation)
+    .createQueryBuilder()
+    .where('iso2 = :iso2Only', { iso2Only: iso2 })
+    .andWhere('city IS NULL')
+    .andWhere('subdivision IS NULL');
+
+  const location = await locationQuery.getOne();
+
+  return location;
+};

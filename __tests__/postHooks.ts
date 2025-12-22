@@ -1,4 +1,4 @@
-import { DeepPartial } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import {
   removeAllSpecialCharactersForDedup,
   normalizeContentForDeduplication,
@@ -13,6 +13,13 @@ import {
   FreeformPost,
   ArticlePost,
 } from '../src/entity';
+import createOrGetConnection from '../src/db';
+
+let con: DataSource;
+
+beforeAll(async () => {
+  con = await createOrGetConnection();
+});
 
 describe('Post Deduplication Hooks', () => {
   describe('removeAllSpecialCharactersForDedup', () => {
@@ -83,91 +90,91 @@ describe('Post Deduplication Hooks', () => {
 
   describe('generateDeduplicationKey', () => {
     describe('shared posts', () => {
-      it('should use sharedPostId when available', () => {
+      it('should use sharedPostId when available', async () => {
         const post: DeepPartial<SharePost> = {
           type: PostType.Share,
           sharedPostId: 'shared-123',
           title: 'Some title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBe('shared-123');
       });
 
-      it('should return undefined when sharedPostId is missing', () => {
+      it('should return undefined when sharedPostId is missing', async () => {
         const post: DeepPartial<SharePost> = {
           type: PostType.Share,
           title: 'Some title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBeUndefined();
       });
 
-      it('should use sharedPostId even when title and content exist', () => {
+      it('should use sharedPostId even when title and content exist', async () => {
         const post: DeepPartial<SharePost> = {
           type: PostType.Share,
           sharedPostId: 'shared-456',
           title: 'Some title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBe('shared-456');
       });
     });
 
     describe('freeform posts', () => {
-      it('should use content hash when content is available', () => {
+      it('should use content hash when content is available', async () => {
         const post: DeepPartial<FreeformPost> = {
           type: PostType.Freeform,
           content: 'This is my content',
           title: 'This is my title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         const expectedHash = generateContentHash(
           normalizeContentForDeduplication('This is my content'),
         );
         expect(result).toBe(expectedHash);
       });
 
-      it('should fall back to title hash when content is empty', () => {
+      it('should fall back to title hash when content is empty', async () => {
         const post: DeepPartial<FreeformPost> = {
           type: PostType.Freeform,
           content: '',
           title: 'This is my title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         const expectedHash = generateContentHash(
           normalizeContentForDeduplication('This is my title'),
         );
         expect(result).toBe(expectedHash);
       });
 
-      it('should fall back to title hash when content is undefined', () => {
+      it('should fall back to title hash when content is undefined', async () => {
         const post: DeepPartial<FreeformPost> = {
           type: PostType.Freeform,
           title: 'This is my title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         const expectedHash = generateContentHash(
           normalizeContentForDeduplication('This is my title'),
         );
         expect(result).toBe(expectedHash);
       });
 
-      it('should return undefined when both content and title are missing', () => {
+      it('should return undefined when both content and title are missing', async () => {
         const post: DeepPartial<FreeformPost> = {
           type: PostType.Freeform,
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBeUndefined();
       });
 
-      it('should normalize content before hashing', () => {
+      it('should normalize content before hashing', async () => {
         const post1: DeepPartial<FreeformPost> = {
           type: PostType.Freeform,
           content: '  HELLO WORLD!  ',
@@ -178,61 +185,61 @@ describe('Post Deduplication Hooks', () => {
           content: 'hello world',
         };
 
-        const result1 = generateDeduplicationKey(post1);
-        const result2 = generateDeduplicationKey(post2);
+        const result1 = await generateDeduplicationKey(post1, con);
+        const result2 = await generateDeduplicationKey(post2, con);
         expect(result1).toBe(result2);
       });
     });
 
     describe('other post types', () => {
-      it('should return undefined for article posts', () => {
+      it('should return undefined for article posts', async () => {
         const post: DeepPartial<ArticlePost> = {
           type: PostType.Article,
           title: 'Article title',
           url: 'https://example.com',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBeUndefined();
       });
 
-      it('should return undefined for welcome posts', () => {
+      it('should return undefined for welcome posts', async () => {
         const post: DeepPartial<Post> = {
           type: PostType.Welcome,
           title: 'Welcome title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBeUndefined();
       });
 
-      it('should return undefined for collection posts', () => {
+      it('should return undefined for collection posts', async () => {
         const post: DeepPartial<Post> = {
           type: PostType.Collection,
           title: 'Collection title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBeUndefined();
       });
 
-      it('should return undefined for brief posts', () => {
+      it('should return undefined for brief posts', async () => {
         const post: DeepPartial<Post> = {
           type: PostType.Brief,
           title: 'Brief title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBeUndefined();
       });
 
-      it('should return undefined for video posts', () => {
+      it('should return undefined for video posts', async () => {
         const post: DeepPartial<Post> = {
           type: PostType.VideoYouTube,
           title: 'Video title',
         };
 
-        const result = generateDeduplicationKey(post);
+        const result = await generateDeduplicationKey(post, con);
         expect(result).toBeUndefined();
       });
     });
@@ -248,7 +255,7 @@ describe('Post Deduplication Hooks', () => {
         },
       };
 
-      const result = await applyDeduplicationHook(post);
+      const result = await applyDeduplicationHook(post, con);
 
       expect(result.flags?.dedupKey).toBeDefined();
       expect(result.flags?.visible).toBe(true); // Preserve existing flags
@@ -267,7 +274,7 @@ describe('Post Deduplication Hooks', () => {
         },
       };
 
-      const result = await applyDeduplicationHook(post);
+      const result = await applyDeduplicationHook(post, con);
 
       expect(result.flags?.dedupKey).toBe('shared-123');
       expect(result.flags?.visible).toBe(true);
@@ -284,7 +291,7 @@ describe('Post Deduplication Hooks', () => {
         },
       };
 
-      const result = await applyDeduplicationHook(post);
+      const result = await applyDeduplicationHook(post, con);
 
       expect(result).toEqual(post); // Should be unchanged
       expect(result.flags?.dedupKey).toBeUndefined();
@@ -296,7 +303,7 @@ describe('Post Deduplication Hooks', () => {
         content: 'test content',
       };
 
-      const result = await applyDeduplicationHook(post);
+      const result = await applyDeduplicationHook(post, con);
 
       expect(result.flags?.dedupKey).toBeDefined();
       expect(typeof result.flags?.dedupKey).toBe('string');
@@ -309,7 +316,7 @@ describe('Post Deduplication Hooks', () => {
         flags: {},
       };
 
-      const result = await applyDeduplicationHook(post);
+      const result = await applyDeduplicationHook(post, con);
 
       expect(result.flags?.dedupKey).toBeDefined();
       expect(typeof result.flags?.dedupKey).toBe('string');

@@ -35,6 +35,7 @@ export interface GraphORMRelation {
   ) => QueryBuilder;
   sort?: string;
   order?: 'ASC' | 'DESC';
+  limit?: number;
 }
 
 export interface GraphORMField {
@@ -259,9 +260,9 @@ export class GraphORM {
         childBuilder.queryBuilder = childBuilder.queryBuilder.limit(1);
       }
 
-      if (pagination) {
+      if (pagination || relation.limit) {
         childBuilder.queryBuilder = childBuilder.queryBuilder.limit(
-          pagination.limit,
+          pagination?.limit ?? relation.limit,
         );
       }
 
