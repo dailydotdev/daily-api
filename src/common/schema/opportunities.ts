@@ -86,10 +86,9 @@ export const opportunityCreateSchema = z.object({
   content: opportunityContentSchema.partial().optional(),
 });
 
-export const opportunityCreateParseSchema = opportunityCreateSchema
-  .omit({ organizationId: true })
-  .extend({
-    tldr: z.string().max(480).optional().default(''),
+export const opportunityCreateParseSchema = opportunityCreateSchema.extend({
+  organizationId: opportunityCreateSchema.shape.organizationId.nullish(),
+  tldr: z.string().max(480).optional().default(''),
     keywords: z.preprocess((val) => {
       if (Array.isArray(val)) {
         return val.map((keyword) => {
@@ -99,32 +98,32 @@ export const opportunityCreateParseSchema = opportunityCreateSchema
         });
       }
 
-      return val;
-    }, opportunityCreateSchema.shape.keywords),
-    meta: opportunityMetaBaseSchema
+    return val;
+  }, opportunityCreateSchema.shape.keywords),
+  meta: opportunityMetaBaseSchema
       .extend({
-        salary: z
-          .object({
-            min: z.preprocess((val: bigint) => {
-              if (typeof val === 'undefined') {
-                return val;
-              }
+      salary: z
+        .object({
+          min: z.preprocess((val: bigint) => {
+            if (typeof val === 'undefined') {
+              return val;
+            }
 
-              return parseBigInt(val);
-            }, z.number().int().nonnegative().max(100_000_000).optional()),
-            max: z.preprocess((val: bigint) => {
-              if (typeof val === 'undefined') {
-                return val;
-              }
+            return parseBigInt(val);
+          }, z.number().int().nonnegative().max(100_000_000).optional()),
+          max: z.preprocess((val: bigint) => {
+            if (typeof val === 'undefined') {
+              return val;
+            }
 
-              return parseBigInt(val);
-            }, z.number().int().nonnegative().max(100_000_000).optional()),
-            period: z.number(),
-          })
-          .partial()
-          .optional(),
-      })
-      .partial()
+            return parseBigInt(val);
+          }, z.number().int().nonnegative().max(100_000_000).optional()),
+          period: z.number(),
+        })
+        .partial()
+        .optional(),
+    })
+    .partial()
       .optional()
       .default({}),
     content: opportunityContentSchema.partial().optional().default({}),
