@@ -227,14 +227,23 @@ function extractCardData(card: CardType, logData: typeof MOCK_LOG_DATA) {
 export default async function (fastify: FastifyInstance): Promise<void> {
   /**
    * GET /log
-   * Returns the user's log data for the year
+   * Returns the user's log data for the year.
+   * Returns 404 if user doesn't have enough data (no JSON file exists).
    */
   fastify.get('/', async (req, res) => {
     if (!req.userId) {
       return res.status(401).send({ error: 'Unauthorized' });
     }
 
-    // TODO: Replace mock data with actual user data based on req.userId
+    // TODO: Replace with actual JSON file lookup based on req.userId
+    // In production, this will check if the user's JSON file exists
+    const userDataExists = true;
+
+    if (!userDataExists) {
+      return res.status(404).send({ error: 'No log data available' });
+    }
+
+    // TODO: Replace mock data with actual user data from JSON file
     return res.send(MOCK_LOG_DATA);
   });
 
@@ -279,8 +288,16 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send({ error: 'User not found' });
       }
 
+      // TODO: Replace with actual JSON file lookup based on req.userId
+      // In production, this will check if the user's JSON file exists
+      const userDataExists = true;
+
+      if (!userDataExists) {
+        return res.status(404).send({ error: 'No log data available' });
+      }
+
       // Fetch user's log data
-      // TODO: Replace with actual data fetching based on req.userId
+      // TODO: Replace with actual data fetching from JSON file
       const logData = MOCK_LOG_DATA;
 
       // Extract only the data needed for this card type
