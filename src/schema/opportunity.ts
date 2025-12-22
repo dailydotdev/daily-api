@@ -14,7 +14,6 @@ import {
   Opportunity as OpportunityMessage,
   Location as LocationMessage,
   BrokkrParseRequest,
-  // BrokkrParseRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
@@ -939,7 +938,7 @@ export const typeDefs = /* GraphQL */ `
     Parse an opportunity from a URL or file upload
     """
     parseOpportunity(payload: ParseOpportunityInput!): Opportunity!
-    #      @rateLimit(limit: 5, duration: 3600)
+      @rateLimit(limit: 5, duration: 3600)
 
     """
     Create a shared Slack channel and invite a user by email
