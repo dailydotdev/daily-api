@@ -5126,6 +5126,213 @@ describe('user company approved', () => {
       expect(experiences.every((exp) => exp.verified)).toBe(true);
     });
   });
+
+  describe('links experiences by customCompanyName', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, User, usersFixture);
+      await con.getRepository(Company).save({
+        id: 'comp1',
+        name: 'Test Company',
+        altName: 'Test Alt Name',
+        image: 'https://example.com/image.png',
+        domains: ['testcompany.com'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    it('should link experience with matching customCompanyName (exact match)', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp1');
+    });
+
+    it('should link experience with matching customCompanyName (case insensitive)', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'TEST COMPANY',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp1');
+    });
+
+    it('should link experience with matching altName (case insensitive)', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'test alt name',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp1');
+    });
+
+    it('should not link experience with non-matching customCompanyName', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'Some Other Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBeNull();
+    });
+
+    it('should not overwrite experience that already has a companyId', async () => {
+      await con.getRepository(Company).save({
+        id: 'comp2',
+        name: 'Other Company',
+        image: 'https://example.com/image2.png',
+        domains: ['othercompany.com'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: 'comp2',
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp2');
+    });
+
+    it('should only link experiences for the same user', async () => {
+      const experience1 = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const experience2 = await con.getRepository(UserExperienceWork).save({
+        userId: '2',
+        companyId: null,
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience1 = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience1.id });
+      expect(updatedExperience1?.companyId).toBe('comp1');
+
+      const updatedExperience2 = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience2.id });
+      expect(updatedExperience2?.companyId).toBeNull();
+    });
+  });
 });
 
 describe('bookmark change', () => {
