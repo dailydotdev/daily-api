@@ -834,6 +834,7 @@ describe('query autocompleteLocation', () => {
           city: 'San Francisco',
           iso2: 'US',
           iso3: 'USA',
+          externalId: 'usa1',
         },
         {
           id: '550e8400-e29b-41d4-a716-446655440002',
@@ -842,6 +843,7 @@ describe('query autocompleteLocation', () => {
           city: 'New York City',
           iso2: 'US',
           iso3: 'USA',
+          externalId: 'usa2',
         },
         {
           id: '550e8400-e29b-41d4-a716-446655440003',
@@ -850,6 +852,7 @@ describe('query autocompleteLocation', () => {
           city: 'Munich',
           iso2: 'DE',
           iso3: 'DEU',
+          externalId: 'de1',
         },
         {
           id: '550e8400-e29b-41d4-a716-446655440004',
@@ -858,6 +861,7 @@ describe('query autocompleteLocation', () => {
           city: 'Berlin',
           iso2: 'DE',
           iso3: 'DEU',
+          externalId: 'de2',
         },
         {
           id: '550e8400-e29b-41d4-a716-446655440005',
@@ -866,6 +870,7 @@ describe('query autocompleteLocation', () => {
           city: null,
           iso2: 'GB',
           iso3: 'GBR',
+          externalId: 'uk1',
         },
       ]);
     });
@@ -880,7 +885,7 @@ describe('query autocompleteLocation', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.autocompleteLocation).toEqual([
         {
-          id: '550e8400-e29b-41d4-a716-446655440001',
+          id: 'usa1',
           country: 'United States',
           city: 'San Francisco',
           subdivision: 'California',
@@ -900,13 +905,13 @@ describe('query autocompleteLocation', () => {
       // Note: ORDER BY subdivision ASC puts non-null values before null
       expect(res.data.autocompleteLocation).toEqual([
         {
-          id: '550e8400-e29b-41d4-a716-446655440003',
+          id: 'de1',
           country: 'Germany',
           city: 'Munich',
           subdivision: 'Bavaria',
         },
         {
-          id: '550e8400-e29b-41d4-a716-446655440004',
+          id: 'de2',
           country: 'Germany',
           city: 'Berlin',
           subdivision: null,
@@ -924,7 +929,7 @@ describe('query autocompleteLocation', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.autocompleteLocation).toEqual([
         {
-          id: '550e8400-e29b-41d4-a716-446655440001',
+          id: 'usa1',
           country: 'United States',
           city: 'San Francisco',
           subdivision: 'California',
@@ -942,7 +947,7 @@ describe('query autocompleteLocation', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.autocompleteLocation).toEqual([
         {
-          id: '550e8400-e29b-41d4-a716-446655440003',
+          id: 'de1',
           country: 'Germany',
           city: 'Munich',
           subdivision: 'Bavaria',
@@ -982,7 +987,7 @@ describe('query autocompleteLocation', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.autocompleteLocation).toEqual([
         {
-          id: '550e8400-e29b-41d4-a716-446655440005',
+          id: 'uk1',
           country: 'United Kingdom',
           city: null,
           subdivision: null,
@@ -1011,6 +1016,7 @@ describe('query autocompleteLocation', () => {
         city: null,
         iso2: 'EU',
         iso3: 'EUR',
+        externalId: 'eu1',
       });
 
       const res = await client.query(QUERY_WITH_DATASET, {
@@ -1020,7 +1026,7 @@ describe('query autocompleteLocation', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.autocompleteLocation).toEqual([
         {
-          id: '550e8400-e29b-41d4-a716-446655440006',
+          id: 'eu1',
           country: 'Europe',
           city: null,
           subdivision: null,
