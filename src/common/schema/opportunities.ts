@@ -253,6 +253,7 @@ export const parseOpportunitySchema = z
   );
 
 export const createSharedSlackChannelSchema = z.object({
+  organizationId: z.string().uuid('Organization ID must be a valid UUID'),
   email: z.string().email('Email must be a valid email address'),
   channelName: z
     .string()
@@ -308,6 +309,7 @@ export const recruiterSubscriptionFlagsSchema = z
         error: 'At least one subscription item is required',
       },
     ),
+    hasSlackConnection: z.string().optional(),
   })
   .partial();
 
