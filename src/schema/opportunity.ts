@@ -90,6 +90,7 @@ import {
   EntityManager,
 } from 'typeorm';
 import { Organization } from '../entity/Organization';
+import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 import {
   OrganizationLinkType,
   SocialMediaType,
@@ -2644,6 +2645,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       payload: z.infer<typeof createSharedSlackChannelSchema>,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      const { organizationId, channelName, email } = payload;
+
       // Check if the user is a recruiter
       const isRecruiter = await ctx.con
         .getRepository(OpportunityUserRecruiter)
@@ -2660,9 +2663,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      try {
-        const { channelName, email } = payload;
+      // Verify user is a member of the organization
+      const organizationMembership = await ctx.con
+        .getRepository(ContentPreferenceOrganization)
+        .findOne({
+          where: {
+            userId: ctx.userId,
+            organizationId,
+          },
+        });
 
+      if (!organizationMembership) {
+        throw new ForbiddenError(
+          'Access denied! You are not a member of this organization',
+        );
+      }
+
+      // Get the organization and check subscription status
+      const organization = await ctx.con
+        .getRepository(Organization)
+        .findOneOrFail({
+          where: { id: organizationId },
+        });
+
+      // Check if organization has an active subscription
+      if (
+        organization.recruiterSubscriptionFlags.status !==
+        SubscriptionStatus.Active
+      ) {
+        throw new PaymentRequiredError(
+          'Your organization subscription is not active. Please ensure your payment has been processed before creating Slack channels.',
+        );
+      }
+
+      try {
         const createResult = await slackClient.createConversation(
           channelName,
           false,
@@ -2676,6 +2710,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           createResult.channel.id as string,
           [email],
           true,
+        );
+
+        // Mark organization as having a Slack connection
+        await ctx.con.getRepository(Organization).update(
+          { id: organizationId },
+          {
+            recruiterSubscriptionFlags:
+              updateRecruiterSubscriptionFlags<Organization>({
+                hasSlackConnection: true,
+              }),
+          },
         );
 
         return { _: true };
