@@ -309,7 +309,7 @@ export const recruiterSubscriptionFlagsSchema = z
         error: 'At least one subscription item is required',
       },
     ),
-    hasSlackConnection: z.boolean().optional(),
+    hasSlackConnection: z.string().optional(),
   })
   .partial();
 

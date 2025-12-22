@@ -5411,6 +5411,14 @@ describe('mutation updateOpportunityState', () => {
       type: OpportunityUserType.Recruiter,
     });
 
+    // Remove subscription from organization to test missing subscription
+    await con.getRepository(Organization).update(
+      { id: organizationsFixture[0].id },
+      {
+        recruiterSubscriptionFlags: {},
+      },
+    );
+
     await testMutationErrorCode(
       client,
       {
@@ -5437,6 +5445,19 @@ describe('mutation updateOpportunityState', () => {
       userId: '1',
       type: OpportunityUserType.Recruiter,
     });
+
+    // Update organization to have inactive subscription
+    await con.getRepository(Organization).update(
+      { id: organizationsFixture[0].id },
+      {
+        recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags({
+          subscriptionId: 'sub_pending',
+          status: SubscriptionStatus.Cancelled,
+          provider: 'paddle',
+          items: [{ priceId: 'pri_123', quantity: 5 }],
+        }),
+      },
+    );
 
     await testMutationErrorCode(
       client,
@@ -6133,12 +6154,12 @@ describe('mutation createSharedSlackChannel', () => {
       external_limited: true,
     });
 
-    // Verify hasSlackConnection flag was set
+    // Verify hasSlackConnection flag was set with channel name
     const organization = await con
       .getRepository(Organization)
       .findOneBy({ id: '550e8400-e29b-41d4-a716-446655440000' });
     expect(organization?.recruiterSubscriptionFlags.hasSlackConnection).toBe(
-      true,
+      'test-channel',
     );
   });
 
@@ -6260,6 +6281,44 @@ describe('mutation createSharedSlackChannel', () => {
         },
       },
       'PAYMENT_REQUIRED',
+    );
+  });
+
+  it('should forbid creating slack channel if organization already has one', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for user 1
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Update organization to have existing Slack connection
+    await con.getRepository(Organization).update(
+      { id: '550e8400-e29b-41d4-a716-446655440000' },
+      {
+        recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags({
+          subscriptionId: 'sub_123',
+          status: SubscriptionStatus.Active,
+          provider: 'paddle',
+          items: [{ priceId: 'pri_123', quantity: 5 }],
+          hasSlackConnection: 'existing-channel',
+        }),
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          organizationId: '550e8400-e29b-41d4-a716-446655440000',
+          email: 'user@example.com',
+          channelName: 'new-channel',
+        },
+      },
+      'CONFLICT',
     );
   });
 });

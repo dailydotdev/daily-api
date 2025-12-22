@@ -2650,7 +2650,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       payload: z.infer<typeof createSharedSlackChannelSchema>,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const { organizationId, channelName, email } = payload;
+      const { organizationId, channelName, email } =
+        createSharedSlackChannelSchema.parse(payload);
 
       // Check if the user is a recruiter
       const isRecruiter = await ctx.con
@@ -2701,6 +2702,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
+      // Check if organization already has a Slack connection
+      if (organization.recruiterSubscriptionFlags.hasSlackConnection) {
+        throw new ConflictError(
+          'Your organization already has a Slack channel connection. Please contact support if you need to create a new channel.',
+        );
+      }
+
       try {
         const createResult = await slackClient.createConversation(
           channelName,
@@ -2717,13 +2725,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           true,
         );
 
-        // Mark organization as having a Slack connection
+        // Mark organization as having a Slack connection and store channel name
         await ctx.con.getRepository(Organization).update(
           { id: organizationId },
           {
             recruiterSubscriptionFlags:
               updateRecruiterSubscriptionFlags<Organization>({
-                hasSlackConnection: true,
+                hasSlackConnection: createResult.channel.name as string,
               }),
           },
         );
