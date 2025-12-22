@@ -89,19 +89,19 @@ export const opportunityCreateSchema = z.object({
 export const opportunityCreateParseSchema = opportunityCreateSchema.extend({
   organizationId: opportunityCreateSchema.shape.organizationId.nullish(),
   tldr: z.string().max(480).optional().default(''),
-    keywords: z.preprocess((val) => {
-      if (Array.isArray(val)) {
-        return val.map((keyword) => {
-          return {
-            keyword,
-          };
-        });
-      }
+  keywords: z.preprocess((val) => {
+    if (Array.isArray(val)) {
+      return val.map((keyword) => {
+        return {
+          keyword,
+        };
+      });
+    }
 
     return val;
   }, opportunityCreateSchema.shape.keywords),
   meta: opportunityMetaBaseSchema
-      .extend({
+    .extend({
       salary: z
         .object({
           min: z.preprocess((val: bigint) => {
@@ -124,10 +124,10 @@ export const opportunityCreateParseSchema = opportunityCreateSchema.extend({
         .optional(),
     })
     .partial()
-      .optional()
-      .default({}),
-    content: opportunityContentSchema.partial().optional().default({}),
-  });
+    .optional()
+    .default({}),
+  content: opportunityContentSchema.partial().optional().default({}),
+});
 
 export const opportunityEditSchema = z
   .object({
