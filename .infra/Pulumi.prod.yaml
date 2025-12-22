@@ -179,7 +179,7 @@ config:
     employmentAgreementBucketName:
       secure: AAABALYmrJB/AIJh7SXF/2vStsA+vCbPUZ3GVJH/JgIxRg9azoA5A/BZkpSUYHwbVGMLP4yNZpc9Js3/2ISG
     gondulOrigin:
-      secure: AAABAGjjPkdIOygNSpVtBILtv6W4LBCtBJVtjROFM0k8e5WOgvyIwd6ogQEVNk9XRuFWOt3HtowA1vqLFGOf/Iq9V02Si78ZklQXikSPMgzB3ai5vMET1dCG2Q==
+      secure: AAABAAbCPL156LhCxCGsQLM3MgT4R6FI2188qDT/MpujhCfZQnZz7LTNqL1mhPmWZzm6ifa6lDxOrTVQPWTxHHWra/NQXOiodjob1zhH3+dVVxuoAb6dH3M=
     brokkrOrigin:
       secure: AAABABvk5Zi2sL2p8Gjl4vwVS+Ge+P2S3Jo8yDBOTNMZ6FZ1WquX+DqQkvE1YBTCvSMy9kmd+TCsRzeV3LrTC0Xbnlh7PxLog7fseJS37GUJ
     slackRecruiterWebhook:
