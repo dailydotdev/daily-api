@@ -6665,6 +6665,86 @@ describe('opportunity', () => {
         .countBy({ opportunityId: '550e8400-e29b-41d4-a716-446655440001' }),
     ).toEqual(0);
   });
+
+  it('should trigger event when opportunity moves to IN_REVIEW state', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.IN_REVIEW,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.opportunity-in-review',
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        organizationId: organizationsFixture[0].id,
+        title: 'Senior Backend Engineer',
+      },
+    ]);
+  });
+
+  it('should not trigger IN_REVIEW event when state was already IN_REVIEW', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.IN_REVIEW,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Updated Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.IN_REVIEW,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
 });
 
 describe('user_candidate_preference', () => {
