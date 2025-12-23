@@ -148,6 +148,7 @@ import {
   notifyRecruiterCandidateMatchRejected,
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
+import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { PollPost } from '../../entity/posts/PollPost';
@@ -1381,6 +1382,25 @@ const onOpportunityChange = async (
           { opportunityId: data.payload.after!.id },
           { opportunityId: null },
         );
+    }
+  }
+
+  // Trigger event when opportunity moves to IN_REVIEW
+  if (
+    data.payload.op === 'u' &&
+    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.state === OpportunityState.IN_REVIEW &&
+    data.payload.before?.state !== OpportunityState.IN_REVIEW
+  ) {
+    const opportunityData = data.payload.after as ChangeObject<OpportunityJob>;
+    const organizationId = opportunityData.organizationId;
+
+    if (organizationId) {
+      await triggerTypedEvent(logger, 'api.v1.opportunity-in-review', {
+        opportunityId: opportunityData.id,
+        organizationId,
+        title: opportunityData.title,
+      });
     }
   }
 };
