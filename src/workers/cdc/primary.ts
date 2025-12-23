@@ -40,8 +40,6 @@ import {
   UserCompany,
   UserMarketingCta,
   UserPost,
-  UserState,
-  UserStateKey,
   UserStreak,
   UserTopReader,
 } from '../../entity';
@@ -86,7 +84,6 @@ import {
   notifySourcePrivacyUpdated,
   notifySourceReport,
   notifySquadFeaturedUpdated,
-  notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUsernameChanged,
   notifyUserReadmeUpdated,
@@ -99,16 +96,10 @@ import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { updateAlerts } from '../../schema/alerts';
-import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
-import {
-  generateStorageKey,
-  StorageKey,
-  StorageTopic,
-  submissionAccessThreshold,
-} from '../../config';
+import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
   deleteRedisKey,
   getRedisObject,
@@ -487,24 +478,6 @@ const onUserChange = async (
       user: data.payload.before!,
       newProfile: data.payload.after!,
     });
-    if (
-      data.payload.after!.reputation >= submissionAccessThreshold &&
-      data.payload.before!.reputation < submissionAccessThreshold
-    ) {
-      try {
-        await con.getRepository(UserState).insert({
-          userId: data.payload.after!.id,
-          key: UserStateKey.CommunityLinkAccess,
-          value: true,
-        });
-      } catch (originalError) {
-        const ex = originalError as TypeORMQueryFailedError;
-
-        if (ex.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw ex;
-        }
-      }
-    }
     if (data.payload.after!.reputation > data.payload.before!.reputation) {
       await notifyReputationIncrease(
         logger,
@@ -975,18 +948,6 @@ const onSubmissionChange = async (
 
     if (entity.status === SubmissionStatus.Rejected) {
       await notifySubmissionRejected(logger, entity);
-    }
-  }
-};
-
-const onUserStateChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<UserState>,
-) => {
-  if (data.payload.op === 'c') {
-    if (data.payload.after!.key === UserStateKey.CommunityLinkAccess) {
-      await notifySubmissionGrantedAccess(logger, data.payload.after!.userId);
     }
   }
 };
@@ -1670,9 +1631,6 @@ const worker: Worker = {
           break;
         case getTableName(con, Submission):
           await onSubmissionChange(con, logger, data);
-          break;
-        case getTableName(con, UserState):
-          await onUserStateChange(con, logger, data);
           break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);

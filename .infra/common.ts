@@ -170,10 +170,6 @@ export const workers: Worker[] = [
     subscription: 'api.community-picks-failed-notification',
   },
   {
-    topic: 'community-link-access',
-    subscription: 'api.community-picks-granted-notification',
-  },
-  {
     topic: 'post-commented',
     subscription: 'api.article-new-comment-notification.post-commented',
   },

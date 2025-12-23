@@ -22,7 +22,7 @@ describe('notification', () => {
   const id = randomUUID();
   const base: ChangeObject<ObjectType> = {
     id,
-    type: NotificationType.CommunityPicksGranted,
+    type: NotificationType.CommunityPicksSucceeded,
     title: 'hello',
     targetUrl: 'target',
     icon: 'icon',
