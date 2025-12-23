@@ -7,13 +7,13 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
-  BrokkrParseRequest,
   LocationType,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
   Opportunity as OpportunityMessage,
   Location as LocationMessage,
+  BrokkrParseRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
@@ -117,7 +117,6 @@ import {
   acceptedOpportunityFileTypes,
   opportunityMatchBatchSize,
 } from '../types';
-import { getBrokkrClient } from '../common/brokkr';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
@@ -130,6 +129,7 @@ import { SubscriptionStatus } from '../common/plus';
 import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
+import { getBrokkrClient } from '../common/brokkr';
 
 export interface GQLOpportunity
   extends Pick<
@@ -2830,6 +2830,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         });
 
+        ctx.log.info(result, 'brokkrParseOpportunityResponse');
+
         const parsedOpportunity = await opportunityCreateParseSchema.parseAsync(
           result.opportunity,
         );
@@ -2923,12 +2925,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               opportunityId: opportunity.id,
             });
 
-            await entityManager.getRepository(OpportunityKeyword).insert(
-              parsedOpportunity.keywords.map((keyword) => ({
-                opportunityId: opportunity.id,
-                keyword: keyword.keyword,
-              })),
-            );
+            if (parsedOpportunity.keywords) {
+              await entityManager.getRepository(OpportunityKeyword).insert(
+                parsedOpportunity.keywords.map((keyword) => ({
+                  opportunityId: opportunity.id,
+                  keyword: keyword.keyword,
+                })),
+              );
+            }
 
             if (ctx.userId) {
               await entityManager
