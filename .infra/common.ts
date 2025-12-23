@@ -170,10 +170,6 @@ export const workers: Worker[] = [
     subscription: 'api.community-picks-failed-notification',
   },
   {
-    topic: 'community-link-access',
-    subscription: 'api.community-picks-granted-notification',
-  },
-  {
     topic: 'post-commented',
     subscription: 'api.article-new-comment-notification.post-commented',
   },
@@ -432,6 +428,10 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.candidate-accepted-opportunity',
     subscription: 'api.candidate-accepted-opportunity-slack',
+  },
+  {
+    topic: 'api.v1.opportunity-in-review',
+    subscription: 'api.opportunity-in-review-slack',
   },
   {
     topic: 'api.v1.recruiter-rejected-candidate-match',

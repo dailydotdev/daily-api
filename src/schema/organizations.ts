@@ -201,6 +201,15 @@ export const typeDefs = /* GraphQL */ `
     The structured location from dataset
     """
     location: Location
+
+    """
+    How much total seats recruiter has in the organization
+
+    It does not matter if they are occupied or not.
+
+    It will be 0 if no subscription exists.
+    """
+    recruiterTotalSeats: Int!
   }
 
   type ProratedPricePreview {

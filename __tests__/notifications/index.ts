@@ -1,7 +1,6 @@
 import {
   generateNotificationV2,
   type NotificationAwardContext,
-  NotificationBaseContext,
   NotificationBookmarkContext,
   NotificationBundleV2,
   type NotificationCampaignContext,
@@ -57,7 +56,6 @@ import {
   createSquadWelcomePost,
   emptyImage,
   notificationsLink,
-  scoutArticleLink,
   squadsFeaturedPage,
 } from '../../src/common';
 import { usersFixture } from '../fixture/user';
@@ -211,21 +209,6 @@ describe('generateNotification', () => {
         type: 'post',
       },
     ]);
-  });
-
-  it('should generate community_picks_granted notification', () => {
-    const type = NotificationType.CommunityPicksGranted;
-    const ctx: NotificationBaseContext = { userIds: [userId] };
-    const actual = generateNotificationV2(type, ctx);
-
-    expect(actual.notification.type).toEqual(type);
-    expect(actual.userIds).toEqual([userId]);
-    expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('system');
-    expect(actual.notification.referenceType).toEqual('system');
-    expect(actual.notification.targetUrl).toEqual(scoutArticleLink);
-    expect(actual.avatars.length).toEqual(0);
-    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate article_picked notification', () => {

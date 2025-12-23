@@ -14,6 +14,7 @@ import { usersFixture } from '../fixture/user';
 import { keywordsFixture } from '../fixture/keywords';
 import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
 import { Company, CompanyType } from '../../src/entity/Company';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 import type { MapboxResponse } from '../../src/integrations/mapbox/types';
 import nock from 'nock';
 
@@ -806,6 +807,297 @@ describe('query autocompleteLocation', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.autocompleteLocation).toEqual([]);
+  });
+
+  describe('internal dataset', () => {
+    const QUERY_WITH_DATASET = /* GraphQL */ `
+      query AutocompleteLocation(
+        $query: String!
+        $dataset: LocationDataset
+        $limit: Int
+      ) {
+        autocompleteLocation(query: $query, dataset: $dataset, limit: $limit) {
+          id
+          country
+          city
+          subdivision
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      await saveFixtures(con, DatasetLocation, [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          country: 'United States',
+          subdivision: 'California',
+          city: 'San Francisco',
+          iso2: 'US',
+          iso3: 'USA',
+          externalId: 'usa1',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440002',
+          country: 'United States',
+          subdivision: 'New York',
+          city: 'New York City',
+          iso2: 'US',
+          iso3: 'USA',
+          externalId: 'usa2',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440003',
+          country: 'Germany',
+          subdivision: 'Bavaria',
+          city: 'Munich',
+          iso2: 'DE',
+          iso3: 'DEU',
+          externalId: 'de1',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440004',
+          country: 'Germany',
+          subdivision: null,
+          city: 'Berlin',
+          iso2: 'DE',
+          iso3: 'DEU',
+          externalId: 'de2',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440005',
+          country: 'United Kingdom',
+          subdivision: null,
+          city: null,
+          iso2: 'GB',
+          iso3: 'GBR',
+          externalId: 'uk1',
+        },
+      ]);
+    });
+
+    it('should return locations from internal database when dataset is internal', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'san francisco', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'usa1',
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        },
+      ]);
+    });
+
+    it('should match by country name', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'germany', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toHaveLength(2);
+      // Note: ORDER BY subdivision ASC puts non-null values before null
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'de1',
+          country: 'Germany',
+          city: 'Munich',
+          subdivision: 'Bavaria',
+        },
+        {
+          id: 'de2',
+          country: 'Germany',
+          city: 'Berlin',
+          subdivision: null,
+        },
+      ]);
+    });
+
+    it('should match by subdivision name', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'california', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'usa1',
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        },
+      ]);
+    });
+
+    it('should match by city name', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'munich', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'de1',
+          country: 'Germany',
+          city: 'Munich',
+          subdivision: 'Bavaria',
+        },
+      ]);
+    });
+
+    it('should be case insensitive', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'UNITED STATES', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toHaveLength(2);
+    });
+
+    it('should return empty array when no matches found', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'nonexistent', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([]);
+    });
+
+    it('should handle null subdivision and city', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'united kingdom', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'uk1',
+          country: 'United Kingdom',
+          city: null,
+          subdivision: null,
+        },
+      ]);
+    });
+
+    it('should respect limit parameter', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'united', dataset: 'internal', limit: 1 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toHaveLength(1);
+    });
+
+    it('should return Europe as a country', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(DatasetLocation).save({
+        id: '550e8400-e29b-41d4-a716-446655440006',
+        country: 'Europe',
+        subdivision: null,
+        city: null,
+        iso2: 'EU',
+        iso3: 'EUR',
+        externalId: 'eu1',
+      });
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'europe', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'eu1',
+          country: 'Europe',
+          city: null,
+          subdivision: null,
+        },
+      ]);
+    });
+
+    it('should default to external (Mapbox) when dataset is not specified', async () => {
+      loggedUser = '1';
+
+      const mockMapboxResponse: MapboxResponse = {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: {
+              coordinates: [-122.4194, 37.7749],
+              type: 'Point',
+            },
+            properties: {
+              name: 'San Francisco',
+              mapbox_id: 'place.sf',
+              feature_type: 'place',
+              place_formatted: 'San Francisco, California, United States',
+              context: {
+                country: {
+                  id: 'country.us',
+                  name: 'United States',
+                  country_code: 'US',
+                  country_code_alpha_3: 'USA',
+                },
+                region: {
+                  id: 'region.ca',
+                  name: 'California',
+                  region_code: 'CA',
+                  region_code_full: 'US-CA',
+                },
+              },
+              coordinates: {
+                latitude: 37.7749,
+                longitude: -122.4194,
+              },
+              language: 'en',
+              maki: 'marker',
+              metadata: {},
+            },
+          },
+        ],
+        attribution: 'Mapbox',
+        response_id: 'test-response-id',
+      };
+
+      nock('https://api.mapbox.com')
+        .get('/search/geocode/v6/forward')
+        .query({
+          q: 'san francisco',
+          types: 'country,region,place',
+          limit: 5,
+          access_token: process.env.MAPBOX_ACCESS_TOKEN,
+        })
+        .reply(200, mockMapboxResponse);
+
+      // Query without specifying dataset - should use Mapbox
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'san francisco' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      // Should return Mapbox ID, not internal database ID
+      expect(res.data.autocompleteLocation[0].id).toBe('place.sf');
+    });
   });
 });
 

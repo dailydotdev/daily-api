@@ -40,8 +40,6 @@ import {
   UserCompany,
   UserMarketingCta,
   UserPost,
-  UserState,
-  UserStateKey,
   UserStreak,
   UserTopReader,
 } from '../../entity';
@@ -86,7 +84,6 @@ import {
   notifySourcePrivacyUpdated,
   notifySourceReport,
   notifySquadFeaturedUpdated,
-  notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUsernameChanged,
   notifyUserReadmeUpdated,
@@ -99,16 +96,10 @@ import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { updateAlerts } from '../../schema/alerts';
-import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
-import {
-  generateStorageKey,
-  StorageKey,
-  StorageTopic,
-  submissionAccessThreshold,
-} from '../../config';
+import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
   deleteRedisKey,
   getRedisObject,
@@ -157,6 +148,7 @@ import {
   notifyRecruiterCandidateMatchRejected,
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
+import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { PollPost } from '../../entity/posts/PollPost';
@@ -165,6 +157,7 @@ import { UserExperience } from '../../entity/user/experiences/UserExperience';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
 import { enrichCompanyForExperience } from '../../common/companyEnrichment';
+import { Company } from '../../entity/Company';
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -486,24 +479,6 @@ const onUserChange = async (
       user: data.payload.before!,
       newProfile: data.payload.after!,
     });
-    if (
-      data.payload.after!.reputation >= submissionAccessThreshold &&
-      data.payload.before!.reputation < submissionAccessThreshold
-    ) {
-      try {
-        await con.getRepository(UserState).insert({
-          userId: data.payload.after!.id,
-          key: UserStateKey.CommunityLinkAccess,
-          value: true,
-        });
-      } catch (originalError) {
-        const ex = originalError as TypeORMQueryFailedError;
-
-        if (ex.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw ex;
-        }
-      }
-    }
     if (data.payload.after!.reputation > data.payload.before!.reputation) {
       await notifyReputationIncrease(
         logger,
@@ -978,18 +953,6 @@ const onSubmissionChange = async (
   }
 };
 
-const onUserStateChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<UserState>,
-) => {
-  if (data.payload.op === 'c') {
-    if (data.payload.after!.key === UserStateKey.CommunityLinkAccess) {
-      await notifySubmissionGrantedAccess(logger, data.payload.after!.userId);
-    }
-  }
-};
-
 const onSourceMemberChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1206,6 +1169,29 @@ const onUserCompanyCompanyChange = async (
     await con
       .getRepository(UserExperienceWork)
       .update({ userId, companyId: companyId! }, { verified: true });
+
+    // Link experiences that have matching customCompanyName but no companyId yet
+    const company = await con
+      .getRepository(Company)
+      .findOneBy({ id: companyId! });
+    if (company) {
+      const companyNames = [company.name.toLowerCase()];
+      if (company.altName) {
+        companyNames.push(company.altName.toLowerCase());
+      }
+
+      await con
+        .getRepository(UserExperience)
+        .createQueryBuilder()
+        .update()
+        .set({ companyId: companyId! })
+        .where('userId = :userId', { userId })
+        .andWhere('companyId IS NULL')
+        .andWhere('LOWER("customCompanyName") IN (:...companyNames)', {
+          companyNames,
+        })
+        .execute();
+    }
   }
 };
 
@@ -1382,15 +1368,40 @@ const onOpportunityChange = async (
   if (
     data.payload.op === 'u' &&
     data.payload.after?.type === OpportunityType.JOB &&
-    data.payload.before?.state === OpportunityState.LIVE &&
-    data.payload.after?.state !== OpportunityState.LIVE
+    data.payload.before?.state === OpportunityState.LIVE
   ) {
-    await con
-      .getRepository(Alerts)
-      .update(
-        { opportunityId: data.payload.after!.id },
-        { opportunityId: null },
-      );
+    await notifyJobOpportunity({
+      con,
+      logger,
+      opportunityId: data.payload.after!.id,
+    });
+    if (data.payload.after?.state !== OpportunityState.LIVE) {
+      await con
+        .getRepository(Alerts)
+        .update(
+          { opportunityId: data.payload.after!.id },
+          { opportunityId: null },
+        );
+    }
+  }
+
+  // Trigger event when opportunity moves to IN_REVIEW
+  if (
+    data.payload.op === 'u' &&
+    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.state === OpportunityState.IN_REVIEW &&
+    data.payload.before?.state !== OpportunityState.IN_REVIEW
+  ) {
+    const opportunityData = data.payload.after as ChangeObject<OpportunityJob>;
+    const organizationId = opportunityData.organizationId;
+
+    if (organizationId) {
+      await triggerTypedEvent(logger, 'api.v1.opportunity-in-review', {
+        opportunityId: opportunityData.id,
+        organizationId,
+        title: opportunityData.title,
+      });
+    }
   }
 };
 
@@ -1640,9 +1651,6 @@ const worker: Worker = {
           break;
         case getTableName(con, Submission):
           await onSubmissionChange(con, logger, data);
-          break;
-        case getTableName(con, UserState):
-          await onUserStateChange(con, logger, data);
           break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);

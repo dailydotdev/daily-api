@@ -76,7 +76,6 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   source_post_rejected: '', // we won't send an email on rejected ones
   community_picks_failed: '28',
   community_picks_succeeded: '27',
-  community_picks_granted: '26',
   article_picked: '32',
   article_new_comment: '33',
   article_upvote_milestone: '22',
@@ -301,9 +300,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         notification.type,
       ),
     };
-  },
-  community_picks_granted: async () => {
-    return {};
   },
   article_picked: async (con, user, notification, attachments) => {
     const att = attachments[0];

@@ -7,13 +7,13 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
-  BrokkrParseRequest,
   LocationType,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
   Opportunity as OpportunityMessage,
   Location as LocationMessage,
+  BrokkrParseRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
@@ -22,6 +22,7 @@ import {
   toGQLEnum,
   uniqueifyObjectArray,
   updateFlagsStatement,
+  updateRecruiterSubscriptionFlags,
 } from '../common';
 import {
   OpportunityMatchStatus,
@@ -71,7 +72,7 @@ import {
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
   opportunityMatchesQuerySchema,
-  opportunityUpdateSubscriptionSchema,
+  addOpportunitySeatsSchema,
 } from '../common/schema/opportunities';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
@@ -87,8 +88,10 @@ import {
   type DeepPartial,
   JsonContains,
   EntityManager,
+  IsNull,
 } from 'typeorm';
 import { Organization } from '../entity/Organization';
+import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 import {
   OrganizationLinkType,
   SocialMediaType,
@@ -114,7 +117,6 @@ import {
   acceptedOpportunityFileTypes,
   opportunityMatchBatchSize,
 } from '../types';
-import { getBrokkrClient } from '../common/brokkr';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
 import { randomUUID } from 'node:crypto';
@@ -127,6 +129,7 @@ import { SubscriptionStatus } from '../common/plus';
 import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
+import { getBrokkrClient } from '../common/brokkr';
 
 export interface GQLOpportunity
   extends Pick<
@@ -785,6 +788,15 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
+  input OpportunitySeatInput {
+    priceId: String!
+    quantity: Int!
+  }
+
+  input AddOpportunitySeatsInput {
+    seats: [OpportunitySeatInput!]!
+  }
+
   extend type Mutation {
     """
     Updates the authenticated candidate's saved preferences
@@ -934,6 +946,11 @@ export const typeDefs = /* GraphQL */ `
     """
     createSharedSlackChannel(
       """
+      Organization ID
+      """
+      organizationId: ID!
+
+      """
       Email address of the user to invite
       """
       email: String!
@@ -944,13 +961,13 @@ export const typeDefs = /* GraphQL */ `
       channelName: String!
     ): EmptyResponse @auth
 
-    addOpportunitySeat(
+    addOpportunitySeats(
       """
       Id of the Opportunity
       """
       id: ID!
 
-      priceId: String!
+      payload: AddOpportunitySeatsInput!
     ): EmptyResponse @auth
   }
 `;
@@ -2421,7 +2438,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const organization = await opportunity.organization;
 
       switch (state) {
-        case OpportunityState.LIVE: {
+        case OpportunityState.IN_REVIEW: {
           if (!organization) {
             throw new ConflictError(
               `Opportunity must have an organization assigned`,
@@ -2436,7 +2453,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             organization.recruiterSubscriptionFlags.status !==
             SubscriptionStatus.Active
           ) {
-            throw new ConflictError(
+            throw new PaymentRequiredError(
               `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
             );
           }
@@ -2448,30 +2465,54 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             questions: await opportunity.questions,
           });
 
-          const availableSeats =
-            organization.recruiterSubscriptionFlags.items?.reduce(
-              (total, item) => {
-                return total + item.quantity;
-              },
-              0,
-            ) || 0;
-
-          const liveOpportunitiesCount = await ctx.con
-            .getRepository(OpportunityJob)
-            .count({
+          const liveOpportunities: Pick<OpportunityJob, 'flags'>[] =
+            await ctx.con.getRepository(OpportunityJob).find({
+              select: ['flags'],
               where: {
                 organizationId: organization.id,
-                state: OpportunityState.LIVE,
+                state: In([OpportunityState.LIVE, OpportunityState.IN_REVIEW]),
               },
+              take: 100,
             });
 
-          if (liveOpportunitiesCount >= availableSeats) {
+          const organizationPlans = [
+            ...(organization.recruiterSubscriptionFlags.items || []),
+          ];
+
+          // look through live opportunities and decrement plan quantities
+          // to figure out how many seats are left
+          liveOpportunities.reduce((acc, opportunity) => {
+            const planPriceId = opportunity.flags?.plan;
+
+            const planForOpportunity = organizationPlans.find(
+              (plan) => plan.priceId === planPriceId,
+            );
+
+            if (planForOpportunity) {
+              planForOpportunity.quantity -= 1;
+            }
+
+            return acc;
+          }, organizationPlans);
+
+          // for now just assign first plan available
+          const newPlan = organizationPlans.find((plan) => plan.quantity > 0);
+
+          if (!newPlan) {
             throw new PaymentRequiredError(
-              `Your subscription allows for ${availableSeats} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
+              `Your don't have any more seats available. Please update your subscription to add more seats.`,
             );
           }
 
-          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+          await ctx.con.getRepository(OpportunityJob).update(
+            { id },
+            {
+              state,
+              flags: updateFlagsStatement<OpportunityJob>({
+                plan: newPlan.priceId,
+              }),
+            },
+          );
 
           break;
         }
@@ -2498,13 +2539,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         _: true,
       };
     },
-    addOpportunitySeat: async (
+    addOpportunitySeats: async (
       _,
-      payload,
+      { id, payload }: { id: string; payload: unknown },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const { id, priceId } =
-        opportunityUpdateSubscriptionSchema.parse(payload);
+      const { seats } = addOpportunitySeatsSchema.parse(payload);
 
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
@@ -2541,26 +2581,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const subscription =
         await paddleInstance.subscriptions.get(subscriptionid);
 
-      const liveOpportunitiesCount = await ctx.con
-        .getRepository(OpportunityJob)
-        .count({
-          where: {
-            organizationId: organization.id,
-            state: OpportunityState.LIVE,
-            flags: JsonContains({ plan: priceId }),
-          },
-        });
-
-      const availableSeatsForPlan = subscription.items
-        .filter((item) => item.price.id === priceId)
-        .reduce((total, item) => total + item.quantity, 0);
-
-      if (liveOpportunitiesCount >= availableSeatsForPlan) {
-        throw new PaymentRequiredError(
-          `Your subscription allows for ${availableSeatsForPlan} live opportunities. Please upgrade your subscription to add more or pause other live opportunities.`,
-        );
-      }
-
       const subscriptionItems = subscription.items.map((item) => {
         return {
           priceId: item.price.id,
@@ -2568,33 +2588,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         };
       }) as ISubscriptionUpdateItem[];
 
-      // find the existing price item
-      const priceItem = subscriptionItems.find(
-        (item) => item.priceId === priceId,
-      );
+      seats.forEach((seat) => {
+        const { priceId } = seat;
 
-      const quantityToAdd = 1;
+        // find the existing price item
+        const priceItem = subscriptionItems.find(
+          (item) => item.priceId === priceId,
+        );
 
-      // if not found, add new item with quantity 1, else increment quantity
-      if (!priceItem) {
-        subscriptionItems.push({ priceId, quantity: quantityToAdd });
-      } else {
-        priceItem.quantity += quantityToAdd;
-      }
+        const quantityToAdd = 1;
 
-      await paddleInstance.subscriptions.update(subscriptionid, {
-        prorationBillingMode: 'prorated_immediately',
-        items: subscriptionItems,
+        // if not found, add new item with quantity 1, else increment quantity
+        if (!priceItem) {
+          subscriptionItems.push({ priceId, quantity: quantityToAdd });
+        } else {
+          priceItem.quantity += quantityToAdd;
+        }
       });
 
-      await ctx.con.getRepository(OpportunityJob).update(
-        { id },
+      const updateResult = await paddleInstance.subscriptions.update(
+        subscriptionid,
         {
-          flags: updateFlagsStatement<OpportunityJob>({
-            plan: priceId,
-          }),
+          prorationBillingMode: 'prorated_immediately',
+          items: subscriptionItems,
         },
       );
+
+      await ctx.con.getRepository(Organization).update(organization.id, {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            items: updateResult.items.map((item) => {
+              return {
+                priceId: item.price.id,
+                quantity: item.quantity,
+              };
+            }),
+          }),
+      });
 
       return { _: true };
     },
@@ -2603,6 +2633,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       payload: z.infer<typeof createSharedSlackChannelSchema>,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      const { organizationId, channelName, email } =
+        createSharedSlackChannelSchema.parse(payload);
+
       // Check if the user is a recruiter
       const isRecruiter = await ctx.con
         .getRepository(OpportunityUserRecruiter)
@@ -2619,9 +2652,47 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      try {
-        const { channelName, email } = payload;
+      // Verify user is a member of the organization
+      const organizationMembership = await ctx.con
+        .getRepository(ContentPreferenceOrganization)
+        .findOne({
+          where: {
+            userId: ctx.userId,
+            organizationId,
+          },
+        });
 
+      if (!organizationMembership) {
+        throw new ForbiddenError(
+          'Access denied! You are not a member of this organization',
+        );
+      }
+
+      // Get the organization and check subscription status
+      const organization = await ctx.con
+        .getRepository(Organization)
+        .findOneOrFail({
+          where: { id: organizationId },
+        });
+
+      // Check if organization has an active subscription
+      if (
+        organization.recruiterSubscriptionFlags.status !==
+        SubscriptionStatus.Active
+      ) {
+        throw new PaymentRequiredError(
+          'Your organization subscription is not active. Please ensure your payment has been processed before creating Slack channels.',
+        );
+      }
+
+      // Check if organization already has a Slack connection
+      if (organization.recruiterSubscriptionFlags.hasSlackConnection) {
+        throw new ConflictError(
+          'Your organization already has a Slack channel connection. Please contact support if you need to create a new channel.',
+        );
+      }
+
+      try {
         const createResult = await slackClient.createConversation(
           channelName,
           false,
@@ -2635,6 +2706,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           createResult.channel.id as string,
           [email],
           true,
+        );
+
+        // Mark organization as having a Slack connection and store channel name
+        await ctx.con.getRepository(Organization).update(
+          { id: organizationId },
+          {
+            recruiterSubscriptionFlags:
+              updateRecruiterSubscriptionFlags<Organization>({
+                hasSlackConnection: createResult.channel.name as string,
+              }),
+          },
         );
 
         return { _: true };
@@ -2730,6 +2812,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         });
 
+        ctx.log.info(result, 'brokkrParseOpportunityResponse');
+
         const parsedOpportunity = await opportunityCreateParseSchema.parseAsync(
           result.opportunity,
         );
@@ -2771,6 +2855,29 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const { location, ...opportunityData } = parsedOpportunity;
 
+            // if user is logged in, associate them with their existing organization
+            if (ctx.userId) {
+              const existingOrganizationOpportunity: Pick<
+                OpportunityJob,
+                'id' | 'organizationId'
+              > | null = await entityManager
+                .getRepository(OpportunityJob)
+                .findOne({
+                  select: ['id', 'organizationId'],
+                  where: {
+                    users: {
+                      userId: ctx.userId,
+                    },
+                    organizationId: Not(IsNull()),
+                  },
+                });
+
+              if (existingOrganizationOpportunity) {
+                opportunityData.organizationId =
+                  existingOrganizationOpportunity.organizationId;
+              }
+            }
+
             const opportunity = await entityManager
               .getRepository(OpportunityJob)
               .save(
@@ -2800,12 +2907,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               opportunityId: opportunity.id,
             });
 
-            await entityManager.getRepository(OpportunityKeyword).insert(
-              parsedOpportunity.keywords.map((keyword) => ({
-                opportunityId: opportunity.id,
-                keyword: keyword.keyword,
-              })),
-            );
+            if (parsedOpportunity.keywords) {
+              await entityManager.getRepository(OpportunityKeyword).insert(
+                parsedOpportunity.keywords.map((keyword) => ({
+                  opportunityId: opportunity.id,
+                  keyword: keyword.keyword,
+                })),
+              );
+            }
 
             if (ctx.userId) {
               await entityManager

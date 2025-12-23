@@ -43,9 +43,24 @@ export const opportunityContentSchema = z.object({
   }).optional(),
 });
 
+const opportunityMetaBaseSchema = z.object({
+  employmentType: z.coerce.number().min(1).optional(),
+  teamSize: z.number().int().nonnegative().min(1).max(1_000_000).optional(),
+  salary: z
+    .object({
+      min: z.number().int().nonnegative().max(100_000_000),
+      max: z.number().int().nonnegative().max(100_000_000),
+      period: z.number(),
+    })
+    .partial()
+    .optional(),
+  seniorityLevel: z.number().optional(),
+  roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]).optional(),
+});
+
 export const opportunityCreateSchema = z.object({
   title: z.string().nonempty().max(240),
-  tldr: z.string().nonempty().max(480),
+  tldr: z.string().nonempty().max(480).optional(),
   keywords: z
     .array(
       z.object({
@@ -53,76 +68,66 @@ export const opportunityCreateSchema = z.object({
       }),
     )
     .min(1)
-    .max(100),
+    .max(100)
+    .optional(),
   location: z
     .array(
       z.object({
-        country: z.string().nonempty().max(240),
+        country: z.string('No location could be extracted').nonempty().max(240),
         city: z.string().nonempty().max(240).optional(),
         subdivision: z.string().nonempty().max(240).optional(),
-        type: z.coerce.number().min(1),
+        type: z.coerce.number().min(1).optional(),
         iso2: z.string().nonempty().max(2).optional(),
       }),
     )
     .optional(),
   organizationId: z.string(),
-  meta: z.object({
-    employmentType: z.coerce.number().min(1),
-    teamSize: z.number().int().nonnegative().min(1).max(1_000_000),
-    salary: z
-      .object({
-        min: z.number().int().nonnegative().max(100_000_000),
-        max: z.number().int().nonnegative().max(100_000_000),
-        period: z.number(),
-      })
-      .partial()
-      .optional(),
-    seniorityLevel: z.number(),
-    roleType: z.union([z.literal(0), z.literal(0.5), z.literal(1)]),
-  }),
-  content: opportunityContentSchema.partial(),
+  meta: opportunityMetaBaseSchema.optional(),
+  content: opportunityContentSchema.partial().optional(),
 });
 
-export const opportunityCreateParseSchema = opportunityCreateSchema
-  .omit({ organizationId: true })
-  .extend({
-    keywords: z.preprocess((val) => {
-      if (Array.isArray(val)) {
-        return val.map((keyword) => {
-          return {
-            keyword,
-          };
-        });
-      }
+export const opportunityCreateParseSchema = opportunityCreateSchema.extend({
+  organizationId: opportunityCreateSchema.shape.organizationId.nullish(),
+  tldr: z.string().max(480).optional().default(''),
+  keywords: z.preprocess((val) => {
+    if (Array.isArray(val)) {
+      return val.map((keyword) => {
+        return {
+          keyword,
+        };
+      });
+    }
 
-      return val;
-    }, opportunityCreateSchema.shape.keywords),
-    meta: opportunityCreateSchema.shape.meta
-      .extend({
-        teamSize: opportunityCreateSchema.shape.meta.shape.teamSize.optional(),
-        salary: z
-          .object({
-            min: z.preprocess((val: bigint) => {
-              if (typeof val === 'undefined') {
-                return val;
-              }
+    return val;
+  }, opportunityCreateSchema.shape.keywords),
+  meta: opportunityMetaBaseSchema
+    .extend({
+      salary: z
+        .object({
+          min: z.preprocess((val: bigint) => {
+            if (typeof val === 'undefined') {
+              return val;
+            }
 
-              return parseBigInt(val);
-            }, z.number().int().nonnegative().max(100_000_000).optional()),
-            max: z.preprocess((val: bigint) => {
-              if (typeof val === 'undefined') {
-                return val;
-              }
+            return parseBigInt(val);
+          }, z.number().int().nonnegative().max(100_000_000).optional()),
+          max: z.preprocess((val: bigint) => {
+            if (typeof val === 'undefined') {
+              return val;
+            }
 
-              return parseBigInt(val);
-            }, z.number().int().nonnegative().max(100_000_000).optional()),
-            period: z.number(),
-          })
-          .partial()
-          .optional(),
-      })
-      .partial(),
-  });
+            return parseBigInt(val);
+          }, z.number().int().nonnegative().max(100_000_000).optional()),
+          period: z.number(),
+        })
+        .partial()
+        .optional(),
+    })
+    .partial()
+    .optional()
+    .default({}),
+  content: opportunityContentSchema.partial().optional().default({}),
+});
 
 export const opportunityEditSchema = z
   .object({
@@ -173,12 +178,24 @@ export const opportunityEditSchema = z
       .array(
         z.object({
           id: z.uuid().optional(),
-          title: z.string().nonempty().max(480),
-          placeholder: z.string().max(480).nullable().optional(),
+          title: z.string().nonempty().max(480, {
+            error: 'Question title is too long',
+          }),
+          placeholder: z
+            .string()
+            .max(480, {
+              error: 'Placeholder is too long',
+            })
+            .nullable()
+            .optional(),
         }),
       )
-      .min(1)
-      .max(3),
+      .min(1, {
+        error: 'At least one question is required',
+      })
+      .max(3, {
+        error: 'No more than three questions are allowed',
+      }),
     organization: z
       .object({
         name: z.string().nonempty().max(60).optional(),
@@ -241,6 +258,7 @@ export const parseOpportunitySchema = z
   );
 
 export const createSharedSlackChannelSchema = z.object({
+  organizationId: z.string().uuid('Organization ID must be a valid UUID'),
   email: z.string().email('Email must be a valid email address'),
   channelName: z
     .string()
@@ -296,6 +314,7 @@ export const recruiterSubscriptionFlagsSchema = z
         error: 'At least one subscription item is required',
       },
     ),
+    hasSlackConnection: z.string().optional(),
   })
   .partial();
 
@@ -304,7 +323,30 @@ export const gondulOpportunityPreviewResultSchema = z.object({
   total_count: z.number().int().nonnegative(),
 });
 
-export const opportunityUpdateSubscriptionSchema = z.object({
-  id: z.uuid(),
-  priceId: z.string(),
+export const maxRecruiterSeats = 50;
+
+export const addOpportunitySeatsSchema = z.object({
+  seats: z
+    .array(
+      z.object({
+        priceId: z.string().nonempty('Select a price option'),
+        quantity: z
+          .number()
+          .nonnegative()
+          .min(1, 'Enter the number of seats')
+          .max(maxRecruiterSeats, {
+            error: `You can add up to ${maxRecruiterSeats} seats at a time`,
+          }),
+      }),
+      {
+        error: 'At least one seat is required',
+      },
+    )
+    .min(1, {
+      error: 'At least one seat is required',
+    })
+    // number of pricing ids that can be in cart, just arbitrarily limit to 10
+    .max(10, {
+      error: 'You can add up to 10 different price options at a time',
+    }),
 });
