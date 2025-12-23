@@ -98,7 +98,7 @@ import {
 } from '../common/schema/organizations';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import {
-  createLocationFromMapbox,
+  findOrCreateDatasetLocation,
   findDatasetLocation,
 } from '../entity/dataset/utils';
 import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
@@ -1127,12 +1127,10 @@ async function handleOpportunityLocationUpdate(
       opportunityId,
     });
 
-    let location = await entityManager.getRepository(DatasetLocation).findOne({
-      where: { externalId: externalLocationId },
-    });
-    if (!location) {
-      location = await createLocationFromMapbox(ctx.con, externalLocationId);
-    }
+    const location = await findOrCreateDatasetLocation(
+      ctx.con,
+      externalLocationId,
+    );
 
     // Create new OpportunityLocation relationship
     if (location) {
@@ -1185,17 +1183,10 @@ async function handleOpportunityOrganizationUpdate(
     delete organizationUpdate.externalLocationId;
 
     if (externalLocationId) {
-      let location = await entityManager
-        .getRepository(DatasetLocation)
-        .findOne({
-          where: { externalId: externalLocationId },
-        });
-      if (!location) {
-        location = await createLocationFromMapbox(
-          entityManager.connection,
-          externalLocationId,
-        );
-      }
+      const location = await findOrCreateDatasetLocation(
+        entityManager.connection,
+        externalLocationId,
+      );
 
       if (location) {
         organizationUpdate.locationId = location.id;
@@ -1893,19 +1884,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       // Handle externalLocationId -> locationId mapping
-      let location: DatasetLocation | null = null;
-      if (preferences.data.externalLocationId) {
-        location = await con.getRepository(DatasetLocation).findOne({
-          where: { externalId: preferences.data.externalLocationId },
-        });
-
-        if (!location) {
-          location = await createLocationFromMapbox(
-            con,
-            preferences.data.externalLocationId,
-          );
-        }
-      }
+      const location = await findOrCreateDatasetLocation(
+        con,
+        preferences.data.externalLocationId,
+      );
 
       await con.getRepository(UserCandidatePreference).upsert(
         {
