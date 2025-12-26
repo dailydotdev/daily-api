@@ -120,6 +120,7 @@ export class Settings {
 
 export const SETTINGS_DEFAULT = {
   theme: 'darcula',
+  recruiterTheme: 'bright',
   showTopSites: true,
   insaneMode: false,
   spaciness: 'eco',
