@@ -23,6 +23,8 @@ import {
   SquadSource,
   User,
 } from '../entity';
+import { UserExperience } from '../entity/user/experiences/UserExperience';
+import { UserExperienceType } from '../entity/user/experiences/types';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import {
   getPermissionsForMember,
@@ -45,6 +47,7 @@ import {
   StorageKey,
   StorageTopic,
 } from '../config';
+
 import {
   ONE_DAY_IN_SECONDS,
   base64,
@@ -148,6 +151,7 @@ export type LoggedInBoot = BaseBoot & {
     balance: GetBalanceResult;
     coresRole: CoresRole;
     location?: TLocation | null;
+    profileCompletion?: ProfileCompletion | null;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
@@ -525,6 +529,80 @@ const getLocation = async (
   return location;
 };
 
+export type ProfileCompletion = {
+  percentage: number;
+  hasProfileImage: boolean;
+  hasHeadline: boolean;
+  hasExperienceLevel: boolean;
+  hasWork: boolean;
+  hasEducation: boolean;
+};
+
+type ProfileExperienceFlags = {
+  hasWork: boolean;
+  hasEducation: boolean;
+};
+
+const getProfileExperienceFlags = async (
+  con: DataSource | QueryRunner,
+  userId: string,
+): Promise<ProfileExperienceFlags> => {
+  // Check if user has work and education experiences using efficient EXISTS queries
+  const [hasWork, hasEducation] = await Promise.all([
+    con.manager
+      .createQueryBuilder(UserExperience, 'ue')
+      .select('1')
+      .where('ue.userId = :userId', { userId })
+      .andWhere('ue.type = :type', { type: UserExperienceType.Work })
+      .limit(1)
+      .getRawOne()
+      .then((result) => !!result),
+    con.manager
+      .createQueryBuilder(UserExperience, 'ue')
+      .select('1')
+      .where('ue.userId = :userId', { userId })
+      .andWhere('ue.type = :type', { type: UserExperienceType.Education })
+      .limit(1)
+      .getRawOne()
+      .then((result) => !!result),
+  ]);
+
+  return { hasWork, hasEducation };
+};
+
+const calculateProfileCompletion = (
+  user: User | null,
+  experienceFlags: ProfileExperienceFlags | null,
+): ProfileCompletion | null => {
+  if (!user || !experienceFlags) {
+    return null;
+  }
+
+  // Calculate completion based on 5 items (each worth 20%)
+  const hasProfileImage = !!user.image && user.image !== '';
+  const hasHeadline = !!user.bio && user.bio.trim() !== '';
+  const hasExperienceLevel = !!user.experienceLevel;
+  const { hasWork, hasEducation } = experienceFlags;
+
+  const completedItems = [
+    hasProfileImage,
+    hasHeadline,
+    hasExperienceLevel,
+    hasWork,
+    hasEducation,
+  ].filter(Boolean).length;
+
+  const percentage = Math.round((completedItems / 5) * 100);
+  return {
+    percentage,
+    hasProfileImage,
+    hasHeadline,
+    hasExperienceLevel,
+    hasWork,
+    hasEducation,
+  };
+};
+
 const loggedInBoot = async ({
   con,
   req,
@@ -546,6 +624,7 @@ const loggedInBoot = async ({
     const geo = geoSection(req);
 
     const { log } = req;
+
     const [
       visit,
       roles,
@@ -559,6 +638,7 @@ const loggedInBoot = async ({
         feeds,
         unreadNotificationsCount,
         location,
+        experienceFlags,
       ],
       balance,
       clickbaitTries,
@@ -582,11 +662,15 @@ const loggedInBoot = async ({
           getFeeds({ con: queryRunner, userId }),
           getUnreadNotificationsCount(queryRunner, userId),
           getLocation(queryRunner, userId),
+          getProfileExperienceFlags(queryRunner, userId),
         ]);
       }),
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
     ]);
+
+    const profileCompletion = calculateProfileCompletion(user, experienceFlags);
+
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
@@ -641,6 +725,7 @@ const loggedInBoot = async ({
         clickbaitTries,
         hasLocationSet,
         location,
+        profileCompletion,
       },
       visit,
       alerts: {
