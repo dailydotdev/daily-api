@@ -547,25 +547,25 @@ const getProfileExperienceFlags = async (
   con: DataSource | QueryRunner,
   userId: string,
 ): Promise<ProfileExperienceFlags> => {
-  // Check if user has work and education experiences using efficient EXISTS queries
-  const [hasWork, hasEducation] = await Promise.all([
-    con.manager
-      .createQueryBuilder(UserExperience, 'ue')
-      .select('1')
-      .where('ue.userId = :userId', { userId })
-      .andWhere('ue.type = :type', { type: UserExperienceType.Work })
-      .limit(1)
-      .getRawOne()
-      .then((result) => !!result),
-    con.manager
-      .createQueryBuilder(UserExperience, 'ue')
-      .select('1')
-      .where('ue.userId = :userId', { userId })
-      .andWhere('ue.type = :type', { type: UserExperienceType.Education })
-      .limit(1)
-      .getRawOne()
-      .then((result) => !!result),
-  ]);
+  const result = await con.manager
+    .createQueryBuilder(UserExperience, 'ue')
+    .select(`MAX(CASE WHEN ue.type = :workType THEN 1 ELSE 0 END)`, 'hasWork')
+    .addSelect(
+      `MAX(CASE WHEN ue.type = :educationType THEN 1 ELSE 0 END)`,
+      'hasEducation',
+    )
+    .where('ue.userId = :userId', { userId })
+    .andWhere('ue.type IN (:...types)', {
+      types: [UserExperienceType.Work, UserExperienceType.Education],
+    })
+    .setParameters({
+      workType: UserExperienceType.Work,
+      educationType: UserExperienceType.Education,
+    })
+    .getRawOne();
+
+  const hasWork = result?.hasWork == 1;
+  const hasEducation = result?.hasEducation == 1;
 
   return { hasWork, hasEducation };
 };

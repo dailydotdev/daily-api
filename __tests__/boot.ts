@@ -162,6 +162,14 @@ const LOGGED_IN_BODY = {
     hasLocationSet: false,
     location: null,
     hideExperience: false,
+    profileCompletion: {
+      percentage: 20,
+      hasProfileImage: true,
+      hasHeadline: false,
+      hasExperienceLevel: false,
+      hasWork: false,
+      hasEducation: false,
+    },
   },
   marketingCta: null,
   feeds: [],
@@ -1736,6 +1744,7 @@ describe('funnel boot', () => {
         'hasLocationSet',
         'location',
         'readme',
+        'profileCompletion',
       ]),
     });
   });
@@ -1939,7 +1948,6 @@ describe('boot profile completion', () => {
   const BASE_PATH = '/boot';
 
   it('should return profileCompletion with 0% for user with no profile data', async () => {
-    // Create user with no profile data
     await con
       .getRepository(User)
       .update({ id: '1' }, { image: '', bio: null, experienceLevel: null });
