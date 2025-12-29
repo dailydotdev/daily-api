@@ -3,7 +3,10 @@ import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { retryFetchParse } from '../retry';
 import { ISnotraClient, ProfileRequest, ProfileResponse } from './types';
-import { isMockEnabled, mockEngagementProfile } from '../../mocks/opportunity';
+import {
+  isMockEnabled,
+  mockSnotraEngagementProfile,
+} from '../../mocks/opportunity/services';
 
 export class SnotraClient implements ISnotraClient {
   private readonly fetchOptions: RequestInit;
@@ -28,7 +31,7 @@ export class SnotraClient implements ISnotraClient {
   getProfile(request: ProfileRequest): Promise<ProfileResponse> {
     // Mock path: return mock engagement profile
     if (isMockEnabled()) {
-      return Promise.resolve(mockEngagementProfile);
+      return Promise.resolve(mockSnotraEngagementProfile);
     }
 
     return this.garmr.execute(() => {
