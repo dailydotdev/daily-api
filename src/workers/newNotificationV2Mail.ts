@@ -31,7 +31,6 @@ import {
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
   formatMailDate,
-  getDiscussionLink,
   getOrganizationPermalink,
   getSourceLink,
   liveTimerDateFormat,
