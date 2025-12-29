@@ -31,6 +31,7 @@ import {
   basicHtmlStrip,
   CioTransactionalMessageTemplateId,
   formatMailDate,
+  getDiscussionLink,
   getOrganizationPermalink,
   getSourceLink,
   liveTimerDateFormat,
@@ -361,6 +362,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       getAuthorPostStats(con, user.id),
       con.getRepository(Post).findOneByOrFail({ id: notification.referenceId }),
     ]);
+    console.log(notification);
     return {
       post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
@@ -368,7 +370,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       post_upvotes: post.upvotes,
       post_comments: post.comments,
       analytics_link: addNotificationEmailUtm(
-        notification.targetUrl,
+        `${process.env.COMMENTS_PREFIX}/posts/${post.id}/analytics`,
         notification.type,
       ),
       profile_link: addNotificationEmailUtm(user.permalink, notification.type),
