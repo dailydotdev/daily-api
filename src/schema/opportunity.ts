@@ -130,6 +130,12 @@ import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
 import { getBrokkrClient } from '../common/brokkr';
+import { isMockEnabled } from '../mocks/opportunity';
+import {
+  mockParseOpportunity,
+  mockOpportunityPreview,
+  mockRecommendScreeningQuestions,
+} from '../mocks/opportunity/functions';
 
 export interface GQLOpportunity
   extends Pick<
@@ -939,7 +945,6 @@ export const typeDefs = /* GraphQL */ `
     Parse an opportunity from a URL or file upload
     """
     parseOpportunity(payload: ParseOpportunityInput!): Opportunity!
-      @rateLimit(limit: 5, duration: 3600)
 
     """
     Create a shared Slack channel and invite a user by email
@@ -1660,6 +1665,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             ? OpportunityPreviewStatus.UNSPECIFIED
             : OpportunityPreviewStatus.READY;
         }
+      } else if (isMockEnabled()) {
+        // Mock path: skip Gondul and use mock preview data directly
+        ctx.log.info('Using mock opportunityPreview - skipping Gondul');
+        opportunityPreview = await mockOpportunityPreview({
+          con: ctx.con,
+          opportunityId: opportunity.id,
+        });
       } else {
         const opportunityContent: Record<string, unknown> = {};
 
@@ -2376,6 +2388,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           },
         });
 
+      // Mock path: return mock screening questions instead of calling Gondul
+      if (isMockEnabled()) {
+        ctx.log.info(
+          'Using mock recommendOpportunityScreeningQuestions - skipping Gondul',
+        );
+        return mockRecommendScreeningQuestions({
+          con: ctx.con,
+          opportunityId: id,
+        });
+      }
+
       if (process.env.NODE_ENV === 'development') {
         return [];
       }
@@ -2742,6 +2765,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLOpportunity> => {
       if (!(ctx.userId || ctx.trackingId)) {
         throw new ValidationError('User identifier is required');
+      }
+
+      // Mock path: skip Brokkr/Scraper and create opportunity directly
+      if (isMockEnabled()) {
+        ctx.log.info('Using mock parseOpportunity - skipping Brokkr/Scraper');
+        return mockParseOpportunity({
+          con: ctx.con,
+          userId: ctx.userId,
+          trackingId: ctx.trackingId,
+          opportunityMatchBatchSize,
+          info,
+          ctx,
+        }) as Promise<GQLOpportunity>;
       }
 
       const parseOpportunityPayload =
