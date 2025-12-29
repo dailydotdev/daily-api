@@ -1,3 +1,4 @@
+import { IDefaultPolicyContext, IPolicy, noop } from 'cockatiel';
 import { GarmrService, IGarmrService } from '../integrations/garmr';
 import {
   isMockEnabled,
@@ -21,11 +22,17 @@ const realGarmScraperService = new GarmrService({
  * Mock scraper service that returns a mock PDF buffer
  */
 class MockScraperService implements IGarmrService {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async execute<T>(_fn: () => Promise<T>): Promise<T> {
+  readonly instance: IPolicy = noop;
+
+  async execute<T>(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _fn: (context: IDefaultPolicyContext) => PromiseLike<T> | T,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _signal?: AbortSignal,
+  ): Promise<T> {
     // Return a mock Response object with the PDF buffer
     const buffer = mockScraperPdfBuffer();
-    const response = new Response(buffer, {
+    const response = new Response(new Uint8Array(buffer), {
       status: 200,
       headers: { 'content-type': 'application/pdf' },
     });

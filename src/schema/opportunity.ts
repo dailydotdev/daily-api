@@ -1725,11 +1725,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           });
 
         // In mock mode, use the returned data directly instead of waiting for async worker
-        if (isMockEnabled() && previewResult?.userIds) {
+        // The mock returns userIds/totalCount directly for immediate testing
+        const mockResult = previewResult as unknown as {
+          userIds?: string[];
+          totalCount?: number;
+        };
+        if (isMockEnabled() && mockResult?.userIds) {
           opportunityPreview = {
-            userIds: previewResult.userIds,
-            totalCount:
-              previewResult.totalCount || previewResult.userIds.length,
+            userIds: mockResult.userIds,
+            totalCount: mockResult.totalCount || mockResult.userIds.length,
             status: OpportunityPreviewStatus.READY,
           };
         } else {
