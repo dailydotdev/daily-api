@@ -15,6 +15,7 @@ export const recruiterNewCandidateNotification: TypedNotificationWorker<'api.v1.
       try {
         // Fetch recruiters for the opportunity
         const opportunityUsers = await con.getRepository(OpportunityUser).find({
+          select: ['userId'],
           where: {
             opportunityId,
             type: OpportunityUserType.Recruiter,
@@ -30,7 +31,10 @@ export const recruiterNewCandidateNotification: TypedNotificationWorker<'api.v1.
 
         // Fetch candidate and opportunity info
         const [candidate, opportunity] = await Promise.all([
-          con.getRepository(User).findOne({ where: { id: userId } }),
+          con.getRepository(User).findOne({
+            where: { id: userId },
+            select: ['id', 'name', 'username'],
+          }),
           con
             .getRepository(Opportunity)
             .findOne({ where: { id: opportunityId } }),
