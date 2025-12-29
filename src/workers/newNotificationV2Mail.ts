@@ -129,7 +129,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   poll_result_author: '84',
   warm_intro: '85',
   parsed_cv_profile: '',
-  recruiter_new_candidate: '',
+  recruiter_new_candidate: '89',
   recruiter_opportunity_live: '',
 };
 
