@@ -46,7 +46,7 @@ export const youtubeSchema = socialUrlSchema(
 );
 
 export const linkedinSchema = socialUrlSchema(
-  /^(?:(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/)?(?<value>[\w-]{2,})\/?$/,
+  /^(?:(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/)?(?<value>[\p{L}\p{N}_-]{2,})\/?$/u,
 );
 
 export const mastodonSchema = socialUrlSchema(

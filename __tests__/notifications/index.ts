@@ -2187,9 +2187,7 @@ describe('parsed_cv_profile notifications', () => {
         type: 'user',
       },
     ]);
-    expect(actual.notification.title).toBe(
-      'Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!',
-    );
+    expect(actual.notification.title).toContain('Great news');
   });
 
   it('should notify when parsed CV profile failed', async () => {

@@ -448,6 +448,9 @@ export const workers: Worker[] = [
   {
     topic: 'api.v1.candidate-preference-updated',
     subscription: 'api.parse-cv-profile',
+    args: {
+      ackDeadlineSeconds: 180,
+    }
   },
   {
     topic: 'gondul.v1.opportunity-preview-results',
