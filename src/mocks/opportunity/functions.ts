@@ -13,8 +13,10 @@ import { OpportunityKeyword } from '../../entity/OpportunityKeyword';
 import { OpportunityUserRecruiter } from '../../entity/opportunities/user';
 import { QuestionScreening } from '../../entity/questions/QuestionScreening';
 import { updateFlagsStatement } from '../../common/utils';
-import { graphorm } from '../../graphorm';
-import { addOpportunityDefaultQuestionFeedback } from '../../common/opportunity/common';
+import graphorm from '../../graphorm';
+import type { GraphORMBuilder } from '../../graphorm/graphorm';
+import { addOpportunityDefaultQuestionFeedback } from '../../common/opportunity/question';
+import type { Context } from '../../Context';
 import {
   mockParsedOpportunity,
   mockPreviewData,
@@ -105,10 +107,14 @@ export async function mockParseOpportunity({
     return opportunity;
   });
 
-  return await graphorm.queryOneOrFail(ctx, info, (builder) => {
-    builder.queryBuilder.where({ id: opportunityResult.id });
-    return builder;
-  });
+  return await graphorm.queryOneOrFail(
+    ctx as Context,
+    info,
+    (builder: GraphORMBuilder) => {
+      builder.queryBuilder.where({ id: opportunityResult.id });
+      return builder;
+    },
+  );
 }
 
 interface MockOpportunityPreviewParams {
