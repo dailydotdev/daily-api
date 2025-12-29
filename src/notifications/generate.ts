@@ -206,7 +206,7 @@ export const notificationTitleMap: Record<
     `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
   parsed_cv_profile: (ctx: NotificationParsedCVProfileContext) => {
     if (ctx.status === 'success') {
-      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!`;
+      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your public profile</u>! You can control the experience visibility in your profile settings.`;
     }
 
     return `We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
