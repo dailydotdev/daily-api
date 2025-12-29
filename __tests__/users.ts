@@ -4083,11 +4083,17 @@ describe('mutation updateUserProfile', () => {
   });
 
   it('should validate linkedin handle', () => {
-    const valid = [
-      'lee',
-      'linkedin.com/in/lee',
-      'https://linkedin.com/in/lee',
-      'https://linkedin.com/in/lee/',
+    const valid: Array<[string, string]> = [
+      ['lee', 'lee'],
+      ['linkedin.com/in/lee', 'lee'],
+      ['https://linkedin.com/in/lee', 'lee'],
+      ['https://linkedin.com/in/lee/', 'lee'],
+      // Unicode/accented characters (issue #1507)
+      ['ítalo-oliveira-800923162', 'ítalo-oliveira-800923162'],
+      [
+        'https://linkedin.com/in/ítalo-oliveira-800923162',
+        'ítalo-oliveira-800923162',
+      ],
     ];
     const invalid = [
       'lee#',
@@ -4098,10 +4104,10 @@ describe('mutation updateUserProfile', () => {
       'https://linkedin.com/in/lee?bla=1',
     ];
 
-    valid.forEach((item) => {
-      const result = linkedinSchema.safeParse(item);
+    valid.forEach(([input, expected]) => {
+      const result = linkedinSchema.safeParse(input);
       expect(result.success).toBe(true);
-      if (result.success) expect(result.data).toBe('lee');
+      if (result.success) expect(result.data).toBe(expected);
     });
 
     invalid.forEach((item) => {
