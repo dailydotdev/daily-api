@@ -36,6 +36,7 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
         where: {
           id: userId,
         },
+        select: ['id', 'flags', 'image', 'name', 'username'],
       });
 
       if (!user) {
@@ -57,11 +58,6 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
       }
 
       const brokkrClient = getBrokkrClient();
-
-      // Check if user has 0 experiences before parsing
-      const existingExperiencesCount = await con
-        .getRepository(UserExperience)
-        .count({ where: { userId } });
 
       try {
         await con.getRepository(User).update(
@@ -89,6 +85,15 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
           });
         }
 
+        const existingExperiencesCount = await con
+          .getRepository(UserExperience)
+          .count({ where: { userId } });
+
+        if (existingExperiencesCount > 0) {
+          logger.info({ userId }, 'User already has experiences, skipping');
+          return;
+        }
+
         const dataJson = JSON.parse(result.parsedCv);
 
         await importUserExperienceFromJSON({
@@ -97,16 +102,6 @@ export const parseCVProfileWorker: TypedNotificationWorker<'api.v1.candidate-pre
           userId,
           transaction: true,
         });
-
-        // If user had no experiences before, set hideExperience to true
-        if (existingExperiencesCount === 0) {
-          await con
-            .getRepository(User)
-            .update(
-              { id: userId, hideExperience: false },
-              { hideExperience: true },
-            );
-        }
 
         return [
           {
