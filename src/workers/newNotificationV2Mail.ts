@@ -367,6 +367,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       post_views: post.views,
       post_upvotes: post.upvotes,
       post_comments: post.comments,
+      analytics_link: addNotificationEmailUtm(
+        notification.targetUrl,
+        notification.type,
+      ),
       profile_link: addNotificationEmailUtm(user.permalink, notification.type),
       post_views_total: stats.numPostViews,
       post_upvotes_total: stats.numPostUpvotes,
