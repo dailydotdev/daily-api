@@ -384,6 +384,8 @@ it('should set parameters for article_analytics email', async () => {
   expect(args.message_data).toEqual({
     post_comments: '2',
     post_image: 'https://daily.dev/image.jpg',
+    analytics_link:
+      'http://localhost:5002/posts/p1/analytics?utm_source=notification&utm_medium=email&utm_campaign=article_analytics',
     post_title: 'P1',
     post_upvotes: '6',
     post_views: '11',

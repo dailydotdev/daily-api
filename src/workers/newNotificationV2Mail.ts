@@ -361,12 +361,17 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       getAuthorPostStats(con, user.id),
       con.getRepository(Post).findOneByOrFail({ id: notification.referenceId }),
     ]);
+    console.log(notification);
     return {
       post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
       post_views: post.views,
       post_upvotes: post.upvotes,
       post_comments: post.comments,
+      analytics_link: addNotificationEmailUtm(
+        `${process.env.COMMENTS_PREFIX}/posts/${post.id}/analytics`,
+        notification.type,
+      ),
       profile_link: addNotificationEmailUtm(user.permalink, notification.type),
       post_views_total: stats.numPostViews,
       post_upvotes_total: stats.numPostUpvotes,
