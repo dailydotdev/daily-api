@@ -127,6 +127,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   poll_result_author: '84',
   warm_intro: '85',
   parsed_cv_profile: '',
+  recruiter_new_candidate: '',
+  recruiter_opportunity_live: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1149,6 +1151,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   parsed_cv_profile: async () => {
+    return null;
+  },
+  recruiter_new_candidate: async () => {
+    return null;
+  },
+  recruiter_opportunity_live: async () => {
     return null;
   },
 };

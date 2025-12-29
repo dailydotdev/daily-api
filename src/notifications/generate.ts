@@ -33,6 +33,8 @@ import {
   type NotificationWarmIntroContext,
   type NotificationStreakRestoreContext,
   type NotificationParsedCVProfileContext,
+  type NotificationRecruiterNewCandidateContext,
+  type NotificationRecruiterOpportunityLiveContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -211,6 +213,12 @@ export const notificationTitleMap: Record<
 
     return `We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
   },
+  recruiter_new_candidate: (ctx: NotificationRecruiterNewCandidateContext) =>
+    `<b>${ctx.candidate.name || ctx.candidate.username}</b> <span class="text-theme-color-cabbage">accepted</span> your job opportunity!`,
+  recruiter_opportunity_live: (
+    ctx: NotificationRecruiterOpportunityLiveContext,
+  ) =>
+    `Your job opportunity <b>${ctx.opportunityTitle}</b> is now <span class="text-theme-color-cabbage">live</span>!`,
 };
 
 export const generateNotificationMap: Record<
@@ -602,5 +610,28 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.user)
       .targetUser(ctx.user)
       .uniqueKey(new Date().toISOString());
+  },
+  recruiter_new_candidate: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterNewCandidateContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .avatarUser(ctx.candidate)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/matches`,
+      );
+  },
+  recruiter_opportunity_live: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterOpportunityLiveContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
+      );
   },
 };
