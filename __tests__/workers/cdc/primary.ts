@@ -6570,9 +6570,12 @@ describe('opportunity', () => {
       }),
     );
 
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'api.v1.opportunity-went-live',
     );
   });
 
