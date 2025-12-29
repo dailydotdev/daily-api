@@ -179,6 +179,10 @@ export type NotificationRecruiterNewCandidateContext =
     opportunityId: string;
     candidate: Reference<User>;
     opportunityTitle?: string;
+    matchScore?: number;
+    reasoning?: string;
+    reasoningShort?: string;
+    keywords?: string[];
   };
 
 export type NotificationRecruiterOpportunityLiveContext =

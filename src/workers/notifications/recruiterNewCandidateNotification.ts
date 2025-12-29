@@ -5,6 +5,8 @@ import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { OpportunityUserType } from '../../entity/opportunities/types';
 import { NotificationType } from '../../notifications/common';
 import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
+import { OpportunityMatch } from '../../entity/OpportunityMatch';
+import { OpportunityKeyword } from '../../entity/OpportunityKeyword';
 
 export const recruiterNewCandidateNotification: TypedNotificationWorker<'api.v1.candidate-accepted-opportunity'> =
   {
@@ -29,8 +31,8 @@ export const recruiterNewCandidateNotification: TypedNotificationWorker<'api.v1.
           return [];
         }
 
-        // Fetch candidate and opportunity info
-        const [candidate, opportunity] = await Promise.all([
+        // Fetch candidate, opportunity, match, and keywords info
+        const [candidate, opportunity, match, keywords] = await Promise.all([
           con.getRepository(User).findOne({
             where: { id: userId },
             select: ['id', 'name', 'username'],
@@ -38,6 +40,14 @@ export const recruiterNewCandidateNotification: TypedNotificationWorker<'api.v1.
           con
             .getRepository(Opportunity)
             .findOne({ where: { id: opportunityId } }),
+          con.getRepository(OpportunityMatch).findOne({
+            where: { opportunityId, userId },
+            select: ['description'],
+          }),
+          con.getRepository(OpportunityKeyword).find({
+            where: { opportunityId },
+            select: ['keyword'],
+          }),
         ]);
 
         if (!candidate) {
@@ -53,6 +63,10 @@ export const recruiterNewCandidateNotification: TypedNotificationWorker<'api.v1.
               opportunityId,
               candidate,
               opportunityTitle: opportunity?.title,
+              matchScore: match?.description?.matchScore,
+              reasoning: match?.description?.reasoning,
+              reasoningShort: match?.description?.reasoningShort,
+              keywords: keywords.map((k) => k.keyword),
             },
           },
         ];

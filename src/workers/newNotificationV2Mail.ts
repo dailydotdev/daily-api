@@ -65,6 +65,8 @@ import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
+import { OpportunityKeyword } from '../entity/OpportunityKeyword';
+import { Opportunity } from '../entity/opportunities/Opportunity';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -1153,8 +1155,103 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   parsed_cv_profile: async () => {
     return null;
   },
-  recruiter_new_candidate: async () => {
-    return null;
+  recruiter_new_candidate: async (
+    con,
+    user,
+    notification,
+    attachments,
+    avatars,
+  ) => {
+    const opportunityId = notification.referenceId;
+
+    if (!opportunityId) {
+      return null;
+    }
+
+    // Get candidate from avatar
+    const candidateAvatar = avatars[0];
+    const candidateId = candidateAvatar?.referenceId;
+
+    if (!candidateId) {
+      return null;
+    }
+
+    // Fetch opportunity, match, and keywords
+    const [opportunity, match, keywords, candidate] = await Promise.all([
+      con.getRepository(Opportunity).findOne({
+        where: { id: opportunityId },
+        select: ['id', 'title'],
+      }),
+      con.getRepository(OpportunityMatch).findOne({
+        where: { opportunityId, userId: candidateId },
+        select: ['description'],
+      }),
+      con.getRepository(OpportunityKeyword).find({
+        where: { opportunityId },
+        select: ['keyword'],
+      }),
+      con.getRepository(User).findOne({
+        where: { id: candidateId },
+        select: ['name', 'username'],
+      }),
+    ]);
+
+    if (!opportunity || !candidate) {
+      return null;
+    }
+
+    // Get candidate's top tags from their recent views
+    const candidateTopTags = await con.query(
+      `
+      SELECT ARRAY(
+        SELECT tag
+        FROM (
+          SELECT
+            pk.keyword AS tag,
+            COUNT(*) AS count
+          FROM (
+            SELECT v."postId"
+            FROM "view" v
+            WHERE v."userId" = $1
+              AND v.hidden = false
+            ORDER BY v.timestamp DESC
+            LIMIT 100
+          ) recent_reads
+          JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
+          WHERE pk.status = 'allow'
+            AND pk.keyword != 'general-programming'
+          GROUP BY pk.keyword
+          ORDER BY COUNT(*) DESC
+          LIMIT 20
+        ) top_tags
+      ) as tags
+      `,
+      [candidateId],
+    );
+
+    const userTags: string[] = candidateTopTags[0]?.tags || [];
+    const opportunityKeywords = keywords.map((k) => k.keyword);
+
+    // Find matching tags between candidate and opportunity
+    const matchingTags = userTags.filter((tag) =>
+      opportunityKeywords.includes(tag),
+    );
+
+    const candidateName = candidate.name || candidate.username || 'Candidate';
+    const matchScore = match?.description?.matchScore
+      ? `${Math.round(match.description.matchScore * 100)}%`
+      : '';
+    const matchingContent =
+      match?.description?.reasoningShort || match?.description?.reasoning || '';
+    const stack = matchingTags.join(', ');
+
+    return {
+      candidate_name: candidateName,
+      job_title: opportunity.title || '',
+      score: matchScore,
+      matching_content: matchingContent,
+      stack: stack,
+    };
   },
   recruiter_opportunity_live: async () => {
     return null;
