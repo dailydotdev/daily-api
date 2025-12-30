@@ -91,6 +91,7 @@ import {
   IsNull,
 } from 'typeorm';
 import { Organization } from '../entity/Organization';
+import { Source, SourceType } from '../entity/Source';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 import {
   OrganizationLinkType,
@@ -130,7 +131,11 @@ import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
 import { getBrokkrClient } from '../common/brokkr';
-import { isMockEnabled } from '../mocks/opportunity/services';
+import {
+  isMockEnabled,
+  mockPreviewTags,
+  mockPreviewSquadIds,
+} from '../mocks/opportunity/services';
 
 export interface GQLOpportunity
   extends Pick<
@@ -1796,19 +1801,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {} as Record<string, number>,
       );
       // final map and sort to get X tags that appear the most
-      const tags = Object.entries(uniqueTagsMap)
+      let tags = Object.entries(uniqueTagsMap)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 16)
         .map(([tag]) => tag);
 
+      // In mock mode, use mock tags if no real tags found
+      if (isMockEnabled() && tags.length === 0) {
+        tags = mockPreviewTags;
+      }
+
       const companies = getShowcaseCompanies();
 
-      const squads = uniqueifyObjectArray(
+      let squads = uniqueifyObjectArray(
         connection.edges.flatMap(({ node }) =>
           (node.activeSquads || []).map((squad) => squad),
         ),
         (squad) => squad.handle,
       );
+
+      // In mock mode, use mock squads if no real squads found
+      if (
+        isMockEnabled() &&
+        squads.length === 0 &&
+        mockPreviewSquadIds.length
+      ) {
+        const mockSquads = await ctx.con.getRepository(Source).find({
+          where: { id: In(mockPreviewSquadIds), type: SourceType.Squad },
+        });
+        squads = mockSquads as GQLSource[];
+      }
 
       return {
         ...connection,

@@ -70,9 +70,42 @@ export const mockGondulScreeningQuestionsResponse = () => ({
 /**
  * Mock user IDs for opportunityPreview (simulates Gondul preview response)
  * These should be valid user IDs from your local database (from seed data)
+ * Using testuser1-10 which have SourceMember entries for publicsquad
  */
-export const mockPreviewUserIds = ['1', '2', '3', '4'];
+export const mockPreviewUserIds = [
+  'testuser',
+  'testuser1',
+  'testuser2',
+  'testuser3',
+  'testuser4',
+  'testuser5',
+  'testuser6',
+  'testuser7',
+  'testuser8',
+  'testuser9',
+];
 export const mockPreviewTotalCount = 4827;
+
+/**
+ * Mock tags for opportunityPreview result
+ * These are used when computing the aggregated tags from user data
+ */
+export const mockPreviewTags = [
+  'react',
+  'typescript',
+  'javascript',
+  'nodejs',
+  'python',
+  'graphql',
+  'nextjs',
+  'aws',
+];
+
+/**
+ * Mock squads for opportunityPreview result
+ * These should match squad IDs from the seed data
+ */
+export const mockPreviewSquadIds = ['publicsquad'];
 
 /**
  * Mock PDF buffer for scraper service (minimal valid PDF)
