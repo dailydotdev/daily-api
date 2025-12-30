@@ -3,6 +3,8 @@ import worker from '../../src/workers/userUpdatedCio';
 import { ChangeObject } from '../../src/types';
 import { expectSuccessfulTypedBackground } from '../helpers';
 import {
+  Feed,
+  Organization,
   User,
   UserPersonalizedDigest,
   UserPersonalizedDigestType,
@@ -12,13 +14,25 @@ import {
   ghostUser,
   PubSubSchema,
 } from '../../src/common';
-import { cio } from '../../src/cio';
+import {
+  cio,
+  hasActiveRecruiterSubscription,
+  isUserRecruiter,
+} from '../../src/cio';
 import { typedWorkers } from '../../src/workers';
 import mocked = jest.mocked;
 import createOrGetConnection from '../../src/db';
 import { DataSource } from 'typeorm';
 import { usersFixture } from '../fixture/user';
 import { DEFAULT_NOTIFICATION_SETTINGS } from '../../src/notifications/common';
+import { Opportunity } from '../../src/entity/opportunities/Opportunity';
+import { OpportunityUser } from '../../src/entity/opportunities/user';
+import { OpportunityUserType } from '../../src/entity/opportunities/types';
+import { ContentPreferenceOrganization } from '../../src/entity/contentPreference/ContentPreferenceOrganization';
+import {
+  ContentPreferenceStatus,
+  ContentPreferenceType,
+} from '../../src/entity/contentPreference/types';
 
 jest.mock('../../src/common', () => ({
   ...jest.requireActual('../../src/common'),
@@ -85,6 +99,8 @@ describe('userUpdatedCio', () => {
       updated_at: 1714577744,
       username: 'cio',
       referral_link: referral,
+      is_recruiter: false,
+      has_active_recruiter_subscription: false,
       email_confirmed: true,
       'cio_subscription_preferences.topics.topic_1': true,
       'cio_subscription_preferences.topics.topic_4': true,
@@ -227,5 +243,74 @@ describe('userUpdatedCio', () => {
       'cio_subscription_preferences.topics.topic_4': true,
       'cio_subscription_preferences.topics.topic_8': true,
     });
+  });
+
+  it('should identify user as recruiter with active subscription when both are true', async () => {
+    const referral = 'https://dly.dev/12345678';
+    mocked(getShortGenericInviteLink).mockResolvedValue(referral);
+
+    // Create user first
+    await con.getRepository(User).save({
+      ...usersFixture[0],
+      id: 'uucu1',
+      github: 'uucu1',
+      hashnode: 'uucu1',
+      email: 'uucu1@daily.dev',
+      twitter: 'uucu1',
+      username: 'uucu1',
+      notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
+    });
+
+    // Create feed for the user
+    await con.getRepository(Feed).save({
+      id: 'uucu1',
+      userId: 'uucu1',
+    });
+
+    // Create opportunity and make user a recruiter
+    const opportunity = await con.getRepository(Opportunity).save({
+      title: 'Test Opportunity',
+      tldr: 'Test',
+      type: 1,
+      state: 1,
+    });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunity.id,
+      userId: 'uucu1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Create organization with active subscription
+    const org = await con.getRepository(Organization).save({
+      name: 'Test Org',
+      handle: 'testorg2',
+      recruiterSubscriptionFlags: {
+        status: 'active',
+        subscriptionId: 'sub_123',
+      },
+    });
+
+    await con.getRepository(ContentPreferenceOrganization).save({
+      referenceId: org.id,
+      userId: 'uucu1',
+      organizationId: org.id,
+      feedId: 'uucu1',
+      type: ContentPreferenceType.Organization,
+      status: ContentPreferenceStatus.Follow,
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      newProfile: base,
+      user: base,
+    } as unknown as PubSubSchema['user-updated']);
+
+    expect(cio.identify).toHaveBeenCalledWith(
+      'uucu1',
+      expect.objectContaining({
+        is_recruiter: true,
+        has_active_recruiter_subscription: true,
+      }),
+    );
   });
 });

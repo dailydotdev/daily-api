@@ -158,6 +158,18 @@ import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
 import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 import { Company } from '../../entity/Company';
+import { OpportunityUser } from '../../entity/opportunities/user/OpportunityUser';
+import { OpportunityUserType } from '../../entity/opportunities/types';
+import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
+
+const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
+  ...user,
+  createdAt: user.createdAt.getTime() * 1000,
+  updatedAt: user.updatedAt ? user.updatedAt.getTime() * 1000 : undefined,
+  flags: JSON.stringify(user.flags || {}),
+  notificationFlags: JSON.stringify(user.notificationFlags || {}),
+  subscriptionFlags: JSON.stringify(user.subscriptionFlags || {}),
+});
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -1431,6 +1443,38 @@ const onOrganizationChange = async (
     return;
   }
 
+  // Sync organization members to Customer.io when recruiter subscription status changes
+  if (
+    isChanged(
+      data.payload.before!,
+      data.payload.after!,
+      'recruiterSubscriptionFlags',
+    )
+  ) {
+    const members = await con
+      .getRepository(ContentPreferenceOrganization)
+      .find({
+        where: { organizationId: data.payload.after!.id },
+        select: ['userId'],
+      });
+
+    // Sync all organization members to update their has_active_recruiter_subscription flag
+    await Promise.all(
+      members.map(async (member) => {
+        const user = await con
+          .getRepository(User)
+          .findOneBy({ id: member.userId });
+        if (user && user.infoConfirmed && user.emailConfirmed) {
+          const userChangeObject = convertUserToChangeObject(user);
+          await triggerTypedEvent(logger, 'user-updated', {
+            user: userChangeObject,
+            newProfile: userChangeObject,
+          });
+        }
+      }),
+    );
+  }
+
   if (
     isChanged(data.payload.before!, data.payload.after!, [
       'description',
@@ -1588,6 +1632,38 @@ const onUserExperienceChange = async (
   }
 };
 
+const onOpportunityUserChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<OpportunityUser>,
+) => {
+  // Get the userId from either the new or deleted record
+  const userId = data.payload.after?.userId || data.payload.before?.userId;
+
+  if (!userId) {
+    return;
+  }
+
+  // Sync to Customer.io when a recruiter record is created or deleted
+  // This ensures the is_recruiter flag is updated immediately
+  const shouldSync =
+    (data.payload.op === 'c' &&
+      data.payload.after?.type === OpportunityUserType.Recruiter) ||
+    (data.payload.op === 'd' &&
+      data.payload.before?.type === OpportunityUserType.Recruiter);
+
+  if (shouldSync) {
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    if (user && user.infoConfirmed && user.emailConfirmed) {
+      const userChangeObject = convertUserToChangeObject(user);
+      await triggerTypedEvent(logger, 'user-updated', {
+        user: userChangeObject,
+        newProfile: userChangeObject,
+      });
+    }
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1718,6 +1794,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserExperience):
           await onUserExperienceChange(con, logger, data);
+          break;
+        case getTableName(con, OpportunityUser):
+          await onOpportunityUserChange(con, logger, data);
           break;
       }
     } catch (err) {
