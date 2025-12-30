@@ -1385,6 +1385,19 @@ const onOpportunityChange = async (
     }
   }
 
+  // Publish event when opportunity transitions to LIVE (for recruiter notifications)
+  if (
+    data.payload.op === 'u' &&
+    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.state === OpportunityState.LIVE &&
+    data.payload.before?.state !== OpportunityState.LIVE
+  ) {
+    await triggerTypedEvent(logger, 'api.v1.opportunity-went-live', {
+      opportunityId: data.payload.after!.id,
+      title: data.payload.after!.title,
+    });
+  }
+
   // Trigger event when opportunity moves to IN_REVIEW
   if (
     data.payload.op === 'u' &&

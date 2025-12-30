@@ -98,6 +98,10 @@ import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../src/entity/opportunities/types';
+import type {
+  NotificationRecruiterNewCandidateContext,
+  NotificationRecruiterOpportunityLiveContext,
+} from '../../src/notifications/types';
 import {
   datasetLocationsFixture,
   opportunitiesFixture,
@@ -2803,5 +2807,92 @@ describe('warm_intro notification', () => {
     // Verify both emails are in the 'to' field
     expect(args.to).toEqual('ido@daily.dev,recruiter@test.com');
     expect(args.transactional_message_id).toEqual('85');
+  });
+});
+
+describe('recruiter_new_candidate notification', () => {
+  it('should send email with matching tags between candidate and opportunity', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+
+    const candidate = await con.getRepository(User).findOneBy({ id: '1' });
+
+    // Create match with score
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: candidate!.id,
+      description: {
+        matchScore: 0.85,
+        reasoning: 'Great fit based on experience',
+        reasoningShort: 'Strong JS skills',
+      },
+    });
+
+    const ctx: NotificationRecruiterNewCandidateContext = {
+      userIds: ['2'],
+      opportunityId: opportunitiesFixture[0].id,
+      candidate: candidate!,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.RecruiterNewCandidate,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      candidate_name: 'Ido',
+      profile_picture: 'https://daily.dev/ido.jpg',
+      job_title: 'Senior Full Stack Developer',
+      score: '85%',
+      matching_content: 'Strong JS skills',
+    });
+  });
+});
+
+describe('recruiter_opportunity_live notification', () => {
+  it('should send email when opportunity goes live', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+
+    const ctx: NotificationRecruiterOpportunityLiveContext = {
+      userIds: ['2'],
+      opportunityId: opportunitiesFixture[0].id,
+      opportunityTitle: opportunitiesFixture[0].title,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.RecruiterOpportunityLive,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      opportunity_link: `http://localhost:5002/opportunity/${opportunitiesFixture[0].id}`,
+    });
   });
 });

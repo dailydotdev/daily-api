@@ -79,6 +79,8 @@ export enum NotificationType {
   PollResultAuthor = 'poll_result_author',
   WarmIntro = 'warm_intro',
   ParsedCVProfile = 'parsed_cv_profile',
+  RecruiterNewCandidate = 'recruiter_new_candidate',
+  RecruiterOpportunityLive = 'recruiter_opportunity_live',
 }
 
 export enum NotificationPreferenceType {
@@ -279,6 +281,14 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.PollResultAuthor]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.RecruiterNewCandidate]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.RecruiterOpportunityLive]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

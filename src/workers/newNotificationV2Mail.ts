@@ -65,6 +65,7 @@ import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
+import { Opportunity } from '../entity/opportunities/Opportunity';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -127,6 +128,8 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   poll_result_author: '84',
   warm_intro: '85',
   parsed_cv_profile: '',
+  recruiter_new_candidate: '89',
+  recruiter_opportunity_live: '90',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -361,7 +364,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       getAuthorPostStats(con, user.id),
       con.getRepository(Post).findOneByOrFail({ id: notification.referenceId }),
     ]);
-    console.log(notification);
     return {
       post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
@@ -1150,6 +1152,64 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   parsed_cv_profile: async () => {
     return null;
+  },
+  recruiter_new_candidate: async (
+    con,
+    user,
+    notification,
+    attachments,
+    avatars,
+  ) => {
+    const opportunityId = notification.referenceId;
+
+    if (!opportunityId) {
+      return null;
+    }
+
+    // Get candidate from avatar
+    const candidateAvatar = avatars[0];
+    const candidateId = candidateAvatar?.referenceId;
+
+    if (!candidateId || !candidateAvatar) {
+      return null;
+    }
+
+    // Fetch opportunity and match
+    const [opportunity, match] = await Promise.all([
+      con.getRepository(Opportunity).findOne({
+        where: { id: opportunityId },
+        select: ['id', 'title'],
+      }),
+      con.getRepository(OpportunityMatch).findOne({
+        where: { opportunityId, userId: candidateId },
+        select: ['description'],
+      }),
+    ]);
+
+    if (!opportunity) {
+      return null;
+    }
+
+    const candidateName = candidateAvatar.name;
+    const candidatePicture = candidateAvatar.image;
+    const matchScore = match?.description?.matchScore
+      ? `${Math.round(match.description.matchScore * 100)}%`
+      : '';
+    const matchingContent =
+      match?.description?.reasoningShort || match?.description?.reasoning || '';
+
+    return {
+      candidate_name: candidateName,
+      profile_picture: candidatePicture,
+      job_title: opportunity.title || '',
+      score: matchScore,
+      matching_content: matchingContent,
+    };
+  },
+  recruiter_opportunity_live: async (_con, _user, notification) => {
+    return {
+      opportunity_link: notification.targetUrl,
+    };
   },
 };
 

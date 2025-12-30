@@ -174,6 +174,23 @@ export type NotificationParsedCVProfileContext = NotificationUserContext & {
   status: 'success' | 'failed';
 };
 
+export type NotificationRecruiterNewCandidateContext =
+  NotificationBaseContext & {
+    opportunityId: string;
+    candidate: Reference<User>;
+    opportunityTitle?: string;
+    matchScore?: number;
+    reasoning?: string;
+    reasoningShort?: string;
+    keywords?: string[];
+  };
+
+export type NotificationRecruiterOpportunityLiveContext =
+  NotificationBaseContext & {
+    opportunityId: string;
+    opportunityTitle: string;
+  };
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
