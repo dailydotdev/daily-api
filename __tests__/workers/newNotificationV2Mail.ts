@@ -2818,64 +2818,6 @@ describe('recruiter_new_candidate notification', () => {
 
     const candidate = await con.getRepository(User).findOneBy({ id: '1' });
 
-    // Create posts with keywords
-    const post1 = await con.getRepository(ArticlePost).save({
-      id: 'p100',
-      shortId: 'p100',
-      title: 'JavaScript Post',
-      url: 'http://p100.com',
-      score: 0,
-      metadataChangedAt: new Date('2024-01-01'),
-      sourceId: 'a',
-      createdAt: new Date('2024-01-01'),
-      tagsStr: 'javascript,react',
-    });
-
-    const post2 = await con.getRepository(ArticlePost).save({
-      id: 'p101',
-      shortId: 'p101',
-      title: 'TypeScript Post',
-      url: 'http://p101.com',
-      score: 0,
-      metadataChangedAt: new Date('2024-01-01'),
-      sourceId: 'a',
-      createdAt: new Date('2024-01-01'),
-      tagsStr: 'typescript,nodejs',
-    });
-
-    // First create keywords with allow status
-    await con.getRepository(Keyword).save([
-      { value: 'javascript', status: 'allow' },
-      { value: 'react', status: 'allow' },
-      { value: 'typescript', status: 'allow' },
-      { value: 'nodejs', status: 'allow' },
-    ]);
-
-    // Then add keywords to posts
-    await con.getRepository(PostKeyword).save([
-      { postId: post1.id, keyword: 'javascript' },
-      { postId: post1.id, keyword: 'react' },
-      { postId: post2.id, keyword: 'typescript' },
-      { postId: post2.id, keyword: 'nodejs' },
-    ]);
-
-    // Create candidate views with recent timestamps using raw query
-    await con.query(
-      `
-      INSERT INTO view ("userId", "postId", timestamp, hidden)
-      VALUES
-        ($1, $2, NOW() - INTERVAL '1 minute', false),
-        ($1, $3, NOW() - INTERVAL '2 minutes', false)
-      `,
-      [candidate!.id, post1.id, post2.id],
-    );
-
-    // Create opportunity with keywords (javascript matches, python doesn't)
-    await con.getRepository(OpportunityKeyword).save([
-      { opportunityId: opportunitiesFixture[0].id, keyword: 'javascript' },
-      { opportunityId: opportunitiesFixture[0].id, keyword: 'python' },
-    ]);
-
     // Create match with score
     await con.getRepository(OpportunityMatch).save({
       opportunityId: opportunitiesFixture[0].id,
@@ -2912,10 +2854,10 @@ describe('recruiter_new_candidate notification', () => {
 
     expect(args.message_data).toEqual({
       candidate_name: 'Ido',
+      profile_picture: 'https://daily.dev/ido.jpg',
       job_title: 'Senior Full Stack Developer',
       score: '85%',
       matching_content: 'Strong JS skills',
-      stack: 'javascript',
     });
   });
 });

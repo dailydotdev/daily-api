@@ -1176,8 +1176,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    // Fetch opportunity, match, and keywords
-    const [opportunity, match, keywords, candidate] = await Promise.all([
+    // Fetch opportunity, match
+    const [opportunity, match, candidate] = await Promise.all([
       con.getRepository(Opportunity).findOne({
         where: { id: opportunityId },
         select: ['id', 'title'],
@@ -1186,13 +1186,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         where: { opportunityId, userId: candidateId },
         select: ['description'],
       }),
-      con.getRepository(OpportunityKeyword).find({
-        where: { opportunityId },
-        select: ['keyword'],
-      }),
       con.getRepository(User).findOne({
         where: { id: candidateId },
-        select: ['name', 'username'],
+        select: ['name', 'username', 'image'],
       }),
     ]);
 
@@ -1200,57 +1196,20 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    // Get candidate's top tags from their recent views
-    const candidateTopTags = await con.query(
-      `
-      SELECT ARRAY(
-        SELECT tag
-        FROM (
-          SELECT
-            pk.keyword AS tag,
-            COUNT(*) AS count
-          FROM (
-            SELECT v."postId"
-            FROM "view" v
-            WHERE v."userId" = $1
-              AND v.hidden = false
-            ORDER BY v.timestamp DESC
-            LIMIT 100
-          ) recent_reads
-          JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
-          WHERE pk.status = 'allow'
-            AND pk.keyword != 'general-programming'
-          GROUP BY pk.keyword
-          ORDER BY COUNT(*) DESC
-          LIMIT 20
-        ) top_tags
-      ) as tags
-      `,
-      [candidateId],
-    );
-
-    const userTags: string[] = candidateTopTags[0]?.tags || [];
-    const opportunityKeywords = keywords.map((k) => k.keyword);
-
-    // Find matching tags between candidate and opportunity
-    const matchingTags = userTags.filter((tag) =>
-      opportunityKeywords.includes(tag),
-    );
-
     const candidateName = candidate.name || candidate.username || 'Candidate';
+    const candidatePicture = candidate.image;
     const matchScore = match?.description?.matchScore
       ? `${Math.round(match.description.matchScore * 100)}%`
       : '';
     const matchingContent =
       match?.description?.reasoningShort || match?.description?.reasoning || '';
-    const stack = matchingTags.join(', ');
 
     return {
       candidate_name: candidateName,
+      profile_picture: candidatePicture,
       job_title: opportunity.title || '',
       score: matchScore,
       matching_content: matchingContent,
-      stack: stack,
     };
   },
   recruiter_opportunity_live: async () => {
