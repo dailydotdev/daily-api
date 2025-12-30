@@ -14,11 +14,7 @@ import {
   ghostUser,
   PubSubSchema,
 } from '../../src/common';
-import {
-  cio,
-  hasActiveRecruiterSubscription,
-  isUserRecruiter,
-} from '../../src/cio';
+import { cio } from '../../src/cio';
 import { typedWorkers } from '../../src/workers';
 import mocked = jest.mocked;
 import createOrGetConnection from '../../src/db';
