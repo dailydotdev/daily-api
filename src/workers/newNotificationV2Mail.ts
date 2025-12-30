@@ -364,7 +364,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       getAuthorPostStats(con, user.id),
       con.getRepository(Post).findOneByOrFail({ id: notification.referenceId }),
     ]);
-    console.log(notification);
     return {
       post_image: (post as ArticlePost).image || pickImageUrl(post),
       post_title: truncatePostToTweet(post),
@@ -1171,12 +1170,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const candidateAvatar = avatars[0];
     const candidateId = candidateAvatar?.referenceId;
 
-    if (!candidateId) {
+    if (!candidateId || !candidateAvatar) {
       return null;
     }
 
-    // Fetch opportunity, match
-    const [opportunity, match, candidate] = await Promise.all([
+    // Fetch opportunity and match
+    const [opportunity, match] = await Promise.all([
       con.getRepository(Opportunity).findOne({
         where: { id: opportunityId },
         select: ['id', 'title'],
@@ -1185,18 +1184,14 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
         where: { opportunityId, userId: candidateId },
         select: ['description'],
       }),
-      con.getRepository(User).findOne({
-        where: { id: candidateId },
-        select: ['name', 'username', 'image'],
-      }),
     ]);
 
-    if (!opportunity || !candidate) {
+    if (!opportunity) {
       return null;
     }
 
-    const candidateName = candidate.name || candidate.username || 'Candidate';
-    const candidatePicture = candidate.image;
+    const candidateName = candidateAvatar.name;
+    const candidatePicture = candidateAvatar.image;
     const matchScore = match?.description?.matchScore
       ? `${Math.round(match.description.matchScore * 100)}%`
       : '';
