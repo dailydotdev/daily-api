@@ -65,7 +65,6 @@ import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
-import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import { Opportunity } from '../entity/opportunities/Opportunity';
 
 interface Data {

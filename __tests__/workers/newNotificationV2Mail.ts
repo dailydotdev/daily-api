@@ -43,7 +43,6 @@ import {
   UserPersonalizedDigestType,
   WelcomePost,
   Organization,
-  PostKeyword,
 } from '../../src/entity';
 import { PollPost } from '../../src/entity/posts/PollPost';
 import { usersFixture } from '../fixture/user';
