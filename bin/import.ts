@@ -86,10 +86,31 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'OpportunityKeyword');
   await importEntity(con, 'OpportunityUserRecruiter');
   await importEntity(con, 'OpportunityMatch');
+  await importEntity(con, 'UserExperience');
+  await importEntity(con, 'UserExperienceSkill');
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);
   await con.query(`update source set type = 'squad' where id = 'publicsquad'`);
+  // Fix UserExperience type column (TypeORM table inheritance issue)
+  await con.query(
+    `update user_experience set type = 'work' where type = 'UserExperience' and "employmentType" is not null`,
+  );
+  await con.query(
+    `update user_experience set type = 'education' where type = 'UserExperience' and grade is not null`,
+  );
+  await con.query(
+    `update user_experience set type = 'project' where type = 'UserExperience' and url is not null and "externalReferenceId" is null`,
+  );
+  await con.query(
+    `update user_experience set type = 'certification' where type = 'UserExperience' and "externalReferenceId" is not null`,
+  );
+  await con.query(
+    `update user_experience set type = 'opensource' where type = 'UserExperience' and url is not null and "externalReferenceId" is null and "customCompanyName" is null`,
+  );
+  await con.query(
+    `update user_experience set type = 'volunteering' where type = 'UserExperience' and "employmentType" is null and grade is null and url is null and "externalReferenceId" is null`,
+  );
   await con.transaction(async (manager) => {
     for (const viewToRefresh of viewsToRefresh) {
       await manager.query(
