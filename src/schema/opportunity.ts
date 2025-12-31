@@ -120,7 +120,7 @@ import {
 } from '../types';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomInt } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
@@ -1155,6 +1155,39 @@ async function handleOpportunityLocationUpdate(
 }
 
 /**
+ * Generates a unique organization name with format "CompanyXX"
+ * Tries random numbers first, falls back to UUID suffix for guaranteed uniqueness
+ */
+async function generateUniqueOrganizationName(
+  entityManager: EntityManager,
+): Promise<string> {
+  const prefix = 'Company';
+  const candidateCount = 10;
+
+  // Generate unique candidate names
+  const candidates = Array.from(
+    { length: candidateCount },
+    () => `${prefix}${randomInt(1, 10000)}`,
+  );
+
+  // Check all candidates in a single query
+  const existingOrgs = await entityManager.getRepository(Organization).find({
+    where: { name: In(candidates) },
+    select: ['name'],
+  });
+  const existingNames = new Set(existingOrgs.map((org) => org.name));
+
+  // Return the first available candidate
+  const availableName = candidates.find((name) => !existingNames.has(name));
+  if (availableName) {
+    return availableName;
+  }
+
+  // Fallback with UUID suffix for guaranteed uniqueness
+  return `${prefix}${randomUUID().substring(0, 8)}`;
+}
+
+/**
  * Handles organization creation, updates, and image uploads for an opportunity
  * Creates new organizations or updates existing ones, with support for image uploads
  */
@@ -1210,6 +1243,12 @@ async function handleOpportunityOrganizationUpdate(
   if (!organizationId) {
     // create new organization and assign to opportunity here inline
     // TODO: ideally this should be refactored later to separate mutation
+
+    // Generate unique name if not provided
+    if (!organizationUpdate.name) {
+      organizationUpdate.name =
+        await generateUniqueOrganizationName(entityManager);
+    }
 
     try {
       const organizationInsertResult = await entityManager
@@ -1829,7 +1868,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const mockSquads = await ctx.con.getRepository(Source).find({
           where: { id: In(mockPreviewSquadIds), type: SourceType.Squad },
         });
-        squads = mockSquads as GQLSource[];
+        squads = mockSquads.map((squad) => ({
+          ...squad,
+          public: !squad.private,
+          members: undefined,
+        }));
       }
 
       return {
