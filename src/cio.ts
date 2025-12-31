@@ -167,15 +167,27 @@ export const identifyUserOpportunities = async ({
   if (!isProd) {
     return;
   }
-  const opportunities = await con.getRepository(OpportunityMatch).find({
+
+  // Get all pending opportunity matches for the user
+  const matches = await con.getRepository(OpportunityMatch).find({
     where: {
       userId,
       status: OpportunityMatchStatus.Pending,
     },
-    select: ['opportunityId'],
+    relations: ['opportunity'],
     order: { createdAt: 'ASC' },
   });
-  const ids = opportunities.map((opportunity) => opportunity.opportunityId);
+
+  // Filter to only include opportunities with reminders enabled
+  const opportunitiesWithReminders = matches
+    .filter((match) => match.opportunity?.flags?.reminders === true)
+    .map((match) => ({
+      id: match.opportunityId,
+      title: match.opportunity?.title || '',
+    }));
+
+  const ids = opportunitiesWithReminders.map((opp) => opp.id);
+
   try {
     await cio.identify(userId, {
       opportunities: ids?.length > 0 ? ids : null,

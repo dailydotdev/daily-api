@@ -1416,6 +1416,33 @@ const onOpportunityChange = async (
       });
     }
   }
+
+  // Sync user opportunities when flags.reminders changes
+  if (
+    data.payload.op === 'u' &&
+    data.payload.before?.flags?.reminders !== data.payload.after?.flags?.reminders
+  ) {
+    // Get all users who have pending matches for this opportunity
+    const matches = await con.getRepository(OpportunityMatch).find({
+      where: {
+        opportunityId: data.payload.after!.id,
+        status: OpportunityMatchStatus.Pending,
+      },
+      select: ['userId'],
+    });
+
+    // Update CIO for each affected user
+    const uniqueUserIds = [...new Set(matches.map((m) => m.userId))];
+    await Promise.all(
+      uniqueUserIds.map((userId) =>
+        identifyUserOpportunities({
+          con,
+          cio,
+          userId,
+        }),
+      ),
+    );
+  }
 };
 
 const onOrganizationChange = async (
@@ -1512,7 +1539,7 @@ const onUserExperienceChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserExperience>,
 ) => {
-  const experience = data.payload.after;
+  const experience = data.payload.after ?? data.payload.before;
 
   if (
     !experience ||
@@ -1523,18 +1550,26 @@ const onUserExperienceChange = async (
     return;
   }
 
+  // Sync user opportunities in CIO when user experience changes
+  // This ensures opportunity matching is updated with latest profile info
+  await identifyUserOpportunities({
+    con,
+    cio,
+    userId: experience.userId,
+  });
+
   // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
   if (
     data.payload.op === 'c' &&
-    experience.customCompanyName &&
-    !experience.companyId
+    data.payload.after?.customCompanyName &&
+    !data.payload.after?.companyId
   ) {
     await enrichCompanyForExperience(
       con,
       {
-        experienceId: experience.id,
-        customCompanyName: experience.customCompanyName,
-        experienceType: experience.type,
+        experienceId: data.payload.after.id,
+        customCompanyName: data.payload.after.customCompanyName,
+        experienceType: data.payload.after.type,
       },
       logger,
     );
