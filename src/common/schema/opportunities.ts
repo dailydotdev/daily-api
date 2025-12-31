@@ -1,6 +1,5 @@
 import { OpportunityState } from '@dailydotdev/schema';
 import z from 'zod';
-import { organizationLinksSchema } from './organizations';
 import { fileUploadSchema, urlParseSchema } from './common';
 import { parseBigInt } from '../utils';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
@@ -196,20 +195,6 @@ export const opportunityEditSchema = z
       .max(3, {
         error: 'No more than three questions are allowed',
       }),
-    organization: z
-      .object({
-        name: z.string().nonempty().max(60).optional(),
-        website: z.string().max(500).nullish(),
-        description: z.string().max(2000).nullish(),
-        perks: z.array(z.string().max(240)).max(50).nullish(),
-        founded: z.number().int().min(1800).max(2100).nullish(),
-        externalLocationId: z.string().max(500).nullish(),
-        category: z.string().max(240).nullish(),
-        size: z.number().int().nullish(),
-        stage: z.number().int().nullish(),
-        links: z.array(organizationLinksSchema).max(50).optional(),
-      })
-      .nullish(),
     recruiter: z.object({
       userId: z.string(),
       title: z.string().max(240).optional(),

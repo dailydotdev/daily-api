@@ -1,8 +1,6 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { GraphQLResolveInfo } from 'graphql';
-// @ts-expect-error - no types
-import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm, { LocationVerificationStatus } from '../graphorm';
@@ -43,13 +41,7 @@ import {
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import {
-  ConflictError,
-  NotFoundError,
-  PaymentRequiredError,
-  TypeOrmError,
-  type TypeORMQueryFailedError,
-} from '../errors';
+import { ConflictError, NotFoundError, PaymentRequiredError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { User } from '../entity/user/User';
 import {
@@ -63,7 +55,6 @@ import {
   uploadEmploymentAgreementFromBuffer,
   uploadResumeFromBuffer,
 } from '../common/googleCloud';
-import { uploadOrganizationImage } from '../common/cloudinary';
 import {
   opportunityCreateParseSchema,
   opportunityEditSchema,
@@ -84,7 +75,6 @@ import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import {
   In,
   Not,
-  QueryFailedError,
   type DeepPartial,
   JsonContains,
   EntityManager,
@@ -120,7 +110,7 @@ import {
 } from '../types';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
-import { randomUUID, randomInt } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
@@ -742,26 +732,6 @@ export const typeDefs = /* GraphQL */ `
     placeholder: String
   }
 
-  input OrganizationLinkInput {
-    type: OrganizationLinkType!
-    socialType: SocialMediaType
-    title: String
-    link: String!
-  }
-
-  input OrganizationEditInput {
-    name: String
-    website: String
-    description: String
-    perks: [String!]
-    founded: Int
-    externalLocationId: String
-    category: String
-    size: Int
-    stage: Int
-    links: [OrganizationLinkInput!]
-  }
-
   input RecruiterInput {
     userId: ID!
     title: String
@@ -778,7 +748,6 @@ export const typeDefs = /* GraphQL */ `
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
-    organization: OrganizationEditInput
     recruiter: RecruiterInput
   }
 
@@ -908,22 +877,7 @@ export const typeDefs = /* GraphQL */ `
       Opportunity data to update
       """
       payload: OpportunityEditInput!
-
-      """
-      Organization image to upload
-      """
-      organizationImage: Upload
     ): Opportunity! @auth
-
-    """
-    Clear the organization image for an opportunity
-    """
-    clearOrganizationImage(
-      """
-      Id of the Opportunity
-      """
-      id: ID!
-    ): EmptyResponse @auth
 
     recommendOpportunityScreeningQuestions(
       """
@@ -1151,152 +1105,6 @@ async function handleOpportunityLocationUpdate(
     await entityManager
       .getRepository(OpportunityLocation)
       .update({ opportunityId }, { type: locationType });
-  }
-}
-
-/**
- * Generates a unique organization name with format "CompanyXX"
- * Tries random numbers first, falls back to UUID suffix for guaranteed uniqueness
- */
-async function generateUniqueOrganizationName(
-  entityManager: EntityManager,
-): Promise<string> {
-  const prefix = 'Company';
-  const candidateCount = 10;
-
-  // Generate unique candidate names
-  const candidates = Array.from(
-    { length: candidateCount },
-    () => `${prefix}${randomInt(1, 10000)}`,
-  );
-
-  // Check all candidates in a single query
-  const existingOrgs = await entityManager.getRepository(Organization).find({
-    where: { name: In(candidates) },
-    select: ['name'],
-  });
-  const existingNames = new Set(existingOrgs.map((org) => org.name));
-
-  // Return the first available candidate
-  const availableName = candidates.find((name) => !existingNames.has(name));
-  if (availableName) {
-    return availableName;
-  }
-
-  // Fallback with UUID suffix for guaranteed uniqueness
-  return `${prefix}${randomUUID().substring(0, 8)}`;
-}
-
-/**
- * Handles organization creation, updates, and image uploads for an opportunity
- * Creates new organizations or updates existing ones, with support for image uploads
- */
-async function handleOpportunityOrganizationUpdate(
-  entityManager: EntityManager,
-  opportunityId: string,
-  organization: Record<string, unknown> | null | undefined,
-  organizationImage: Promise<FileUpload> | undefined,
-): Promise<void> {
-  if (!organization && !organizationImage) {
-    return;
-  }
-
-  const opportunityJob = await entityManager
-    .getRepository(OpportunityJob)
-    .findOne({
-      where: { id: opportunityId },
-      select: ['organizationId'],
-    });
-
-  let organizationId = opportunityJob?.organizationId;
-
-  let organizationUpdate: Record<string, unknown> = {
-    ...organization,
-  };
-
-  // Handle externalLocationId -> locationId mapping
-  if (organizationUpdate.externalLocationId !== undefined) {
-    const externalLocationId = organizationUpdate.externalLocationId as
-      | string
-      | null;
-    delete organizationUpdate.externalLocationId;
-
-    if (externalLocationId) {
-      const location = await findOrCreateDatasetLocation(
-        entityManager.connection,
-        externalLocationId,
-      );
-
-      if (location) {
-        organizationUpdate.locationId = location.id;
-      }
-    } else {
-      // If externalLocationId is explicitly null, clear the locationId
-      organizationUpdate.locationId = null;
-    }
-  }
-
-  if (organizationId) {
-    delete organizationUpdate.name; // prevent name updates on existing organizations
-  }
-
-  if (!organizationId) {
-    // create new organization and assign to opportunity here inline
-    // TODO: ideally this should be refactored later to separate mutation
-
-    // Generate unique name if not provided
-    if (!organizationUpdate.name) {
-      organizationUpdate.name =
-        await generateUniqueOrganizationName(entityManager);
-    }
-
-    try {
-      const organizationInsertResult = await entityManager
-        .getRepository(Organization)
-        .insert(organizationUpdate);
-
-      organizationId = organizationInsertResult.identifiers[0].id as string;
-
-      await entityManager
-        .getRepository(OpportunityJob)
-        .update({ id: opportunityId }, { organizationId });
-
-      // values were applied during insert
-      organizationUpdate = {};
-    } catch (insertError) {
-      if (insertError instanceof QueryFailedError) {
-        const queryFailedError = insertError as TypeORMQueryFailedError;
-
-        if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
-          if (
-            insertError.message.indexOf('IDX_organization_name_unique') > -1
-          ) {
-            throw new ConflictError(
-              'Organization with this name already exists',
-            );
-          }
-        }
-      }
-
-      throw insertError;
-    }
-  }
-
-  // Handle image upload
-  if (organizationImage) {
-    const { createReadStream } = await organizationImage;
-    const stream = createReadStream();
-    const { url: imageUrl } = await uploadOrganizationImage(
-      organizationId,
-      stream,
-    );
-    organizationUpdate.image = imageUrl;
-  }
-
-  if (Object.keys(organizationUpdate).length > 0) {
-    await entityManager
-      .getRepository(Organization)
-      .update({ id: organizationId }, organizationUpdate);
   }
 }
 
@@ -2310,11 +2118,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         id,
         payload,
-        organizationImage,
       }: {
         id: string;
         payload: z.infer<typeof opportunityEditSchema>;
-        organizationImage?: Promise<FileUpload>;
       },
       ctx: AuthContext,
       info,
@@ -2334,7 +2140,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           keywords,
           content,
           questions,
-          organization,
           recruiter,
           externalLocationId,
           locationType,
@@ -2364,13 +2169,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ctx,
         );
 
-        await handleOpportunityOrganizationUpdate(
-          entityManager,
-          id,
-          organization,
-          organizationImage,
-        );
-
         await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 
         await handleOpportunityScreeningQuestionsUpdate(
@@ -2396,36 +2194,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
-    },
-    clearOrganizationImage: async (
-      _,
-      { id }: { id: string },
-      ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
-      await ensureOpportunityPermissions({
-        con: ctx.con.manager,
-        userId: ctx.userId,
-        opportunityId: id,
-        permission: OpportunityPermissions.Edit,
-        isTeamMember: ctx.isTeamMember,
-      });
-
-      const opportunityJob = await ctx.con
-        .getRepository(OpportunityJob)
-        .findOne({
-          where: { id },
-          select: ['organizationId'],
-        });
-
-      if (!opportunityJob?.organizationId) {
-        throw new NotFoundError('Opportunity not found');
-      }
-
-      await ctx.con
-        .getRepository(Organization)
-        .update(opportunityJob.organizationId, { image: null });
-
-      return { _: true };
     },
     recommendOpportunityScreeningQuestions: async (
       _,
