@@ -91,6 +91,7 @@ import {
   IsNull,
 } from 'typeorm';
 import { Organization } from '../entity/Organization';
+import { Source, SourceType } from '../entity/Source';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 import {
   OrganizationLinkType,
@@ -119,7 +120,7 @@ import {
 } from '../types';
 import { garmScraperService } from '../common/scraper';
 import { Storage } from '@google-cloud/storage';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomInt } from 'node:crypto';
 import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
@@ -130,6 +131,11 @@ import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
 import { getBrokkrClient } from '../common/brokkr';
+import {
+  isMockEnabled,
+  mockPreviewTags,
+  mockPreviewSquadIds,
+} from '../mocks/opportunity/services';
 
 export interface GQLOpportunity
   extends Pick<
@@ -1149,6 +1155,39 @@ async function handleOpportunityLocationUpdate(
 }
 
 /**
+ * Generates a unique organization name with format "CompanyXX"
+ * Tries random numbers first, falls back to UUID suffix for guaranteed uniqueness
+ */
+async function generateUniqueOrganizationName(
+  entityManager: EntityManager,
+): Promise<string> {
+  const prefix = 'Company';
+  const candidateCount = 10;
+
+  // Generate unique candidate names
+  const candidates = Array.from(
+    { length: candidateCount },
+    () => `${prefix}${randomInt(1, 10000)}`,
+  );
+
+  // Check all candidates in a single query
+  const existingOrgs = await entityManager.getRepository(Organization).find({
+    where: { name: In(candidates) },
+    select: ['name'],
+  });
+  const existingNames = new Set(existingOrgs.map((org) => org.name));
+
+  // Return the first available candidate
+  const availableName = candidates.find((name) => !existingNames.has(name));
+  if (availableName) {
+    return availableName;
+  }
+
+  // Fallback with UUID suffix for guaranteed uniqueness
+  return `${prefix}${randomUUID().substring(0, 8)}`;
+}
+
+/**
  * Handles organization creation, updates, and image uploads for an opportunity
  * Creates new organizations or updates existing ones, with support for image uploads
  */
@@ -1204,6 +1243,12 @@ async function handleOpportunityOrganizationUpdate(
   if (!organizationId) {
     // create new organization and assign to opportunity here inline
     // TODO: ideally this should be refactored later to separate mutation
+
+    // Generate unique name if not provided
+    if (!organizationUpdate.name) {
+      organizationUpdate.name =
+        await generateUniqueOrganizationName(entityManager);
+    }
 
     try {
       const organizationInsertResult = await entityManager
@@ -1650,7 +1695,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         status: OpportunityPreviewStatus.UNSPECIFIED,
       };
 
-      if (opportunity.flags?.preview) {
+      // In mock mode, if preview is stuck at PENDING, re-fetch with mock data
+      const shouldRefetchInMockMode =
+        isMockEnabled() &&
+        opportunity.flags?.preview?.status === OpportunityPreviewStatus.PENDING;
+
+      if (opportunity.flags?.preview && !shouldRefetchInMockMode) {
         opportunityPreview = opportunity.flags.preview;
 
         if (!opportunityPreview.status) {
@@ -1711,13 +1761,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const gondulOpportunityServiceClient =
           getGondulOpportunityServiceClient();
 
-        await gondulOpportunityServiceClient.garmr.execute(() => {
-          return gondulOpportunityServiceClient.instance.preview(
-            opportunityMessage,
-          );
-        });
+        const previewResult =
+          await gondulOpportunityServiceClient.garmr.execute(() => {
+            return gondulOpportunityServiceClient.instance.preview(
+              opportunityMessage,
+            );
+          });
 
-        opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+        // In mock mode, use the returned data directly instead of waiting for async worker
+        // The mock returns userIds/totalCount directly for immediate testing
+        const mockResult = previewResult as unknown as {
+          userIds?: string[];
+          totalCount?: number;
+        };
+        if (isMockEnabled() && mockResult?.userIds) {
+          opportunityPreview = {
+            userIds: mockResult.userIds,
+            totalCount: mockResult.totalCount || mockResult.userIds.length,
+            status: OpportunityPreviewStatus.READY,
+          };
+        } else {
+          opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+        }
 
         await ctx.con.getRepository(OpportunityJob).update(
           { id: opportunity.id },
@@ -1775,19 +1840,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {} as Record<string, number>,
       );
       // final map and sort to get X tags that appear the most
-      const tags = Object.entries(uniqueTagsMap)
+      let tags = Object.entries(uniqueTagsMap)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 16)
         .map(([tag]) => tag);
 
+      // In mock mode, use mock tags if no real tags found
+      if (isMockEnabled() && tags.length === 0) {
+        tags = mockPreviewTags;
+      }
+
       const companies = getShowcaseCompanies();
 
-      const squads = uniqueifyObjectArray(
+      let squads = uniqueifyObjectArray(
         connection.edges.flatMap(({ node }) =>
           (node.activeSquads || []).map((squad) => squad),
         ),
         (squad) => squad.handle,
       );
+
+      // In mock mode, use mock squads if no real squads found
+      if (
+        isMockEnabled() &&
+        squads.length === 0 &&
+        mockPreviewSquadIds.length
+      ) {
+        const mockSquads = await ctx.con.getRepository(Source).find({
+          where: { id: In(mockPreviewSquadIds), type: SourceType.Squad },
+        });
+        squads = mockSquads.map((squad) => ({
+          ...squad,
+          public: !squad.private,
+          members: undefined,
+        }));
+      }
 
       return {
         ...connection,

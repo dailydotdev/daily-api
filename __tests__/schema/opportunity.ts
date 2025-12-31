@@ -4749,6 +4749,61 @@ describe('mutation editOpportunity', () => {
       'Organization with this name already exists',
     );
   });
+
+  it('should generate unique organization name when name is not provided', async () => {
+    loggedUser = '1';
+
+    const MUTATION_WITH_ORG = /* GraphQL */ `
+      mutation EditOpportunityWithOrg(
+        $id: ID!
+        $payload: OpportunityEditInput!
+      ) {
+        editOpportunity(id: $id, payload: $payload) {
+          id
+          organization {
+            id
+            name
+          }
+        }
+      }
+    `;
+
+    const opportunityWithoutOrganization = await con
+      .getRepository(OpportunityJob)
+      .save({
+        ...opportunitiesFixture[0],
+        id: randomUUID(),
+        state: OpportunityState.DRAFT,
+        organizationId: null,
+      });
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId: opportunityWithoutOrganization.id,
+      userId: loggedUser,
+      type: OpportunityUserType.Recruiter,
+    });
+
+    const res = await client.mutate(MUTATION_WITH_ORG, {
+      variables: {
+        id: opportunityWithoutOrganization.id,
+        payload: {
+          organization: {}, // No name provided - should auto-generate
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.organization).toBeDefined();
+    expect(res.data.editOpportunity.organization.name).toMatch(/^Company\d+$/);
+
+    // Verify the organization was created in database with generated name
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: res.data.editOpportunity.organization.id });
+
+    expect(organization).not.toBeNull();
+    expect(organization!.name).toMatch(/^Company\d+$/);
+  });
 });
 
 describe('mutation clearOrganizationImage', () => {
