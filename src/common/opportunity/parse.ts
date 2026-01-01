@@ -5,7 +5,6 @@ import { FastifyBaseLogger } from 'fastify';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import { fileTypeFromBuffer } from 'file-type';
 import {
-  Location,
   LocationType,
   OpportunityContent,
   OpportunityState,
@@ -204,10 +203,21 @@ export async function parseOpportunityWithBrokkr(
     const sanitizedOpportunity = {
       ...result.opportunity,
       location: Array.isArray(result.opportunity?.location)
-        ? result.opportunity.location.filter((loc: Location) => {
-            // Only keep locations with valid country
-            return loc?.country && loc.country.trim().length > 0;
-          })
+        ? result.opportunity.location
+            .map((loc) => {
+              // Jobs may indicate Remote Europe with no country
+              if (!loc?.country?.trim() && loc?.continent?.trim()) {
+                return {
+                  ...loc,
+                  country: loc?.continent,
+                };
+              }
+              return loc;
+            })
+            .filter((loc) => {
+              // Only keep locations with valid country
+              return loc?.country && loc.country.trim().length > 0;
+            })
         : [],
     };
 
