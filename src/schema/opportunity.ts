@@ -2125,13 +2125,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunity> => {
+      ctx.log.info({ opportunityId: id }, 'editOpportunity: resolver entered');
       const start = Date.now();
 
-      const opportunity = opportunityEditSchema.parse(payload);
-
-      ctx.log.info({ opportunityId: id }, 'editOpportunity: starting');
-
       let stepStart = Date.now();
+      const opportunity = opportunityEditSchema.parse(payload);
+      ctx.log.info(
+        { opportunityId: id, duration: Date.now() - stepStart },
+        'editOpportunity: payload parsed',
+      );
+
+      stepStart = Date.now();
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
         userId: ctx.userId,
