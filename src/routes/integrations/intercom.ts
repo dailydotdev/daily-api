@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import jwt from 'jsonwebtoken';
 import createOrGetConnection from '../../db';
 import { User } from '../../entity';
+import { getUnixTime } from 'date-fns';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   const con = await createOrGetConnection();
@@ -40,10 +41,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     if (user.createdAt) {
-      // Intercom expects created_at as Unix timestamp (seconds)
-      payload.created_at = Math.floor(
-        new Date(user.createdAt).getTime() / 1000,
-      );
+      payload.created_at = getUnixTime(user.createdAt);
     }
 
     // Sign with HS256 and short expiry (10 minutes recommended minimum)
