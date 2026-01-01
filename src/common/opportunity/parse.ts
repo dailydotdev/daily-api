@@ -5,6 +5,7 @@ import { FastifyBaseLogger } from 'fastify';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import { fileTypeFromBuffer } from 'file-type';
 import {
+  Location,
   LocationType,
   OpportunityContent,
   OpportunityState,
@@ -199,9 +200,19 @@ export async function parseOpportunityWithBrokkr(
 
     log.info(result, 'brokkrParseOpportunityResponse');
 
-    const parsedOpportunity = await opportunityCreateParseSchema.parseAsync(
-      result.opportunity,
-    );
+    // Sanitize Brokkr response - filter out invalid locations
+    const sanitizedOpportunity = {
+      ...result.opportunity,
+      location: Array.isArray(result.opportunity?.location)
+        ? result.opportunity.location.filter((loc: Location) => {
+            // Only keep locations with valid country
+            return loc?.country && loc.country.trim().length > 0;
+          })
+        : [],
+    };
+
+    const parsedOpportunity =
+      await opportunityCreateParseSchema.parseAsync(sanitizedOpportunity);
 
     const content = renderOpportunityMarkdownContent(parsedOpportunity.content);
 
