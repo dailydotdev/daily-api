@@ -61,7 +61,8 @@ import {
   OpportunityPermissions,
 } from '../common/opportunity/accessControl';
 import { QueryFailedError } from 'typeorm';
-import type { FileUpload } from 'graphql-upload-minimal';
+// @ts-expect-error - no types
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { ConflictError } from '../errors';
 
 export type GQLOrganizationMember = {
