@@ -2125,8 +2125,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLOpportunity> => {
+      const start = Date.now();
+
       const opportunity = opportunityEditSchema.parse(payload);
 
+      ctx.log.info({ opportunityId: id }, 'editOpportunity: starting');
+
+      let stepStart = Date.now();
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
         userId: ctx.userId,
@@ -2134,7 +2139,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         permission: OpportunityPermissions.Edit,
         isTeamMember: ctx.isTeamMember,
       });
+      ctx.log.info(
+        { opportunityId: id, duration: Date.now() - stepStart },
+        'editOpportunity: permissions checked',
+      );
 
+      stepStart = Date.now();
       await ctx.con.transaction(async (entityManager) => {
         const {
           keywords,
@@ -2148,6 +2158,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const opportunityContent = renderOpportunityContent(content);
 
+        let txStart = Date.now();
         await entityManager
           .getRepository(OpportunityJob)
           .createQueryBuilder()
@@ -2160,7 +2171,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('contentJson', opportunityContent.toJsonString())
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
+        ctx.log.info(
+          { opportunityId: id, duration: Date.now() - txStart },
+          'editOpportunity: opportunity updated',
+        );
 
+        txStart = Date.now();
         await handleOpportunityLocationUpdate(
           entityManager,
           id,
@@ -2168,24 +2184,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           locationType,
           ctx,
         );
+        ctx.log.info(
+          { opportunityId: id, duration: Date.now() - txStart },
+          'editOpportunity: location updated',
+        );
 
+        txStart = Date.now();
         await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
+        ctx.log.info(
+          { opportunityId: id, duration: Date.now() - txStart },
+          'editOpportunity: keywords updated',
+        );
 
+        txStart = Date.now();
         await handleOpportunityScreeningQuestionsUpdate(
           entityManager,
           id,
           questions,
         );
+        ctx.log.info(
+          { opportunityId: id, duration: Date.now() - txStart },
+          'editOpportunity: questions updated',
+        );
 
+        txStart = Date.now();
         await handleOpportunityRecruiterUpdate(
           entityManager,
           id,
           recruiter,
           ctx,
         );
+        ctx.log.info(
+          { opportunityId: id, duration: Date.now() - txStart },
+          'editOpportunity: recruiter updated',
+        );
       });
+      ctx.log.info(
+        { opportunityId: id, duration: Date.now() - stepStart },
+        'editOpportunity: transaction completed',
+      );
 
-      return await graphorm.queryOneOrFail<GQLOpportunity>(
+      stepStart = Date.now();
+      const result = await graphorm.queryOneOrFail<GQLOpportunity>(
         ctx,
         info,
         (builder) => {
@@ -2194,6 +2234,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
+      ctx.log.info(
+        { opportunityId: id, duration: Date.now() - stepStart },
+        'editOpportunity: graphorm query completed',
+      );
+
+      ctx.log.info(
+        { opportunityId: id, totalDuration: Date.now() - start },
+        'editOpportunity: completed',
+      );
+
+      return result;
     },
     recommendOpportunityScreeningQuestions: async (
       _,
