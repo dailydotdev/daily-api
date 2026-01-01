@@ -2575,69 +2575,77 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('User identifier is required');
       }
 
-      const startTime = Date.now();
-      let stepStart = startTime;
+      try {
+        const startTime = Date.now();
+        let stepStart = startTime;
 
-      const parsedPayload = await parseOpportunitySchema.parseAsync(payload);
-      ctx.log.info(
-        { durationMs: Date.now() - stepStart },
-        'parseOpportunity: payload schema validated',
-      );
+        const parsedPayload = await parseOpportunitySchema.parseAsync(payload);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart },
+          'parseOpportunity: payload schema validated',
+        );
 
-      stepStart = Date.now();
-      const { buffer, extension } =
-        await getOpportunityFileBuffer(parsedPayload);
-      ctx.log.info(
-        { durationMs: Date.now() - stepStart, bufferSize: buffer.length },
-        'parseOpportunity: file buffer acquired',
-      );
+        stepStart = Date.now();
+        const { buffer, extension } =
+          await getOpportunityFileBuffer(parsedPayload);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, bufferSize: buffer.length },
+          'parseOpportunity: file buffer acquired',
+        );
 
-      stepStart = Date.now();
-      const { mime } = await validateOpportunityFileType(buffer, extension);
-      ctx.log.info(
-        { durationMs: Date.now() - stepStart, mime },
-        'parseOpportunity: file type validated',
-      );
+        stepStart = Date.now();
+        const { mime } = await validateOpportunityFileType(buffer, extension);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, mime },
+          'parseOpportunity: file type validated',
+        );
 
-      stepStart = Date.now();
-      const parsedData = await parseOpportunityWithBrokkr(
-        buffer,
-        mime,
-        ctx.log,
-      );
-      ctx.log.info(
-        {
-          durationMs: Date.now() - stepStart,
-          title: parsedData.opportunity.title,
-        },
-        'parseOpportunity: Brokkr parsing completed',
-      );
+        stepStart = Date.now();
+        const parsedData = await parseOpportunityWithBrokkr(
+          buffer,
+          mime,
+          ctx.log,
+        );
+        ctx.log.info(
+          {
+            durationMs: Date.now() - stepStart,
+            title: parsedData.opportunity.title,
+          },
+          'parseOpportunity: Brokkr parsing completed',
+        );
 
-      stepStart = Date.now();
-      const opportunity = await createOpportunityFromParsedData(
-        {
-          con: ctx.con,
-          userId: ctx.userId,
-          trackingId: ctx.trackingId,
-          log: ctx.log,
-        },
-        parsedData,
-      );
-      ctx.log.info(
-        { durationMs: Date.now() - stepStart, opportunityId: opportunity.id },
-        'parseOpportunity: database records created',
-      );
+        stepStart = Date.now();
+        const opportunity = await createOpportunityFromParsedData(
+          {
+            con: ctx.con,
+            userId: ctx.userId,
+            trackingId: ctx.trackingId,
+            log: ctx.log,
+          },
+          parsedData,
+        );
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, opportunityId: opportunity.id },
+          'parseOpportunity: database records created',
+        );
 
-      const totalDurationMs = Date.now() - startTime;
-      ctx.log.info(
-        { totalDurationMs, opportunityId: opportunity.id },
-        'parseOpportunity: completed successfully',
-      );
+        const totalDurationMs = Date.now() - startTime;
+        ctx.log.info(
+          { totalDurationMs, opportunityId: opportunity.id },
+          'parseOpportunity: completed successfully',
+        );
 
-      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id: opportunity.id });
-        return builder;
-      });
+        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+          builder.queryBuilder.where({ id: opportunity.id });
+          return builder;
+        });
+      } catch (error) {
+        ctx.log.error(
+          { error },
+          'parseOpportunity: failed to parse opportunity',
+        );
+        throw error;
+      }
     },
   },
   OpportunityMatch: {
