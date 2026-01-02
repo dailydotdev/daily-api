@@ -202,6 +202,11 @@ export type PubSubSchema = {
     opportunityId: string;
     title: string;
   };
+  'api.v1.opportunity-flags-change': {
+    opportunityId: string;
+    before: string | null;
+    after: string | null;
+  };
   'gondul.v1.candidate-opportunity-match': MatchedCandidate;
   'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
   'api.v1.delayed-notification-reminder': z.infer<typeof entityReminderSchema>;

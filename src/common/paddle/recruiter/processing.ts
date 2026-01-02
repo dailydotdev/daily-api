@@ -141,6 +141,8 @@ export const createOpportunitySubscription = async ({
         flags: updateFlagsStatement<OpportunityJob>({
           batchSize: priceCustomData.batch_size,
           plan: price.id,
+          reminders: priceCustomData.reminders,
+          showSlack: priceCustomData.show_slack,
         }),
       },
     );
