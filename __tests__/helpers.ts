@@ -453,7 +453,11 @@ export const doNotFake: FakeableAPI[] = [
   'clearTimeout',
 ];
 
-export const createMockBrokkrTransport = () =>
+export const createMockBrokkrTransport = ({
+  opportunity,
+}: {
+  opportunity?: Partial<ParseOpportunityResponse['opportunity']>;
+} = {}) =>
   createRouterTransport(({ service }) => {
     service(BrokkrService, {
       extractMarkdown: (request) => {
@@ -527,6 +531,7 @@ export const createMockBrokkrTransport = () =>
                   'This is the interview process of the mocked opportunity.',
               }),
             }),
+            ...opportunity,
           }),
         });
       },

@@ -205,6 +205,17 @@ export async function parseOpportunityWithBrokkr(
       location: Array.isArray(result.opportunity?.location)
         ? result.opportunity.location
             .map((loc) => {
+              if (
+                !loc.country &&
+                loc.continent?.toLowerCase().trim() === 'europe'
+              ) {
+                return {
+                  ...loc,
+                  country: 'Europe',
+                  iso2: 'EU',
+                };
+              }
+
               // Jobs may indicate Remote Europe with no country
               if (!loc?.country?.trim() && loc?.continent?.trim()) {
                 return {
