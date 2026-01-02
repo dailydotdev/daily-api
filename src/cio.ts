@@ -229,7 +229,7 @@ export const hasActiveRecruiterSubscription = async (
     .andWhere(`org."recruiterSubscriptionFlags"->>'status' = :status`, {
       status: SubscriptionStatus.Active,
     })
-    .getOne();
+    .exists();
 
   return !!organizationWithActiveSubscription;
 };
