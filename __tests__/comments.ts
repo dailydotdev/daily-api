@@ -690,6 +690,26 @@ describe('query commentPreview', () => {
     expect(mention9.data.commentPreview).toMatchSnapshot();
   });
 
+  it('should not convert @ in URLs to mentions but should convert @ outside URLs', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+
+    // @Lee outside URL should become mention, @Lee inside URL should not
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '@Lee check https://example.com/@Lee/profile',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    // Should have exactly one mention (the one outside the URL)
+    const mentionMatches = res.data.commentPreview.match(/data-mention-id/g);
+    expect(mentionMatches).toHaveLength(1);
+    // URL should be preserved with @ intact
+    expect(res.data.commentPreview).toContain(
+      'href="https://example.com/@Lee/profile"',
+    );
+  });
+
   it('should only render markdown not HTML', async () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();

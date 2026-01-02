@@ -95,11 +95,31 @@ export const renderMentions = (
   return words.join(' ');
 };
 
+// Check if the current token at idx is inside a link by looking for
+// unclosed link_open tokens before it
+const isInsideLink = (tokens: Token[], idx: number): boolean => {
+  let linkDepth = 0;
+  for (let i = 0; i < idx; i++) {
+    if (tokens[i].type === 'link_open') {
+      linkDepth++;
+    } else if (tokens[i].type === 'link_close') {
+      linkDepth--;
+    }
+  }
+  return linkDepth > 0;
+};
+
 markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
   const content = defaultTextRender(tokens, idx, options, env, self);
   const mentions = env?.mentions as MarkdownMention[];
 
   if (!mentions?.length) {
+    return content;
+  }
+
+  // Skip mention processing when inside a link to avoid turning
+  // @ symbols in URLs into user mention tags
+  if (isInsideLink(tokens, idx)) {
     return content;
   }
 
