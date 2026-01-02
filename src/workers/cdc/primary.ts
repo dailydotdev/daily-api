@@ -1422,7 +1422,7 @@ const onOpportunityChange = async (
     data.payload.op === 'u' &&
     data.payload.before?.flags !== data.payload.after?.flags
   ) {
-    await triggerTypedEvent(logger, 'api.v1.opportunity-reminders-change', {
+    await triggerTypedEvent(logger, 'api.v1.opportunity-flags-change', {
       opportunityId: data.payload.after!.id,
       before: data.payload.before?.flags || null,
       after: data.payload.after?.flags || null,
@@ -1524,7 +1524,7 @@ const onUserExperienceChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserExperience>,
 ) => {
-  const experience = data.payload.after ?? data.payload.before;
+  const experience = data.payload.after;
 
   if (
     !experience ||
@@ -1546,15 +1546,15 @@ const onUserExperienceChange = async (
   // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
   if (
     data.payload.op === 'c' &&
-    data.payload.after?.customCompanyName &&
-    !data.payload.after?.companyId
+    experience.customCompanyName &&
+    !experience.companyId
   ) {
     await enrichCompanyForExperience(
       con,
       {
-        experienceId: data.payload.after.id,
-        customCompanyName: data.payload.after.customCompanyName,
-        experienceType: data.payload.after.type,
+        experienceId: experience.id,
+        customCompanyName: experience.customCompanyName,
+        experienceType: experience.type,
       },
       logger,
     );

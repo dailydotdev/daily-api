@@ -44,7 +44,7 @@ describe('syncOpportunityRemindersCio worker', () => {
   it('should skip syncing when reminders flag did not change', async () => {
     const flagsJson = JSON.stringify({ reminders: true, batchSize: 10 });
 
-    await expectSuccessfulTypedBackground<'api.v1.opportunity-reminders-change'>(
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-flags-change'>(
       worker,
       {
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -61,7 +61,7 @@ describe('syncOpportunityRemindersCio worker', () => {
     const beforeFlags = JSON.stringify({ reminders: false });
     const afterFlags = JSON.stringify({ reminders: true });
 
-    await expectSuccessfulTypedBackground<'api.v1.opportunity-reminders-change'>(
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-flags-change'>(
       worker,
       {
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -83,7 +83,7 @@ describe('syncOpportunityRemindersCio worker', () => {
     const beforeFlags = JSON.stringify({ reminders: true });
     const afterFlags = JSON.stringify({ reminders: false });
 
-    await expectSuccessfulTypedBackground<'api.v1.opportunity-reminders-change'>(
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-flags-change'>(
       worker,
       {
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -105,7 +105,7 @@ describe('syncOpportunityRemindersCio worker', () => {
     const beforeFlags = JSON.stringify({ reminders: true, batchSize: 10 });
     const afterFlags = JSON.stringify({ reminders: true, batchSize: 20 });
 
-    await expectSuccessfulTypedBackground<'api.v1.opportunity-reminders-change'>(
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-flags-change'>(
       worker,
       {
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -121,7 +121,7 @@ describe('syncOpportunityRemindersCio worker', () => {
   it('should handle null before flags (opportunity creation)', async () => {
     const afterFlags = JSON.stringify({ reminders: true });
 
-    await expectSuccessfulTypedBackground<'api.v1.opportunity-reminders-change'>(
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-flags-change'>(
       worker,
       {
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',

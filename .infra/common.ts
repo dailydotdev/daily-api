@@ -442,7 +442,7 @@ export const workers: Worker[] = [
     subscription: 'api.opportunity-in-review-slack',
   },
   {
-    topic: 'api.v1.opportunity-reminders-change',
+    topic: 'api.v1.opportunity-flags-change',
     subscription: 'sync-opportunity-reminders-cio',
   },
   {

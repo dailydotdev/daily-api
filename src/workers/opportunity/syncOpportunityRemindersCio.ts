@@ -4,7 +4,7 @@ import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { cio, identifyUserOpportunities } from '../../cio';
 
-export const syncOpportunityRemindersCio: TypedWorker<'api.v1.opportunity-reminders-change'> =
+export const syncOpportunityRemindersCio: TypedWorker<'api.v1.opportunity-flags-change'> =
   {
     subscription: 'sync-opportunity-reminders-cio',
     handler: async ({ data }, con, log): Promise<void> => {
