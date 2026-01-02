@@ -442,6 +442,10 @@ export const workers: Worker[] = [
     subscription: 'api.opportunity-in-review-slack',
   },
   {
+    topic: 'api.v1.opportunity-flags-change',
+    subscription: 'sync-opportunity-reminders-cio',
+  },
+  {
     topic: 'api.v1.recruiter-rejected-candidate-match',
     subscription: 'api.recruiter-rejected-candidate-match-email',
   },
