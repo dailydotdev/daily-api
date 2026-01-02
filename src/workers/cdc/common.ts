@@ -140,7 +140,11 @@ export const notifyPostContentUpdated = async ({
     deleted: articlePost.deleted,
     sharedPostId: sharePost.sharedPostId || undefined,
     translation: post.translation
-      ? Object.entries(JSON.parse(post.translation)).reduce(
+      ? Object.entries(
+          typeof post.translation === 'string'
+            ? JSON.parse(post.translation)
+            : post.translation,
+        ).reduce(
           (acc, [key, value]) => {
             acc[key] = decodeJsonField({
               value: value as JsonValue,
