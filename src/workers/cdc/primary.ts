@@ -1416,6 +1416,18 @@ const onOpportunityChange = async (
       });
     }
   }
+
+  // Sync user opportunities when flags change
+  if (
+    data.payload.op === 'u' &&
+    data.payload.before?.flags !== data.payload.after?.flags
+  ) {
+    await triggerTypedEvent(logger, 'api.v1.opportunity-flags-change', {
+      opportunityId: data.payload.after!.id,
+      before: data.payload.before?.flags || null,
+      after: data.payload.after?.flags || null,
+    });
+  }
 };
 
 const onOrganizationChange = async (
@@ -1522,6 +1534,14 @@ const onUserExperienceChange = async (
   ) {
     return;
   }
+
+  // Sync user opportunities in CIO when user experience changes
+  // This ensures opportunity matching is updated with latest profile info
+  await identifyUserOpportunities({
+    con,
+    cio,
+    userId: experience.userId,
+  });
 
   // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
   if (
