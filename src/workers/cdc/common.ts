@@ -2,6 +2,7 @@ import {
   ContentMeta,
   ContentQuality,
   ContentUpdatedMessage,
+  Translation,
 } from '@dailydotdev/schema';
 import { DataSource, ObjectLiteral } from 'typeorm';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
@@ -138,6 +139,19 @@ export const notifyPostContentUpdated = async ({
     }),
     deleted: articlePost.deleted,
     sharedPostId: sharePost.sharedPostId || undefined,
+    translation: post.translation
+      ? Object.entries(JSON.parse(post.translation)).reduce(
+          (acc, [key, value]) => {
+            acc[key] = decodeJsonField({
+              value: value as JsonValue,
+              decoder: new Translation(),
+            });
+
+            return acc;
+          },
+          {} as { [key: string]: Translation },
+        )
+      : undefined,
   });
 
   await triggerTypedEvent(

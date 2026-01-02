@@ -3347,6 +3347,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3434,6 +3435,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3563,6 +3565,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3649,6 +3652,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3664,8 +3668,21 @@ describe('post content updated', () => {
       canonicalUrl: 'http://p4c.com',
       contentMeta:
         '{"cleaned":[{"provider":"test","resource_location":"gs://path.xml"}]}',
-      contentQuality:
-        '{"is_ai_probability":0.9}' as ArticlePost['contentQuality'],
+      contentQuality: '{"is_ai_probability":0.9}',
+      translation: JSON.stringify({
+        hr: {
+          title: 'translated title hr',
+          smartTitle: 'translated smart title hr',
+          titleHtml: '<p>translated title hr</p>',
+          summary: 'translated summary hr',
+        },
+        en: {
+          title: 'translated title',
+          smartTitle: 'translated smart title',
+          titleHtml: '<p>translated title</p>',
+          summary: 'translated summary',
+        },
+      }),
     };
     await expectSuccessfulBackground(
       worker,
@@ -3686,6 +3703,20 @@ describe('post content updated', () => {
           },
           contentQuality: {
             isAiProbability: 0.9,
+          },
+          translation: {
+            hr: {
+              title: 'translated title hr',
+              smartTitle: 'translated smart title hr',
+              titleHtml: '<p>translated title hr</p>',
+              summary: 'translated summary hr',
+            },
+            en: {
+              title: 'translated title',
+              smartTitle: 'translated smart title',
+              titleHtml: '<p>translated title</p>',
+              summary: 'translated summary',
+            },
           },
         },
       ],
