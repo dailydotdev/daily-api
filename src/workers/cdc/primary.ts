@@ -1417,31 +1417,16 @@ const onOpportunityChange = async (
     }
   }
 
-  // Sync user opportunities when flags.reminders changes
+  // Sync user opportunities when flags change
   if (
     data.payload.op === 'u' &&
-    data.payload.before?.flags?.reminders !== data.payload.after?.flags?.reminders
+    data.payload.before?.flags !== data.payload.after?.flags
   ) {
-    // Get all users who have pending matches for this opportunity
-    const matches = await con.getRepository(OpportunityMatch).find({
-      where: {
-        opportunityId: data.payload.after!.id,
-        status: OpportunityMatchStatus.Pending,
-      },
-      select: ['userId'],
+    await triggerTypedEvent(logger, 'api.v1.opportunity-reminders-change', {
+      opportunityId: data.payload.after!.id,
+      before: data.payload.before?.flags || null,
+      after: data.payload.after?.flags || null,
     });
-
-    // Update CIO for each affected user
-    const uniqueUserIds = [...new Set(matches.map((m) => m.userId))];
-    await Promise.all(
-      uniqueUserIds.map((userId) =>
-        identifyUserOpportunities({
-          con,
-          cio,
-          userId,
-        }),
-      ),
-    );
   }
 };
 

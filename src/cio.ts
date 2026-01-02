@@ -178,12 +178,22 @@ export const identifyUserOpportunities = async ({
     order: { createdAt: 'ASC' },
   });
 
-  // Filter to only include opportunities with reminders enabled
-  const opportunitiesWithReminders = matches
-    .filter((match) => match.opportunity?.flags?.reminders === true)
-    .map((match) => ({
-      id: match.opportunityId,
-      title: match.opportunity?.title || '',
+  const opportunitiesWithReminders = (
+    await Promise.all(
+      matches.map(async (match) => {
+        const opportunity = await match.opportunity;
+        return {
+          match,
+          opportunity,
+          hasReminders: opportunity?.flags?.reminders === true,
+        };
+      }),
+    )
+  )
+    .filter((item) => item.hasReminders)
+    .map((item) => ({
+      id: item.match.opportunityId,
+      title: item.opportunity?.title || '',
     }));
 
   const ids = opportunitiesWithReminders.map((opp) => opp.id);
