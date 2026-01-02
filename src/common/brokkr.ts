@@ -2,8 +2,12 @@ import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import { BrokkrService } from '@dailydotdev/schema';
-import { GarmrService } from '../integrations/garmr';
+import { GarmrService, GarmrNoopService } from '../integrations/garmr';
 import type { ServiceClient } from '../types';
+import {
+  isMockEnabled,
+  mockBrokkrParseOpportunityResponse,
+} from '../mocks/opportunity/services';
 
 const garmBrokkrService = new GarmrService({
   service: 'brokkr',
@@ -24,10 +28,25 @@ const transport = createGrpcTransport({
 
 export const getBrokkrClient = (
   clientTransport = transport,
-): ServiceClient<typeof BrokkrService> => ({
-  instance: createClient<typeof BrokkrService>(BrokkrService, clientTransport),
-  garmr: garmBrokkrService,
-});
+): ServiceClient<typeof BrokkrService> => {
+  if (isMockEnabled()) {
+    return {
+      instance: {
+        parseOpportunity: async () => mockBrokkrParseOpportunityResponse(),
+        extractMarkdown: async () => ({ markdown: 'Mock CV content' }),
+      } as unknown as ReturnType<typeof createClient<typeof BrokkrService>>,
+      garmr: new GarmrNoopService(),
+    };
+  }
+
+  return {
+    instance: createClient<typeof BrokkrService>(
+      BrokkrService,
+      clientTransport,
+    ),
+    garmr: garmBrokkrService,
+  };
+};
 
 export const extractMarkdownFromCV = async (
   blobName: string,

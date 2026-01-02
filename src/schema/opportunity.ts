@@ -1,23 +1,18 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { GraphQLResolveInfo } from 'graphql';
-// @ts-expect-error - no types
-import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
-  LocationType,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
   Opportunity as OpportunityMessage,
   Location as LocationMessage,
-  BrokkrParseRequest,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
-  getBufferFromStream,
   getSecondsTimestamp,
   toGQLEnum,
   uniqueifyObjectArray,
@@ -43,29 +38,16 @@ import {
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import {
-  ConflictError,
-  NotFoundError,
-  PaymentRequiredError,
-  TypeOrmError,
-  type TypeORMQueryFailedError,
-} from '../errors';
+import { ConflictError, NotFoundError, PaymentRequiredError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { User } from '../entity/user/User';
-import {
-  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
-  RESUME_BUCKET_NAME,
-} from '../config';
+import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
 import {
   deleteEmploymentAgreementByUserId,
-  deleteFileFromBucket,
   generateResumeSignedUrl,
   uploadEmploymentAgreementFromBuffer,
-  uploadResumeFromBuffer,
 } from '../common/googleCloud';
-import { uploadOrganizationImage } from '../common/cloudinary';
 import {
-  opportunityCreateParseSchema,
   opportunityEditSchema,
   opportunityStateLiveSchema,
   opportunityUpdateStateSchema,
@@ -81,26 +63,16 @@ import {
 } from '../common/opportunity/accessControl';
 import { markdown } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import {
-  In,
-  Not,
-  QueryFailedError,
-  type DeepPartial,
-  JsonContains,
-  EntityManager,
-  IsNull,
-} from 'typeorm';
+import { In, Not, JsonContains, EntityManager } from 'typeorm';
 import { Organization } from '../entity/Organization';
+import { Source, SourceType } from '../entity/Source';
 import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../common/schema/organizations';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import {
-  findOrCreateDatasetLocation,
-  findDatasetLocation,
-} from '../entity/dataset/utils';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
 import {
   getGondulClient,
@@ -112,15 +84,6 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
 import { slackClient } from '../common/slack';
-import { fileTypeFromBuffer } from 'file-type';
-import {
-  acceptedOpportunityFileTypes,
-  opportunityMatchBatchSize,
-} from '../types';
-import { garmScraperService } from '../common/scraper';
-import { Storage } from '@google-cloud/storage';
-import { randomUUID } from 'node:crypto';
-import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
 import { getShowcaseCompanies } from '../common/opportunity/companies';
 import { Opportunity } from '../entity/opportunities/Opportunity';
@@ -129,7 +92,17 @@ import { SubscriptionStatus } from '../common/plus';
 import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
-import { getBrokkrClient } from '../common/brokkr';
+import {
+  getOpportunityFileBuffer,
+  validateOpportunityFileType,
+  parseOpportunityWithBrokkr,
+  createOpportunityFromParsedData,
+} from '../common/opportunity/parse';
+import {
+  isMockEnabled,
+  mockPreviewTags,
+  mockPreviewSquadIds,
+} from '../mocks/opportunity/services';
 
 export interface GQLOpportunity
   extends Pick<
@@ -736,26 +709,6 @@ export const typeDefs = /* GraphQL */ `
     placeholder: String
   }
 
-  input OrganizationLinkInput {
-    type: OrganizationLinkType!
-    socialType: SocialMediaType
-    title: String
-    link: String!
-  }
-
-  input OrganizationEditInput {
-    name: String
-    website: String
-    description: String
-    perks: [String!]
-    founded: Int
-    externalLocationId: String
-    category: String
-    size: Int
-    stage: Int
-    links: [OrganizationLinkInput!]
-  }
-
   input RecruiterInput {
     userId: ID!
     title: String
@@ -772,7 +725,6 @@ export const typeDefs = /* GraphQL */ `
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
-    organization: OrganizationEditInput
     recruiter: RecruiterInput
   }
 
@@ -902,22 +854,7 @@ export const typeDefs = /* GraphQL */ `
       Opportunity data to update
       """
       payload: OpportunityEditInput!
-
-      """
-      Organization image to upload
-      """
-      organizationImage: Upload
     ): Opportunity! @auth
-
-    """
-    Clear the organization image for an opportunity
-    """
-    clearOrganizationImage(
-      """
-      Id of the Opportunity
-      """
-      id: ID!
-    ): EmptyResponse @auth
 
     recommendOpportunityScreeningQuestions(
       """
@@ -1145,113 +1082,6 @@ async function handleOpportunityLocationUpdate(
     await entityManager
       .getRepository(OpportunityLocation)
       .update({ opportunityId }, { type: locationType });
-  }
-}
-
-/**
- * Handles organization creation, updates, and image uploads for an opportunity
- * Creates new organizations or updates existing ones, with support for image uploads
- */
-async function handleOpportunityOrganizationUpdate(
-  entityManager: EntityManager,
-  opportunityId: string,
-  organization: Record<string, unknown> | null | undefined,
-  organizationImage: Promise<FileUpload> | undefined,
-): Promise<void> {
-  if (!organization && !organizationImage) {
-    return;
-  }
-
-  const opportunityJob = await entityManager
-    .getRepository(OpportunityJob)
-    .findOne({
-      where: { id: opportunityId },
-      select: ['organizationId'],
-    });
-
-  let organizationId = opportunityJob?.organizationId;
-
-  let organizationUpdate: Record<string, unknown> = {
-    ...organization,
-  };
-
-  // Handle externalLocationId -> locationId mapping
-  if (organizationUpdate.externalLocationId !== undefined) {
-    const externalLocationId = organizationUpdate.externalLocationId as
-      | string
-      | null;
-    delete organizationUpdate.externalLocationId;
-
-    if (externalLocationId) {
-      const location = await findOrCreateDatasetLocation(
-        entityManager.connection,
-        externalLocationId,
-      );
-
-      if (location) {
-        organizationUpdate.locationId = location.id;
-      }
-    } else {
-      // If externalLocationId is explicitly null, clear the locationId
-      organizationUpdate.locationId = null;
-    }
-  }
-
-  if (organizationId) {
-    delete organizationUpdate.name; // prevent name updates on existing organizations
-  }
-
-  if (!organizationId) {
-    // create new organization and assign to opportunity here inline
-    // TODO: ideally this should be refactored later to separate mutation
-
-    try {
-      const organizationInsertResult = await entityManager
-        .getRepository(Organization)
-        .insert(organizationUpdate);
-
-      organizationId = organizationInsertResult.identifiers[0].id as string;
-
-      await entityManager
-        .getRepository(OpportunityJob)
-        .update({ id: opportunityId }, { organizationId });
-
-      // values were applied during insert
-      organizationUpdate = {};
-    } catch (insertError) {
-      if (insertError instanceof QueryFailedError) {
-        const queryFailedError = insertError as TypeORMQueryFailedError;
-
-        if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
-          if (
-            insertError.message.indexOf('IDX_organization_name_unique') > -1
-          ) {
-            throw new ConflictError(
-              'Organization with this name already exists',
-            );
-          }
-        }
-      }
-
-      throw insertError;
-    }
-  }
-
-  // Handle image upload
-  if (organizationImage) {
-    const { createReadStream } = await organizationImage;
-    const stream = createReadStream();
-    const { url: imageUrl } = await uploadOrganizationImage(
-      organizationId,
-      stream,
-    );
-    organizationUpdate.image = imageUrl;
-  }
-
-  if (Object.keys(organizationUpdate).length > 0) {
-    await entityManager
-      .getRepository(Organization)
-      .update({ id: organizationId }, organizationUpdate);
   }
 }
 
@@ -1650,7 +1480,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         status: OpportunityPreviewStatus.UNSPECIFIED,
       };
 
-      if (opportunity.flags?.preview) {
+      // In mock mode, if preview is stuck at PENDING, re-fetch with mock data
+      const shouldRefetchInMockMode =
+        isMockEnabled() &&
+        opportunity.flags?.preview?.status === OpportunityPreviewStatus.PENDING;
+
+      if (opportunity.flags?.preview && !shouldRefetchInMockMode) {
         opportunityPreview = opportunity.flags.preview;
 
         if (!opportunityPreview.status) {
@@ -1711,13 +1546,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const gondulOpportunityServiceClient =
           getGondulOpportunityServiceClient();
 
-        await gondulOpportunityServiceClient.garmr.execute(() => {
-          return gondulOpportunityServiceClient.instance.preview(
-            opportunityMessage,
-          );
-        });
+        const previewResult =
+          await gondulOpportunityServiceClient.garmr.execute(() => {
+            return gondulOpportunityServiceClient.instance.preview(
+              opportunityMessage,
+            );
+          });
 
-        opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+        // In mock mode, use the returned data directly instead of waiting for async worker
+        // The mock returns userIds/totalCount directly for immediate testing
+        const mockResult = previewResult as unknown as {
+          userIds?: string[];
+          totalCount?: number;
+        };
+        if (isMockEnabled() && mockResult?.userIds) {
+          opportunityPreview = {
+            userIds: mockResult.userIds,
+            totalCount: mockResult.totalCount || mockResult.userIds.length,
+            status: OpportunityPreviewStatus.READY,
+          };
+        } else {
+          opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+        }
 
         await ctx.con.getRepository(OpportunityJob).update(
           { id: opportunity.id },
@@ -1775,19 +1625,40 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         {} as Record<string, number>,
       );
       // final map and sort to get X tags that appear the most
-      const tags = Object.entries(uniqueTagsMap)
+      let tags = Object.entries(uniqueTagsMap)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 16)
         .map(([tag]) => tag);
 
+      // In mock mode, use mock tags if no real tags found
+      if (isMockEnabled() && tags.length === 0) {
+        tags = mockPreviewTags;
+      }
+
       const companies = getShowcaseCompanies();
 
-      const squads = uniqueifyObjectArray(
+      let squads = uniqueifyObjectArray(
         connection.edges.flatMap(({ node }) =>
           (node.activeSquads || []).map((squad) => squad),
         ),
         (squad) => squad.handle,
       );
+
+      // In mock mode, use mock squads if no real squads found
+      if (
+        isMockEnabled() &&
+        squads.length === 0 &&
+        mockPreviewSquadIds.length
+      ) {
+        const mockSquads = await ctx.con.getRepository(Source).find({
+          where: { id: In(mockPreviewSquadIds), type: SourceType.Squad },
+        });
+        squads = mockSquads.map((squad) => ({
+          ...squad,
+          public: !squad.private,
+          members: undefined,
+        }));
+      }
 
       return {
         ...connection,
@@ -2224,11 +2095,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         id,
         payload,
-        organizationImage,
       }: {
         id: string;
         payload: z.infer<typeof opportunityEditSchema>;
-        organizationImage?: Promise<FileUpload>;
       },
       ctx: AuthContext,
       info,
@@ -2248,7 +2117,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           keywords,
           content,
           questions,
-          organization,
           recruiter,
           externalLocationId,
           locationType,
@@ -2278,13 +2146,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ctx,
         );
 
-        await handleOpportunityOrganizationUpdate(
-          entityManager,
-          id,
-          organization,
-          organizationImage,
-        );
-
         await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 
         await handleOpportunityScreeningQuestionsUpdate(
@@ -2310,36 +2171,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
       );
-    },
-    clearOrganizationImage: async (
-      _,
-      { id }: { id: string },
-      ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
-      await ensureOpportunityPermissions({
-        con: ctx.con.manager,
-        userId: ctx.userId,
-        opportunityId: id,
-        permission: OpportunityPermissions.Edit,
-        isTeamMember: ctx.isTeamMember,
-      });
-
-      const opportunityJob = await ctx.con
-        .getRepository(OpportunityJob)
-        .findOne({
-          where: { id },
-          select: ['organizationId'],
-        });
-
-      if (!opportunityJob?.organizationId) {
-        throw new NotFoundError('Opportunity not found');
-      }
-
-      await ctx.con
-        .getRepository(Organization)
-        .update(opportunityJob.organizationId, { image: null });
-
-      return { _: true };
     },
     recommendOpportunityScreeningQuestions: async (
       _,
@@ -2744,209 +2575,76 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('User identifier is required');
       }
 
-      const parseOpportunityPayload =
-        await parseOpportunitySchema.parseAsync(payload);
-
-      let opportunityFileBuffer: Buffer | null = null;
-      const filename = `job-opportunity-${randomUUID()}.pdf`;
-      let extension = 'pdf';
-
-      if (parseOpportunityPayload.url) {
-        const response = await garmScraperService.execute(async () => {
-          const response = await fetch(`${process.env.SCRAPER_URL}/pdf`, {
-            method: 'POST',
-            body: JSON.stringify({ url: parseOpportunityPayload.url }),
-            headers: { 'content-type': 'application/json' },
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch job from URL');
-          }
-
-          return response;
-        });
-
-        opportunityFileBuffer = Buffer.from(await response.arrayBuffer());
-      } else {
-        const fileUpload = await parseOpportunityPayload.file;
-
-        extension = fileUpload.filename?.split('.')?.pop()?.toLowerCase();
-
-        const { createReadStream } = await parseOpportunityPayload.file;
-
-        opportunityFileBuffer = await getBufferFromStream(createReadStream());
-      }
-
-      // Validate file extension
-      const supportedFileType = acceptedOpportunityFileTypes.find(
-        (type) => type.ext === extension,
-      );
-
-      if (!supportedFileType) {
-        throw new ValidationError('File extension not supported');
-      }
-
-      // Validate MIME type using buffer
-      const fileType = await fileTypeFromBuffer(opportunityFileBuffer);
-
-      if (supportedFileType.mime !== fileType?.mime) {
-        throw new ValidationError('File type not supported');
-      }
-
       try {
-        // Actual upload using buffer as a stream
-        await uploadResumeFromBuffer(filename, opportunityFileBuffer, {
-          contentType: fileType?.mime,
+        const startTime = Date.now();
+        let stepStart = startTime;
+
+        const parsedPayload = await parseOpportunitySchema.parseAsync(payload);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart },
+          'parseOpportunity: payload schema validated',
+        );
+
+        stepStart = Date.now();
+        const { buffer, extension } =
+          await getOpportunityFileBuffer(parsedPayload);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, bufferSize: buffer.length },
+          'parseOpportunity: file buffer acquired',
+        );
+
+        stepStart = Date.now();
+        const { mime } = await validateOpportunityFileType(buffer, extension);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, mime },
+          'parseOpportunity: file type validated',
+        );
+
+        stepStart = Date.now();
+        const parsedData = await parseOpportunityWithBrokkr(
+          buffer,
+          mime,
+          ctx.log,
+        );
+        ctx.log.info(
+          {
+            durationMs: Date.now() - stepStart,
+            title: parsedData.opportunity.title,
+          },
+          'parseOpportunity: Brokkr parsing completed',
+        );
+
+        stepStart = Date.now();
+        const opportunity = await createOpportunityFromParsedData(
+          {
+            con: ctx.con,
+            userId: ctx.userId,
+            trackingId: ctx.trackingId,
+            log: ctx.log,
+          },
+          parsedData,
+        );
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, opportunityId: opportunity.id },
+          'parseOpportunity: database records created',
+        );
+
+        const totalDurationMs = Date.now() - startTime;
+        ctx.log.info(
+          { totalDurationMs, opportunityId: opportunity.id },
+          'parseOpportunity: completed successfully',
+        );
+
+        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+          builder.queryBuilder.where({ id: opportunity.id });
+          return builder;
         });
-
-        const brokkrClient = getBrokkrClient();
-
-        const result = await brokkrClient.garmr.execute(() => {
-          return brokkrClient.instance.parseOpportunity(
-            new BrokkrParseRequest({
-              // TODO potentially change to separate bucket, does not mean much sicne
-              // we clean up afterwards anyway
-              bucketName: RESUME_BUCKET_NAME,
-              blobName: filename,
-            }),
-          );
-        });
-
-        ctx.log.info(result, 'brokkrParseOpportunityResponse');
-
-        const parsedOpportunity = await opportunityCreateParseSchema.parseAsync(
-          result.opportunity,
-        );
-
-        const renderedContent: Record<
-          string,
-          { content: string; html: string }
-        > = {};
-
-        Object.entries(parsedOpportunity.content || {}).forEach(
-          ([key, value]) => {
-            if (typeof value?.content !== 'string') {
-              return;
-            }
-
-            renderedContent[key] = {
-              content: value.content,
-              html: markdown.render(value.content),
-            };
-          },
-        );
-
-        const opportunityContent = new OpportunityContent(renderedContent);
-
-        // Extract and process locations
-        const locationData = parsedOpportunity.location || [];
-
-        const opportunityResult = await ctx.con.transaction(
-          async (entityManager) => {
-            const flags: Opportunity['flags'] = {};
-
-            if (!ctx.userId) {
-              flags.anonUserId = ctx.trackingId; // save tracking id to attribute later
-            }
-
-            flags.batchSize = opportunityMatchBatchSize;
-
-            // Remove location from parsedOpportunity as it's now relational
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { location, ...opportunityData } = parsedOpportunity;
-
-            // if user is logged in, associate them with their existing organization
-            if (ctx.userId) {
-              const existingOrganizationOpportunity: Pick<
-                OpportunityJob,
-                'id' | 'organizationId'
-              > | null = await entityManager
-                .getRepository(OpportunityJob)
-                .findOne({
-                  select: ['id', 'organizationId'],
-                  where: {
-                    users: {
-                      userId: ctx.userId,
-                    },
-                    organizationId: Not(IsNull()),
-                  },
-                });
-
-              if (existingOrganizationOpportunity) {
-                opportunityData.organizationId =
-                  existingOrganizationOpportunity.organizationId;
-              }
-            }
-
-            const opportunity = await entityManager
-              .getRepository(OpportunityJob)
-              .save(
-                entityManager.getRepository(OpportunityJob).create({
-                  ...opportunityData,
-                  state: OpportunityState.DRAFT,
-                  content: opportunityContent,
-                  flags,
-                } as DeepPartial<OpportunityJob>),
-              );
-
-            // Create OpportunityLocation entries for each location
-            for (const loc of locationData) {
-              const datasetLocation = await findDatasetLocation(ctx.con, loc);
-
-              if (datasetLocation) {
-                await entityManager.getRepository(OpportunityLocation).save({
-                  opportunityId: opportunity.id,
-                  locationId: datasetLocation.id,
-                  type: loc.type || LocationType.REMOTE,
-                });
-              }
-            }
-
-            await addOpportunityDefaultQuestionFeedback({
-              entityManager,
-              opportunityId: opportunity.id,
-            });
-
-            if (parsedOpportunity.keywords) {
-              await entityManager.getRepository(OpportunityKeyword).insert(
-                parsedOpportunity.keywords.map((keyword) => ({
-                  opportunityId: opportunity.id,
-                  keyword: keyword.keyword,
-                })),
-              );
-            }
-
-            if (ctx.userId) {
-              await entityManager
-                .getRepository(OpportunityUserRecruiter)
-                .insert(
-                  entityManager.getRepository(OpportunityUserRecruiter).create({
-                    opportunityId: opportunity.id,
-                    userId: ctx.userId,
-                  }),
-                );
-            }
-
-            return opportunity;
-          },
-        );
-
-        return await graphorm.queryOneOrFail<GQLOpportunity>(
-          ctx,
-          info,
-          (builder) => {
-            builder.queryBuilder.where({ id: opportunityResult.id });
-
-            return builder;
-          },
-        );
       } catch (error) {
+        ctx.log.error(
+          { error },
+          'parseOpportunity: failed to parse opportunity',
+        );
         throw error;
-      } finally {
-        const storage = new Storage();
-        const bucket = storage.bucket(RESUME_BUCKET_NAME);
-
-        await deleteFileFromBucket(bucket, filename);
       }
     },
   },
