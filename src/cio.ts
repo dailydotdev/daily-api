@@ -242,8 +242,8 @@ export const isUserRecruiter = async (
 export const hasActiveRecruiterSubscription = async (
   con: ConnectionManager,
   userId: string,
-): Promise<boolean> => {
-  const organizationWithActiveSubscription = await con
+): Promise<boolean> =>
+  await con
     .getRepository(ContentPreferenceOrganization)
     .createQueryBuilder('cpo')
     .innerJoin('cpo.organization', 'org')
@@ -252,9 +252,6 @@ export const hasActiveRecruiterSubscription = async (
       status: SubscriptionStatus.Active,
     })
     .getExists();
-
-  return !!organizationWithActiveSubscription;
-};
 
 export const generateIdentifyObject = async (
   con: ConnectionManager,
