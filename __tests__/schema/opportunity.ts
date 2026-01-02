@@ -60,6 +60,7 @@ import {
   OpportunityType,
   SalaryPeriod,
   SeniorityLevel,
+  Location,
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
@@ -5625,8 +5626,6 @@ describe('mutation parseOpportunity', () => {
 
     deleteFileFromBucketSpy.mockResolvedValue(true);
 
-    console.log(await con.getRepository(OpportunityUserRecruiter).find());
-
     // Execute the mutation with a file upload
     const res = await authorizeRequest(
       request(app.server)
@@ -5652,6 +5651,106 @@ describe('mutation parseOpportunity', () => {
     expect(body.data.parseOpportunity).toMatchObject({
       title: 'Mocked Opportunity Title',
       organization: { id: '550e8400-e29b-41d4-a716-446655440000' },
+    });
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: body.data.parseOpportunity.id,
+      },
+    });
+
+    expect(opportunity!.organizationId).toBe(
+      '550e8400-e29b-41d4-a716-446655440000',
+    );
+  });
+
+  it('should assign opportunity location to Europe when no country specified', async () => {
+    loggedUser = '1';
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    const transport = createMockBrokkrTransport({
+      opportunity: {
+        location: [
+          new Location({
+            continent: 'Europe',
+            type: 1,
+          }),
+        ],
+      },
+    });
+
+    const serviceClient = {
+      instance: createClient(BrokkrService, transport),
+      garmr: createGarmrMock(),
+    };
+
+    jest
+      .spyOn(brokkrCommon, 'getBrokkrClient')
+      .mockImplementation((): ServiceClient<typeof BrokkrService> => {
+        return serviceClient;
+      });
+
+    await saveFixtures(con, DatasetLocation, [
+      {
+        country: 'Europe',
+        iso2: 'EU',
+        iso3: 'EUR',
+      },
+    ]);
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    expect(body.data.parseOpportunity).toMatchObject({
+      locations: [
+        {
+          location: {
+            city: null,
+            country: 'Europe',
+            subdivision: null,
+          },
+          type: 1,
+        },
+      ],
     });
 
     const opportunity = await con.getRepository(OpportunityJob).findOne({
