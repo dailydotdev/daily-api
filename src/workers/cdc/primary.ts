@@ -160,7 +160,6 @@ import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 import { Company } from '../../entity/Company';
 import { OpportunityUser } from '../../entity/opportunities/user/OpportunityUser';
 import { OpportunityUserType } from '../../entity/opportunities/types';
-import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
 
 const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
   ...user,
@@ -1451,19 +1450,24 @@ const onOrganizationChange = async (
       'recruiterSubscriptionFlags',
     )
   ) {
-    const members = await con
-      .getRepository(ContentPreferenceOrganization)
-      .find({
-        where: { organizationId: data.payload.after!.id },
-        select: ['userId'],
-      });
+    // Find all users who are recruiters for opportunities in this organization
+    const recruiters = await con
+      .getRepository(OpportunityUser)
+      .createQueryBuilder('ou')
+      .innerJoin('ou.opportunity', 'opp')
+      .where('opp.organizationId = :organizationId', {
+        organizationId: data.payload.after!.id,
+      })
+      .andWhere('ou.type = :type', { type: OpportunityUserType.Recruiter })
+      .select('DISTINCT ou.userId', 'userId')
+      .getRawMany<{ userId: string }>();
 
-    // Sync all organization members to update their has_active_recruiter_subscription flag
+    // Sync all organization recruiters to update their has_active_recruiter_subscription flag
     await Promise.all(
-      members.map(async (member) => {
+      recruiters.map(async (recruiter) => {
         const user = await con
           .getRepository(User)
-          .findOneBy({ id: member.userId });
+          .findOneBy({ id: recruiter.userId });
         if (user && user.infoConfirmed && user.emailConfirmed) {
           const userChangeObject = convertUserToChangeObject(user);
           await triggerTypedEvent(logger, 'user-updated', {
