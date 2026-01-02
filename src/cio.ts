@@ -251,7 +251,7 @@ export const hasActiveRecruiterSubscription = async (
     .andWhere(`org."recruiterSubscriptionFlags"->>'status' = :status`, {
       status: SubscriptionStatus.Active,
     })
-    .exists();
+    .getExists();
 
   return !!organizationWithActiveSubscription;
 };
