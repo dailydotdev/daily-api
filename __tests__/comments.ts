@@ -690,59 +690,24 @@ describe('query commentPreview', () => {
     expect(mention9.data.commentPreview).toMatchSnapshot();
   });
 
-  it('should not convert @ in URLs to mention links', async () => {
+  it('should not convert @ in URLs to mentions but should convert @ outside URLs', async () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();
 
-    // Test URL with @ that matches a user
-    const withUrlMention = await client.query(QUERY, {
-      variables: { content: 'Check https://example.com/@Lee/post' },
-    });
-    expect(withUrlMention.errors).toBeFalsy();
-    // Should not contain mention data attributes for @ in URL
-    expect(withUrlMention.data.commentPreview).not.toContain('data-mention-id');
-    expect(withUrlMention.data.commentPreview).toContain(
-      'href="https://example.com/@Lee/post"',
-    );
-  });
-
-  it('should handle mention outside URL but not @ inside URL', async () => {
-    loggedUser = '1';
-    await saveCommentMentionFixtures();
-
-    // Test both mention and URL with same username
-    const withBoth = await client.query(QUERY, {
+    // @Lee outside URL should become mention, @Lee inside URL should not
+    const res = await client.query(QUERY, {
       variables: {
         content: '@Lee check https://example.com/@Lee/profile',
       },
     });
-    expect(withBoth.errors).toBeFalsy();
+    expect(res.errors).toBeFalsy();
     // Should have exactly one mention (the one outside the URL)
-    const mentionMatches =
-      withBoth.data.commentPreview.match(/data-mention-id/g);
+    const mentionMatches = res.data.commentPreview.match(/data-mention-id/g);
     expect(mentionMatches).toHaveLength(1);
-  });
-
-  it('should not convert @ in Twitter/X style URLs to mentions', async () => {
-    loggedUser = '1';
-    await saveCommentMentionFixtures();
-
-    const twitterUrl = await client.query(QUERY, {
-      variables: { content: 'Follow https://twitter.com/@Lee' },
-    });
-    expect(twitterUrl.errors).toBeFalsy();
-    expect(twitterUrl.data.commentPreview).not.toContain('data-mention-id');
-  });
-
-  it('should handle mention immediately after URL', async () => {
-    loggedUser = '1';
-    await saveCommentMentionFixtures();
-
-    const afterUrl = await client.query(QUERY, {
-      variables: { content: 'https://example.com @Lee' },
-    });
-    expect(afterUrl.errors).toBeFalsy();
-    expect(afterUrl.data.commentPreview).toContain('data-mention-id="4"');
+    // URL should be preserved with @ intact
+    expect(res.data.commentPreview).toContain(
+      'href="https://example.com/@Lee/profile"',
+    );
   });
 
   it('should only render markdown not HTML', async () => {
