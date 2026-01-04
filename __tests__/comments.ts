@@ -710,6 +710,18 @@ describe('query commentPreview', () => {
     );
   });
 
+  it('should use link text as URL fallback when href is invalid', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '[www.google.com](url)',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    // The invalid "url" href should be replaced with the link text
+    expect(res.data.commentPreview).toContain('href="https://www.google.com"');
+  });
+
   it('should only render markdown not HTML', async () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();

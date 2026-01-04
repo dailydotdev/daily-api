@@ -6,6 +6,7 @@ import { DataSource, EntityManager } from 'typeorm';
 import { MentionedUser } from '../schema/comments';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { ghostUser } from './utils';
+import { isValidHttpUrl } from './links';
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: false,
@@ -126,7 +127,61 @@ markdown.renderer.rules.text = function (tokens, idx, options, env, self) {
   return renderMentions(content, mentions);
 };
 
+/**
+ * Extracts the text content from a link by looking at tokens following link_open.
+ * The link text appears in 'text' tokens between link_open and link_close.
+ */
+const getLinkText = (tokens: Token[], linkOpenIdx: number): string => {
+  let text = '';
+  for (let i = linkOpenIdx + 1; i < tokens.length; i++) {
+    if (tokens[i].type === 'link_close') {
+      break;
+    }
+    if (tokens[i].type === 'text') {
+      text += tokens[i].content;
+    }
+  }
+  return text.trim();
+};
+
+/**
+ * Attempts to convert text to a valid HTTP URL.
+ * Handles cases like "www.example.com" by prepending "https://".
+ */
+const toValidHttpUrl = (text: string): string | null => {
+  if (!text) return null;
+
+  // Already a valid HTTP URL
+  if (isValidHttpUrl(text)) {
+    return text;
+  }
+
+  // Try adding https:// prefix for URLs like www.example.com or example.com
+  const withProtocol = `https://${text}`;
+  if (isValidHttpUrl(withProtocol)) {
+    return withProtocol;
+  }
+
+  return null;
+};
+
 markdown.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const hrefIndex = token.attrIndex('href');
+
+  if (hrefIndex >= 0 && token.attrs) {
+    const href = token.attrs[hrefIndex][1];
+
+    // If the href is not a valid HTTP URL, try using the link text as the URL
+    if (!isValidHttpUrl(href)) {
+      const linkText = getLinkText(tokens, idx);
+      const validUrl = toValidHttpUrl(linkText);
+      if (validUrl) {
+        token.attrs[hrefIndex][1] = validUrl;
+      }
+    }
+  }
+
   tokens[idx] = setTokenAttribute(tokens[idx], 'target', '_blank');
   tokens[idx] = setTokenAttribute(tokens[idx], 'rel', 'noopener nofollow');
   return defaultRender(tokens, idx, options, env, self);
