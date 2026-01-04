@@ -710,6 +710,55 @@ describe('query commentPreview', () => {
     );
   });
 
+  it('should use link text as URL when href is invalid placeholder like "url"', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '[www.google.com](url)',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    // The invalid "url" href should be replaced with the link text
+    expect(res.data.commentPreview).toContain('href="https://www.google.com"');
+    expect(res.data.commentPreview).toContain('>www.google.com</a>');
+  });
+
+  it('should use link text with https:// as URL when href is invalid', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '[https://example.com](placeholder)',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentPreview).toContain('href="https://example.com"');
+  });
+
+  it('should keep invalid href when link text is also not a valid URL', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '[click here](url)',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    // Both href and text are invalid URLs, so href stays as "url"
+    expect(res.data.commentPreview).toContain('href="url"');
+    expect(res.data.commentPreview).toContain('>click here</a>');
+  });
+
+  it('should preserve valid href and not use link text as fallback', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '[click here](https://daily.dev)',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.commentPreview).toContain('href="https://daily.dev"');
+    expect(res.data.commentPreview).toContain('>click here</a>');
+  });
+
   it('should only render markdown not HTML', async () => {
     loggedUser = '1';
     await saveCommentMentionFixtures();
