@@ -90,7 +90,7 @@ This file provides guidance to coding agents when working with code in this repo
 - Database reset before each test run via pretest hook
 - Fixtures in `__tests__/fixture/` for test data
 - Mercurius integration testing for GraphQL endpoints
-- Avoid creating multiple overlapping tests for the same feature; prefer a single comprehensive test that covers the key scenario
+- Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
 
 **Infrastructure Concerns:**
 - OpenTelemetry for distributed tracing and metrics
