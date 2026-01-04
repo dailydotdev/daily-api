@@ -103,3 +103,7 @@ This file provides guidance to coding agents when working with code in this repo
 - `.infra/crons.ts` - Cron job schedules and resource limits
 - `.infra/common.ts` - Worker subscription definitions
 - `.infra/index.ts` - Main Pulumi deployment configuration
+
+## Pull Requests
+
+Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.
