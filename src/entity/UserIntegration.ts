@@ -13,6 +13,7 @@ import type { User } from './user/User';
 
 export enum UserIntegrationType {
   Slack = 'slack',
+  Gif = 'gif',
 }
 
 export type IntegrationMetaSlack = {
@@ -23,6 +24,13 @@ export type IntegrationMetaSlack = {
   accessToken: string;
   teamId: string;
   teamName: string;
+};
+
+export type Gif = {
+  id: string;
+  url: string;
+  preview: string;
+  title: string;
 };
 
 @Entity()
@@ -60,4 +68,12 @@ export class UserIntegration {
 export class UserIntegrationSlack extends UserIntegration {
   @Column({ type: 'jsonb', default: {} })
   meta: IntegrationMetaSlack;
+}
+
+@ChildEntity(UserIntegrationType.Gif)
+export class UserIntegrationGif extends UserIntegration {
+  @Column({ type: 'jsonb', default: {} })
+  meta: {
+    favorites: Gif[];
+  };
 }
