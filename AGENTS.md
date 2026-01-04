@@ -107,3 +107,11 @@ This file provides guidance to coding agents when working with code in this repo
 ## Pull Requests
 
 Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.
+
+## Claude Code Hooks
+
+Hooks are configured in `.claude/settings.json`:
+
+- **File Protection** (PreToolUse): Blocks edits to `pnpm-lock.yaml`, `src/migration/`, `.infra/Pulumi.*`, `.env`, `.git/`
+- **Prevent Force Push** (PreToolUse): Blocks `git push --force` and `git push -f`
+- **Auto-Lint** (PostToolUse): Runs `eslint --fix` on TypeScript files after edits
