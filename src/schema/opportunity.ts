@@ -37,7 +37,11 @@ import {
 } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
-import { ForbiddenError, ValidationError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  ForbiddenError,
+  ValidationError,
+} from 'apollo-server-errors';
 import { ConflictError, NotFoundError, PaymentRequiredError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { User } from '../entity/user/User';
@@ -53,10 +57,10 @@ import {
   opportunityUpdateStateSchema,
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
+  reimportOpportunitySchema,
   opportunityMatchesQuerySchema,
   addOpportunitySeatsSchema,
 } from '../common/schema/opportunities';
-import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
@@ -97,6 +101,8 @@ import {
   validateOpportunityFileType,
   parseOpportunityWithBrokkr,
   createOpportunityFromParsedData,
+  updateOpportunityFromParsedData,
+  handleOpportunityKeywordsUpdate,
 } from '../common/opportunity/parse';
 import {
   isMockEnabled,
@@ -740,6 +746,23 @@ export const typeDefs = /* GraphQL */ `
     url: String
   }
 
+  input ReimportOpportunityInput {
+    """
+    ID of the opportunity to update
+    """
+    opportunityId: ID!
+
+    """
+    PDF, Word file to parse
+    """
+    file: Upload
+
+    """
+    URL to scrape and parse
+    """
+    url: String
+  }
+
   input OpportunitySeatInput {
     priceId: String!
     quantity: Int!
@@ -876,6 +899,13 @@ export const typeDefs = /* GraphQL */ `
     Parse an opportunity from a URL or file upload
     """
     parseOpportunity(payload: ParseOpportunityInput!): Opportunity!
+      @rateLimit(limit: 10, duration: 3600)
+
+    """
+    Re-import and update an existing opportunity from a URL or file upload
+    """
+    reimportOpportunity(payload: ReimportOpportunityInput!): Opportunity!
+      @auth
       @rateLimit(limit: 10, duration: 3600)
 
     """
@@ -1083,31 +1113,6 @@ async function handleOpportunityLocationUpdate(
       .getRepository(OpportunityLocation)
       .update({ opportunityId }, { type: locationType });
   }
-}
-
-/**
- * Handles opportunity keywords updates
- * Replaces all existing keywords with the new set
- */
-async function handleOpportunityKeywordsUpdate(
-  entityManager: EntityManager,
-  opportunityId: string,
-  keywords: Array<{ keyword: string }> | undefined,
-): Promise<void> {
-  if (!Array.isArray(keywords)) {
-    return;
-  }
-
-  await entityManager.getRepository(OpportunityKeyword).delete({
-    opportunityId,
-  });
-
-  await entityManager.getRepository(OpportunityKeyword).insert(
-    keywords.map((keyword) => ({
-      opportunityId,
-      keyword: keyword.keyword,
-    })),
-  );
 }
 
 /**
@@ -2643,6 +2648,109 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ctx.log.error(
           { error },
           'parseOpportunity: failed to parse opportunity',
+        );
+        throw error;
+      }
+    },
+    reimportOpportunity: async (
+      _,
+      {
+        payload,
+      }: {
+        payload: unknown;
+      },
+      ctx: Context,
+      info,
+    ): Promise<GQLOpportunity> => {
+      if (!ctx.userId) {
+        throw new AuthenticationError('User must be authenticated');
+      }
+
+      try {
+        const startTime = Date.now();
+        let stepStart = startTime;
+
+        const parsedPayload =
+          await reimportOpportunitySchema.parseAsync(payload);
+        ctx.log.info(
+          {
+            durationMs: Date.now() - stepStart,
+            opportunityId: parsedPayload.opportunityId,
+          },
+          'reimportOpportunity: payload schema validated',
+        );
+
+        // Check user has permission to edit this opportunity
+        stepStart = Date.now();
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId,
+          opportunityId: parsedPayload.opportunityId,
+          permission: OpportunityPermissions.Edit,
+          isTeamMember: ctx.isTeamMember,
+        });
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart },
+          'reimportOpportunity: permissions verified',
+        );
+
+        stepStart = Date.now();
+        const { buffer, extension } =
+          await getOpportunityFileBuffer(parsedPayload);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, bufferSize: buffer.length },
+          'reimportOpportunity: file buffer acquired',
+        );
+
+        stepStart = Date.now();
+        const { mime } = await validateOpportunityFileType(buffer, extension);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, mime },
+          'reimportOpportunity: file type validated',
+        );
+
+        stepStart = Date.now();
+        const parsedData = await parseOpportunityWithBrokkr(
+          buffer,
+          mime,
+          ctx.log,
+        );
+        ctx.log.info(
+          {
+            durationMs: Date.now() - stepStart,
+            title: parsedData.opportunity.title,
+          },
+          'reimportOpportunity: Brokkr parsing completed',
+        );
+
+        stepStart = Date.now();
+        const opportunityId = await updateOpportunityFromParsedData(
+          {
+            con: ctx.con,
+            log: ctx.log,
+          },
+          parsedPayload.opportunityId,
+          parsedData,
+        );
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, opportunityId },
+          'reimportOpportunity: database records updated',
+        );
+
+        const totalDurationMs = Date.now() - startTime;
+        ctx.log.info(
+          { totalDurationMs, opportunityId },
+          'reimportOpportunity: completed successfully',
+        );
+
+        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+          builder.queryBuilder.where({ id: opportunityId });
+          return builder;
+        });
+      } catch (error) {
+        ctx.log.error(
+          { error },
+          'reimportOpportunity: failed to reimport opportunity',
         );
         throw error;
       }

@@ -6399,3 +6399,164 @@ describe('query opportunityStats', () => {
     expect(res.errors[0].extensions.code).toBe('FORBIDDEN');
   });
 });
+
+describe('mutation reimportOpportunity', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ReimportOpportunity($payload: ReimportOpportunityInput!) {
+      reimportOpportunity(payload: $payload) {
+        id
+        title
+        tldr
+        content {
+          overview {
+            content
+          }
+          requirements {
+            content
+          }
+          responsibilities {
+            content
+          }
+        }
+        keywords {
+          keyword
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+
+    const transport = createMockBrokkrTransport();
+    const serviceClient = {
+      instance: createClient(BrokkrService, transport),
+      garmr: createGarmrMock(),
+    };
+
+    jest
+      .spyOn(brokkrCommon, 'getBrokkrClient')
+      .mockImplementation((): ServiceClient<typeof BrokkrService> => {
+        return serviceClient;
+      });
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          payload: {
+            opportunityId: opportunitiesFixture[0].id,
+            url: 'https://example.com/job',
+          },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should require recruiter permission', async () => {
+    loggedUser = '3'; // User 3 is not a recruiter for opportunity 3
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          payload: {
+            opportunityId: opportunitiesFixture[3].id,
+            url: 'https://example.com/job',
+          },
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should fail when neither file nor URL is provided', async () => {
+    loggedUser = '2'; // User 2 is a recruiter for opportunity 3
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        payload: {
+          opportunityId: opportunitiesFixture[3].id,
+        },
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should reimport opportunity from URL and update all fields', async () => {
+    loggedUser = '2'; // User 2 is a recruiter for opportunity 3 (which is in DRAFT state)
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    const pdfResponse = new Response('Mocked PDF content', {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+    jest
+      .spyOn(pdfResponse, 'arrayBuffer')
+      .mockResolvedValue(new ArrayBuffer(0));
+    fetchSpy.mockResolvedValueOnce(pdfResponse);
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    // Get original opportunity state
+    const originalOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: opportunitiesFixture[3].id });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        payload: {
+          opportunityId: opportunitiesFixture[3].id,
+          url: 'https://example.com/updated-job',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.reimportOpportunity.id).toBe(opportunitiesFixture[3].id);
+
+    // Verify fields were updated with mocked Brokkr response
+    expect(res.data.reimportOpportunity.title).toBe('Mocked Opportunity Title');
+    expect(res.data.reimportOpportunity.tldr).toBe(
+      'This is a mocked TL;DR of the opportunity.',
+    );
+    expect(res.data.reimportOpportunity.keywords).toEqual([
+      { keyword: 'mock' },
+      { keyword: 'opportunity' },
+      { keyword: 'test' },
+    ]);
+
+    // Verify opportunity still exists and was updated
+    const updatedOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: opportunitiesFixture[3].id });
+
+    expect(updatedOpportunity.title).toBe('Mocked Opportunity Title');
+    expect(updatedOpportunity.state).toBe(originalOpportunity.state); // State should be preserved
+  });
+});
