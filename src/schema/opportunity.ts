@@ -2749,7 +2749,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
 
         stepStart = Date.now();
-        const opportunity = await updateOpportunityFromParsedData(
+        const opportunityId = await updateOpportunityFromParsedData(
           {
             con: ctx.con,
             log: ctx.log,
@@ -2758,18 +2758,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           parsedData,
         );
         ctx.log.info(
-          { durationMs: Date.now() - stepStart, opportunityId: opportunity.id },
+          { durationMs: Date.now() - stepStart, opportunityId },
           'reimportOpportunity: database records updated',
         );
 
         const totalDurationMs = Date.now() - startTime;
         ctx.log.info(
-          { totalDurationMs, opportunityId: opportunity.id },
+          { totalDurationMs, opportunityId },
           'reimportOpportunity: completed successfully',
         );
 
         return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-          builder.queryBuilder.where({ id: opportunity.id });
+          builder.queryBuilder.where({ id: opportunityId });
           return builder;
         });
       } catch (error) {

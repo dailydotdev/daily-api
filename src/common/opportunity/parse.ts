@@ -30,6 +30,7 @@ import { OpportunityUserRecruiter } from '../../entity/opportunities/user/Opport
 import { findDatasetLocation } from '../../entity/dataset/utils';
 import { addOpportunityDefaultQuestionFeedback } from './question';
 import type { Opportunity } from '../../entity/opportunities/Opportunity';
+import { EntityManager } from 'typeorm';
 
 interface FileUpload {
   filename: string;
@@ -358,18 +359,43 @@ export interface UpdateOpportunityContext {
 }
 
 /**
+ * Handles opportunity keywords updates
+ * Replaces all existing keywords with the new set
+ */
+async function handleOpportunityKeywordsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  keywords: Array<{ keyword: string }> | undefined,
+): Promise<void> {
+  if (!Array.isArray(keywords)) {
+    return;
+  }
+
+  await entityManager.getRepository(OpportunityKeyword).delete({
+    opportunityId,
+  });
+
+  await entityManager.getRepository(OpportunityKeyword).insert(
+    keywords.map((keyword) => ({
+      opportunityId,
+      keyword: keyword.keyword,
+    })),
+  );
+}
+
+/**
  * Updates an existing opportunity with all parsed data.
  *
  * @param ctx - Context with database connection and logger
  * @param opportunityId - ID of the opportunity to update
  * @param parsedData - The parsed opportunity data from Brokkr
- * @returns The updated opportunity
+ * @returns The opportunity ID
  */
 export async function updateOpportunityFromParsedData(
   ctx: UpdateOpportunityContext,
   opportunityId: string,
   parsedData: ParsedOpportunityResult,
-): Promise<OpportunityJob> {
+): Promise<string> {
   const { opportunity: parsedOpportunity, content } = parsedData;
 
   return ctx.con.transaction(async (entityManager) => {
@@ -398,15 +424,16 @@ export async function updateOpportunityFromParsedData(
     // Update content - merge with existing to preserve any sections not in parsed data
     updateData.content = {
       ...existingOpportunity.content,
-      ...(content.overview && { overview: content.overview }),
-      ...(content.responsibilities && {
-        responsibilities: content.responsibilities,
-      }),
-      ...(content.requirements && { requirements: content.requirements }),
-      ...(content.whatYoullDo && { whatYoullDo: content.whatYoullDo }),
-      ...(content.interviewProcess && {
-        interviewProcess: content.interviewProcess,
-      }),
+      ...Object.keys(content).reduce(
+        (acc, key) => {
+          const contentKey = key as keyof OpportunityContent;
+          if (content[contentKey]) {
+            acc[contentKey] = content[contentKey];
+          }
+          return acc;
+        },
+        {} as Partial<OpportunityContent>,
+      ),
     } as OpportunityContent;
 
     // Update the opportunity
@@ -418,23 +445,14 @@ export async function updateOpportunityFromParsedData(
 
     // Update keywords if present in parsed data
     if (parsedOpportunity.keywords?.length) {
-      // Delete existing keywords
-      await entityManager.getRepository(OpportunityKeyword).delete({
+      await handleOpportunityKeywordsUpdate(
+        entityManager,
         opportunityId,
-      });
-
-      // Insert new keywords
-      await entityManager.getRepository(OpportunityKeyword).insert(
-        parsedOpportunity.keywords.map((keyword) => ({
-          opportunityId,
-          keyword: keyword.keyword,
-        })),
+        parsedOpportunity.keywords,
       );
     }
 
-    // Fetch and return the updated opportunity
-    return entityManager.getRepository(OpportunityJob).findOneOrFail({
-      where: { id: opportunityId },
-    });
+    // Return the opportunity ID
+    return opportunityId;
   });
 }
