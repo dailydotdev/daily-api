@@ -1,5 +1,6 @@
 import MarkdownIt, { Renderer, Token } from 'markdown-it';
 import hljs from 'highlight.js';
+import DOMPurify from 'isomorphic-dompurify';
 import { getUserProfileUrl } from './users';
 import { CommentMention, PostMention, User } from '../entity';
 import { DataSource, EntityManager } from 'typeorm';
@@ -7,6 +8,27 @@ import { MentionedUser } from '../schema/comments';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { ghostUser } from './utils';
 import { isValidHttpUrl } from './links';
+
+/**
+ * Sanitizes HTML content, allowing only safe tags for rich text content.
+ * Used for opportunity content sections (WYSIWYG editor output).
+ */
+export const sanitizeHtml = (html: string): string => {
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'br'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+    // Force all links to open in new tab with nofollow
+    ADD_ATTR: ['target', 'rel'],
+  }).replace(/<a /g, '<a target="_blank" rel="noopener nofollow" ');
+};
+
+/**
+ * Detects if content appears to be HTML (contains HTML tags)
+ */
+export const isHtmlContent = (content: string): boolean => {
+  // Check for common HTML tags used in rich text
+  return /<\/?(?:p|strong|em|ul|ol|li|a|br)[^>]*>/i.test(content);
+};
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: false,
