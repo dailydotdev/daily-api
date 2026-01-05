@@ -227,8 +227,14 @@ export async function parseOpportunityWithBrokkr(
               return loc;
             })
             .filter((loc) => {
-              // Only keep locations with valid country
-              return loc?.country && loc.country.trim().length > 0;
+              // Only keep locations with valid country and iso2
+              // Both are required for downstream processing in gondul
+              return (
+                loc?.country &&
+                loc.country.trim().length > 0 &&
+                loc?.iso2 &&
+                loc.iso2.trim().length > 0
+              );
             })
         : [],
     };
