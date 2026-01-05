@@ -61,7 +61,6 @@ import {
   opportunityMatchesQuerySchema,
   addOpportunitySeatsSchema,
 } from '../common/schema/opportunities';
-import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
   ensureOpportunityPermissions,
   OpportunityPermissions,

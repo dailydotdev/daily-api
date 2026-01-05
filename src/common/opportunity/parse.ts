@@ -430,16 +430,13 @@ export async function updateOpportunityFromParsedData(
     // Update content - merge with existing to preserve any sections not in parsed data
     updateData.content = {
       ...existingOpportunity.content,
-      ...Object.keys(content).reduce(
-        (acc, key) => {
-          const contentKey = key as keyof OpportunityContent;
-          if (content[contentKey]) {
-            acc[contentKey] = content[contentKey];
-          }
-          return acc;
-        },
-        {} as Partial<OpportunityContent>,
-      ),
+      ...Object.keys(content).reduce((acc, key) => {
+        const contentKey = key as keyof OpportunityContent;
+        if (content[contentKey]) {
+          acc[contentKey] = content[contentKey];
+        }
+        return acc;
+      }, {} as Partial<OpportunityContent>),
     } as OpportunityContent;
 
     // Update the opportunity
