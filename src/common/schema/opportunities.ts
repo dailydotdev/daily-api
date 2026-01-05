@@ -242,6 +242,37 @@ export const parseOpportunitySchema = z
     },
   );
 
+export const reimportOpportunitySchema = z
+  .object({
+    opportunityId: z.uuid(),
+    url: urlParseSchema.optional(),
+    file: fileUploadSchema.optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.url && !data.file) {
+        return false;
+      }
+
+      return true;
+    },
+    {
+      error: 'Either url or file must be provided.',
+    },
+  )
+  .refine(
+    (data) => {
+      if (data.url && data.file) {
+        return false;
+      }
+
+      return true;
+    },
+    {
+      error: 'Only one of url or file can be provided.',
+    },
+  );
+
 export const createSharedSlackChannelSchema = z.object({
   organizationId: z.string().uuid('Organization ID must be a valid UUID'),
   email: z.string().email('Email must be a valid email address'),

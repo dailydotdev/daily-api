@@ -351,3 +351,90 @@ export async function createOpportunityFromParsedData(
     return opportunity;
   });
 }
+
+export interface UpdateOpportunityContext {
+  con: DataSource;
+  log: FastifyBaseLogger;
+}
+
+/**
+ * Updates an existing opportunity with all parsed data.
+ *
+ * @param ctx - Context with database connection and logger
+ * @param opportunityId - ID of the opportunity to update
+ * @param parsedData - The parsed opportunity data from Brokkr
+ * @returns The updated opportunity
+ */
+export async function updateOpportunityFromParsedData(
+  ctx: UpdateOpportunityContext,
+  opportunityId: string,
+  parsedData: ParsedOpportunityResult,
+): Promise<OpportunityJob> {
+  const { opportunity: parsedOpportunity, content } = parsedData;
+
+  return ctx.con.transaction(async (entityManager) => {
+    // Fetch the existing opportunity
+    const existingOpportunity = await entityManager
+      .getRepository(OpportunityJob)
+      .findOne({
+        where: { id: opportunityId },
+      });
+
+    if (!existingOpportunity) {
+      throw new ValidationError('Opportunity not found');
+    }
+
+    // Build update object with all parsed data
+    const updateData: Partial<OpportunityJob> = {};
+
+    if (parsedOpportunity.title) {
+      updateData.title = parsedOpportunity.title;
+    }
+
+    if (parsedOpportunity.tldr) {
+      updateData.tldr = parsedOpportunity.tldr;
+    }
+
+    // Update content - merge with existing to preserve any sections not in parsed data
+    updateData.content = {
+      ...existingOpportunity.content,
+      ...(content.overview && { overview: content.overview }),
+      ...(content.responsibilities && {
+        responsibilities: content.responsibilities,
+      }),
+      ...(content.requirements && { requirements: content.requirements }),
+      ...(content.whatYoullDo && { whatYoullDo: content.whatYoullDo }),
+      ...(content.interviewProcess && {
+        interviewProcess: content.interviewProcess,
+      }),
+    } as OpportunityContent;
+
+    // Update the opportunity
+    if (Object.keys(updateData).length > 0) {
+      await entityManager
+        .getRepository(OpportunityJob)
+        .update({ id: opportunityId }, updateData);
+    }
+
+    // Update keywords if present in parsed data
+    if (parsedOpportunity.keywords?.length) {
+      // Delete existing keywords
+      await entityManager.getRepository(OpportunityKeyword).delete({
+        opportunityId,
+      });
+
+      // Insert new keywords
+      await entityManager.getRepository(OpportunityKeyword).insert(
+        parsedOpportunity.keywords.map((keyword) => ({
+          opportunityId,
+          keyword: keyword.keyword,
+        })),
+      );
+    }
+
+    // Fetch and return the updated opportunity
+    return entityManager.getRepository(OpportunityJob).findOneOrFail({
+      where: { id: opportunityId },
+    });
+  });
+}
