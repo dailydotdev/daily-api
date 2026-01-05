@@ -205,8 +205,13 @@ export async function parseOpportunityWithBrokkr(
       ...result.opportunity,
       location: Array.isArray(result.opportunity?.location)
         ? result.opportunity.location.filter((loc: Location) => {
-            // Only keep locations with valid country
-            return loc?.country && loc.country.trim().length > 0;
+            // Only keep locations with valid country and iso2
+            return (
+              loc?.country &&
+              loc.country.trim().length > 0 &&
+              loc?.iso2 &&
+              loc.iso2.trim().length > 0
+            );
           })
         : [],
     };
