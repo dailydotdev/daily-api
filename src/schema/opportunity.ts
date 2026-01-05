@@ -2041,7 +2041,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      const { file } = data;
+      const file = await data.file;
 
       const blobName = ctx.userId;
       await uploadEmploymentAgreementFromBuffer(blobName, file.buffer, {
