@@ -103,6 +103,7 @@ import {
   parseOpportunityWithBrokkr,
   createOpportunityFromParsedData,
   updateOpportunityFromParsedData,
+  handleOpportunityKeywordsUpdate,
 } from '../common/opportunity/parse';
 import {
   isMockEnabled,
@@ -1113,31 +1114,6 @@ async function handleOpportunityLocationUpdate(
       .getRepository(OpportunityLocation)
       .update({ opportunityId }, { type: locationType });
   }
-}
-
-/**
- * Handles opportunity keywords updates
- * Replaces all existing keywords with the new set
- */
-async function handleOpportunityKeywordsUpdate(
-  entityManager: EntityManager,
-  opportunityId: string,
-  keywords: Array<{ keyword: string }> | undefined,
-): Promise<void> {
-  if (!Array.isArray(keywords)) {
-    return;
-  }
-
-  await entityManager.getRepository(OpportunityKeyword).delete({
-    opportunityId,
-  });
-
-  await entityManager.getRepository(OpportunityKeyword).insert(
-    keywords.map((keyword) => ({
-      opportunityId,
-      keyword: keyword.keyword,
-    })),
-  );
 }
 
 /**

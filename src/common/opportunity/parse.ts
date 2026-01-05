@@ -368,7 +368,7 @@ export interface UpdateOpportunityContext {
  * Handles opportunity keywords updates
  * Replaces all existing keywords with the new set
  */
-async function handleOpportunityKeywordsUpdate(
+export async function handleOpportunityKeywordsUpdate(
   entityManager: EntityManager,
   opportunityId: string,
   keywords: Array<{ keyword: string }> | undefined,
