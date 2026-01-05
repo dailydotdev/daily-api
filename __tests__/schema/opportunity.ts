@@ -6499,7 +6499,9 @@ describe('mutation reimportOpportunity', () => {
       status: 200,
       headers: { 'Content-Type': 'application/pdf' },
     });
-    jest.spyOn(pdfResponse, 'arrayBuffer').mockResolvedValue(new ArrayBuffer(0));
+    jest
+      .spyOn(pdfResponse, 'arrayBuffer')
+      .mockResolvedValue(new ArrayBuffer(0));
     fetchSpy.mockResolvedValueOnce(pdfResponse);
 
     fileTypeFromBuffer.mockResolvedValue({
