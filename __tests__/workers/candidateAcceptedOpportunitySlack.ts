@@ -81,6 +81,10 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
               title: 'Opportunity ID',
               value: '550e8400-e29b-41d4-a716-446655440001',
             },
+            {
+              title: 'Company name',
+              value: 'Daily Dev Inc',
+            },
           ],
           color: '#1DDC6F',
         },
@@ -130,6 +134,10 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
             {
               title: 'Opportunity ID',
               value: '550e8400-e29b-41d4-a716-446655440001',
+            },
+            {
+              title: 'Company name',
+              value: 'Daily Dev Inc',
             },
           ],
           color: '#1DDC6F',
@@ -196,6 +204,10 @@ describe('candidateAcceptedOpportunitySlack worker', () => {
             {
               title: 'Opportunity ID',
               value: '550e8400-e29b-41d4-a716-446655440002',
+            },
+            {
+              title: 'Company name',
+              value: 'Daily Dev Inc',
             },
           ],
           color: '#1DDC6F',

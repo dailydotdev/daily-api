@@ -5,7 +5,6 @@ import {
   generateDevCard,
   getOrganizationPermalink,
   notificationsLink,
-  scoutArticleLink,
   squadsFeaturedPage,
   subscribeNotificationsLink,
 } from '../common';
@@ -34,6 +33,8 @@ import {
   type NotificationWarmIntroContext,
   type NotificationStreakRestoreContext,
   type NotificationParsedCVProfileContext,
+  type NotificationRecruiterNewCandidateContext,
+  type NotificationRecruiterOpportunityLiveContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -67,8 +68,6 @@ export const notificationTitleMap: Record<
   community_picks_failed: systemTitle,
   community_picks_succeeded: () =>
     `<b>Community Picks:</b> A link you scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
-  community_picks_granted: () =>
-    `<b>Community Picks:</b> You have earned enough reputation to <span class="text-theme-color-cabbage">scout and submit</span> links.`,
   article_picked: () =>
     `Congrats! <b>Your post</b> got <span class="text-theme-color-cabbage">listed</span> on the daily.dev feed!`,
   article_new_comment: (ctx: NotificationCommenterContext) =>
@@ -209,11 +208,17 @@ export const notificationTitleMap: Record<
     `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
   parsed_cv_profile: (ctx: NotificationParsedCVProfileContext) => {
     if (ctx.status === 'success') {
-      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your profile</u>!`;
+      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your public profile</u>! You can control the experience visibility in your profile settings.`;
     }
 
     return `We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
   },
+  recruiter_new_candidate: (ctx: NotificationRecruiterNewCandidateContext) =>
+    `<b>${ctx.candidate.name || ctx.candidate.username}</b> <span class="text-theme-color-cabbage">accepted</span> your job opportunity!`,
+  recruiter_opportunity_live: (
+    ctx: NotificationRecruiterOpportunityLiveContext,
+  ) =>
+    `Your job opportunity <b>${ctx.opportunityTitle}</b> is now <span class="text-theme-color-cabbage">live</span>!`,
 };
 
 export const generateNotificationMap: Record<
@@ -256,12 +261,6 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.CommunityPicks)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
-  community_picks_granted: (builder) =>
-    builder
-      .referenceSystem()
-      .icon(NotificationIcon.DailyDev)
-      .description(`<u>Submit your first post now!</u>`)
-      .targetUrl(scoutArticleLink),
   article_picked: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.DailyDev)
@@ -611,5 +610,28 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.user)
       .targetUser(ctx.user)
       .uniqueKey(new Date().toISOString());
+  },
+  recruiter_new_candidate: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterNewCandidateContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .avatarUser(ctx.candidate)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/matches`,
+      );
+  },
+  recruiter_opportunity_live: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterOpportunityLiveContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
+      );
   },
 };

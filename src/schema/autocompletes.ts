@@ -130,7 +130,8 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           );
 
           return results.map((location) => ({
-            id: location.id,
+            // we map externalId to match mapbox IDs when in external dataset mode
+            id: location.externalId,
             country: location.country,
             city: location.city,
             subdivision: location.subdivision,

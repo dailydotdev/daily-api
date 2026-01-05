@@ -22,6 +22,28 @@ export const createLocationFromMapbox = async (
 };
 
 /**
+ * Find an existing location by externalId or create one from Mapbox.
+ */
+export const findOrCreateDatasetLocation = async (
+  con: DataSource,
+  externalLocationId: string | null | undefined,
+): Promise<DatasetLocation | null> => {
+  if (!externalLocationId) {
+    return null;
+  }
+
+  let location = await con.getRepository(DatasetLocation).findOne({
+    where: { externalId: externalLocationId },
+  });
+
+  if (!location) {
+    location = await createLocationFromMapbox(con, externalLocationId);
+  }
+
+  return location;
+};
+
+/**
  * Find an existing location in the dataset_location table based on iso2 country code.
  */
 export const findDatasetLocation = async (

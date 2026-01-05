@@ -1,5 +1,6 @@
 import { TypedWorker } from './worker';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
+import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { webhooks } from '../common';
 import { CandidateAcceptedOpportunityMessage } from '@dailydotdev/schema';
 
@@ -30,6 +31,12 @@ const worker: TypedWorker<'api.v1.candidate-accepted-opportunity'> = {
       const opportunity = await match.opportunity;
       const user = await match.user;
 
+      let organizationName = 'N/A';
+      if (opportunity instanceof OpportunityJob && opportunity.organizationId) {
+        const organization = await opportunity.organization;
+        organizationName = organization?.name || 'N/A';
+      }
+
       await webhooks.recruiter.send({
         text: 'Candidate accepted opportunity!',
         attachments: [
@@ -48,6 +55,10 @@ const worker: TypedWorker<'api.v1.candidate-accepted-opportunity'> = {
               {
                 title: 'Opportunity ID',
                 value: opportunityId,
+              },
+              {
+                title: 'Company name',
+                value: organizationName,
               },
             ],
             color: '#1DDC6F',

@@ -1,10 +1,14 @@
 import type { ZodError } from 'zod';
 import { DataSource, IsNull } from 'typeorm';
 import request from 'supertest';
-import { User, Keyword, Alerts } from '../../src/entity';
+import { Alerts, Feed, Keyword, User } from '../../src/entity';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { Organization } from '../../src/entity/Organization';
+import {
+  ContentPreferenceOrganization,
+  ContentPreferenceOrganizationStatus,
+} from '../../src/entity/contentPreference/ContentPreferenceOrganization';
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
 import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 import { OpportunityLocation } from '../../src/entity/opportunities/OpportunityLocation';
@@ -14,6 +18,7 @@ import {
   createGarmrMock,
   createMockBrokkrTransport,
   createMockGondulOpportunityServiceTransport,
+  createMockGondulTransport,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -26,14 +31,14 @@ import {
 import { keywordsFixture } from '../fixture/keywords';
 import { usersFixture } from '../fixture';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
+  opportunityFeedbackQuestionsFixture,
   opportunityKeywordsFixture,
+  opportunityLocationsFixture,
   opportunityMatchesFixture,
   opportunityQuestionsFixture,
-  opportunityFeedbackQuestionsFixture,
   organizationsFixture,
-  datasetLocationsFixture,
-  opportunityLocationsFixture,
 } from '../fixture/opportunity';
 import {
   OpportunityUser,
@@ -44,6 +49,7 @@ import {
   OpportunityUserType,
 } from '../../src/entity/opportunities/types';
 import {
+  ApplicationService as GondulService,
   BrokkrService,
   CompanySize,
   CompanyStage,
@@ -54,6 +60,7 @@ import {
   OpportunityType,
   SalaryPeriod,
   SeniorityLevel,
+  Location,
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
@@ -76,15 +83,12 @@ import { QuestionType } from '../../src/entity/questions/types';
 import { QuestionFeedback } from '../../src/entity/questions/QuestionFeedback';
 import type { FastifyInstance } from 'fastify';
 import type { Context } from '../../src/Context';
-import { createMockGondulTransport } from '../helpers';
 import { createClient } from '@connectrpc/connect';
-import { ApplicationService as GondulService } from '@dailydotdev/schema';
 import * as gondulModule from '../../src/common/gondul';
+import * as gondulCommon from '../../src/common/gondul';
 import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import * as brokkrCommon from '../../src/common/brokkr';
-import * as gondulCommon from '../../src/common/gondul';
-import { randomUUID } from 'node:crypto';
 import { updateRecruiterSubscriptionFlags } from '../../src/common';
 import { SubscriptionStatus } from '../../src/common/plus';
 import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
@@ -4335,87 +4339,6 @@ describe('mutation editOpportunity', () => {
     );
   });
 
-  it('should edit opportunity with organization data', async () => {
-    loggedUser = '1';
-
-    const MUTATION_WITH_ORG = /* GraphQL */ `
-      mutation EditOpportunityWithOrg(
-        $id: ID!
-        $payload: OpportunityEditInput!
-      ) {
-        editOpportunity(id: $id, payload: $payload) {
-          id
-          organization {
-            id
-            website
-            description
-            perks
-            founded
-            location {
-              city
-              country
-            }
-            category
-            size
-            stage
-          }
-        }
-      }
-    `;
-
-    const res = await client.mutate(MUTATION_WITH_ORG, {
-      variables: {
-        id: opportunitiesFixture[0].id,
-        payload: {
-          organization: {
-            website: 'https://updated.dev',
-            description: 'Updated description',
-            perks: ['Remote work', 'Flexible hours'],
-            founded: 2021,
-            externalLocationId: 'norway-remote',
-            category: 'Technology',
-            size: CompanySize.COMPANY_SIZE_51_200,
-            stage: CompanyStage.SERIES_B,
-          },
-        },
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.editOpportunity.organization).toMatchObject({
-      website: 'https://updated.dev',
-      description: 'Updated description',
-      perks: ['Remote work', 'Flexible hours'],
-      founded: 2021,
-      location: {
-        city: null,
-        country: 'Norway',
-      },
-      category: 'Technology',
-      size: CompanySize.COMPANY_SIZE_51_200,
-      stage: CompanyStage.SERIES_B,
-    });
-
-    // Verify the organization was updated in database
-    const organization = await con
-      .getRepository(Organization)
-      .findOneBy({ id: organizationsFixture[0].id });
-
-    expect(organization).toMatchObject({
-      website: 'https://updated.dev',
-      description: 'Updated description',
-      perks: ['Remote work', 'Flexible hours'],
-      founded: 2021,
-      category: 'Technology',
-      size: CompanySize.COMPANY_SIZE_51_200,
-      stage: CompanyStage.SERIES_B,
-    });
-    const location = await organization.location;
-    expect(location).toMatchObject({
-      country: 'Norway',
-    });
-  });
-
   it('should update recruiter title and bio', async () => {
     loggedUser = '1'; // user 1 is recruiter for opportunitiesFixture[0]
 
@@ -4525,361 +4448,6 @@ describe('mutation editOpportunity', () => {
 
     expect(userAfter?.title).toBe('Updated Title Only');
     expect(userAfter?.bio).toBe('Initial bio that should remain');
-  });
-
-  it('should create organization for opportunity if missing', async () => {
-    loggedUser = '1';
-
-    const MUTATION_WITH_ORG = /* GraphQL */ `
-      mutation EditOpportunityWithOrg(
-        $id: ID!
-        $payload: OpportunityEditInput!
-      ) {
-        editOpportunity(id: $id, payload: $payload) {
-          id
-          organization {
-            id
-            name
-            website
-            description
-            perks
-            founded
-            location {
-              city
-              country
-            }
-            category
-            size
-            stage
-          }
-        }
-      }
-    `;
-
-    const opportunityWithoutOrganization = await con
-      .getRepository(OpportunityJob)
-      .save({
-        ...opportunitiesFixture[0],
-        id: randomUUID(),
-        state: OpportunityState.DRAFT,
-        organizationId: null,
-      });
-
-    await con.getRepository(OpportunityUser).save({
-      opportunityId: opportunityWithoutOrganization.id,
-      userId: loggedUser,
-      type: OpportunityUserType.Recruiter,
-    });
-
-    const organizationBefore = await con.getRepository(Organization).findOne({
-      where: {
-        name: 'Test Corp',
-      },
-    });
-
-    expect(organizationBefore).toBeNull();
-
-    const res = await client.mutate(MUTATION_WITH_ORG, {
-      variables: {
-        id: opportunityWithoutOrganization.id,
-        payload: {
-          organization: {
-            name: 'Test Corp',
-            website: 'https://updated.dev',
-            description: 'Updated description',
-            perks: ['Remote work', 'Flexible hours'],
-            founded: 2021,
-            externalLocationId: 'norway-remote',
-            category: 'Technology',
-            size: CompanySize.COMPANY_SIZE_51_200,
-            stage: CompanyStage.SERIES_B,
-          },
-        },
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.editOpportunity.organization).toMatchObject({
-      name: 'Test Corp',
-      website: 'https://updated.dev',
-      description: 'Updated description',
-      perks: ['Remote work', 'Flexible hours'],
-      founded: 2021,
-      location: {
-        city: null,
-        country: 'Norway',
-      },
-      category: 'Technology',
-      size: CompanySize.COMPANY_SIZE_51_200,
-      stage: CompanyStage.SERIES_B,
-    });
-
-    // Verify the organization was created in database
-    const organization = await con
-      .getRepository(Organization)
-      .findOneBy({ id: res.data.editOpportunity.organization.id });
-
-    expect(organization).toMatchObject({
-      name: 'Test Corp',
-      website: 'https://updated.dev',
-      description: 'Updated description',
-      perks: ['Remote work', 'Flexible hours'],
-      founded: 2021,
-      category: 'Technology',
-      size: CompanySize.COMPANY_SIZE_51_200,
-      stage: CompanyStage.SERIES_B,
-    });
-    const location = await organization.location;
-    expect(location).toMatchObject({
-      country: 'Norway',
-    });
-
-    const opportunityAfter = await con
-      .getRepository(OpportunityJob)
-      .findOneBy({ id: opportunityWithoutOrganization.id });
-
-    expect(opportunityAfter!.organizationId).toBe(
-      res.data.editOpportunity.organization.id,
-    );
-  });
-
-  it('should not update organization name on edit', async () => {
-    loggedUser = '1';
-
-    const MUTATION_WITH_ORG = /* GraphQL */ `
-      mutation EditOpportunityWithOrg(
-        $id: ID!
-        $payload: OpportunityEditInput!
-      ) {
-        editOpportunity(id: $id, payload: $payload) {
-          id
-          organization {
-            id
-            name
-          }
-        }
-      }
-    `;
-
-    const res = await client.mutate(MUTATION_WITH_ORG, {
-      variables: {
-        id: opportunitiesFixture[0].id,
-        payload: {
-          organization: {
-            name: 'Test update name',
-          },
-        },
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.editOpportunity.organization.name).toEqual(
-      organizationsFixture[0].name,
-    );
-
-    // Verify the organization was updated in database
-    const organization = await con
-      .getRepository(Organization)
-      .findOneBy({ id: organizationsFixture[0].id });
-
-    expect(organization!.name).toEqual(organizationsFixture[0].name);
-  });
-
-  it('should not allow duplicate organization names', async () => {
-    loggedUser = '1';
-
-    const MUTATION_WITH_ORG = /* GraphQL */ `
-      mutation EditOpportunityWithOrg(
-        $id: ID!
-        $payload: OpportunityEditInput!
-      ) {
-        editOpportunity(id: $id, payload: $payload) {
-          id
-          organization {
-            id
-            name
-          }
-        }
-      }
-    `;
-
-    const opportunityWithoutOrganization = await con
-      .getRepository(OpportunityJob)
-      .save({
-        ...opportunitiesFixture[0],
-        id: randomUUID(),
-        state: OpportunityState.DRAFT,
-        organizationId: null,
-      });
-
-    await con.getRepository(OpportunityUser).save({
-      opportunityId: opportunityWithoutOrganization.id,
-      userId: loggedUser,
-      type: OpportunityUserType.Recruiter,
-    });
-
-    const organizationBefore = await con.getRepository(Organization).findOne({
-      where: {
-        name: 'Daily Dev Inc',
-      },
-    });
-
-    expect(organizationBefore).not.toBeNull();
-
-    const res = await client.mutate(MUTATION_WITH_ORG, {
-      variables: {
-        id: opportunityWithoutOrganization.id,
-        payload: {
-          organization: {
-            name: 'Daily Dev Inc',
-            founded: 2021,
-          },
-        },
-      },
-    });
-
-    expect(res.errors).toBeTruthy();
-
-    expect(res.errors![0].extensions.code).toEqual('CONFLICT');
-    expect(res.errors![0].message).toEqual(
-      'Organization with this name already exists',
-    );
-  });
-});
-
-describe('mutation clearOrganizationImage', () => {
-  beforeEach(async () => {
-    await con.getRepository(OpportunityJob).update(
-      {
-        id: opportunitiesFixture[0].id,
-      },
-      {
-        state: OpportunityState.DRAFT,
-      },
-    );
-  });
-
-  const MUTATION = /* GraphQL */ `
-    mutation ClearOrganizationImage($id: ID!) {
-      clearOrganizationImage(id: $id) {
-        _
-      }
-    }
-  `;
-
-  it('should require authentication', async () => {
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          id: opportunitiesFixture[0].id,
-        },
-      },
-      'UNAUTHENTICATED',
-    );
-  });
-
-  it('should throw error when user is not a recruiter for opportunity', async () => {
-    loggedUser = '2';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          id: opportunitiesFixture[0].id,
-        },
-      },
-      'FORBIDDEN',
-      'Access denied!',
-    );
-  });
-
-  it('should throw error when opportunity does not exist', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: {
-          id: '660e8400-e29b-41d4-a716-446655440999',
-        },
-      },
-      'FORBIDDEN',
-    );
-  });
-
-  it('should clear organization image', async () => {
-    loggedUser = '1';
-
-    // First set an image on the organization
-    await con
-      .getRepository(Organization)
-      .update(
-        { id: organizationsFixture[0].id },
-        { image: 'https://example.com/old-image.png' },
-      );
-
-    // Verify image is set
-    let organization = await con
-      .getRepository(Organization)
-      .findOneBy({ id: organizationsFixture[0].id });
-    expect(organization?.image).toBe('https://example.com/old-image.png');
-
-    // Clear the image
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        id: opportunitiesFixture[0].id,
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.clearOrganizationImage).toEqual({ _: true });
-
-    // Verify image was cleared in database
-    organization = await con
-      .getRepository(Organization)
-      .findOneBy({ id: organizationsFixture[0].id });
-    expect(organization?.image).toBeNull();
-  });
-
-  it('should work with opportunity permissions not direct organization permissions', async () => {
-    loggedUser = '3';
-
-    // User 3 is not a recruiter for opportunity 0, but let's make them one
-    await saveFixtures(con, OpportunityUser, [
-      {
-        opportunityId: opportunitiesFixture[0].id,
-        userId: '3',
-        type: OpportunityUserType.Recruiter,
-      },
-    ]);
-
-    // Set an image on the organization
-    await con
-      .getRepository(Organization)
-      .update(
-        { id: organizationsFixture[0].id },
-        { image: 'https://example.com/test-image.png' },
-      );
-
-    // Should be able to clear the image through opportunity permissions
-    const res = await client.mutate(MUTATION, {
-      variables: {
-        id: opportunitiesFixture[0].id,
-      },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.clearOrganizationImage).toEqual({ _: true });
-
-    // Verify image was cleared
-    const organization = await con
-      .getRepository(Organization)
-      .findOneBy({ id: organizationsFixture[0].id });
-    expect(organization?.image).toBeNull();
   });
 });
 
@@ -5132,10 +4700,6 @@ describe('mutation updateOpportunityState', () => {
           'content.responsibilities',
           'content.requirements',
           'questions',
-          'organization.links.0.socialType',
-          'organization.links.1.socialType',
-          'organization.links.2.title',
-          'organization.links.3.socialType',
         ]);
       },
     );
@@ -5407,6 +4971,14 @@ describe('mutation updateOpportunityState', () => {
       type: OpportunityUserType.Recruiter,
     });
 
+    // Remove subscription from organization to test missing subscription
+    await con.getRepository(Organization).update(
+      { id: organizationsFixture[0].id },
+      {
+        recruiterSubscriptionFlags: {},
+      },
+    );
+
     await testMutationErrorCode(
       client,
       {
@@ -5434,13 +5006,26 @@ describe('mutation updateOpportunityState', () => {
       type: OpportunityUserType.Recruiter,
     });
 
+    // Update organization to have inactive subscription
+    await con.getRepository(Organization).update(
+      { id: organizationsFixture[0].id },
+      {
+        recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags({
+          subscriptionId: 'sub_pending',
+          status: SubscriptionStatus.Cancelled,
+          provider: 'paddle',
+          items: [{ priceId: 'pri_123', quantity: 5 }],
+        }),
+      },
+    );
+
     await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
         variables: { id: opportunity.id, state: OpportunityState.IN_REVIEW },
       },
-      'CONFLICT',
+      'PAYMENT_REQUIRED',
       'Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.',
     );
   });
@@ -5574,6 +5159,9 @@ describe('mutation parseOpportunity', () => {
         feedbackQuestions {
           title
           placeholder
+        }
+        organization {
+          id
         }
       }
     }
@@ -6011,21 +5599,209 @@ describe('mutation parseOpportunity', () => {
 
     expect(opportunityRecruiter).toBeDefined();
   });
+
+  it('should assign opportunity to existing organization of authenticated user', async () => {
+    loggedUser = '1';
+
+    trackingId = 'anon1';
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    expect(body.data.parseOpportunity).toMatchObject({
+      title: 'Mocked Opportunity Title',
+      organization: { id: '550e8400-e29b-41d4-a716-446655440000' },
+    });
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: body.data.parseOpportunity.id,
+      },
+    });
+
+    expect(opportunity!.organizationId).toBe(
+      '550e8400-e29b-41d4-a716-446655440000',
+    );
+  });
+
+  it('should assign opportunity location to Europe when no country specified', async () => {
+    loggedUser = '1';
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    const transport = createMockBrokkrTransport({
+      opportunity: {
+        location: [
+          new Location({
+            continent: 'Europe',
+            type: 1,
+          }),
+        ],
+      },
+    });
+
+    const serviceClient = {
+      instance: createClient(BrokkrService, transport),
+      garmr: createGarmrMock(),
+    };
+
+    jest
+      .spyOn(brokkrCommon, 'getBrokkrClient')
+      .mockImplementation((): ServiceClient<typeof BrokkrService> => {
+        return serviceClient;
+      });
+
+    await saveFixtures(con, DatasetLocation, [
+      {
+        country: 'Europe',
+        iso2: 'EU',
+        iso3: 'EUR',
+      },
+    ]);
+
+    // Execute the mutation with a file upload
+    const res = await authorizeRequest(
+      request(app.server)
+        .post('/graphql')
+        .field(
+          'operations',
+          JSON.stringify({
+            query: MUTATION,
+            variables: {
+              payload: {
+                file: null,
+              },
+            },
+          }),
+        )
+        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
+        .attach('0', './__tests__/fixture/screen.pdf'),
+    ).expect(200);
+
+    const body = res.body;
+    expect(body.errors).toBeFalsy();
+
+    expect(body.data.parseOpportunity).toMatchObject({
+      locations: [
+        {
+          location: {
+            city: null,
+            country: 'Europe',
+            subdivision: null,
+          },
+          type: 1,
+        },
+      ],
+    });
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: body.data.parseOpportunity.id,
+      },
+    });
+
+    expect(opportunity!.organizationId).toBe(
+      '550e8400-e29b-41d4-a716-446655440000',
+    );
+  });
 });
 
 describe('mutation createSharedSlackChannel', () => {
   const MUTATION = /* GraphQL */ `
-    mutation CreateSharedSlackChannel($email: String!, $channelName: String!) {
-      createSharedSlackChannel(email: $email, channelName: $channelName) {
+    mutation CreateSharedSlackChannel(
+      $organizationId: ID!
+      $email: String!
+      $channelName: String!
+    ) {
+      createSharedSlackChannel(
+        organizationId: $organizationId
+        email: $email
+        channelName: $channelName
+      ) {
         _
       }
     }
   `;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset all mocks before each test
     mockConversationsCreate.mockReset();
     mockConversationsInviteShared.mockReset();
+
+    // Add organization membership for user 1
+    await con.getRepository(Feed).save({
+      id: '1',
+      name: 'My Feed',
+      userId: '1',
+    });
+    await saveFixtures(con, ContentPreferenceOrganization, [
+      {
+        userId: '1',
+        organizationId: '550e8400-e29b-41d4-a716-446655440000',
+        referenceId: '550e8400-e29b-41d4-a716-446655440000',
+        status: ContentPreferenceOrganizationStatus.Free,
+        feedId: '1',
+      },
+    ]);
   });
 
   it('should require authentication', async () => {
@@ -6034,6 +5810,7 @@ describe('mutation createSharedSlackChannel', () => {
       {
         mutation: MUTATION,
         variables: {
+          organizationId: '550e8400-e29b-41d4-a716-446655440000',
           email: 'user@example.com',
           channelName: 'test-channel',
         },
@@ -6050,6 +5827,7 @@ describe('mutation createSharedSlackChannel', () => {
       {
         mutation: MUTATION,
         variables: {
+          organizationId: '550e8400-e29b-41d4-a716-446655440000',
           email: 'user@example.com',
           channelName: 'test-channel',
         },
@@ -6083,6 +5861,7 @@ describe('mutation createSharedSlackChannel', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
+        organizationId: '550e8400-e29b-41d4-a716-446655440000',
         email: 'user@example.com',
         channelName: 'test-channel',
       },
@@ -6101,6 +5880,14 @@ describe('mutation createSharedSlackChannel', () => {
       emails: ['user@example.com'],
       external_limited: true,
     });
+
+    // Verify hasSlackConnection flag was set with channel name
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: '550e8400-e29b-41d4-a716-446655440000' });
+    expect(organization?.recruiterSubscriptionFlags.hasSlackConnection).toBe(
+      'test-channel',
+    );
   });
 
   it('should handle slack channel creation failure', async () => {
@@ -6122,6 +5909,7 @@ describe('mutation createSharedSlackChannel', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
+        organizationId: '550e8400-e29b-41d4-a716-446655440000',
         email: 'user@example.com',
         channelName: 'existing-channel',
       },
@@ -6158,12 +5946,107 @@ describe('mutation createSharedSlackChannel', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
+        organizationId: '550e8400-e29b-41d4-a716-446655440000',
         email: 'user@example.com',
         channelName: 'test-channel',
       },
     });
 
     expect(res.errors).toBeTruthy();
+  });
+
+  it('should forbid non-members from creating slack channels', async () => {
+    loggedUser = '2'; // User 2 is not a member of organization 550e8400
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          organizationId: '550e8400-e29b-41d4-a716-446655440000',
+          email: 'user@example.com',
+          channelName: 'test-channel',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should require active subscription', async () => {
+    loggedUser = '2';
+
+    // Create organization membership for user 2
+    await con.getRepository(ContentPreferenceOrganization).save({
+      userId: '2',
+      organizationId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+      referenceId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+      status: ContentPreferenceOrganizationStatus.Free,
+      feedId: '1',
+    });
+
+    // Update organization to have inactive subscription
+    await con.getRepository(Organization).update(
+      { id: 'ed487a47-6f4d-480f-9712-f48ab29db27c' },
+      {
+        recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags({
+          subscriptionId: 'sub_456',
+          status: SubscriptionStatus.Pending,
+          provider: 'paddle',
+          items: [{ priceId: 'pri_456', quantity: 3 }],
+        }),
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          organizationId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+          email: 'user@example.com',
+          channelName: 'test-channel',
+        },
+      },
+      'PAYMENT_REQUIRED',
+    );
+  });
+
+  it('should forbid creating slack channel if organization already has one', async () => {
+    loggedUser = '1';
+
+    // Create a recruiter record for user 1
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    // Update organization to have existing Slack connection
+    await con.getRepository(Organization).update(
+      { id: '550e8400-e29b-41d4-a716-446655440000' },
+      {
+        recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags({
+          subscriptionId: 'sub_123',
+          status: SubscriptionStatus.Active,
+          provider: 'paddle',
+          items: [{ priceId: 'pri_123', quantity: 5 }],
+          hasSlackConnection: 'existing-channel',
+        }),
+      },
+    );
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          organizationId: '550e8400-e29b-41d4-a716-446655440000',
+          email: 'user@example.com',
+          channelName: 'new-channel',
+        },
+      },
+      'CONFLICT',
+    );
   });
 });
 
@@ -6514,5 +6397,166 @@ describe('query opportunityStats', () => {
 
     expect(res.errors).toBeTruthy();
     expect(res.errors[0].extensions.code).toBe('FORBIDDEN');
+  });
+});
+
+describe('mutation reimportOpportunity', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ReimportOpportunity($payload: ReimportOpportunityInput!) {
+      reimportOpportunity(payload: $payload) {
+        id
+        title
+        tldr
+        content {
+          overview {
+            content
+          }
+          requirements {
+            content
+          }
+          responsibilities {
+            content
+          }
+        }
+        keywords {
+          keyword
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+
+    const transport = createMockBrokkrTransport();
+    const serviceClient = {
+      instance: createClient(BrokkrService, transport),
+      garmr: createGarmrMock(),
+    };
+
+    jest
+      .spyOn(brokkrCommon, 'getBrokkrClient')
+      .mockImplementation((): ServiceClient<typeof BrokkrService> => {
+        return serviceClient;
+      });
+  });
+
+  it('should require authentication', async () => {
+    loggedUser = null;
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          payload: {
+            opportunityId: opportunitiesFixture[0].id,
+            url: 'https://example.com/job',
+          },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should require recruiter permission', async () => {
+    loggedUser = '3'; // User 3 is not a recruiter for opportunity 3
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          payload: {
+            opportunityId: opportunitiesFixture[3].id,
+            url: 'https://example.com/job',
+          },
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should fail when neither file nor URL is provided', async () => {
+    loggedUser = '2'; // User 2 is a recruiter for opportunity 3
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        payload: {
+          opportunityId: opportunitiesFixture[3].id,
+        },
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+  });
+
+  it('should reimport opportunity from URL and update all fields', async () => {
+    loggedUser = '2'; // User 2 is a recruiter for opportunity 3 (which is in DRAFT state)
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+    const pdfResponse = new Response('Mocked PDF content', {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+    jest
+      .spyOn(pdfResponse, 'arrayBuffer')
+      .mockResolvedValue(new ArrayBuffer(0));
+    fetchSpy.mockResolvedValueOnce(pdfResponse);
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    const uploadResumeFromBufferSpy = jest.spyOn(
+      googleCloud,
+      'uploadResumeFromBuffer',
+    );
+    uploadResumeFromBufferSpy.mockResolvedValue(
+      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
+    );
+
+    const deleteFileFromBucketSpy = jest.spyOn(
+      googleCloud,
+      'deleteFileFromBucket',
+    );
+    deleteFileFromBucketSpy.mockResolvedValue(true);
+
+    // Get original opportunity state
+    const originalOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: opportunitiesFixture[3].id });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        payload: {
+          opportunityId: opportunitiesFixture[3].id,
+          url: 'https://example.com/updated-job',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.reimportOpportunity.id).toBe(opportunitiesFixture[3].id);
+
+    // Verify fields were updated with mocked Brokkr response
+    expect(res.data.reimportOpportunity.title).toBe('Mocked Opportunity Title');
+    expect(res.data.reimportOpportunity.tldr).toBe(
+      'This is a mocked TL;DR of the opportunity.',
+    );
+    expect(res.data.reimportOpportunity.keywords).toEqual([
+      { keyword: 'mock' },
+      { keyword: 'opportunity' },
+      { keyword: 'test' },
+    ]);
+
+    // Verify opportunity still exists and was updated
+    const updatedOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: opportunitiesFixture[3].id });
+
+    expect(updatedOpportunity.title).toBe('Mocked Opportunity Title');
+    expect(updatedOpportunity.state).toBe(originalOpportunity.state); // State should be preserved
   });
 });

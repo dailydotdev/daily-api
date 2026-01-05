@@ -1,7 +1,6 @@
 import { messageToJson, TypedNotificationWorker, Worker } from '../worker';
 import { generateAndStoreNotificationsV2 } from '../../notifications';
 import { communityPicksFailed } from './communityPicksFailed';
-import { communityPicksGranted } from './communityPicksGranted';
 import { articleNewCommentPostCommented } from './articleNewCommentPostCommented';
 import { articleUpvoteMilestone } from './articleUpvoteMilestone';
 import { articleReportApproved } from './articleReportApproved';
@@ -39,6 +38,8 @@ import { pollResultNotification } from './pollResultNotification';
 import { articleNewCommentCommentCommented } from './articleNewCommentCommentCommented';
 import { warmIntroNotification } from './warmIntroNotification';
 import { parseCVProfileWorker } from '../opportunity/parseCVProfile';
+import { recruiterNewCandidateNotification } from './recruiterNewCandidateNotification';
+import { recruiterOpportunityLiveNotification } from './recruiterOpportunityLiveNotification';
 
 export function notificationWorkerToWorker(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,7 +88,6 @@ export function notificationWorkerToWorker(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const notificationWorkers: TypedNotificationWorker<any>[] = [
   communityPicksFailed,
-  communityPicksGranted,
   articleNewCommentPostCommented,
   articleNewCommentCommentCommented,
   articleUpvoteMilestone,
@@ -124,6 +124,8 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   pollResultNotification,
   warmIntroNotification,
   parseCVProfileWorker,
+  recruiterNewCandidateNotification,
+  recruiterOpportunityLiveNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

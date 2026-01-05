@@ -193,6 +193,20 @@ export type PubSubSchema = {
   'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
   'api.v1.opportunity-added': OpportunityMessage;
   'api.v1.opportunity-updated': OpportunityMessage;
+  'api.v1.opportunity-in-review': {
+    opportunityId: string;
+    organizationId: string;
+    title: string;
+  };
+  'api.v1.opportunity-went-live': {
+    opportunityId: string;
+    title: string;
+  };
+  'api.v1.opportunity-flags-change': {
+    opportunityId: string;
+    before: string | null;
+    after: string | null;
+  };
   'gondul.v1.candidate-opportunity-match': MatchedCandidate;
   'api.v1.candidate-preference-updated': CandidatePreferenceUpdated;
   'api.v1.delayed-notification-reminder': z.infer<typeof entityReminderSchema>;
@@ -210,9 +224,6 @@ export type PubSubSchema = {
     commentMention: ChangeObject<CommentMention>;
   };
   'community-link-rejected': ChangeObject<Submission>;
-  'community-link-access': {
-    userId: string;
-  };
   'user-reputation-updated': {
     user: ChangeObject<User>;
     userAfter: ChangeObject<User>;
