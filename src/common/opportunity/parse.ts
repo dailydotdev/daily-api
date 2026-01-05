@@ -428,15 +428,23 @@ export async function updateOpportunityFromParsedData(
     }
 
     // Update content - merge with existing to preserve any sections not in parsed data
+    // Explicitly list content block keys to avoid iterating over protobuf methods
+    const contentBlockKeys = [
+      'overview',
+      'responsibilities',
+      'requirements',
+      'whatYoullDo',
+      'interviewProcess',
+    ] as const;
+    const mergedContent: Partial<OpportunityContent> = {};
+    for (const key of contentBlockKeys) {
+      if (content[key]) {
+        mergedContent[key] = content[key];
+      }
+    }
     updateData.content = {
       ...existingOpportunity.content,
-      ...Object.keys(content).reduce((acc, key) => {
-        const contentKey = key as keyof OpportunityContent;
-        if (content[contentKey]) {
-          acc[contentKey] = content[contentKey];
-        }
-        return acc;
-      }, {} as Partial<OpportunityContent>),
+      ...mergedContent,
     } as OpportunityContent;
 
     // Update the opportunity
