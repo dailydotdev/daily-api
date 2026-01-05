@@ -110,36 +110,26 @@ import {
   mockPreviewSquadIds,
 } from '../mocks/opportunity/services';
 
-export interface GQLOpportunity
-  extends Pick<
-    Opportunity,
-    | 'id'
-    | 'type'
-    | 'state'
-    | 'title'
-    | 'tldr'
-    | 'content'
-    | 'keywords'
-    | 'flags'
-  > {
+export interface GQLOpportunity extends Pick<
+  Opportunity,
+  'id' | 'type' | 'state' | 'title' | 'tldr' | 'content' | 'keywords' | 'flags'
+> {
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface GQLOpportunityMatch
-  extends Pick<
-    OpportunityMatch,
-    'status' | 'description' | 'userId' | 'opportunityId'
-  > {
+export interface GQLOpportunityMatch extends Pick<
+  OpportunityMatch,
+  'status' | 'description' | 'userId' | 'opportunityId'
+> {
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface GQLUserCandidatePreference
-  extends Omit<
-    UserCandidatePreference,
-    'userId' | 'user' | 'updatedAt' | 'cvParsed' | 'location'
-  > {
+export interface GQLUserCandidatePreference extends Omit<
+  UserCandidatePreference,
+  'userId' | 'user' | 'updatedAt' | 'cvParsed' | 'location'
+> {
   location?: Array<DatasetLocation>;
   keywords?: Array<{ keyword: string }>;
 }

@@ -365,7 +365,8 @@ export const insertFreeformPost = async ({
 };
 
 export interface CreateSourcePostModeration
-  extends Omit<CreatePost, 'authorId' | 'content' | 'contentHtml' | 'id'>,
+  extends
+    Omit<CreatePost, 'authorId' | 'content' | 'contentHtml' | 'id'>,
     Pick<
       SourcePostModeration,
       'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
@@ -511,8 +512,10 @@ export const createSourcePostModeration = async ({
     .save(newModerationEntry);
 };
 
-export interface CreateSourcePostModerationArgs
-  extends Pick<EditPostArgs, 'title' | 'image'> {
+export interface CreateSourcePostModerationArgs extends Pick<
+  EditPostArgs,
+  'title' | 'image'
+> {
   content?: string | null;
   imageUrl?: string;
   sourceId: string;
@@ -524,13 +527,17 @@ export interface CreateSourcePostModerationArgs
   duration?: number;
 }
 
-export interface EditPostArgs
-  extends Pick<GQLPost, 'id' | 'title' | 'content'> {
+export interface EditPostArgs extends Pick<
+  GQLPost,
+  'id' | 'title' | 'content'
+> {
   image: Promise<FileUpload>;
 }
 
-export interface CreatePostArgs
-  extends Pick<EditPostArgs, 'title' | 'content' | 'image'> {
+export interface CreatePostArgs extends Pick<
+  EditPostArgs,
+  'title' | 'content' | 'image'
+> {
   sourceId: string;
 }
 
@@ -539,14 +546,17 @@ export interface PollOptionInput {
   order: number;
 }
 
-export interface CreatePollPostProps
-  extends Pick<CreatePostArgs, 'title' | 'sourceId'> {
+export interface CreatePollPostProps extends Pick<
+  CreatePostArgs,
+  'title' | 'sourceId'
+> {
   options: PollOptionInput[];
   duration: number;
 }
 
 export interface CreateMultipleSourcePostProps
-  extends Omit<CreatePostArgs, 'sourceId'>,
+  extends
+    Omit<CreatePostArgs, 'sourceId'>,
     Pick<CreatePollPostProps, 'options' | 'duration'> {
   sharedPostId?: string;
   externalLink?: string;

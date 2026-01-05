@@ -35,11 +35,10 @@ import {
 import { coresToUsd } from '../common/number';
 import { skadiApiClientV2 } from '../integrations/skadi/api/v2/clients';
 
-interface GQLCampaign
-  extends Pick<
-    Campaign,
-    'id' | 'type' | 'flags' | 'createdAt' | 'endedAt' | 'referenceId' | 'state'
-  > {
+interface GQLCampaign extends Pick<
+  Campaign,
+  'id' | 'type' | 'flags' | 'createdAt' | 'endedAt' | 'referenceId' | 'state'
+> {
   post: GQLPost;
   source: GQLSource;
 }

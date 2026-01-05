@@ -31,9 +31,8 @@ const setupTestEnv = async () => {
     connection: testEnv.nativeConnection,
     taskQueue: 'test',
     activities: mockActivities,
-    workflowsPath: require.resolve(
-      '../../../src/temporal/notifications/workflows',
-    ),
+    workflowsPath:
+      require.resolve('../../../src/temporal/notifications/workflows'),
   });
 };
 
