@@ -19,6 +19,7 @@ import { UserPersonalizedDigest, UserPersonalizedDigestType } from '../entity';
 import { notifyGeneratePersonalizedDigest } from '../common';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import integrations from './integrations';
+import gifs from './gifs';
 import log from './log';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -39,6 +40,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(automations, { prefix: '/auto' });
   fastify.register(sitemaps, { prefix: '/sitemaps' });
   fastify.register(integrations, { prefix: '/integrations' });
+  fastify.register(gifs, { prefix: '/gifs' });
   fastify.register(log, { prefix: '/log' });
 
   fastify.get('/robots.txt', (req, res) => {
