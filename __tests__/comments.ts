@@ -436,15 +436,12 @@ describe('query topComments', () => {
   });
 
   it('should support querying by post slug', async () => {
-    // Set a slug for the post
-    await con
-      .getRepository(Post)
-      .update({ id: 'p1' }, { slug: 'test-post-slug' });
+    // The slug is auto-generated from title and id: 'P1' + 'p1' -> 'p1-p1'
     await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
     await con.getRepository(Comment).update({ id: 'c3' }, { upvotes: 10 });
 
     const res = await client.query(QUERY, {
-      variables: { postId: 'test-post-slug' },
+      variables: { postId: 'p1-p1' },
     });
     expect(res.errors).toBeFalsy();
     expect(res.data.topComments).toHaveLength(3);
