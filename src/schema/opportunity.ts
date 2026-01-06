@@ -65,7 +65,7 @@ import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
 } from '../common/opportunity/accessControl';
-import { markdown } from '../common/markdown';
+import { sanitizeHtml } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not, JsonContains, EntityManager } from 'typeorm';
 import { Organization } from '../entity/Organization';
@@ -1055,8 +1055,8 @@ async function updateCandidateMatchStatus(
 }
 
 /**
- * Renders markdown content for opportunity fields
- * Converts markdown strings to HTML for storage
+ * Renders content for opportunity fields
+ * Sanitizes HTML content from WYSIWYG editor
  */
 function renderOpportunityContent(
   content: Record<string, { content?: string }> | undefined,
@@ -1068,9 +1068,11 @@ function renderOpportunityContent(
       return;
     }
 
+    const html = sanitizeHtml(value.content);
+
     renderedContent[key] = {
       content: value.content,
-      html: markdown.render(value.content),
+      html,
     };
   });
 

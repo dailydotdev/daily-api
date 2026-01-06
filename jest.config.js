@@ -39,5 +39,6 @@ module.exports = {
   },
   moduleNameMapper: {
     '^file-type$': '<rootDir>/node_modules/file-type/index.js',
+    '^isomorphic-dompurify$': '<rootDir>/__mocks__/isomorphic-dompurify.ts',
   },
 };
