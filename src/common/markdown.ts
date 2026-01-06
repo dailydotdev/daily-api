@@ -14,12 +14,21 @@ import { isValidHttpUrl } from './links';
  * Used for opportunity content sections (WYSIWYG editor output).
  */
 export const sanitizeHtml = (html: string): string => {
-  return DOMPurify.sanitize(html, {
+  // Use hook to properly set link attributes without creating duplicates
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A') {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noopener nofollow');
+    }
+  });
+
+  const result = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'br'],
     ALLOWED_ATTR: ['href', 'target', 'rel'],
-    // Force all links to open in new tab with nofollow
-    ADD_ATTR: ['target', 'rel'],
-  }).replace(/<a /g, '<a target="_blank" rel="noopener nofollow" ');
+  });
+
+  DOMPurify.removeHook('afterSanitizeAttributes');
+  return result;
 };
 
 export const markdown: MarkdownIt = MarkdownIt({
