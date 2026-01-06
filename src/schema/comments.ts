@@ -1016,15 +1016,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const limit = Math.min(args.first ?? maxLimit, maxLimit);
 
       const post = await ctx.con.getRepository(Post).findOneOrFail({
-        select: ['sourceId'],
-        where: { id: args.postId },
+        select: ['id', 'sourceId'],
+        where: [{ id: args.postId }, { slug: args.postId }],
       });
       await ensureSourcePermissions(ctx, post.sourceId);
 
       return graphorm.query<GQLComment>(ctx, info, (builder) => {
         builder.queryBuilder = builder.queryBuilder
           .andWhere(`${builder.alias}.postId = :postId`, {
-            postId: args.postId,
+            postId: post.id,
           })
           .andWhere(`${builder.alias}.parentId is null`)
           .andWhere(whereVordrFilter(builder.alias, ctx.userId))
