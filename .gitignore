@@ -11,3 +11,4 @@ debezium/conf/key.json
 debezium/data
 coverage
 .DS_Store
+node-compile-cache/
