@@ -5,8 +5,7 @@ import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
 import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 import {
   isRoleAtLeast,
   OrganizationMemberRole,
@@ -31,8 +30,8 @@ import {
 } from '../entity/contentPreference/ContentPreferenceOrganization';
 import { TypeOrmError, type TypeORMQueryFailedError } from '../errors';
 import type { GQLEmptyResponse } from './common';
-import { randomUUID } from 'node:crypto';
-import { JsonContains } from 'typeorm';
+import { randomUUID, randomInt } from 'node:crypto';
+import { JsonContains, In } from 'typeorm';
 import { User } from '../entity';
 import { isPlusMember } from '../paddle';
 import {
@@ -51,8 +50,20 @@ import { SubscriptionStatus } from '../common/plus';
 import {
   OrganizationLinkType,
   organizationSubscriptionFlagsSchema,
+  recruiterOrganizationEditSchema,
   SocialMediaType,
 } from '../common/schema/organizations';
+import { OpportunityUserRecruiter } from '../entity/opportunities/user';
+import { OpportunityUserType } from '../entity/opportunities/types';
+import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
+import {
+  ensureOpportunityPermissions,
+  OpportunityPermissions,
+} from '../common/opportunity/accessControl';
+import { QueryFailedError } from 'typeorm';
+// @ts-expect-error - no types
+import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
+import { ConflictError } from '../errors';
 
 export type GQLOrganizationMember = {
   role: OrganizationMemberRole;
@@ -442,6 +453,66 @@ export const typeDefs = /* GraphQL */ `
       """
       memberId: String!
     ): UserOrganization! @auth
+
+    """
+    Update organization details for recruiters
+    """
+    updateRecruiterOrganization(
+      """
+      Id of the Organization
+      """
+      id: ID!
+
+      """
+      Organization data to update
+      """
+      payload: RecruiterOrganizationEditInput!
+
+      """
+      Organization image to upload
+      """
+      organizationImage: Upload
+    ): Organization! @auth
+
+    """
+    Clear the organization image for recruiters
+    """
+    clearRecruiterOrganizationImage(
+      """
+      Id of the Organization
+      """
+      id: ID!
+    ): EmptyResponse @auth
+
+    """
+    Create an organization for an opportunity that doesn't have one
+    """
+    createOrganizationForOpportunity(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+    ): Organization! @auth
+  }
+
+  input OrganizationLinkInput {
+    type: OrganizationLinkType!
+    socialType: SocialMediaType
+    title: String
+    link: String!
+  }
+
+  input RecruiterOrganizationEditInput {
+    name: String
+    website: String
+    description: String
+    perks: [String!]
+    founded: Int
+    externalLocationId: String
+    category: String
+    size: Int
+    stage: Int
+    links: [OrganizationLinkInput!]
   }
 `;
 
@@ -481,6 +552,74 @@ export const ensureOrganizationRole = async (
   }
 
   return true;
+};
+
+/**
+ * Ensures user is a recruiter for any opportunity linked to the organization
+ * Throws ForbiddenError if user is not authorized
+ */
+export const ensureRecruiterOrganizationPermissions = async ({
+  ctx,
+  organizationId,
+}: {
+  ctx: Context;
+  organizationId: string;
+}): Promise<void> => {
+  if (!ctx.userId) {
+    throw new ForbiddenError('Access denied!');
+  }
+
+  // Team members have access to all organizations
+  if (ctx.isTeamMember) {
+    return;
+  }
+
+  // Check if user is a recruiter for any opportunity linked to this organization
+  const isRecruiter = await ctx.con
+    .getRepository(OpportunityUserRecruiter)
+    .createQueryBuilder('ou')
+    .innerJoin('opportunity', 'o', 'o.id = ou."opportunityId"')
+    .where('ou."userId" = :userId', { userId: ctx.userId })
+    .andWhere('ou.type = :type', { type: OpportunityUserType.Recruiter })
+    .andWhere('o."organizationId" = :organizationId', { organizationId })
+    .getExists();
+
+  if (!isRecruiter) {
+    throw new ForbiddenError('Access denied!');
+  }
+};
+
+/**
+ * Generates a unique organization name with format "CompanyXX"
+ * Tries random numbers first, falls back to UUID suffix for guaranteed uniqueness
+ */
+const generateUniqueOrganizationName = async (
+  ctx: Context,
+): Promise<string> => {
+  const prefix = 'Company';
+  const candidateCount = 10;
+
+  // Generate unique candidate names
+  const candidates = Array.from(
+    { length: candidateCount },
+    () => `${prefix}${randomInt(1, 10000)}`,
+  );
+
+  // Check all candidates in a single query
+  const existingOrgs = await ctx.con.getRepository(Organization).find({
+    where: { name: In(candidates) },
+    select: ['name'],
+  });
+  const existingNames = new Set(existingOrgs.map((org) => org.name));
+
+  // Return the first available candidate
+  const availableName = candidates.find((name) => !existingNames.has(name));
+  if (availableName) {
+    return availableName;
+  }
+
+  // Fallback with UUID suffix for guaranteed uniqueness
+  return `${prefix}${randomUUID().substring(0, 8)}`;
 };
 
 const verifyOrganizationInviter = async (
@@ -750,15 +889,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         // Handle location update
         if (externalLocationId) {
-          let location = await ctx.con.getRepository(DatasetLocation).findOne({
-            where: { externalId: externalLocationId },
-          });
-          if (!location) {
-            location = await createLocationFromMapbox(
-              ctx.con,
-              externalLocationId,
-            );
-          }
+          const location = await findOrCreateDatasetLocation(
+            ctx.con,
+            externalLocationId,
+          );
 
           if (location) {
             updatePayload.locationId = location.id;
@@ -1243,6 +1377,159 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
         throw err;
       }
+    },
+    updateRecruiterOrganization: async (
+      _,
+      {
+        id,
+        payload,
+        organizationImage,
+      }: {
+        id: string;
+        payload: z.infer<typeof recruiterOrganizationEditSchema>;
+        organizationImage?: Promise<FileUpload>;
+      },
+      ctx: AuthContext,
+      info,
+    ): Promise<Organization> => {
+      const validatedPayload = recruiterOrganizationEditSchema
+        .omit({ id: true })
+        .parse(payload);
+
+      await ensureRecruiterOrganizationPermissions({
+        ctx,
+        organizationId: id,
+      });
+
+      const organizationUpdate: Record<string, unknown> = {
+        ...validatedPayload,
+      };
+
+      // Handle externalLocationId -> locationId mapping
+      if (organizationUpdate.externalLocationId !== undefined) {
+        const externalLocationId = organizationUpdate.externalLocationId as
+          | string
+          | null;
+        delete organizationUpdate.externalLocationId;
+
+        if (externalLocationId) {
+          const location = await findOrCreateDatasetLocation(
+            ctx.con,
+            externalLocationId,
+          );
+
+          if (location) {
+            organizationUpdate.locationId = location.id;
+          }
+        } else {
+          // If externalLocationId is explicitly null, clear the locationId
+          organizationUpdate.locationId = null;
+        }
+      }
+
+      // Handle image upload
+      if (organizationImage) {
+        const { createReadStream } = await organizationImage;
+        const stream = createReadStream();
+        const { url: imageUrl } = await uploadOrganizationImage(id, stream);
+        organizationUpdate.image = imageUrl;
+      }
+
+      if (Object.keys(organizationUpdate).length > 0) {
+        try {
+          await ctx.con
+            .getRepository(Organization)
+            .update({ id }, organizationUpdate);
+        } catch (updateError) {
+          if (updateError instanceof QueryFailedError) {
+            const queryFailedError = updateError as TypeORMQueryFailedError;
+
+            if (queryFailedError.code === TypeOrmError.DUPLICATE_ENTRY) {
+              if (
+                updateError.message.indexOf('IDX_organization_name_unique') > -1
+              ) {
+                throw new ConflictError(
+                  'Organization with this name already exists',
+                );
+              }
+            }
+          }
+
+          throw updateError;
+        }
+      }
+
+      return graphorm.queryOneOrFail<Organization>(ctx, info, (builder) => {
+        builder.queryBuilder.andWhere(`${builder.alias}."id" = :id`, { id });
+        return builder;
+      });
+    },
+    clearRecruiterOrganizationImage: async (
+      _,
+      { id }: { id: string },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await ensureRecruiterOrganizationPermissions({
+        ctx,
+        organizationId: id,
+      });
+
+      await ctx.con.getRepository(Organization).update({ id }, { image: null });
+
+      return { _: true };
+    },
+    createOrganizationForOpportunity: async (
+      _,
+      { opportunityId }: { opportunityId: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<Organization> => {
+      // Check user has permission to edit the opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.Edit,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      // Check that the opportunity doesn't already have an organization
+      const opportunity = await ctx.con.getRepository(OpportunityJob).findOne({
+        where: { id: opportunityId },
+        select: ['id', 'organizationId'],
+      });
+
+      if (!opportunity) {
+        throw new ForbiddenError('Opportunity not found');
+      }
+
+      if (opportunity.organizationId) {
+        throw new ConflictError('Opportunity already has an organization');
+      }
+
+      // Generate unique organization name
+      const organizationName = await generateUniqueOrganizationName(ctx);
+
+      // Create the organization and assign to the opportunity
+      const organizationInsertResult = await ctx.con
+        .getRepository(Organization)
+        .insert({
+          name: organizationName,
+        });
+
+      const organizationId = organizationInsertResult.identifiers[0]
+        .id as string;
+
+      await ctx.con
+        .getRepository(OpportunityJob)
+        .update({ id: opportunityId }, { organizationId });
+
+      return graphorm.queryOneOrFail<Organization>(ctx, info, (builder) => {
+        builder.queryBuilder.andWhere(`${builder.alias}."id" = :id`, {
+          id: organizationId,
+        });
+        return builder;
+      });
     },
   },
   OrganizationMember: {

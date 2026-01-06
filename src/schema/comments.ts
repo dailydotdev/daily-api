@@ -526,6 +526,9 @@ export interface MentionedUser {
   username?: string;
 }
 
+// Regex to match URLs (http, https, ftp) to exclude from mention parsing
+const urlRegex = /(?:https?|ftp):\/\/[^\s<>]+/gi;
+
 export const getMentions = async (
   con: DataSource | EntityManager,
   content: string | undefined | null,
@@ -533,7 +536,10 @@ export const getMentions = async (
   sourceId?: string,
 ): Promise<MentionedUser[]> => {
   if (!content?.length) return [];
-  const replaced = content.replace(mentionSpecialCharacters, ' ');
+  // Remove URLs from content before extracting mentions to avoid
+  // treating @ symbols in URLs as user mentions
+  const contentWithoutUrls = content.replace(urlRegex, ' ');
+  const replaced = contentWithoutUrls.replace(mentionSpecialCharacters, ' ');
   const words = replaced.split(' ');
   const result = words.reduce((list, word) => {
     if (word.length === 1 || word.charAt(0) !== '@') {

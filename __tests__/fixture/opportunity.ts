@@ -52,6 +52,12 @@ export const organizationsFixture: DeepPartial<Organization>[] = [
         link: 'https://press.link',
       },
     ],
+    recruiterSubscriptionFlags: {
+      subscriptionId: 'sub_123',
+      status: 'active',
+      provider: 'paddle',
+      items: [{ priceId: 'pri_123', quantity: 5 }],
+    },
   },
   {
     id: 'ed487a47-6f4d-480f-9712-f48ab29db27c',

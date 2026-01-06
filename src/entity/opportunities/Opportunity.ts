@@ -31,6 +31,8 @@ export type OpportunityFlags = Partial<{
   };
   batchSize: number;
   plan: string;
+  reminders: boolean;
+  showSlack: boolean;
 }>;
 
 export type OpportunityFlagsPublic = Pick<

@@ -40,8 +40,6 @@ import {
   UserCompany,
   UserMarketingCta,
   UserPost,
-  UserState,
-  UserStateKey,
   UserStreak,
   UserTopReader,
 } from '../../entity';
@@ -86,7 +84,6 @@ import {
   notifySourcePrivacyUpdated,
   notifySourceReport,
   notifySquadFeaturedUpdated,
-  notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUsernameChanged,
   notifyUserReadmeUpdated,
@@ -99,16 +96,10 @@ import { ChangeMessage, ChangeObject, CoresRole, UserVote } from '../../types';
 import { DataSource, IsNull } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import { updateAlerts } from '../../schema/alerts';
-import { TypeOrmError, TypeORMQueryFailedError } from '../../errors';
 import { CommentReport } from '../../entity/CommentReport';
 import { getTableName, isChanged, notifyPostContentUpdated } from './common';
 import { UserComment } from '../../entity/user/UserComment';
-import {
-  generateStorageKey,
-  StorageKey,
-  StorageTopic,
-  submissionAccessThreshold,
-} from '../../config';
+import { generateStorageKey, StorageKey, StorageTopic } from '../../config';
 import {
   deleteRedisKey,
   getRedisObject,
@@ -157,6 +148,7 @@ import {
   notifyRecruiterCandidateMatchRejected,
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
+import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { PollPost } from '../../entity/posts/PollPost';
@@ -166,6 +158,17 @@ import { UserExperienceType } from '../../entity/user/experiences/types';
 import { cio, identifyUserOpportunities } from '../../cio';
 import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 import { Company } from '../../entity/Company';
+import { OpportunityUser } from '../../entity/opportunities/user/OpportunityUser';
+import { OpportunityUserType } from '../../entity/opportunities/types';
+
+const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
+  ...user,
+  createdAt: user.createdAt.getTime() * 1000,
+  updatedAt: user.updatedAt ? user.updatedAt.getTime() * 1000 : undefined,
+  flags: JSON.stringify(user.flags || {}),
+  notificationFlags: JSON.stringify(user.notificationFlags || {}),
+  subscriptionFlags: JSON.stringify(user.subscriptionFlags || {}),
+});
 
 const isFreeformPostLongEnough = (
   freeform: ChangeMessage<FreeformPost>,
@@ -487,24 +490,6 @@ const onUserChange = async (
       user: data.payload.before!,
       newProfile: data.payload.after!,
     });
-    if (
-      data.payload.after!.reputation >= submissionAccessThreshold &&
-      data.payload.before!.reputation < submissionAccessThreshold
-    ) {
-      try {
-        await con.getRepository(UserState).insert({
-          userId: data.payload.after!.id,
-          key: UserStateKey.CommunityLinkAccess,
-          value: true,
-        });
-      } catch (originalError) {
-        const ex = originalError as TypeORMQueryFailedError;
-
-        if (ex.code !== TypeOrmError.DUPLICATE_ENTRY) {
-          throw ex;
-        }
-      }
-    }
     if (data.payload.after!.reputation > data.payload.before!.reputation) {
       await notifyReputationIncrease(
         logger,
@@ -979,18 +964,6 @@ const onSubmissionChange = async (
   }
 };
 
-const onUserStateChange = async (
-  con: DataSource,
-  logger: FastifyBaseLogger,
-  data: ChangeMessage<UserState>,
-) => {
-  if (data.payload.op === 'c') {
-    if (data.payload.after!.key === UserStateKey.CommunityLinkAccess) {
-      await notifySubmissionGrantedAccess(logger, data.payload.after!.userId);
-    }
-  }
-};
-
 const onSourceMemberChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1422,6 +1395,50 @@ const onOpportunityChange = async (
         );
     }
   }
+
+  // Publish event when opportunity transitions to LIVE (for recruiter notifications)
+  if (
+    data.payload.op === 'u' &&
+    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.state === OpportunityState.LIVE &&
+    data.payload.before?.state !== OpportunityState.LIVE
+  ) {
+    await triggerTypedEvent(logger, 'api.v1.opportunity-went-live', {
+      opportunityId: data.payload.after!.id,
+      title: data.payload.after!.title,
+    });
+  }
+
+  // Trigger event when opportunity moves to IN_REVIEW
+  if (
+    data.payload.op === 'u' &&
+    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.state === OpportunityState.IN_REVIEW &&
+    data.payload.before?.state !== OpportunityState.IN_REVIEW
+  ) {
+    const opportunityData = data.payload.after as ChangeObject<OpportunityJob>;
+    const organizationId = opportunityData.organizationId;
+
+    if (organizationId) {
+      await triggerTypedEvent(logger, 'api.v1.opportunity-in-review', {
+        opportunityId: opportunityData.id,
+        organizationId,
+        title: opportunityData.title,
+      });
+    }
+  }
+
+  // Sync user opportunities when flags change
+  if (
+    data.payload.op === 'u' &&
+    data.payload.before?.flags !== data.payload.after?.flags
+  ) {
+    await triggerTypedEvent(logger, 'api.v1.opportunity-flags-change', {
+      opportunityId: data.payload.after!.id,
+      before: data.payload.before?.flags || null,
+      after: data.payload.after?.flags || null,
+    });
+  }
 };
 
 const onOrganizationChange = async (
@@ -1435,6 +1452,43 @@ const onOrganizationChange = async (
 
   if (!data.payload.before) {
     return;
+  }
+
+  // Sync organization members to Customer.io when recruiter subscription status changes
+  if (
+    isChanged(
+      data.payload.before!,
+      data.payload.after!,
+      'recruiterSubscriptionFlags',
+    )
+  ) {
+    // Find all users who are recruiters for opportunities in this organization
+    const recruiters = await con
+      .getRepository(OpportunityUser)
+      .createQueryBuilder('ou')
+      .innerJoin('ou.opportunity', 'opp')
+      .where('opp.organizationId = :organizationId', {
+        organizationId: data.payload.after!.id,
+      })
+      .andWhere('ou.type = :type', { type: OpportunityUserType.Recruiter })
+      .select('DISTINCT ou.userId', 'userId')
+      .getRawMany<{ userId: string }>();
+
+    // Sync all organization recruiters to update their has_active_recruiter_subscription flag
+    await Promise.all(
+      recruiters.map(async (recruiter) => {
+        const user = await con
+          .getRepository(User)
+          .findOneBy({ id: recruiter.userId });
+        if (user && user.infoConfirmed && user.emailConfirmed) {
+          const userChangeObject = convertUserToChangeObject(user);
+          await triggerTypedEvent(logger, 'user-updated', {
+            user: userChangeObject,
+            newProfile: userChangeObject,
+          });
+        }
+      }),
+    );
   }
 
   if (
@@ -1529,6 +1583,14 @@ const onUserExperienceChange = async (
     return;
   }
 
+  // Sync user opportunities in CIO when user experience changes
+  // This ensures opportunity matching is updated with latest profile info
+  await identifyUserOpportunities({
+    con,
+    cio,
+    userId: experience.userId,
+  });
+
   // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
   if (
     data.payload.op === 'c' &&
@@ -1591,6 +1653,38 @@ const onUserExperienceChange = async (
     await con
       .getRepository(UserExperienceWork)
       .update({ id: work.id }, { verified: isVerified });
+  }
+};
+
+const onOpportunityUserChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<OpportunityUser>,
+) => {
+  // Get the userId from either the new or deleted record
+  const userId = data.payload.after?.userId || data.payload.before?.userId;
+
+  if (!userId) {
+    return;
+  }
+
+  // Sync to Customer.io when a recruiter record is created or deleted
+  // This ensures the is_recruiter flag is updated immediately
+  const shouldSync =
+    (data.payload.op === 'c' &&
+      data.payload.after?.type === OpportunityUserType.Recruiter) ||
+    (data.payload.op === 'd' &&
+      data.payload.before?.type === OpportunityUserType.Recruiter);
+
+  if (shouldSync) {
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    if (user && user.infoConfirmed && user.emailConfirmed) {
+      const userChangeObject = convertUserToChangeObject(user);
+      await triggerTypedEvent(logger, 'user-updated', {
+        user: userChangeObject,
+        newProfile: userChangeObject,
+      });
+    }
   }
 };
 
@@ -1671,9 +1765,6 @@ const worker: Worker = {
         case getTableName(con, Submission):
           await onSubmissionChange(con, logger, data);
           break;
-        case getTableName(con, UserState):
-          await onUserStateChange(con, logger, data);
-          break;
         case getTableName(con, SourceMember):
           await onSourceMemberChange(con, logger, data);
           break;
@@ -1727,6 +1818,9 @@ const worker: Worker = {
           break;
         case getTableName(con, UserExperience):
           await onUserExperienceChange(con, logger, data);
+          break;
+        case getTableName(con, OpportunityUser):
+          await onOpportunityUserChange(con, logger, data);
           break;
       }
     } catch (err) {

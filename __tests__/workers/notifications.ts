@@ -76,7 +76,6 @@ import { commentReply } from '../../src/workers/notifications/commentReply';
 import { commentUpvoteMilestone } from '../../src/workers/notifications/commentUpvoteMilestone';
 import { communityPicksFailed } from '../../src/workers/notifications/communityPicksFailed';
 import { SubmissionFailErrorKeys } from '../../src/errors';
-import { communityPicksGranted } from '../../src/workers/notifications/communityPicksGranted';
 import { devCardUnlocked } from '../../src/workers/notifications/devCardUnlocked';
 import { postAdded } from '../../src/workers/notifications/postAdded';
 import { postMention } from '../../src/workers/notifications/postMention';
@@ -135,20 +134,6 @@ it('should add community picks failed notification', async () => {
       reason: SubmissionFailErrorKeys.GenericError,
       flags: '{}',
     },
-  });
-});
-
-it('should add community picks granted notification', async () => {
-  const actual = await invokeTypedNotificationWorker<'community-link-access'>(
-    communityPicksGranted,
-    {
-      userId: '1',
-    },
-  );
-  expect(actual.length).toEqual(1);
-  expect(actual[0].type).toEqual('community_picks_granted');
-  expect(actual[0].ctx).toEqual({
-    userIds: ['1'],
   });
 });
 

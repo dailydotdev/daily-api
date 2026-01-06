@@ -170,10 +170,6 @@ export const workers: Worker[] = [
     subscription: 'api.community-picks-failed-notification',
   },
   {
-    topic: 'community-link-access',
-    subscription: 'api.community-picks-granted-notification',
-  },
-  {
     topic: 'post-commented',
     subscription: 'api.article-new-comment-notification.post-commented',
   },
@@ -434,12 +430,31 @@ export const workers: Worker[] = [
     subscription: 'api.candidate-accepted-opportunity-slack',
   },
   {
+    topic: 'api.v1.candidate-accepted-opportunity',
+    subscription: 'api.recruiter-new-candidate-notification',
+  },
+  {
+    topic: 'api.v1.opportunity-went-live',
+    subscription: 'api.recruiter-opportunity-live-notification',
+  },
+  {
+    topic: 'api.v1.opportunity-in-review',
+    subscription: 'api.opportunity-in-review-slack',
+  },
+  {
+    topic: 'api.v1.opportunity-flags-change',
+    subscription: 'sync-opportunity-reminders-cio',
+  },
+  {
     topic: 'api.v1.recruiter-rejected-candidate-match',
     subscription: 'api.recruiter-rejected-candidate-match-email',
   },
   {
     topic: 'api.v1.candidate-preference-updated',
     subscription: 'api.parse-cv-profile',
+    args: {
+      ackDeadlineSeconds: 180,
+    }
   },
   {
     topic: 'gondul.v1.opportunity-preview-results',

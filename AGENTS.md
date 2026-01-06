@@ -90,6 +90,7 @@ This file provides guidance to coding agents when working with code in this repo
 - Database reset before each test run via pretest hook
 - Fixtures in `__tests__/fixture/` for test data
 - Mercurius integration testing for GraphQL endpoints
+- Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
 
 **Infrastructure Concerns:**
 - OpenTelemetry for distributed tracing and metrics
@@ -103,3 +104,23 @@ This file provides guidance to coding agents when working with code in this repo
 - `.infra/crons.ts` - Cron job schedules and resource limits
 - `.infra/common.ts` - Worker subscription definitions
 - `.infra/index.ts` - Main Pulumi deployment configuration
+
+## Best Practices & Lessons Learned
+
+**Avoiding Code Duplication:**
+- **Always check for existing implementations** before creating new helper functions. Use Grep or Glob tools to search for similar function names or logic patterns across the codebase.
+- **Prefer extracting to common utilities** when logic needs to be shared. Place shared helpers in appropriate `src/common/` subdirectories (e.g., `src/common/opportunity/` for opportunity-related helpers).
+- **Export and import, don't duplicate**: When you need the same logic in multiple places, export the function from its original location and import it where needed. This ensures a single source of truth and prevents maintenance issues.
+- **Example lesson**: When implementing `handleOpportunityKeywordsUpdate`, the function was duplicated in both `src/common/opportunity/parse.ts` and `src/schema/opportunity.ts`. This caused lint failures and maintenance burden. The correct approach was to export it from `parse.ts` and import it in `opportunity.ts`.
+
+## Pull Requests
+
+Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.
+
+## Claude Code Hooks
+
+Hooks are configured in `.claude/settings.json`:
+
+- **File Protection** (PreToolUse): Blocks edits to `pnpm-lock.yaml`, `src/migration/`, `.infra/Pulumi.*`, `.env`, `.git/`
+- **Prevent Force Push** (PreToolUse): Blocks `git push --force` and `git push -f`
+- **Auto-Lint** (PostToolUse): Runs `eslint --fix` on TypeScript files after edits
