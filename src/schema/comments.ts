@@ -1031,14 +1031,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .orderBy(`${builder.alias}.upvotes`, 'DESC')
           .limit(limit);
 
-        if (ctx.userId) {
-          builder.queryBuilder.andWhere(
-            whereNotUserBlocked(builder.queryBuilder, {
-              userId: ctx.userId,
-            }),
-          );
-        }
-
         return builder;
       });
     },
