@@ -1,8 +1,14 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
+import { Storage } from '@google-cloud/storage';
 import { retryFetch } from '../integrations/retry';
-import { WEBAPP_MAGIC_IMAGE_PREFIX } from '../config';
+import {
+  WEBAPP_MAGIC_IMAGE_PREFIX,
+  YEAR_IN_REVIEW_BUCKET_NAME,
+} from '../config';
 import createOrGetConnection from '../db';
 import { User } from '../entity';
+
+const storage = new Storage();
 
 // Record types matching the webapp's RecordType enum
 const RecordType = {
@@ -127,6 +133,29 @@ const MOCK_LOG_DATA = {
   shareCount: 24853,
 };
 
+/**
+ * Fetch user's year-in-review log data from GCS bucket.
+ * Returns null if the file doesn't exist.
+ */
+async function fetchLogDataFromGCS(
+  userId: string,
+): Promise<typeof MOCK_LOG_DATA | null> {
+  try {
+    const bucket = storage.bucket(YEAR_IN_REVIEW_BUCKET_NAME);
+    const file = bucket.file(`2025/first_30/${userId}.json`);
+
+    const [exists] = await file.exists();
+    if (!exists) {
+      return null;
+    }
+
+    const [content] = await file.download();
+    return JSON.parse(content.toString());
+  } catch (error) {
+    return null;
+  }
+}
+
 // Valid card types for log share images (welcome is not shareable)
 const VALID_CARD_TYPES = [
   'total-impact',
@@ -228,22 +257,24 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   /**
    * GET /log
    * Returns the user's log data for the year.
+   * Accepts optional userId query param to fetch specific user's data from GCS.
    * Returns 404 if user doesn't have enough data (no JSON file exists).
    */
-  fastify.get('/', async (req, res) => {
-    if (!req.userId) {
-      return res.status(401).send({ error: 'Unauthorized' });
+  fastify.get<{
+    Querystring: { userId?: string };
+  }>('/', async (req, res) => {
+    const { userId } = req.query;
+
+    // If userId query param is provided, fetch from GCS
+    if (userId) {
+      const logData = await fetchLogDataFromGCS(userId);
+      if (!logData) {
+        return res.status(404).send({ error: 'No log data available' });
+      }
+      return res.send(logData);
     }
 
-    // TODO: Replace with actual JSON file lookup based on req.userId
-    // In production, this will check if the user's JSON file exists
-    const userDataExists = true;
-
-    if (!userDataExists) {
-      return res.status(404).send({ error: 'No log data available' });
-    }
-
-    // TODO: Replace mock data with actual user data from JSON file
+    // Fall back to mock data when no userId provided
     return res.send(MOCK_LOG_DATA);
   });
 
@@ -288,17 +319,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send({ error: 'User not found' });
       }
 
-      // TODO: Replace with actual JSON file lookup based on req.userId
-      // In production, this will check if the user's JSON file exists
-      const userDataExists = true;
-
-      if (!userDataExists) {
-        return res.status(404).send({ error: 'No log data available' });
-      }
-
-      // Fetch user's log data
-      // TODO: Replace with actual data fetching from JSON file
-      const logData = MOCK_LOG_DATA;
+      // Fetch user's log data from GCS, fall back to mock data
+      const logData = (await fetchLogDataFromGCS(req.userId)) ?? MOCK_LOG_DATA;
 
       // Extract only the data needed for this card type
       const cardData = extractCardData(card as CardType, logData);
