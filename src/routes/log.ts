@@ -37,13 +37,13 @@ const MOCK_LOG_DATA = {
   peakDay: 'Thursday',
   readingPattern: 'night' as const,
   patternPercentile: 8,
-  activityHeatmap: Array(7)
-    .fill(null)
-    .map(() =>
-      Array(24)
-        .fill(0)
-        .map(() => Math.floor(Math.random() * 10)),
-    ),
+  activityHeatmap: (() => {
+    const raw = Array(24)
+      .fill(0)
+      .map(() => Math.random());
+    const sum = raw.reduce((a, b) => a + b, 0);
+    return raw.map((v) => v / sum);
+  })(),
 
   // Card 3: Topic Evolution
   topicJourney: [
