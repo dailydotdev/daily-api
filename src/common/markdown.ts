@@ -1,5 +1,6 @@
 import MarkdownIt, { Renderer, Token } from 'markdown-it';
 import hljs from 'highlight.js';
+import DOMPurify from 'isomorphic-dompurify';
 import { getUserProfileUrl } from './users';
 import { CommentMention, PostMention, User } from '../entity';
 import { DataSource, EntityManager } from 'typeorm';
@@ -7,6 +8,28 @@ import { MentionedUser } from '../schema/comments';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { ghostUser } from './utils';
 import { isValidHttpUrl } from './links';
+
+/**
+ * Sanitizes HTML content, allowing only safe tags for rich text content.
+ * Used for opportunity content sections (WYSIWYG editor output).
+ */
+export const sanitizeHtml = (html: string): string => {
+  // Use hook to properly set link attributes without creating duplicates
+  DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+    if (node.tagName === 'A') {
+      node.setAttribute('target', '_blank');
+      node.setAttribute('rel', 'noopener nofollow');
+    }
+  });
+
+  const result = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'br'],
+    ALLOWED_ATTR: ['href', 'target', 'rel'],
+  });
+
+  DOMPurify.removeHook('afterSanitizeAttributes');
+  return result;
+};
 
 export const markdown: MarkdownIt = MarkdownIt({
   html: false,
