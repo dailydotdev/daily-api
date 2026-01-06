@@ -2354,9 +2354,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }
         case OpportunityState.LIVE: {
           if (!ctx.isTeamMember) {
-            throw new ForbiddenError(
-              'Only team members can move an opportunity directly to live',
-            );
+            throw new ConflictError('Invalid state transition');
           }
 
           await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
