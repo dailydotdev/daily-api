@@ -22,14 +22,6 @@ export const sanitizeHtml = (html: string): string => {
   }).replace(/<a /g, '<a target="_blank" rel="noopener nofollow" ');
 };
 
-/**
- * Detects if content appears to be HTML (contains HTML tags)
- */
-export const isHtmlContent = (content: string): boolean => {
-  // Check for common HTML tags used in rich text
-  return /<\/?(?:p|strong|em|ul|ol|li|a|br)[^>]*>/i.test(content);
-};
-
 export const markdown: MarkdownIt = MarkdownIt({
   html: false,
   linkify: true,

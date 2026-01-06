@@ -65,7 +65,7 @@ import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
 } from '../common/opportunity/accessControl';
-import { markdown, sanitizeHtml, isHtmlContent } from '../common/markdown';
+import { sanitizeHtml } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not, JsonContains, EntityManager } from 'typeorm';
 import { Organization } from '../entity/Organization';
@@ -1056,9 +1056,7 @@ async function updateCandidateMatchStatus(
 
 /**
  * Renders content for opportunity fields
- * Handles both HTML (from WYSIWYG editor) and markdown (legacy) content
- * - If content contains HTML tags, sanitizes it directly
- * - If content is markdown (legacy), converts to HTML
+ * Sanitizes HTML content from WYSIWYG editor
  */
 function renderOpportunityContent(
   content: Record<string, { content?: string }> | undefined,
@@ -1070,10 +1068,7 @@ function renderOpportunityContent(
       return;
     }
 
-    // Detect if content is HTML (from WYSIWYG editor) or markdown (legacy)
-    const html = isHtmlContent(value.content)
-      ? sanitizeHtml(value.content)
-      : markdown.render(value.content);
+    const html = sanitizeHtml(value.content);
 
     renderedContent[key] = {
       content: value.content,
