@@ -2352,6 +2352,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           break;
         }
+        case OpportunityState.LIVE: {
+          if (!ctx.isTeamMember) {
+            throw new ForbiddenError(
+              'Only team members can move an opportunity directly to live',
+            );
+          }
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
+        }
         case OpportunityState.CLOSED:
           if (opportunity.state !== OpportunityState.LIVE) {
             throw new ConflictError(`This opportunity is not live`);
