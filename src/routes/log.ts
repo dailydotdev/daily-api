@@ -1,7 +1,10 @@
 import { FastifyInstance, FastifyReply } from 'fastify';
 import { Storage } from '@google-cloud/storage';
 import { retryFetch } from '../integrations/retry';
-import { WEBAPP_MAGIC_IMAGE_PREFIX, YEAR_IN_REVIEW_BUCKET_NAME } from '../config';
+import {
+  WEBAPP_MAGIC_IMAGE_PREFIX,
+  YEAR_IN_REVIEW_BUCKET_NAME,
+} from '../config';
 import createOrGetConnection from '../db';
 import { User } from '../entity';
 
@@ -134,7 +137,9 @@ const MOCK_LOG_DATA = {
  * Fetch user's year-in-review log data from GCS bucket.
  * Returns null if the file doesn't exist.
  */
-async function fetchLogDataFromGCS(userId: string): Promise<typeof MOCK_LOG_DATA | null> {
+async function fetchLogDataFromGCS(
+  userId: string,
+): Promise<typeof MOCK_LOG_DATA | null> {
   try {
     const bucket = storage.bucket(YEAR_IN_REVIEW_BUCKET_NAME);
     const file = bucket.file(`2025/first_30/${userId}.json`);
@@ -269,17 +274,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.send(logData);
     }
 
-    // Otherwise require authentication and use authenticated user's ID
-    if (!req.userId) {
-      return res.status(401).send({ error: 'Unauthorized' });
-    }
-
-    const logData = await fetchLogDataFromGCS(req.userId);
-    if (!logData) {
-      return res.status(404).send({ error: 'No log data available' });
-    }
-
-    return res.send(logData);
+    // Fall back to mock data when no userId provided
+    return res.send(MOCK_LOG_DATA);
   });
 
   /**
@@ -323,11 +319,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(404).send({ error: 'User not found' });
       }
 
-      // Fetch user's log data from GCS
-      const logData = await fetchLogDataFromGCS(req.userId);
-      if (!logData) {
-        return res.status(404).send({ error: 'No log data available' });
-      }
+      // Fetch user's log data from GCS, fall back to mock data
+      const logData = (await fetchLogDataFromGCS(req.userId)) ?? MOCK_LOG_DATA;
 
       // Extract only the data needed for this card type
       const cardData = extractCardData(card as CardType, logData);
