@@ -1,17 +1,6 @@
 import { readFileSync } from 'fs';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
-import { SourceTagView } from '../src/entity/SourceTagView';
-import { TagRecommendation } from '../src/entity/TagRecommendation';
-import { PopularPost } from '../src/entity/PopularPost';
-import { PopularSource } from '../src/entity/PopularSource';
-import { PopularTag } from '../src/entity/PopularTag';
-import { PopularVideoPost } from '../src/entity/PopularVideoPost';
-import { PopularVideoSource } from '../src/entity/PopularVideoSource';
-import { TrendingPost } from '../src/entity/TrendingPost';
-import { TrendingSource } from '../src/entity/TrendingSource';
-import { TrendingTag } from '../src/entity/TrendingTag';
-import { UserStats } from '../src/entity/user/UserStats';
 import z from 'zod';
 import { zodToParseArgs } from './common';
 
@@ -39,17 +28,17 @@ const importEntity = async (
 };
 
 const viewsToRefresh = [
-  TagRecommendation,
-  SourceTagView,
-  TrendingPost,
-  TrendingSource,
-  TrendingTag,
-  PopularPost,
-  PopularSource,
-  PopularTag,
-  PopularVideoPost,
-  PopularVideoSource,
-  UserStats,
+  'TagRecommendation',
+  'SourceTagView',
+  'TrendingPost',
+  'TrendingSource',
+  'TrendingTag',
+  'PopularPost',
+  'PopularSource',
+  'PopularTag',
+  'PopularVideoPost',
+  'PopularVideoSource',
+  'UserStats',
 ];
 
 const paramsSchema = z.object({
