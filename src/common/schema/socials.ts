@@ -82,3 +82,78 @@ export const socialFieldsSchema = z.object({
 });
 
 export type SocialFields = z.infer<typeof socialFieldsSchema>;
+
+/**
+ * Domain-to-platform mapping for auto-detection
+ */
+const PLATFORM_DOMAINS: Record<string, string> = {
+  'linkedin.com': 'linkedin',
+  'github.com': 'github',
+  'twitter.com': 'twitter',
+  'x.com': 'twitter',
+  'threads.net': 'threads',
+  'bsky.app': 'bluesky',
+  'roadmap.sh': 'roadmap',
+  'codepen.io': 'codepen',
+  'reddit.com': 'reddit',
+  'stackoverflow.com': 'stackoverflow',
+  'youtube.com': 'youtube',
+  'youtu.be': 'youtube',
+  'hashnode.com': 'hashnode',
+  'hashnode.dev': 'hashnode',
+};
+
+/**
+ * Detect platform from a URL
+ * @param url - Full URL to detect platform from
+ * @returns Platform identifier or null if not detected
+ */
+export function detectPlatformFromUrl(url: string): string | null {
+  try {
+    const hostname = new URL(url).hostname.replace(/^(www\.|m\.)/, '');
+
+    // Check for exact matches first
+    if (PLATFORM_DOMAINS[hostname]) {
+      return PLATFORM_DOMAINS[hostname];
+    }
+
+    // Check for partial matches (subdomains like mastodon instances)
+    for (const [domain, platform] of Object.entries(PLATFORM_DOMAINS)) {
+      if (hostname.endsWith(`.${domain}`) || hostname === domain) {
+        return platform;
+      }
+    }
+
+    // Special handling for mastodon instances (format: instance/@username)
+    if (hostname.match(/^[a-z0-9-]+\.[a-z]{2,}$/) && url.includes('/@')) {
+      return 'mastodon';
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Schema for a single social link input
+ */
+export const socialLinkInputSchema = z.object({
+  url: z.string().url(),
+  platform: z.string().optional(),
+});
+
+/**
+ * Schema for socialLinks array input with auto-detection and transformation
+ */
+export const socialLinksInputSchema = z
+  .array(socialLinkInputSchema)
+  .transform((links) =>
+    links.map(({ url, platform }) => ({
+      platform: platform || detectPlatformFromUrl(url) || 'other',
+      url,
+    })),
+  );
+
+export type SocialLinkInput = z.input<typeof socialLinkInputSchema>;
+export type SocialLink = z.output<typeof socialLinksInputSchema>[number];
