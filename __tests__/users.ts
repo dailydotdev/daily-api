@@ -4213,6 +4213,97 @@ describe('mutation updateUserProfile', () => {
     expect(updated?.flags.vordr).toBe(true);
     expect(updated?.flags.trustScore).toBe(0.9);
   });
+
+  it('should update socialLinks with auto-detected platforms', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [
+            { url: 'https://github.com/testuser' },
+            { url: 'https://twitter.com/testhandle' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual([
+      { platform: 'github', url: 'https://github.com/testuser' },
+      { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+    ]);
+  });
+
+  it('should update socialLinks with explicit platform override', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [
+            { url: 'https://example.com/profile', platform: 'custom' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual([
+      { platform: 'custom', url: 'https://example.com/profile' },
+    ]);
+  });
+
+  it('should dual-write to legacy columns when updating socialLinks', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [
+            { url: 'https://github.com/myhandle' },
+            { url: 'https://linkedin.com/in/myprofile' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.github).toBe('myhandle');
+    expect(updated?.linkedin).toBe('myprofile');
+  });
+
+  it('should clear socialLinks when empty array is provided', async () => {
+    loggedUser = '1';
+
+    // First set some social links
+    await con.getRepository(User).update(
+      { id: loggedUser },
+      {
+        socialLinks: [{ platform: 'github', url: 'https://github.com/test' }],
+      },
+    );
+
+    // Then clear them
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual([]);
+  });
 });
 
 describe('mutation deleteUser', () => {

@@ -82,6 +82,11 @@ export type UserNotificationFlags = Partial<
   >
 >;
 
+export interface UserSocialLink {
+  platform: string;
+  url: string;
+}
+
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
 @Index('IDX_user_lowertwitter', { synchronize: false })
@@ -320,6 +325,9 @@ export class User {
 
   @Column({ type: 'jsonb', default: {} })
   notificationFlags: UserNotificationFlags;
+
+  @Column({ type: 'jsonb', default: [] })
+  socialLinks: UserSocialLink[];
 
   @OneToOne(
     'UserCandidatePreference',

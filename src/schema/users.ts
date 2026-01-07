@@ -29,7 +29,8 @@ import {
   UserStreakActionType,
   View,
 } from '../entity';
-import { UserNotificationFlags } from '../entity/user/User';
+import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
+import { socialLinksInputSchema } from '../common/schema/socials';
 import {
   AuthenticationError,
   ForbiddenError,
@@ -198,6 +199,7 @@ export interface GQLUpdateUserInput {
   defaultFeedId?: string;
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
+  socialLinks?: Array<{ url: string; platform?: string }>;
 }
 
 export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
@@ -250,6 +252,7 @@ export interface GQLUser {
   coresRole: CoresRole;
   isPlus?: boolean;
   notificationFlags: UserNotificationFlags;
+  socialLinks: UserSocialLink[];
 }
 
 export interface GQLView {
@@ -317,6 +320,34 @@ export interface SendReportArgs {
 }
 
 export const typeDefs = /* GraphQL */ `
+  """
+  Social media link for a user profile
+  """
+  type UserSocialLink {
+    """
+    Platform identifier (e.g., "twitter", "github", "linkedin")
+    """
+    platform: String!
+    """
+    Full URL to the social profile
+    """
+    url: String!
+  }
+
+  """
+  Input for creating/updating a social link
+  """
+  input UserSocialLinkInput {
+    """
+    Full URL to the social profile - platform will be auto-detected
+    """
+    url: String!
+    """
+    Optional platform override if auto-detection fails
+    """
+    platform: String
+  }
+
   type Company {
     id: String!
     name: String!
@@ -416,55 +447,55 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Portfolio URL of the user
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     Date when the user joined
     """
@@ -538,6 +569,10 @@ export const typeDefs = /* GraphQL */ `
     Whether to hide user's experience
     """
     hideExperience: Boolean
+    """
+    Flexible social media links array (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLink!]!
   }
 
   """
@@ -605,51 +640,51 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Preferred timezone of the user that affects data
     """
@@ -669,7 +704,7 @@ export const typeDefs = /* GraphQL */ `
     """
     User website
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     If the user has accepted marketing
     """
@@ -694,6 +729,10 @@ export const typeDefs = /* GraphQL */ `
     Flags for the user
     """
     flags: UserFlagsPublic
+    """
+    Flexible social media links (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLinkInput!]
   }
 
   """
@@ -727,51 +766,51 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Preferred timezone of the user that affects data
     """
@@ -791,7 +830,7 @@ export const typeDefs = /* GraphQL */ `
     """
     User website
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     If the user has accepted marketing
     """
@@ -832,6 +871,10 @@ export const typeDefs = /* GraphQL */ `
     Whether to hide user's experience
     """
     hideExperience: Boolean
+    """
+    Flexible social media links (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLinkInput!]
   }
 
   type TagsReadingStatus {
@@ -1673,6 +1716,123 @@ export const clearImagePreset = async ({
   }
 };
 
+/**
+ * Extract handle/value from URL for legacy column storage
+ */
+function extractHandleFromUrl(url: string, platform: string): string | null {
+  if (!url) return null;
+
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname.replace(/\/$/, ''); // Remove trailing slash
+
+    switch (platform) {
+      case 'twitter':
+        // https://x.com/username or https://twitter.com/username
+        return pathname.replace(/^\//, '').replace('@', '') || null;
+      case 'github':
+        // https://github.com/username
+        return pathname.replace(/^\//, '') || null;
+      case 'linkedin':
+        // https://linkedin.com/in/username
+        return pathname.replace(/^\/in\//, '') || null;
+      case 'threads':
+        // https://threads.net/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'roadmap':
+        // https://roadmap.sh/u/username
+        return pathname.replace(/^\/u\//, '') || null;
+      case 'codepen':
+        // https://codepen.io/username
+        return pathname.replace(/^\//, '') || null;
+      case 'reddit':
+        // https://reddit.com/u/username or /user/username
+        return pathname.replace(/^\/(u|user)\//, '') || null;
+      case 'stackoverflow':
+        // https://stackoverflow.com/users/123/username
+        return pathname.replace(/^\/users\//, '') || null;
+      case 'youtube':
+        // https://youtube.com/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'bluesky':
+        // https://bsky.app/profile/username.bsky.social
+        return pathname.replace(/^\/profile\//, '') || null;
+      case 'mastodon':
+        // Full URL is stored for mastodon
+        return url;
+      case 'hashnode':
+        // Full URL is stored for hashnode
+        return url;
+      case 'portfolio':
+        // Full URL is stored for portfolio
+        return url;
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Process socialLinks input and return both the JSONB array and legacy column values
+ */
+function processSocialLinksForDualWrite(
+  socialLinksInput: Array<{ url: string; platform?: string }>,
+): {
+  socialLinks: UserSocialLink[];
+  legacyColumns: Partial<
+    Record<
+      | 'twitter'
+      | 'github'
+      | 'linkedin'
+      | 'threads'
+      | 'roadmap'
+      | 'codepen'
+      | 'reddit'
+      | 'stackoverflow'
+      | 'youtube'
+      | 'bluesky'
+      | 'mastodon'
+      | 'hashnode'
+      | 'portfolio',
+      string | null
+    >
+  >;
+} {
+  // Validate and transform using Zod schema
+  const validated = socialLinksInputSchema.parse(socialLinksInput);
+
+  // Build legacy column values (first occurrence wins)
+  const legacyColumns: Record<string, string | null> = {};
+  const supportedPlatforms = [
+    'twitter',
+    'github',
+    'linkedin',
+    'threads',
+    'roadmap',
+    'codepen',
+    'reddit',
+    'stackoverflow',
+    'youtube',
+    'bluesky',
+    'mastodon',
+    'hashnode',
+    'portfolio',
+  ];
+
+  for (const { platform, url } of validated) {
+    if (supportedPlatforms.includes(platform) && !legacyColumns[platform]) {
+      legacyColumns[platform] = extractHandleFromUrl(url, platform);
+    }
+  }
+
+  return {
+    socialLinks: validated,
+    legacyColumns,
+  };
+}
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -2423,7 +2583,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           : data.image || user.image;
 
       try {
-        const updatedUser = { ...user, ...data, image: avatar };
+        // Process socialLinks for dual-write if provided
+        let socialLinksData: {
+          socialLinks?: UserSocialLink[];
+          legacyColumns?: Record<string, string | null>;
+        } = {};
+        if (data.socialLinks) {
+          socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        }
+
+        const updatedUser = {
+          ...user,
+          ...data,
+          image: avatar,
+          ...(socialLinksData.legacyColumns || {}),
+          socialLinks: socialLinksData.socialLinks ?? user.socialLinks,
+        };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
         const marketingFlag = updatedUser.acceptedMarketing
@@ -2558,6 +2733,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       try {
         delete data.externalLocationId;
 
+        // Process socialLinks for dual-write if provided
+        let socialLinksData: {
+          socialLinks?: UserSocialLink[];
+          legacyColumns?: Record<string, string | null>;
+        } = {};
+        if (data.socialLinks) {
+          socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        }
+
         const updatedUser = {
           ...user,
           ...data,
@@ -2565,6 +2749,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           cover,
           readmeHtml,
           locationId: location?.id || null,
+          ...(socialLinksData.legacyColumns || {}),
+          socialLinks: socialLinksData.socialLinks ?? user.socialLinks,
         };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
