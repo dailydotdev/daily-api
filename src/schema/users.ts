@@ -30,6 +30,7 @@ import {
   View,
 } from '../entity';
 import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
+import { socialLinksInputSchema } from '../common/schema/socials';
 import {
   AuthenticationError,
   ForbiddenError,
@@ -198,6 +199,7 @@ export interface GQLUpdateUserInput {
   defaultFeedId?: string;
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
+  socialLinks?: Array<{ url: string; platform?: string }>;
 }
 
 export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
@@ -727,6 +729,10 @@ export const typeDefs = /* GraphQL */ `
     Flags for the user
     """
     flags: UserFlagsPublic
+    """
+    Flexible social media links (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLinkInput!]
   }
 
   """
@@ -865,6 +871,10 @@ export const typeDefs = /* GraphQL */ `
     Whether to hide user's experience
     """
     hideExperience: Boolean
+    """
+    Flexible social media links (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLinkInput!]
   }
 
   type TagsReadingStatus {
@@ -1706,6 +1716,126 @@ export const clearImagePreset = async ({
   }
 };
 
+/**
+ * Extract handle/value from URL for legacy column storage
+ */
+function extractHandleFromUrl(
+  url: string,
+  platform: string,
+): string | null | undefined {
+  if (!url) return null;
+
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname.replace(/\/$/, ''); // Remove trailing slash
+
+    switch (platform) {
+      case 'twitter':
+        // https://x.com/username or https://twitter.com/username
+        return pathname.replace(/^\//, '').replace('@', '') || null;
+      case 'github':
+        // https://github.com/username
+        return pathname.replace(/^\//, '') || null;
+      case 'linkedin':
+        // https://linkedin.com/in/username
+        return pathname.replace(/^\/in\//, '') || null;
+      case 'threads':
+        // https://threads.net/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'roadmap':
+        // https://roadmap.sh/u/username
+        return pathname.replace(/^\/u\//, '') || null;
+      case 'codepen':
+        // https://codepen.io/username
+        return pathname.replace(/^\//, '') || null;
+      case 'reddit':
+        // https://reddit.com/u/username or /user/username
+        return pathname.replace(/^\/(u|user)\//, '') || null;
+      case 'stackoverflow':
+        // https://stackoverflow.com/users/123/username
+        return pathname.replace(/^\/users\//, '') || null;
+      case 'youtube':
+        // https://youtube.com/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'bluesky':
+        // https://bsky.app/profile/username.bsky.social
+        return pathname.replace(/^\/profile\//, '') || null;
+      case 'mastodon':
+        // Full URL is stored for mastodon
+        return url;
+      case 'hashnode':
+        // Full URL is stored for hashnode
+        return url;
+      case 'portfolio':
+        // Full URL is stored for portfolio
+        return url;
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Process socialLinks input and return both the JSONB array and legacy column values
+ */
+function processSocialLinksForDualWrite(
+  socialLinksInput: Array<{ url: string; platform?: string }>,
+): {
+  socialLinks: UserSocialLink[];
+  legacyColumns: Partial<
+    Record<
+      | 'twitter'
+      | 'github'
+      | 'linkedin'
+      | 'threads'
+      | 'roadmap'
+      | 'codepen'
+      | 'reddit'
+      | 'stackoverflow'
+      | 'youtube'
+      | 'bluesky'
+      | 'mastodon'
+      | 'hashnode'
+      | 'portfolio',
+      string | null
+    >
+  >;
+} {
+  // Validate and transform using Zod schema
+  const validated = socialLinksInputSchema.parse(socialLinksInput);
+
+  // Build legacy column values (first occurrence wins)
+  const legacyColumns: Record<string, string | null> = {};
+  const supportedPlatforms = [
+    'twitter',
+    'github',
+    'linkedin',
+    'threads',
+    'roadmap',
+    'codepen',
+    'reddit',
+    'stackoverflow',
+    'youtube',
+    'bluesky',
+    'mastodon',
+    'hashnode',
+    'portfolio',
+  ];
+
+  for (const { platform, url } of validated) {
+    if (supportedPlatforms.includes(platform) && !legacyColumns[platform]) {
+      legacyColumns[platform] = extractHandleFromUrl(url, platform);
+    }
+  }
+
+  return {
+    socialLinks: validated,
+    legacyColumns,
+  };
+}
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -2456,7 +2586,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           : data.image || user.image;
 
       try {
-        const updatedUser = { ...user, ...data, image: avatar };
+        // Process socialLinks for dual-write if provided
+        let socialLinksData: {
+          socialLinks?: UserSocialLink[];
+          legacyColumns?: Record<string, string | null>;
+        } = {};
+        if (data.socialLinks) {
+          socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        }
+
+        const updatedUser = {
+          ...user,
+          ...data,
+          image: avatar,
+          ...(socialLinksData.legacyColumns || {}),
+          socialLinks: socialLinksData.socialLinks ?? user.socialLinks,
+        };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
         const marketingFlag = updatedUser.acceptedMarketing
@@ -2591,6 +2736,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       try {
         delete data.externalLocationId;
 
+        // Process socialLinks for dual-write if provided
+        let socialLinksData: {
+          socialLinks?: UserSocialLink[];
+          legacyColumns?: Record<string, string | null>;
+        } = {};
+        if (data.socialLinks) {
+          socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        }
+
         const updatedUser = {
           ...user,
           ...data,
@@ -2598,6 +2752,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           cover,
           readmeHtml,
           locationId: location?.id || null,
+          ...(socialLinksData.legacyColumns || {}),
+          socialLinks: socialLinksData.socialLinks ?? user.socialLinks,
         };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
