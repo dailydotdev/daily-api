@@ -1719,10 +1719,7 @@ export const clearImagePreset = async ({
 /**
  * Extract handle/value from URL for legacy column storage
  */
-function extractHandleFromUrl(
-  url: string,
-  platform: string,
-): string | null | undefined {
+function extractHandleFromUrl(url: string, platform: string): string | null {
   if (!url) return null;
 
   try {
