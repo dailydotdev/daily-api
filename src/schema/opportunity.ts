@@ -2354,6 +2354,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           break;
         }
+        case OpportunityState.LIVE: {
+          if (!ctx.isTeamMember) {
+            throw new ConflictError('Invalid state transition');
+          }
+
+          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
+
+          break;
+        }
         case OpportunityState.CLOSED:
           if (opportunity.state !== OpportunityState.LIVE) {
             throw new ConflictError(`This opportunity is not live`);
