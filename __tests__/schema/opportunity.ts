@@ -4040,7 +4040,7 @@ describe('mutation editOpportunity', () => {
         payload: {
           content: {
             requirements: {
-              content: 'Updated requirements *italic*',
+              content: '<p>Updated requirements <em>italic</em></p>',
             },
           },
         },
@@ -4054,8 +4054,8 @@ describe('mutation editOpportunity', () => {
         html: '<p>We are looking for a Senior Full Stack Developer...</p>',
       },
       requirements: {
-        content: 'Updated requirements *italic*',
-        html: '<p>Updated requirements <em>italic</em></p>\n',
+        content: '<p>Updated requirements <em>italic</em></p>',
+        html: '<p>Updated requirements <em>italic</em></p>',
       },
     });
 
@@ -4068,8 +4068,8 @@ describe('mutation editOpportunity', () => {
         html: '<p>We are looking for a Senior Full Stack Developer...</p>',
       },
       requirements: {
-        content: 'Updated requirements *italic*',
-        html: '<p>Updated requirements <em>italic</em></p>\n',
+        content: '<p>Updated requirements <em>italic</em></p>',
+        html: '<p>Updated requirements <em>italic</em></p>',
       },
     });
   });

@@ -117,6 +117,7 @@
     "ioredis": "^5.9.0",
     "is-in-subnet": "^4.0.1",
     "isbot": "^5.1.32",
+    "isomorphic-dompurify": "^2.35.0",
     "jsonexport": "^3.2.0",
     "jsonwebtoken": "^9.0.3",
     "lodash": "^4.17.21",
