@@ -19,8 +19,18 @@ This file provides guidance to coding agents when working with code in this repo
 - `pnpm run db:migrate:latest` - Apply latest migrations
 - `pnpm run db:migrate:reset` - Drop schema and rerun migrations
 - `pnpm run db:seed:import` - Import seed data for local development
-- `pnpm run db:migrate:make` - Generate new migration based on entity changes
-- `pnpm run db:migrate:create` - Create empty migration file
+- `pnpm run db:migrate:make src/migration/MigrationName` - Generate new migration based on entity changes
+- `pnpm run db:migrate:create src/migration/MigrationName` - Create empty migration file
+
+**Migration Generation:**
+When adding or modifying entity columns, **always generate a migration** using:
+```bash
+# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 22.16)
+cd /path/to/daily-api
+nvm use
+pnpm run db:migrate:make src/migration/DescriptiveMigrationName
+```
+The migration generator compares entities against the local database schema. Ensure your local DB is up to date with `pnpm run db:migrate:latest` before generating new migrations.
 
 **Building & Testing:**
 - `pnpm run build` - Compile TypeScript to build directory
