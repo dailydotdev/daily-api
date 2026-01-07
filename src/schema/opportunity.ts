@@ -2607,11 +2607,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
 
         stepStart = Date.now();
-        const parsedData = await parseOpportunityWithBrokkr(
+        const parsedData = await parseOpportunityWithBrokkr({
           buffer,
           mime,
-          ctx.log,
-        );
+          extension,
+        });
         ctx.log.info(
           {
             durationMs: Date.now() - stepStart,
@@ -2711,11 +2711,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
 
         stepStart = Date.now();
-        const parsedData = await parseOpportunityWithBrokkr(
+        const parsedData = await parseOpportunityWithBrokkr({
           buffer,
           mime,
-          ctx.log,
-        );
+          extension,
+        });
         ctx.log.info(
           {
             durationMs: Date.now() - stepStart,

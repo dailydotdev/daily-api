@@ -1,6 +1,4 @@
 import z from 'zod';
-import { randomUUID } from 'node:crypto';
-import { Storage } from '@google-cloud/storage';
 import { FastifyBaseLogger } from 'fastify';
 import { DataSource, DeepPartial, IsNull, Not } from 'typeorm';
 import { fileTypeFromBuffer } from 'file-type';
@@ -9,6 +7,7 @@ import {
   OpportunityContent,
   OpportunityState,
   BrokkrParseRequest,
+  FileBlob,
 } from '@dailydotdev/schema';
 
 import { getBufferFromStream } from '../utils';
@@ -18,8 +17,6 @@ import {
   acceptedOpportunityFileTypes,
   opportunityMatchBatchSize,
 } from '../../types';
-import { RESUME_BUCKET_NAME } from '../../config';
-import { deleteFileFromBucket, uploadResumeFromBuffer } from '../googleCloud';
 import { getBrokkrClient } from '../brokkr';
 import { opportunityCreateParseSchema } from '../schema/opportunities';
 import { markdown } from '../markdown';
@@ -31,6 +28,8 @@ import { findDatasetLocation } from '../../entity/dataset/utils';
 import { addOpportunityDefaultQuestionFeedback } from './question';
 import type { Opportunity } from '../../entity/opportunities/Opportunity';
 import { EntityManager } from 'typeorm';
+import { logger } from '../../logger';
+import { randomUUID } from 'node:crypto';
 
 interface FileUpload {
   filename: string;
@@ -165,94 +164,97 @@ function renderOpportunityMarkdownContent(
  * Parses an opportunity file using the Brokkr service
  *
  * Handles:
- * - Uploading file to GCS
- * - Calling Brokkr to parse the opportunity
- * - Cleaning up the uploaded file
+ * - Sending the file blob to Brokkr for parsing
  * - Rendering markdown content
  *
- * @param buffer - The file buffer to parse
- * @param mime - The MIME type of the file
- * @param log - Logger instance for debugging
- * @returns The parsed opportunity data with rendered content
+ * @export
+ * @param {{
+ *   buffer: Buffer;
+ *   mime: string;
+ *   extension: string;
+ * }} {
+ *   buffer,
+ *   mime,
+ *   extension,
+ * }
+ * @return {*}  {Promise<ParsedOpportunityResult>}
  */
-export async function parseOpportunityWithBrokkr(
-  buffer: Buffer,
-  mime: string,
-  log: FastifyBaseLogger,
-): Promise<ParsedOpportunityResult> {
-  const filename = `job-opportunity-${randomUUID()}.pdf`;
+export async function parseOpportunityWithBrokkr({
+  buffer,
+  mime,
+  extension,
+}: {
+  buffer: Buffer;
+  mime: string;
+  extension: string;
+}): Promise<ParsedOpportunityResult> {
+  const filename = `job-opportunity-parse-${randomUUID()}.pdf`;
 
-  try {
-    await uploadResumeFromBuffer(filename, buffer, {
-      contentType: mime,
-    });
+  const brokkrClient = getBrokkrClient();
 
-    const brokkrClient = getBrokkrClient();
-
-    const result = await brokkrClient.garmr.execute(() => {
-      return brokkrClient.instance.parseOpportunity(
-        new BrokkrParseRequest({
-          bucketName: RESUME_BUCKET_NAME,
-          blobName: filename,
+  const result = await brokkrClient.garmr.execute(() => {
+    return brokkrClient.instance.parseOpportunity(
+      new BrokkrParseRequest({
+        blobName: filename,
+        blob: new FileBlob({
+          mime,
+          ext: extension,
+          content: buffer,
         }),
-      );
-    });
+      }),
+    );
+  });
 
-    log.info(result, 'brokkrParseOpportunityResponse');
+  logger.info(result, 'brokkrParseOpportunityResponse');
 
-    // Sanitize Brokkr response - filter out invalid locations
-    const sanitizedOpportunity = {
-      ...result.opportunity,
-      location: Array.isArray(result.opportunity?.location)
-        ? result.opportunity.location
-            .map((loc) => {
-              if (
-                !loc.country &&
-                loc.continent?.toLowerCase().trim() === 'europe'
-              ) {
-                return {
-                  ...loc,
-                  country: 'Europe',
-                  iso2: 'EU',
-                };
-              }
+  // Sanitize Brokkr response - filter out invalid locations
+  const sanitizedOpportunity = {
+    ...result.opportunity,
+    location: Array.isArray(result.opportunity?.location)
+      ? result.opportunity.location
+          .map((loc) => {
+            if (
+              !loc.country &&
+              loc.continent?.toLowerCase().trim() === 'europe'
+            ) {
+              return {
+                ...loc,
+                country: 'Europe',
+                iso2: 'EU',
+              };
+            }
 
-              // Jobs may indicate Remote Europe with no country
-              if (!loc?.country?.trim() && loc?.continent?.trim()) {
-                return {
-                  ...loc,
-                  country: loc?.continent,
-                };
-              }
-              return loc;
-            })
-            .filter((loc) => {
-              // Only keep locations with valid country and iso2
-              // Both are required for downstream processing in gondul
-              return (
-                loc?.country &&
-                loc.country.trim().length > 0 &&
-                loc?.iso2 &&
-                loc.iso2.trim().length > 0
-              );
-            })
-        : [],
-    };
+            // Jobs may indicate Remote Europe with no country
+            if (!loc?.country?.trim() && loc?.continent?.trim()) {
+              return {
+                ...loc,
+                country: loc?.continent,
+              };
+            }
+            return loc;
+          })
+          .filter((loc) => {
+            // Only keep locations with valid country and iso2
+            // Both are required for downstream processing in gondul
+            return (
+              loc?.country &&
+              loc.country.trim().length > 0 &&
+              loc?.iso2 &&
+              loc.iso2.trim().length > 0
+            );
+          })
+      : [],
+  };
 
-    const parsedOpportunity =
-      await opportunityCreateParseSchema.parseAsync(sanitizedOpportunity);
+  const parsedOpportunity =
+    await opportunityCreateParseSchema.parseAsync(sanitizedOpportunity);
 
-    const content = renderOpportunityMarkdownContent(parsedOpportunity.content);
+  const content = renderOpportunityMarkdownContent(parsedOpportunity.content);
 
-    return {
-      opportunity: parsedOpportunity,
-      content,
-    };
-  } finally {
-    const storage = new Storage();
-    const bucket = storage.bucket(RESUME_BUCKET_NAME);
-    await deleteFileFromBucket(bucket, filename);
-  }
+  return {
+    opportunity: parsedOpportunity,
+    content,
+  };
 }
 
 /**
