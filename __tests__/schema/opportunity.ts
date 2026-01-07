@@ -74,10 +74,7 @@ import { Bucket } from '@google-cloud/storage';
 import { deleteKeysByPattern, deleteRedisKey } from '../../src/redis';
 import { rateLimiterName } from '../../src/directive/rateLimit';
 import { fileTypeFromBuffer } from '../setup';
-import {
-  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
-  RESUME_BUCKET_NAME,
-} from '../../src/config';
+import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../../src/config';
 import { RoleType } from '../../src/common/schema/userCandidate';
 import { QuestionType } from '../../src/entity/questions/types';
 import { QuestionFeedback } from '../../src/entity/questions/QuestionFeedback';
@@ -5197,22 +5194,6 @@ describe('mutation parseOpportunity', () => {
       mime: 'application/pdf',
     });
 
-    const uploadResumeFromBufferSpy = jest.spyOn(
-      googleCloud,
-      'uploadResumeFromBuffer',
-    );
-
-    uploadResumeFromBufferSpy.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
-    );
-
-    const deleteFileFromBucketSpy = jest.spyOn(
-      googleCloud,
-      'deleteFileFromBucket',
-    );
-
-    deleteFileFromBucketSpy.mockResolvedValue(true);
-
     // Execute the mutation with a file upload
     const res = await authorizeRequest(
       request(app.server)
@@ -5316,22 +5297,6 @@ describe('mutation parseOpportunity', () => {
       ext: 'pdf',
       mime: 'application/pdf',
     });
-
-    const uploadResumeFromBufferSpy = jest.spyOn(
-      googleCloud,
-      'uploadResumeFromBuffer',
-    );
-
-    uploadResumeFromBufferSpy.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
-    );
-
-    const deleteFileFromBucketSpy = jest.spyOn(
-      googleCloud,
-      'deleteFileFromBucket',
-    );
-
-    deleteFileFromBucketSpy.mockResolvedValue(true);
 
     // Execute the mutation with a URL
     const res = await authorizeRequest(
@@ -5490,22 +5455,6 @@ describe('mutation parseOpportunity', () => {
       mime: 'application/pdf',
     });
 
-    const uploadResumeFromBufferSpy = jest.spyOn(
-      googleCloud,
-      'uploadResumeFromBuffer',
-    );
-
-    uploadResumeFromBufferSpy.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
-    );
-
-    const deleteFileFromBucketSpy = jest.spyOn(
-      googleCloud,
-      'deleteFileFromBucket',
-    );
-
-    deleteFileFromBucketSpy.mockResolvedValue(true);
-
     // Execute the mutation with a file upload
     const res = await authorizeRequest(
       request(app.server)
@@ -5610,22 +5559,6 @@ describe('mutation parseOpportunity', () => {
       mime: 'application/pdf',
     });
 
-    const uploadResumeFromBufferSpy = jest.spyOn(
-      googleCloud,
-      'uploadResumeFromBuffer',
-    );
-
-    uploadResumeFromBufferSpy.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
-    );
-
-    const deleteFileFromBucketSpy = jest.spyOn(
-      googleCloud,
-      'deleteFileFromBucket',
-    );
-
-    deleteFileFromBucketSpy.mockResolvedValue(true);
-
     // Execute the mutation with a file upload
     const res = await authorizeRequest(
       request(app.server)
@@ -5671,22 +5604,6 @@ describe('mutation parseOpportunity', () => {
       ext: 'pdf',
       mime: 'application/pdf',
     });
-
-    const uploadResumeFromBufferSpy = jest.spyOn(
-      googleCloud,
-      'uploadResumeFromBuffer',
-    );
-
-    uploadResumeFromBufferSpy.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
-    );
-
-    const deleteFileFromBucketSpy = jest.spyOn(
-      googleCloud,
-      'deleteFileFromBucket',
-    );
-
-    deleteFileFromBucketSpy.mockResolvedValue(true);
 
     const transport = createMockBrokkrTransport({
       opportunity: {
@@ -6508,20 +6425,6 @@ describe('mutation reimportOpportunity', () => {
       ext: 'pdf',
       mime: 'application/pdf',
     });
-
-    const uploadResumeFromBufferSpy = jest.spyOn(
-      googleCloud,
-      'uploadResumeFromBuffer',
-    );
-    uploadResumeFromBufferSpy.mockResolvedValue(
-      `https://storage.cloud.google.com/${RESUME_BUCKET_NAME}/file`,
-    );
-
-    const deleteFileFromBucketSpy = jest.spyOn(
-      googleCloud,
-      'deleteFileFromBucket',
-    );
-    deleteFileFromBucketSpy.mockResolvedValue(true);
 
     // Get original opportunity state
     const originalOpportunity = await con
