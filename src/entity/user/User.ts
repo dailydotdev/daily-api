@@ -66,6 +66,7 @@ export type UserSubscriptionFlags = Partial<{
   subscriptionId: string;
   cycle: SubscriptionCycles;
   createdAt: Date;
+  updatedAt: Date;
   provider: SubscriptionProvider;
   status: SubscriptionStatus;
 }> &

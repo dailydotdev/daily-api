@@ -88,6 +88,27 @@ export const updateUserSubscription = async ({
       throw new Error('User already has a StoreKit subscription');
     }
 
+    const currentUpdatedAt = user.subscriptionFlags?.updatedAt
+      ? new Date(user.subscriptionFlags.updatedAt)
+      : new Date(0);
+    const eventUpdatedAt = data?.updatedAt ? new Date(data.updatedAt) : null;
+
+    if (eventUpdatedAt && eventUpdatedAt <= currentUpdatedAt) {
+      logger.warn(
+        {
+          provider: SubscriptionProvider.Paddle,
+          purchaseType: PurchaseType.Plus,
+          userId,
+          eventUpdatedAt,
+          currentUpdatedAt,
+          eventType: event.eventType,
+          subscriptionId: data?.id,
+        },
+        'Stale Paddle subscription event received, skipping',
+      );
+      return;
+    }
+
     await con.getRepository(User).update(
       {
         id: userId,
@@ -99,6 +120,7 @@ export const updateUserSubscription = async ({
           subscriptionId: state ? data?.id : null,
           provider: state ? SubscriptionProvider.Paddle : null,
           status: state ? SubscriptionStatus.Active : null,
+          updatedAt: data?.updatedAt ?? null,
         }),
       },
     );
