@@ -1,4 +1,81 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(pnpm run:*)",
+      "Bash(pnpm install)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm remove:*)",
+      "Bash(pnpm ls:*)",
+      "Bash(pnpm exec:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx jest:*)",
+      "Bash(npx eslint:*)",
+      "Bash(NODE_ENV=test npx jest:*)",
+      "Bash(chmod:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git status:*)",
+      "Bash(git log:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(git show:*)",
+      "Bash(git remote:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh issue:*)",
+      "Bash(tree:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(pwd)",
+      "Bash(which:*)",
+      "Bash(echo:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(sort:*)",
+      "Bash(uniq:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(nvm use:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "WebFetch(domain:*.daily.dev)",
+      "mcp__github__*",
+      "Read",
+      "Glob",
+      "Grep",
+      "Edit",
+      "Write",
+      "Task",
+      "TodoWrite"
+    ],
+    "deny": [
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(sudo:*)",
+      "Bash(chmod 777:*)",
+      "Bash(npm install -g:*)",
+      "Bash(pnpm add -g:*)",
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)",
+      "Bash(mkfs:*)",
+      "Bash(dd if=:*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -31,5 +108,8 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "safety-net@cc-marketplace": true
   }
 }
