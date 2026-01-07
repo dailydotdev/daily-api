@@ -32,6 +32,8 @@ pnpm run db:migrate:make src/migration/DescriptiveMigrationName
 ```
 The migration generator compares entities against the local database schema. Ensure your local DB is up to date with `pnpm run db:migrate:latest` before generating new migrations.
 
+**IMPORTANT: Review generated migrations for schema drift.** The generator may include unrelated changes from local schema differences. Always review and clean up migrations to include only the intended changes.
+
 **Building & Testing:**
 - `pnpm run build` - Compile TypeScript to build directory
 - `pnpm run lint` - Run ESLint (max 0 warnings)
