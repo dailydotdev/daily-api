@@ -7,6 +7,6 @@ export const recruiterPaddleCustomDataSchema = z.object({
 
 export const recruiterPaddlePricingCustomDataSchema = z.object({
   batch_size: z.coerce.number().nonnegative().max(10_000),
-  reminders: z.boolean(),
-  show_slack: z.boolean(),
+  reminders: z.boolean().nullish(),
+  show_slack: z.boolean().nullish(),
 });
