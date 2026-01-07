@@ -239,9 +239,8 @@ describe('squad featured updated notification', () => {
   });
 
   it('should be registered', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadFeaturedUpdated'
-    );
+    const worker =
+      await import('../../src/workers/notifications/squadFeaturedUpdated');
 
     const registeredWorker = workers.find(
       (item) => item.subscription === worker.default.subscription,
@@ -251,9 +250,8 @@ describe('squad featured updated notification', () => {
   });
 
   it('should not do anything when squad is not featured', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadFeaturedUpdated'
-    );
+    const worker =
+      await import('../../src/workers/notifications/squadFeaturedUpdated');
     const actual =
       await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         worker.default,
@@ -265,9 +263,8 @@ describe('squad featured updated notification', () => {
   });
 
   it('should send notification to admins', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadFeaturedUpdated'
-    );
+    const worker =
+      await import('../../src/workers/notifications/squadFeaturedUpdated');
     const actual =
       await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         worker.default,
@@ -292,9 +289,8 @@ describe('squad featured updated notification', () => {
   });
 
   it('should send notification to moderators', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadFeaturedUpdated'
-    );
+    const worker =
+      await import('../../src/workers/notifications/squadFeaturedUpdated');
     const actual =
       await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         worker.default,
@@ -319,9 +315,8 @@ describe('squad featured updated notification', () => {
   });
 
   it('should not send notification to regular members', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadFeaturedUpdated'
-    );
+    const worker =
+      await import('../../src/workers/notifications/squadFeaturedUpdated');
     const actual =
       await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         worker.default,
@@ -346,9 +341,8 @@ describe('squad featured updated notification', () => {
   });
 
   it('should not send notification to blocked members', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/squadFeaturedUpdated'
-    );
+    const worker =
+      await import('../../src/workers/notifications/squadFeaturedUpdated');
     const actual =
       await invokeTypedNotificationWorker<'api.v1.squad-featured-updated'>(
         worker.default,
@@ -984,9 +978,8 @@ describe('post added notifications', () => {
 
 describe('post bookmark reminder', () => {
   it('should be registered', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBookmarkReminder'
-    );
+    const worker =
+      await import('../../src/workers/notifications/postBookmarkReminder');
 
     const registeredWorker = workers.find(
       (item) => item.subscription === worker.default.subscription,
@@ -996,9 +989,8 @@ describe('post bookmark reminder', () => {
   });
 
   it('should add notification for the user that set the reminder', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBookmarkReminder'
-    );
+    const worker =
+      await import('../../src/workers/notifications/postBookmarkReminder');
     const remindAt = new Date();
     await con
       .getRepository(Bookmark)
@@ -1024,9 +1016,8 @@ describe('post bookmark reminder', () => {
   });
 
   it('should not add notification if the reminder has been removed', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBookmarkReminder'
-    );
+    const worker =
+      await import('../../src/workers/notifications/postBookmarkReminder');
     await con.getRepository(Bookmark).save({ userId: '1', postId: 'p1' });
     const actual =
       await invokeTypedNotificationWorker<'api.v1.post-bookmark-reminder'>(
@@ -1040,9 +1031,8 @@ describe('post bookmark reminder', () => {
   });
 
   it('should not add notification if the post is not found', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/postBookmarkReminder'
-    );
+    const worker =
+      await import('../../src/workers/notifications/postBookmarkReminder');
     const actual =
       await invokeTypedNotificationWorker<'api.v1.post-bookmark-reminder'>(
         worker.default,
@@ -1073,9 +1063,8 @@ describe('streak reset restore', () => {
   });
 
   it('should be registered', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/userStreakResetNotification'
-    );
+    const worker =
+      await import('../../src/workers/notifications/userStreakResetNotification');
 
     const registeredWorker = workers.find(
       (item) => item.subscription === worker.default.subscription,
@@ -1085,9 +1074,8 @@ describe('streak reset restore', () => {
   });
 
   it('should add notification for the user to restore their streak', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/userStreakResetNotification'
-    );
+    const worker =
+      await import('../../src/workers/notifications/userStreakResetNotification');
     const lastViewAt = new Date();
     const lastStreak = 10;
     const streak = await con
@@ -1115,9 +1103,8 @@ describe('streak reset restore', () => {
   });
 
   it('should not add notification if the stored value has expired', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/userStreakResetNotification'
-    );
+    const worker =
+      await import('../../src/workers/notifications/userStreakResetNotification');
     const lastViewAt = new Date();
     const streak = await con
       .getRepository(UserStreak)
@@ -1133,9 +1120,8 @@ describe('streak reset restore', () => {
   });
 
   it('should not add notification if the user opted out of streaks', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/userStreakResetNotification'
-    );
+    const worker =
+      await import('../../src/workers/notifications/userStreakResetNotification');
     const lastViewAt = new Date();
     const lastStreak = 10;
     const streak = await con
@@ -1162,9 +1148,8 @@ describe('streak reset restore', () => {
   });
 
   it('should not add notification if the stored value is not a number', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/userStreakResetNotification'
-    );
+    const worker =
+      await import('../../src/workers/notifications/userStreakResetNotification');
     const lastViewAt = new Date();
     const streak = await con
       .getRepository(UserStreak)
@@ -1187,9 +1172,8 @@ describe('streak reset restore', () => {
   });
 
   it('should not add notification if user does not have Cores access', async () => {
-    const worker = await import(
-      '../../src/workers/notifications/userStreakResetNotification'
-    );
+    const worker =
+      await import('../../src/workers/notifications/userStreakResetNotification');
     const lastViewAt = new Date();
     const lastStreak = 10;
 
@@ -2512,9 +2496,8 @@ describe('user post added', () => {
   });
 
   it('should add notification for author', async () => {
-    const { postAddedUserNotification: worker } = await import(
-      '../../src/workers/notifications/postAddedUserNotification'
-    );
+    const { postAddedUserNotification: worker } =
+      await import('../../src/workers/notifications/postAddedUserNotification');
     await con.getRepository(Post).update({ id: 'p1' }, { authorId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
@@ -2548,9 +2531,8 @@ describe('user post added', () => {
   });
 
   it('should add notification for scout', async () => {
-    const { postAddedUserNotification: worker } = await import(
-      '../../src/workers/notifications/postAddedUserNotification'
-    );
+    const { postAddedUserNotification: worker } =
+      await import('../../src/workers/notifications/postAddedUserNotification');
     await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
@@ -2584,9 +2566,8 @@ describe('user post added', () => {
   });
 
   it('should not add notification for user that are only following', async () => {
-    const { postAddedUserNotification: worker } = await import(
-      '../../src/workers/notifications/postAddedUserNotification'
-    );
+    const { postAddedUserNotification: worker } =
+      await import('../../src/workers/notifications/postAddedUserNotification');
     await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
@@ -2620,9 +2601,8 @@ describe('user post added', () => {
   });
 
   it('should not add notification for private post', async () => {
-    const { postAddedUserNotification: worker } = await import(
-      '../../src/workers/notifications/postAddedUserNotification'
-    );
+    const { postAddedUserNotification: worker } =
+      await import('../../src/workers/notifications/postAddedUserNotification');
     const privatePost = await con.getRepository(Post).save({
       ...postsFixture[0],
       id: 'p1-upa',
@@ -2658,9 +2638,8 @@ describe('user post added', () => {
   });
 
   it('should not add notification for user that muted', async () => {
-    const { postAddedUserNotification: worker } = await import(
-      '../../src/workers/notifications/postAddedUserNotification'
-    );
+    const { postAddedUserNotification: worker } =
+      await import('../../src/workers/notifications/postAddedUserNotification');
     await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
@@ -2700,9 +2679,8 @@ describe('user post added', () => {
   });
 
   it('should only query subscriptions for user post added notification type', async () => {
-    const { postAddedUserNotification: worker } = await import(
-      '../../src/workers/notifications/postAddedUserNotification'
-    );
+    const { postAddedUserNotification: worker } =
+      await import('../../src/workers/notifications/postAddedUserNotification');
     await con.getRepository(Post).update({ id: 'p1' }, { scoutId: '1' });
     await con.getRepository(ContentPreferenceUser).save([
       {
@@ -2776,9 +2754,8 @@ describe('user post added', () => {
   });
 
   it('should not add notification for brief posts', async () => {
-    const { postAddedUserNotification: worker } = await import(
-      '../../src/workers/notifications/postAddedUserNotification'
-    );
+    const { postAddedUserNotification: worker } =
+      await import('../../src/workers/notifications/postAddedUserNotification');
     const post = await con.getRepository(BriefPost).save({
       ...postsFixture[0],
       id: 'p1-brief-upa',

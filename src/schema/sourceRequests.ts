@@ -66,8 +66,7 @@ export interface GQLUpdateSourceRequestInput extends Partial<GQLSourceRequest> {
   sourceFeed?: string;
 }
 
-export interface GQLDeclineSourceRequestInput
-  extends Partial<GQLSourceRequest> {
+export interface GQLDeclineSourceRequestInput extends Partial<GQLSourceRequest> {
   reason: string;
 }
 
@@ -92,8 +91,7 @@ export interface GQLPublicSquadRequestInput {
 }
 
 interface PublicSquadRequestsArgs
-  extends ConnectionArguments,
-    GQLPublicSquadRequestInput {}
+  extends ConnectionArguments, GQLPublicSquadRequestInput {}
 
 export const typeDefs = /* GraphQL */ `
   """

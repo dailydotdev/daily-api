@@ -135,8 +135,10 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-interface GenerateDevCardInput
-  extends Pick<DevCard, 'theme' | 'isProfileCover' | 'showBorder'> {
+interface GenerateDevCardInput extends Pick<
+  DevCard,
+  'theme' | 'isProfileCover' | 'showBorder'
+> {
   type: 'DEFAULT' | 'WIDE' | 'X';
 }
 

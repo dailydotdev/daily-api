@@ -78,8 +78,7 @@ export type NotificationStreakContext = NotificationBaseContext & {
   streak: Reference<UserStreak>;
 };
 
-export interface NotificationStreakRestoreContext
-  extends NotificationStreakContext {
+export interface NotificationStreakRestoreContext extends NotificationStreakContext {
   restore: {
     expiry: number;
     amount: number;
@@ -153,8 +152,7 @@ export interface NotificationCampaignContext extends NotificationUserContext {
   event: CampaignUpdateEvent;
 }
 
-export interface NotificationCampaignSourceContext
-  extends NotificationCampaignContext {
+export interface NotificationCampaignSourceContext extends NotificationCampaignContext {
   source: Reference<Source>;
 }
 
