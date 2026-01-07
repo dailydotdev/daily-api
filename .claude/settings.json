@@ -52,6 +52,7 @@
       "Bash(docker-compose:*)",
       "WebFetch(domain:*.daily.dev)",
       "mcp__github__*",
+      "mcp__plugin_linear_linear__*",
       "Read",
       "Glob",
       "Grep",

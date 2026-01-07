@@ -4304,6 +4304,31 @@ describe('mutation updateUserProfile', () => {
     const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
     expect(updated?.socialLinks).toEqual([]);
   });
+
+  it('should reverse dual-write: update socialLinks when legacy fields are provided', async () => {
+    loggedUser = '1';
+
+    // Use legacy format (individual fields)
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          github: 'myhandle',
+          linkedin: 'myprofile',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify socialLinks JSONB is populated with full URLs
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual(
+      expect.arrayContaining([
+        { platform: 'github', url: 'https://github.com/myhandle' },
+        { platform: 'linkedin', url: 'https://linkedin.com/in/myprofile' },
+      ]),
+    );
+  });
 });
 
 describe('mutation deleteUser', () => {
