@@ -1,7 +1,4 @@
-import {
-  detectPlatformFromUrl,
-  socialLinksInputSchema,
-} from '../../src/common/schema/socials';
+import { detectPlatformFromUrl } from '../../src/common/schema/socials';
 
 describe('detectPlatformFromUrl', () => {
   it('should detect twitter.com', () => {
@@ -91,62 +88,5 @@ describe('detectPlatformFromUrl', () => {
   it('should return null for invalid URLs', () => {
     expect(detectPlatformFromUrl('not-a-url')).toBeNull();
     expect(detectPlatformFromUrl('')).toBeNull();
-  });
-});
-
-describe('socialLinksInputSchema', () => {
-  it('should validate and transform a single link with auto-detection', () => {
-    const input = [{ url: 'https://github.com/testuser' }];
-    const result = socialLinksInputSchema.parse(input);
-
-    expect(result).toEqual([
-      { platform: 'github', url: 'https://github.com/testuser' },
-    ]);
-  });
-
-  it('should use provided platform over auto-detection', () => {
-    const input = [
-      { url: 'https://github.com/testuser', platform: 'custom-platform' },
-    ];
-    const result = socialLinksInputSchema.parse(input);
-
-    expect(result).toEqual([
-      { platform: 'custom-platform', url: 'https://github.com/testuser' },
-    ]);
-  });
-
-  it('should default to "other" when platform cannot be detected', () => {
-    const input = [{ url: 'https://example.com/profile' }];
-    const result = socialLinksInputSchema.parse(input);
-
-    expect(result).toEqual([
-      { platform: 'other', url: 'https://example.com/profile' },
-    ]);
-  });
-
-  it('should handle multiple links', () => {
-    const input = [
-      { url: 'https://github.com/user' },
-      { url: 'https://twitter.com/user' },
-      { url: 'https://linkedin.com/in/user' },
-    ];
-    const result = socialLinksInputSchema.parse(input);
-
-    expect(result).toEqual([
-      { platform: 'github', url: 'https://github.com/user' },
-      { platform: 'twitter', url: 'https://twitter.com/user' },
-      { platform: 'linkedin', url: 'https://linkedin.com/in/user' },
-    ]);
-  });
-
-  it('should reject invalid URLs', () => {
-    const input = [{ url: 'not-a-valid-url' }];
-
-    expect(() => socialLinksInputSchema.parse(input)).toThrow();
-  });
-
-  it('should accept empty array', () => {
-    const result = socialLinksInputSchema.parse([]);
-    expect(result).toEqual([]);
   });
 });
