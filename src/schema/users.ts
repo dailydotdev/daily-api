@@ -447,55 +447,55 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Portfolio URL of the user
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     Date when the user joined
     """
@@ -640,51 +640,51 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Preferred timezone of the user that affects data
     """
@@ -704,7 +704,7 @@ export const typeDefs = /* GraphQL */ `
     """
     User website
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     If the user has accepted marketing
     """
@@ -766,51 +766,51 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Preferred timezone of the user that affects data
     """
@@ -830,7 +830,7 @@ export const typeDefs = /* GraphQL */ `
     """
     User website
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     If the user has accepted marketing
     """
