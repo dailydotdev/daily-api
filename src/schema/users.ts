@@ -29,7 +29,7 @@ import {
   UserStreakActionType,
   View,
 } from '../entity';
-import { UserNotificationFlags } from '../entity/user/User';
+import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
 import {
   AuthenticationError,
   ForbiddenError,
@@ -250,6 +250,7 @@ export interface GQLUser {
   coresRole: CoresRole;
   isPlus?: boolean;
   notificationFlags: UserNotificationFlags;
+  socialLinks: UserSocialLink[];
 }
 
 export interface GQLView {
@@ -317,6 +318,34 @@ export interface SendReportArgs {
 }
 
 export const typeDefs = /* GraphQL */ `
+  """
+  Social media link for a user profile
+  """
+  type UserSocialLink {
+    """
+    Platform identifier (e.g., "twitter", "github", "linkedin")
+    """
+    platform: String!
+    """
+    Full URL to the social profile
+    """
+    url: String!
+  }
+
+  """
+  Input for creating/updating a social link
+  """
+  input UserSocialLinkInput {
+    """
+    Full URL to the social profile - platform will be auto-detected
+    """
+    url: String!
+    """
+    Optional platform override if auto-detection fails
+    """
+    platform: String
+  }
+
   type Company {
     id: String!
     name: String!
@@ -538,6 +567,10 @@ export const typeDefs = /* GraphQL */ `
     Whether to hide user's experience
     """
     hideExperience: Boolean
+    """
+    Flexible social media links array (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLink!]!
   }
 
   """
