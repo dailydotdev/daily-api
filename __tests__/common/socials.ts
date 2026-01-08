@@ -1,4 +1,7 @@
-import { detectPlatformFromUrl } from '../../src/common/schema/socials';
+import {
+  detectPlatformFromUrl,
+  socialLinksInputSchema,
+} from '../../src/common/schema/socials';
 
 describe('detectPlatformFromUrl', () => {
   it('should detect twitter.com', () => {
@@ -88,5 +91,86 @@ describe('detectPlatformFromUrl', () => {
   it('should return null for invalid URLs', () => {
     expect(detectPlatformFromUrl('not-a-url')).toBeNull();
     expect(detectPlatformFromUrl('')).toBeNull();
+  });
+
+  it('should detect codepen.io', () => {
+    expect(detectPlatformFromUrl('https://codepen.io/username')).toBe(
+      'codepen',
+    );
+  });
+
+  it('should detect reddit.com', () => {
+    expect(detectPlatformFromUrl('https://reddit.com/user/username')).toBe(
+      'reddit',
+    );
+  });
+
+  it('should detect stackoverflow.com', () => {
+    expect(
+      detectPlatformFromUrl('https://stackoverflow.com/users/123/username'),
+    ).toBe('stackoverflow');
+  });
+});
+
+describe('socialLinksInputSchema', () => {
+  it('should validate array of social links', () => {
+    const input = [
+      { url: 'https://github.com/johndoe' },
+      { url: 'https://linkedin.com/in/johndoe' },
+    ];
+    const result = socialLinksInputSchema.parse(input);
+    expect(result).toEqual([
+      { platform: 'github', url: 'https://github.com/johndoe' },
+      { platform: 'linkedin', url: 'https://linkedin.com/in/johndoe' },
+    ]);
+  });
+
+  it('should auto-detect platform from URL', () => {
+    const input = [{ url: 'https://x.com/johndoe' }];
+    const result = socialLinksInputSchema.parse(input);
+    expect(result).toEqual([
+      { platform: 'twitter', url: 'https://x.com/johndoe' },
+    ]);
+  });
+
+  it('should use provided platform when specified', () => {
+    const input = [
+      { url: 'https://example.com/profile', platform: 'custom-site' },
+    ];
+    const result = socialLinksInputSchema.parse(input);
+    expect(result).toEqual([
+      { platform: 'custom-site', url: 'https://example.com/profile' },
+    ]);
+  });
+
+  it('should fallback to "other" for unknown domains without explicit platform', () => {
+    const input = [{ url: 'https://unknown-site.com/profile' }];
+    const result = socialLinksInputSchema.parse(input);
+    expect(result).toEqual([
+      { platform: 'other', url: 'https://unknown-site.com/profile' },
+    ]);
+  });
+
+  it('should reject invalid URLs', () => {
+    const input = [{ url: 'not-a-valid-url' }];
+    expect(() => socialLinksInputSchema.parse(input)).toThrow();
+  });
+
+  it('should handle empty array', () => {
+    const result = socialLinksInputSchema.parse([]);
+    expect(result).toEqual([]);
+  });
+
+  it('should handle multiple links preserving order', () => {
+    const input = [
+      { url: 'https://github.com/user' },
+      { url: 'https://twitter.com/user' },
+      { url: 'https://linkedin.com/in/user' },
+    ];
+    const result = socialLinksInputSchema.parse(input);
+    expect(result).toHaveLength(3);
+    expect(result[0].platform).toBe('github');
+    expect(result[1].platform).toBe('twitter');
+    expect(result[2].platform).toBe('linkedin');
   });
 });
