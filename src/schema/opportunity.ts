@@ -1533,6 +1533,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           }),
         );
 
+        // Default to US location if no locations are specified
+        if (locations.length === 0) {
+          locations.push(
+            new LocationMessage({
+              iso2: 'US',
+              country: 'United States',
+            }),
+          );
+        }
+
         const opportunityMessage = new OpportunityMessage({
           id: opportunity.id,
           createdAt: getSecondsTimestamp(opportunity.createdAt),

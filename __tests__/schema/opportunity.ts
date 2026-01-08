@@ -6318,6 +6318,41 @@ describe('query opportunityPreview', () => {
       location: [{ continent: 'Europe', type: LocationType.REMOTE }],
     });
   });
+
+  it('should default to US location when opportunity has no locations', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          anonUserId: 'test-anon-user-123',
+        },
+      },
+    );
+
+    await con.getRepository(OpportunityLocation).delete({
+      opportunityId: opportunitiesFixture[0].id,
+    });
+
+    const opportunityPreviewSpy = jest.spyOn(
+      gondulModule.getGondulOpportunityServiceClient().instance,
+      'preview',
+    );
+
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(opportunityPreviewSpy).toHaveBeenCalledTimes(1);
+
+    const { id, location } = opportunityPreviewSpy.mock.calls[0][0];
+
+    expect({ id, location }).toEqual({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      location: [{ iso2: 'US', country: 'United States' }],
+    });
+  });
 });
 
 describe('query opportunityStats', () => {
