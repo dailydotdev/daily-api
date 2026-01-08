@@ -1048,23 +1048,23 @@ async function updateCandidateMatchStatus(
  * Renders content for opportunity fields
  * Sanitizes HTML content from WYSIWYG editor
  */
-function renderOpportunityContent(
+async function renderOpportunityContent(
   content: Record<string, { content?: string }> | undefined,
-): OpportunityContent {
+): Promise<OpportunityContent> {
   const renderedContent: Record<string, { content: string; html: string }> = {};
 
-  Object.entries(content || {}).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(content || {})) {
     if (typeof value.content !== 'string') {
-      return;
+      continue;
     }
 
-    const html = sanitizeHtml(value.content);
+    const html = await sanitizeHtml(value.content);
 
     renderedContent[key] = {
       content: value.content,
       html,
     };
-  });
+  }
 
   return new OpportunityContent(renderedContent);
 }
@@ -2120,7 +2120,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           ...opportunityUpdate
         } = opportunity;
 
-        const opportunityContent = renderOpportunityContent(content);
+        const opportunityContent = await renderOpportunityContent(content);
 
         await entityManager
           .getRepository(OpportunityJob)
