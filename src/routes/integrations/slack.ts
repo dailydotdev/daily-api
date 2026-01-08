@@ -19,6 +19,8 @@ import {
   AnalyticsEventName,
   sendAnalyticsEvent,
 } from '../../integrations/analytics';
+import { OpportunityMatch } from '../../entity/OpportunityMatch';
+import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 
 const redirectResponse = ({
   res,
@@ -289,6 +291,171 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       } catch (error) {
         logger.error({ err: error }, 'error processing slack event');
 
+        return res.status(500).send({ success: false });
+      }
+    },
+  });
+
+  // Handle Slack interactive component payloads (button clicks, etc.)
+  fastify.post<{
+    Body: string;
+    Headers: {
+      'x-slack-request-timestamp': string;
+      'x-slack-signature': string;
+    };
+  }>('/interactions', {
+    config: {
+      rawBody: true,
+    },
+    handler: async (req, res) => {
+      try {
+        const isValid = verifySlackSignature({ req });
+
+        if (!isValid) {
+          logger.warn('Invalid Slack signature for interactions endpoint');
+          return res.status(403).send({ error: 'invalid signature' });
+        }
+
+        // Slack sends payload as application/x-www-form-urlencoded with JSON in 'payload' field
+        const payloadString =
+          typeof req.body === 'string'
+            ? new URLSearchParams(req.body).get('payload')
+            : (req.body as { payload?: string }).payload;
+
+        if (!payloadString) {
+          logger.warn('Missing payload in Slack interaction request');
+          return res.status(400).send({ error: 'missing payload' });
+        }
+
+        const payload = JSON.parse(payloadString) as {
+          type: string;
+          actions?: Array<{
+            action_id: string;
+            value: string;
+          }>;
+          response_url?: string;
+          user?: {
+            id: string;
+            username: string;
+          };
+        };
+
+        if (payload.type !== 'block_actions' || !payload.actions?.length) {
+          logger.warn(
+            { type: payload.type },
+            'Unsupported Slack interaction type',
+          );
+          return res.status(200).send();
+        }
+
+        const action = payload.actions[0];
+        const actionId = action.action_id;
+
+        if (
+          actionId !== 'candidate_review_accept' &&
+          actionId !== 'candidate_review_reject'
+        ) {
+          logger.warn({ actionId }, 'Unknown Slack action');
+          return res.status(200).send();
+        }
+
+        let actionData: { opportunityId: string; userId: string };
+        try {
+          actionData = JSON.parse(action.value);
+        } catch {
+          logger.error({ value: action.value }, 'Failed to parse action value');
+          return res.status(400).send({ error: 'invalid action value' });
+        }
+
+        const { opportunityId, userId } = actionData;
+        const con = await createOrGetConnection();
+
+        // Verify the match exists and is in CandidateReview status
+        const match = await con.getRepository(OpportunityMatch).findOne({
+          where: { opportunityId, userId },
+        });
+
+        if (!match) {
+          logger.warn(
+            { opportunityId, userId },
+            'Match not found for Slack interaction',
+          );
+          // Update message to show error
+          if (payload.response_url) {
+            await fetch(payload.response_url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                replace_original: true,
+                text: 'Error: Match not found. It may have been deleted.',
+              }),
+            });
+          }
+          return res.status(200).send();
+        }
+
+        if (match.status !== OpportunityMatchStatus.CandidateReview) {
+          logger.warn(
+            { opportunityId, userId, status: match.status },
+            'Match is not in CandidateReview status',
+          );
+          // Update message to show already processed
+          if (payload.response_url) {
+            await fetch(payload.response_url, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                replace_original: true,
+                text: `This candidate has already been processed. Current status: ${match.status}`,
+              }),
+            });
+          }
+          return res.status(200).send();
+        }
+
+        // Update the status based on the action
+        const newStatus =
+          actionId === 'candidate_review_accept'
+            ? OpportunityMatchStatus.CandidateAccepted
+            : OpportunityMatchStatus.RecruiterRejected;
+
+        await con
+          .getRepository(OpportunityMatch)
+          .update({ opportunityId, userId }, { status: newStatus });
+
+        logger.info(
+          {
+            opportunityId,
+            userId,
+            action: actionId,
+            newStatus,
+            slackUser: payload.user?.username,
+          },
+          'Candidate review action processed',
+        );
+
+        // Update the Slack message to show the action taken
+        if (payload.response_url) {
+          const actionText =
+            actionId === 'candidate_review_accept' ? 'Accepted' : 'Rejected';
+          const emoji =
+            actionId === 'candidate_review_accept'
+              ? ':white_check_mark:'
+              : ':x:';
+
+          await fetch(payload.response_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              replace_original: true,
+              text: `${emoji} Candidate ${actionText} by @${payload.user?.username || 'unknown'}`,
+            }),
+          });
+        }
+
+        return res.status(200).send();
+      } catch (error) {
+        logger.error({ err: error }, 'Error processing Slack interaction');
         return res.status(500).send({ success: false });
       }
     },

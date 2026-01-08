@@ -191,6 +191,20 @@ export type PubSubSchema = {
     payload: ChangeObject<ReputationEvent>;
   };
   'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
+  'api.v1.candidate-review-opportunity': {
+    opportunityId: string;
+    userId: string;
+    opportunityTitle: string;
+    organizationName: string;
+    candidateUsername: string;
+    candidateName: string;
+    matchScore: number | null;
+    screening: Array<{ question: string; answer: string }>;
+    cvSummary: string | null;
+    salaryExpectation: { min?: string | null; period?: string | null } | null;
+    location: string | null;
+    keywords: string[];
+  };
   'api.v1.opportunity-added': OpportunityMessage;
   'api.v1.opportunity-updated': OpportunityMessage;
   'api.v1.opportunity-in-review': {
