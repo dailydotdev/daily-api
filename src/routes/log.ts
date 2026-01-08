@@ -26,7 +26,7 @@ type LogData = Record<string, unknown>;
 async function fetchLogDataFromGCS(userId: string): Promise<LogData | null> {
   try {
     const bucket = storage.bucket(YEAR_IN_REVIEW_BUCKET_NAME);
-    const file = bucket.file(`2025/first_30/${userId}.json`);
+    const file = bucket.file(`2025/prd/${userId}.json`);
 
     const [exists] = await file.exists();
     if (!exists) {
