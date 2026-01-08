@@ -86,6 +86,10 @@ The migration generator compares entities against the local database schema. Ens
 **Type Safety & Validation:**
 - We favor type safety throughout the codebase. Use TypeScript interfaces and types for compile-time type checking.
 - **Zod schemas** are preferred for runtime validation, especially for input validation, API boundaries, and data parsing. Zod provides both type inference and runtime validation, making it ideal for verifying user input, API payloads, and external data sources.
+- **This project uses Zod 4.x** (currently 4.3.5). Be aware of API differences from Zod 3.x:
+  - `z.literal([...])` in Zod 4.x supports arrays and validates that the value matches one of the array elements
+  - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
+  - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
 
 **Business Domains:**
