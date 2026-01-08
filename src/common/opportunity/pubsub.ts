@@ -553,7 +553,6 @@ export const notifyCandidatePreferenceChange = async ({
 };
 
 export const notifyOpportunityMatchCandidateReview = async ({
-  con,
   logger,
   data,
 }: {
@@ -561,92 +560,8 @@ export const notifyOpportunityMatchCandidateReview = async ({
   logger: FastifyBaseLogger;
   data: ChangeObject<OpportunityMatch>;
 }) => {
-  const { match, candidatePreference, keywords, locationData, user } =
-    await con.transaction(async (manager) => {
-      const match = await manager.getRepository(OpportunityMatch).findOne({
-        where: {
-          opportunityId: data.opportunityId,
-          userId: data.userId,
-        },
-        relations: ['opportunity', 'user'],
-      });
-
-      const [candidatePreference, user] = await Promise.all([
-        manager
-          .getRepository(UserCandidatePreference)
-          .findOne({ where: { userId: data.userId }, relations: ['location'] }),
-        match?.user,
-      ]);
-
-      const keywords = await fetchCandidateKeywords(
-        manager,
-        candidatePreference,
-      );
-
-      const locationData = await candidatePreference?.location;
-
-      return { match, candidatePreference, keywords, locationData, user };
-    });
-
-  if (!match) {
-    logger.warn(
-      { opportunityId: data.opportunityId, userId: data.userId },
-      'Opportunity match not found for candidate review notification',
-    );
-    return;
-  }
-
-  const opportunity = await match.opportunity;
-
-  let organizationName = 'N/A';
-  if (opportunity instanceof OpportunityJob && opportunity.organizationId) {
-    const organization = await opportunity.organization;
-    organizationName = organization?.name || 'N/A';
-  }
-
-  // Build location string
-  let locationString: string | null = null;
-  if (locationData) {
-    const parts = [
-      locationData.city,
-      locationData.subdivision,
-      locationData.country,
-    ].filter(Boolean);
-    locationString = parts.join(', ') || null;
-  }
-
-  // Map screening to simplified format for Slack display
-  const screeningData =
-    match.screening?.map((s) => ({
-      question: s.screening || '',
-      answer: s.answer || '',
-    })) || [];
-
-  const message = {
-    opportunityId: match.opportunityId,
-    userId: match.userId,
-    opportunityTitle:
-      opportunity?.title || `Opportunity ${match.opportunityId}`,
-    organizationName,
-    candidateUsername: user?.username || match.userId,
-    candidateName: user?.name || user?.username || 'Unknown',
-    matchScore: match.applicationRank?.score ?? null,
-    screening: screeningData,
-    cvSummary: candidatePreference?.cvParsedMarkdown || null,
-    salaryExpectation: candidatePreference?.salaryExpectation
-      ? {
-          min: candidatePreference.salaryExpectation.min ?? null,
-          period:
-            candidatePreference.salaryExpectation.period?.toString() ?? null,
-        }
-      : null,
-    location: locationString,
-    keywords,
-  };
-
-  await triggerTypedEvent(
-    logger,
-    'api.v1.candidate-review-opportunity',
-    message,
-  );
+  await triggerTypedEvent(logger, 'api.v1.candidate-review-opportunity', {
+    opportunityId: data.opportunityId,
+    userId: data.userId,
+  });
 };
