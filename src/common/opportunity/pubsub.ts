@@ -551,3 +551,17 @@ export const notifyCandidatePreferenceChange = async ({
     );
   }
 };
+
+export const notifyOpportunityMatchCandidateReview = async ({
+  logger,
+  data,
+}: {
+  con: DataSource;
+  logger: FastifyBaseLogger;
+  data: ChangeObject<OpportunityMatch>;
+}) => {
+  await triggerTypedEvent(logger, 'api.v1.candidate-review-opportunity', {
+    opportunityId: data.opportunityId,
+    userId: data.userId,
+  });
+};

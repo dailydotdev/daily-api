@@ -19,6 +19,12 @@ import {
   AnalyticsEventName,
   sendAnalyticsEvent,
 } from '../../integrations/analytics';
+import { OpportunityMatch } from '../../entity/OpportunityMatch';
+import { OpportunityMatchStatus } from '../../entity/opportunities/types';
+import {
+  slackOpportunityActionValueSchema,
+  slackOpportunityCandidateReviewPayloadSchema,
+} from '../../common/schema/slack';
 
 const redirectResponse = ({
   res,
@@ -290,6 +296,107 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         logger.error({ err: error }, 'error processing slack event');
 
         return res.status(500).send({ success: false });
+      }
+    },
+  });
+
+  // Handle Slack interactive component payloads (button clicks)
+  // Slack sends form-urlencoded data with a JSON payload
+  // Must set rawBody manually for signature verification
+  fastify.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (req, body, done) => {
+      (req as unknown as { rawBody: string }).rawBody = body as string;
+      done(null, body);
+    },
+  );
+
+  fastify.post<{
+    Body: string;
+    Headers: {
+      'x-slack-request-timestamp': string;
+      'x-slack-signature': string;
+    };
+  }>('/interactions', {
+    config: { rawBody: true },
+    handler: async (req, res) => {
+      try {
+        if (!verifySlackSignature({ req })) {
+          logger.warn(
+            {
+              hasRawBody: !!req.rawBody,
+              rawBodyLength: req.rawBody?.length,
+              hasTimestamp: !!req.headers['x-slack-request-timestamp'],
+              hasSignature: !!req.headers['x-slack-signature'],
+            },
+            'slack interaction signature verification failed',
+          );
+          return res.status(403).send({ error: 'invalid signature' });
+        }
+      } catch (err) {
+        logger.error(
+          {
+            err,
+            hasRawBody: !!req.rawBody,
+            rawBodyLength: req.rawBody?.length,
+            rawBodyType: typeof req.rawBody,
+          },
+          'slack interaction signature verification error',
+        );
+        return res.status(403).send({ error: 'invalid signature' });
+      }
+
+      try {
+        const payloadString =
+          typeof req.body === 'string'
+            ? new URLSearchParams(req.body).get('payload')
+            : (req.body as { payload?: string }).payload;
+
+        const payload = slackOpportunityCandidateReviewPayloadSchema.parse(
+          JSON.parse(payloadString || '{}'),
+        );
+        const action = payload.actions[0];
+        const { opportunityId, userId } =
+          slackOpportunityActionValueSchema.parse(JSON.parse(action.value));
+
+        const con = await createOrGetConnection();
+        const match = await con
+          .getRepository(OpportunityMatch)
+          .findOne({ where: { opportunityId, userId } });
+
+        const respond = (text: string) =>
+          payload.response_url &&
+          fetch(payload.response_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ replace_original: true, text }),
+          });
+
+        if (!match || match.status !== OpportunityMatchStatus.CandidateReview) {
+          await respond(
+            match ? `Already processed: ${match.status}` : 'Match not found',
+          );
+          return res.status(200).send();
+        }
+
+        const isAccept = action.action_id === 'candidate_review_accept';
+        await con.getRepository(OpportunityMatch).update(
+          { opportunityId, userId },
+          {
+            status: isAccept
+              ? OpportunityMatchStatus.CandidateAccepted
+              : OpportunityMatchStatus.RecruiterRejected,
+          },
+        );
+
+        await respond(
+          `${isAccept ? ':white_check_mark: Accepted' : ':x: Rejected'} by @${payload.user?.username || 'unknown'}`,
+        );
+        return res.status(200).send();
+      } catch {
+        // Return 200 for invalid payloads to avoid Slack retries
+        return res.status(200).send();
       }
     },
   });

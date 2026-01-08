@@ -84,6 +84,7 @@ describe('mutation updateUserInfo', () => {
         twitter
         github
         hashnode
+        linkedin
         createdAt
         infoConfirmed
         timezone
@@ -97,6 +98,10 @@ describe('mutation updateUserInfo', () => {
           city
         }
         hideExperience
+        socialLinks {
+          platform
+          url
+        }
       }
     }
   `;
@@ -711,5 +716,48 @@ describe('mutation updateUserInfo', () => {
 
     const updatedUser = await repo.findOneBy({ id: loggedUser });
     expect(updatedUser?.hideExperience).toBe(false);
+  });
+
+  describe('socialLinks', () => {
+    it('should reverse dual-write: update socialLinks when legacy fields are provided', async () => {
+      loggedUser = '1';
+      const repo = con.getRepository(User);
+      const user = await repo.findOneBy({ id: loggedUser });
+
+      // Use legacy format (individual fields like the client currently sends)
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            username: 'testuser',
+            github: 'idoshamun',
+            linkedin: 'ido-shamun',
+            twitter: 'idoshamun',
+            portfolio: 'https://shamun.dev',
+            youtube: null,
+            stackoverflow: null,
+          },
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      // Verify legacy columns are updated
+      expect(res.data.updateUserInfo.github).toBe('idoshamun');
+      expect(res.data.updateUserInfo.linkedin).toBe('ido-shamun');
+      expect(res.data.updateUserInfo.twitter).toBe('idoshamun');
+
+      // Verify socialLinks JSONB is also populated with full URLs (order may vary)
+      const updated = await repo.findOneBy({ id: loggedUser });
+      expect(updated?.socialLinks).toHaveLength(4);
+      expect(updated?.socialLinks).toEqual(
+        expect.arrayContaining([
+          { platform: 'github', url: 'https://github.com/idoshamun' },
+          { platform: 'linkedin', url: 'https://linkedin.com/in/ido-shamun' },
+          { platform: 'twitter', url: 'https://x.com/idoshamun' },
+          { platform: 'portfolio', url: 'https://shamun.dev' },
+        ]),
+      );
+    });
   });
 });

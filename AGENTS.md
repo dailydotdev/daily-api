@@ -117,6 +117,20 @@ The migration generator compares entities against the local database schema. Ens
 - `.infra/common.ts` - Worker subscription definitions
 - `.infra/index.ts` - Main Pulumi deployment configuration
 
+## Code Style Preferences
+
+**Keep implementations concise:**
+- Prefer short, readable implementations over verbose ones
+- Avoid excessive logging - errors will propagate naturally
+- Use early returns instead of nested conditionals
+- Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
+- Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
+
+**PubSub topics should be general-purpose:**
+- Topics should contain only essential identifiers (e.g., `{ opportunityId, userId }`)
+- Subscribers fetch their own data - don't optimize topic payloads for specific consumers
+- This allows multiple subscribers with different data needs
+
 ## Best Practices & Lessons Learned
 
 **Avoiding Code Duplication:**

@@ -1717,6 +1717,107 @@ export const clearImagePreset = async ({
 };
 
 /**
+ * Platform URL templates for building URLs from handles
+ */
+const PLATFORM_URL_TEMPLATES: Record<string, (handle: string) => string> = {
+  twitter: (handle) => `https://x.com/${handle}`,
+  github: (handle) => `https://github.com/${handle}`,
+  linkedin: (handle) => `https://linkedin.com/in/${handle}`,
+  threads: (handle) => `https://threads.net/@${handle}`,
+  roadmap: (handle) => `https://roadmap.sh/u/${handle}`,
+  codepen: (handle) => `https://codepen.io/${handle}`,
+  reddit: (handle) => `https://reddit.com/u/${handle}`,
+  stackoverflow: (handle) => `https://stackoverflow.com/users/${handle}`,
+  youtube: (handle) => `https://youtube.com/@${handle}`,
+  bluesky: (handle) => `https://bsky.app/profile/${handle}`,
+  hashnode: (handle) => `https://hashnode.com/@${handle}`,
+  // These platforms store full URLs, not handles
+  mastodon: (url) => url,
+  portfolio: (url) => url,
+};
+
+/**
+ * Build URL from handle for a given platform
+ */
+function buildUrlFromHandle(
+  handle: string | null | undefined,
+  platform: string,
+): string | null {
+  if (!handle) return null;
+  const template = PLATFORM_URL_TEMPLATES[platform];
+  if (!template) return null;
+  return template(handle);
+}
+
+/**
+ * Build socialLinks array from legacy column values
+ * Used for reverse dual-write when legacy fields are updated
+ */
+function buildSocialLinksFromLegacyFields(
+  data: Partial<GQLUpdateUserInput>,
+  existingUser: User,
+): UserSocialLink[] {
+  const legacyPlatforms = [
+    'twitter',
+    'github',
+    'linkedin',
+    'threads',
+    'roadmap',
+    'codepen',
+    'reddit',
+    'stackoverflow',
+    'youtube',
+    'bluesky',
+    'mastodon',
+    'hashnode',
+    'portfolio',
+  ] as const;
+
+  const socialLinks: UserSocialLink[] = [];
+
+  for (const platform of legacyPlatforms) {
+    // Use the new value from data if provided, otherwise use existing user value
+    const handle =
+      platform in data
+        ? (data[platform as keyof GQLUpdateUserInput] as string | null)
+        : (existingUser[platform] as string | null);
+
+    if (handle) {
+      const url = buildUrlFromHandle(handle, platform);
+      if (url) {
+        socialLinks.push({ platform, url });
+      }
+    }
+  }
+
+  return socialLinks;
+}
+
+/**
+ * Check if any legacy social fields are being updated
+ */
+function hasLegacySocialFieldsUpdate(
+  data: Partial<GQLUpdateUserInput>,
+): boolean {
+  const legacyPlatforms = [
+    'twitter',
+    'github',
+    'linkedin',
+    'threads',
+    'roadmap',
+    'codepen',
+    'reddit',
+    'stackoverflow',
+    'youtube',
+    'bluesky',
+    'mastodon',
+    'hashnode',
+    'portfolio',
+  ];
+  return legacyPlatforms.some((platform) => platform in data);
+}
+
+/**
  * Extract handle/value from URL for legacy column storage
  */
 function extractHandleFromUrl(url: string, platform: string): string | null {
@@ -1761,8 +1862,8 @@ function extractHandleFromUrl(url: string, platform: string): string | null {
         // Full URL is stored for mastodon
         return url;
       case 'hashnode':
-        // Full URL is stored for hashnode
-        return url;
+        // https://hashnode.com/@username
+        return pathname.replace(/^\/@?/, '') || null;
       case 'portfolio':
         // Full URL is stored for portfolio
         return url;
@@ -2583,13 +2684,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           : data.image || user.image;
 
       try {
-        // Process socialLinks for dual-write if provided
+        // Process socialLinks for dual-write
         let socialLinksData: {
           socialLinks?: UserSocialLink[];
           legacyColumns?: Record<string, string | null>;
         } = {};
+
         if (data.socialLinks) {
+          // New format: socialLinks array provided -> write to both socialLinks and legacy columns
           socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        } else if (hasLegacySocialFieldsUpdate(data)) {
+          // Legacy format: individual fields provided -> build socialLinks from merged values
+          socialLinksData.socialLinks = buildSocialLinksFromLegacyFields(
+            data,
+            user,
+          );
         }
 
         const updatedUser = {
@@ -2733,13 +2842,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       try {
         delete data.externalLocationId;
 
-        // Process socialLinks for dual-write if provided
+        // Process socialLinks for dual-write
         let socialLinksData: {
           socialLinks?: UserSocialLink[];
           legacyColumns?: Record<string, string | null>;
         } = {};
+
         if (data.socialLinks) {
+          // New format: socialLinks array provided -> write to both socialLinks and legacy columns
           socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        } else if (hasLegacySocialFieldsUpdate(data)) {
+          // Legacy format: individual fields provided -> build socialLinks from merged values
+          socialLinksData.socialLinks = buildSocialLinksFromLegacyFields(
+            data,
+            user,
+          );
         }
 
         const updatedUser = {
