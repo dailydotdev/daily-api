@@ -1204,6 +1204,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       job_title: opportunity.title || '',
       score: matchScore,
       matching_content: matchingContent,
+      candidate_link: `${process.env.COMMENTS_PREFIX}/recruiter/${opportunityId}/matches`,
     };
   },
   recruiter_opportunity_live: async (_con, _user, notification) => {

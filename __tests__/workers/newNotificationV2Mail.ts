@@ -2858,6 +2858,7 @@ describe('recruiter_new_candidate notification', () => {
       job_title: 'Senior Full Stack Developer',
       score: '85%',
       matching_content: 'Strong JS skills',
+      candidate_link: `http://localhost:5002/recruiter/${opportunitiesFixture[0].id}/matches`,
     });
   });
 });
