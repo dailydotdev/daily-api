@@ -1768,6 +1768,12 @@ const obj = new GraphORM({
   },
   Location: {
     from: 'DatasetLocation',
+    fields: {
+      // to not break existing implementations frontend only knows about country (which is like a name for dataset location)
+      country: {
+        select: (_, alias) => `COALESCE(${alias}.country, ${alias}.continent)`,
+      },
+    },
   },
   UserExperience: {
     requiredColumns: ['userId'],

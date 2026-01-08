@@ -126,6 +126,37 @@ export const opportunityCreateParseSchema = opportunityCreateSchema.extend({
     .optional()
     .default({}),
   content: opportunityContentSchema.partial().optional().default({}),
+  location: z
+    .array(
+      z
+        .object({
+          country: z.string().nonempty().max(240),
+          continent: z.literal([
+            'Africa',
+            'Antarctica',
+            'Asia',
+            'Europe',
+            'North America',
+            'Oceania',
+            'South America',
+          ]),
+          city: z.string().nonempty().max(240),
+          subdivision: z.string().nonempty().max(240),
+          type: z.coerce.number().min(1),
+          iso2: z.string().nonempty().max(2),
+        })
+        .partial(),
+    )
+    .optional()
+    .refine(
+      (locations) => {
+        return !!locations?.every((loc) => loc.continent || loc.country);
+      },
+      {
+        error:
+          'Each location needs to have either country or continent defined',
+      },
+    ),
 });
 
 export const opportunityEditSchema = z

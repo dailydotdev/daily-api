@@ -1009,15 +1009,18 @@ describe('query autocompleteLocation', () => {
     it('should return Europe as a country', async () => {
       loggedUser = '1';
 
-      await con.getRepository(DatasetLocation).save({
-        id: '550e8400-e29b-41d4-a716-446655440006',
-        country: 'Europe',
-        subdivision: null,
-        city: null,
-        iso2: 'EU',
-        iso3: 'EUR',
-        externalId: 'eu1',
-      });
+      await con.getRepository(DatasetLocation).save(
+        con.getRepository(DatasetLocation).create({
+          id: '550e8400-e29b-41d4-a716-446655440006',
+          continent: 'Europe',
+          country: null,
+          subdivision: null,
+          city: null,
+          iso2: null,
+          iso3: null,
+          externalId: 'eu1',
+        }),
+      );
 
       const res = await client.query(QUERY_WITH_DATASET, {
         variables: { query: 'europe', dataset: 'internal' },
