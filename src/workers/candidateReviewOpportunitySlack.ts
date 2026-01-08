@@ -40,7 +40,7 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
     const matchScore = match.description?.matchScore;
     const applicationScore = match.applicationRank?.score;
 
-    await webhooks.recruiter.send({
+    await webhooks.recruiterReview.send({
       blocks: [
         {
           type: 'header',

@@ -198,6 +198,10 @@ config:
       secure: AAABADfUUbSK5WvKYJM6lgpfvaPChqDYdUolX6Kv6/TMy0D7hWJWPbkipmq9W8vXbkuM97XzU2RlJGFB/9eiVfEdB6jBvu2C9iu5GbJ276481jB8Q+lw1do=
     intercomSecretKey:
       secure: AAABALs/RfaqXZ2hemHLwT9bnl+8vEKTVNByNeRkKNG1VSzorpbFppjnomw6XPMzoIEcPb+c1U9bUIs85qycCrkFd1Y9lfO6dPwl
+    slackIntegrationsSigningSecret:
+      secure: AAABAJKfnI5Zcohb1EGkSwCzhvW+Y+hLRiMAWMiWCxqK2hl5Y25csm5cLshdB6mqBnLilE832lA4TCqYfyM2pw==
+    slackRecruiterReviewWebhook:
+      secure: AAABAGDeL514sf6+9IlR72CWdsdqER8yK8XmZ4VHjDtb3CSeIyrh8Zh5mg/9ZgYqbbz+179zM28EFCmr7pEu0PKM53VAaHE3sQob/n79LceH+uwBryYlo3mQfm/B/X70uYipG+xjC4/6844hDahfH5c=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
