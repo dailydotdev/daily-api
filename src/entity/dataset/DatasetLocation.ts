@@ -19,6 +19,7 @@ export class DatasetLocation {
   @Column({ nullable: true })
   country: string;
 
+  // CHK_dataset_location_country_or_continent constraint ensures either country OR continent is NOT NULL
   @Column({ nullable: true })
   continent: string;
 

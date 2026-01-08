@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class DatasetLocationContinent1767884509732 implements MigrationInterface {
-  name = 'DatasetLocationContinent1767884509732';
+export class DatasetLocationContinent1767884509731 implements MigrationInterface {
+  name = 'DatasetLocationContinent1767884509731';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
