@@ -202,6 +202,8 @@ config:
       secure: AAABAJKfnI5Zcohb1EGkSwCzhvW+Y+hLRiMAWMiWCxqK2hl5Y25csm5cLshdB6mqBnLilE832lA4TCqYfyM2pw==
     slackRecruiterReviewWebhook:
       secure: AAABABTkdjxhBjCcoeV1tjL1OIctFGRtUEu9MVL1oQsAv5uZnI/BeqdV7JHSwMEqZSXBgL2allYd+3IebR691RjQGRRo/DmdMp1UU2WtpszFjf+shyj+MAsd4mwdyhtu/k0ozDHdPfMYds4hpUSPPKI=
+    slackInteractionsSigningSecret:
+      secure: AAABAMzCsR5elUVCRaLz51fI7t9RC+ftG9iwGst7tOb4vWHyiJakDQ9thRBJS0HH69V3+wMW5lhkMVYY1AUMiw==
   api:k8s:
     host: subs.daily.dev
     namespace: daily
