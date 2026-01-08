@@ -1,28 +1,5 @@
 import { TypedWorker } from './worker';
 import { webhooks } from '../common';
-import type { PubSubSchema } from '../common/typedPubsub';
-
-type CandidateReviewData = PubSubSchema['api.v1.candidate-review-opportunity'];
-
-const formatSalary = (
-  salary: CandidateReviewData['salaryExpectation'],
-): string => {
-  if (!salary?.min) return 'Not specified';
-  const minValue = parseInt(salary.min, 10);
-  if (isNaN(minValue)) return 'Not specified';
-  const formatted = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(minValue);
-  return `${formatted}+${salary.period ? `/${salary.period}` : ''}`;
-};
-
-const truncateText = (text: string | null, maxLength: number): string => {
-  if (!text) return 'Not provided';
-  if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength - 3) + '...';
-};
 
 const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
   subscription: 'api.candidate-review-opportunity-slack',
@@ -90,7 +67,7 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
             fields: [
               {
                 type: 'mrkdwn',
-                text: `*Salary Expectation:*\n${formatSalary(salaryExpectation)}`,
+                text: `*Salary Expectation:*\n${salaryExpectation?.min ? `$${salaryExpectation.min}+${salaryExpectation.period ? `/${salaryExpectation.period}` : ''}` : 'Not specified'}`,
               },
               {
                 type: 'mrkdwn',
@@ -109,7 +86,7 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
             type: 'section',
             text: {
               type: 'mrkdwn',
-              text: `*CV Summary:*\n${truncateText(cvSummary, 500)}`,
+              text: `*CV Summary:*\n${cvSummary ? (cvSummary.length > 500 ? `${cvSummary.slice(0, 497)}...` : cvSummary) : 'Not provided'}`,
             },
           },
           ...(screening
@@ -118,7 +95,10 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
                   type: 'section' as const,
                   text: {
                     type: 'mrkdwn' as const,
-                    text: `*Screening Answers:*\n\`\`\`${truncateText(JSON.stringify(screening, null, 2), 500)}\`\`\``,
+                    text: `*Screening Answers:*\n\`\`\`${(() => {
+                      const s = JSON.stringify(screening, null, 2);
+                      return s.length > 500 ? `${s.slice(0, 497)}...` : s;
+                    })()}\`\`\``,
                   },
                 },
               ]

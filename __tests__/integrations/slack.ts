@@ -1,7 +1,7 @@
 import appFunc from '../../src';
 import { FastifyInstance } from 'fastify';
 import { authorizeRequest, saveFixtures } from '../helpers';
-import { User } from '../../src/entity';
+import { Organization, User } from '../../src/entity';
 import { usersFixture } from '../fixture';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
@@ -16,6 +16,15 @@ import {
   AnalyticsEventName,
   sendAnalyticsEvent,
 } from '../../src/integrations/analytics';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
+import {
+  datasetLocationsFixture,
+  opportunitiesFixture,
+  organizationsFixture,
+} from '../fixture/opportunity';
+import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
+import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 
 jest.mock('../../src/integrations/analytics', () => ({
   ...(jest.requireActual('../../src/integrations/analytics') as Record<
@@ -480,5 +489,128 @@ describe('POST /integrations/slack/events', () => {
 
     expect(body).toEqual({ success: true });
     expect(await teamIntegrationsQuery.getCount()).toBe(1);
+  });
+});
+
+describe('POST /integrations/slack/interactions', () => {
+  const createInteractionPayload = (
+    actionId: string,
+    opportunityId: string,
+    userId: string,
+  ) =>
+    `payload=${encodeURIComponent(
+      JSON.stringify({
+        type: 'block_actions',
+        actions: [
+          {
+            action_id: actionId,
+            value: JSON.stringify({ opportunityId, userId }),
+          },
+        ],
+        response_url: 'https://hooks.slack.com/actions/test',
+        user: { id: 'U123', username: 'testuser' },
+      }),
+    )}`;
+
+  beforeEach(async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, OpportunityJob, opportunitiesFixture);
+  });
+
+  it('should return 403 when signature is invalid', async () => {
+    const { body } = await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .send(createInteractionPayload('candidate_review_accept', 'opp1', 'u1'))
+      .expect(403);
+
+    expect(body).toEqual({ error: 'invalid signature' });
+  });
+
+  it('should accept candidate and update match status', async () => {
+    const match = {
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      status: OpportunityMatchStatus.CandidateReview,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await saveFixtures(con, OpportunityMatch, [match]);
+
+    nock('https://hooks.slack.com').post('/actions/test').reply(200);
+
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set(
+        'x-slack-signature',
+        'v0=test', // Signature validation is mocked in test env
+      )
+      .send(
+        createInteractionPayload(
+          'candidate_review_accept',
+          match.opportunityId,
+          match.userId,
+        ),
+      )
+      .expect(200);
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOneBy({
+      opportunityId: match.opportunityId,
+      userId: match.userId,
+    });
+    expect(updatedMatch?.status).toBe(OpportunityMatchStatus.CandidateAccepted);
+  });
+
+  it('should reject candidate and update match status', async () => {
+    const match = {
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      status: OpportunityMatchStatus.CandidateReview,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    await saveFixtures(con, OpportunityMatch, [match]);
+
+    nock('https://hooks.slack.com').post('/actions/test').reply(200);
+
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set('x-slack-signature', 'v0=test')
+      .send(
+        createInteractionPayload(
+          'candidate_review_reject',
+          match.opportunityId,
+          match.userId,
+        ),
+      )
+      .expect(200);
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOneBy({
+      opportunityId: match.opportunityId,
+      userId: match.userId,
+    });
+    expect(updatedMatch?.status).toBe(OpportunityMatchStatus.RecruiterRejected);
+  });
+
+  it('should return 200 for unknown action types', async () => {
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set('x-slack-signature', 'v0=test')
+      .send(
+        `payload=${encodeURIComponent(
+          JSON.stringify({
+            type: 'block_actions',
+            actions: [{ action_id: 'unknown_action', value: '{}' }],
+          }),
+        )}`,
+      )
+      .expect(200);
   });
 });

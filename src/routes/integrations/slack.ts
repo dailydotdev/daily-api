@@ -21,6 +21,35 @@ import {
 } from '../../integrations/analytics';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
+import { z } from 'zod';
+
+// Zod schemas for Slack interaction payloads
+const slackActionValueSchema = z.object({
+  opportunityId: z.string(),
+  userId: z.string(),
+});
+
+const slackInteractionPayloadSchema = z.object({
+  type: z.literal('block_actions'),
+  actions: z
+    .array(
+      z.object({
+        action_id: z.enum([
+          'candidate_review_accept',
+          'candidate_review_reject',
+        ]),
+        value: z.string(),
+      }),
+    )
+    .min(1),
+  response_url: z.string().url().optional(),
+  user: z
+    .object({
+      id: z.string(),
+      username: z.string(),
+    })
+    .optional(),
+});
 
 const redirectResponse = ({
   res,
@@ -327,47 +356,49 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           return res.status(400).send({ error: 'missing payload' });
         }
 
-        const payload = JSON.parse(payloadString) as {
-          type: string;
-          actions?: Array<{
-            action_id: string;
-            value: string;
-          }>;
-          response_url?: string;
-          user?: {
-            id: string;
-            username: string;
-          };
-        };
-
-        if (payload.type !== 'block_actions' || !payload.actions?.length) {
-          logger.warn(
-            { type: payload.type },
-            'Unsupported Slack interaction type',
-          );
-          return res.status(200).send();
-        }
-
-        const action = payload.actions[0];
-        const actionId = action.action_id;
-
-        if (
-          actionId !== 'candidate_review_accept' &&
-          actionId !== 'candidate_review_reject'
-        ) {
-          logger.warn({ actionId }, 'Unknown Slack action');
-          return res.status(200).send();
-        }
-
-        let actionData: { opportunityId: string; userId: string };
+        let parsedPayload: unknown;
         try {
-          actionData = JSON.parse(action.value);
+          parsedPayload = JSON.parse(payloadString);
+        } catch {
+          logger.warn('Invalid JSON in Slack interaction payload');
+          return res.status(400).send({ error: 'invalid json payload' });
+        }
+
+        const payloadResult =
+          slackInteractionPayloadSchema.safeParse(parsedPayload);
+        if (!payloadResult.success) {
+          logger.warn(
+            { errors: payloadResult.error.flatten() },
+            'Invalid Slack interaction payload',
+          );
+          // Return 200 for unknown payload types to avoid Slack retries
+          return res.status(200).send();
+        }
+
+        const payload = payloadResult.data;
+        const action = payload.actions[0];
+
+        // Parse and validate the action value
+        let parsedActionValue: unknown;
+        try {
+          parsedActionValue = JSON.parse(action.value);
         } catch {
           logger.error({ value: action.value }, 'Failed to parse action value');
           return res.status(400).send({ error: 'invalid action value' });
         }
 
-        const { opportunityId, userId } = actionData;
+        const actionValueResult =
+          slackActionValueSchema.safeParse(parsedActionValue);
+        if (!actionValueResult.success) {
+          logger.error(
+            { errors: actionValueResult.error.flatten() },
+            'Invalid action value schema',
+          );
+          return res.status(400).send({ error: 'invalid action value schema' });
+        }
+
+        const { opportunityId, userId } = actionValueResult.data;
+        const actionId = action.action_id;
         const con = await createOrGetConnection();
 
         // Verify the match exists and is in CandidateReview status

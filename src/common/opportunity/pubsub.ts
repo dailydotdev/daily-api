@@ -644,17 +644,9 @@ export const notifyOpportunityMatchCandidateReview = async ({
     keywords,
   };
 
-  try {
-    await triggerTypedEvent(
-      logger,
-      'api.v1.candidate-review-opportunity',
-      message,
-    );
-  } catch (_err) {
-    const err = _err as Error;
-    logger.error(
-      { err, message },
-      'failed to send candidate review opportunity event',
-    );
-  }
+  await triggerTypedEvent(
+    logger,
+    'api.v1.candidate-review-opportunity',
+    message,
+  );
 };
