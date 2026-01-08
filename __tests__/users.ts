@@ -1861,6 +1861,44 @@ describe('query user', () => {
   });
 });
 
+describe('query user socialLinks', () => {
+  const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      id
+      socialLinks {
+        platform
+        url
+      }
+    }
+  }`;
+
+  it('should return empty socialLinks when user has none', async () => {
+    const requestUserId = '1';
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user.socialLinks).toEqual([]);
+  });
+
+  it('should return socialLinks when user has them', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        socialLinks: [
+          { platform: 'github', url: 'https://github.com/testuser' },
+          { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+        ],
+      },
+    );
+
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user.socialLinks).toEqual([
+      { platform: 'github', url: 'https://github.com/testuser' },
+      { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+    ]);
+  });
+});
+
 describe('query team members', () => {
   const QUERY = `query User($id: ID!) {
     user(id: $id) {
