@@ -1,12 +1,9 @@
 import { TypedWorker } from './worker';
-import { webhooks } from '../common';
+import { truncateText, webhooks } from '../common';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
-
-const truncate = (text: string | null | undefined, max = 500) =>
-  text ? (text.length > max ? `${text.slice(0, max - 3)}...` : text) : null;
 
 const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
   subscription: 'api.candidate-review-opportunity-slack',
@@ -40,7 +37,8 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
       .filter(Boolean)
       .join(', ');
     const salary = pref?.salaryExpectation;
-    const score = match.applicationRank?.score;
+    const matchScore = match.description?.matchScore;
+    const applicationScore = match.applicationRank?.score;
 
     await webhooks.recruiter.send({
       blocks: [
@@ -71,7 +69,7 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
             },
             {
               type: 'mrkdwn',
-              text: `*Match Score:*\n${score != null ? `${Math.round(score * 100)}%` : 'N/A'}`,
+              text: `*Match Score:*\n${matchScore != null ? `${Math.round(matchScore * 100)}%` : 'N/A'}`,
             },
           ],
         },
@@ -80,8 +78,17 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
           fields: [
             {
               type: 'mrkdwn',
+              text: `*Application Score:*\n${applicationScore != null ? `${Math.round(applicationScore)}%` : 'N/A'}`,
+            },
+            {
+              type: 'mrkdwn',
               text: `*Salary:*\n${salary?.min ? `$${salary.min}+${salary.period ? `/${salary.period}` : ''}` : 'N/A'}`,
             },
+          ],
+        },
+        {
+          type: 'section',
+          fields: [
             { type: 'mrkdwn', text: `*Location:*\n${location || 'N/A'}` },
           ],
         },
@@ -96,16 +103,27 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*CV Summary:*\n${truncate(pref?.cvParsedMarkdown) || 'N/A'}`,
+            text: `*CV Summary:*\n${truncateText(pref?.cvParsedMarkdown) || 'N/A'}`,
           },
         },
+        ...(match.applicationRank?.description
+          ? [
+              {
+                type: 'section' as const,
+                text: {
+                  type: 'mrkdwn' as const,
+                  text: `*Application Summary:*\n${truncateText(match.applicationRank.description)}`,
+                },
+              },
+            ]
+          : []),
         ...(match.screening?.length
           ? [
               {
                 type: 'section' as const,
                 text: {
                   type: 'mrkdwn' as const,
-                  text: `*Screening:*\n\`\`\`${truncate(
+                  text: `*Screening:*\n\`\`\`${truncateText(
                     JSON.stringify(
                       match.screening.map((s) => ({
                         q: s.screening,

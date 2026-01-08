@@ -22,8 +22,8 @@ import {
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import {
-  slackActionValueSchema,
-  slackInteractionPayloadSchema,
+  slackOpportunityActionValueSchema,
+  slackOpportunityCandidateReviewPayloadSchema,
 } from '../../common/schema/slack';
 
 const redirectResponse = ({
@@ -314,61 +314,57 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         return res.status(403).send({ error: 'invalid signature' });
       }
 
-      const payloadString =
-        typeof req.body === 'string'
-          ? new URLSearchParams(req.body).get('payload')
-          : (req.body as { payload?: string }).payload;
+      try {
+        const payloadString =
+          typeof req.body === 'string'
+            ? new URLSearchParams(req.body).get('payload')
+            : (req.body as { payload?: string }).payload;
 
-      const payload = slackInteractionPayloadSchema.safeParse(
-        JSON.parse(payloadString || '{}'),
-      );
-      if (!payload.success) {
-        return res.status(200).send();
-      }
+        const payload = slackOpportunityCandidateReviewPayloadSchema.parse(
+          JSON.parse(payloadString || '{}'),
+        );
+        const action = payload.actions[0];
+        const { opportunityId, userId } =
+          slackOpportunityActionValueSchema.parse(JSON.parse(action.value));
 
-      const action = payload.data.actions[0];
-      const actionValue = slackActionValueSchema.safeParse(
-        JSON.parse(action.value),
-      );
-      if (!actionValue.success) {
-        return res.status(200).send();
-      }
+        const con = await createOrGetConnection();
+        const match = await con
+          .getRepository(OpportunityMatch)
+          .findOne({ where: { opportunityId, userId } });
 
-      const { opportunityId, userId } = actionValue.data;
-      const con = await createOrGetConnection();
-      const match = await con
-        .getRepository(OpportunityMatch)
-        .findOne({ where: { opportunityId, userId } });
+        const respond = (text: string) =>
+          payload.response_url &&
+          fetch(payload.response_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ replace_original: true, text }),
+          });
 
-      const respond = (text: string) =>
-        payload.data.response_url &&
-        fetch(payload.data.response_url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ replace_original: true, text }),
-        });
+        if (!match || match.status !== OpportunityMatchStatus.CandidateReview) {
+          await respond(
+            match ? `Already processed: ${match.status}` : 'Match not found',
+          );
+          return res.status(200).send();
+        }
 
-      if (!match || match.status !== OpportunityMatchStatus.CandidateReview) {
+        const isAccept = action.action_id === 'candidate_review_accept';
+        await con.getRepository(OpportunityMatch).update(
+          { opportunityId, userId },
+          {
+            status: isAccept
+              ? OpportunityMatchStatus.CandidateAccepted
+              : OpportunityMatchStatus.RecruiterRejected,
+          },
+        );
+
         await respond(
-          match ? `Already processed: ${match.status}` : 'Match not found',
+          `${isAccept ? ':white_check_mark: Accepted' : ':x: Rejected'} by @${payload.user?.username || 'unknown'}`,
         );
         return res.status(200).send();
+      } catch {
+        // Return 200 for invalid payloads to avoid Slack retries
+        return res.status(200).send();
       }
-
-      const isAccept = action.action_id === 'candidate_review_accept';
-      await con.getRepository(OpportunityMatch).update(
-        { opportunityId, userId },
-        {
-          status: isAccept
-            ? OpportunityMatchStatus.CandidateAccepted
-            : OpportunityMatchStatus.RecruiterRejected,
-        },
-      );
-
-      await respond(
-        `${isAccept ? ':white_check_mark: Accepted' : ':x: Rejected'} by @${payload.data.user?.username || 'unknown'}`,
-      );
-      return res.status(200).send();
     },
   });
 }

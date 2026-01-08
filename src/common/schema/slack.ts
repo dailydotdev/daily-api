@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
-export const slackActionValueSchema = z.object({
+export const slackOpportunityActionValueSchema = z.object({
   opportunityId: z.string(),
   userId: z.string(),
 });
 
-export const slackInteractionPayloadSchema = z.object({
+export const slackOpportunityCandidateReviewPayloadSchema = z.object({
   type: z.literal('block_actions'),
   actions: z
     .array(
