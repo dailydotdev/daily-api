@@ -38,3 +38,7 @@ export const urlParseSchema = z.preprocess(
 );
 
 export const fileUploadSchema = z.custom<Promise<FileUpload>>();
+
+export const zCoerceStringBoolean = z.preprocess((val) => {
+  return val === 'false' ? false : Boolean(val);
+}, z.boolean());
