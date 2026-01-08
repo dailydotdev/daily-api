@@ -1,6 +1,5 @@
 import MarkdownIt, { Renderer, Token } from 'markdown-it';
 import hljs from 'highlight.js';
-import DOMPurify from 'isomorphic-dompurify';
 import { getUserProfileUrl } from './users';
 import { CommentMention, PostMention, User } from '../entity';
 import { DataSource, EntityManager } from 'typeorm';
@@ -13,7 +12,9 @@ import { isValidHttpUrl } from './links';
  * Sanitizes HTML content, allowing only safe tags for rich text content.
  * Used for opportunity content sections (WYSIWYG editor output).
  */
-export const sanitizeHtml = (html: string): string => {
+export const sanitizeHtml = async (html: string): Promise<string> => {
+  const DOMPurify = await import('isomorphic-dompurify');
+
   // Use hook to properly set link attributes without creating duplicates
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
     if (node.tagName === 'A') {
