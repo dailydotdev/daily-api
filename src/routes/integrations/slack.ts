@@ -322,7 +322,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     config: { rawBody: true },
     handler: async (req, res) => {
       try {
-        if (!verifySlackSignature({ req })) {
+        if (
+          !verifySlackSignature({
+            req,
+            secret: process.env.SLACK_INTERACTIONS_SIGNING_SECRET,
+          })
+        ) {
           logger.warn(
             {
               hasRawBody: !!req.rawBody,
