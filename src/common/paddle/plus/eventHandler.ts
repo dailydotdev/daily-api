@@ -23,7 +23,6 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
     case EventName.SubscriptionCreated:
       await updateUserSubscription({
         event,
-        state: true,
       });
 
       break;
@@ -31,7 +30,6 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
       await Promise.all([
         updateUserSubscription({
           event,
-          state: false,
         }),
         logPaddleAnalyticsEvent(event, AnalyticsEventName.CancelSubscription),
       ]);
@@ -41,7 +39,6 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
       if (didPlanChange) {
         await updateUserSubscription({
           event,
-          state: true,
         });
         await logPaddleAnalyticsEvent(
           event,
