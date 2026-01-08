@@ -2,144 +2,28 @@ import { FastifyInstance, FastifyReply } from 'fastify';
 import { Storage } from '@google-cloud/storage';
 import { retryFetch } from '../integrations/retry';
 import {
+  generateStorageKey,
+  StorageKey,
+  StorageTopic,
   WEBAPP_MAGIC_IMAGE_PREFIX,
   YEAR_IN_REVIEW_BUCKET_NAME,
 } from '../config';
 import createOrGetConnection from '../db';
 import { User } from '../entity';
+import { getRedisObject, setRedisObjectWithExpiry } from '../redis';
 
 const storage = new Storage();
 
-// Record types matching the webapp's RecordType enum
-const RecordType = {
-  YEAR_ACTIVE: 'yearActive',
-  STREAK: 'streak',
-  CONSISTENT_DAY: 'consistentDay',
-  BINGE_DAY: 'bingeDay',
-  LONGEST_SESSION: 'longestSession',
-  TOPIC_MARATHON: 'topicMarathon',
-  LATE_NIGHT: 'lateNight',
-  EARLY_MORNING: 'earlyMorning',
-  GROWTH_MONTH: 'growthMonth',
-  IMPROVED_TOPIC: 'improvedTopic',
-} as const;
+const ONE_HOUR_SECONDS = 60 * 60;
 
-// Mock data matching the webapp's LogData interface
-// TODO: Replace with actual data fetching logic
-const MOCK_LOG_DATA = {
-  // Card 1: Total Impact
-  totalPosts: 847,
-  totalReadingTime: 62,
-  daysActive: 234,
-  totalImpactPercentile: 91,
-
-  // Card 2: When You Read
-  peakDay: 'Thursday',
-  readingPattern: 'night' as const,
-  patternPercentile: 8,
-  activityHeatmap: (() => {
-    const raw = Array(24)
-      .fill(0)
-      .map(() => Math.random());
-    const sum = raw.reduce((a, b) => a + b, 0);
-    return raw.map((v) => v / sum);
-  })(),
-
-  // Card 3: Topic Evolution
-  topicJourney: [
-    { quarter: 'Q1', topics: ['Python', 'Django', 'REST APIs'] },
-    {
-      quarter: 'Q2',
-      topics: ['Docker', 'Kubernetes', 'DevOps'],
-      comment: '🔥 THE PIVOT QUARTER',
-    },
-    { quarter: 'Q3', topics: ['Go', 'Concurrency', 'gRPC'] },
-    { quarter: 'Q4', topics: ['Rust', 'Systems', 'Memory Safety'] },
-  ],
-  uniqueTopics: 47,
-  evolutionPercentile: 23,
-
-  // Card 4: Favorite Sources
-  topSources: [
-    {
-      name: 'dev.to',
-      postsRead: 127,
-      logoUrl:
-        'https://daily-now-res.cloudinary.com/image/upload/t_logo,f_auto/v1/logos/devto',
-    },
-    {
-      name: 'Hacker News',
-      postsRead: 98,
-      logoUrl:
-        'https://daily-now-res.cloudinary.com/image/upload/t_logo,f_auto/v1/logos/hn',
-    },
-    {
-      name: 'Pragmatic Engineer',
-      postsRead: 64,
-      logoUrl:
-        'https://daily-now-res.cloudinary.com/image/upload/t_logo,f_auto/v1/logos/pragmaticengineer',
-    },
-  ],
-  uniqueSources: 89,
-  sourcePercentile: 15,
-  sourceLoyaltyName: 'dev.to',
-
-  // Card 5: Community Engagement
-  upvotesGiven: 234,
-  commentsWritten: 18,
-  postsBookmarked: 89,
-  upvotePercentile: 15,
-  commentPercentile: 32,
-  bookmarkPercentile: 20,
-
-  // Card 6: Your Contributions
-  hasContributions: true,
-  postsCreated: 12,
-  totalViews: 8432,
-  commentsReceived: 247,
-  upvotesReceived: 892,
-  reputationEarned: 1892,
-  creatorPercentile: 8,
-
-  // Card 7: Records
-  records: [
-    {
-      type: RecordType.STREAK,
-      label: 'Longest Streak',
-      value: '47 days',
-      percentile: 6,
-    },
-    {
-      type: RecordType.BINGE_DAY,
-      label: 'Biggest Binge',
-      value: '34 posts',
-      percentile: 3,
-    },
-    {
-      type: RecordType.LATE_NIGHT,
-      label: 'Latest Night Read',
-      value: '3:47 AM',
-    },
-  ],
-
-  // Card 8: Archetype
-  archetype: 'COLLECTOR' as const,
-  archetypeStat: 'Only 12% of developers read as late as you',
-  archetypePercentile: 12,
-
-  // Card 9: Share
-  globalRank: 12847,
-  totalDevelopers: 487000,
-  shareCount: 24853,
-};
+// LogData represents the year-in-review data structure from GCS
+type LogData = Record<string, unknown>;
 
 /**
  * Fetch user's year-in-review log data from GCS bucket.
  * Returns null if the file doesn't exist.
  */
-async function fetchLogDataFromGCS(
-  userId: string,
-): Promise<typeof MOCK_LOG_DATA | null> {
+async function fetchLogDataFromGCS(userId: string): Promise<LogData | null> {
   try {
     const bucket = storage.bucket(YEAR_IN_REVIEW_BUCKET_NAME);
     const file = bucket.file(`2025/first_30/${userId}.json`);
@@ -154,6 +38,34 @@ async function fetchLogDataFromGCS(
   } catch (error) {
     return null;
   }
+}
+
+/**
+ * Get user's log data with Redis caching.
+ * Checks cache first, falls back to GCS, and caches the result.
+ */
+async function getLogData(userId: string): Promise<LogData | null> {
+  const cacheKey = generateStorageKey(
+    StorageTopic.Log,
+    StorageKey.LogData,
+    userId,
+  );
+
+  const cachedData = await getRedisObject(cacheKey);
+  if (cachedData) {
+    return JSON.parse(cachedData);
+  }
+
+  const logData = await fetchLogDataFromGCS(userId);
+  if (logData) {
+    await setRedisObjectWithExpiry(
+      cacheKey,
+      JSON.stringify(logData),
+      ONE_HOUR_SECONDS,
+    );
+  }
+
+  return logData;
 }
 
 // Valid card types for log share images (welcome is not shareable)
@@ -175,7 +87,7 @@ type CardType = (typeof VALID_CARD_TYPES)[number];
  * Extract only the data needed for a specific card type.
  * This keeps the base64 URL payload small.
  */
-function extractCardData(card: CardType, logData: typeof MOCK_LOG_DATA) {
+function extractCardData(card: CardType, logData: LogData) {
   switch (card) {
     case 'total-impact':
       return {
@@ -256,26 +168,21 @@ function extractCardData(card: CardType, logData: typeof MOCK_LOG_DATA) {
 export default async function (fastify: FastifyInstance): Promise<void> {
   /**
    * GET /log
-   * Returns the user's log data for the year.
-   * Accepts optional userId query param to fetch specific user's data from GCS.
+   * Returns the authenticated user's log data for the year.
+   * Requires authentication.
    * Returns 404 if user doesn't have enough data (no JSON file exists).
    */
-  fastify.get<{
-    Querystring: { userId?: string };
-  }>('/', async (req, res) => {
-    const { userId } = req.query;
-
-    // If userId query param is provided, fetch from GCS
-    if (userId) {
-      const logData = await fetchLogDataFromGCS(userId);
-      if (!logData) {
-        return res.status(404).send({ error: 'No log data available' });
-      }
-      return res.send(logData);
+  fastify.get('/', async (req, res) => {
+    if (!req.userId) {
+      return res.status(401).send({ error: 'Unauthorized' });
     }
 
-    // Fall back to mock data when no userId provided
-    return res.send(MOCK_LOG_DATA);
+    const logData = await getLogData(req.userId);
+    if (!logData) {
+      return res.status(404).send({ error: 'No log data available' });
+    }
+
+    return res.send(logData);
   });
 
   /**
@@ -309,18 +216,23 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
 
     try {
-      // Fetch user profile for personalization
+      // Fetch user profile and log data in parallel
       const con = await createOrGetConnection();
-      const user = await con
-        .getRepository(User)
-        .findOne({ where: { id: req.userId }, select: ['image', 'username'] });
+      const [user, logData] = await Promise.all([
+        con.getRepository(User).findOne({
+          where: { id: req.userId },
+          select: ['image', 'username'],
+        }),
+        getLogData(req.userId),
+      ]);
 
       if (!user) {
         return res.status(404).send({ error: 'User not found' });
       }
 
-      // Fetch user's log data from GCS, fall back to mock data
-      const logData = (await fetchLogDataFromGCS(req.userId)) ?? MOCK_LOG_DATA;
+      if (!logData) {
+        return res.status(404).send({ error: 'No log data available' });
+      }
 
       // Extract only the data needed for this card type
       const cardData = extractCardData(card as CardType, logData);
@@ -340,7 +252,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       // Build image-generator URL
       const imageUrl = new URL(
         `${WEBAPP_MAGIC_IMAGE_PREFIX}/log`,
-        'https://dailydev-log-2025.preview.app.daily.dev', // TODO: process.env.COMMENTS_PREFIX
+        process.env.COMMENTS_PREFIX,
       );
       imageUrl.searchParams.set('card', card);
       imageUrl.searchParams.set('data', encoded);
