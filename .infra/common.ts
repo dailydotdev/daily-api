@@ -434,6 +434,10 @@ export const workers: Worker[] = [
     subscription: 'api.recruiter-new-candidate-notification',
   },
   {
+    topic: 'api.v1.candidate-review-opportunity',
+    subscription: 'api.candidate-review-opportunity-slack',
+  },
+  {
     topic: 'api.v1.opportunity-went-live',
     subscription: 'api.recruiter-opportunity-live-notification',
   },

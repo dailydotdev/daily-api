@@ -2477,7 +2477,7 @@ describe('mutation acceptOpportunityMatch', () => {
       await con.getRepository(OpportunityMatch).countBy({
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
         userId: '1',
-        status: OpportunityMatchStatus.CandidateAccepted,
+        status: OpportunityMatchStatus.CandidateReview,
       }),
     ).toEqual(1);
   });
@@ -2553,7 +2553,7 @@ describe('mutation rejectOpportunityMatch', () => {
     );
   });
 
-  it('should accept opportunity match for authenticated user', async () => {
+  it('should reject opportunity match for authenticated user', async () => {
     loggedUser = '1';
 
     expect(

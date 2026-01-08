@@ -321,6 +321,16 @@ export const textToSlug = (text: string): string =>
     replacement: '-',
   }).substring(0, 100);
 
+export const truncateText = (
+  text: string | null | undefined,
+  maxLength = 500,
+): string | null =>
+  text
+    ? text.length > maxLength
+      ? `${text.slice(0, maxLength - 3)}...`
+      : text
+    : null;
+
 export const updateRecruiterSubscriptionFlags = <
   Entity extends {
     recruiterSubscriptionFlags: object;

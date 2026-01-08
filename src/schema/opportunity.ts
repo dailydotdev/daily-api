@@ -1925,7 +1925,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await updateCandidateMatchStatus(
         id,
         ctx.userId,
-        OpportunityMatchStatus.CandidateAccepted,
+        OpportunityMatchStatus.CandidateReview,
         ctx,
       );
 

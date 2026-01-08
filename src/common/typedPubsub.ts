@@ -191,6 +191,10 @@ export type PubSubSchema = {
     payload: ChangeObject<ReputationEvent>;
   };
   'api.v1.candidate-accepted-opportunity': CandidateAcceptedOpportunityMessage;
+  'api.v1.candidate-review-opportunity': {
+    opportunityId: string;
+    userId: string;
+  };
   'api.v1.opportunity-added': OpportunityMessage;
   'api.v1.opportunity-updated': OpportunityMessage;
   'api.v1.opportunity-in-review': {
