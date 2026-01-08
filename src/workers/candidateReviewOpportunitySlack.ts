@@ -103,7 +103,7 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*CV Summary:*\n${truncateText(pref?.cvParsedMarkdown) || 'N/A'}`,
+            text: `*CV:*\n${pref?.cv?.signedUrl ? `<${pref.cv.signedUrl}|Download CV>` : 'N/A'}`,
           },
         },
         ...(match.applicationRank?.description

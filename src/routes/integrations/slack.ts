@@ -302,10 +302,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   // Handle Slack interactive component payloads (button clicks)
   // Slack sends form-urlencoded data with a JSON payload
+  // Must set rawBody manually for signature verification
   fastify.addContentTypeParser(
     'application/x-www-form-urlencoded',
     { parseAs: 'string' },
-    (_req, body, done) => done(null, body),
+    (req, body, done) => {
+      (req as unknown as { rawBody: string }).rawBody = body as string;
+      done(null, body);
+    },
   );
 
   fastify.post<{
@@ -319,9 +323,27 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     handler: async (req, res) => {
       try {
         if (!verifySlackSignature({ req })) {
+          logger.warn(
+            {
+              hasRawBody: !!req.rawBody,
+              rawBodyLength: req.rawBody?.length,
+              hasTimestamp: !!req.headers['x-slack-request-timestamp'],
+              hasSignature: !!req.headers['x-slack-signature'],
+            },
+            'slack interaction signature verification failed',
+          );
           return res.status(403).send({ error: 'invalid signature' });
         }
-      } catch {
+      } catch (err) {
+        logger.error(
+          {
+            err,
+            hasRawBody: !!req.rawBody,
+            rawBodyLength: req.rawBody?.length,
+            rawBodyType: typeof req.rawBody,
+          },
+          'slack interaction signature verification error',
+        );
         return res.status(403).send({ error: 'invalid signature' });
       }
 
