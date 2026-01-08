@@ -301,6 +301,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   // Handle Slack interactive component payloads (button clicks)
+  // Slack sends form-urlencoded data with a JSON payload
+  fastify.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_req, body, done) => done(null, body),
+  );
+
   fastify.post<{
     Body: string;
     Headers: {
@@ -310,7 +317,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   }>('/interactions', {
     config: { rawBody: true },
     handler: async (req, res) => {
-      if (!verifySlackSignature({ req })) {
+      try {
+        if (!verifySlackSignature({ req })) {
+          return res.status(403).send({ error: 'invalid signature' });
+        }
+      } catch {
         return res.status(403).send({ error: 'invalid signature' });
       }
 

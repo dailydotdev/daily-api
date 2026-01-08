@@ -11,7 +11,7 @@ import {
   UserIntegration,
   UserIntegrationType,
 } from '../../src/entity/UserIntegration';
-import { SlackEvent } from '../../src/common';
+import { SlackEvent, verifySlackSignature } from '../../src/common';
 import {
   AnalyticsEventName,
   sendAnalyticsEvent,
@@ -34,6 +34,20 @@ jest.mock('../../src/integrations/analytics', () => ({
   sendAnalyticsEvent: jest.fn(),
 }));
 
+const actualVerifySlackSignature =
+  jest.requireActual<typeof import('../../src/common')>(
+    '../../src/common',
+  ).verifySlackSignature;
+
+jest.mock('../../src/common', () => ({
+  ...(jest.requireActual('../../src/common') as Record<string, unknown>),
+  verifySlackSignature: jest.fn(),
+}));
+
+const mockVerifySlackSignature = verifySlackSignature as jest.MockedFunction<
+  typeof verifySlackSignature
+>;
+
 let app: FastifyInstance;
 let con: DataSource;
 
@@ -48,6 +62,8 @@ afterAll(() => app.close());
 beforeEach(async () => {
   nock.cleanAll();
   jest.resetAllMocks();
+  // Use the actual implementation by default (for events tests)
+  mockVerifySlackSignature.mockImplementation(actualVerifySlackSignature);
   await saveFixtures(con, User, usersFixture);
 });
 
@@ -516,9 +532,12 @@ describe('POST /integrations/slack/interactions', () => {
     await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, OpportunityJob, opportunitiesFixture);
+    mockVerifySlackSignature.mockReturnValue(true);
   });
 
   it('should return 403 when signature is invalid', async () => {
+    mockVerifySlackSignature.mockReturnValue(false);
+
     const { body } = await request(app.server)
       .post('/integrations/slack/interactions')
       .set('Content-Type', 'application/x-www-form-urlencoded')
