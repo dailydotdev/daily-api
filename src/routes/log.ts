@@ -148,7 +148,7 @@ function extractCardData(card: CardType, logData: LogData) {
       return {
         archetype: logData.archetype,
         archetypeStat: logData.archetypeStat,
-        archetypePercentile: logData.archetypePercentile,
+        totalImpactPercentile: logData.totalImpactPercentile,
         totalPosts: logData.totalPosts,
         totalReadingTime: logData.totalReadingTime,
         daysActive: logData.daysActive,
