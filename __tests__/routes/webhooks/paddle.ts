@@ -814,7 +814,7 @@ describe('recruiter product', () => {
       .getRepository(OpportunityJob)
       .findOneByOrFail({ id: testOpportunityId });
 
-    expect(opportunity.state).toBe(OpportunityState.IN_REVIEW);
+    expect(opportunity.state).toBe(OpportunityState.DRAFT);
     expect(opportunity.flags).toMatchObject({
       batchSize: 100,
       plan: 'pri_recruiter_monthly',

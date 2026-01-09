@@ -137,7 +137,6 @@ export const createOpportunitySubscription = async ({
         id: opportunity.id,
       },
       {
-        state: OpportunityState.IN_REVIEW,
         flags: updateFlagsStatement<OpportunityJob>({
           batchSize: priceCustomData.batch_size,
           plan: price.id,
