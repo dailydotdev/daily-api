@@ -10,7 +10,7 @@ if [[ -z "$cmd" ]]; then
   exit 0
 fi
 
-if [[ "$cmd" =~ git\ push.*(-f|--force) ]]; then
+if [[ "$cmd" =~ git\ push.*\ (-f|--force)($|\ ) ]]; then
   echo "Force push is not allowed" >&2
   exit 2
 fi
