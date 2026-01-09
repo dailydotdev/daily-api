@@ -164,9 +164,77 @@ const createWorkerSchema = async (): Promise<void> => {
     `);
   }
 
-  // Note: Triggers are NOT copied because they reference functions in public schema
-  // which would insert data into public schema tables instead of worker schema tables.
-  // This is a known limitation of schema isolation.
+  // Get all materialized views from public schema and recreate them in worker schema
+  const matViews = await bootstrapDataSource.query(`
+    SELECT matviewname, definition FROM pg_matviews
+    WHERE schemaname = 'public'
+  `);
+
+  for (const { matviewname, definition } of matViews) {
+    // Replace public schema references with worker schema in view definition
+    const modifiedDefinition = definition.replace(
+      /public\./g,
+      `${testSchema}.`,
+    );
+    await bootstrapDataSource.query(`
+      CREATE MATERIALIZED VIEW "${testSchema}"."${matviewname}" AS ${modifiedDefinition}
+    `);
+  }
+
+  // Copy all user-defined functions from public schema to worker schema
+  // This includes both regular functions and trigger functions
+  const allFunctions = await bootstrapDataSource.query(`
+    SELECT p.proname as name, pg_get_functiondef(p.oid) as definition
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE n.nspname = 'public'
+    AND p.prokind = 'f'
+  `);
+
+  for (const { definition } of allFunctions) {
+    if (!definition) continue;
+    // Replace public schema references with worker schema
+    const modifiedDefinition = definition
+      .replace(
+        /CREATE (OR REPLACE )?FUNCTION public\./i,
+        (_, orReplace) => `CREATE ${orReplace || ''}FUNCTION "${testSchema}".`,
+      )
+      .replace(/\bpublic\./gi, `"${testSchema}".`);
+    try {
+      await bootstrapDataSource.query(modifiedDefinition);
+    } catch {
+      // Some functions might fail due to dependencies, skip them
+    }
+  }
+
+  // Copy triggers with schema references replaced
+  const triggers = await bootstrapDataSource.query(`
+    SELECT
+      c.relname as table_name,
+      t.tgname as trigger_name,
+      pg_get_triggerdef(t.oid) as trigger_def
+    FROM pg_trigger t
+    JOIN pg_class c ON t.tgrelid = c.oid
+    JOIN pg_namespace n ON c.relnamespace = n.oid
+    WHERE n.nspname = 'public'
+    AND NOT t.tgisinternal
+  `);
+
+  for (const { trigger_def } of triggers) {
+    // Replace public schema references with worker schema
+    // Also replace EXECUTE FUNCTION/PROCEDURE calls to use the worker schema
+    const modifiedDef = trigger_def
+      .replace(/\bpublic\./gi, `"${testSchema}".`)
+      .replace(
+        /EXECUTE (FUNCTION|PROCEDURE) (\w+)\(/gi,
+        `EXECUTE $1 "${testSchema}".$2(`,
+      );
+    try {
+      await bootstrapDataSource.query(modifiedDef);
+    } catch {
+      // Some triggers might fail due to missing functions, skip them
+    }
+  }
 
   await bootstrapDataSource.destroy();
 };
