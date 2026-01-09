@@ -427,10 +427,6 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.candidate-accepted-opportunity',
-    subscription: 'api.candidate-accepted-opportunity-slack',
-  },
-  {
-    topic: 'api.v1.candidate-accepted-opportunity',
     subscription: 'api.recruiter-new-candidate-notification',
   },
   {
@@ -458,7 +454,7 @@ export const workers: Worker[] = [
     subscription: 'api.parse-cv-profile',
     args: {
       ackDeadlineSeconds: 180,
-    }
+    },
   },
   {
     topic: 'gondul.v1.opportunity-preview-results',
