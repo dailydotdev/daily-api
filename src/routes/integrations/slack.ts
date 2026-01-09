@@ -322,28 +322,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     config: { rawBody: true },
     handler: async (req, res) => {
       try {
-        if (!verifySlackSignature({ req })) {
-          logger.warn(
-            {
-              hasRawBody: !!req.rawBody,
-              rawBodyLength: req.rawBody?.length,
-              hasTimestamp: !!req.headers['x-slack-request-timestamp'],
-              hasSignature: !!req.headers['x-slack-signature'],
-            },
-            'slack interaction signature verification failed',
-          );
+        if (
+          !verifySlackSignature({
+            req,
+            secret: process.env.SLACK_INTERACTIONS_SIGNING_SECRET,
+          })
+        ) {
           return res.status(403).send({ error: 'invalid signature' });
         }
       } catch (err) {
-        logger.error(
-          {
-            err,
-            hasRawBody: !!req.rawBody,
-            rawBodyLength: req.rawBody?.length,
-            rawBodyType: typeof req.rawBody,
-          },
-          'slack interaction signature verification error',
-        );
         return res.status(403).send({ error: 'invalid signature' });
       }
 

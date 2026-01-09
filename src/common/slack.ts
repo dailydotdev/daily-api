@@ -41,6 +41,9 @@ export const webhooks = Object.freeze({
   recruiter: process.env.SLACK_RECRUITER_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_RECRUITER_WEBHOOK)
     : nullWebhook,
+  recruiterReview: process.env.SLACK_RECRUITER_REVIEW_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_RECRUITER_REVIEW_WEBHOOK)
+    : nullWebhook,
 });
 
 export class SlackClient {
@@ -493,6 +496,7 @@ export const getSlackIntegrationOrFail = async ({
 
 export const verifySlackSignature = ({
   req,
+  secret = process.env.SLACK_SIGNING_SECRET,
 }: {
   req: FastifyRequest<{
     Headers: {
@@ -500,15 +504,16 @@ export const verifySlackSignature = ({
       'x-slack-signature': string;
     };
   }>;
+  secret?: string;
 }): boolean => {
   const timestamp = req.headers['x-slack-request-timestamp'] as string;
   const signature = req.headers['x-slack-signature'] as string;
 
-  if (!timestamp || !signature) {
+  if (!timestamp || !signature || !secret) {
     return false;
   }
 
-  const hmac = createHmac('sha256', process.env.SLACK_SIGNING_SECRET);
+  const hmac = createHmac('sha256', secret);
   hmac.update(`v0:${timestamp}:${req.rawBody}`);
 
   const hash = hmac.digest();
