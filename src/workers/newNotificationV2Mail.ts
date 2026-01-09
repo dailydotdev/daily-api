@@ -1182,7 +1182,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       }),
       con.getRepository(OpportunityMatch).findOne({
         where: { opportunityId, userId: candidateId },
-        select: ['description'],
+        select: ['applicationRank'],
       }),
     ]);
 
@@ -1192,11 +1192,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
     const candidateName = candidateAvatar.name;
     const candidatePicture = candidateAvatar.image;
-    const matchScore = match?.description?.matchScore
-      ? `${Math.round(match.description.matchScore * 100)}%`
+    const matchScore = match?.applicationRank?.score
+      ? `${Math.round(match.applicationRank.score)}%`
       : '';
-    const matchingContent =
-      match?.description?.reasoningShort || match?.description?.reasoning || '';
+    const matchingContent = match?.applicationRank?.description || '';
 
     return {
       candidate_name: candidateName,
