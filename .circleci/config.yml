@@ -28,6 +28,12 @@ jobs:
         environment:
           POSTGRES_DB: api_test
           POSTGRES_PASSWORD: 12345
+        command: >
+          postgres
+          -c fsync=off
+          -c synchronous_commit=off
+          -c full_page_writes=off
+          -c max_connections=200
       - image: redis/redis-stack:7.2.0-v13
     parallelism: 6
     steps:
