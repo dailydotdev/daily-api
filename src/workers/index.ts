@@ -72,7 +72,6 @@ import { storeCandidateOpportunityMatch } from './opportunity/storeCandidateOppo
 import { storeCandidateApplicationScore } from './opportunity/storeCandidateApplicationScore';
 import { syncOpportunityRemindersCio } from './opportunity/syncOpportunityRemindersCio';
 import { extractCVMarkdown } from './extractCVMarkdown';
-import candidateAcceptedOpportunitySlack from './candidateAcceptedOpportunitySlack';
 import candidateReviewOpportunitySlack from './candidateReviewOpportunitySlack';
 import recruiterRejectedCandidateMatchEmail from './recruiterRejectedCandidateMatchEmail';
 import { opportunityPreviewResultWorker } from './opportunity/opportunityPreviewResult';
@@ -152,7 +151,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   storeCandidateApplicationScore,
   syncOpportunityRemindersCio,
   extractCVMarkdown,
-  candidateAcceptedOpportunitySlack,
   candidateReviewOpportunitySlack,
   recruiterRejectedCandidateMatchEmail,
   opportunityPreviewResultWorker,

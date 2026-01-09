@@ -434,7 +434,7 @@ export const workers: Worker[] = [
     subscription: 'api.recruiter-new-candidate-notification',
   },
   {
-    topic: 'api.v1.candidate-review-opportunity',
+    topic: 'gondul.v1.candidate-application-scored',
     subscription: 'api.candidate-review-opportunity-slack',
   },
   {
