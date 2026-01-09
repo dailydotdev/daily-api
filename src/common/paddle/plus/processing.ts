@@ -1,4 +1,7 @@
-import type { TransactionCompletedEvent } from '@paddle/paddle-node-sdk';
+import type {
+  TransactionCompletedEvent,
+  SubscriptionStatus as PaddleSubscriptionStatus,
+} from '@paddle/paddle-node-sdk';
 import {
   dropClaimableItem,
   extractSubscriptionCycle,
@@ -23,12 +26,31 @@ import {
 import { addMilliseconds } from 'date-fns';
 import { notifyNewPaddlePlusTransaction } from '../slack';
 
+/**
+ * Maps Paddle subscription status to internal SubscriptionStatus.
+ * - 'active' and 'trialing' map to Active (user has access)
+ * - 'canceled', 'past_due', and 'paused' map to Cancelled (access revoked)
+ */
+export const getPaddleSubscriptionStatus = (
+  paddleStatus: PaddleSubscriptionStatus,
+): SubscriptionStatus => {
+  switch (paddleStatus) {
+    case 'active':
+    case 'trialing':
+      return SubscriptionStatus.Active;
+    case 'canceled':
+    case 'past_due':
+    case 'paused':
+      return SubscriptionStatus.Cancelled;
+    default:
+      return SubscriptionStatus.None;
+  }
+};
+
 export const updateUserSubscription = async ({
   event,
-  state,
 }: {
   event: PaddleSubscriptionEvent | undefined;
-  state: boolean;
 }) => {
   if (!event) {
     return;
@@ -41,6 +63,8 @@ export const updateUserSubscription = async ({
   const userId = customData?.user_id;
 
   const subscriptionType = extractSubscriptionCycle(data.items);
+  const mappedStatus = getPaddleSubscriptionStatus(data.status);
+  const isActive = mappedStatus === SubscriptionStatus.Active;
 
   if (!subscriptionType) {
     logger.error(
@@ -54,7 +78,7 @@ export const updateUserSubscription = async ({
     return false;
   }
   if (!userId) {
-    if (state) {
+    if (isActive) {
       await updateClaimableItem(con, data);
     } else {
       await dropClaimableItem(con, data);
@@ -88,17 +112,39 @@ export const updateUserSubscription = async ({
       throw new Error('User already has a StoreKit subscription');
     }
 
+    const currentUpdatedAt = user.subscriptionFlags?.updatedAt
+      ? new Date(user.subscriptionFlags.updatedAt)
+      : new Date(0);
+    const eventUpdatedAt = data?.updatedAt ? new Date(data.updatedAt) : null;
+
+    if (eventUpdatedAt && eventUpdatedAt <= currentUpdatedAt) {
+      logger.warn(
+        {
+          provider: SubscriptionProvider.Paddle,
+          purchaseType: PurchaseType.Plus,
+          userId,
+          eventUpdatedAt,
+          currentUpdatedAt,
+          eventType: event.eventType,
+          subscriptionId: data?.id,
+        },
+        'Stale Paddle subscription event received, skipping',
+      );
+      return;
+    }
+
     await con.getRepository(User).update(
       {
         id: userId,
       },
       {
         subscriptionFlags: updateSubscriptionFlags({
-          cycle: state ? subscriptionType : null,
-          createdAt: state ? data?.startedAt : null,
-          subscriptionId: state ? data?.id : null,
-          provider: state ? SubscriptionProvider.Paddle : null,
-          status: state ? SubscriptionStatus.Active : null,
+          cycle: isActive ? subscriptionType : null,
+          createdAt: isActive ? data?.startedAt : null,
+          subscriptionId: isActive ? data?.id : null,
+          provider: isActive ? SubscriptionProvider.Paddle : null,
+          status: isActive ? mappedStatus : null,
+          updatedAt: data?.updatedAt ?? null,
         }),
       },
     );
