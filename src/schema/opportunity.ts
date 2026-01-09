@@ -85,6 +85,7 @@ import {
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { applyDeterministicVariation } from '../common/number';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
 import { slackClient } from '../common/slack';
@@ -1681,7 +1682,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           tags,
           companies,
           squads,
-          totalCount: opportunityPreview.totalCount,
+          totalCount: applyDeterministicVariation({
+            value: opportunityPreview.totalCount,
+            seed: opportunity.id,
+            maxVariationPercent: 7.6,
+          }),
           status: opportunityPreview.status,
           opportunityId: opportunity.id,
         },

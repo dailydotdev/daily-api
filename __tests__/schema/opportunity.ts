@@ -6037,7 +6037,7 @@ describe('query opportunityPreview', () => {
           anonUserId: 'test-anon-user-123',
           preview: {
             userIds: ['1', '2'],
-            totalCount: 2,
+            totalCount: 2000, // mocked total count
           },
         },
       },
@@ -6053,7 +6053,7 @@ describe('query opportunityPreview', () => {
     expect(res.data.opportunityPreview.result.opportunityId).toBe(
       opportunitiesFixture[0].id,
     );
-    expect(res.data.opportunityPreview.result.totalCount).toBe(2);
+    expect(res.data.opportunityPreview.result.totalCount).toBe(2122);
   });
 
   it('should return opportunity preview result structure', async () => {
@@ -6064,7 +6064,7 @@ describe('query opportunityPreview', () => {
           anonUserId: 'test-anon-user-123',
           preview: {
             userIds: ['1'],
-            totalCount: 1,
+            totalCount: 1000, // mocked total count
           },
         },
       },
@@ -6078,7 +6078,7 @@ describe('query opportunityPreview', () => {
     const result = res.data.opportunityPreview.result;
     expect(result).toMatchObject({
       opportunityId: opportunitiesFixture[0].id,
-      totalCount: 1,
+      totalCount: 1061,
       tags: expect.any(Array),
       companies: expect.any(Array),
       squads: expect.any(Array),
@@ -6095,7 +6095,7 @@ describe('query opportunityPreview', () => {
         flags: {
           preview: {
             userIds: ['1', '2'],
-            totalCount: 2,
+            totalCount: 2000, // mocked total count
             status: OpportunityPreviewStatus.READY,
           },
         },
@@ -6117,7 +6117,7 @@ describe('query opportunityPreview', () => {
     expect(res.data.opportunityPreview.result.opportunityId).toBe(
       opportunitiesFixture[0].id,
     );
-    expect(res.data.opportunityPreview.result.totalCount).toBe(2);
+    expect(res.data.opportunityPreview.result.totalCount).toBe(2122);
     expect(res.data.opportunityPreview.result.status).toBe(
       OpportunityPreviewStatus.READY,
     );
@@ -6189,7 +6189,7 @@ describe('query opportunityPreview', () => {
           anonUserId: 'test-anon-user-123',
           preview: {
             userIds: ['1'],
-            totalCount: 1,
+            totalCount: 1000, // mocked total count
           },
         },
       },
@@ -6203,7 +6203,7 @@ describe('query opportunityPreview', () => {
     const result = res.data.opportunityPreview.result;
     expect(result).toMatchObject({
       opportunityId: opportunitiesFixture[0].id,
-      totalCount: 1,
+      totalCount: 1061,
       tags: expect.any(Array),
       companies: expect.any(Array),
       squads: expect.any(Array),
