@@ -2182,7 +2182,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const timeForRecoveryPassed = !!streak && streak.currentStreak > 1;
 
       if (!streak || !oldStreakLength || timeForRecoveryPassed) {
-        logger.info(
+        logger.debug(
           { streak, today: new Date(), oldStreakLength },
           `streak restore not possible`,
         );
