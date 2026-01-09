@@ -1,6 +1,8 @@
 import * as matchers from 'jest-extended';
+import { DataSource } from 'typeorm';
 import '../src/config';
 import createOrGetConnection from '../src/db';
+import { testSchema } from '../src/data-source';
 import { remoteConfig } from '../src/remoteConfig';
 import { loadAuthKeys } from '../src/auth';
 
@@ -64,14 +66,24 @@ const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);
     if (repository.metadata.tableType === 'view') continue;
-    await repository.query(`DELETE
-                            FROM "${entity.tableName}";`);
+    await repository.query(`DELETE FROM "${entity.tableName}";`);
 
     for (const column of entity.primaryColumns) {
       if (column.generationStrategy === 'increment') {
-        await repository.query(
-          `ALTER SEQUENCE ${entity.tableName}_${column.databaseName}_seq RESTART WITH 1`,
-        );
+        // Use pg_get_serial_sequence to find the actual sequence name
+        // This handles both original and copied tables with different sequence naming
+        try {
+          const seqResult = await repository.query(
+            `SELECT pg_get_serial_sequence('"${entity.tableName}"', '${column.databaseName}') as seq_name`,
+          );
+          if (seqResult[0]?.seq_name) {
+            await repository.query(
+              `ALTER SEQUENCE ${seqResult[0].seq_name} RESTART WITH 1`,
+            );
+          }
+        } catch {
+          // Sequence might not exist, ignore
+        }
       }
     }
   }
@@ -81,6 +93,96 @@ export const fileTypeFromBuffer = jest.fn();
 jest.mock('file-type', () => ({
   fileTypeFromBuffer: () => fileTypeFromBuffer(),
 }));
+
+/**
+ * Create the worker schema for test isolation.
+ * Creates a new schema and copies all table structures from public schema.
+ * This is used when ENABLE_SCHEMA_ISOLATION=true for parallel Jest workers.
+ */
+const createWorkerSchema = async (): Promise<void> => {
+  // Only create non-public schemas (when running with multiple Jest workers)
+  if (testSchema === 'public') {
+    return;
+  }
+
+  // Bootstrap connection using public schema
+  const bootstrapDataSource = new DataSource({
+    type: 'postgres',
+    host: process.env.TYPEORM_HOST || 'localhost',
+    port: 5432,
+    username: process.env.TYPEORM_USERNAME || 'postgres',
+    password: process.env.TYPEORM_PASSWORD || '12345',
+    database:
+      process.env.TYPEORM_DATABASE ||
+      (process.env.NODE_ENV === 'test' ? 'api_test' : 'api'),
+    schema: 'public',
+  });
+
+  await bootstrapDataSource.initialize();
+
+  // Drop and create the worker schema
+  await bootstrapDataSource.query(
+    `DROP SCHEMA IF EXISTS "${testSchema}" CASCADE`,
+  );
+  await bootstrapDataSource.query(`CREATE SCHEMA "${testSchema}"`);
+
+  // Get all tables from public schema (excluding views and TypeORM metadata)
+  const tables = await bootstrapDataSource.query(`
+    SELECT tablename FROM pg_tables
+    WHERE schemaname = 'public'
+    AND tablename NOT LIKE 'pg_%'
+    AND tablename != 'typeorm_metadata'
+  `);
+
+  // Copy table structure from public to worker schema
+  for (const { tablename } of tables) {
+    await bootstrapDataSource.query(`
+      CREATE TABLE "${testSchema}"."${tablename}"
+      (LIKE "public"."${tablename}" INCLUDING ALL)
+    `);
+  }
+
+  // Copy migrations table so TypeORM knows migrations are already applied
+  await bootstrapDataSource.query(`
+    INSERT INTO "${testSchema}"."migrations" SELECT * FROM "public"."migrations"
+  `);
+
+  // Get all views from public schema and recreate them in worker schema
+  const views = await bootstrapDataSource.query(`
+    SELECT viewname, definition FROM pg_views
+    WHERE schemaname = 'public'
+  `);
+
+  for (const { viewname, definition } of views) {
+    // Replace public schema references with worker schema in view definition
+    const modifiedDefinition = definition.replace(
+      /public\./g,
+      `${testSchema}.`,
+    );
+    await bootstrapDataSource.query(`
+      CREATE OR REPLACE VIEW "${testSchema}"."${viewname}" AS ${modifiedDefinition}
+    `);
+  }
+
+  // Note: Triggers are NOT copied because they reference functions in public schema
+  // which would insert data into public schema tables instead of worker schema tables.
+  // This is a known limitation of schema isolation.
+
+  await bootstrapDataSource.destroy();
+};
+
+let schemaInitialized = false;
+
+beforeAll(async () => {
+  if (!schemaInitialized) {
+    // Create worker schema for parallel test isolation
+    // Public schema is set up by the pretest script
+    if (testSchema !== 'public') {
+      await createWorkerSchema();
+    }
+    schemaInitialized = true;
+  }
+});
 
 beforeEach(async () => {
   loadAuthKeys();
