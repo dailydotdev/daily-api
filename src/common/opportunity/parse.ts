@@ -218,9 +218,9 @@ export async function parseOpportunityWithBrokkr({
               loc.continent?.toLowerCase().trim() === 'europe'
             ) {
               return {
-                ...loc,
-                country: 'Europe',
-                iso2: 'EU',
+                continent: 'Europe',
+                country: undefined,
+                iso2: undefined,
               };
             }
 
@@ -234,6 +234,13 @@ export async function parseOpportunityWithBrokkr({
             return loc;
           })
           .filter((loc) => {
+            const isContinent = loc.continent && !loc.country && !loc.iso2;
+
+            // continent has specific handling in gondul and does not have iso2 code
+            if (isContinent) {
+              return true;
+            }
+
             // Only keep locations with valid country and iso2
             // Both are required for downstream processing in gondul
             return (

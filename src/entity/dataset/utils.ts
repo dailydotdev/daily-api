@@ -48,9 +48,24 @@ export const findOrCreateDatasetLocation = async (
  */
 export const findDatasetLocation = async (
   con: DataSource,
-  locationData: Partial<Pick<DatasetLocation, 'iso2' | 'city' | 'subdivision'>>,
+  locationData: Partial<
+    Pick<DatasetLocation, 'iso2' | 'city' | 'subdivision' | 'continent'>
+  >,
 ): Promise<DatasetLocation | null> => {
-  const { iso2 } = locationData;
+  const { iso2, continent } = locationData;
+
+  // match continent only locations
+  if (!iso2 && continent) {
+    const continentQuery = con.manager
+      .getRepository(DatasetLocation)
+      .createQueryBuilder()
+      .where('continent = :continentOnly', { continentOnly: continent })
+      .andWhere('country IS NULL');
+
+    const continentLocation = await continentQuery.getOne();
+
+    return continentLocation;
+  }
 
   if (!iso2) {
     return null;

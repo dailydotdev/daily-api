@@ -1514,9 +1514,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const locations = await Promise.all(
           opportunityLocations.map(async (ol) => {
-            return ol.location;
+            const datasetLocation = await ol.location;
+
+            if (!datasetLocation.country && datasetLocation.continent) {
+              return new LocationMessage({
+                type: ol.type,
+                continent: datasetLocation.continent,
+              });
+            }
+
+            return new LocationMessage({
+              ...datasetLocation,
+              type: ol.type,
+              city: datasetLocation.city || undefined,
+              subdivision: datasetLocation.subdivision || undefined,
+              country: datasetLocation.country || undefined,
+            });
           }),
         );
+
+        // Default to US location if no locations are specified
+        if (locations.length === 0) {
+          locations.push(
+            new LocationMessage({
+              iso2: 'US',
+              country: 'United States',
+            }),
+          );
+        }
 
         const opportunityMessage = new OpportunityMessage({
           id: opportunity.id,
@@ -1528,14 +1553,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           tldr: opportunity.tldr,
           content: opportunityContent,
           meta: opportunity.meta,
-          location: locations.map((item) => {
-            return new LocationMessage({
-              ...item,
-              city: item.city || undefined,
-              subdivision: item.subdivision || undefined,
-              country: item.country || undefined,
-            });
-          }),
+          location: locations,
           keywords: keywords.map((k) => k.keyword),
           flags: opportunity.flags,
         });

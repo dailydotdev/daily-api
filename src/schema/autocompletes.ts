@@ -122,6 +122,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
               .where('dl.country ILIKE :query', { query: `%${query}%` })
               .orWhere('dl.city ILIKE :query', { query: `%${query}%` })
               .orWhere('dl.subdivision ILIKE :query', { query: `%${query}%` })
+              .orWhere('dl.continent ILIKE :query', { query: `%${query}%` })
               .orderBy('dl.country', 'ASC')
               .addOrderBy('dl.subdivision', 'ASC')
               .addOrderBy('dl.city', 'ASC')
@@ -132,7 +133,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           return results.map((location) => ({
             // we map externalId to match mapbox IDs when in external dataset mode
             id: location.externalId,
-            country: location.country,
+            country: location.country || location.continent,
             city: location.city,
             subdivision: location.subdivision,
           }));

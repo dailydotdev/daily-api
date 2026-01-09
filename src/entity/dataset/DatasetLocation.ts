@@ -2,21 +2,26 @@ import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 @Index(
-  'IDX_location_country_subdivision_city_unique',
-  ['country', 'subdivision', 'city'],
+  'IDX_location_country_subdivision_city_continent_unique',
+  ['country', 'subdivision', 'city', 'continent'],
   { unique: true },
 )
 @Index('IDX_dataset_location_country_trgm', { synchronize: false })
 @Index('IDX_dataset_location_city_trgm', { synchronize: false })
 @Index('IDX_dataset_location_subdivision_trgm', { synchronize: false })
+@Index('IDX_dataset_location_continent_trgm', { synchronize: false })
 export class DatasetLocation {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_dataset_location_id',
   })
   id: string;
 
-  @Column()
+  @Column({ nullable: true })
   country: string;
+
+  // CHK_dataset_location_country_or_continent constraint ensures either country OR continent is NOT NULL
+  @Column({ nullable: true })
+  continent: string;
 
   @Column({ type: 'text', nullable: true })
   subdivision: string | null;
@@ -24,11 +29,11 @@ export class DatasetLocation {
   @Column({ type: 'text', nullable: true })
   city: string | null;
 
-  @Column()
+  @Column({ nullable: true })
   @Index('IDX_dataset_location_iso2')
   iso2: string;
 
-  @Column()
+  @Column({ nullable: true })
   @Index('IDX_dataset_location_iso3')
   iso3: string;
 
