@@ -129,4 +129,15 @@ describe('applyDeterministicVariation', () => {
     // Empty seed should return original value without variation
     expect(result).toBe(baseValue);
   });
+
+  it('should handle falsy value', () => {
+    const result = applyDeterministicVariation({
+      value: null as unknown as number,
+      seed: '',
+      maxVariationPercent: 7.6,
+    });
+
+    // Empty seed should return original value without variation
+    expect(result).toBe(0);
+  });
 });
