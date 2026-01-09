@@ -1,12 +1,15 @@
+import { ApplicationScored } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
 import { truncateText, webhooks } from '../common';
+import { generateResumeSignedUrl } from '../common/googleCloud';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 
-const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
+const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
   subscription: 'api.candidate-review-opportunity-slack',
+  parseMessage: (message) => ApplicationScored.fromBinary(message.data),
   handler: async ({ data }, con): Promise<void> => {
     if (process.env.NODE_ENV === 'development') return;
 
@@ -37,6 +40,10 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
       .filter(Boolean)
       .join(', ');
     const salary = pref?.salaryExpectation;
+    const cv = pref?.cv;
+    const cvSignedUrl = cv?.blob
+      ? await generateResumeSignedUrl(cv.blob)
+      : null;
     const matchScore = match.description?.matchScore;
     const applicationScore = match.applicationRank?.score;
 
@@ -103,7 +110,7 @@ const worker: TypedWorker<'api.v1.candidate-review-opportunity'> = {
           type: 'section',
           text: {
             type: 'mrkdwn',
-            text: `*CV:*\n${pref?.cv?.signedUrl ? `<${pref.cv.signedUrl}|Download CV>` : 'N/A'}`,
+            text: `*CV:*\n${cvSignedUrl ? `<${cvSignedUrl}|Download CV>` : 'N/A'}`,
           },
         },
         ...(match.applicationRank?.description
