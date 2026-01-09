@@ -89,6 +89,7 @@ import * as brokkrCommon from '../../src/common/brokkr';
 import { updateRecruiterSubscriptionFlags } from '../../src/common';
 import { SubscriptionStatus } from '../../src/common/plus';
 import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
+import { unsupportedOpportunityDomains } from '../../src/common/schema/opportunities';
 
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
@@ -5387,7 +5388,7 @@ describe('mutation parseOpportunity', () => {
     expect(body.errors).toBeDefined();
     expect(body.errors[0].extensions.code).toBe('ZOD_VALIDATION_ERROR');
     expect(body.errors[0].extensions.issues[0].message).toEqual(
-      'Only one of url or file can be provided.',
+      'Only one of url or file can be provided for job description.',
     );
   });
 
@@ -5409,7 +5410,7 @@ describe('mutation parseOpportunity', () => {
     expect(body.errors).toBeDefined();
     expect(body.errors[0].extensions.code).toBe('ZOD_VALIDATION_ERROR');
     expect(body.errors[0].extensions.issues[0].message).toEqual(
-      'Either url or file must be provided.',
+      'Either url or file must be provided for job description.',
     );
   });
 
@@ -5677,6 +5678,59 @@ describe('mutation parseOpportunity', () => {
     expect(opportunity!.organizationId).toBe(
       '550e8400-e29b-41d4-a716-446655440000',
     );
+  });
+
+  it('should throw when trying to parse opportunities from unsupported domain', async () => {
+    trackingId = 'anon1';
+
+    const fetchSpy = jest.spyOn(globalThis, 'fetch');
+
+    const pdfResponse = new Response('Mocked fetch response body', {
+      status: 200,
+      headers: { 'Content-Type': 'application/pdf' },
+    });
+
+    jest
+      .spyOn(pdfResponse, 'arrayBuffer')
+      .mockResolvedValue(new ArrayBuffer(0));
+
+    fetchSpy.mockResolvedValue(pdfResponse);
+
+    fileTypeFromBuffer.mockResolvedValue({
+      ext: 'pdf',
+      mime: 'application/pdf',
+    });
+
+    for await (const unsupportedDomain of unsupportedOpportunityDomains) {
+      // Execute the mutation with a URL
+      const res = await authorizeRequest(
+        request(app.server)
+          .post('/graphql')
+          .send({
+            query: MUTATION,
+            variables: {
+              payload: {
+                url: `https://${unsupportedDomain}/job`,
+              },
+            },
+          }),
+      ).expect(200);
+
+      const body = res.body;
+      expect(body.errors).toBeTruthy();
+
+      expect(body.errors[0].extensions).toEqual({
+        code: 'ZOD_VALIDATION_ERROR',
+        issues: [
+          {
+            code: 'custom',
+            message:
+              'We currently cannot parse jobs from this domain, you can still upload your job description as a file.',
+            path: ['url'],
+          },
+        ],
+      });
+    }
   });
 });
 

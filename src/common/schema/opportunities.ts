@@ -243,9 +243,27 @@ export const opportunityUpdateStateSchema = z.object({
   state: z.enum(OpportunityState),
 });
 
+export const unsupportedOpportunityDomains = ['linkedin.com'];
+
 export const parseOpportunitySchema = z
   .object({
-    url: urlParseSchema.optional(),
+    url: urlParseSchema.optional().refine(
+      (url) => {
+        if (!url) {
+          return true;
+        }
+
+        return !unsupportedOpportunityDomains.some(
+          (domain) =>
+            url.startsWith(`https://${domain}`) ||
+            url.startsWith(`https://www.${domain}`),
+        );
+      },
+      {
+        error:
+          'We currently cannot parse jobs from this domain, you can still upload your job description as a file.',
+      },
+    ),
     file: fileUploadSchema.optional(),
   })
   .refine(
@@ -257,7 +275,7 @@ export const parseOpportunitySchema = z
       return true;
     },
     {
-      error: 'Either url or file must be provided.',
+      error: 'Either url or file must be provided for job description.',
     },
   )
   .refine(
@@ -269,7 +287,7 @@ export const parseOpportunitySchema = z
       return true;
     },
     {
-      error: 'Only one of url or file can be provided.',
+      error: 'Only one of url or file can be provided for job description.',
     },
   );
 
