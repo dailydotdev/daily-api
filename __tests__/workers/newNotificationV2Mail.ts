@@ -2818,14 +2818,13 @@ describe('recruiter_new_candidate notification', () => {
 
     const candidate = await con.getRepository(User).findOneBy({ id: '1' });
 
-    // Create match with score
+    // Create match with application rank score
     await con.getRepository(OpportunityMatch).save({
       opportunityId: opportunitiesFixture[0].id,
       userId: candidate!.id,
-      description: {
-        matchScore: 0.85,
-        reasoning: 'Great fit based on experience',
-        reasoningShort: 'Strong JS skills',
+      applicationRank: {
+        score: 85,
+        description: 'Strong JS skills',
       },
     });
 
