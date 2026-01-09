@@ -71,20 +71,19 @@ const fetchCandidateKeywords = async (
   return feedKeywords.map((k) => k.keyword);
 };
 
-export const notifyOpportunityMatchAccepted = async ({
+const buildAndSendCandidateOpportunityMessage = async ({
   con,
   logger,
   data,
+  topic,
 }: {
   con: DataSource;
   logger: FastifyBaseLogger;
-  data: ChangeObject<OpportunityMatch> | null;
+  data: ChangeObject<OpportunityMatch>;
+  topic:
+    | 'api.v1.candidate-accepted-opportunity'
+    | 'api.v1.candidate-review-opportunity';
 }) => {
-  if (!data) {
-    logger.warn('No data provided for opportunity match accepted notification');
-    return;
-  }
-
   const { match, candidatePreference, keywords, locationData } =
     await con.transaction(async (manager) => {
       const [match, candidatePreference] = await Promise.all([
@@ -109,16 +108,16 @@ export const notifyOpportunityMatchAccepted = async ({
 
   if (!match) {
     logger.warn(
-      { opportunityId: data.opportunityId, userId: data.userId },
-      'Opportunity match not found for accepted notification',
+      { opportunityId: data.opportunityId, userId: data.userId, topic },
+      'Opportunity match not found for notification',
     );
     return;
   }
 
   if (!candidatePreference) {
     logger.warn(
-      { userId: data.userId },
-      'Candidate preference not found for user accepting opportunity',
+      { userId: data.userId, topic },
+      'Candidate preference not found for user',
     );
     return;
   }
@@ -166,16 +165,34 @@ export const notifyOpportunityMatchAccepted = async ({
     },
   });
 
+  await triggerTypedEvent(logger, topic, message);
+};
+
+export const notifyOpportunityMatchAccepted = async ({
+  con,
+  logger,
+  data,
+}: {
+  con: DataSource;
+  logger: FastifyBaseLogger;
+  data: ChangeObject<OpportunityMatch> | null;
+}) => {
+  if (!data) {
+    logger.warn('No data provided for opportunity match accepted notification');
+    return;
+  }
+
   try {
-    await triggerTypedEvent(
+    await buildAndSendCandidateOpportunityMessage({
+      con,
       logger,
-      'api.v1.candidate-accepted-opportunity',
-      message,
-    );
+      data,
+      topic: 'api.v1.candidate-accepted-opportunity',
+    });
   } catch (_err) {
     const err = _err as Error;
     logger.error(
-      { err, message },
+      { err, opportunityId: data.opportunityId, userId: data.userId },
       'failed to send opportunity match accepted event',
     );
   }
@@ -553,6 +570,7 @@ export const notifyCandidatePreferenceChange = async ({
 };
 
 export const notifyOpportunityMatchCandidateReview = async ({
+  con,
   logger,
   data,
 }: {
@@ -560,8 +578,10 @@ export const notifyOpportunityMatchCandidateReview = async ({
   logger: FastifyBaseLogger;
   data: ChangeObject<OpportunityMatch>;
 }) => {
-  await triggerTypedEvent(logger, 'api.v1.candidate-review-opportunity', {
-    opportunityId: data.opportunityId,
-    userId: data.userId,
+  await buildAndSendCandidateOpportunityMessage({
+    con,
+    logger,
+    data,
+    topic: 'api.v1.candidate-review-opportunity',
   });
 };

@@ -303,6 +303,9 @@ const obj = new GraphORM({
               .limit(1),
         },
       },
+      socialLinks: {
+        jsonType: true,
+      },
     },
   },
   UserCompany: {
