@@ -83,19 +83,29 @@ const cleanDatabase = async (): Promise<void> => {
 
     for (const column of entity.primaryColumns) {
       if (column.generationStrategy === 'increment') {
-        // Use pg_get_serial_sequence to find the actual sequence name
-        // This handles both original and copied tables with different sequence naming
+        // Reset sequences/identity columns for auto-increment primary keys
+        // Must use schema-qualified table name for schema isolation to work
         try {
+          // First try pg_get_serial_sequence (works for SERIAL columns)
+          // Schema-qualify the table name for proper resolution in worker schemas
+          const schemaQualifiedTable = `${testSchema}.${entity.tableName}`;
           const seqResult = await repository.query(
-            `SELECT pg_get_serial_sequence('"${entity.tableName}"', '${column.databaseName}') as seq_name`,
+            `SELECT pg_get_serial_sequence($1, $2) as seq_name`,
+            [schemaQualifiedTable, column.databaseName],
           );
           if (seqResult[0]?.seq_name) {
             await repository.query(
               `ALTER SEQUENCE ${seqResult[0].seq_name} RESTART WITH 1`,
             );
+          } else {
+            // If no sequence found, try resetting IDENTITY column directly
+            // This handles GENERATED AS IDENTITY columns
+            await repository.query(
+              `ALTER TABLE "${testSchema}"."${entity.tableName}" ALTER COLUMN "${column.databaseName}" RESTART WITH 1`,
+            );
           }
         } catch {
-          // Sequence might not exist, ignore
+          // Sequence/identity might not exist or not be resettable, ignore
         }
       }
     }
@@ -155,6 +165,50 @@ const createWorkerSchema = async (): Promise<void> => {
     `);
   }
 
+  // Fix sequences: CREATE TABLE ... LIKE ... copies defaults that reference
+  // the original public schema sequences. We need to create new sequences
+  // in the worker schema and update column defaults to use them.
+  const columnsWithSequences = await bootstrapDataSource.query(`
+    SELECT
+      c.table_name,
+      c.column_name,
+      c.column_default
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+    AND c.column_default LIKE 'nextval(%'
+  `);
+
+  for (const col of columnsWithSequences) {
+    // Extract sequence name from default like: nextval('advanced_settings_id_seq'::regclass)
+    const match = col.column_default.match(/nextval\('([^']+)'::regclass\)/);
+    if (!match) continue;
+
+    // Create sequence name for worker schema - use table_column_seq naming
+    const newSeqName = `${col.table_name}_${col.column_name}_seq`;
+
+    try {
+      // Create new sequence in worker schema
+      await bootstrapDataSource.query(`
+        CREATE SEQUENCE IF NOT EXISTS "${testSchema}"."${newSeqName}"
+      `);
+
+      // Update column default to use the new sequence
+      await bootstrapDataSource.query(`
+        ALTER TABLE "${testSchema}"."${col.table_name}"
+        ALTER COLUMN "${col.column_name}"
+        SET DEFAULT nextval('"${testSchema}"."${newSeqName}"')
+      `);
+
+      // Mark the sequence as owned by the column (for proper cleanup)
+      await bootstrapDataSource.query(`
+        ALTER SEQUENCE "${testSchema}"."${newSeqName}"
+        OWNED BY "${testSchema}"."${col.table_name}"."${col.column_name}"
+      `);
+    } catch {
+      // Sequence creation might fail, skip
+    }
+  }
+
   // Copy foreign key constraints from public to worker schema
   // INCLUDING ALL does not copy FK constraints because they reference other tables
   const fkConstraints = await bootstrapDataSource.query(`
@@ -201,20 +255,16 @@ const createWorkerSchema = async (): Promise<void> => {
   `);
 
   // Copy specific seed data records that migrations created
-  // These are system records that tests expect to exist (protected by triggers)
+  // These are ONLY system records that tests expect to exist AND don't recreate themselves
+  // NOTE: Do NOT copy data for tables where tests create their own data with explicit IDs
+  // (advanced_settings, source_category, prompt) - tests expect these tables to start empty
   const seedQueries = [
     // Ghost and system users (protected by prevent_special_user_delete trigger)
     `INSERT INTO "${testSchema}"."user" SELECT * FROM "public"."user" WHERE id IN ('404', 'system')`,
     // System sources
     `INSERT INTO "${testSchema}"."source" SELECT * FROM "public"."source" WHERE id IN ('community', 'unknown', 'briefing', 'squads')`,
-    // Advanced settings (all are seed data)
-    `INSERT INTO "${testSchema}"."advanced_settings" SELECT * FROM "public"."advanced_settings"`,
-    // Source categories (all are seed data)
-    `INSERT INTO "${testSchema}"."source_category" SELECT * FROM "public"."source_category"`,
-    // Checkpoints (all are seed data)
+    // Checkpoints (all are seed data, tests don't create their own)
     `INSERT INTO "${testSchema}"."checkpoint" SELECT * FROM "public"."checkpoint"`,
-    // Prompts (all are seed data)
-    `INSERT INTO "${testSchema}"."prompt" SELECT * FROM "public"."prompt"`,
     // Ghost post placeholder
     `INSERT INTO "${testSchema}"."post" SELECT * FROM "public"."post" WHERE id = '404'`,
   ];
