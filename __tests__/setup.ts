@@ -59,6 +59,15 @@ jest.mock('../src/remoteConfig', () => ({
   },
 }));
 
+// Tables that contain seed/reference data that should not be deleted between tests
+// These are populated by migrations and tests don't modify them
+// NOTE: Most tables are NOT included because tests create their own test data
+// and expect tables to start empty (so auto-increment IDs start at 1)
+const SEED_DATA_TABLES = new Set([
+  'migrations', // Required by TypeORM to track applied migrations
+  'checkpoint', // System checkpoints, tests don't create/modify
+]);
+
 const cleanDatabase = async (): Promise<void> => {
   await remoteConfig.init();
 
@@ -66,6 +75,10 @@ const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);
     if (repository.metadata.tableType === 'view') continue;
+
+    // Skip seed data tables - they're populated once and tests expect them to exist
+    if (SEED_DATA_TABLES.has(entity.tableName)) continue;
+
     await repository.query(`DELETE FROM "${entity.tableName}";`);
 
     for (const column of entity.primaryColumns) {
