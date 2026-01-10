@@ -142,10 +142,77 @@ const createWorkerSchema = async (): Promise<void> => {
     `);
   }
 
+  // Copy foreign key constraints from public to worker schema
+  // INCLUDING ALL does not copy FK constraints because they reference other tables
+  const fkConstraints = await bootstrapDataSource.query(`
+    SELECT
+      tc.table_name,
+      tc.constraint_name,
+      kcu.column_name,
+      ccu.table_name AS foreign_table_name,
+      ccu.column_name AS foreign_column_name,
+      rc.delete_rule,
+      rc.update_rule
+    FROM information_schema.table_constraints AS tc
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+    JOIN information_schema.constraint_column_usage AS ccu
+      ON ccu.constraint_name = tc.constraint_name AND ccu.table_schema = tc.table_schema
+    JOIN information_schema.referential_constraints AS rc
+      ON rc.constraint_name = tc.constraint_name AND rc.constraint_schema = tc.table_schema
+    WHERE tc.constraint_type = 'FOREIGN KEY'
+    AND tc.table_schema = 'public'
+  `);
+
+  for (const fk of fkConstraints) {
+    const deleteAction =
+      fk.delete_rule === 'NO ACTION' ? '' : `ON DELETE ${fk.delete_rule}`;
+    const updateAction =
+      fk.update_rule === 'NO ACTION' ? '' : `ON UPDATE ${fk.update_rule}`;
+    try {
+      await bootstrapDataSource.query(`
+        ALTER TABLE "${testSchema}"."${fk.table_name}"
+        ADD CONSTRAINT "${fk.constraint_name}"
+        FOREIGN KEY ("${fk.column_name}")
+        REFERENCES "${testSchema}"."${fk.foreign_table_name}"("${fk.foreign_column_name}")
+        ${deleteAction} ${updateAction}
+      `);
+    } catch {
+      // Some FK constraints might fail due to missing tables or order, skip
+    }
+  }
+
   // Copy migrations table so TypeORM knows migrations are already applied
   await bootstrapDataSource.query(`
     INSERT INTO "${testSchema}"."migrations" SELECT * FROM "public"."migrations"
   `);
+
+  // Copy specific seed data records that migrations created
+  // These are system records that tests expect to exist (protected by triggers)
+  const seedQueries = [
+    // Ghost and system users (protected by prevent_special_user_delete trigger)
+    `INSERT INTO "${testSchema}"."user" SELECT * FROM "public"."user" WHERE id IN ('404', 'system')`,
+    // System sources
+    `INSERT INTO "${testSchema}"."source" SELECT * FROM "public"."source" WHERE id IN ('community', 'unknown', 'briefing', 'squads')`,
+    // Advanced settings (all are seed data)
+    `INSERT INTO "${testSchema}"."advanced_settings" SELECT * FROM "public"."advanced_settings"`,
+    // Source categories (all are seed data)
+    `INSERT INTO "${testSchema}"."source_category" SELECT * FROM "public"."source_category"`,
+    // Checkpoints (all are seed data)
+    `INSERT INTO "${testSchema}"."checkpoint" SELECT * FROM "public"."checkpoint"`,
+    // Prompts (all are seed data)
+    `INSERT INTO "${testSchema}"."prompt" SELECT * FROM "public"."prompt"`,
+    // Ghost post placeholder
+    `INSERT INTO "${testSchema}"."post" SELECT * FROM "public"."post" WHERE id = '404'`,
+  ];
+
+  for (const query of seedQueries) {
+    try {
+      await bootstrapDataSource.query(query);
+    } catch {
+      // Record might not exist or FK constraints, skip
+    }
+  }
 
   // Get all views from public schema and recreate them in worker schema
   const views = await bootstrapDataSource.query(`
@@ -194,12 +261,25 @@ const createWorkerSchema = async (): Promise<void> => {
   for (const { definition } of allFunctions) {
     if (!definition) continue;
     // Replace public schema references with worker schema
-    const modifiedDefinition = definition
+    let modifiedDefinition = definition
       .replace(
         /CREATE (OR REPLACE )?FUNCTION public\./i,
         (_, orReplace) => `CREATE ${orReplace || ''}FUNCTION "${testSchema}".`,
       )
       .replace(/\bpublic\./gi, `"${testSchema}".`);
+
+    // Add SET search_path clause after LANGUAGE clause so unqualified table names resolve correctly
+    // This handles trigger functions that reference tables without schema prefix
+    if (
+      !modifiedDefinition.includes('SET search_path') &&
+      modifiedDefinition.includes('LANGUAGE plpgsql')
+    ) {
+      modifiedDefinition = modifiedDefinition.replace(
+        /LANGUAGE plpgsql/i,
+        `LANGUAGE plpgsql SET search_path = '${testSchema}'`,
+      );
+    }
+
     try {
       await bootstrapDataSource.query(modifiedDefinition);
     } catch {
@@ -250,7 +330,7 @@ beforeAll(async () => {
     }
     schemaInitialized = true;
   }
-});
+}, 60000); // 60 second timeout for schema creation
 
 beforeEach(async () => {
   loadAuthKeys();

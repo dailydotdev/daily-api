@@ -13,7 +13,7 @@ const cron: Cron = {
 
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.query(
-        `update "public"."post" p
+        `update "post" p
          set views = p.views + v.count FROM (
                 select count(*) count, "view"."postId"
                 from "view"
