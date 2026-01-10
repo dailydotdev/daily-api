@@ -35,17 +35,6 @@ const TESTS_REQUIRING_REAL_PG = [
   // Add more test files as needed
 ];
 
-/**
- * Check if the current test file requires real PostgreSQL.
- */
-function requiresRealPostgres(): boolean {
-  // Get the current test file from Jest's state
-  const testPath = expect.getState().testPath;
-  if (!testPath) return false;
-
-  return TESTS_REQUIRING_REAL_PG.some((pattern) => testPath.includes(pattern));
-}
-
 // Track which mode we're using for the current test file
 const dbState = {
   usingRealPostgres: false,
@@ -169,18 +158,6 @@ function shouldSkipQuery(query: string): boolean {
   }
 
   return false;
-}
-
-/**
- * Transform a query for PGlite compatibility.
- * Makes DROP statements use IF EXISTS to handle missing objects gracefully.
- */
-function transformQuery(query: string): string {
-  // Add IF EXISTS to DROP INDEX statements that don't have it
-  if (/^DROP\s+INDEX\s+(?!IF\s+EXISTS)/i.test(query)) {
-    return query.replace(/^DROP\s+INDEX\s+/i, 'DROP INDEX IF EXISTS ');
-  }
-  return query;
 }
 
 import { EventEmitter } from 'events';
@@ -401,10 +378,6 @@ function getBooleanParamIndices(query: string): Set<number> {
   const valuesStr = valuesMatch[1];
   let position = 0; // Column position within current row
   let inParens = 0;
-
-  // Parse through VALUES to find which $N params are at boolean positions
-  const paramRegex = /\$(\d+)/g;
-  let match;
 
   // Track column position as we scan through
   for (let i = 0; i < valuesStr.length; i++) {

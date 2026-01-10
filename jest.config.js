@@ -9,9 +9,10 @@ process.env.NODE_OPTIONS = [
   .join(' ');
 
 // Use PGlite setup for in-memory database isolation when PGLITE_ENABLED=true
-const setupFile = process.env.PGLITE_ENABLED === 'true'
-  ? './__tests__/setup-pglite.ts'
-  : './__tests__/setup.ts';
+const setupFile =
+  process.env.PGLITE_ENABLED === 'true'
+    ? './__tests__/setup-pglite.ts'
+    : './__tests__/setup.ts';
 
 /** @type {import('jest').Config} */
 module.exports = {
