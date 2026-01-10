@@ -8,14 +8,20 @@ process.env.NODE_OPTIONS = [
   .filter(Boolean)
   .join(' ');
 
+// Use PGlite setup for in-memory database isolation when PGLITE_ENABLED=true
+const setupFile = process.env.PGLITE_ENABLED === 'true'
+  ? './__tests__/setup-pglite.ts'
+  : './__tests__/setup.ts';
+
 /** @type {import('jest').Config} */
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  setupFilesAfterEnv: ['./__tests__/setup.ts'],
+  setupFilesAfterEnv: [setupFile],
   globalTeardown: './__tests__/teardown.ts',
   testPathIgnorePatterns: [
     '<rootDir>/__tests__/setup.ts',
+    '<rootDir>/__tests__/setup-pglite.ts',
     '<rootDir>/__tests__/teardown.ts',
     '<rootDir>/__tests__/helpers.ts',
     '<rootDir>/__tests__/fixture/',

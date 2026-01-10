@@ -147,6 +147,7 @@
     "zod": "4.3.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.3.14",
     "@faker-js/faker": "^9.8.0",
     "@fastify/static": "^9.0.0",
     "@swc/core": "^1.15.8",
@@ -183,6 +184,7 @@
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
+    "typeorm-pglite": "^0.3.2",
     "typescript": "5.9.3"
   },
   "overrides": {
