@@ -481,7 +481,7 @@ const getUser = async (
   // Populate legacy social fields from socialLinks for backwards compatibility
   const socialLinks = user.socialLinks || [];
 
-  // Helper to get handle for a platform
+  // Helper to get handle for a platform (returns undefined for entity compatibility)
   const getHandle = (platform: string): string | undefined => {
     const link = socialLinks.find((l) => l.platform === platform);
     return link
@@ -723,6 +723,20 @@ const loggedInBoot = async ({
           'locationId',
           'readmeHtml',
         ]),
+        // Legacy social fields with explicit null for JSON backwards compatibility
+        twitter: user.twitter ?? null,
+        github: user.github ?? null,
+        hashnode: user.hashnode ?? null,
+        linkedin: user.linkedin ?? null,
+        threads: user.threads ?? null,
+        roadmap: user.roadmap ?? null,
+        codepen: user.codepen ?? null,
+        reddit: user.reddit ?? null,
+        stackoverflow: user.stackoverflow ?? null,
+        youtube: user.youtube ?? null,
+        bluesky: user.bluesky ?? null,
+        mastodon: user.mastodon ?? null,
+        portfolio: user.portfolio ?? null,
         providers: [null],
         roles,
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
@@ -780,7 +794,7 @@ const loggedInBoot = async ({
       feeds,
       geo,
       ...extra,
-    };
+    } as LoggedInBoot;
   });
 
 const getAnonymousFirstVisit = async (trackingId?: string) => {
@@ -1048,12 +1062,26 @@ const getFunnelLoggedInData = async (
           'readmeHtml',
           'readme',
         ]),
+        // Legacy social fields with explicit null for JSON backwards compatibility
+        twitter: user.twitter ?? null,
+        github: user.github ?? null,
+        hashnode: user.hashnode ?? null,
+        linkedin: user.linkedin ?? null,
+        threads: user.threads ?? null,
+        roadmap: user.roadmap ?? null,
+        codepen: user.codepen ?? null,
+        reddit: user.reddit ?? null,
+        stackoverflow: user.stackoverflow ?? null,
+        youtube: user.youtube ?? null,
+        bluesky: user.bluesky ?? null,
+        mastodon: user.mastodon ?? null,
+        portfolio: user.portfolio ?? null,
         providers: [null],
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
-      };
+      } as FunnelLoggedInUser;
     }
   }
   return null;

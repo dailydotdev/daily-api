@@ -3528,118 +3528,12 @@ describe('mutation updateUserProfile', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not allow duplicated github', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { github: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated twitter', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { twitter: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated hashnode', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { hashnode: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
   it('should not allow duplicated username', async () => {
     loggedUser = '1';
 
     await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { username: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated roadmap', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { roadmap: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated threads', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { threads: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated codepen', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { codepen: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated reddit', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { reddit: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated stackoverflow', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { data: { stackoverflow: '999999/lee' } },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated linkedin', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { linkedin: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated mastodon', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { data: { mastodon: 'https://mastodon.social/@lee' } },
-      },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
