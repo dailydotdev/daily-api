@@ -19,6 +19,12 @@ export const usersFixture: DeepPartial<User>[] = [
     username: 'idoshamun',
     infoConfirmed: true,
     notificationFlags: DEFAULT_NOTIFICATION_SETTINGS,
+    socialLinks: [
+      {
+        platform: 'github',
+        url: 'https://github.com/idogithub',
+      },
+    ],
   },
   {
     id: '2',

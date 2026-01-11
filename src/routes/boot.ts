@@ -10,6 +10,7 @@ import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import { GQLUser, getMarketingCta } from '../schema/users';
+import { extractHandleFromUrl } from '../common/schema/socials';
 import {
   Alerts,
   ALERTS_DEFAULT,
@@ -441,11 +442,11 @@ const getExperimentation = async ({
   };
 };
 
-const getUser = (
+const getUser = async (
   con: DataSource | QueryRunner,
   userId: string,
-): Promise<User | null> =>
-  con.manager.getRepository(User).findOne({
+): Promise<User | null> => {
+  const user = await con.manager.getRepository(User).findOne({
     where: { id: userId },
     select: [
       'id',
@@ -458,19 +459,7 @@ const getUser = (
       'infoConfirmed',
       'reputation',
       'bio',
-      'twitter',
-      'bluesky',
-      'github',
-      'portfolio',
-      'hashnode',
-      'roadmap',
-      'threads',
-      'codepen',
-      'reddit',
-      'stackoverflow',
-      'youtube',
-      'linkedin',
-      'mastodon',
+      'socialLinks',
       'timezone',
       'createdAt',
       'cover',
@@ -486,6 +475,35 @@ const getUser = (
       'hideExperience',
     ],
   });
+
+  if (!user) return null;
+
+  // Populate legacy social fields from socialLinks for backwards compatibility
+  const socialLinks = user.socialLinks || [];
+
+  // Helper to get handle for a platform
+  const getHandle = (platform: string): string | null => {
+    const link = socialLinks.find((l) => l.platform === platform);
+    return link ? extractHandleFromUrl(link.url, platform) : null;
+  };
+
+  // Populate legacy fields for backwards compatibility
+  user.twitter = getHandle('twitter');
+  user.github = getHandle('github');
+  user.linkedin = getHandle('linkedin');
+  user.threads = getHandle('threads');
+  user.roadmap = getHandle('roadmap');
+  user.codepen = getHandle('codepen');
+  user.reddit = getHandle('reddit');
+  user.stackoverflow = getHandle('stackoverflow');
+  user.youtube = getHandle('youtube');
+  user.bluesky = getHandle('bluesky');
+  user.mastodon = getHandle('mastodon');
+  user.hashnode = getHandle('hashnode');
+  user.portfolio = getHandle('portfolio');
+
+  return user;
+};
 
 const getBalanceBoot: typeof getBalance = async ({ userId }) => {
   try {
