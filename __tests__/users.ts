@@ -245,17 +245,22 @@ beforeEach(async () => {
       image: 'https://daily.dev/lee.jpg',
       timezone: userTimezone,
       username: 'lee',
-      twitter: 'lee',
-      github: 'lee',
-      hashnode: 'lee',
-      roadmap: 'lee',
-      threads: 'lee',
-      codepen: 'lee',
-      reddit: 'lee',
-      stackoverflow: '999999/lee',
-      youtube: 'lee',
-      linkedin: 'lee',
-      mastodon: 'https://mastodon.social/@lee',
+      socialLinks: [
+        { platform: 'twitter', url: 'https://twitter.com/lee' },
+        { platform: 'github', url: 'https://github.com/lee' },
+        { platform: 'hashnode', url: 'https://hashnode.com/@lee' },
+        { platform: 'roadmap', url: 'https://roadmap.sh/u/lee' },
+        { platform: 'threads', url: 'https://threads.net/@lee' },
+        { platform: 'codepen', url: 'https://codepen.io/lee' },
+        { platform: 'reddit', url: 'https://reddit.com/u/lee' },
+        {
+          platform: 'stackoverflow',
+          url: 'https://stackoverflow.com/users/999999/lee',
+        },
+        { platform: 'youtube', url: 'https://youtube.com/@lee' },
+        { platform: 'linkedin', url: 'https://linkedin.com/in/lee' },
+        { platform: 'mastodon', url: 'https://mastodon.social/@lee' },
+      ],
     },
   ]);
   await saveFixtures(con, Source, sourcesFixture);
@@ -1897,6 +1902,40 @@ describe('query user socialLinks', () => {
       { platform: 'twitter', url: 'https://twitter.com/testhandle' },
     ]);
   });
+
+  it('should resolve legacy social fields from socialLinks for backwards compatibility', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        socialLinks: [
+          { platform: 'github', url: 'https://github.com/testuser' },
+          { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+          { platform: 'linkedin', url: 'https://linkedin.com/in/testprofile' },
+          { platform: 'mastodon', url: 'https://mastodon.social/@testuser' },
+          { platform: 'portfolio', url: 'https://example.com' },
+        ],
+      },
+    );
+
+    const LEGACY_QUERY = `query User($id: ID!) {
+      user(id: $id) {
+        id
+        github
+        twitter
+        linkedin
+        mastodon
+        portfolio
+      }
+    }`;
+
+    const res = await client.query(LEGACY_QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user.github).toBe('testuser');
+    expect(res.data.user.twitter).toBe('testhandle');
+    expect(res.data.user.linkedin).toBe('testprofile');
+    expect(res.data.user.mastodon).toBe('https://mastodon.social/@testuser');
+    expect(res.data.user.portfolio).toBe('https://example.com');
+  });
 });
 
 describe('query team members', () => {
@@ -3489,118 +3528,12 @@ describe('mutation updateUserProfile', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not allow duplicated github', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { github: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated twitter', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { twitter: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated hashnode', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { hashnode: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
   it('should not allow duplicated username', async () => {
     loggedUser = '1';
 
     await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { username: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated roadmap', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { roadmap: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated threads', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { threads: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated codepen', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { codepen: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated reddit', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { reddit: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated stackoverflow', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { data: { stackoverflow: '999999/lee' } },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated linkedin', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { linkedin: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated mastodon', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { data: { mastodon: 'https://mastodon.social/@lee' } },
-      },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });

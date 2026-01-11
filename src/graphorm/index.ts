@@ -69,6 +69,7 @@ import {
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
+import { extractHandleFromUrl } from '../common/schema/socials';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
 import { snotraClient } from '../integrations/snotra';
@@ -305,6 +306,98 @@ const obj = new GraphORM({
       },
       socialLinks: {
         jsonType: true,
+      },
+      // Legacy social fields - resolved from socialLinks for backwards compatibility
+      twitter: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'twitter');
+          return link ? extractHandleFromUrl(link.url, 'twitter') : null;
+        },
+      },
+      github: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'github');
+          return link ? extractHandleFromUrl(link.url, 'github') : null;
+        },
+      },
+      linkedin: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'linkedin');
+          return link ? extractHandleFromUrl(link.url, 'linkedin') : null;
+        },
+      },
+      threads: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'threads');
+          return link ? extractHandleFromUrl(link.url, 'threads') : null;
+        },
+      },
+      roadmap: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'roadmap');
+          return link ? extractHandleFromUrl(link.url, 'roadmap') : null;
+        },
+      },
+      codepen: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'codepen');
+          return link ? extractHandleFromUrl(link.url, 'codepen') : null;
+        },
+      },
+      reddit: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'reddit');
+          return link ? extractHandleFromUrl(link.url, 'reddit') : null;
+        },
+      },
+      stackoverflow: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'stackoverflow');
+          return link ? extractHandleFromUrl(link.url, 'stackoverflow') : null;
+        },
+      },
+      youtube: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'youtube');
+          return link ? extractHandleFromUrl(link.url, 'youtube') : null;
+        },
+      },
+      bluesky: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'bluesky');
+          return link ? extractHandleFromUrl(link.url, 'bluesky') : null;
+        },
+      },
+      mastodon: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'mastodon');
+          return link ? extractHandleFromUrl(link.url, 'mastodon') : null;
+        },
+      },
+      hashnode: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'hashnode');
+          return link ? extractHandleFromUrl(link.url, 'hashnode') : null;
+        },
+      },
+      portfolio: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'portfolio');
+          return link ? extractHandleFromUrl(link.url, 'portfolio') : null;
+        },
       },
     },
   },

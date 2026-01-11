@@ -355,7 +355,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        github: usersFixture[0].github,
+        github: 'testgithub',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
@@ -365,13 +365,13 @@ describe('POST /p/newUser', () => {
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
     expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].github).toEqual(usersFixture[0].github);
+    expect(users[0].github).toEqual('testgithub');
   });
 
   it('should ignore GitHub handle if it already exists', async () => {
     await con
       .getRepository(User)
-      .save({ ...usersFixture[1], github: usersFixture[0].github });
+      .save({ ...usersFixture[1], github: 'testgithub' });
 
     const { body } = await request(app.server)
       .post('/p/newUser')
@@ -383,7 +383,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        github: usersFixture[0].github,
+        github: 'testgithub',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
@@ -407,7 +407,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        twitter: usersFixture[0].twitter,
+        twitter: 'testtwitter',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
@@ -416,13 +416,13 @@ describe('POST /p/newUser', () => {
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
     expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].twitter).toEqual(usersFixture[0].twitter);
+    expect(users[0].twitter).toEqual('testtwitter');
   });
 
   it('should ignore Twitter handle if it already exists', async () => {
     await con
       .getRepository(User)
-      .save({ ...usersFixture[1], twitter: usersFixture[0].twitter });
+      .save({ ...usersFixture[1], twitter: 'testtwitter' });
 
     const { body } = await request(app.server)
       .post('/p/newUser')
@@ -434,7 +434,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        twitter: usersFixture[0].twitter,
+        twitter: 'testtwitter',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
