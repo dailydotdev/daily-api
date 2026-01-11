@@ -58,6 +58,7 @@ jobs:
             JEST_JUNIT_OUTPUT_DIR: ./test-results
             JEST_JUNIT_ADD_FILE_ATTRIBUTE: "true"
             JEST_JUNIT_FILE_PATH_PREFIX: "/home/circleci/project/"
+            PGLITE_ENABLED: "true" # Enable PGlite for database isolation (tests in TESTS_REQUIRING_REAL_PG fallback to real PG)
       - store_test_results:
           path: ./test-results
       - store_artifacts:
