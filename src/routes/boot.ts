@@ -482,9 +482,11 @@ const getUser = async (
   const socialLinks = user.socialLinks || [];
 
   // Helper to get handle for a platform
-  const getHandle = (platform: string): string | null => {
+  const getHandle = (platform: string): string | undefined => {
     const link = socialLinks.find((l) => l.platform === platform);
-    return link ? extractHandleFromUrl(link.url, platform) : null;
+    return link
+      ? (extractHandleFromUrl(link.url, platform) ?? undefined)
+      : undefined;
   };
 
   // Populate legacy fields for backwards compatibility
