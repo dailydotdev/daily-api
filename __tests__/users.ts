@@ -253,7 +253,10 @@ beforeEach(async () => {
         { platform: 'threads', url: 'https://threads.net/@lee' },
         { platform: 'codepen', url: 'https://codepen.io/lee' },
         { platform: 'reddit', url: 'https://reddit.com/u/lee' },
-        { platform: 'stackoverflow', url: 'https://stackoverflow.com/users/999999/lee' },
+        {
+          platform: 'stackoverflow',
+          url: 'https://stackoverflow.com/users/999999/lee',
+        },
         { platform: 'youtube', url: 'https://youtube.com/@lee' },
         { platform: 'linkedin', url: 'https://linkedin.com/in/lee' },
         { platform: 'mastodon', url: 'https://mastodon.social/@lee' },
