@@ -13,7 +13,7 @@ const cron: Cron = {
       .andWhere(
         `(
               dateCastIndex(flags, 'lastReferralReminder') <= NOW() - INTERVAL '6 months'
-          OR  (dateCastIndex(flags, 'lastReferralReminder') IS NULL AND (SELECT u."createdAt" FROM public.user AS u WHERE u.id = "userId") <= NOW() - INTERVAL '2 weeks')
+          OR  (dateCastIndex(flags, 'lastReferralReminder') IS NULL AND (SELECT u."createdAt" FROM "user" AS u WHERE u.id = "userId") <= NOW() - INTERVAL '2 weeks')
         )`,
       )
       .set({ showGenericReferral: true })

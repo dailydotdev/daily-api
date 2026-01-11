@@ -25,6 +25,7 @@
     "start:background": "pnpm run cli background",
     "pretest": "cross-env NODE_ENV=test pnpm run db:migrate:reset",
     "test": "jest --testEnvironment=node --runInBand",
+    "test:parallel": "cross-env ENABLE_SCHEMA_ISOLATION=true jest --testEnvironment=node --maxWorkers=4",
     "typeorm": "typeorm-ts-node-commonjs",
     "prepare": "corepack enable || true"
   },
