@@ -6432,6 +6432,131 @@ describe('query opportunityStats', () => {
   });
 });
 
+describe('query opportunityFeedback', () => {
+  const OPPORTUNITY_FEEDBACK_QUERY = /* GraphQL */ `
+    query OpportunityFeedback(
+      $opportunityId: ID!
+      $first: Int
+      $after: String
+    ) {
+      opportunityFeedback(
+        opportunityId: $opportunityId
+        first: $first
+        after: $after
+      ) {
+        pageInfo {
+          hasNextPage
+          endCursor
+          totalCount
+        }
+        edges {
+          node {
+            platform
+            category
+            sentiment
+            urgency
+            screening
+            answer
+          }
+        }
+      }
+    }
+  `;
+
+  it('should return only feedback with recruiter platform classification', async () => {
+    loggedUser = '1';
+
+    // Create matches with different feedback platforms
+    await con.getRepository(OpportunityMatch).save([
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[1].id,
+        status: OpportunityMatchStatus.CandidateAccepted,
+        description: { reasoning: 'Test' },
+        feedback: [
+          {
+            screening: 'What interests you?',
+            answer: 'The tech stack looks great',
+            classification: {
+              platform: 2, // RECRUITER - should be returned
+              category: 1,
+              sentiment: 1,
+              urgency: 2,
+            },
+          },
+          {
+            screening: 'Internal feedback',
+            answer: 'Platform seems slow',
+            classification: {
+              platform: 1, // DAILY_DEV - should NOT be returned
+              category: 2,
+              sentiment: 0,
+              urgency: 1,
+            },
+          },
+        ],
+      },
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: usersFixture[2].id,
+        status: OpportunityMatchStatus.CandidateAccepted,
+        description: { reasoning: 'Test 2' },
+        feedback: [
+          {
+            screening: 'Salary expectations?',
+            answer: 'Looking for 150k+',
+            classification: {
+              platform: 2, // RECRUITER - should be returned
+              category: 3,
+              sentiment: 0,
+              urgency: 1,
+            },
+          },
+          {
+            screening: 'Unclassified feedback',
+            answer: 'No classification yet',
+            // No classification - should NOT be returned
+          },
+        ],
+      },
+    ]);
+
+    const res = await client.query(OPPORTUNITY_FEEDBACK_QUERY, {
+      variables: { opportunityId: opportunitiesFixture[0].id, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityFeedback.pageInfo.totalCount).toBe(2);
+    expect(res.data.opportunityFeedback.edges).toHaveLength(2);
+
+    // Verify all returned feedback has recruiter platform
+    const platforms = res.data.opportunityFeedback.edges.map(
+      (e: { node: { platform: number } }) => e.node.platform,
+    );
+    expect(platforms).toEqual([2, 2]);
+
+    // Verify the answers match expected recruiter feedback
+    const answers = res.data.opportunityFeedback.edges.map(
+      (e: { node: { answer: string } }) => e.node.answer,
+    );
+    expect(answers).toContain('The tech stack looks great');
+    expect(answers).toContain('Looking for 150k+');
+    expect(answers).not.toContain('Platform seems slow'); // DAILY_DEV feedback
+    expect(answers).not.toContain('No classification yet'); // Unclassified feedback
+  });
+
+  it('should deny access if user is not a recruiter for the opportunity', async () => {
+    loggedUser = '3'; // User 3 is not a recruiter for opportunity 0
+
+    const res = await client.query(OPPORTUNITY_FEEDBACK_QUERY, {
+      variables: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors[0].extensions.code).toBe('FORBIDDEN');
+  });
+});
+
 describe('mutation reimportOpportunity', () => {
   const MUTATION = /* GraphQL */ `
     mutation ReimportOpportunity($payload: ReimportOpportunityInput!) {

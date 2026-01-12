@@ -55,8 +55,6 @@ export const parseOpportunityFeedbackWorker: TypedWorker<'api.v1.opportunity-fee
               category: classification.category,
               sentiment: classification.sentiment,
               urgency: classification.urgency,
-              summary: classification.summary,
-              actionableItems: classification.actionableItems,
             };
 
             return {

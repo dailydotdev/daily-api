@@ -5,8 +5,6 @@ export const feedbackClassificationSchema = z.object({
   category: z.number(),
   sentiment: z.number(),
   urgency: z.number(),
-  summary: z.string(),
-  actionableItems: z.array(z.string()),
 });
 
 export const opportunityFeedbackSchema = z.object({

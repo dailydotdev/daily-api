@@ -40,8 +40,6 @@ export const getBragiClient = (
             category: FeedbackCategory.FEATURE_REQUEST,
             sentiment: FeedbackSentiment.POSITIVE,
             urgency: FeedbackUrgency.LOW,
-            summary: 'Mock feedback classification',
-            actionableItems: ['Mock action item'],
           },
         }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,

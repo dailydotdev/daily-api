@@ -114,8 +114,6 @@ describe('parseOpportunityFeedback worker', () => {
         category: FeedbackCategory.FEATURE_REQUEST,
         sentiment: FeedbackSentiment.POSITIVE,
         urgency: FeedbackUrgency.LOW,
-        summary: 'User had a great experience',
-        actionableItems: ['Keep up the good work'],
       },
     });
 
@@ -144,8 +142,6 @@ describe('parseOpportunityFeedback worker', () => {
       category: FeedbackCategory.FEATURE_REQUEST,
       sentiment: FeedbackSentiment.POSITIVE,
       urgency: FeedbackUrgency.LOW,
-      summary: 'User had a great experience',
-      actionableItems: ['Keep up the good work'],
     });
   });
 });
