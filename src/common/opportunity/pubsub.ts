@@ -585,3 +585,18 @@ export const notifyOpportunityMatchCandidateReview = async ({
     topic: 'api.v1.candidate-review-opportunity',
   });
 };
+
+export const notifyOpportunityFeedbackSubmitted = async ({
+  logger,
+  opportunityId,
+  userId,
+}: {
+  logger: FastifyBaseLogger;
+  opportunityId: string;
+  userId: string;
+}) => {
+  await triggerTypedEvent(logger, 'api.v1.opportunity-feedback-submitted', {
+    opportunityId,
+    userId,
+  });
+};

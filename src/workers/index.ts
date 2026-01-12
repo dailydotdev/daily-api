@@ -76,6 +76,7 @@ import candidateReviewOpportunitySlack from './candidateReviewOpportunitySlack';
 import recruiterRejectedCandidateMatchEmail from './recruiterRejectedCandidateMatchEmail';
 import { opportunityPreviewResultWorker } from './opportunity/opportunityPreviewResult';
 import opportunityInReviewSlack from './opportunityInReviewSlack';
+import { parseOpportunityFeedbackWorker } from './opportunity/parseOpportunityFeedback';
 
 export { Worker } from './worker';
 
@@ -155,6 +156,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   recruiterRejectedCandidateMatchEmail,
   opportunityPreviewResultWorker,
   opportunityInReviewSlack,
+  parseOpportunityFeedbackWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

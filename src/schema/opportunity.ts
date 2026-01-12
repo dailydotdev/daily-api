@@ -6,6 +6,7 @@ import { remoteConfig } from '../remoteConfig';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
+  FeedbackPlatform,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
@@ -110,6 +111,7 @@ import {
   mockPreviewTags,
   mockPreviewSquadIds,
 } from '../mocks/opportunity/services';
+import { notifyOpportunityFeedbackSubmitted } from '../common/opportunity/pubsub';
 
 export interface GQLOpportunity extends Pick<
   Opportunity,
@@ -366,6 +368,31 @@ export const typeDefs = /* GraphQL */ `
   type OpportunityMatchConnection {
     pageInfo: OpportunityMatchPageInfo!
     edges: [OpportunityMatchEdge!]!
+  }
+
+  type FeedbackClassification {
+    platform: Int!
+    category: Int!
+    sentiment: Int!
+    urgency: Int!
+    screening: String!
+    answer: String!
+  }
+
+  type FeedbackClassificationEdge {
+    node: FeedbackClassification!
+    cursor: String!
+  }
+
+  type FeedbackClassificationPageInfo {
+    hasNextPage: Boolean!
+    endCursor: String
+    totalCount: Int!
+  }
+
+  type FeedbackClassificationConnection {
+    pageInfo: FeedbackClassificationPageInfo!
+    edges: [FeedbackClassificationEdge!]!
   }
 
   type GCSBlob {
@@ -650,6 +677,24 @@ export const typeDefs = /* GraphQL */ `
       """
       opportunityId: ID!
     ): OpportunityStats! @auth
+
+    """
+    Get paginated classified feedback for an opportunity (recruiter platform only)
+    """
+    opportunityFeedback(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): FeedbackClassificationConnection! @auth
   }
 
   input SalaryExpectationInput {
@@ -1761,6 +1806,68 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         introduced: parseInt(result?.introduced || '0', 10),
       };
     },
+    opportunityFeedback: async (
+      _,
+      args: ConnectionArguments & { opportunityId: string },
+      ctx: AuthContext,
+    ) => {
+      const { opportunityId, first = 10, after } = args;
+
+      // Verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      // Get matches that have feedback with recruiter platform classification
+      const matches = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(OpportunityMatch).find({
+          where: {
+            opportunityId,
+          },
+          select: ['feedback'],
+        }),
+      );
+
+      // Extract feedback items with recruiter platform classification
+      const allFeedback = matches
+        .flatMap((match) => match.feedback ?? [])
+        .filter(
+          (f) => f.classification?.platform === FeedbackPlatform.RECRUITER,
+        )
+        .map(({ screening, answer, classification }) => ({
+          screening,
+          answer,
+          platform: classification!.platform,
+          category: classification!.category,
+          sentiment: classification!.sentiment,
+          urgency: classification!.urgency,
+        }));
+
+      const totalCount = allFeedback.length;
+
+      // Apply cursor-based pagination
+      const offset = after ? (cursorToOffset(after) ?? -1) + 1 : 0;
+      const limit = Math.min(first ?? 10, 50);
+      const paginatedFeedback = allFeedback.slice(offset, offset + limit);
+
+      const edges = paginatedFeedback.map((node, index) => ({
+        node,
+        cursor: offsetToCursor(offset + index),
+      }));
+
+      return {
+        pageInfo: {
+          hasNextPage: offset + paginatedFeedback.length < totalCount,
+          endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
+          totalCount,
+        },
+        edges,
+      };
+    },
   },
   Mutation: {
     updateCandidatePreferences: async (
@@ -1938,6 +2045,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           skipUpdateIfNoValuesChanged: true,
         },
       );
+
+      await notifyOpportunityFeedbackSubmitted({
+        logger: log,
+        opportunityId,
+        userId,
+      });
+
       return { _: true };
     },
     acceptOpportunityMatch: async (

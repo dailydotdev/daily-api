@@ -460,6 +460,10 @@ export const workers: Worker[] = [
     topic: 'gondul.v1.opportunity-preview-results',
     subscription: 'api.opportunity-preview-result',
   },
+  {
+    topic: 'api.v1.opportunity-feedback-submitted',
+    subscription: 'api.parse-opportunity-feedback',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
