@@ -64,9 +64,12 @@ describe('query whoami', () => {
 
     const res = await client.query(QUERY);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { email, notificationFlags, ...user } = usersFixture[0];
+    const { email, notificationFlags, socialLinks, ...user } = usersFixture[0];
     expect(res.data.whoami).toEqual({
       ...user,
+      twitter: null,
+      github: 'idogithub',
+      hashnode: null,
       timezone: DEFAULT_TIMEZONE,
       createdAt: userCreatedDate,
     });
@@ -81,7 +84,7 @@ describe('dedicated api routes', () => {
         request(app.server).get('/whoami'),
       ).expect(200);
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { notificationFlags, ...user } = usersFixture[0];
+      const { notificationFlags, socialLinks, ...user } = usersFixture[0];
       expect(res.body).toEqual({
         ...user,
         company: null,
@@ -90,6 +93,9 @@ describe('dedicated api routes', () => {
         timezone: DEFAULT_TIMEZONE,
         createdAt: userCreatedDate,
         reputation: 10,
+        twitter: null,
+        github: 'idogithub',
+        hashnode: null,
         roadmap: null,
         threads: null,
         codepen: null,
