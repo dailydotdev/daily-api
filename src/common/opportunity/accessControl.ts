@@ -10,6 +10,7 @@ export enum OpportunityPermissions {
   Edit = 'opportunity_edit',
   UpdateState = 'opportunity_update_state',
   ViewDraft = 'opportunity_view_draft',
+  CreateSlackChannel = 'opportunity_create_slack_channel',
 }
 
 export const ensureOpportunityPermissions = async ({
@@ -43,6 +44,7 @@ export const ensureOpportunityPermissions = async ({
       OpportunityPermissions.Edit,
       OpportunityPermissions.UpdateState,
       OpportunityPermissions.ViewDraft,
+      OpportunityPermissions.CreateSlackChannel,
     ].includes(permission)
   ) {
     const opportunityUserQb = con
