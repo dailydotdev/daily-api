@@ -6,9 +6,8 @@ import {
   ParseFeedbackRequest,
   ParseFeedbackResponse,
 } from '@dailydotdev/schema';
-import { GarmrService, IGarmrService } from '../garmr';
+import { GarmrService } from '../garmr';
 import type { ServiceClient } from '../../types';
-import { IBragiClient } from './types';
 
 const garmrBragiService = new GarmrService({
   service: 'bragi',
@@ -33,24 +32,9 @@ export const getBragiClient = (
   };
 };
 
-export class BragiClient implements IBragiClient {
-  private readonly client: ServiceClient<typeof Pipelines>;
-
-  constructor(
-    private readonly garmr: IGarmrService = garmrBragiService,
-    clientTransport = transport,
-  ) {
-    this.client = {
-      instance: createClient<typeof Pipelines>(Pipelines, clientTransport),
-      garmr: this.garmr,
-    };
-  }
-
-  parseFeedback(request: ParseFeedbackRequest): Promise<ParseFeedbackResponse> {
-    return this.garmr.execute(() =>
-      this.client.instance.parseFeedback(request),
-    );
-  }
-}
-
-export const bragiClient = new BragiClient(garmrBragiService);
+export const parseFeedback = async (
+  request: ParseFeedbackRequest,
+): Promise<ParseFeedbackResponse> =>
+  garmrBragiService.execute(async () =>
+    getBragiClient().instance.parseFeedback(request),
+  );

@@ -1,2 +1,1 @@
-export * from './types';
-export { BragiClient, bragiClient } from './clients';
+export { getBragiClient, parseFeedback } from './clients';
