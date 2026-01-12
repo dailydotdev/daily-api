@@ -204,6 +204,8 @@ config:
       secure: AAABABTkdjxhBjCcoeV1tjL1OIctFGRtUEu9MVL1oQsAv5uZnI/BeqdV7JHSwMEqZSXBgL2allYd+3IebR691RjQGRRo/DmdMp1UU2WtpszFjf+shyj+MAsd4mwdyhtu/k0ozDHdPfMYds4hpUSPPKI=
     slackInteractionsSigningSecret:
       secure: AAABAMzCsR5elUVCRaLz51fI7t9RC+ftG9iwGst7tOb4vWHyiJakDQ9thRBJS0HH69V3+wMW5lhkMVYY1AUMiw==
+    bragiOrigin:
+      secure: AAABAO0h676Ihv0Tlg9REfWdR8OZvJiXsjEZ/MovrnIi3VRTsu4BuYz/H7sbYMP2aonEE8Xk+nqJgCNDRqRlv4U968Hxw+p8
   api:k8s:
     host: subs.daily.dev
     namespace: daily
