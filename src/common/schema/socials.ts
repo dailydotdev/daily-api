@@ -157,3 +157,65 @@ export const socialLinksInputSchema = z
 
 export type SocialLinkInput = z.input<typeof socialLinkInputSchema>;
 export type SocialLink = z.output<typeof socialLinksInputSchema>[number];
+
+/**
+ * Extract handle or identifier from a social link URL
+ * Returns null if URL is invalid or doesn't match expected format
+ */
+export function extractHandleFromUrl(
+  url: string,
+  platform: string,
+): string | null {
+  if (!url) return null;
+
+  try {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname.replace(/\/$/, ''); // Remove trailing slash
+
+    switch (platform) {
+      case 'twitter':
+        // https://x.com/username or https://twitter.com/username
+        return pathname.replace(/^\//, '').replace('@', '') || null;
+      case 'github':
+        // https://github.com/username
+        return pathname.replace(/^\//, '') || null;
+      case 'linkedin':
+        // https://linkedin.com/in/username
+        return pathname.replace(/^\/in\//, '') || null;
+      case 'threads':
+        // https://threads.net/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'roadmap':
+        // https://roadmap.sh/u/username
+        return pathname.replace(/^\/u\//, '') || null;
+      case 'codepen':
+        // https://codepen.io/username
+        return pathname.replace(/^\//, '') || null;
+      case 'reddit':
+        // https://reddit.com/u/username or /user/username
+        return pathname.replace(/^\/(u|user)\//, '') || null;
+      case 'stackoverflow':
+        // https://stackoverflow.com/users/123/username
+        return pathname.replace(/^\/users\//, '') || null;
+      case 'youtube':
+        // https://youtube.com/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'bluesky':
+        // https://bsky.app/profile/username.bsky.social
+        return pathname.replace(/^\/profile\//, '') || null;
+      case 'mastodon':
+        // Full URL is stored for mastodon
+        return url;
+      case 'hashnode':
+        // https://hashnode.com/@username
+        return pathname.replace(/^\/@?/, '') || null;
+      case 'portfolio':
+        // Full URL is stored for portfolio
+        return url;
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
