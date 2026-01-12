@@ -285,7 +285,9 @@ const createWorkerSchema = async (): Promise<void> => {
     UNION
     SELECT matviewname as name FROM pg_matviews WHERE schemaname = 'public'
   `);
-  const objectNames = new Set(publicObjects.map((r: { name: string }) => r.name));
+  const objectNames = new Set(
+    publicObjects.map((r: { name: string }) => r.name),
+  );
 
   // Function to replace unqualified table/view references with schema-qualified ones
   const qualifyTableRefs = (sql: string): string => {
@@ -346,10 +348,13 @@ const createWorkerSchema = async (): Promise<void> => {
   for (const { matviewname, definition } of matViews) {
     try {
       // Check if view exists, if not create it
-      const exists = await bootstrapDataSource.query(`
+      const exists = await bootstrapDataSource.query(
+        `
         SELECT 1 FROM pg_matviews
         WHERE schemaname = $1 AND matviewname = $2
-      `, [testSchema, matviewname]);
+      `,
+        [testSchema, matviewname],
+      );
       if (exists.length === 0) {
         const qualifiedDef = qualifyTableRefs(definition);
         await bootstrapDataSource.query(`
