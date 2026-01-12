@@ -65,6 +65,22 @@ export const blueskySchema = socialUrlSchema(
   /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/,
 );
 
+export const codebergSchema = socialUrlSchema(
+  /^(?:(?:https:\/\/)?(?:www\.)?codeberg\.org\/)?(?<value>[\w-]{2,})\/?$/,
+);
+
+export const gitlabSchema = socialUrlSchema(
+  /^(?:(?:https:\/\/)?(?:www\.)?gitlab\.com\/)?(?<value>[\w-]{2,})\/?$/,
+);
+
+export const bitbucketSchema = socialUrlSchema(
+  /^(?:(?:https:\/\/)?(?:www\.)?bitbucket\.org\/)?(?<value>[\w-]{2,})\/?$/,
+);
+
+export const kaggleSchema = socialUrlSchema(
+  /^(?:(?:https:\/\/)?(?:www\.)?kaggle\.com\/)?(?<value>[\w-]{2,})\/?$/,
+);
+
 export const socialFieldsSchema = z.object({
   github: githubSchema,
   twitter: twitterSchema,
@@ -101,6 +117,10 @@ const PLATFORM_DOMAINS: Record<string, string> = {
   'youtu.be': 'youtube',
   'hashnode.com': 'hashnode',
   'hashnode.dev': 'hashnode',
+  'codeberg.org': 'codeberg',
+  'gitlab.com': 'gitlab',
+  'bitbucket.org': 'bitbucket',
+  'kaggle.com': 'kaggle',
 };
 
 /**
@@ -143,11 +163,14 @@ export const socialLinkInputSchema = z.object({
   platform: z.string().optional(),
 });
 
+export const MAX_SOCIAL_LINKS = 20;
+
 /**
  * Schema for socialLinks array input with auto-detection and transformation
  */
 export const socialLinksInputSchema = z
   .array(socialLinkInputSchema)
+  .max(MAX_SOCIAL_LINKS)
   .transform((links) =>
     links.map(({ url, platform }) => ({
       platform: platform || detectPlatformFromUrl(url) || 'other',
@@ -212,6 +235,18 @@ export function extractHandleFromUrl(
       case 'portfolio':
         // Full URL is stored for portfolio
         return url;
+      case 'codeberg':
+        // https://codeberg.org/username
+        return pathname.replace(/^\//, '') || null;
+      case 'gitlab':
+        // https://gitlab.com/username
+        return pathname.replace(/^\//, '') || null;
+      case 'bitbucket':
+        // https://bitbucket.org/username
+        return pathname.replace(/^\//, '') || null;
+      case 'kaggle':
+        // https://kaggle.com/username
+        return pathname.replace(/^\//, '') || null;
       default:
         return null;
     }
