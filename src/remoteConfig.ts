@@ -3,6 +3,7 @@ import { logger } from './logger';
 import { isProd, isTest } from './common/utils';
 import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
+import { ProductType } from './entity/Product';
 
 export type RemoteConfigValue = {
   inc: number;
@@ -64,6 +65,9 @@ class RemoteConfig {
   get vars(): Partial<RemoteConfigValue> {
     if (!process.env.GROWTHBOOK_API_CONFIG_CLIENT_KEY) {
       return {
+        paddleProductIds: {
+          [ProductType.Recruiter]: 'pro_01kbq0mcmf81ehdk31d35jk1g5',
+        },
         ...(!isTest && {
           funnelIds: {
             web_funnel_id: 'paid-v1',

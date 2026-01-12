@@ -74,7 +74,7 @@ config:
     otelEnabled: false
     otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4318/v1/traces
     otelTracesSampler: always_on
-    paddleApiKey: topsecret
+    paddleApiKey: pdl_sdbx_apikey_01kdq5zxjqkw13cnqcfrx8zqf9_w4972CNdrYn296TxNRffP7_AII
     paddleEnvironment: sandbox
     paddleWebhookSecret: topsecret
     personalizedDigestSecret: topsecret
@@ -102,3 +102,4 @@ config:
   api:temporal:
     chain: ''
     key: ''
+  api:image: api-image:tilt-9046cb2312a58005
