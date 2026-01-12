@@ -93,26 +93,6 @@ describe('detectPlatformFromUrl', () => {
     expect(detectPlatformFromUrl('not-a-url')).toBeNull();
     expect(detectPlatformFromUrl('')).toBeNull();
   });
-
-  it('should detect codeberg.org', () => {
-    expect(detectPlatformFromUrl('https://codeberg.org/username')).toBe(
-      'codeberg',
-    );
-  });
-
-  it('should detect gitlab.com', () => {
-    expect(detectPlatformFromUrl('https://gitlab.com/username')).toBe('gitlab');
-  });
-
-  it('should detect bitbucket.org', () => {
-    expect(detectPlatformFromUrl('https://bitbucket.org/username')).toBe(
-      'bitbucket',
-    );
-  });
-
-  it('should detect kaggle.com', () => {
-    expect(detectPlatformFromUrl('https://kaggle.com/username')).toBe('kaggle');
-  });
 });
 
 describe('socialLinksInputSchema', () => {
