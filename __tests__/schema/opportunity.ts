@@ -1,14 +1,11 @@
 import type { ZodError } from 'zod';
 import { DataSource, IsNull } from 'typeorm';
 import request from 'supertest';
-import { Alerts, Feed, Keyword, User } from '../../src/entity';
+import { Alerts, Keyword, User } from '../../src/entity';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { Organization } from '../../src/entity/Organization';
-import {
-  ContentPreferenceOrganization,
-  ContentPreferenceOrganizationStatus,
-} from '../../src/entity/contentPreference/ContentPreferenceOrganization';
+
 import { OpportunityKeyword } from '../../src/entity/OpportunityKeyword';
 import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 import { OpportunityLocation } from '../../src/entity/opportunities/OpportunityLocation';
@@ -5737,12 +5734,12 @@ describe('mutation parseOpportunity', () => {
 describe('mutation createSharedSlackChannel', () => {
   const MUTATION = /* GraphQL */ `
     mutation CreateSharedSlackChannel(
-      $organizationId: ID!
+      $opportunityId: ID!
       $email: String!
       $channelName: String!
     ) {
       createSharedSlackChannel(
-        organizationId: $organizationId
+        opportunityId: $opportunityId
         email: $email
         channelName: $channelName
       ) {
@@ -5755,22 +5752,6 @@ describe('mutation createSharedSlackChannel', () => {
     // Reset all mocks before each test
     mockConversationsCreate.mockReset();
     mockConversationsInviteShared.mockReset();
-
-    // Add organization membership for user 1
-    await con.getRepository(Feed).save({
-      id: '1',
-      name: 'My Feed',
-      userId: '1',
-    });
-    await saveFixtures(con, ContentPreferenceOrganization, [
-      {
-        userId: '1',
-        organizationId: '550e8400-e29b-41d4-a716-446655440000',
-        referenceId: '550e8400-e29b-41d4-a716-446655440000',
-        status: ContentPreferenceOrganizationStatus.Free,
-        feedId: '1',
-      },
-    ]);
   });
 
   it('should require authentication', async () => {
@@ -5779,7 +5760,7 @@ describe('mutation createSharedSlackChannel', () => {
       {
         mutation: MUTATION,
         variables: {
-          organizationId: '550e8400-e29b-41d4-a716-446655440000',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
           email: 'user@example.com',
           channelName: 'test-channel',
         },
@@ -5796,7 +5777,7 @@ describe('mutation createSharedSlackChannel', () => {
       {
         mutation: MUTATION,
         variables: {
-          organizationId: '550e8400-e29b-41d4-a716-446655440000',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
           email: 'user@example.com',
           channelName: 'test-channel',
         },
@@ -5830,7 +5811,7 @@ describe('mutation createSharedSlackChannel', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        organizationId: '550e8400-e29b-41d4-a716-446655440000',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
         email: 'user@example.com',
         channelName: 'test-channel',
       },
@@ -5878,7 +5859,7 @@ describe('mutation createSharedSlackChannel', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        organizationId: '550e8400-e29b-41d4-a716-446655440000',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
         email: 'user@example.com',
         channelName: 'existing-channel',
       },
@@ -5915,7 +5896,7 @@ describe('mutation createSharedSlackChannel', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        organizationId: '550e8400-e29b-41d4-a716-446655440000',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
         email: 'user@example.com',
         channelName: 'test-channel',
       },
@@ -5925,14 +5906,14 @@ describe('mutation createSharedSlackChannel', () => {
   });
 
   it('should forbid non-members from creating slack channels', async () => {
-    loggedUser = '2'; // User 2 is not a member of organization 550e8400
+    loggedUser = '2'; // User 2 is not a recrioter of opporunity/org 550e8400
 
     await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
         variables: {
-          organizationId: '550e8400-e29b-41d4-a716-446655440000',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
           email: 'user@example.com',
           channelName: 'test-channel',
         },
@@ -5942,24 +5923,22 @@ describe('mutation createSharedSlackChannel', () => {
   });
 
   it('should require active subscription', async () => {
-    loggedUser = '2';
+    loggedUser = '1';
 
-    // Create organization membership for user 2
-    await con.getRepository(ContentPreferenceOrganization).save({
-      userId: '2',
-      organizationId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
-      referenceId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
-      status: ContentPreferenceOrganizationStatus.Free,
-      feedId: '1',
+    // Create a recruiter record for the logged-in user
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
     });
 
     // Update organization to have inactive subscription
     await con.getRepository(Organization).update(
-      { id: 'ed487a47-6f4d-480f-9712-f48ab29db27c' },
+      { id: '550e8400-e29b-41d4-a716-446655440000' },
       {
         recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags({
           subscriptionId: 'sub_456',
-          status: SubscriptionStatus.Pending,
+          status: SubscriptionStatus.Cancelled,
           provider: 'paddle',
           items: [{ priceId: 'pri_456', quantity: 3 }],
         }),
@@ -5971,7 +5950,7 @@ describe('mutation createSharedSlackChannel', () => {
       {
         mutation: MUTATION,
         variables: {
-          organizationId: 'ed487a47-6f4d-480f-9712-f48ab29db27c',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
           email: 'user@example.com',
           channelName: 'test-channel',
         },
@@ -6009,7 +5988,7 @@ describe('mutation createSharedSlackChannel', () => {
       {
         mutation: MUTATION,
         variables: {
-          organizationId: '550e8400-e29b-41d4-a716-446655440000',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
           email: 'user@example.com',
           channelName: 'new-channel',
         },

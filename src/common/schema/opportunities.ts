@@ -322,7 +322,7 @@ export const reimportOpportunitySchema = z
   );
 
 export const createSharedSlackChannelSchema = z.object({
-  organizationId: z.string().uuid('Organization ID must be a valid UUID'),
+  opportunityId: z.uuid('Opportunity ID must be a valid UUID'),
   email: z.string().email('Email must be a valid email address'),
   channelName: z
     .string()
