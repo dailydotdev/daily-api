@@ -1494,6 +1494,9 @@ const obj = new GraphORM({
           return value.length;
         },
       },
+      recruiterSubscriptionFlags: {
+        jsonType: true,
+      },
     },
   },
   OrganizationMember: {

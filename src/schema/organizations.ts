@@ -131,6 +131,10 @@ export const typeDefs = /* GraphQL */ `
     link: String!
   }
 
+  type RecruiterSubscriptionFlags {
+    hasSlackConnection: Boolean
+  }
+
   type Organization {
     """
     The ID of the organization
@@ -222,6 +226,11 @@ export const typeDefs = /* GraphQL */ `
     It will be 0 if no subscription exists.
     """
     recruiterTotalSeats: Int!
+
+    """
+    The recruiter subscription flags
+    """
+    recruiterSubscriptionFlags: RecruiterSubscriptionFlags
   }
 
   type ProratedPricePreview {
