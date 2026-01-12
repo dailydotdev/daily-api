@@ -110,6 +110,7 @@ import {
   mockPreviewTags,
   mockPreviewSquadIds,
 } from '../mocks/opportunity/services';
+import { notifyOpportunityFeedbackSubmitted } from '../common/opportunity/pubsub';
 
 export interface GQLOpportunity extends Pick<
   Opportunity,
@@ -1938,6 +1939,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           skipUpdateIfNoValuesChanged: true,
         },
       );
+
+      await notifyOpportunityFeedbackSubmitted({
+        logger: log,
+        opportunityId,
+        userId,
+      });
+
       return { _: true };
     },
     acceptOpportunityMatch: async (

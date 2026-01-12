@@ -246,6 +246,10 @@ export type PubSubSchema = {
   'gondul.v1.warm-intro-generated': WarmIntro;
   'api.v1.user-profile-updated': UserProfileUpdatedMessage;
   'gondul.v1.opportunity-preview-results': OpportunityPreviewResult;
+  'api.v1.opportunity-feedback-submitted': {
+    opportunityId: string;
+    userId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
