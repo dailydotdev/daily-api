@@ -1,1 +1,1 @@
-export { getBragiClient, parseFeedback } from './clients';
+export { getBragiClient } from './clients';

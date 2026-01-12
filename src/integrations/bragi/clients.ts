@@ -1,11 +1,7 @@
 import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
-import {
-  Pipelines,
-  ParseFeedbackRequest,
-  ParseFeedbackResponse,
-} from '@dailydotdev/schema';
+import { Pipelines } from '@dailydotdev/schema';
 import { GarmrService } from '../garmr';
 import type { ServiceClient } from '../../types';
 
@@ -31,10 +27,3 @@ export const getBragiClient = (
     garmr: garmrBragiService,
   };
 };
-
-export const parseFeedback = async (
-  request: ParseFeedbackRequest,
-): Promise<ParseFeedbackResponse> =>
-  garmrBragiService.execute(async () =>
-    getBragiClient().instance.parseFeedback(request),
-  );
