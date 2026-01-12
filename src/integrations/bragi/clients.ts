@@ -1,53 +1,17 @@
-import { RequestInit } from 'node-fetch';
-import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
-import { fetchOptions as globalFetchOptions } from '../../http';
-import { fetchParseBinary } from '../retry';
-import { IBragiClient } from './types';
+import { env } from 'node:process';
+import { createClient } from '@connectrpc/connect';
+import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
+  Pipelines,
   ParseFeedbackRequest,
   ParseFeedbackResponse,
 } from '@dailydotdev/schema';
-
-export class BragiClient implements IBragiClient {
-  private readonly fetchOptions: RequestInit;
-  private readonly garmr: IGarmrService;
-
-  constructor(
-    private readonly url: string,
-    options?: {
-      fetchOptions?: RequestInit;
-      garmr?: IGarmrService;
-    },
-  ) {
-    const {
-      fetchOptions = globalFetchOptions,
-      garmr = new GarmrNoopService(),
-    } = options || {};
-
-    this.fetchOptions = fetchOptions;
-    this.garmr = garmr;
-  }
-
-  parseFeedback(request: ParseFeedbackRequest): Promise<ParseFeedbackResponse> {
-    return this.garmr.execute(() => {
-      return fetchParseBinary(
-        `${this.url}/v1/parse-feedback`,
-        {
-          ...this.fetchOptions,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-protobuf',
-          },
-          body: request.toBinary(),
-        },
-        new ParseFeedbackResponse(),
-      );
-    });
-  }
-}
+import { GarmrService, IGarmrService } from '../garmr';
+import type { ServiceClient } from '../../types';
+import { IBragiClient } from './types';
 
 const garmrBragiService = new GarmrService({
-  service: BragiClient.name,
+  service: 'bragi',
   breakerOpts: {
     halfOpenAfter: 5 * 1000,
     threshold: 0.1,
@@ -55,6 +19,38 @@ const garmrBragiService = new GarmrService({
   },
 });
 
-export const bragiClient = new BragiClient(process.env.BRAGI_ORIGIN!, {
-  garmr: garmrBragiService,
+const transport = createGrpcTransport({
+  baseUrl: env.BRAGI_ORIGIN!,
+  httpVersion: '2',
 });
+
+export const getBragiClient = (
+  clientTransport = transport,
+): ServiceClient<typeof Pipelines> => {
+  return {
+    instance: createClient<typeof Pipelines>(Pipelines, clientTransport),
+    garmr: garmrBragiService,
+  };
+};
+
+export class BragiClient implements IBragiClient {
+  private readonly client: ServiceClient<typeof Pipelines>;
+
+  constructor(
+    private readonly garmr: IGarmrService = garmrBragiService,
+    clientTransport = transport,
+  ) {
+    this.client = {
+      instance: createClient<typeof Pipelines>(Pipelines, clientTransport),
+      garmr: this.garmr,
+    };
+  }
+
+  parseFeedback(request: ParseFeedbackRequest): Promise<ParseFeedbackResponse> {
+    return this.garmr.execute(() =>
+      this.client.instance.parseFeedback(request),
+    );
+  }
+}
+
+export const bragiClient = new BragiClient(garmrBragiService);
