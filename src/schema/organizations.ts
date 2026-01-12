@@ -132,7 +132,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type RecruiterSubscriptionFlags {
-    hasSlackConnection: Boolean
+    hasSlackConnection: String
   }
 
   type Organization {
