@@ -70,7 +70,6 @@ import { QuestionScreening } from '../entity/questions/QuestionScreening';
 import { In, Not, JsonContains, EntityManager } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import { Source, SourceType } from '../entity/Source';
-import { ContentPreferenceOrganization } from '../entity/contentPreference/ContentPreferenceOrganization';
 import {
   OrganizationLinkType,
   SocialMediaType,
@@ -905,9 +904,9 @@ export const typeDefs = /* GraphQL */ `
     """
     createSharedSlackChannel(
       """
-      Organization ID
+      Opportunity ID
       """
-      organizationId: ID!
+      opportunityId: ID!
 
       """
       Email address of the user to invite
@@ -2501,47 +2500,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       payload: z.infer<typeof createSharedSlackChannelSchema>,
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      const { organizationId, channelName, email } =
+      const { opportunityId, channelName, email } =
         createSharedSlackChannelSchema.parse(payload);
 
-      // Check if the user is a recruiter
-      const isRecruiter = await ctx.con
-        .getRepository(OpportunityUserRecruiter)
-        .findOne({
-          where: {
-            userId: ctx.userId,
-            type: OpportunityUserType.Recruiter,
-          },
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.CreateSlackChannel,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id: opportunityId },
+          relations: { organization: true },
         });
-
-      if (!isRecruiter) {
-        throw new ForbiddenError(
-          'Access denied! Only recruiters can create Slack channels',
-        );
-      }
-
-      // Verify user is a member of the organization
-      const organizationMembership = await ctx.con
-        .getRepository(ContentPreferenceOrganization)
-        .findOne({
-          where: {
-            userId: ctx.userId,
-            organizationId,
-          },
-        });
-
-      if (!organizationMembership) {
-        throw new ForbiddenError(
-          'Access denied! You are not a member of this organization',
-        );
-      }
 
       // Get the organization and check subscription status
-      const organization = await ctx.con
-        .getRepository(Organization)
-        .findOneOrFail({
-          where: { id: organizationId },
-        });
+      const organization = await opportunity.organization;
 
       // Check if organization has an active subscription
       if (
@@ -2578,7 +2556,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         // Mark organization as having a Slack connection and store channel name
         await ctx.con.getRepository(Organization).update(
-          { id: organizationId },
+          { id: organization.id },
           {
             recruiterSubscriptionFlags:
               updateRecruiterSubscriptionFlags<Organization>({

@@ -190,14 +190,13 @@ export const opportunityEditSchema = z
         .refine(
           (data) => {
             if (data?.min && data?.max) {
-              return data.max >= data.min && data.max <= data.min * 1.25;
+              return data.max >= data.min && data.min >= data.max * 0.75;
             }
 
             return true;
           },
           {
-            error:
-              'Min salary must be less than or equal to max salary and no more than 25% lower',
+            error: 'Salary range must be within 25% of maximum salary',
           },
         ),
       seniorityLevel: z.number(),
@@ -323,7 +322,7 @@ export const reimportOpportunitySchema = z
   );
 
 export const createSharedSlackChannelSchema = z.object({
-  organizationId: z.string().uuid('Organization ID must be a valid UUID'),
+  opportunityId: z.uuid('Opportunity ID must be a valid UUID'),
   email: z.string().email('Email must be a valid email address'),
   channelName: z
     .string()
