@@ -277,6 +277,40 @@ const createWorkerSchema = async (): Promise<void> => {
     }
   }
 
+  // Get all table and materialized view names from public schema for view definition replacement
+  // pg_matviews.definition retains internal OID references even though it shows unqualified names,
+  // so we must explicitly qualify ALL table/view references in the definition text
+  const publicObjects = await bootstrapDataSource.query(`
+    SELECT tablename as name FROM pg_tables WHERE schemaname = 'public'
+    UNION
+    SELECT matviewname as name FROM pg_matviews WHERE schemaname = 'public'
+  `);
+  const objectNames = new Set(publicObjects.map((r: { name: string }) => r.name));
+
+  // Function to replace unqualified table/view references with schema-qualified ones
+  const qualifyTableRefs = (sql: string): string => {
+    let result = sql;
+    for (const name of objectNames) {
+      // Replace FROM tablename, JOIN tablename patterns with schema-qualified versions
+      // Also handle PostgreSQL's (tablename alias format in complex queries
+      // Patterns to match:
+      // - FROM tablename (with optional whitespace)
+      // - JOIN tablename (with optional whitespace)
+      // - FROM (tablename alias - PostgreSQL's format for JOINs in parentheses
+      // - JOIN (tablename alias
+      const patterns = [
+        new RegExp(`(FROM\\s+)(${name})(\\s|$|,)`, 'gi'),
+        new RegExp(`(JOIN\\s+)(${name})(\\s|$|,)`, 'gi'),
+        new RegExp(`(FROM\\s*\\()(${name})(\\s)`, 'gi'),
+        new RegExp(`(JOIN\\s*\\()(${name})(\\s)`, 'gi'),
+      ];
+      for (const pattern of patterns) {
+        result = result.replace(pattern, `$1"${testSchema}"."${name}"$3`);
+      }
+    }
+    return result;
+  };
+
   // Get all views from public schema and recreate them in worker schema
   const views = await bootstrapDataSource.query(`
     SELECT viewname, definition FROM pg_views
@@ -284,31 +318,47 @@ const createWorkerSchema = async (): Promise<void> => {
   `);
 
   for (const { viewname, definition } of views) {
-    // Replace public schema references with worker schema in view definition
-    const modifiedDefinition = definition.replace(
-      /public\./g,
-      `${testSchema}.`,
-    );
+    const qualifiedDef = qualifyTableRefs(definition);
     await bootstrapDataSource.query(`
-      CREATE OR REPLACE VIEW "${testSchema}"."${viewname}" AS ${modifiedDefinition}
+      CREATE OR REPLACE VIEW "${testSchema}"."${viewname}" AS ${qualifiedDef}
     `);
   }
 
   // Get all materialized views from public schema and recreate them in worker schema
+  // Order matters: some views depend on others (e.g., trending_tag depends on trending_post)
   const matViews = await bootstrapDataSource.query(`
     SELECT matviewname, definition FROM pg_matviews
     WHERE schemaname = 'public'
   `);
 
   for (const { matviewname, definition } of matViews) {
-    // Replace public schema references with worker schema in view definition
-    const modifiedDefinition = definition.replace(
-      /public\./g,
-      `${testSchema}.`,
-    );
-    await bootstrapDataSource.query(`
-      CREATE MATERIALIZED VIEW "${testSchema}"."${matviewname}" AS ${modifiedDefinition}
-    `);
+    const qualifiedDef = qualifyTableRefs(definition);
+    try {
+      await bootstrapDataSource.query(`
+        CREATE MATERIALIZED VIEW "${testSchema}"."${matviewname}" AS ${qualifiedDef}
+      `);
+    } catch {
+      // Some views depend on others - will retry in second pass
+    }
+  }
+
+  // Second pass for views that depend on other views
+  for (const { matviewname, definition } of matViews) {
+    try {
+      // Check if view exists, if not create it
+      const exists = await bootstrapDataSource.query(`
+        SELECT 1 FROM pg_matviews
+        WHERE schemaname = $1 AND matviewname = $2
+      `, [testSchema, matviewname]);
+      if (exists.length === 0) {
+        const qualifiedDef = qualifyTableRefs(definition);
+        await bootstrapDataSource.query(`
+          CREATE MATERIALIZED VIEW "${testSchema}"."${matviewname}" AS ${qualifiedDef}
+        `);
+      }
+    } catch {
+      // Skip if still fails
+    }
   }
 
   // Copy all user-defined functions from public schema to worker schema
