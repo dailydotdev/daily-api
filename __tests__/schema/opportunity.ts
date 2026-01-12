@@ -5827,7 +5827,7 @@ describe('mutation createSharedSlackChannel', () => {
     });
     expect(mockConversationsInviteShared).toHaveBeenCalledWith({
       channel: 'C1234567890',
-      emails: ['user@example.com'],
+      emails: ['user@example.com', 'support@daily.dev'],
       external_limited: true,
     });
 

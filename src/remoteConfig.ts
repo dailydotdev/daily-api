@@ -30,6 +30,7 @@ export type RemoteConfigValue = {
   paddleIps: string[];
   paddleTestDiscountIds: string[];
   paddleProductIds: Partial<Record<PurchaseType, string>>;
+  recruiterChannelInviteEmails: string[];
   funnelIds: Partial<{
     web_funnel_id: string;
     onboarding_funnel_id: string;

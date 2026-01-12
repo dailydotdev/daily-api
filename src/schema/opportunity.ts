@@ -2,6 +2,7 @@ import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { GraphQLResolveInfo } from 'graphql';
 import { traceResolvers } from './trace';
+import { remoteConfig } from '../remoteConfig';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
@@ -60,6 +61,7 @@ import {
   reimportOpportunitySchema,
   opportunityMatchesQuerySchema,
   addOpportunitySeatsSchema,
+  recruiterChannelInviteEmailsSchema,
 } from '../common/schema/opportunities';
 import {
   ensureOpportunityPermissions,
@@ -2548,9 +2550,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return { _: false };
         }
 
+        const csEmails = recruiterChannelInviteEmailsSchema.parse(
+          remoteConfig.vars.recruiterChannelInviteEmails ?? [],
+        );
+
         await slackClient.inviteSharedToConversation(
           createResult.channel.id as string,
-          [email],
+          [email, ...csEmails],
           true,
         );
 
