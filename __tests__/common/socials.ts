@@ -1,4 +1,8 @@
-import { detectPlatformFromUrl } from '../../src/common/schema/socials';
+import {
+  detectPlatformFromUrl,
+  socialLinksInputSchema,
+  MAX_SOCIAL_LINKS,
+} from '../../src/common/schema/socials';
 
 describe('detectPlatformFromUrl', () => {
   it('should detect twitter.com', () => {
@@ -88,5 +92,59 @@ describe('detectPlatformFromUrl', () => {
   it('should return null for invalid URLs', () => {
     expect(detectPlatformFromUrl('not-a-url')).toBeNull();
     expect(detectPlatformFromUrl('')).toBeNull();
+  });
+
+  it('should detect codeberg.org', () => {
+    expect(detectPlatformFromUrl('https://codeberg.org/username')).toBe(
+      'codeberg',
+    );
+  });
+
+  it('should detect gitlab.com', () => {
+    expect(detectPlatformFromUrl('https://gitlab.com/username')).toBe('gitlab');
+  });
+
+  it('should detect bitbucket.org', () => {
+    expect(detectPlatformFromUrl('https://bitbucket.org/username')).toBe(
+      'bitbucket',
+    );
+  });
+
+  it('should detect kaggle.com', () => {
+    expect(detectPlatformFromUrl('https://kaggle.com/username')).toBe('kaggle');
+  });
+});
+
+describe('socialLinksInputSchema', () => {
+  it('should accept up to MAX_SOCIAL_LINKS links', () => {
+    const links = Array.from({ length: MAX_SOCIAL_LINKS }, (_, i) => ({
+      url: `https://github.com/user${i}`,
+    }));
+    const result = socialLinksInputSchema.safeParse(links);
+    expect(result.success).toBe(true);
+  });
+
+  it('should reject more than MAX_SOCIAL_LINKS links', () => {
+    const links = Array.from({ length: MAX_SOCIAL_LINKS + 1 }, (_, i) => ({
+      url: `https://github.com/user${i}`,
+    }));
+    const result = socialLinksInputSchema.safeParse(links);
+    expect(result.success).toBe(false);
+  });
+
+  it('should auto-detect platforms for new platforms', () => {
+    const links = [
+      { url: 'https://codeberg.org/testuser' },
+      { url: 'https://gitlab.com/testuser' },
+      { url: 'https://bitbucket.org/testuser' },
+      { url: 'https://kaggle.com/testuser' },
+    ];
+    const result = socialLinksInputSchema.parse(links);
+    expect(result).toEqual([
+      { platform: 'codeberg', url: 'https://codeberg.org/testuser' },
+      { platform: 'gitlab', url: 'https://gitlab.com/testuser' },
+      { platform: 'bitbucket', url: 'https://bitbucket.org/testuser' },
+      { platform: 'kaggle', url: 'https://kaggle.com/testuser' },
+    ]);
   });
 });
