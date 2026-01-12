@@ -92,6 +92,7 @@ import { unsupportedOpportunityDomains } from '../../src/common/schema/opportuni
 const mockConversationsCreate = jest.fn();
 const mockConversationsInviteShared = jest.fn();
 const mockConversationsJoin = jest.fn();
+const mockConversationsInvite = jest.fn();
 
 jest.mock('@slack/web-api', () => ({
   ...(jest.requireActual('@slack/web-api') as Record<string, unknown>),
@@ -105,6 +106,9 @@ jest.mock('@slack/web-api', () => ({
       },
       get join() {
         return mockConversationsJoin;
+      },
+      get invite() {
+        return mockConversationsInvite;
       },
     },
   })),
@@ -5809,6 +5813,10 @@ describe('mutation createSharedSlackChannel', () => {
       ok: true,
     });
 
+    mockConversationsInvite.mockResolvedValue({
+      ok: true,
+    });
+
     const res = await client.mutate(MUTATION, {
       variables: {
         opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -5827,8 +5835,13 @@ describe('mutation createSharedSlackChannel', () => {
     });
     expect(mockConversationsInviteShared).toHaveBeenCalledWith({
       channel: 'C1234567890',
-      emails: ['user@example.com', 'support@daily.dev'],
+      emails: ['user@example.com'],
       external_limited: true,
+    });
+    expect(mockConversationsInvite).toHaveBeenCalledWith({
+      channel: 'C1234567890',
+      users: 'U013C30NE3V',
+      force: true,
     });
 
     // Verify hasSlackConnection flag was set with channel name

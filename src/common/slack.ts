@@ -85,6 +85,22 @@ export class SlackClient {
       }),
     );
   }
+
+  async inviteUsers({
+    channel,
+    userIds,
+  }: {
+    channel: string;
+    userIds: string[];
+  }): Promise<ConversationsInviteSharedResponse> {
+    return this.garmr.execute(async () =>
+      this.client.conversations.invite({
+        channel,
+        users: userIds.join(','),
+        force: true, // ignore invalid users
+      }),
+    );
+  }
 }
 
 // Configure Garmr service for Slack

@@ -334,8 +334,6 @@ export const createSharedSlackChannelSchema = z.object({
     ),
 });
 
-export const recruiterChannelInviteEmailsSchema = z.array(z.email());
-
 export const opportunityMatchesQuerySchema = z.object({
   opportunityId: z.string(),
   status: z

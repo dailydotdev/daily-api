@@ -61,7 +61,6 @@ import {
   reimportOpportunitySchema,
   opportunityMatchesQuerySchema,
   addOpportunitySeatsSchema,
-  recruiterChannelInviteEmailsSchema,
 } from '../common/schema/opportunities';
 import {
   ensureOpportunityPermissions,
@@ -2542,15 +2541,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return { _: false };
         }
 
-        const csEmails = recruiterChannelInviteEmailsSchema.parse(
-          remoteConfig.vars.recruiterChannelInviteEmails ?? [],
-        );
-
         await slackClient.inviteSharedToConversation(
           createResult.channel.id as string,
-          [email, ...csEmails],
+          [email],
           true,
         );
+
+        const csUsers = remoteConfig.vars.recruiterChannelInviteUsers ?? [];
+
+        if (csUsers.length > 0) {
+          await slackClient.inviteUsers({
+            channel: createResult.channel.id as string,
+            userIds: csUsers,
+          });
+        }
 
         // Mark organization as having a Slack connection and store channel name
         await ctx.con.getRepository(Organization).update(
