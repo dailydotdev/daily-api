@@ -218,9 +218,12 @@ beforeEach(async () => {
   await con.getRepository(User).save(usersFixture[0]);
   await con.getRepository(Source).save(sourcesFixture);
   await con.getRepository(Post).save(postsFixture);
-  await ioRedisPool.execute((client) => client.flushall());
-
-  await deleteKeysByPattern('njord:cores_balance:*');
+  // Delete only keys used by boot tests, not flushall (which affects other workers)
+  await Promise.all([
+    deleteKeysByPattern('boot:*'),
+    deleteKeysByPattern('exp:*'),
+    deleteKeysByPattern('njord:cores_balance:*'),
+  ]);
 
   const mockTransport = createMockNjordTransport();
   jest
@@ -303,7 +306,8 @@ describe('anonymous boot', () => {
       .set('User-Agent', TEST_UA)
       .expect(200);
     expect(first.body.user.firstVisit).toBeTruthy();
-    await ioRedisPool.execute((client) => client.flushall());
+    // Clear boot-related keys to simulate data loss, avoiding flushall which affects other workers
+    await deleteKeysByPattern('boot:*');
     const second = await request(app.server)
       .get(BASE_PATH)
       .set('User-Agent', TEST_UA)
