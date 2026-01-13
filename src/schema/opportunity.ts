@@ -1864,11 +1864,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         select: ['id', 'experienceLevel', 'flags'],
       });
 
+      // Fetch candidatePreferences with location relation
+      const candidatePreferences = await ctx.con
+        .getRepository(UserCandidatePreference)
+        .find({
+          where: { userId: In(userIds) },
+          relations: ['location'],
+          select: ['userId'],
+        });
+
+      const preferenceMap = new Map(
+        candidatePreferences.map((pref) => [pref.userId, pref]),
+      );
+
       for (const user of users) {
         const flags = (user.flags ?? {}) as Record<string, unknown>;
+        const preference = preferenceMap.get(user.id);
+        const preferenceLocation = preference?.location
+          ? await preference.location
+          : null;
+
         userContextMap.set(user.id, {
           seniority: user.experienceLevel ?? null,
-          locationCountry: (flags.country as string) ?? null,
+          // Prioritize candidatePreference location country over flags.country
+          locationCountry:
+            preferenceLocation?.country ?? (flags.country as string) ?? null,
         });
       }
 
