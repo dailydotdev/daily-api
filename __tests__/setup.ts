@@ -326,4 +326,4 @@ beforeEach(async () => {
   loadAuthKeys();
 
   await cleanDatabase();
-});
+}, 30000); // 30 second timeout for database cleanup
