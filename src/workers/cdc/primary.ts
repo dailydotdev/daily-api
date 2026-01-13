@@ -1602,17 +1602,22 @@ const onUserExperienceChange = async (
     userId: experience.userId,
   });
 
-  // Trigger enrichment for Work and Education types (create only, when customCompanyName exists but no companyId)
-  if (
-    data.payload.op === 'c' &&
+  // Trigger enrichment for Work and Education types when customCompanyName exists but no companyId
+  // On CREATE: Always run enrichment
+  // On UPDATE: Only run if user hasn't explicitly removed the company (removedEnrichment flag)
+  const shouldEnrich =
     experience.customCompanyName &&
-    !experience.companyId
-  ) {
+    !experience.companyId &&
+    (data.payload.op === 'c' ||
+      (data.payload.op === 'u' &&
+        !JSON.parse(experience.flags || '{}')?.removedEnrichment));
+
+  if (shouldEnrich) {
     await enrichCompanyForExperience(
       con,
       {
         experienceId: experience.id,
-        customCompanyName: experience.customCompanyName,
+        customCompanyName: experience.customCompanyName!,
         experienceType: experience.type,
       },
       logger,
