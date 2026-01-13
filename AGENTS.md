@@ -136,6 +136,12 @@ The migration generator compares entities against the local database schema. Ens
 - Subscribers fetch their own data - don't optimize topic payloads for specific consumers
 - This allows multiple subscribers with different data needs
 
+**Avoid magic numbers for time durations:**
+- Use time constants from `src/common/constants.ts` instead of inline calculations
+- Available constants: `ONE_MINUTE_IN_SECONDS`, `ONE_HOUR_IN_SECONDS`, `ONE_DAY_IN_SECONDS`, `ONE_WEEK_IN_SECONDS`, `ONE_MONTH_IN_SECONDS`, `ONE_YEAR_IN_SECONDS`, `ONE_HOUR_IN_MINUTES`, `ONE_DAY_IN_MINUTES`
+- Example: Use `2 * ONE_DAY_IN_MINUTES` instead of `2 * 24 * 60`
+- Add new constants to `src/common/constants.ts` if needed (they are re-exported from `src/common/index.ts`)
+
 ## Best Practices & Lessons Learned
 
 **Avoiding Code Duplication:**

@@ -1,6 +1,6 @@
 import { ApplicationScored } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
-import { truncateText, webhooks } from '../common';
+import { ONE_DAY_IN_MINUTES, truncateText, webhooks } from '../common';
 import { generateResumeSignedUrl } from '../common/googleCloud';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
@@ -13,7 +13,12 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
   handler: async ({ data }, con): Promise<void> => {
     if (process.env.NODE_ENV === 'development') return;
 
-    const { opportunityId, userId } = data;
+    const {
+      opportunityId,
+      userId,
+      score: applicationScore,
+      description,
+    } = data;
     const match = await con.getRepository(OpportunityMatch).findOne({
       where: { opportunityId, userId },
       relations: ['opportunity', 'user'],
@@ -42,10 +47,9 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
     const salary = pref?.salaryExpectation;
     const cv = pref?.cv;
     const cvSignedUrl = cv?.blob
-      ? await generateResumeSignedUrl(cv.blob)
+      ? await generateResumeSignedUrl(cv.blob, 2 * ONE_DAY_IN_MINUTES)
       : null;
     const matchScore = match.description?.matchScore;
-    const applicationScore = match.applicationRank?.score;
 
     await webhooks.recruiterReview.send({
       blocks: [
@@ -113,13 +117,13 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
             text: `*CV:*\n${cvSignedUrl ? `<${cvSignedUrl}|Download CV>` : 'N/A'}`,
           },
         },
-        ...(match.applicationRank?.description
+        ...(description
           ? [
               {
                 type: 'section' as const,
                 text: {
                   type: 'mrkdwn' as const,
-                  text: `*Application Summary:*\n${truncateText(match.applicationRank.description)}`,
+                  text: `*Application Summary:*\n${truncateText(description)}`,
                 },
               },
             ]
