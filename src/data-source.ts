@@ -37,8 +37,8 @@ export const testRedisPrefix =
 const pgOptions =
   testSchema !== 'public' ? `-c search_path=${testSchema},public` : undefined;
 
-// Reduce pool size for parallel testing to avoid connection exhaustion
-const maxPoolSize = process.env.NODE_ENV === 'test' ? 10 : 30;
+// Reduce pool size for parallel testing to avoid connection/memory exhaustion
+const maxPoolSize = process.env.NODE_ENV === 'test' ? 5 : 30;
 
 export const AppDataSource = new DataSource({
   type: 'postgres',

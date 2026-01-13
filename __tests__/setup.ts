@@ -191,6 +191,7 @@ const createWorkerSchema = async (): Promise<void> => {
       process.env.TYPEORM_DATABASE ||
       (process.env.NODE_ENV === 'test' ? 'api_test' : 'api'),
     schema: 'public',
+    extra: { max: 1 }, // Single connection for schema creation
   });
 
   await bootstrapDataSource.initialize();
@@ -215,7 +216,7 @@ const createWorkerSchema = async (): Promise<void> => {
       (process.env.NODE_ENV === 'test' ? 'api_test' : 'api'),
     schema: testSchema,
     extra: {
-      max: 5, // Minimal pool for migrations
+      max: 2, // Minimal pool for migrations to reduce memory usage
       // Set search_path: worker schema first (for table resolution), then public (for extensions like uuid-ossp)
       options: `-c search_path=${testSchema},public`,
     },
