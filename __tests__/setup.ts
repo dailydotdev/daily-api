@@ -71,43 +71,20 @@ const cleanDatabase = async (): Promise<void> => {
   await remoteConfig.init();
 
   const con = await createOrGetConnection();
-  for (const entity of con.entityMetadatas) {
-    const repository = con.getRepository(entity.name);
-    if (repository.metadata.tableType === 'view') continue;
 
-    // Skip seed data tables - they're populated once and tests expect them to exist
-    if (SEED_DATA_TABLES.has(entity.tableName)) continue;
+  // Get all table names to truncate (excluding views and seed data tables)
+  const tablesToTruncate = con.entityMetadatas
+    .filter(
+      (entity) =>
+        entity.tableType !== 'view' && !SEED_DATA_TABLES.has(entity.tableName),
+    )
+    .map((entity) => `"${testSchema}"."${entity.tableName}"`);
 
-    await repository.query(`DELETE FROM "${entity.tableName}";`);
-
-    for (const column of entity.primaryColumns) {
-      if (column.generationStrategy === 'increment') {
-        // Reset sequences/identity columns for auto-increment primary keys
-        // Must use schema-qualified table name for schema isolation to work
-        try {
-          // First try pg_get_serial_sequence (works for SERIAL columns)
-          // Schema-qualify the table name for proper resolution in worker schemas
-          const schemaQualifiedTable = `${testSchema}.${entity.tableName}`;
-          const seqResult = await repository.query(
-            `SELECT pg_get_serial_sequence($1, $2) as seq_name`,
-            [schemaQualifiedTable, column.databaseName],
-          );
-          if (seqResult[0]?.seq_name) {
-            await repository.query(
-              `ALTER SEQUENCE ${seqResult[0].seq_name} RESTART WITH 1`,
-            );
-          } else {
-            // If no sequence found, try resetting IDENTITY column directly
-            // This handles GENERATED AS IDENTITY columns
-            await repository.query(
-              `ALTER TABLE "${testSchema}"."${entity.tableName}" ALTER COLUMN "${column.databaseName}" RESTART WITH 1`,
-            );
-          }
-        } catch {
-          // Sequence/identity might not exist or not be resettable, ignore
-        }
-      }
-    }
+  if (tablesToTruncate.length > 0) {
+    // Single TRUNCATE with CASCADE handles FK dependencies and RESTART IDENTITY resets sequences
+    await con.query(
+      `TRUNCATE ${tablesToTruncate.join(', ')} RESTART IDENTITY CASCADE`,
+    );
   }
 };
 
