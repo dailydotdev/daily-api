@@ -59,6 +59,12 @@ jobs:
             JEST_JUNIT_ADD_FILE_ATTRIBUTE: "true"
             JEST_JUNIT_FILE_PATH_PREFIX: "/home/circleci/project/"
             ENABLE_SCHEMA_ISOLATION: "true"
+      - run:
+          name: Test (sequential - for Redis pub/sub tests)
+          command: |
+            ./node_modules/.bin/jest __tests__/workers/newNotificationV2RealTime.ts --testEnvironment=node --runInBand --ci
+          environment:
+            NODE_OPTIONS: --max-old-space-size=12288
       - store_test_results:
           path: ./test-results
       - store_artifacts:
