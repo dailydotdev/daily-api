@@ -21,7 +21,7 @@ jobs:
           paths:
             - build
   test:
-    resource_class: large
+    resource_class: xlarge
     docker:
       - image: cimg/node:22.16
       - image: postgres:18-alpine
@@ -35,7 +35,7 @@ jobs:
           -c full_page_writes=off
           -c max_connections=200
       - image: redis/redis-stack:7.2.0-v13
-    parallelism: 6
+    parallelism: 1
     steps:
       - common/setup-node
       - common/wait-for:
@@ -54,7 +54,7 @@ jobs:
             TEST=$(./node_modules/.bin/jest --listTests)
             echo $TEST | circleci tests run --command="xargs ./node_modules/.bin/jest --testEnvironment=node --ci --maxWorkers=4 --reporters=default --reporters=jest-junit --" --split-by=timings
           environment:
-            NODE_OPTIONS: --max-old-space-size=6144 # 75% of 8GB which is the memory of large resource class
+            NODE_OPTIONS: --max-old-space-size=12288 # 75% of 16GB which is the memory of xlarge resource class
             JEST_JUNIT_OUTPUT_DIR: ./test-results
             JEST_JUNIT_ADD_FILE_ATTRIBUTE: "true"
             JEST_JUNIT_FILE_PATH_PREFIX: "/home/circleci/project/"
