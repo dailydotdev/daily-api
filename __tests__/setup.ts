@@ -263,7 +263,10 @@ const createWorkerSchema = async (): Promise<void> => {
       // Some migrations don't have a name property, so use constructor name as fallback
       // Timestamps are 13 digits (Unix ms), extract last 13 digits to avoid issues
       // with names like "ProfileV21703668189004" where V2 could confuse extraction
-      const getTimestamp = (migration: { name?: string; constructor: { name: string } }): number => {
+      const getTimestamp = (migration: {
+        name?: string;
+        constructor: { name: string };
+      }): number => {
         const name = migration.name || migration.constructor.name;
         // Match last 13 digits (Unix timestamp in milliseconds)
         const match = name.match(/(\d{13})$/);
@@ -288,7 +291,9 @@ const createWorkerSchema = async (): Promise<void> => {
 
         // Extract timestamp from migration name (last 13 digits for Unix ms timestamp)
         const timestampMatch = migrationName.match(/(\d{13})$/);
-        const timestamp = timestampMatch ? parseInt(timestampMatch[1], 10) : Date.now();
+        const timestamp = timestampMatch
+          ? parseInt(timestampMatch[1], 10)
+          : Date.now();
 
         // Record migration as run
         await queryRunner.query(
