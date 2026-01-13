@@ -38,7 +38,7 @@ export type OpportunityFlags = Partial<{
 
 export type OpportunityFlagsPublic = Pick<
   OpportunityFlags,
-  'batchSize' | 'plan'
+  'batchSize' | 'plan' | 'showSlack' | 'showFeedback'
 >;
 
 @Entity()
