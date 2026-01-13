@@ -1090,6 +1090,12 @@ describe('mutation commentOnPost', () => {
   describe('rate limiting', () => {
     const redisKey = `${rateLimiterName}:1:createComment`;
     const variables = { postId: 'p1', content: 'comment' };
+
+    beforeEach(async () => {
+      // Clear rate limit key before each test to ensure isolation
+      await deleteKeysByPattern(redisKey);
+    });
+
     it('store rate limiting state in redis', async () => {
       loggedUser = '1';
 
