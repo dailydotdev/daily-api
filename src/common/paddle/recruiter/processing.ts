@@ -142,6 +142,7 @@ export const createOpportunitySubscription = async ({
           plan: price.id,
           reminders: priceCustomData.reminders,
           showSlack: priceCustomData.show_slack,
+          showFeedback: priceCustomData.show_feedback,
         }),
       },
     );

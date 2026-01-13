@@ -290,6 +290,8 @@ export const typeDefs = /* GraphQL */ `
   type OpportunityFlagsPublic {
     batchSize: Int
     plan: String
+    showSlack: Boolean
+    showFeedback: Boolean
   }
 
   type Opportunity {

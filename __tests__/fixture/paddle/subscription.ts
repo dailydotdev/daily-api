@@ -34,6 +34,7 @@ export const recruiterSubscriptionCreated = {
             batch_size: '100',
             reminders: 'true',
             show_slack: 'true',
+            show_feedback: 'true',
           },
         },
         quantity: 1,

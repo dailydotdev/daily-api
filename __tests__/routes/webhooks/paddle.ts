@@ -820,6 +820,7 @@ describe('recruiter product', () => {
       plan: 'pri_recruiter_monthly',
       reminders: true,
       showSlack: true,
+      showFeedback: true,
     });
   });
 
