@@ -89,7 +89,7 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
           fields: [
             {
               type: 'mrkdwn',
-              text: `*Application Score:*\n${applicationScore != null ? `${Math.round(applicationScore)}%` : 'N/A'}`,
+              text: `*Application Score:*\n${applicationScore != null ? `${applicationScore.toFixed(1)}` : 'N/A'}`,
             },
             {
               type: 'mrkdwn',
@@ -123,7 +123,7 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
                 type: 'section' as const,
                 text: {
                   type: 'mrkdwn' as const,
-                  text: `*Application Summary:*\n${truncateText(description)}`,
+                  text: `*Application Summary:*\n${description}`,
                 },
               },
             ]
