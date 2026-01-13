@@ -8,9 +8,11 @@ import {
   uniqueifyArray,
   updateFlagsStatement,
 } from '../../common';
+import { extractTweetInfo, isTwitterUrl } from '../../common/links';
 import { User } from '../user';
 import { PostKeyword } from '../PostKeyword';
 import { ArticlePost } from './ArticlePost';
+import { TweetPost } from './TweetPost';
 import {
   Post,
   PostOrigin,
@@ -354,8 +356,12 @@ export const createExternalLink = async ({
   validateCommentary(commentary!);
   const isVisible = !!title;
 
+  // Check if this is a Twitter URL
+  const isTweet = isTwitterUrl(url);
+  const tweetInfo = isTweet ? extractTweetInfo(url) : null;
+
   return con.transaction(async (entityManager) => {
-    let postData = {
+    let postData: Record<string, unknown> = {
       id,
       shortId: id,
       createdAt: new Date(),
@@ -376,6 +382,19 @@ export const createExternalLink = async ({
       },
     };
 
+    // Add tweet-specific fields if this is a Twitter URL
+    if (isTweet && tweetInfo) {
+      postData = {
+        ...postData,
+        type: PostType.Tweet,
+        tweetId: tweetInfo.tweetId,
+        tweetAuthorUsername: tweetInfo.username,
+        // Other tweet fields will be populated when content is scraped
+        tweetContent: '',
+        tweetAuthorName: '',
+      };
+    }
+
     // Apply vordr checks before saving
     postData = await preparePostForInsert(postData, {
       con: entityManager,
@@ -383,7 +402,12 @@ export const createExternalLink = async ({
       req: ctx?.req,
     });
 
-    await entityManager.getRepository(ArticlePost).insert(postData);
+    // Use TweetPost repository for Twitter URLs, ArticlePost for everything else
+    if (isTweet) {
+      await entityManager.getRepository(TweetPost).insert(postData);
+    } else {
+      await entityManager.getRepository(ArticlePost).insert(postData);
+    }
 
     await notifyContentRequested(ctx?.log || logger, {
       id,
