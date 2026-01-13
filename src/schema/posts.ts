@@ -424,6 +424,61 @@ export const typeDefs = /* GraphQL */ `
   }
 
   """
+  Media attached to a tweet (photo, video, gif)
+  """
+  type TweetMedia {
+    """
+    Type of media
+    """
+    type: String!
+
+    """
+    URL to the media
+    """
+    url: String!
+
+    """
+    Preview URL for the media
+    """
+    previewUrl: String
+
+    """
+    Width of the media
+    """
+    width: Int
+
+    """
+    Height of the media
+    """
+    height: Int
+  }
+
+  """
+  Tweet data for threads
+  """
+  type TweetData {
+    """
+    Tweet ID
+    """
+    tweetId: String!
+
+    """
+    Tweet content
+    """
+    content: String!
+
+    """
+    HTML formatted tweet content
+    """
+    contentHtml: String!
+
+    """
+    Time the tweet was created
+    """
+    createdAt: DateTime
+  }
+
+  """
   Post notification
   """
   type PostNotification {
@@ -775,6 +830,61 @@ export const typeDefs = /* GraphQL */ `
     Video ID for video post
     """
     videoId: String
+
+    """
+    Tweet ID for tweet posts
+    """
+    tweetId: String
+
+    """
+    Tweet author username
+    """
+    tweetAuthorUsername: String
+
+    """
+    Tweet author display name
+    """
+    tweetAuthorName: String
+
+    """
+    Tweet author avatar URL
+    """
+    tweetAuthorAvatar: String
+
+    """
+    Whether the tweet author is verified
+    """
+    tweetAuthorVerified: Boolean
+
+    """
+    Tweet content text
+    """
+    tweetContent: String
+
+    """
+    Tweet content as HTML
+    """
+    tweetContentHtml: String
+
+    """
+    Media attached to the tweet
+    """
+    tweetMedia: [TweetMedia]
+
+    """
+    Time the tweet was created
+    """
+    tweetCreatedAt: DateTime
+
+    """
+    Whether this is a thread
+    """
+    isThread: Boolean
+
+    """
+    Tweets in the thread (if isThread is true)
+    """
+    threadTweets: [TweetData]
 
     """
     Slug for the post
