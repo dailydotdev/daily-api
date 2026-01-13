@@ -372,6 +372,20 @@ export const typeDefs = /* GraphQL */ `
     edges: [OpportunityMatchEdge!]!
   }
 
+  """
+  Anonymous user context data captured at feedback submission time
+  """
+  type AnonymousUserContext {
+    """
+    User's seniority/experience level (e.g., junior, senior, staff)
+    """
+    seniority: String
+    """
+    User's country (general location, not specific city)
+    """
+    locationCountry: String
+  }
+
   type FeedbackClassification {
     platform: Int!
     category: Int!
@@ -379,6 +393,10 @@ export const typeDefs = /* GraphQL */ `
     urgency: Int!
     screening: String!
     answer: String!
+    """
+    Anonymous user context captured at feedback submission
+    """
+    userContext: AnonymousUserContext
   }
 
   type FeedbackClassificationEdge {
@@ -1830,23 +1848,49 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           where: {
             opportunityId,
           },
-          select: ['feedback'],
+          select: ['feedback', 'userId'],
         }),
       );
 
+      // Gather unique userIds and fetch their anonymous context
+      const userIds = [...new Set(matches.map((m) => m.userId))];
+      const userContextMap = new Map<
+        string,
+        { seniority: string | null; locationCountry: string | null }
+      >();
+
+      const users = await ctx.con.getRepository(User).find({
+        where: { id: In(userIds) },
+        select: ['id', 'experienceLevel', 'flags'],
+      });
+
+      for (const user of users) {
+        const flags = (user.flags ?? {}) as Record<string, unknown>;
+        userContextMap.set(user.id, {
+          seniority: user.experienceLevel ?? null,
+          locationCountry: (flags.country as string) ?? null,
+        });
+      }
+
       // Extract feedback items with recruiter platform classification
       const allFeedback = matches
-        .flatMap((match) => match.feedback ?? [])
+        .flatMap((match) =>
+          (match.feedback ?? []).map((f) => ({
+            ...f,
+            userId: match.userId,
+          })),
+        )
         .filter(
           (f) => f.classification?.platform === FeedbackPlatform.RECRUITER,
         )
-        .map(({ screening, answer, classification }) => ({
+        .map(({ screening, answer, classification, userId }) => ({
           screening,
           answer,
           platform: classification!.platform,
           category: classification!.category,
           sentiment: classification!.sentiment,
           urgency: classification!.urgency,
+          userContext: userContextMap.get(userId) ?? {},
         }));
 
       const totalCount = allFeedback.length;
