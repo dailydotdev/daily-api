@@ -33,11 +33,12 @@ export type OpportunityFlags = Partial<{
   plan: string;
   reminders: boolean | null;
   showSlack: boolean | null;
+  showFeedback: boolean | null;
 }>;
 
 export type OpportunityFlagsPublic = Pick<
   OpportunityFlags,
-  'batchSize' | 'plan'
+  'batchSize' | 'plan' | 'showSlack' | 'showFeedback'
 >;
 
 @Entity()

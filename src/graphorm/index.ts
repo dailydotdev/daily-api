@@ -1494,6 +1494,9 @@ const obj = new GraphORM({
           return value.length;
         },
       },
+      recruiterSubscriptionFlags: {
+        jsonType: true,
+      },
     },
   },
   OrganizationMember: {
@@ -1710,6 +1713,8 @@ const obj = new GraphORM({
           return {
             batchSize: value?.batchSize ?? opportunityMatchBatchSize,
             plan: value?.plan,
+            showSlack: value?.showSlack ?? false,
+            showFeedback: value?.showFeedback ?? false,
           };
         },
       },
