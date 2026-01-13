@@ -1,6 +1,12 @@
 import z from 'zod';
 import { UserExperienceType } from '../../entity/user/experiences/types';
 import { paginationSchema, urlParseSchema } from './common';
+import { domainOnly } from '../links';
+
+const domainSchema = z.preprocess(
+  (val) => (val === '' ? null : val),
+  urlParseSchema.transform(domainOnly).nullish(),
+);
 
 export const userExperiencesSchema = z
   .object({
@@ -36,7 +42,7 @@ export const userExperienceCertificationSchema = z
 export const userExperienceEducationSchema = z
   .object({
     grade: z.string().nullish(),
-    customDomain: z.url().nullish().default(null),
+    customDomain: domainSchema,
   })
   .extend(userExperienceInputBaseSchema.shape);
 
@@ -58,7 +64,7 @@ export const userExperienceWorkSchema = z
       .max(50)
       .optional()
       .default([]),
-    customDomain: z.url().nullish().default(null),
+    customDomain: domainSchema,
   })
   .extend(userExperienceInputBaseSchema.shape);
 
