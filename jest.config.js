@@ -12,9 +12,11 @@ process.env.NODE_OPTIONS = [
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  globalSetup: './__tests__/globalSetup.ts',
   setupFilesAfterEnv: ['./__tests__/setup.ts'],
   globalTeardown: './__tests__/teardown.ts',
   testPathIgnorePatterns: [
+    '<rootDir>/__tests__/globalSetup.ts',
     '<rootDir>/__tests__/setup.ts',
     '<rootDir>/__tests__/teardown.ts',
     '<rootDir>/__tests__/helpers.ts',
