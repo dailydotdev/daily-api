@@ -12,6 +12,7 @@ process.env.NODE_OPTIONS = [
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  testTimeout: 30000, // 30s timeout for tests and hooks (database cleanup can be slow in CI)
   globalSetup: './__tests__/globalSetup.ts',
   setupFilesAfterEnv: ['./__tests__/setup.ts'],
   globalTeardown: './__tests__/teardown.ts',
