@@ -23,16 +23,29 @@ const getSchema = (): string => {
 
 export const testSchema = getSchema();
 
+/**
+ * Redis key prefix for test isolation.
+ * Each Jest worker gets its own prefix to avoid key collisions in parallel tests.
+ */
+export const testRedisPrefix =
+  process.env.ENABLE_SCHEMA_ISOLATION === 'true' && process.env.JEST_WORKER_ID
+    ? `test_worker_${process.env.JEST_WORKER_ID}:`
+    : '';
+
 // PostgreSQL connection options to set search_path for raw SQL queries
+// Include public schema in search_path for access to extensions (uuid-ossp, etc.)
 const pgOptions =
-  testSchema !== 'public' ? `-c search_path=${testSchema}` : undefined;
+  testSchema !== 'public' ? `-c search_path=${testSchema},public` : undefined;
+
+// Reduce pool size for parallel testing to avoid connection exhaustion
+const maxPoolSize = process.env.NODE_ENV === 'test' ? 10 : 30;
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
   schema: testSchema,
   synchronize: false,
   extra: {
-    max: 30,
+    max: maxPoolSize,
     idleTimeoutMillis: 0,
     // Set search_path at connection level so raw SQL uses the correct schema
     options: pgOptions,
