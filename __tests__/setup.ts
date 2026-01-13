@@ -5,6 +5,9 @@ import { testSchema } from '../src/data-source';
 import { remoteConfig } from '../src/remoteConfig';
 import { loadAuthKeys } from '../src/auth';
 
+// Set global timeout for all tests and hooks (more reliable than jest.config.js testTimeout)
+jest.setTimeout(30000);
+
 expect.extend(matchers);
 
 global.structuredClone = (v) => JSON.parse(JSON.stringify(v));
@@ -126,4 +129,4 @@ beforeEach(async () => {
   loadAuthKeys();
 
   await cleanDatabase();
-}, 60000);
+}, 90000); // 90s - cleanDatabase iterates through many entities
