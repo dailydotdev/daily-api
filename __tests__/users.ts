@@ -3458,7 +3458,9 @@ describe('query searchReadingHistorySuggestions', () => {
     });
     const res = await client.query(QUERY('c++'));
     expect(res.data.searchReadingHistorySuggestions.query).toBe('c++');
-    expect(res.data.searchReadingHistorySuggestions.hits.length).toBeGreaterThan(0);
+    expect(
+      res.data.searchReadingHistorySuggestions.hits.length,
+    ).toBeGreaterThan(0);
   });
 
   it('should handle special characters in search (C#)', async () => {
@@ -3478,7 +3480,9 @@ describe('query searchReadingHistorySuggestions', () => {
     });
     const res = await client.query(QUERY('c#'));
     expect(res.data.searchReadingHistorySuggestions.query).toBe('c#');
-    expect(res.data.searchReadingHistorySuggestions.hits.length).toBeGreaterThan(0);
+    expect(
+      res.data.searchReadingHistorySuggestions.hits.length,
+    ).toBeGreaterThan(0);
   });
 });
 
