@@ -377,6 +377,78 @@ describe('anonymous boot', () => {
   });
 });
 
+describe('recruiter default theme', () => {
+  it('should return light theme for anonymous user with referrer=recruiter', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('bright');
+  });
+
+  it('should return dark theme for anonymous user without referrer', async () => {
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('darcula');
+  });
+
+  it('should return dark theme for unknown referrer values', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?referrer=unknown`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('darcula');
+  });
+
+  it('should persist theme in Redis and return it on subsequent visits', async () => {
+    // First visit with recruiter referrer
+    const first = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(first.body.settings.theme).toEqual('bright');
+
+    // Second visit without referrer should still return light theme
+    const second = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.settings.theme).toEqual('bright');
+  });
+
+  it('should not override stored theme with new referrer', async () => {
+    // First visit without referrer (dark theme)
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(first.body.settings.theme).toEqual('darcula');
+
+    // Second visit with recruiter referrer should still return dark theme
+    const second = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.settings.theme).toEqual('darcula');
+  });
+
+  it('should store theme in Redis with correct key pattern', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    const trackingId = res.body.user.id;
+    const themeKey = generateStorageKey(StorageTopic.Boot, 'theme', trackingId);
+    const storedTheme = await getRedisObject(themeKey);
+    expect(storedTheme).toEqual('bright');
+  });
+});
+
 describe('logged in boot', () => {
   it('should boot data when no access token cookie but whoami succeeds', async () => {
     mockLoggedIn();
