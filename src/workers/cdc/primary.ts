@@ -1578,6 +1578,35 @@ export const onCampaignChange = async (
   }
 };
 
+const shouldEnrichExperience = (
+  data: ChangeMessage<UserExperience>,
+): boolean => {
+  if (data.payload.op === 'c') {
+    return true;
+  }
+
+  if (data.payload.op === 'u') {
+    const experience = data.payload.after;
+    const removedEnrichment = JSON.parse(
+      experience?.flags || '{}',
+    )?.removedEnrichment;
+
+    if (
+      removedEnrichment ||
+      !experience?.customCompanyName ||
+      experience.companyId
+    ) {
+      return false;
+    }
+
+    return (
+      data.payload.before?.customCompanyName !== experience.customCompanyName
+    );
+  }
+
+  return false;
+};
+
 const onUserExperienceChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -1602,17 +1631,7 @@ const onUserExperienceChange = async (
     userId: experience.userId,
   });
 
-  // Trigger enrichment for Work and Education types when customCompanyName exists but no companyId
-  // On CREATE: Always run enrichment
-  // On UPDATE: Only run if user hasn't explicitly removed the company (removedEnrichment flag)
-  const shouldEnrich =
-    experience.customCompanyName &&
-    !experience.companyId &&
-    (data.payload.op === 'c' ||
-      (data.payload.op === 'u' &&
-        !JSON.parse(experience.flags || '{}')?.removedEnrichment));
-
-  if (shouldEnrich) {
+  if (shouldEnrichExperience(data)) {
     await enrichCompanyForExperience(
       con,
       {
