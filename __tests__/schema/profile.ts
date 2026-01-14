@@ -1944,9 +1944,9 @@ describe('UserExperience image field', () => {
     expect(res.data.upsertUserWorkExperience.company.name).toBe('Daily.dev');
     // customCompanyName should be null since we linked to company
     expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
-    // customDomain should still be stored (but customImage is null since company was found)
+    // customDomain should still be stored as just the hostname (but customImage is null since company was found)
     expect(res.data.upsertUserWorkExperience.customDomain).toBe(
-      'https://mycustomdomain.com',
+      'mycustomdomain.com',
     );
     // Image should come from company (priority over customImage)
     expect(res.data.upsertUserWorkExperience.image).toBe(
