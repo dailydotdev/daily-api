@@ -680,6 +680,129 @@ describe('query opportunities', () => {
     expect(secondPage.data.opportunities.pageInfo.hasNextPage).toBe(false);
     expect(secondPage.data.opportunities.pageInfo.hasPreviousPage).toBe(true);
   });
+
+  it('should not return opportunities in PARSING state', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    // Insert opportunity in PARSING state
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440100',
+        type: OpportunityType.JOB,
+        state: OpportunityState.PARSING,
+        title: 'Parsing Opportunity',
+        tldr: 'This opportunity is being parsed',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-10'),
+        updatedAt: new Date('2023-01-10'),
+      },
+    ]);
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440100',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.PARSING, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunities.edges).toHaveLength(0);
+
+    isTeamMember = false;
+  });
+
+  it('should not return opportunities in ERROR state', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    // Insert opportunity in ERROR state
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440101',
+        type: OpportunityType.JOB,
+        state: OpportunityState.ERROR,
+        title: 'Error Opportunity',
+        tldr: 'This opportunity encountered an error',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-11'),
+        updatedAt: new Date('2023-01-11'),
+      },
+    ]);
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440101',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.ERROR, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunities.edges).toHaveLength(0);
+
+    isTeamMember = false;
+  });
+
+  it('should not return PARSING or ERROR opportunities when querying LIVE state', async () => {
+    loggedUser = '1';
+
+    // Insert opportunities in PARSING and ERROR states
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440102',
+        type: OpportunityType.JOB,
+        state: OpportunityState.PARSING,
+        title: 'Parsing Opportunity 2',
+        tldr: 'This opportunity is being parsed',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-12'),
+        updatedAt: new Date('2023-01-12'),
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440103',
+        type: OpportunityType.JOB,
+        state: OpportunityState.ERROR,
+        title: 'Error Opportunity 2',
+        tldr: 'This opportunity encountered an error',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-13'),
+        updatedAt: new Date('2023-01-13'),
+      },
+    ]);
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440102',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440103',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    // Should only return the 3 LIVE opportunities from fixtures, not the PARSING or ERROR ones
+    expect(res.data.opportunities.edges).toHaveLength(3);
+    const states = res.data.opportunities.edges.map(
+      (e: { node: { state: string } }) => e.node.state,
+    );
+    expect(states).not.toContain(OpportunityState.PARSING);
+    expect(states).not.toContain(OpportunityState.ERROR);
+  });
 });
 
 describe('query getOpportunityMatch', () => {

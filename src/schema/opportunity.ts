@@ -1362,6 +1362,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 .parse(args);
               builder.queryBuilder.where({ state: validatedInput.state });
             }
+
+            builder.queryBuilder.andWhere({
+              state: Not(
+                In([OpportunityState.ERROR, OpportunityState.PARSING]),
+              ),
+            });
+
             if (!ctx.isTeamMember) {
               builder.queryBuilder
                 .innerJoin(
