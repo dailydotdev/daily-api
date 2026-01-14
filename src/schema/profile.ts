@@ -175,7 +175,7 @@ const resolveCompanyState = async (
   ctx: AuthContext,
   inputCompanyId: string | null | undefined,
   inputCustomCompanyName: string | null | undefined,
-  userRemovingCompany: boolean,
+  skipAutoLinking: boolean,
 ): Promise<ResolvedCompanyState> => {
   if (inputCompanyId) {
     await ctx.con.getRepository(Company).findOneOrFail({
@@ -184,7 +184,7 @@ const resolveCompanyState = async (
     return { companyId: inputCompanyId, customCompanyName: null };
   }
 
-  if (inputCustomCompanyName && !userRemovingCompany) {
+  if (inputCustomCompanyName && !skipAutoLinking) {
     const existingCompany = await ctx.con
       .getRepository(Company)
       .createQueryBuilder('c')
@@ -224,12 +224,14 @@ const generateExperienceToSave = async <
     : {};
 
   const userRemovingCompany = !!toUpdate.companyId && !companyId;
+  const skipAutoLinking =
+    userRemovingCompany || !!toUpdate.flags?.removedEnrichment;
 
   const resolved = await resolveCompanyState(
     ctx,
     companyId,
     customCompanyName,
-    userRemovingCompany,
+    skipAutoLinking,
   );
 
   const toSave: Partial<UserExperience> = {
@@ -252,7 +254,6 @@ const generateExperienceToSave = async <
   if (userRemovingCompany) {
     toSave.flags = {
       ...toSave.flags,
-      ...toUpdate.flags,
       removedEnrichment: true,
     };
   }

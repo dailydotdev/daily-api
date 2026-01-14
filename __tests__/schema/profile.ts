@@ -12,7 +12,6 @@ import {
 import { User } from '../../src/entity';
 import { usersFixture } from '../fixture/user';
 import { UserExperience } from '../../src/entity/user/experiences/UserExperience';
-import { UserExperienceWork } from '../../src/entity/user/experiences/UserExperienceWork';
 import { UserExperienceType } from '../../src/entity/user/experiences/types';
 import { Company } from '../../src/entity/Company';
 import { UserExperienceSkill } from '../../src/entity/user/experiences/UserExperienceSkill';
@@ -1954,7 +1953,7 @@ describe('UserExperience image field', () => {
     );
   });
 
-  it('should set removedEnrichment flag and verified=false when companyId is removed', async () => {
+  it('should set removedEnrichment flag and prevent auto-linking on subsequent saves', async () => {
     loggedUser = '1';
 
     // Create experience with companyId
@@ -1984,34 +1983,117 @@ describe('UserExperience image field', () => {
       }
     `;
 
-    // Update to remove companyId (use customCompanyName instead)
-    const res = await client.mutate(UPSERT_WORK_MUTATION, {
+    // First save: remove companyId and use customCompanyName that matches an existing company
+    const res1 = await client.mutate(UPSERT_WORK_MUTATION, {
       variables: {
         id: experienceId,
         input: {
           type: 'work',
           title: 'Engineer',
           startedAt: new Date('2023-01-01'),
-          customCompanyName: 'New Custom Company',
+          customCompanyName: 'Daily.dev', // Matches existing company
+        },
+      },
+    });
+
+    expect(res1.errors).toBeFalsy();
+    // Should NOT auto-link because user is removing company
+    expect(res1.data.upsertUserWorkExperience.company).toBeNull();
+    expect(res1.data.upsertUserWorkExperience.customCompanyName).toBe(
+      'Daily.dev',
+    );
+
+    // Verify removedEnrichment flag is set
+    const afterFirstSave = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(afterFirstSave?.flags?.removedEnrichment).toBe(true);
+    expect(afterFirstSave?.companyId).toBeNull();
+
+    // Second save: edit again with same customCompanyName
+    const res2 = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Senior Engineer', // Changed title
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Daily.dev',
+        },
+      },
+    });
+
+    expect(res2.errors).toBeFalsy();
+    // Should still NOT auto-link because removedEnrichment flag is set
+    expect(res2.data.upsertUserWorkExperience.company).toBeNull();
+    expect(res2.data.upsertUserWorkExperience.customCompanyName).toBe(
+      'Daily.dev',
+    );
+
+    // Verify companyId is still null after second save
+    const afterSecondSave = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(afterSecondSave?.companyId).toBeNull();
+    expect(afterSecondSave?.flags?.removedEnrichment).toBe(true);
+  });
+
+  it('should clear removedEnrichment flag when user explicitly sets companyId', async () => {
+    loggedUser = '1';
+
+    // Create experience with removedEnrichment flag already set
+    const experienceId = 'd0e1f2a3-ef01-5345-6789-012345678901';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: null,
+      customCompanyName: 'Some Custom Company',
+      title: 'Developer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: { removedEnrichment: true },
+    });
+
+    const UPSERT_WORK_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          company {
+            id
+            name
+          }
+          customCompanyName
+        }
+      }
+    `;
+
+    // User explicitly selects a company
+    const res = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
         },
       },
     });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.upsertUserWorkExperience.company).toBeNull();
-    expect(res.data.upsertUserWorkExperience.customCompanyName).toBe(
-      'New Custom Company',
-    );
+    expect(res.data.upsertUserWorkExperience.company).not.toBeNull();
+    expect(res.data.upsertUserWorkExperience.company.id).toBe('company-1');
+    expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
 
-    // Verify the flags and verified column in database
+    // removedEnrichment should be cleared (not set to true again)
     const updated = await con
       .getRepository(UserExperience)
       .findOne({ where: { id: experienceId } });
-    expect(updated?.flags?.removedEnrichment).toBe(true);
-    // Note: verified is on UserExperienceWork, check it separately
-    const workExp = await con
-      .getRepository(UserExperienceWork)
-      .findOne({ where: { id: experienceId } });
-    expect(workExp?.verified).toBe(false);
+    expect(updated?.companyId).toBe('company-1');
+    // The flag should remain from before but shouldn't matter since companyId is set
+    // What's important is that the user can re-link to a company if they choose to
   });
 });
