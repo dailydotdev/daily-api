@@ -23,7 +23,6 @@ import { markdown } from '../markdown';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityLocation } from '../../entity/opportunities/OpportunityLocation';
 import { OpportunityKeyword } from '../../entity/OpportunityKeyword';
-import { OpportunityUserRecruiter } from '../../entity/opportunities/user/OpportunityUserRecruiter';
 import { findDatasetLocation } from '../../entity/dataset/utils';
 import { addOpportunityDefaultQuestionFeedback } from './question';
 import type { Opportunity } from '../../entity/opportunities/Opportunity';
@@ -265,10 +264,10 @@ export async function parseOpportunityWithBrokkr({
 }
 
 /**
- * Creates an opportunity and all related entities from parsed data
+ * Creates or updates an opportunity and all related entities from parsed data
  *
  * Handles:
- * - Creating the opportunity record
+ * - Creating or updating the opportunity record
  * - Creating location relationships
  * - Creating keywords
  * - Adding default feedback questions
@@ -277,11 +276,13 @@ export async function parseOpportunityWithBrokkr({
  *
  * @param ctx - Context with database connection and user info
  * @param parsedData - The parsed opportunity data from Brokkr
- * @returns The created opportunity
+ * @param opportunityId - Optional ID of existing opportunity to update (for async worker flow)
+ * @returns The created or updated opportunity
  */
 export async function createOpportunityFromParsedData(
   ctx: ParseOpportunityContext,
   parsedData: ParsedOpportunityResult,
+  opportunityId?: string,
 ): Promise<OpportunityJob> {
   const { opportunity: parsedOpportunity, content } = parsedData;
   const locationData = parsedOpportunity.location || [];
@@ -321,6 +322,7 @@ export async function createOpportunityFromParsedData(
 
     const opportunity = await entityManager.getRepository(OpportunityJob).save(
       entityManager.getRepository(OpportunityJob).create({
+        id: opportunityId,
         ...opportunityData,
         state: OpportunityState.DRAFT,
         content,
@@ -352,15 +354,6 @@ export async function createOpportunityFromParsedData(
           opportunityId: opportunity.id,
           keyword: keyword.keyword,
         })),
-      );
-    }
-
-    if (ctx.userId) {
-      await entityManager.getRepository(OpportunityUserRecruiter).insert(
-        entityManager.getRepository(OpportunityUserRecruiter).create({
-          opportunityId: opportunity.id,
-          userId: ctx.userId,
-        }),
       );
     }
 
