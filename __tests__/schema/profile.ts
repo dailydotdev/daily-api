@@ -1810,7 +1810,6 @@ describe('UserExperience image field', () => {
   it('should return customImage from flags when no companyId', async () => {
     loggedUser = '1';
 
-    // Create experience with customImage in flags but no companyId
     const experienceId = 'e5f6a7b8-9abc-4ef0-1234-567890123456';
     await con.getRepository(UserExperience).save({
       id: experienceId,
@@ -1842,12 +1841,11 @@ describe('UserExperience image field', () => {
   it('should prioritize company image over customImage when both exist', async () => {
     loggedUser = '1';
 
-    // Create experience with both companyId AND customImage in flags
     const experienceId = 'f6a7b8c9-abcd-4f01-2345-678901234567';
     await con.getRepository(UserExperience).save({
       id: experienceId,
       userId: '1',
-      companyId: 'company-1', // Has image 'https://daily.dev/logo.png'
+      companyId: 'company-1',
       title: 'Engineer',
       startedAt: new Date('2023-01-01'),
       type: UserExperienceType.Work,
@@ -1863,21 +1861,18 @@ describe('UserExperience image field', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    // Company image should take priority
     expect(res.data.userExperienceById.company.image).toBe(
       'https://daily.dev/logo.png',
     );
     expect(res.data.userExperienceById.image).toBe(
       'https://daily.dev/logo.png',
     );
-    // customDomain should still be accessible
     expect(res.data.userExperienceById.customDomain).toBe('https://other.com');
   });
 
   it('should return null image when neither companyId nor customImage exists', async () => {
     loggedUser = '1';
 
-    // Create experience with no companyId and no customImage
     const experienceId = 'a7b8c9d0-bcde-4012-3456-789012345678';
     await con.getRepository(UserExperience).save({
       id: experienceId,
@@ -1922,32 +1917,25 @@ describe('UserExperience image field', () => {
       }
     `;
 
-    // Create work experience with customCompanyName that matches existing company "Daily.dev"
-    // and also provide customDomain - should still link to the existing company
-    // customDomain is stored as a fallback, but company image takes priority
     const res = await client.mutate(UPSERT_WORK_MUTATION, {
       variables: {
         input: {
           type: 'work',
           title: 'Engineer',
           startedAt: new Date('2023-01-01'),
-          customCompanyName: 'Daily.dev', // This matches existing company-1
+          customCompanyName: 'Daily.dev',
           customDomain: 'https://mycustomdomain.com',
         },
       },
     });
 
     expect(res.errors).toBeFalsy();
-    // Should be linked to company since name matches
     expect(res.data.upsertUserWorkExperience.company).not.toBeNull();
     expect(res.data.upsertUserWorkExperience.company.name).toBe('Daily.dev');
-    // customCompanyName should be null since we linked to company
     expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
-    // customDomain should still be stored as just the hostname (but customImage is null since company was found)
     expect(res.data.upsertUserWorkExperience.customDomain).toBe(
       'mycustomdomain.com',
     );
-    // Image should come from company (priority over customImage)
     expect(res.data.upsertUserWorkExperience.image).toBe(
       'https://daily.dev/logo.png',
     );
@@ -1956,7 +1944,6 @@ describe('UserExperience image field', () => {
   it('should set removedEnrichment flag and prevent auto-linking on subsequent saves', async () => {
     loggedUser = '1';
 
-    // Create experience with companyId
     const experienceId = 'c9d0e1f2-def0-4234-5678-901234567890';
     await con.getRepository(UserExperience).save({
       id: experienceId,
@@ -1983,7 +1970,6 @@ describe('UserExperience image field', () => {
       }
     `;
 
-    // First save: remove companyId and use customCompanyName that matches an existing company
     const res1 = await client.mutate(UPSERT_WORK_MUTATION, {
       variables: {
         id: experienceId,
@@ -1991,32 +1977,29 @@ describe('UserExperience image field', () => {
           type: 'work',
           title: 'Engineer',
           startedAt: new Date('2023-01-01'),
-          customCompanyName: 'Daily.dev', // Matches existing company
+          customCompanyName: 'Daily.dev',
         },
       },
     });
 
     expect(res1.errors).toBeFalsy();
-    // Should NOT auto-link because user is removing company
     expect(res1.data.upsertUserWorkExperience.company).toBeNull();
     expect(res1.data.upsertUserWorkExperience.customCompanyName).toBe(
       'Daily.dev',
     );
 
-    // Verify removedEnrichment flag is set
     const afterFirstSave = await con
       .getRepository(UserExperience)
       .findOne({ where: { id: experienceId } });
     expect(afterFirstSave?.flags?.removedEnrichment).toBe(true);
     expect(afterFirstSave?.companyId).toBeNull();
 
-    // Second save: edit again with same customCompanyName
     const res2 = await client.mutate(UPSERT_WORK_MUTATION, {
       variables: {
         id: experienceId,
         input: {
           type: 'work',
-          title: 'Senior Engineer', // Changed title
+          title: 'Senior Engineer',
           startedAt: new Date('2023-01-01'),
           customCompanyName: 'Daily.dev',
         },
@@ -2024,13 +2007,11 @@ describe('UserExperience image field', () => {
     });
 
     expect(res2.errors).toBeFalsy();
-    // Should still NOT auto-link because removedEnrichment flag is set
     expect(res2.data.upsertUserWorkExperience.company).toBeNull();
     expect(res2.data.upsertUserWorkExperience.customCompanyName).toBe(
       'Daily.dev',
     );
 
-    // Verify companyId is still null after second save
     const afterSecondSave = await con
       .getRepository(UserExperience)
       .findOne({ where: { id: experienceId } });
@@ -2038,10 +2019,9 @@ describe('UserExperience image field', () => {
     expect(afterSecondSave?.flags?.removedEnrichment).toBe(true);
   });
 
-  it('should clear removedEnrichment flag when user explicitly sets companyId', async () => {
+  it('should allow re-linking to company after removedEnrichment was set', async () => {
     loggedUser = '1';
 
-    // Create experience with removedEnrichment flag already set
     const experienceId = 'd0e1f2a3-ef01-5345-6789-012345678901';
     await con.getRepository(UserExperience).save({
       id: experienceId,
@@ -2070,7 +2050,6 @@ describe('UserExperience image field', () => {
       }
     `;
 
-    // User explicitly selects a company
     const res = await client.mutate(UPSERT_WORK_MUTATION, {
       variables: {
         id: experienceId,
@@ -2088,12 +2067,9 @@ describe('UserExperience image field', () => {
     expect(res.data.upsertUserWorkExperience.company.id).toBe('company-1');
     expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
 
-    // removedEnrichment should be cleared (not set to true again)
     const updated = await con
       .getRepository(UserExperience)
       .findOne({ where: { id: experienceId } });
     expect(updated?.companyId).toBe('company-1');
-    // The flag should remain from before but shouldn't matter since companyId is set
-    // What's important is that the user can re-link to a company if they choose to
   });
 });

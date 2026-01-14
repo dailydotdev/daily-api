@@ -398,7 +398,6 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           locationId: location?.id || null,
           type: args.input.type,
           userId: ctx.userId,
-          // Set verified to false if companyId was removed
           ...(removedCompanyId && { verified: false }),
         });
 
