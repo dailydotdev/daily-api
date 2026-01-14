@@ -1852,45 +1852,38 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
       );
 
-      // Gather unique userIds and fetch their anonymous context
+      // Gather unique userIds and fetch their anonymous context with candidate preferences
       const userIds = [...new Set(matches.map((m) => m.userId))];
-      const userContextMap = new Map<
-        string,
-        { seniority: string | null; locationCountry: string | null }
-      >();
 
       const users = await ctx.con.getRepository(User).find({
         where: { id: In(userIds) },
         select: ['id', 'experienceLevel', 'flags'],
+        relations: ['candidatePreference', 'candidatePreference.location'],
       });
 
-      // Fetch candidatePreferences with location relation
-      const candidatePreferences = await ctx.con
-        .getRepository(UserCandidatePreference)
-        .find({
-          where: { userId: In(userIds) },
-          relations: ['location'],
-          select: ['userId'],
-        });
+      const userContextMap = new Map(
+        await Promise.all(
+          users.map(async (user) => {
+            const flags = (user.flags ?? {}) as Record<string, unknown>;
+            const preference = await user.candidatePreference;
+            const preferenceLocation = preference?.location
+              ? await preference.location
+              : null;
 
-      const preferenceMap = new Map(
-        candidatePreferences.map((pref) => [pref.userId, pref]),
+            return [
+              user.id,
+              {
+                seniority: user.experienceLevel ?? null,
+                // Prioritize candidatePreference location country over flags.country
+                locationCountry:
+                  preferenceLocation?.country ??
+                  (flags.country as string) ??
+                  null,
+              },
+            ] as const;
+          }),
+        ),
       );
-
-      for (const user of users) {
-        const flags = (user.flags ?? {}) as Record<string, unknown>;
-        const preference = preferenceMap.get(user.id);
-        const preferenceLocation = preference?.location
-          ? await preference.location
-          : null;
-
-        userContextMap.set(user.id, {
-          seniority: user.experienceLevel ?? null,
-          // Prioritize candidatePreference location country over flags.country
-          locationCountry:
-            preferenceLocation?.country ?? (flags.country as string) ?? null,
-        });
-      }
 
       // Extract feedback items with recruiter platform classification
       const allFeedback = matches
