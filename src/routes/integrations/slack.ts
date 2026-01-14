@@ -25,6 +25,8 @@ import {
   slackOpportunityActionValueSchema,
   slackOpportunityCandidateReviewPayloadSchema,
 } from '../../common/schema/slack';
+import { queryReadReplica } from '../../common/queryReadReplica';
+import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 
 const redirectResponse = ({
   res,
@@ -367,6 +369,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           return res.status(200).send();
         }
 
+        const opportunity = await queryReadReplica(con, ({ queryRunner }) => {
+          return queryRunner.manager
+            .getRepository(OpportunityJob)
+            .findOneOrFail({
+              where: { id: opportunityId },
+              relations: {
+                organization: true,
+              },
+            });
+        });
+
+        const organization = await opportunity.organization;
+
         const isAccept = action.action_id === 'candidate_review_accept';
         await con.getRepository(OpportunityMatch).update(
           { opportunityId, userId },
@@ -378,7 +393,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         );
 
         await respond(
-          `${isAccept ? ':white_check_mark: Accepted' : ':x: Rejected'} by @${payload.user?.username || 'unknown'}`,
+          `${isAccept ? ':white_check_mark: Accepted' : ':x: Rejected'} (${opportunity.title} - ${organization.name}) by @${payload.user?.username || 'unknown'}`,
         );
         return res.status(200).send();
       } catch {
