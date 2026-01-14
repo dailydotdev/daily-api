@@ -223,9 +223,7 @@ const generateExperienceToSave = async <
         .findOneOrFail({ where: { id, userId: ctx.userId } })
     : {};
 
-  const isUpdate = !!id;
-  const hadCompanyId = !!toUpdate.companyId;
-  const userRemovingCompany = isUpdate && hadCompanyId && !companyId;
+  const userRemovingCompany = !!toUpdate.companyId && !companyId;
 
   const resolved = await resolveCompanyState(
     ctx,
