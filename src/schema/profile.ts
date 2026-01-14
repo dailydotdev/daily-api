@@ -196,14 +196,9 @@ const resolveCompanyState = async (
     if (existingCompany) {
       return { companyId: existingCompany.id, customCompanyName: null };
     }
-    return { companyId: null, customCompanyName: inputCustomCompanyName };
   }
 
-  if (inputCustomCompanyName) {
-    return { companyId: null, customCompanyName: inputCustomCompanyName };
-  }
-
-  return { companyId: null, customCompanyName: null };
+  return { companyId: null, customCompanyName: inputCustomCompanyName || null };
 };
 
 const generateExperienceToSave = async <
