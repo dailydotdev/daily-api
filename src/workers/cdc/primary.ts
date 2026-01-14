@@ -1608,7 +1608,7 @@ const onUserExperienceChange = async (
     experience.customCompanyName &&
     !experience.companyId
   ) {
-    await enrichCompanyForExperience(
+    const enrichmentResult = await enrichCompanyForExperience(
       con,
       {
         experienceId: experience.id,
@@ -1617,6 +1617,23 @@ const onUserExperienceChange = async (
       },
       logger,
     );
+
+    // Notify user if enrichment successfully linked a company
+    if (enrichmentResult.success && enrichmentResult.companyId) {
+      const company = await con
+        .getRepository(Company)
+        .findOneBy({ id: enrichmentResult.companyId });
+      if (company) {
+        await triggerTypedEvent(logger, 'api.v1.experience-company-enriched', {
+          experienceId: experience.id,
+          userId: experience.userId,
+          experienceTitle: experience.title,
+          experienceType: experience.type,
+          companyId: enrichmentResult.companyId,
+          companyName: company.name,
+        });
+      }
+    }
   }
 
   // Work-specific verification logic

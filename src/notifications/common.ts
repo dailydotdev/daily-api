@@ -81,6 +81,7 @@ export enum NotificationType {
   ParsedCVProfile = 'parsed_cv_profile',
   RecruiterNewCandidate = 'recruiter_new_candidate',
   RecruiterOpportunityLive = 'recruiter_opportunity_live',
+  ExperienceCompanyEnriched = 'experience_company_enriched',
 }
 
 export enum NotificationPreferenceType {

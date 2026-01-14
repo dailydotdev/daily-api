@@ -3,6 +3,7 @@ import {
   type ChangeMessage,
   type ContentLanguage,
 } from '../types';
+import { UserExperienceType } from '../entity/user/experiences/types';
 import {
   Post,
   SourceRequest,
@@ -249,6 +250,14 @@ export type PubSubSchema = {
   'api.v1.opportunity-feedback-submitted': {
     opportunityId: string;
     userId: string;
+  };
+  'api.v1.experience-company-enriched': {
+    experienceId: string;
+    userId: string;
+    experienceTitle: string;
+    experienceType: UserExperienceType;
+    companyId: string;
+    companyName: string;
   };
 };
 

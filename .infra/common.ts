@@ -464,6 +464,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.opportunity-feedback-submitted',
     subscription: 'api.parse-opportunity-feedback',
   },
+  {
+    topic: 'api.v1.experience-company-enriched',
+    subscription: 'api.experience-company-enriched-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
