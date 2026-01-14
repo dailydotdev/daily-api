@@ -190,8 +190,23 @@ export interface PageGenerator<
 export const getSearchQuery = (param: string): string =>
   `SELECT to_tsquery('english', ${param}) AS query`;
 
-export const processSearchQuery = (query: string): string =>
-  query.trim().split(' ').join(' & ') + ':*';
+export const processSearchQuery = (query: string): string => {
+  const trimmed = query.trim();
+
+  // Check if query contains special characters that should be preserved
+  // Common programming language patterns: c#, c++, f#, .net, node.js, etc.
+  const hasSpecialChars = /[#\+\.\-]/.test(trimmed);
+
+  if (hasSpecialChars) {
+    // For queries with special characters, use phrase search to preserve them
+    // Replace single quotes with double single quotes to escape them
+    const escaped = trimmed.replace(/'/g, "''");
+    return `'${escaped}':*`;
+  }
+
+  // For regular queries, use the original AND logic with prefix matching
+  return trimmed.split(' ').join(' & ') + ':*';
+};
 
 export const mimirOffsetGenerator = <
   TReturn extends { id: string },
