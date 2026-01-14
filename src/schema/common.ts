@@ -195,7 +195,7 @@ export const processSearchQuery = (query: string): string => {
 
   // Check if query contains special characters that should be preserved
   // Common programming language patterns: c#, c++, f#, .net, node.js, etc.
-  const hasSpecialChars = /[#\+\.\-]/.test(trimmed);
+  const hasSpecialChars = /[#+.\-]/.test(trimmed);
 
   if (hasSpecialChars) {
     // For queries with special characters, use phrase search to preserve them
