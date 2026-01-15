@@ -662,6 +662,7 @@ const loggedInBoot = async ({
       ],
       balance,
       clickbaitTries,
+      anonymousTheme,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -687,6 +688,7 @@ const loggedInBoot = async ({
       }),
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
+      getAnonymousTheme(userId),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -694,6 +696,12 @@ const loggedInBoot = async ({
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+
+    // Apply anonymous theme (e.g. recruiter light mode) if user has no saved settings
+    const finalSettings =
+      !settings.updatedAt && anonymousTheme
+        ? { ...settings, theme: anonymousTheme }
+        : settings;
 
     const hasLocationSet = !!user.flags?.location?.lastStored;
     const isTeamMember = exp?.a?.team === 1;
@@ -781,7 +789,7 @@ const loggedInBoot = async ({
           subDays(new Date(), FEED_SURVEY_INTERVAL) >
           alerts.lastFeedSettingsFeedback,
       },
-      settings: excludeProperties(settings, [
+      settings: excludeProperties(finalSettings, [
         'userId',
         'updatedAt',
         'bookmarkSlug',
@@ -873,10 +881,8 @@ const anonymousBoot = async (
   ]);
 
   // Determine theme: use existing preference or referrer-based default
-  let theme = existingTheme;
-  if (!theme && req.trackingId) {
-    theme = getDefaultThemeForReferrer(referrer);
-    // Store the default theme for future visits
+  const theme = existingTheme ?? getDefaultThemeForReferrer(referrer);
+  if (!existingTheme && req.trackingId) {
     await setAnonymousTheme(req.trackingId, theme);
   }
 

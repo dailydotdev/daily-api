@@ -447,6 +447,38 @@ describe('recruiter default theme', () => {
     const storedTheme = await getRedisObject(themeKey);
     expect(storedTheme).toEqual('bright');
   });
+
+  it('should persist theme after login', async () => {
+    const anon = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(anon.body.settings.theme).toEqual('bright');
+
+    // Simulate theme migration on login
+    const themeKey = generateStorageKey(StorageTopic.Boot, 'theme', '1');
+    await setRedisObject(themeKey, 'bright');
+
+    mockLoggedIn();
+    const loggedIn = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(loggedIn.body.settings.theme).toEqual('bright');
+  });
+
+  it('should prefer DB settings over Redis theme', async () => {
+    const themeKey = generateStorageKey(StorageTopic.Boot, 'theme', '1');
+    await setRedisObject(themeKey, 'bright');
+    await con.getRepository(Settings).save({ userId: '1', theme: 'darcula' });
+
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('darcula');
+  });
 });
 
 describe('logged in boot', () => {
