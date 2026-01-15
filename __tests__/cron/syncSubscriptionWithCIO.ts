@@ -1,5 +1,5 @@
 import cron from '../../src/cron/syncSubscriptionWithCIO';
-import { expectSuccessfulCron } from '../helpers';
+import { expectSuccessfulCron, saveFixtures } from '../helpers';
 import { usersFixture } from '../fixture/user';
 import { crons } from '../../src/cron/index';
 import { StorageKey, StorageTopic, generateStorageKey } from '../../src/config';
@@ -9,6 +9,9 @@ import {
   pushToRedisList,
 } from '../../src/redis';
 import { syncSubscription } from '../../src/common';
+import { User } from '../../src/entity/user/User';
+import createOrGetConnection from '../../src/db';
+import type { DataSource } from 'typeorm';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -18,6 +21,8 @@ jest.mock('../../src/common/mailing', () => ({
   syncSubscription: jest.fn(),
 }));
 
+let con: DataSource;
+
 const redisKey = generateStorageKey(
   StorageTopic.CIO,
   StorageKey.Reporting,
@@ -25,8 +30,12 @@ const redisKey = generateStorageKey(
 );
 
 beforeEach(async () => {
+  con = await createOrGetConnection();
+
   jest.resetAllMocks();
   await deleteKeysByPattern(redisKey);
+
+  await saveFixtures(con, User, usersFixture);
 });
 
 describe('syncSubscriptionWithCIO cron', () => {
