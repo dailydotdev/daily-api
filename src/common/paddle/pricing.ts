@@ -213,7 +213,11 @@ export const getPricingMetadataByPriceIds = async (
   return Object.fromEntries(items.map(({ item }) => [item.idMap.paddle, item]));
 };
 
-export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
+export const getPlusPricePreview = async (
+  ctx: AuthContext,
+  ids: string[],
+  discountId?: string,
+) => {
   const region = ctx.region;
   const sortedIds = ids.sort();
 
@@ -221,10 +225,12 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
   hmac.update(sortedIds.toString());
   const pricesHash = hmac.digest().toString('hex');
 
+  // Include discountId in cache key when present
+  const cacheKeyParts = [pricesHash, region, discountId].filter(Boolean);
   const redisKey = generateStorageKey(
     StorageTopic.Paddle,
     StorageKey.PricingPreviewPlus,
-    [pricesHash, region].join(':'),
+    cacheKeyParts.join(':'),
   );
 
   const redisResult = await getRedisObject(redisKey);
@@ -239,6 +245,7 @@ export const getPlusPricePreview = async (ctx: AuthContext, ids: string[]) => {
       quantity: 1,
     })),
     address: region ? { countryCode: region as CountryCode } : undefined,
+    discountId,
   });
 
   await setRedisObjectWithExpiry(
