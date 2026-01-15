@@ -406,6 +406,13 @@ export const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
   );
 };
 
+const getAnalyticsTargetType = (event: EventEntity): TargetType => {
+  if (isPurchaseType(PurchaseType.Cores, event)) return TargetType.Credits;
+  if (isPurchaseType(PurchaseType.Recruiter, event))
+    return TargetType.Recruiter;
+  return TargetType.Plus;
+};
+
 export const logPaddleAnalyticsEvent = async (
   event:
     | SubscriptionUpdatedEvent
@@ -443,9 +450,7 @@ export const logPaddleAnalyticsEvent = async (
       app_platform: 'api',
       user_id: analyticsId,
       extra: JSON.stringify(getAnalyticsExtra(event)),
-      target_type: isPurchaseType(PurchaseType.Cores, event)
-        ? TargetType.Credits
-        : TargetType.Plus,
+      target_type: getAnalyticsTargetType(event),
     },
   ]);
 };
