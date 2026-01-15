@@ -8,6 +8,10 @@ import { NotificationType } from '../../../src/notifications/common';
 import type { NotificationExperienceCompanyEnrichedContext } from '../../../src/notifications';
 import { User } from '../../../src/entity/user/User';
 import { UserExperienceType } from '../../../src/entity/user/experiences/types';
+import { UserExperience } from '../../../src/entity/user/experiences/UserExperience';
+import { Company } from '../../../src/entity/Company';
+import { companyFixture } from '../../fixture/company';
+import { userExperienceFixture } from '../../fixture/profile/experience';
 
 let con: DataSource;
 
@@ -18,6 +22,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   jest.resetAllMocks();
   await saveFixtures(con, User, usersFixture);
+  await saveFixtures(con, Company, companyFixture);
+  await saveFixtures(con, UserExperience, userExperienceFixture);
 });
 
 describe('experienceCompanyEnrichedNotification worker', () => {
@@ -30,16 +36,21 @@ describe('experienceCompanyEnrichedNotification worker', () => {
   });
 
   it('should send notification for work experience enrichment', async () => {
+    // Get the work experience from fixtures (first work experience for userId '1')
+    const experience = userExperienceFixture.find(
+      (exp) => exp.userId === '1' && exp.type === UserExperienceType.Work,
+    );
+    const savedExperience = await con
+      .getRepository(UserExperience)
+      .findOneBy({ userId: '1', type: UserExperienceType.Work });
+
     const result =
       await invokeTypedNotificationWorker<'api.v1.experience-company-enriched'>(
         worker,
         {
-          experienceId: 'exp-123',
+          experienceId: savedExperience!.id,
           userId: '1',
-          experienceTitle: 'Software Engineer',
-          experienceType: UserExperienceType.Work,
-          companyId: 'company-456',
-          companyName: 'Google',
+          companyId: 'dailydev',
         },
       );
 
@@ -49,24 +60,26 @@ describe('experienceCompanyEnrichedNotification worker', () => {
 
     const ctx = result![0].ctx as NotificationExperienceCompanyEnrichedContext;
     expect(ctx.userIds).toEqual(['1']);
-    expect(ctx.experienceId).toEqual('exp-123');
-    expect(ctx.experienceTitle).toEqual('Software Engineer');
+    expect(ctx.experienceId).toEqual(savedExperience!.id);
+    expect(ctx.experienceTitle).toEqual('Senior Software Engineer');
     expect(ctx.experienceType).toEqual(UserExperienceType.Work);
-    expect(ctx.companyId).toEqual('company-456');
-    expect(ctx.companyName).toEqual('Google');
+    expect(ctx.companyId).toEqual('dailydev');
+    expect(ctx.companyName).toEqual('daily.dev');
   });
 
   it('should send notification for education experience enrichment', async () => {
+    // Get the education experience from fixtures (userId '1', type Education)
+    const savedExperience = await con
+      .getRepository(UserExperience)
+      .findOneBy({ userId: '1', type: UserExperienceType.Education });
+
     const result =
       await invokeTypedNotificationWorker<'api.v1.experience-company-enriched'>(
         worker,
         {
-          experienceId: 'exp-789',
-          userId: '2',
-          experienceTitle: 'Computer Science Degree',
-          experienceType: UserExperienceType.Education,
-          companyId: 'company-abc',
-          companyName: 'Stanford University',
+          experienceId: savedExperience!.id,
+          userId: '1',
+          companyId: 'dailydev',
         },
       );
 
@@ -75,11 +88,11 @@ describe('experienceCompanyEnrichedNotification worker', () => {
     expect(result![0].type).toEqual(NotificationType.ExperienceCompanyEnriched);
 
     const ctx = result![0].ctx as NotificationExperienceCompanyEnrichedContext;
-    expect(ctx.userIds).toEqual(['2']);
-    expect(ctx.experienceId).toEqual('exp-789');
-    expect(ctx.experienceTitle).toEqual('Computer Science Degree');
+    expect(ctx.userIds).toEqual(['1']);
+    expect(ctx.experienceId).toEqual(savedExperience!.id);
+    expect(ctx.experienceTitle).toEqual('Computer Science');
     expect(ctx.experienceType).toEqual(UserExperienceType.Education);
-    expect(ctx.companyId).toEqual('company-abc');
-    expect(ctx.companyName).toEqual('Stanford University');
+    expect(ctx.companyId).toEqual('dailydev');
+    expect(ctx.companyName).toEqual('daily.dev');
   });
 });

@@ -254,10 +254,7 @@ export type PubSubSchema = {
   'api.v1.experience-company-enriched': {
     experienceId: string;
     userId: string;
-    experienceTitle: string;
-    experienceType: UserExperienceType;
     companyId: string;
-    companyName: string;
   };
 };
 

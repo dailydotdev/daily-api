@@ -1627,10 +1627,7 @@ const onUserExperienceChange = async (
         await triggerTypedEvent(logger, 'api.v1.experience-company-enriched', {
           experienceId: experience.id,
           userId: experience.userId,
-          experienceTitle: experience.title,
-          experienceType: experience.type,
           companyId: enrichmentResult.companyId,
-          companyName: company.name,
         });
       }
     }
