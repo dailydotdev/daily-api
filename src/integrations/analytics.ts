@@ -75,4 +75,5 @@ export async function sendExperimentAllocationEvent<
 export enum TargetType {
   Plus = 'plus',
   Credits = 'credits',
+  Recruiter = 'recruiter',
 }
