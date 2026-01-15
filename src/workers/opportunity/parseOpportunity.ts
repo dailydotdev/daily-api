@@ -64,16 +64,32 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
         .file(blobName)
         .download();
 
+      logger.info(
+        { opportunityId, durationMs: performance.now() - startMs },
+        'parseOpportunity worker: GCS download completed',
+      );
+
       const parsedData = await parseOpportunityWithBrokkr({
         buffer,
         mime: mimeType,
         extension,
+        opportunityId,
       });
+
+      logger.info(
+        { opportunityId, durationMs: performance.now() - startMs },
+        'parseOpportunity worker: Brokkr parsing completed',
+      );
 
       await createOpportunityFromParsedData(
         { con, userId, trackingId, log: logger },
         parsedData,
         opportunityId,
+      );
+
+      logger.info(
+        { opportunityId, durationMs: performance.now() - startMs },
+        'parseOpportunity worker: opportunity saved to DB',
       );
 
       await con

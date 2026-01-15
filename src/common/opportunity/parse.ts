@@ -171,10 +171,12 @@ function renderOpportunityMarkdownContent(
  *   buffer: Buffer;
  *   mime: string;
  *   extension: string;
+ *   opportunityId?: string;
  * }} {
  *   buffer,
  *   mime,
  *   extension,
+ *   opportunityId
  * }
  * @return {*}  {Promise<ParsedOpportunityResult>}
  */
@@ -182,12 +184,14 @@ export async function parseOpportunityWithBrokkr({
   buffer,
   mime,
   extension,
+  opportunityId,
 }: {
   buffer: Buffer;
   mime: string;
   extension: string;
+  opportunityId?: string;
 }): Promise<ParsedOpportunityResult> {
-  const filename = `job-opportunity-parse-${randomUUID()}.pdf`;
+  const filename = `job-opportunity-parse-${opportunityId || randomUUID()}.pdf`;
 
   const brokkrClient = getBrokkrClient();
 
