@@ -47,11 +47,15 @@ import {
 import { ConflictError, NotFoundError, PaymentRequiredError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
 import { User } from '../entity/user/User';
-import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
+import {
+  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  RESUME_BUCKET_NAME,
+} from '../config';
 import {
   deleteEmploymentAgreementByUserId,
   generateResumeSignedUrl,
   uploadEmploymentAgreementFromBuffer,
+  uploadResumeFromBuffer,
 } from '../common/googleCloud';
 import {
   opportunityEditSchema,
@@ -69,7 +73,7 @@ import {
 } from '../common/opportunity/accessControl';
 import { sanitizeHtml } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, JsonContains, EntityManager } from 'typeorm';
+import { In, Not, JsonContains, EntityManager, DeepPartial } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import { Source, SourceType } from '../entity/Source';
 import {
@@ -102,7 +106,6 @@ import {
   getOpportunityFileBuffer,
   validateOpportunityFileType,
   parseOpportunityWithBrokkr,
-  createOpportunityFromParsedData,
   updateOpportunityFromParsedData,
   handleOpportunityKeywordsUpdate,
 } from '../common/opportunity/parse';
@@ -112,6 +115,9 @@ import {
   mockPreviewSquadIds,
 } from '../mocks/opportunity/services';
 import { notifyOpportunityFeedbackSubmitted } from '../common/opportunity/pubsub';
+import { triggerTypedEvent } from '../common/typedPubsub';
+import { randomUUID } from 'crypto';
+import { opportunityMatchBatchSize } from '../types';
 
 export interface GQLOpportunity extends Pick<
   Opportunity,
@@ -1374,6 +1380,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 .parse(args);
               builder.queryBuilder.where({ state: validatedInput.state });
             }
+
+            builder.queryBuilder.andWhere({
+              state: Not(
+                In([OpportunityState.ERROR, OpportunityState.PARSING]),
+              ),
+            });
+
             if (!ctx.isTeamMember) {
               builder.queryBuilder
                 .innerJoin(
@@ -1533,6 +1546,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             },
             relations: { keywords: true },
           });
+      }
+
+      if (
+        [OpportunityState.PARSING, OpportunityState.ERROR].includes(
+          opportunity.state,
+        )
+      ) {
+        throw new ConflictError('Opportunity is not ready for preview yet');
       }
 
       const keywords = await opportunity.keywords;
@@ -2765,77 +2786,61 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('User identifier is required');
       }
 
-      try {
-        const startTime = Date.now();
-        let stepStart = startTime;
+      const parsedPayload = await parseOpportunitySchema.parseAsync(payload);
+      const { buffer, extension } =
+        await getOpportunityFileBuffer(parsedPayload);
+      const { mime } = await validateOpportunityFileType(buffer, extension);
 
-        const parsedPayload = await parseOpportunitySchema.parseAsync(payload);
-        ctx.log.info(
-          { durationMs: Date.now() - stepStart },
-          'parseOpportunity: payload schema validated',
-        );
+      const fileName = `opportunity-${randomUUID()}.${extension}`;
+      await uploadResumeFromBuffer(fileName, buffer, { contentType: mime });
 
-        stepStart = Date.now();
-        const { buffer, extension } =
-          await getOpportunityFileBuffer(parsedPayload);
-        ctx.log.info(
-          { durationMs: Date.now() - stepStart, bufferSize: buffer.length },
-          'parseOpportunity: file buffer acquired',
-        );
-
-        stepStart = Date.now();
-        const { mime } = await validateOpportunityFileType(buffer, extension);
-        ctx.log.info(
-          { durationMs: Date.now() - stepStart, mime },
-          'parseOpportunity: file type validated',
-        );
-
-        stepStart = Date.now();
-        const parsedData = await parseOpportunityWithBrokkr({
-          buffer,
-          mime,
+      const flags: OpportunityJob['flags'] = {
+        batchSize: opportunityMatchBatchSize,
+        file: {
+          blobName: fileName,
+          bucketName: RESUME_BUCKET_NAME,
+          mimeType: mime,
           extension,
-        });
-        ctx.log.info(
-          {
-            durationMs: Date.now() - stepStart,
-            title: parsedData.opportunity.title,
-          },
-          'parseOpportunity: Brokkr parsing completed',
-        );
+          userId: ctx.userId,
+          trackingId: ctx.trackingId,
+        },
+      };
 
-        stepStart = Date.now();
-        const opportunity = await createOpportunityFromParsedData(
-          {
-            con: ctx.con,
-            userId: ctx.userId,
-            trackingId: ctx.trackingId,
-            log: ctx.log,
-          },
-          parsedData,
-        );
-        ctx.log.info(
-          { durationMs: Date.now() - stepStart, opportunityId: opportunity.id },
-          'parseOpportunity: database records created',
-        );
-
-        const totalDurationMs = Date.now() - startTime;
-        ctx.log.info(
-          { totalDurationMs, opportunityId: opportunity.id },
-          'parseOpportunity: completed successfully',
-        );
-
-        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-          builder.queryBuilder.where({ id: opportunity.id });
-          return builder;
-        });
-      } catch (error) {
-        ctx.log.error(
-          { error },
-          'parseOpportunity: failed to parse opportunity',
-        );
-        throw error;
+      if (!ctx.userId) {
+        flags.anonUserId = ctx.trackingId;
       }
+
+      const opportunity = await ctx.con.transaction(async (entityManager) => {
+        const newOpportunity = await ctx.con.getRepository(OpportunityJob).save(
+          ctx.con.getRepository(OpportunityJob).create({
+            state: OpportunityState.PARSING,
+            title: 'Processing...',
+            tldr: '',
+            content: new OpportunityContent({}).toJson(),
+            flags,
+          } as DeepPartial<OpportunityJob>),
+        );
+
+        if (ctx.userId) {
+          await entityManager.getRepository(OpportunityUserRecruiter).insert(
+            entityManager.getRepository(OpportunityUserRecruiter).create({
+              opportunityId: newOpportunity.id,
+              userId: ctx.userId,
+            }),
+          );
+        }
+
+        return newOpportunity;
+      });
+
+      await triggerTypedEvent(ctx.log, 'api.v1.opportunity-parse', {
+        opportunityId: opportunity.id,
+      });
+
+      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+        builder.queryBuilder.where({ id: opportunity.id });
+        return builder;
+      });
     },
     reimportOpportunity: async (
       _,

@@ -250,6 +250,9 @@ export type PubSubSchema = {
     opportunityId: string;
     userId: string;
   };
+  'api.v1.opportunity-parse': {
+    opportunityId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
