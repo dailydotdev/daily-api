@@ -3,7 +3,6 @@ import {
   type ChangeMessage,
   type ContentLanguage,
 } from '../types';
-import { UserExperienceType } from '../entity/user/experiences/types';
 import {
   Post,
   SourceRequest,
