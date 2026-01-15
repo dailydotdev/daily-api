@@ -36,13 +36,16 @@ describe('experienceCompanyEnrichedNotification worker', () => {
   });
 
   it('should send notification for work experience enrichment', async () => {
-    // Get the work experience from fixtures (first work experience for userId '1')
-    const experience = userExperienceFixture.find(
-      (exp) => exp.userId === '1' && exp.type === UserExperienceType.Work,
-    );
+    // Get the current work experience (the one with no endedAt)
     const savedExperience = await con
       .getRepository(UserExperience)
-      .findOneBy({ userId: '1', type: UserExperienceType.Work });
+      .findOne({
+        where: {
+          userId: '1',
+          type: UserExperienceType.Work,
+          endedAt: null,
+        },
+      });
 
     const result =
       await invokeTypedNotificationWorker<'api.v1.experience-company-enriched'>(
