@@ -101,7 +101,7 @@ export default async function app(
 
   app.register(helmet);
 
-  const originRegex = /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev$/;
+  const originRegex = /^(?:https:\/\/)?(?:[\w-]+\.)*daily\.dev(:5002)?$/;
 
   app.register(cors, {
     origin: async (origin?: string) => {
