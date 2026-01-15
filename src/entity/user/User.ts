@@ -29,7 +29,6 @@ import type { UserCandidatePreference } from './UserCandidatePreference';
 import type { UserCandidateKeyword } from './UserCandidateKeyword';
 import type { UserCandidateAnswer } from './UserCandidateAnswer';
 import type { DatasetLocation } from '../dataset/DatasetLocation';
-import type { UserPersonalizedDigest } from './UserPersonalizedDigest';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -366,9 +365,4 @@ export class User {
   })
   @Index('IDX_user_locationId')
   location: Promise<DatasetLocation>;
-
-  @OneToOne('UserPersonalizedDigest', {
-    lazy: true,
-  })
-  userPersonalizedDigest: Promise<UserPersonalizedDigest>;
 }
