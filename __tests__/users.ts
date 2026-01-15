@@ -3440,6 +3440,50 @@ describe('query searchReadingHistorySuggestions', () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should handle special characters in search (C++)', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).save({
+      id: 'cpp-post',
+      title: 'Learn C++ programming',
+      shortId: 'cpp',
+      url: 'http://cpp.com',
+      sourceId: 'a',
+      visible: true,
+    });
+    await con.getRepository(View).save({
+      userId: loggedUser,
+      timestamp: now,
+      postId: 'cpp-post',
+    });
+    const res = await client.query(QUERY('c++'));
+    expect(res.data.searchReadingHistorySuggestions.query).toBe('c++');
+    expect(
+      res.data.searchReadingHistorySuggestions.hits.length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('should handle special characters in search (C#)', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).save({
+      id: 'csharp-post',
+      title: 'Learn C# programming',
+      shortId: 'csharp',
+      url: 'http://csharp.com',
+      sourceId: 'a',
+      visible: true,
+    });
+    await con.getRepository(View).save({
+      userId: loggedUser,
+      timestamp: now,
+      postId: 'csharp-post',
+    });
+    const res = await client.query(QUERY('c#'));
+    expect(res.data.searchReadingHistorySuggestions.query).toBe('c#');
+    expect(
+      res.data.searchReadingHistorySuggestions.hits.length,
+    ).toBeGreaterThan(0);
+  });
 });
 
 describe('query search reading history', () => {
