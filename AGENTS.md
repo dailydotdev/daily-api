@@ -173,3 +173,5 @@ When upgrading Node.js version, update these files:
 - `.infra/.nvmrc`
 - `.infra/package.json` (volta section)
 - This file (`AGENTS.md` - Prerequisites section)
+
+After updating, run `pnpm install` to check if lock file needs updating and commit any changes.
