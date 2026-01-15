@@ -372,6 +372,20 @@ export const typeDefs = /* GraphQL */ `
     edges: [OpportunityMatchEdge!]!
   }
 
+  """
+  Anonymous user context data captured at feedback submission time
+  """
+  type AnonymousUserContext {
+    """
+    User's seniority/experience level (e.g., junior, senior, staff)
+    """
+    seniority: String
+    """
+    User's country (general location, not specific city)
+    """
+    locationCountry: String
+  }
+
   type FeedbackClassification {
     platform: Int!
     category: Int!
@@ -379,6 +393,10 @@ export const typeDefs = /* GraphQL */ `
     urgency: Int!
     screening: String!
     answer: String!
+    """
+    Anonymous user context captured at feedback submission
+    """
+    userContext: AnonymousUserContext
   }
 
   type FeedbackClassificationEdge {
@@ -1830,23 +1848,62 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           where: {
             opportunityId,
           },
-          select: ['feedback'],
+          select: ['feedback', 'userId'],
         }),
+      );
+
+      // Gather unique userIds and fetch their anonymous context with candidate preferences
+      const userIds = [...new Set(matches.map((m) => m.userId))];
+
+      const users = await ctx.con.getRepository(User).find({
+        where: { id: In(userIds) },
+        select: ['id', 'experienceLevel', 'flags'],
+        relations: ['candidatePreference', 'candidatePreference.location'],
+      });
+
+      const userContextMap = new Map(
+        await Promise.all(
+          users.map(async (user) => {
+            const flags = (user.flags ?? {}) as Record<string, unknown>;
+            const preference = await user.candidatePreference;
+            const preferenceLocation = preference?.location
+              ? await preference.location
+              : null;
+
+            return [
+              user.id,
+              {
+                seniority: user.experienceLevel ?? null,
+                // Prioritize candidatePreference location country over flags.country
+                locationCountry:
+                  preferenceLocation?.country ??
+                  (flags.country as string) ??
+                  null,
+              },
+            ] as const;
+          }),
+        ),
       );
 
       // Extract feedback items with recruiter platform classification
       const allFeedback = matches
-        .flatMap((match) => match.feedback ?? [])
+        .flatMap((match) =>
+          (match.feedback ?? []).map((f) => ({
+            ...f,
+            userId: match.userId,
+          })),
+        )
         .filter(
           (f) => f.classification?.platform === FeedbackPlatform.RECRUITER,
         )
-        .map(({ screening, answer, classification }) => ({
+        .map(({ screening, answer, classification, userId }) => ({
           screening,
           answer,
           platform: classification!.platform,
           category: classification!.category,
           sentiment: classification!.sentiment,
           urgency: classification!.urgency,
+          userContext: userContextMap.get(userId) ?? {},
         }));
 
       const totalCount = allFeedback.length;
