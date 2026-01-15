@@ -39,6 +39,7 @@ import * as brokkrCommon from '../../../src/common/brokkr';
 
 const mockStorageDownload = jest.fn();
 const mockStorageDelete = jest.fn();
+const mockStorageExists = jest.fn();
 
 // Mock GCS Storage
 jest.mock('@google-cloud/storage');
@@ -77,6 +78,7 @@ beforeEach(async () => {
   const mockFile = {
     download: mockStorageDownload,
     delete: mockStorageDelete,
+    exists: mockStorageExists,
   };
   const mockBucket = {
     file: jest.fn().mockReturnValue(mockFile),
@@ -88,6 +90,7 @@ beforeEach(async () => {
   // Mock GCS operations
   mockStorageDownload.mockResolvedValue([Buffer.from('mock-pdf-content')]);
   mockStorageDelete.mockResolvedValue([]);
+  mockStorageExists.mockResolvedValue([true]);
 });
 
 afterEach(async () => {
@@ -309,6 +312,85 @@ describe('parseOpportunity worker', () => {
     });
     expect(opportunity!.state).toBe(OpportunityState.DRAFT);
     expect(opportunity!.title).toBe('Already processed');
+  });
+
+  it('should clean up GCS file when state is not PARSING', async () => {
+    // Create opportunity in DRAFT state but WITH file data
+    await con.getRepository(OpportunityJob).save({
+      id: testOpportunityId,
+      type: OpportunityType.JOB,
+      state: OpportunityState.DRAFT,
+      title: 'Already processed',
+      tldr: 'Test',
+      content: new OpportunityContent({}),
+      flags: {
+        batchSize: 100,
+        file: {
+          blobName: testBlobName,
+          bucketName: RESUME_BUCKET_NAME,
+          mimeType: 'application/pdf',
+          extension: 'pdf',
+          trackingId: 'anon1',
+        },
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-parse'>(worker, {
+      opportunityId: testOpportunityId,
+    });
+
+    // Verify Brokkr was NOT called (early return)
+    const parseOpportunitySpy = jest.spyOn(
+      brokkrCommon.getBrokkrClient().instance,
+      'parseOpportunity',
+    );
+    expect(parseOpportunitySpy).not.toHaveBeenCalled();
+
+    // Verify GCS file was still cleaned up via finally block
+    expect(mockStorageExists).toHaveBeenCalled();
+    expect(mockStorageDelete).toHaveBeenCalled();
+  });
+
+  it('should clean up GCS file on Brokkr error', async () => {
+    // Spy on Brokkr parseOpportunity and make it fail
+    const parseOpportunitySpy = jest.spyOn(
+      brokkrCommon.getBrokkrClient().instance,
+      'parseOpportunity',
+    );
+    parseOpportunitySpy.mockRejectedValue(new Error('Brokkr parsing failed'));
+
+    await con.getRepository(OpportunityJob).save({
+      id: testOpportunityId,
+      type: OpportunityType.JOB,
+      state: OpportunityState.PARSING,
+      title: 'Processing...',
+      tldr: '',
+      content: new OpportunityContent({}),
+      flags: {
+        batchSize: 100,
+        file: {
+          blobName: testBlobName,
+          bucketName: RESUME_BUCKET_NAME,
+          mimeType: 'application/pdf',
+          extension: 'pdf',
+          trackingId: 'anon1',
+        },
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-parse'>(worker, {
+      opportunityId: testOpportunityId,
+    });
+
+    // Verify error state was set
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: { id: testOpportunityId },
+    });
+    expect(opportunity!.state).toBe(OpportunityState.ERROR);
+
+    // Verify GCS file was cleaned up via finally block despite error
+    expect(mockStorageExists).toHaveBeenCalled();
+    expect(mockStorageDelete).toHaveBeenCalled();
   });
 
   it('should handle missing opportunity', async () => {

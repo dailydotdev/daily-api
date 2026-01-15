@@ -42,7 +42,7 @@ export type OpportunityFlags = Partial<{
     userId?: string;
     trackingId?: string;
   } | null;
-  parseError: string;
+  parseError: string | null;
 }>;
 
 export type OpportunityFlagsPublic = Pick<
