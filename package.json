@@ -36,7 +36,7 @@
     "@connectrpc/connect-fastify": "^1.6.1",
     "@connectrpc/connect-node": "^1.6.1",
     "@dailydotdev/graphql-redis-subscriptions": "^2.4.3",
-    "@dailydotdev/schema": "0.2.65",
+    "@dailydotdev/schema": "0.2.66",
     "@dailydotdev/ts-ioredis-pool": "^1.0.2",
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
@@ -191,7 +191,7 @@
     }
   },
   "volta": {
-    "node": "22.16.0"
+    "node": "22.22.0"
   },
   "packageManager": "pnpm@9.14.4+sha256.26a726b633b629a3fabda006f696ae4260954a3632c8054112d7ae89779e5f9a",
   "pnpm": {

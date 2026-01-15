@@ -662,6 +662,7 @@ const loggedInBoot = async ({
       ],
       balance,
       clickbaitTries,
+      anonymousTheme,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -687,6 +688,7 @@ const loggedInBoot = async ({
       }),
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
+      getAnonymousTheme(userId),
     ]);
 
     const profileCompletion = calculateProfileCompletion(user, experienceFlags);
@@ -694,6 +696,12 @@ const loggedInBoot = async ({
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+
+    // Apply anonymous theme (e.g. recruiter light mode) if user has no saved settings
+    const finalSettings =
+      !settings.updatedAt && anonymousTheme
+        ? { ...settings, theme: anonymousTheme }
+        : settings;
 
     const hasLocationSet = !!user.flags?.location?.lastStored;
     const isTeamMember = exp?.a?.team === 1;
@@ -781,7 +789,7 @@ const loggedInBoot = async ({
           subDays(new Date(), FEED_SURVEY_INTERVAL) >
           alerts.lastFeedSettingsFeedback,
       },
-      settings: excludeProperties(settings, [
+      settings: excludeProperties(finalSettings, [
         'userId',
         'updatedAt',
         'bookmarkSlug',
@@ -809,6 +817,46 @@ const getAnonymousFirstVisit = async (trackingId?: string) => {
   return finalValue;
 };
 
+const ANONYMOUS_THEME_TTL = ONE_DAY_IN_SECONDS * 30; // 30 days, same as firstVisit
+
+const getThemeRedisKey = (id: string): string =>
+  generateStorageKey(StorageTopic.Boot, 'theme', id);
+
+/**
+ * Get stored theme preference from Redis for anonymous or authenticated users
+ */
+export const getAnonymousTheme = async (
+  id?: string,
+): Promise<string | null> => {
+  if (!id) return null;
+  return getRedisObject(getThemeRedisKey(id));
+};
+
+/**
+ * Store theme preference in Redis for anonymous or authenticated users
+ */
+export const setAnonymousTheme = async (
+  id: string,
+  theme: string,
+): Promise<void> => {
+  await setRedisObjectWithExpiry(
+    getThemeRedisKey(id),
+    theme,
+    ANONYMOUS_THEME_TTL,
+  );
+};
+
+/**
+ * Determine default theme based on referrer
+ * Recruiter-facing pages default to light mode
+ */
+const getDefaultThemeForReferrer = (referrer?: string): string => {
+  if (referrer === 'recruiter') {
+    return 'bright'; // light mode
+  }
+  return 'darcula'; // dark mode
+};
+
 // We released the firstVisit at July 10, 2023.
 // There should have been enough buffer time since we are releasing on July 13, 2023.
 export const onboardingV2Requirement = new Date(2023, 6, 13);
@@ -820,15 +868,23 @@ const anonymousBoot = async (
   middleware?: BootMiddleware,
   shouldVerify = false,
   email?: string,
+  referrer?: string,
 ): Promise<AnonymousBoot> => {
   const geo = geoSection(req);
 
-  const [visit, extra, firstVisit, exp] = await Promise.all([
+  const [visit, extra, firstVisit, exp, existingTheme] = await Promise.all([
     visitSection(req, res),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
     getExperimentation({ userId: req.trackingId, con, ...geo }),
+    getAnonymousTheme(req.trackingId),
   ]);
+
+  // Determine theme: use existing preference or referrer-based default
+  const theme = existingTheme ?? getDefaultThemeForReferrer(referrer);
+  if (!existingTheme && req.trackingId) {
+    await setAnonymousTheme(req.trackingId, theme);
+  }
 
   return {
     user: {
@@ -844,7 +900,10 @@ const anonymousBoot = async (
       changelog: false,
       shouldShowFeedFeedback: false,
     },
-    settings: SETTINGS_DEFAULT,
+    settings: {
+      ...SETTINGS_DEFAULT,
+      ...(theme && { theme }),
+    },
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
     exp,
@@ -859,6 +918,9 @@ export const getBootData = async (
   res: FastifyReply,
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
+  // Extract referrer from query params (e.g., ?referrer=recruiter)
+  const referrer = (req.query as { referrer?: string })?.referrer;
+
   if (
     req.userId &&
     req.accessToken?.expiresIn &&
@@ -880,9 +942,25 @@ export const getBootData = async (
       setRawCookie(res, whoami.cookie);
     }
     if (whoami.verified === false) {
-      return anonymousBoot(con, req, res, middleware, true, whoami?.email);
+      return anonymousBoot(
+        con,
+        req,
+        res,
+        middleware,
+        true,
+        whoami?.email,
+        referrer,
+      );
     }
     if (req.userId !== whoami.userId) {
+      // Migrate theme from anonymous trackingId to new userId before overwriting
+      const oldTrackingId = req.trackingId;
+      if (oldTrackingId && oldTrackingId !== whoami.userId) {
+        const anonymousTheme = await getAnonymousTheme(oldTrackingId);
+        if (anonymousTheme) {
+          await setAnonymousTheme(whoami.userId, anonymousTheme);
+        }
+      }
       req.userId = whoami.userId;
       req.trackingId = req.userId;
       setTrackingId(req, res, req.trackingId);
@@ -897,9 +975,9 @@ export const getBootData = async (
     });
   } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
-    return anonymousBoot(con, req, res, middleware);
+    return anonymousBoot(con, req, res, middleware, false, undefined, referrer);
   }
-  return anonymousBoot(con, req, res, middleware);
+  return anonymousBoot(con, req, res, middleware, false, undefined, referrer);
 };
 
 const COMPANION_QUERY = parse(`query Post($url: String) {
@@ -1149,6 +1227,7 @@ const funnelBoots = {
 const funnelHandler: RouteHandler = async (req, res) => {
   const con = await createOrGetConnection();
   const { id = 'funnel' } = req.params as { id: keyof typeof funnelBoots };
+  const referrer = (req.query as { referrer?: string })?.referrer;
 
   if (id in funnelBoots) {
     const funnel = funnelBoots[id];
@@ -1157,6 +1236,9 @@ const funnelHandler: RouteHandler = async (req, res) => {
       req,
       res,
       generateFunnelBootMiddle(funnel),
+      false,
+      undefined,
+      referrer,
     )) as FunnelBoot;
     return res.send(data);
   }

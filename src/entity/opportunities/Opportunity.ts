@@ -34,6 +34,15 @@ export type OpportunityFlags = Partial<{
   reminders: boolean | null;
   showSlack: boolean | null;
   showFeedback: boolean | null;
+  file: {
+    blobName: string;
+    bucketName: string;
+    mimeType: string;
+    extension: string;
+    userId?: string;
+    trackingId?: string;
+  } | null;
+  parseError: string | null;
 }>;
 
 export type OpportunityFlagsPublic = Pick<
