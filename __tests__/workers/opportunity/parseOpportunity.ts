@@ -192,15 +192,17 @@ describe('parseOpportunity worker', () => {
     // Verify content
     expect(opportunity!.content).toMatchObject({
       overview: {
-        content: 'This is the overview of the mocked opportunity.',
+        content: '<p>This is the overview of the mocked opportunity.</p>\n',
         html: '<p>This is the overview of the mocked opportunity.</p>\n',
       },
       responsibilities: {
-        content: 'These are the responsibilities of the mocked opportunity.',
+        content:
+          '<p>These are the responsibilities of the mocked opportunity.</p>\n',
         html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
       },
       requirements: {
-        content: 'These are the requirements of the mocked opportunity.',
+        content:
+          '<p>These are the requirements of the mocked opportunity.</p>\n',
         html: '<p>These are the requirements of the mocked opportunity.</p>\n',
       },
     });
