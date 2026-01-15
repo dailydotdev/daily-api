@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:22.16-bookworm-slim
+FROM node:22.22-bookworm-slim
 
 ADD https://www.apple.com/appleca/AppleIncRootCertificate.cer /usr/local/share/ca-certificates/AppleIncRootCertificate.cer
 ADD https://www.apple.com/certificateauthority/AppleRootCA-G2.cer /usr/local/share/ca-certificates/AppleRootCA-G2.cer
