@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Prerequisites
 
-- **Node.js**: 22.16.0 (managed via Volta)
+- **Node.js**: 22.22.0 (managed via Volta)
 - **Package Manager**: pnpm 9.14.4
 
 ## Essential Commands
@@ -25,7 +25,7 @@ This file provides guidance to coding agents when working with code in this repo
 **Migration Generation:**
 When adding or modifying entity columns, **always generate a migration** using:
 ```bash
-# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 22.16)
+# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 22.22)
 cd /path/to/daily-api
 nvm use
 pnpm run db:migrate:make src/migration/DescriptiveMigrationName
@@ -161,3 +161,17 @@ Hooks are configured in `.claude/settings.json`:
 - **File Protection** (PreToolUse): Blocks edits to `pnpm-lock.yaml`, `src/migration/`, `.infra/Pulumi.*`, `.env`, `.git/`
 - **Prevent Force Push** (PreToolUse): Blocks `git push --force` and `git push -f`
 - **Auto-Lint** (PostToolUse): Runs `eslint --fix` on TypeScript files after edits
+
+## Node.js Version Upgrade Checklist
+
+When upgrading Node.js version, update these files:
+- `.nvmrc`
+- `package.json` (volta section)
+- `Dockerfile`
+- `Dockerfile.dev`
+- `.circleci/config.yml` (2 places: executor tag and docker image)
+- `.infra/.nvmrc`
+- `.infra/package.json` (volta section)
+- This file (`AGENTS.md` - Prerequisites section)
+
+After updating, run `pnpm install` to check if lock file needs updating and commit any changes.
