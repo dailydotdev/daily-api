@@ -139,6 +139,9 @@ export const syncSubscription = async function (
       const user = await manager.getRepository(User).findOne({
         where: { id: customer.id },
         select: ['notificationFlags'],
+        relations: {
+          userPersonalizedDigest: true,
+        },
       });
 
       const existingFlags = {
@@ -154,15 +157,20 @@ export const syncSubscription = async function (
       const validation = notificationFlagsSchema.safeParse(
         mergedNotificationFlags,
       );
+
+      const personalizedDigest = await user?.userPersonalizedDigest;
+
       if (validation.success) {
-        await manager.getRepository(User).update(
-          { id: customer.id },
-          {
-            acceptedMarketing:
-              mergedNotificationFlags.marketing?.email === 'subscribed',
-            notificationFlags: mergedNotificationFlags,
-          },
-        );
+        if (!personalizedDigest?.flags?.unrested) {
+          await manager.getRepository(User).update(
+            { id: customer.id },
+            {
+              acceptedMarketing:
+                mergedNotificationFlags.marketing?.email === 'subscribed',
+              notificationFlags: mergedNotificationFlags,
+            },
+          );
+        }
       } else {
         logger.error(
           {
