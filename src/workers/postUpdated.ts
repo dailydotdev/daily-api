@@ -26,6 +26,9 @@ import {
   Submission,
   SubmissionStatus,
   Toc,
+  TweetPost,
+  type TweetMedia,
+  type TweetData,
   UNKNOWN_SOURCE,
   WelcomePost,
   YouTubePost,
@@ -81,6 +84,18 @@ interface Data {
     content: string;
     video_id?: string;
     duration?: number;
+    // Tweet-specific fields
+    tweet_id?: string;
+    tweet_author_username?: string;
+    tweet_author_name?: string;
+    tweet_author_avatar?: string;
+    tweet_author_verified?: boolean;
+    tweet_content?: string;
+    tweet_content_html?: string;
+    tweet_media?: TweetMedia[];
+    tweet_created_at?: string;
+    is_thread?: boolean;
+    thread_tweets?: TweetData[];
   };
   meta?: {
     scraped_html?: string;
@@ -290,6 +305,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.VideoYouTube]: YouTubePost,
   [PostType.Brief]: BriefPost,
   [PostType.Poll]: PollPost,
+  [PostType.Tweet]: TweetPost,
 };
 
 type UpdatePostProps = {
@@ -532,7 +548,8 @@ type FixData = {
   content_type: PostType;
   fixedData: Partial<ArticlePost> &
     Partial<CollectionPost> &
-    Partial<YouTubePost>;
+    Partial<YouTubePost> &
+    Partial<TweetPost>;
   smartTitle?: string;
 };
 const fixData = async ({
@@ -576,6 +593,26 @@ const fixData = async ({
     ? data?.extra?.duration / 60
     : undefined;
 
+  // Build tweet-specific fields if content type is tweet
+  const tweetFields =
+    data?.content_type === PostType.Tweet
+      ? {
+          tweetId: data?.extra?.tweet_id,
+          tweetAuthorUsername: data?.extra?.tweet_author_username,
+          tweetAuthorName: data?.extra?.tweet_author_name,
+          tweetAuthorAvatar: data?.extra?.tweet_author_avatar,
+          tweetAuthorVerified: data?.extra?.tweet_author_verified ?? false,
+          tweetContent: data?.extra?.tweet_content,
+          tweetContentHtml: data?.extra?.tweet_content_html,
+          tweetMedia: data?.extra?.tweet_media,
+          tweetCreatedAt: data?.extra?.tweet_created_at
+            ? parseDate(data.extra.tweet_created_at)
+            : undefined,
+          isThread: data?.extra?.is_thread ?? false,
+          threadTweets: data?.extra?.thread_tweets,
+        }
+      : {};
+
   // Try and fix generic data here
   return {
     mergedKeywords,
@@ -618,6 +655,8 @@ const fixData = async ({
       language: data?.language,
       contentMeta: data?.meta || {},
       contentQuality: data?.content_quality || {},
+      // Tweet-specific fields
+      ...tweetFields,
     },
   };
 };

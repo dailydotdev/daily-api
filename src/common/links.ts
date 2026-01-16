@@ -193,3 +193,44 @@ export const getShortGenericInviteLink = async (
   const genericInviteURL = await getShortUrl(rawInviteURL.toString(), log);
   return genericInviteURL.toString();
 };
+
+/**
+ * Pattern to match Twitter/X status URLs
+ * Matches: twitter.com/user/status/123, x.com/user/status/123
+ * With optional www. prefix
+ */
+export const twitterUrlPattern =
+  /^https?:\/\/(?:www\.)?(twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/i;
+
+/**
+ * Check if a URL is a Twitter/X status URL
+ */
+export const isTwitterUrl = (url: string): boolean => {
+  return twitterUrlPattern.test(url);
+};
+
+/**
+ * Extract tweet ID and username from a Twitter/X URL
+ * Returns null if not a valid Twitter URL
+ */
+export const extractTweetInfo = (
+  url: string,
+): { tweetId: string; username: string } | null => {
+  const match = url.match(twitterUrlPattern);
+  if (!match) {
+    return null;
+  }
+  return {
+    tweetId: match[3],
+    username: match[2],
+  };
+};
+
+/**
+ * Extract just the tweet ID from a Twitter/X URL
+ * Returns null if not a valid Twitter URL
+ */
+export const extractTweetId = (url: string): string | null => {
+  const info = extractTweetInfo(url);
+  return info?.tweetId || null;
+};
