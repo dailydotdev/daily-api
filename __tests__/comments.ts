@@ -1090,6 +1090,12 @@ describe('mutation commentOnPost', () => {
   describe('rate limiting', () => {
     const redisKey = `${rateLimiterName}:1:createComment`;
     const variables = { postId: 'p1', content: 'comment' };
+
+    beforeEach(async () => {
+      // Clear rate limit key before each test to ensure isolation
+      await deleteKeysByPattern(redisKey);
+    });
+
     it('store rate limiting state in redis', async () => {
       loggedUser = '1';
 
@@ -1123,7 +1129,7 @@ describe('mutation commentOnPost', () => {
       // Check expiry, to not cause it to be flaky, we check if it is within 10 seconds
       expect(await getRedisObjectExpiry(redisKey)).toBeLessThanOrEqual(3600);
       expect(await getRedisObjectExpiry(redisKey)).toBeGreaterThanOrEqual(3590);
-    }, 10_000);
+    }, 60_000); // 60s - runs 500 mutations sequentially
   });
 
   describe('vordr', () => {

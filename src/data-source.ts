@@ -1,13 +1,54 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 
+/**
+ * Determine schema for test isolation.
+ * Each Jest worker gets its own schema to enable parallel test execution.
+ * Schema isolation is enabled in CI when ENABLE_SCHEMA_ISOLATION=true,
+ * which allows parallel Jest workers to run without conflicts.
+ */
+const getSchema = (): string => {
+  if (process.env.TYPEORM_SCHEMA) {
+    return process.env.TYPEORM_SCHEMA;
+  }
+  // Enable schema isolation for parallel Jest workers in CI
+  if (
+    process.env.ENABLE_SCHEMA_ISOLATION === 'true' &&
+    process.env.JEST_WORKER_ID
+  ) {
+    return `test_worker_${process.env.JEST_WORKER_ID}`;
+  }
+  return 'public';
+};
+
+export const testSchema = getSchema();
+
+/**
+ * Redis key prefix for test isolation.
+ * Each Jest worker gets its own prefix to avoid key collisions in parallel tests.
+ */
+export const testRedisPrefix =
+  process.env.ENABLE_SCHEMA_ISOLATION === 'true' && process.env.JEST_WORKER_ID
+    ? `test_worker_${process.env.JEST_WORKER_ID}:`
+    : '';
+
+// PostgreSQL connection options to set search_path for raw SQL queries
+// Include public schema in search_path for access to extensions (uuid-ossp, etc.)
+const pgOptions =
+  testSchema !== 'public' ? `-c search_path=${testSchema},public` : undefined;
+
+// Reduce pool size for parallel testing to avoid connection/memory exhaustion
+const maxPoolSize = process.env.NODE_ENV === 'test' ? 5 : 30;
+
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  schema: 'public',
+  schema: testSchema,
   synchronize: false,
   extra: {
-    max: 30,
+    max: maxPoolSize,
     idleTimeoutMillis: 0,
+    // Set search_path at connection level so raw SQL uses the correct schema
+    options: pgOptions,
   },
   logging: false,
   entities: ['src/entity/**/*.{js,ts}'],
