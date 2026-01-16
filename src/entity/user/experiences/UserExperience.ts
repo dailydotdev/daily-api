@@ -19,6 +19,9 @@ import type { UserExperienceSkill } from './UserExperienceSkill';
 
 export type UserExperienceFlags = Partial<{
   import: string;
+  customDomain: string;
+  customImage: string;
+  removedEnrichment: boolean;
 }>;
 
 @Entity()

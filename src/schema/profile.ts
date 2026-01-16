@@ -27,6 +27,8 @@ import {
 } from '../entity/user/experiences/UserExperienceSkill';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 import { User } from '../entity/user/User';
+import { getGoogleFaviconUrl } from '../common/companyEnrichment';
+
 interface GQLUserExperience {
   id: string;
   type: UserExperienceType;
@@ -78,6 +80,8 @@ export const typeDefs = /* GraphQL */ `
     customCompanyName: String
     customLocation: Location
     isOwner: Boolean
+    image: String
+    customDomain: String
 
     # custom props per child entity
     url: String
@@ -125,6 +129,7 @@ export const typeDefs = /* GraphQL */ `
     url: String
     grade: String
     externalReferenceId: String
+    customDomain: String
   }
 
   input UserExperienceWorkInput {
@@ -133,6 +138,7 @@ export const typeDefs = /* GraphQL */ `
     locationType: ProtoEnumValue
     employmentType: ProtoEnumValue
     skills: [String]
+    customDomain: String
   }
 
   extend type Mutation {
@@ -160,6 +166,41 @@ interface ExperienceMutationArgs<T extends BaseInputSchema = BaseInputSchema> {
   id?: string;
 }
 
+interface ResolvedCompanyState {
+  companyId: string | null;
+  customCompanyName: string | null;
+}
+
+const resolveCompanyState = async (
+  ctx: AuthContext,
+  inputCompanyId: string | null | undefined,
+  inputCustomCompanyName: string | null | undefined,
+  skipAutoLinking: boolean,
+): Promise<ResolvedCompanyState> => {
+  if (inputCompanyId) {
+    await ctx.con.getRepository(Company).findOneOrFail({
+      where: { id: inputCompanyId },
+    });
+    return { companyId: inputCompanyId, customCompanyName: null };
+  }
+
+  if (inputCustomCompanyName && !skipAutoLinking) {
+    const existingCompany = await ctx.con
+      .getRepository(Company)
+      .createQueryBuilder('c')
+      .where('LOWER(c.name) = :name', {
+        name: inputCustomCompanyName.toLowerCase(),
+      })
+      .getOne();
+
+    if (existingCompany) {
+      return { companyId: existingCompany.id, customCompanyName: null };
+    }
+  }
+
+  return { companyId: null, customCompanyName: inputCustomCompanyName || null };
+};
+
 const generateExperienceToSave = async <
   T extends BaseInputSchema,
   R extends z.core.output<T>,
@@ -169,41 +210,59 @@ const generateExperienceToSave = async <
 ): Promise<{
   userExperience: Partial<UserExperience>;
   parsedInput: R;
+  removedCompanyId: boolean;
 }> => {
   const schema = getExperienceSchema(input.type);
   const parsed = schema.parse(input) as R;
-  const { customCompanyName, companyId, ...values } = parsed;
+  const { customCompanyName, companyId, customDomain, ...values } =
+    parsed as R & { customDomain?: string | null };
 
-  const toUpdate = id
+  const toUpdate: Partial<UserExperience> = id
     ? await ctx.con
         .getRepository(UserExperience)
         .findOneOrFail({ where: { id, userId: ctx.userId } })
-    : await Promise.resolve({});
+    : {};
 
-  const toSave: Partial<UserExperience> = { ...values, companyId };
+  const userRemovingCompany = !!toUpdate.companyId && !companyId;
+  const skipAutoLinking =
+    userRemovingCompany || !!toUpdate.flags?.removedEnrichment;
 
-  if (companyId) {
-    await ctx.con.getRepository(Company).findOneOrFail({
-      where: { id: companyId },
-    });
-    toSave.customCompanyName = null;
-  } else if (customCompanyName) {
-    const existingCompany = await ctx.con
-      .getRepository(Company)
-      .createQueryBuilder('c')
-      .where('LOWER(c.name) = :name', { name: customCompanyName.toLowerCase() })
-      .getOne();
+  const resolved = await resolveCompanyState(
+    ctx,
+    companyId,
+    customCompanyName,
+    skipAutoLinking,
+  );
 
-    if (existingCompany) {
-      toSave.customCompanyName = null;
-      toSave.companyId = existingCompany.id;
-    } else {
-      toSave.customCompanyName = customCompanyName;
-      toSave.companyId = null;
-    }
+  const toSave: Partial<UserExperience> = {
+    ...values,
+    companyId: resolved.companyId,
+    customCompanyName: resolved.customCompanyName,
+  };
+
+  if (customDomain) {
+    const customImage = resolved.companyId
+      ? null
+      : getGoogleFaviconUrl(customDomain);
+    toSave.flags = {
+      ...toUpdate.flags,
+      customDomain,
+      ...(customImage && { customImage }),
+    };
   }
 
-  return { userExperience: { ...toUpdate, ...toSave }, parsedInput: parsed };
+  if (userRemovingCompany) {
+    toSave.flags = {
+      ...toSave.flags,
+      removedEnrichment: true,
+    };
+  }
+
+  return {
+    userExperience: { ...toUpdate, ...toSave },
+    parsedInput: parsed,
+    removedCompanyId: userRemovingCompany,
+  };
 };
 
 const getUserExperience = (
@@ -323,21 +382,23 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       ctx,
       info,
     ): Promise<GQLUserExperience> => {
-      const result = await generateExperienceToSave(ctx, args);
+      const { userExperience, parsedInput, removedCompanyId } =
+        await generateExperienceToSave(ctx, args);
 
       const location = await findOrCreateDatasetLocation(
         ctx.con,
-        result.parsedInput.externalLocationId,
+        parsedInput.externalLocationId,
       );
 
       const entity = await ctx.con.transaction(async (con) => {
         const repo = con.getRepository(UserExperienceWork);
-        const skills = result.parsedInput.skills;
+        const skills = parsedInput.skills;
         const saved = await repo.save({
-          ...result.userExperience,
+          ...userExperience,
           locationId: location?.id || null,
           type: args.input.type,
           userId: ctx.userId,
+          ...(removedCompanyId && { verified: false }),
         });
 
         await dropSkillsExcept(con, saved.id, skills);
