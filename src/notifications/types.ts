@@ -24,6 +24,7 @@ import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { CampaignUpdateEvent } from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
+import type { UserExperienceType } from '../entity/user/experiences/types';
 
 export type Reference<T> = ChangeObject<T> | T;
 
@@ -187,6 +188,15 @@ export type NotificationRecruiterOpportunityLiveContext =
   NotificationBaseContext & {
     opportunityId: string;
     opportunityTitle: string;
+  };
+
+export type NotificationExperienceCompanyEnrichedContext =
+  NotificationBaseContext & {
+    experienceId: string;
+    experienceTitle: string;
+    experienceType: UserExperienceType;
+    companyId: string;
+    companyName: string;
   };
 
 declare module 'fs' {

@@ -465,6 +465,10 @@ export const workers: Worker[] = [
     subscription: 'api.parse-opportunity-feedback',
   },
   {
+    topic: 'api.v1.experience-company-enriched',
+    subscription: 'api.experience-company-enriched-notification',
+  },
+  {
     topic: 'api.v1.opportunity-parse',
     subscription: 'api.opportunity-parse',
   },
