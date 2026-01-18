@@ -1634,6 +1634,25 @@ const obj = new GraphORM({
       },
     },
   },
+  UserProfileAnalytics: {
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserProfileAnalyticsHistory: {
+    requiredColumns: ['id', 'date', 'updatedAt'],
+    fields: {
+      date: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+    },
+  },
   Opportunity: {
     requiredColumns: ['id', 'createdAt'],
     fields: {

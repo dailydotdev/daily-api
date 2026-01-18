@@ -21,6 +21,8 @@ import cleanGiftedPlus from './cleanGiftedPlus';
 import { cleanStaleUserTransactions } from './cleanStaleUserTransactions';
 import { postAnalyticsClickhouseCron } from './postAnalyticsClickhouse';
 import { postAnalyticsHistoryDayClickhouseCron } from './postAnalyticsHistoryDayClickhouse';
+import { userProfileAnalyticsClickhouseCron } from './userProfileAnalyticsClickhouse';
+import { userProfileAnalyticsHistoryClickhouseCron } from './userProfileAnalyticsHistoryClickhouse';
 import { cleanZombieOpportunities } from './cleanZombieOpportunities';
 import { userProfileUpdatedSync } from './userProfileUpdatedSync';
 
@@ -47,6 +49,8 @@ export const crons: Cron[] = [
   cleanStaleUserTransactions,
   postAnalyticsClickhouseCron,
   postAnalyticsHistoryDayClickhouseCron,
+  userProfileAnalyticsClickhouseCron,
+  userProfileAnalyticsHistoryClickhouseCron,
   cleanZombieOpportunities,
   userProfileUpdatedSync,
 ];

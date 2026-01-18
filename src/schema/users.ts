@@ -103,6 +103,7 @@ import {
 import {
   checkUserCoresAccess,
   deleteUser,
+  ensureUserProfileAnalyticsPermissions,
   getUserCoresRole,
 } from '../common/user';
 import { randomInt, randomUUID } from 'crypto';
@@ -312,6 +313,19 @@ export interface GQLUserPersonalizedDigest {
   preferredHour: number;
   type: UserPersonalizedDigestType;
   flags: UserPersonalizedDigestFlagsPublic;
+}
+
+export interface GQLUserProfileAnalytics {
+  id: string;
+  uniqueVisitors: number;
+  updatedAt: Date;
+}
+
+export interface GQLUserProfileAnalyticsHistory {
+  id: string;
+  date: string;
+  uniqueVisitors: number;
+  updatedAt: Date;
 }
 
 export interface SendReportArgs {
@@ -1079,6 +1093,56 @@ export const typeDefs = /* GraphQL */ `
     coresRole: Int!
   }
 
+  """
+  User profile analytics with visitor data
+  """
+  type UserProfileAnalytics {
+    """
+    User ID
+    """
+    id: ID!
+    """
+    Total unique visitors to the profile
+    """
+    uniqueVisitors: Int!
+    """
+    Last update timestamp
+    """
+    updatedAt: DateTime!
+  }
+
+  """
+  Daily user profile analytics history entry
+  """
+  type UserProfileAnalyticsHistory {
+    """
+    User ID
+    """
+    id: ID!
+    """
+    Date of the analytics (YYYY-MM-DD)
+    """
+    date: DateTime!
+    """
+    Unique visitors on this day
+    """
+    uniqueVisitors: Int!
+    """
+    Last update timestamp
+    """
+    updatedAt: DateTime!
+  }
+
+  type UserProfileAnalyticsHistoryEdge {
+    node: UserProfileAnalyticsHistory!
+    cursor: String!
+  }
+
+  type UserProfileAnalyticsHistoryConnection {
+    pageInfo: PageInfo!
+    edges: [UserProfileAnalyticsHistoryEdge!]!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1270,6 +1334,21 @@ export const typeDefs = /* GraphQL */ `
     Get current user's notification preferences
     """
     notificationSettings: JSON @auth
+
+    """
+    Get user profile analytics for the specified user
+    """
+    userProfileAnalytics(userId: ID!): UserProfileAnalytics @auth
+
+    """
+    Get user profile analytics history (daily breakdown)
+    """
+    userProfileAnalyticsHistory(
+      userId: ID!
+      after: String
+      before: String
+      first: Int
+    ): UserProfileAnalyticsHistoryConnection @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -2582,6 +2661,54 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...DEFAULT_NOTIFICATION_SETTINGS,
         ...user?.notificationFlags,
       };
+    },
+    userProfileAnalytics: async (
+      _,
+      args: { userId: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserProfileAnalytics> => {
+      await ensureUserProfileAnalyticsPermissions({ ctx, userId: args.userId });
+
+      return graphorm.queryOneOrFail<GQLUserProfileAnalytics>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.andWhere(
+            `"${builder.alias}".id = :userId`,
+            { userId: args.userId },
+          ),
+        }),
+        undefined,
+        true,
+      );
+    },
+    userProfileAnalyticsHistory: async (
+      _,
+      args: ConnectionArguments & { userId: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<Connection<GQLUserProfileAnalyticsHistory>> => {
+      await ensureUserProfileAnalyticsPermissions({ ctx, userId: args.userId });
+
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'updatedAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}.id = :userId`,
+              { userId: args.userId },
+            );
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
+        },
+      );
     },
   },
   Mutation: {
