@@ -7,6 +7,7 @@ import {
   Comment,
   DevCard,
   Feed,
+  Organization,
   Post,
   PostReport,
   Settings,
@@ -15,6 +16,8 @@ import {
   User,
   View,
 } from '../entity';
+import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
+import { OpportunityUser } from '../entity/opportunities/user';
 import { ghostUser } from './index';
 import { cancelSubscription } from './paddle';
 import type { AuthContext, Context } from '../Context';
@@ -28,6 +31,7 @@ import {
   deleteEmploymentAgreementByUserId,
   deleteResumeByUserId,
 } from './googleCloud';
+import { ConflictError } from '../errors';
 
 export const deleteUser = async (
   con: DataSource,
@@ -126,6 +130,38 @@ export const deleteUser = async (
           receiverId: ghostUser.id,
         },
       );
+
+      const opportunityOrganization = await entityManager
+        .getRepository(OpportunityUser)
+        .createQueryBuilder('ou')
+        .select('ou."opportunityId"', 'opportunityId')
+        .addSelect('oj."organizationId"', 'organizationId')
+        .innerJoin(OpportunityJob, 'oj', 'oj.id = ou."opportunityId"')
+        .where('ou."userId" = :userId', { userId })
+        .getRawMany<{
+          opportunityId: string;
+          organizationId: string;
+        }>();
+
+      if (opportunityOrganization.length > 0) {
+        const orgsWithActiveSubscription = await entityManager
+          .getRepository(Organization)
+          .createQueryBuilder('org')
+          .where('org.id IN (:...ids)', {
+            ids: opportunityOrganization.map((item) => item.organizationId),
+          })
+          .andWhere(`org."subscriptionFlags"->>'status' = :status`, {
+            status: SubscriptionStatus.Active,
+          })
+          .getCount();
+
+        if (orgsWithActiveSubscription > 0) {
+          throw new ConflictError(
+            'Cannot delete your account because one of your organizations has an active subscription. Please cancel the subscription first.',
+          );
+        }
+      }
+
       await entityManager.getRepository(User).delete(userId);
     });
     logger.info(
