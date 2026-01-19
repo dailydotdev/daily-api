@@ -250,6 +250,11 @@ export type PubSubSchema = {
     opportunityId: string;
     userId: string;
   };
+  'api.v1.experience-company-enriched': {
+    experienceId: string;
+    userId: string;
+    companyId: string;
+  };
   'api.v1.opportunity-parse': {
     opportunityId: string;
   };
