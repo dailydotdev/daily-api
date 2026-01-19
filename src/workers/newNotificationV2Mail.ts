@@ -130,6 +130,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   parsed_cv_profile: '',
   recruiter_new_candidate: '89',
   recruiter_opportunity_live: '90',
+  recruiter_external_payment: '91',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1207,6 +1208,11 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   recruiter_opportunity_live: async (_con, _user, notification) => {
+    return {
+      opportunity_link: notification.targetUrl,
+    };
+  },
+  recruiter_external_payment: async (_con, _user, notification) => {
     return {
       opportunity_link: notification.targetUrl,
     };

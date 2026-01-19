@@ -203,6 +203,10 @@ export type PubSubSchema = {
     opportunityId: string;
     title: string;
   };
+  'api.v1.opportunity-external-payment': {
+    opportunityId: string;
+    title: string;
+  };
   'api.v1.opportunity-flags-change': {
     opportunityId: string;
     before: string | null;

@@ -81,6 +81,7 @@ export enum NotificationType {
   ParsedCVProfile = 'parsed_cv_profile',
   RecruiterNewCandidate = 'recruiter_new_candidate',
   RecruiterOpportunityLive = 'recruiter_opportunity_live',
+  RecruiterExternalPayment = 'recruiter_external_payment',
 }
 
 export enum NotificationPreferenceType {
@@ -289,6 +290,10 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.RecruiterOpportunityLive]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.RecruiterExternalPayment]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },

@@ -35,6 +35,7 @@ import {
   type NotificationParsedCVProfileContext,
   type NotificationRecruiterNewCandidateContext,
   type NotificationRecruiterOpportunityLiveContext,
+  type NotificationRecruiterExternalPaymentContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -219,6 +220,10 @@ export const notificationTitleMap: Record<
     ctx: NotificationRecruiterOpportunityLiveContext,
   ) =>
     `Your job opportunity <b>${ctx.opportunityTitle}</b> is now <span class="text-theme-color-cabbage">live</span>!`,
+  recruiter_external_payment: (
+    ctx: NotificationRecruiterExternalPaymentContext,
+  ) =>
+    `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
 };
 
 export const generateNotificationMap: Record<
@@ -632,6 +637,17 @@ export const generateNotificationMap: Record<
       .referenceOpportunity(ctx.opportunityId)
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
+      );
+  },
+  recruiter_external_payment: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterExternalPaymentContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/prepare`,
       );
   },
 };

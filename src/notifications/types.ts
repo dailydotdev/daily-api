@@ -189,6 +189,12 @@ export type NotificationRecruiterOpportunityLiveContext =
     opportunityTitle: string;
   };
 
+export type NotificationRecruiterExternalPaymentContext =
+  NotificationBaseContext & {
+    opportunityId: string;
+    opportunityTitle: string;
+  };
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
