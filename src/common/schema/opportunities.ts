@@ -219,9 +219,6 @@ export const opportunityEditSchema = z
             .optional(),
         }),
       )
-      .min(1, {
-        error: 'At least one question is required',
-      })
       .max(3, {
         error: 'No more than three questions are allowed',
       }),
