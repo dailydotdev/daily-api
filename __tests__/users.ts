@@ -7605,13 +7605,12 @@ describe('query userProfileAnalytics', () => {
     }
   `;
 
-  it('should return null for unauthenticated user', async () => {
-    loggedUser = null;
-
-    const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userProfileAnalytics).toBeNull();
-  });
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'UNAUTHENTICATED',
+    ));
 
   it('should return null when viewing another user analytics', async () => {
     loggedUser = '2';
@@ -7661,12 +7660,14 @@ describe('query userProfileAnalytics', () => {
     });
   });
 
-  it('should return null when no analytics record exists', async () => {
+  it('should return not found error when no analytics record exists', () => {
     loggedUser = '1';
 
-    const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userProfileAnalytics).toBeNull();
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'NOT_FOUND',
+    );
   });
 });
 
@@ -7690,13 +7691,12 @@ describe('query userProfileAnalyticsHistory', () => {
     }
   `;
 
-  it('should return null for unauthenticated user', async () => {
-    loggedUser = null;
-
-    const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userProfileAnalyticsHistory).toBeNull();
-  });
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'UNAUTHENTICATED',
+    ));
 
   it('should return null when viewing another user history', async () => {
     loggedUser = '2';
@@ -7724,7 +7724,7 @@ describe('query userProfileAnalyticsHistory', () => {
     expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(3);
     expect(res.data.userProfileAnalyticsHistory.edges[0].node).toMatchObject({
       id: '1',
-      date: '2026-01-15',
+      date: '2026-01-15T00:00:00.000Z',
       uniqueVisitors: 10,
     });
   });
@@ -7742,7 +7742,7 @@ describe('query userProfileAnalyticsHistory', () => {
     expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(1);
     expect(res.data.userProfileAnalyticsHistory.edges[0].node).toMatchObject({
       id: '1',
-      date: '2026-01-15',
+      date: '2026-01-15T00:00:00.000Z',
       uniqueVisitors: 10,
     });
   });
