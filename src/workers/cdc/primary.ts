@@ -1612,7 +1612,7 @@ const onUserExperienceChange = async (
       con,
       {
         experienceId: experience.id,
-        customCompanyName: experience.customCompanyName,
+        customCompanyName: experience.customCompanyName!,
         experienceType: experience.type,
       },
       logger,
