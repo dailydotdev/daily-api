@@ -18,6 +18,13 @@ export type FeedbackClassification = z.infer<
   typeof feedbackClassificationSchema
 >;
 
+export const anonymousUserContextSchema = z.object({
+  seniority: z.string().nullable().optional(),
+  locationCountry: z.string().nullable().optional(),
+});
+
+export type AnonymousUserContext = z.infer<typeof anonymousUserContextSchema>;
+
 export const opportunityScreeningAnswersSchema = z.object({
   id: z.uuid(),
   answers: z

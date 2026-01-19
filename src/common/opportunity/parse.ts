@@ -19,11 +19,10 @@ import {
 } from '../../types';
 import { getBrokkrClient } from '../brokkr';
 import { opportunityCreateParseSchema } from '../schema/opportunities';
-import { markdown } from '../markdown';
+import { markdown, sanitizeHtml } from '../markdown';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityLocation } from '../../entity/opportunities/OpportunityLocation';
 import { OpportunityKeyword } from '../../entity/OpportunityKeyword';
-import { OpportunityUserRecruiter } from '../../entity/opportunities/user/OpportunityUserRecruiter';
 import { findDatasetLocation } from '../../entity/dataset/utils';
 import { addOpportunityDefaultQuestionFeedback } from './question';
 import type { Opportunity } from '../../entity/opportunities/Opportunity';
@@ -140,25 +139,29 @@ export async function validateOpportunityFileType(
 
 /**
  * Renders markdown content for opportunity fields
+ * Converts markdown to HTML and stores HTML in both content and html fields
  */
-function renderOpportunityMarkdownContent(
+const renderOpportunityMarkdownContent = async (
   content: Record<string, { content?: string }> | undefined,
-): OpportunityContent {
+): Promise<OpportunityContent> => {
   const renderedContent: Record<string, { content: string; html: string }> = {};
 
-  Object.entries(content || {}).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(content || {})) {
     if (typeof value?.content !== 'string') {
-      return;
+      continue;
     }
 
+    const html = markdown.render(value.content);
+    const sanitizedHtml = await sanitizeHtml(html);
+
     renderedContent[key] = {
-      content: value.content,
-      html: markdown.render(value.content),
+      content: sanitizedHtml,
+      html: sanitizedHtml,
     };
-  });
+  }
 
   return new OpportunityContent(renderedContent);
-}
+};
 
 /**
  * Parses an opportunity file using the Brokkr service
@@ -172,10 +175,12 @@ function renderOpportunityMarkdownContent(
  *   buffer: Buffer;
  *   mime: string;
  *   extension: string;
+ *   opportunityId?: string;
  * }} {
  *   buffer,
  *   mime,
  *   extension,
+ *   opportunityId
  * }
  * @return {*}  {Promise<ParsedOpportunityResult>}
  */
@@ -183,12 +188,14 @@ export async function parseOpportunityWithBrokkr({
   buffer,
   mime,
   extension,
+  opportunityId,
 }: {
   buffer: Buffer;
   mime: string;
   extension: string;
+  opportunityId?: string;
 }): Promise<ParsedOpportunityResult> {
-  const filename = `job-opportunity-parse-${randomUUID()}.pdf`;
+  const filename = `job-opportunity-parse-${opportunityId || randomUUID()}.pdf`;
 
   const brokkrClient = getBrokkrClient();
 
@@ -256,7 +263,9 @@ export async function parseOpportunityWithBrokkr({
   const parsedOpportunity =
     await opportunityCreateParseSchema.parseAsync(sanitizedOpportunity);
 
-  const content = renderOpportunityMarkdownContent(parsedOpportunity.content);
+  const content = await renderOpportunityMarkdownContent(
+    parsedOpportunity.content,
+  );
 
   return {
     opportunity: parsedOpportunity,
@@ -265,10 +274,10 @@ export async function parseOpportunityWithBrokkr({
 }
 
 /**
- * Creates an opportunity and all related entities from parsed data
+ * Creates or updates an opportunity and all related entities from parsed data
  *
  * Handles:
- * - Creating the opportunity record
+ * - Creating or updating the opportunity record
  * - Creating location relationships
  * - Creating keywords
  * - Adding default feedback questions
@@ -277,11 +286,13 @@ export async function parseOpportunityWithBrokkr({
  *
  * @param ctx - Context with database connection and user info
  * @param parsedData - The parsed opportunity data from Brokkr
- * @returns The created opportunity
+ * @param opportunityId - Optional ID of existing opportunity to update (for async worker flow)
+ * @returns The created or updated opportunity
  */
 export async function createOpportunityFromParsedData(
   ctx: ParseOpportunityContext,
   parsedData: ParsedOpportunityResult,
+  opportunityId?: string,
 ): Promise<OpportunityJob> {
   const { opportunity: parsedOpportunity, content } = parsedData;
   const locationData = parsedOpportunity.location || [];
@@ -321,6 +332,7 @@ export async function createOpportunityFromParsedData(
 
     const opportunity = await entityManager.getRepository(OpportunityJob).save(
       entityManager.getRepository(OpportunityJob).create({
+        id: opportunityId,
         ...opportunityData,
         state: OpportunityState.DRAFT,
         content,
@@ -352,15 +364,6 @@ export async function createOpportunityFromParsedData(
           opportunityId: opportunity.id,
           keyword: keyword.keyword,
         })),
-      );
-    }
-
-    if (ctx.userId) {
-      await entityManager.getRepository(OpportunityUserRecruiter).insert(
-        entityManager.getRepository(OpportunityUserRecruiter).create({
-          opportunityId: opportunity.id,
-          userId: ctx.userId,
-        }),
       );
     }
 

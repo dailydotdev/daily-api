@@ -57,7 +57,6 @@ import {
   OpportunityType,
   SalaryPeriod,
   SeniorityLevel,
-  Location,
 } from '@dailydotdev/schema';
 import { UserCandidatePreference } from '../../src/entity/user/UserCandidatePreference';
 import { QuestionScreening } from '../../src/entity/questions/QuestionScreening';
@@ -87,6 +86,7 @@ import { updateRecruiterSubscriptionFlags } from '../../src/common';
 import { SubscriptionStatus } from '../../src/common/plus';
 import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
 import { unsupportedOpportunityDomains } from '../../src/common/schema/opportunities';
+import * as typedPubsub from '../../src/common/typedPubsub';
 
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
@@ -519,6 +519,63 @@ describe('query opportunityById', () => {
   });
 });
 
+describe('query opportunityByIdPublic', () => {
+  const QUERY = /* GraphQL */ `
+    query OpportunityByIdPublic($id: ID!) {
+      opportunityByIdPublic(id: $id) {
+        id
+        title
+        organization {
+          name
+        }
+        flags {
+          plan
+        }
+      }
+    }
+  `;
+
+  it('should return opportunity with organization for anonymous user', async () => {
+    const res = await client.query<
+      {
+        opportunityByIdPublic: {
+          id: string;
+          title: string;
+          organization: { name: string } | null;
+          flags: { plan: string | null } | null;
+        } | null;
+      },
+      { id: string }
+    >(QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityByIdPublic).toEqual({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      title: 'Senior Full Stack Developer',
+      organization: { name: 'Daily Dev Inc' },
+      flags: { plan: null },
+    });
+  });
+
+  it('should return null for non-existent opportunity', async () => {
+    const res = await client.query<
+      {
+        opportunityByIdPublic: {
+          id: string;
+        } | null;
+      },
+      { id: string }
+    >(QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-000000000000' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityByIdPublic).toBeNull();
+  });
+});
+
 describe('query opportunities', () => {
   const GET_OPPORTUNITIES_QUERY = /* GraphQL */ `
     query GetOpportunities(
@@ -679,6 +736,129 @@ describe('query opportunities', () => {
     expect(secondPage.data.opportunities.edges).toHaveLength(1);
     expect(secondPage.data.opportunities.pageInfo.hasNextPage).toBe(false);
     expect(secondPage.data.opportunities.pageInfo.hasPreviousPage).toBe(true);
+  });
+
+  it('should not return opportunities in PARSING state', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    // Insert opportunity in PARSING state
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440100',
+        type: OpportunityType.JOB,
+        state: OpportunityState.PARSING,
+        title: 'Parsing Opportunity',
+        tldr: 'This opportunity is being parsed',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-10'),
+        updatedAt: new Date('2023-01-10'),
+      },
+    ]);
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440100',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.PARSING, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunities.edges).toHaveLength(0);
+
+    isTeamMember = false;
+  });
+
+  it('should not return opportunities in ERROR state', async () => {
+    loggedUser = '1';
+    isTeamMember = true;
+
+    // Insert opportunity in ERROR state
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440101',
+        type: OpportunityType.JOB,
+        state: OpportunityState.ERROR,
+        title: 'Error Opportunity',
+        tldr: 'This opportunity encountered an error',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-11'),
+        updatedAt: new Date('2023-01-11'),
+      },
+    ]);
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440101',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.ERROR, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunities.edges).toHaveLength(0);
+
+    isTeamMember = false;
+  });
+
+  it('should not return PARSING or ERROR opportunities when querying LIVE state', async () => {
+    loggedUser = '1';
+
+    // Insert opportunities in PARSING and ERROR states
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: '550e8400-e29b-41d4-a716-446655440102',
+        type: OpportunityType.JOB,
+        state: OpportunityState.PARSING,
+        title: 'Parsing Opportunity 2',
+        tldr: 'This opportunity is being parsed',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-12'),
+        updatedAt: new Date('2023-01-12'),
+      },
+      {
+        id: '550e8400-e29b-41d4-a716-446655440103',
+        type: OpportunityType.JOB,
+        state: OpportunityState.ERROR,
+        title: 'Error Opportunity 2',
+        tldr: 'This opportunity encountered an error',
+        organizationId: organizationsFixture[0].id,
+        createdAt: new Date('2023-01-13'),
+        updatedAt: new Date('2023-01-13'),
+      },
+    ]);
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440102',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440103',
+        userId: usersFixture[0].id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    const res = await client.query(GET_OPPORTUNITIES_QUERY, {
+      variables: { state: OpportunityState.LIVE, first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    // Should only return the 3 LIVE opportunities from fixtures, not the PARSING or ERROR ones
+    expect(res.data.opportunities.edges).toHaveLength(3);
+    const states = res.data.opportunities.edges.map(
+      (e: { node: { state: string } }) => e.node.state,
+    );
+    expect(states).not.toContain(OpportunityState.PARSING);
+    expect(states).not.toContain(OpportunityState.ERROR);
   });
 });
 
@@ -5104,6 +5284,7 @@ describe('mutation parseOpportunity', () => {
     mutation ParseOpportunity($payload: ParseOpportunityInput!) {
       parseOpportunity(payload: $payload) {
         id
+        state
         title
         tldr
         content {
@@ -5186,6 +5367,16 @@ describe('mutation parseOpportunity', () => {
       .mockImplementation((): ServiceClient<typeof BrokkrService> => {
         return serviceClient;
       });
+
+    // Mock GCS upload
+    jest
+      .spyOn(googleCloud, 'uploadResumeFromBuffer')
+      .mockResolvedValue(
+        'https://storage.cloud.google.com/bucket/opportunity-123.pdf',
+      );
+
+    // Mock PubSub event trigger
+    jest.spyOn(typedPubsub, 'triggerTypedEvent').mockResolvedValue(undefined);
   });
 
   it('should parse opportunity from file', async () => {
@@ -5218,57 +5409,28 @@ describe('mutation parseOpportunity', () => {
     const body = res.body;
     expect(body.errors).toBeFalsy();
 
-    expect(body.data.parseOpportunity).toMatchObject({
-      title: 'Mocked Opportunity Title',
-      tldr: 'This is a mocked TL;DR of the opportunity.',
-      keywords: [
-        { keyword: 'mock' },
-        { keyword: 'opportunity' },
-        { keyword: 'test' },
-      ],
-      meta: {
-        employmentType: EmploymentType.FULL_TIME,
-        seniorityLevel: SeniorityLevel.SENIOR,
-        roleType: RoleType.Auto,
-        salary: {
-          min: 1000,
-          max: 2000,
-          period: SalaryPeriod.MONTHLY,
-        },
-      },
-      content: {
-        overview: {
-          content: 'This is the overview of the mocked opportunity.',
-          html: '<p>This is the overview of the mocked opportunity.</p>\n',
-        },
-        responsibilities: {
-          content: 'These are the responsibilities of the mocked opportunity.',
-          html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
-        },
-        requirements: {
-          content: 'These are the requirements of the mocked opportunity.',
-          html: '<p>These are the requirements of the mocked opportunity.</p>\n',
-        },
-      },
-      locations: [
-        {
-          type: LocationType.REMOTE,
-          location: {
-            city: null,
-            country: 'USA',
-            subdivision: null,
-          },
-        },
-      ],
-      questions: [],
-      feedbackQuestions: [
-        {
-          title: 'Why did you reject this opportunity?',
-          placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
-        },
-      ],
+    // Verify opportunity is in PARSING state
+    expect(body.data.parseOpportunity.state).toBe(OpportunityState.PARSING);
+    expect(body.data.parseOpportunity.title).toBe('Processing...');
+    expect(body.data.parseOpportunity.id).toBeDefined();
+
+    // Verify uploadResumeFromBuffer was called
+    expect(googleCloud.uploadResumeFromBuffer).toHaveBeenCalledWith(
+      expect.stringContaining('opportunity-'),
+      expect.any(Buffer),
+      { contentType: 'application/pdf' },
+    );
+
+    // Verify triggerTypedEvent was called with opportunityId
+    expect(typedPubsub.triggerTypedEvent).toHaveBeenCalled();
+    const triggerCall = (typedPubsub.triggerTypedEvent as jest.Mock).mock
+      .calls[0];
+    expect(triggerCall[1]).toBe('api.v1.opportunity-parse');
+    expect(triggerCall[2]).toEqual({
+      opportunityId: body.data.parseOpportunity.id,
     });
 
+    // Verify opportunity in database has file data in flags
     const opportunity = await con.getRepository(OpportunityJob).findOne({
       where: {
         id: body.data.parseOpportunity.id,
@@ -5276,7 +5438,14 @@ describe('mutation parseOpportunity', () => {
     });
 
     expect(opportunity).toBeDefined();
-    expect(opportunity!.state).toBe(OpportunityState.DRAFT);
+    expect(opportunity!.state).toBe(OpportunityState.PARSING);
+    expect(opportunity!.flags?.file).toMatchObject({
+      blobName: expect.stringContaining('opportunity-'),
+      bucketName: expect.any(String),
+      mimeType: 'application/pdf',
+      extension: 'pdf',
+      trackingId: 'anon1',
+    });
   });
 
   it('should parse opportunity from URL', async () => {
@@ -5317,49 +5486,42 @@ describe('mutation parseOpportunity', () => {
     const body = res.body;
     expect(body.errors).toBeFalsy();
 
-    expect(body.data.parseOpportunity).toMatchObject({
-      title: 'Mocked Opportunity Title',
-      tldr: 'This is a mocked TL;DR of the opportunity.',
-      keywords: [
-        { keyword: 'mock' },
-        { keyword: 'opportunity' },
-        { keyword: 'test' },
-      ],
-      meta: {
-        employmentType: EmploymentType.FULL_TIME,
-        seniorityLevel: SeniorityLevel.SENIOR,
-        roleType: RoleType.Auto,
-        salary: {
-          min: 1000,
-          max: 2000,
-          period: SalaryPeriod.MONTHLY,
-        },
+    // Verify opportunity is in PARSING state
+    expect(body.data.parseOpportunity.state).toBe(OpportunityState.PARSING);
+    expect(body.data.parseOpportunity.title).toBe('Processing...');
+    expect(body.data.parseOpportunity.id).toBeDefined();
+
+    // Verify uploadResumeFromBuffer was called
+    expect(googleCloud.uploadResumeFromBuffer).toHaveBeenCalledWith(
+      expect.stringContaining('opportunity-'),
+      expect.any(Buffer),
+      { contentType: 'application/pdf' },
+    );
+
+    // Verify triggerTypedEvent was called with opportunityId
+    expect(typedPubsub.triggerTypedEvent).toHaveBeenCalled();
+    const triggerCall = (typedPubsub.triggerTypedEvent as jest.Mock).mock
+      .calls[0];
+    expect(triggerCall[1]).toBe('api.v1.opportunity-parse');
+    expect(triggerCall[2]).toEqual({
+      opportunityId: body.data.parseOpportunity.id,
+    });
+
+    // Verify opportunity in database has file data in flags
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: body.data.parseOpportunity.id,
       },
-      content: {
-        overview: {
-          content: 'This is the overview of the mocked opportunity.',
-          html: '<p>This is the overview of the mocked opportunity.</p>\n',
-        },
-        responsibilities: {
-          content: 'These are the responsibilities of the mocked opportunity.',
-          html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
-        },
-        requirements: {
-          content: 'These are the requirements of the mocked opportunity.',
-          html: '<p>These are the requirements of the mocked opportunity.</p>\n',
-        },
-      },
-      locations: [
-        {
-          type: LocationType.REMOTE,
-          location: {
-            city: null,
-            country: 'USA',
-            subdivision: null,
-          },
-        },
-      ],
-      questions: [],
+    });
+
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.state).toBe(OpportunityState.PARSING);
+    expect(opportunity!.flags?.file).toMatchObject({
+      blobName: expect.stringContaining('opportunity-'),
+      bucketName: expect.any(String),
+      mimeType: 'application/pdf',
+      extension: 'pdf',
+      trackingId: 'anon1',
     });
   });
 
@@ -5479,57 +5641,28 @@ describe('mutation parseOpportunity', () => {
     const body = res.body;
     expect(body.errors).toBeFalsy();
 
-    expect(body.data.parseOpportunity).toMatchObject({
-      title: 'Mocked Opportunity Title',
-      tldr: 'This is a mocked TL;DR of the opportunity.',
-      keywords: [
-        { keyword: 'mock' },
-        { keyword: 'opportunity' },
-        { keyword: 'test' },
-      ],
-      meta: {
-        employmentType: EmploymentType.FULL_TIME,
-        seniorityLevel: SeniorityLevel.SENIOR,
-        roleType: RoleType.Auto,
-        salary: {
-          min: 1000,
-          max: 2000,
-          period: SalaryPeriod.MONTHLY,
-        },
-      },
-      content: {
-        overview: {
-          content: 'This is the overview of the mocked opportunity.',
-          html: '<p>This is the overview of the mocked opportunity.</p>\n',
-        },
-        responsibilities: {
-          content: 'These are the responsibilities of the mocked opportunity.',
-          html: '<p>These are the responsibilities of the mocked opportunity.</p>\n',
-        },
-        requirements: {
-          content: 'These are the requirements of the mocked opportunity.',
-          html: '<p>These are the requirements of the mocked opportunity.</p>\n',
-        },
-      },
-      locations: [
-        {
-          type: LocationType.REMOTE,
-          location: {
-            city: null,
-            country: 'USA',
-            subdivision: null,
-          },
-        },
-      ],
-      questions: [],
-      feedbackQuestions: [
-        {
-          title: 'Why did you reject this opportunity?',
-          placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
-        },
-      ],
+    // Verify opportunity is in PARSING state
+    expect(body.data.parseOpportunity.state).toBe(OpportunityState.PARSING);
+    expect(body.data.parseOpportunity.title).toBe('Processing...');
+    expect(body.data.parseOpportunity.id).toBeDefined();
+
+    // Verify uploadResumeFromBuffer was called
+    expect(googleCloud.uploadResumeFromBuffer).toHaveBeenCalledWith(
+      expect.stringContaining('opportunity-'),
+      expect.any(Buffer),
+      { contentType: 'application/pdf' },
+    );
+
+    // Verify triggerTypedEvent was called with opportunityId
+    expect(typedPubsub.triggerTypedEvent).toHaveBeenCalled();
+    const triggerCall = (typedPubsub.triggerTypedEvent as jest.Mock).mock
+      .calls[0];
+    expect(triggerCall[1]).toBe('api.v1.opportunity-parse');
+    expect(triggerCall[2]).toEqual({
+      opportunityId: body.data.parseOpportunity.id,
     });
 
+    // Verify opportunity in database has file data in flags
     const opportunity = await con.getRepository(OpportunityJob).findOne({
       where: {
         id: body.data.parseOpportunity.id,
@@ -5537,7 +5670,7 @@ describe('mutation parseOpportunity', () => {
     });
 
     expect(opportunity).toBeDefined();
-    expect(opportunity!.state).toBe(OpportunityState.DRAFT);
+    expect(opportunity!.state).toBe(OpportunityState.PARSING);
 
     const opportunityRecruiter = await con
       .getRepository(OpportunityUserRecruiter)
@@ -5549,6 +5682,14 @@ describe('mutation parseOpportunity', () => {
       });
 
     expect(opportunityRecruiter).toBeDefined();
+
+    expect(opportunity!.flags?.file).toMatchObject({
+      blobName: expect.stringContaining('opportunity-'),
+      bucketName: expect.any(String),
+      mimeType: 'application/pdf',
+      extension: 'pdf',
+      userId: loggedUser,
+    });
   });
 
   it('should assign opportunity to existing organization of authenticated user', async () => {
@@ -5583,10 +5724,9 @@ describe('mutation parseOpportunity', () => {
     const body = res.body;
     expect(body.errors).toBeFalsy();
 
-    expect(body.data.parseOpportunity).toMatchObject({
-      title: 'Mocked Opportunity Title',
-      organization: { id: '550e8400-e29b-41d4-a716-446655440000' },
-    });
+    // Verify opportunity is in PARSING state (organization will be linked by worker)
+    expect(body.data.parseOpportunity.state).toBe(OpportunityState.PARSING);
+    expect(body.data.parseOpportunity.title).toBe('Processing...');
 
     const opportunity = await con.getRepository(OpportunityJob).findOne({
       where: {
@@ -5594,91 +5734,10 @@ describe('mutation parseOpportunity', () => {
       },
     });
 
-    expect(opportunity!.organizationId).toBe(
-      '550e8400-e29b-41d4-a716-446655440000',
-    );
-  });
-
-  it('should assign opportunity location to Europe when no country specified', async () => {
-    loggedUser = '1';
-
-    fileTypeFromBuffer.mockResolvedValue({
-      ext: 'pdf',
-      mime: 'application/pdf',
-    });
-
-    const transport = createMockBrokkrTransport({
-      opportunity: {
-        location: [
-          new Location({
-            continent: 'Europe',
-            type: 1,
-          }),
-        ],
-      },
-    });
-
-    const serviceClient = {
-      instance: createClient(BrokkrService, transport),
-      garmr: createGarmrMock(),
-    };
-
-    jest
-      .spyOn(brokkrCommon, 'getBrokkrClient')
-      .mockImplementation((): ServiceClient<typeof BrokkrService> => {
-        return serviceClient;
-      });
-
-    await saveFixtures(con, DatasetLocation, [
-      {
-        continent: 'Europe',
-      },
-    ]);
-
-    // Execute the mutation with a file upload
-    const res = await authorizeRequest(
-      request(app.server)
-        .post('/graphql')
-        .field(
-          'operations',
-          JSON.stringify({
-            query: MUTATION,
-            variables: {
-              payload: {
-                file: null,
-              },
-            },
-          }),
-        )
-        .field('map', JSON.stringify({ '0': ['variables.payload.file'] }))
-        .attach('0', './__tests__/fixture/screen.pdf'),
-    ).expect(200);
-
-    const body = res.body;
-    expect(body.errors).toBeFalsy();
-
-    expect(body.data.parseOpportunity).toMatchObject({
-      locations: [
-        {
-          location: {
-            city: null,
-            country: 'Europe',
-            subdivision: null,
-          },
-          type: 1,
-        },
-      ],
-    });
-
-    const opportunity = await con.getRepository(OpportunityJob).findOne({
-      where: {
-        id: body.data.parseOpportunity.id,
-      },
-    });
-
-    expect(opportunity!.organizationId).toBe(
-      '550e8400-e29b-41d4-a716-446655440000',
-    );
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.state).toBe(OpportunityState.PARSING);
+    // Organization will be linked by the worker, not the mutation
+    expect(opportunity!.organizationId).toBeNull();
   });
 
   it('should throw when trying to parse opportunities from unsupported domain', async () => {
@@ -6398,6 +6457,50 @@ describe('query opportunityPreview', () => {
       id: '550e8400-e29b-41d4-a716-446655440001',
       location: [{ iso2: 'US', country: 'United States' }],
     });
+  });
+
+  it('should throw conflict error when opportunity is in parsing state', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        state: OpportunityState.PARSING,
+        flags: {
+          anonUserId: 'test-anon-user-123',
+        },
+      },
+    );
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: OPPORTUNITY_PREVIEW_QUERY,
+        variables: { first: 10 },
+      },
+      'CONFLICT',
+      'Opportunity is not ready for preview yet',
+    );
+  });
+
+  it('should throw conflict error when opportunity is in error state', async () => {
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        state: OpportunityState.ERROR,
+        flags: {
+          anonUserId: 'test-anon-user-123',
+        },
+      },
+    );
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: OPPORTUNITY_PREVIEW_QUERY,
+        variables: { first: 10 },
+      },
+      'CONFLICT',
+      'Opportunity is not ready for preview yet',
+    );
   });
 });
 

@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## Prerequisites
 
-- **Node.js**: 22.16.0 (managed via Volta)
+- **Node.js**: 22.22.0 (managed via Volta)
 - **Package Manager**: pnpm 9.14.4
 
 ## Essential Commands
@@ -21,11 +21,13 @@ This file provides guidance to coding agents when working with code in this repo
 - `pnpm run db:seed:import` - Import seed data for local development
 - `pnpm run db:migrate:make src/migration/MigrationName` - Generate new migration based on entity changes
 - `pnpm run db:migrate:create src/migration/MigrationName` - Create empty migration file
+- **Never use raw SQL queries** (`con.query()`) - always use TypeORM repository methods or query builder
+- If raw SQL is absolutely necessary, explain the reason and ask for permission before implementing
 
 **Migration Generation:**
 When adding or modifying entity columns, **always generate a migration** using:
 ```bash
-# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 22.16)
+# IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 22.22)
 cd /path/to/daily-api
 nvm use
 pnpm run db:migrate:make src/migration/DescriptiveMigrationName
@@ -108,6 +110,7 @@ The migration generator compares entities against the local database schema. Ens
 - Fixtures in `__tests__/fixture/` for test data
 - Mercurius integration testing for GraphQL endpoints
 - Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
+- When evaluating response objects (GraphQL, API), prefer `toEqual` and `toMatchObject` over multiple `expect().toBe()` lines
 
 **Infrastructure Concerns:**
 - OpenTelemetry for distributed tracing and metrics
@@ -131,6 +134,12 @@ The migration generator compares entities against the local database schema. Ens
 - Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
 - Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
 
+**Function style:**
+- Prefer const arrow functions over function declarations: `const foo = () => {}` instead of `function foo() {}`
+- Prefer single props-style argument over multiple arguments: `const foo = ({ a, b }) => {}` instead of `const foo = (a, b) => {}`
+- Don't extract single-use code into separate functions - keep logic inline where it's used
+- Only extract functions when the same logic is needed in multiple places
+
 **PubSub topics should be general-purpose:**
 - Topics should contain only essential identifiers (e.g., `{ opportunityId, userId }`)
 - Subscribers fetch their own data - don't optimize topic payloads for specific consumers
@@ -141,6 +150,11 @@ The migration generator compares entities against the local database schema. Ens
 - Available constants: `ONE_MINUTE_IN_SECONDS`, `ONE_HOUR_IN_SECONDS`, `ONE_DAY_IN_SECONDS`, `ONE_WEEK_IN_SECONDS`, `ONE_MONTH_IN_SECONDS`, `ONE_YEAR_IN_SECONDS`, `ONE_HOUR_IN_MINUTES`, `ONE_DAY_IN_MINUTES`
 - Example: Use `2 * ONE_DAY_IN_MINUTES` instead of `2 * 24 * 60`
 - Add new constants to `src/common/constants.ts` if needed (they are re-exported from `src/common/index.ts`)
+
+**Type declarations:**
+- Only create separate exported types if they are used in multiple places
+- For single-use types, define them inline within the parent type
+- Example: Instead of `export type FileData = {...}; type Flags = { file: FileData }`, use `type Flags = { file: { ... } }`
 
 ## Best Practices & Lessons Learned
 
@@ -161,3 +175,17 @@ Hooks are configured in `.claude/settings.json`:
 - **File Protection** (PreToolUse): Blocks edits to `pnpm-lock.yaml`, `src/migration/`, `.infra/Pulumi.*`, `.env`, `.git/`
 - **Prevent Force Push** (PreToolUse): Blocks `git push --force` and `git push -f`
 - **Auto-Lint** (PostToolUse): Runs `eslint --fix` on TypeScript files after edits
+
+## Node.js Version Upgrade Checklist
+
+When upgrading Node.js version, update these files:
+- `.nvmrc`
+- `package.json` (volta section)
+- `Dockerfile`
+- `Dockerfile.dev`
+- `.circleci/config.yml` (2 places: executor tag and docker image)
+- `.infra/.nvmrc`
+- `.infra/package.json` (volta section)
+- This file (`AGENTS.md` - Prerequisites section)
+
+After updating, run `pnpm install` to check if lock file needs updating and commit any changes.
