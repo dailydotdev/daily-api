@@ -1916,6 +1916,13 @@ const obj = new GraphORM({
       customLocation: {
         jsonType: true,
       },
+      image: {
+        select: (_, alias) =>
+          `COALESCE((SELECT c.image FROM company c WHERE c.id = ${alias}."companyId"), ${alias}.flags->>'customImage')`,
+      },
+      customDomain: {
+        select: (_, alias) => `${alias}.flags->>'customDomain'`,
+      },
     },
   },
   OpportunityMatchCandidatePreference: {

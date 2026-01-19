@@ -300,6 +300,30 @@ export const typeDefs = /* GraphQL */ `
     showFeedback: Boolean
   }
 
+  """
+  Minimal organization info for public opportunity
+  """
+  type OpportunityPublicOrganization {
+    name: String!
+  }
+
+  """
+  Minimal flags for public opportunity
+  """
+  type OpportunityPublicFlags {
+    plan: String
+  }
+
+  """
+  Minimal opportunity info for public access
+  """
+  type OpportunityPublic {
+    id: ID!
+    title: String!
+    organization: OpportunityPublicOrganization
+    flags: OpportunityPublicFlags
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -605,6 +629,15 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): Opportunity
+    """
+    Get public information about an opportunity (accessible by anonymous users)
+    """
+    opportunityByIdPublic(
+      """
+      Id of Opportunity
+      """
+      id: ID!
+    ): OpportunityPublic
     """
     Gets the status and description from the Opportunity match
     """
@@ -1311,6 +1344,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return opportunity;
     },
+    opportunityByIdPublic: async (_, { id }: { id: string }, ctx: Context) =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const opportunity = await queryRunner.manager
+          .getRepository(OpportunityJob)
+          .createQueryBuilder('o')
+          .leftJoinAndSelect('o.organization', 'org')
+          .where('o.id = :id', { id })
+          .getOne();
+
+        if (!opportunity) {
+          return null;
+        }
+
+        const organization = await opportunity.organization;
+        return {
+          id: opportunity.id,
+          title: opportunity.title,
+          organization: organization ? { name: organization.name } : null,
+          flags: { plan: opportunity.flags?.plan ?? null },
+        };
+      }),
     getOpportunityMatch: async (
       _,
       { id }: { id: string },

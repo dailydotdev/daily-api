@@ -519,6 +519,63 @@ describe('query opportunityById', () => {
   });
 });
 
+describe('query opportunityByIdPublic', () => {
+  const QUERY = /* GraphQL */ `
+    query OpportunityByIdPublic($id: ID!) {
+      opportunityByIdPublic(id: $id) {
+        id
+        title
+        organization {
+          name
+        }
+        flags {
+          plan
+        }
+      }
+    }
+  `;
+
+  it('should return opportunity with organization for anonymous user', async () => {
+    const res = await client.query<
+      {
+        opportunityByIdPublic: {
+          id: string;
+          title: string;
+          organization: { name: string } | null;
+          flags: { plan: string | null } | null;
+        } | null;
+      },
+      { id: string }
+    >(QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityByIdPublic).toEqual({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      title: 'Senior Full Stack Developer',
+      organization: { name: 'Daily Dev Inc' },
+      flags: { plan: null },
+    });
+  });
+
+  it('should return null for non-existent opportunity', async () => {
+    const res = await client.query<
+      {
+        opportunityByIdPublic: {
+          id: string;
+        } | null;
+      },
+      { id: string }
+    >(QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-000000000000' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityByIdPublic).toBeNull();
+  });
+});
+
 describe('query opportunities', () => {
   const GET_OPPORTUNITIES_QUERY = /* GraphQL */ `
     query GetOpportunities(

@@ -19,7 +19,7 @@ import {
 } from '../../types';
 import { getBrokkrClient } from '../brokkr';
 import { opportunityCreateParseSchema } from '../schema/opportunities';
-import { markdown } from '../markdown';
+import { markdown, sanitizeHtml } from '../markdown';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityLocation } from '../../entity/opportunities/OpportunityLocation';
 import { OpportunityKeyword } from '../../entity/OpportunityKeyword';
@@ -139,25 +139,29 @@ export async function validateOpportunityFileType(
 
 /**
  * Renders markdown content for opportunity fields
+ * Converts markdown to HTML and stores HTML in both content and html fields
  */
-function renderOpportunityMarkdownContent(
+const renderOpportunityMarkdownContent = async (
   content: Record<string, { content?: string }> | undefined,
-): OpportunityContent {
+): Promise<OpportunityContent> => {
   const renderedContent: Record<string, { content: string; html: string }> = {};
 
-  Object.entries(content || {}).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(content || {})) {
     if (typeof value?.content !== 'string') {
-      return;
+      continue;
     }
 
+    const html = markdown.render(value.content);
+    const sanitizedHtml = await sanitizeHtml(html);
+
     renderedContent[key] = {
-      content: value.content,
-      html: markdown.render(value.content),
+      content: sanitizedHtml,
+      html: sanitizedHtml,
     };
-  });
+  }
 
   return new OpportunityContent(renderedContent);
-}
+};
 
 /**
  * Parses an opportunity file using the Brokkr service
@@ -259,7 +263,9 @@ export async function parseOpportunityWithBrokkr({
   const parsedOpportunity =
     await opportunityCreateParseSchema.parseAsync(sanitizedOpportunity);
 
-  const content = renderOpportunityMarkdownContent(parsedOpportunity.content);
+  const content = await renderOpportunityMarkdownContent(
+    parsedOpportunity.content,
+  );
 
   return {
     opportunity: parsedOpportunity,
