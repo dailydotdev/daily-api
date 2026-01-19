@@ -872,6 +872,15 @@ describe('query autocompleteLocation', () => {
           iso3: 'GBR',
           externalId: 'uk1',
         },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440006',
+          country: 'United States',
+          subdivision: null,
+          city: null,
+          iso2: 'US',
+          iso3: 'USA',
+          externalId: 'usa-country',
+        },
       ]);
     });
 
@@ -902,19 +911,19 @@ describe('query autocompleteLocation', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.autocompleteLocation).toHaveLength(2);
-      // Note: ORDER BY subdivision ASC puts non-null values before null
+      // Note: ORDER BY subdivision ASC NULLS FIRST puts null values before non-null
       expect(res.data.autocompleteLocation).toEqual([
-        {
-          id: 'de1',
-          country: 'Germany',
-          city: 'Munich',
-          subdivision: 'Bavaria',
-        },
         {
           id: 'de2',
           country: 'Germany',
           city: 'Berlin',
           subdivision: null,
+        },
+        {
+          id: 'de1',
+          country: 'Germany',
+          city: 'Munich',
+          subdivision: 'Bavaria',
         },
       ]);
     });
@@ -963,7 +972,27 @@ describe('query autocompleteLocation', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.autocompleteLocation).toHaveLength(2);
+      expect(res.data.autocompleteLocation).toHaveLength(3);
+    });
+
+    it('should prioritize country-level entries over city-level entries', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'united states', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      // Country-level entry should appear first (null subdivision and city)
+      expect(res.data.autocompleteLocation[0]).toEqual({
+        id: 'usa-country',
+        country: 'United States',
+        city: null,
+        subdivision: null,
+      });
+      // Then city-level entries sorted alphabetically by subdivision
+      expect(res.data.autocompleteLocation[1].subdivision).toBe('California');
+      expect(res.data.autocompleteLocation[2].subdivision).toBe('New York');
     });
 
     it('should return empty array when no matches found', async () => {

@@ -124,8 +124,8 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
               .orWhere('dl.subdivision ILIKE :query', { query: `%${query}%` })
               .orWhere('dl.continent ILIKE :query', { query: `%${query}%` })
               .orderBy('dl.country', 'ASC')
-              .addOrderBy('dl.subdivision', 'ASC')
-              .addOrderBy('dl.city', 'ASC')
+              .addOrderBy('dl.subdivision', 'ASC', 'NULLS FIRST')
+              .addOrderBy('dl.city', 'ASC', 'NULLS FIRST')
               .limit(limit)
               .getMany(),
           );
