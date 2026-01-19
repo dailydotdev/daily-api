@@ -103,8 +103,8 @@ import {
 import {
   checkUserCoresAccess,
   deleteUser,
-  ensureUserProfileAnalyticsPermissions,
   getUserCoresRole,
+  hasUserProfileAnalyticsPermissions,
 } from '../common/user';
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
@@ -2667,8 +2667,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: { userId: string },
       ctx: AuthContext,
       info: GraphQLResolveInfo,
-    ): Promise<GQLUserProfileAnalytics> => {
-      await ensureUserProfileAnalyticsPermissions({ ctx, userId: args.userId });
+    ): Promise<GQLUserProfileAnalytics | null> => {
+      if (!hasUserProfileAnalyticsPermissions({ ctx, userId: args.userId })) {
+        return null;
+      }
 
       return graphorm.queryOneOrFail<GQLUserProfileAnalytics>(
         ctx,
@@ -2689,8 +2691,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: ConnectionArguments & { userId: string },
       ctx: AuthContext,
       info: GraphQLResolveInfo,
-    ): Promise<Connection<GQLUserProfileAnalyticsHistory>> => {
-      await ensureUserProfileAnalyticsPermissions({ ctx, userId: args.userId });
+    ): Promise<Connection<GQLUserProfileAnalyticsHistory> | null> => {
+      if (!hasUserProfileAnalyticsPermissions({ ctx, userId: args.userId })) {
+        return null;
+      }
 
       return queryPaginatedByDate(
         ctx,

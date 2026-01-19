@@ -234,26 +234,22 @@ export const checkCoresAccess = async ({
   return checkUserCoresAccess({ user, requiredRole });
 };
 
-export const ensureUserProfileAnalyticsPermissions = async ({
+export const hasUserProfileAnalyticsPermissions = ({
   ctx,
   userId,
 }: {
   ctx: AuthContext;
   userId: string;
-}): Promise<void> => {
+}): boolean => {
   const { userId: requesterId, isTeamMember } = ctx;
 
   if (isTeamMember) {
-    return;
+    return true;
   }
 
   if (!requesterId) {
-    throw new ForbiddenError('Auth is required');
+    return false;
   }
 
-  if (requesterId !== userId) {
-    throw new ForbiddenError(
-      'You do not have permission to view this profile analytics',
-    );
-  }
+  return requesterId === userId;
 };
