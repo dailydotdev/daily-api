@@ -1774,3 +1774,302 @@ describe('mutation removeUserExperience', () => {
     expect(res.errors).toBeFalsy();
   });
 });
+
+describe('UserExperience image field', () => {
+  const USER_EXPERIENCE_IMAGE_QUERY = /* GraphQL */ `
+    query UserExperienceById($id: ID!) {
+      userExperienceById(id: $id) {
+        id
+        image
+        customDomain
+        company {
+          id
+          image
+        }
+      }
+    }
+  `;
+
+  it('should return company image when experience has companyId', async () => {
+    loggedUser = '1';
+
+    // exp-1 has companyId 'company-1' which has image 'https://daily.dev/logo.png'
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+    expect(res.data.userExperienceById.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+  });
+
+  it('should return customImage from flags when no companyId', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'e5f6a7b8-9abc-4ef0-1234-567890123456';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: null,
+      customCompanyName: 'Custom Company',
+      title: 'Developer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {
+        customDomain: 'https://custom.com',
+        customImage:
+          'https://www.google.com/s2/favicons?domain=custom.com&sz=128',
+      },
+    });
+
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: experienceId },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company).toBeNull();
+    expect(res.data.userExperienceById.customDomain).toBe('https://custom.com');
+    expect(res.data.userExperienceById.image).toBe(
+      'https://www.google.com/s2/favicons?domain=custom.com&sz=128',
+    );
+  });
+
+  it('should prioritize company image over customImage when both exist', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'f6a7b8c9-abcd-4f01-2345-678901234567';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: 'company-1',
+      title: 'Engineer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {
+        customDomain: 'https://other.com',
+        customImage:
+          'https://www.google.com/s2/favicons?domain=other.com&sz=128',
+      },
+    });
+
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: experienceId },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+    expect(res.data.userExperienceById.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+    expect(res.data.userExperienceById.customDomain).toBe('https://other.com');
+  });
+
+  it('should return null image when neither companyId nor customImage exists', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'a7b8c9d0-bcde-4012-3456-789012345678';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: null,
+      customCompanyName: 'No Image Company',
+      title: 'Intern',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {},
+    });
+
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: experienceId },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company).toBeNull();
+    expect(res.data.userExperienceById.image).toBeNull();
+    expect(res.data.userExperienceById.customDomain).toBeNull();
+  });
+
+  it('should still link to existing company when customDomain is provided', async () => {
+    loggedUser = '1';
+
+    const UPSERT_WORK_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          image
+          customDomain
+          customCompanyName
+          company {
+            id
+            name
+            image
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Engineer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Daily.dev',
+          customDomain: 'https://mycustomdomain.com',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience.company).not.toBeNull();
+    expect(res.data.upsertUserWorkExperience.company.name).toBe('Daily.dev');
+    expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
+    expect(res.data.upsertUserWorkExperience.customDomain).toBe(
+      'mycustomdomain.com',
+    );
+    expect(res.data.upsertUserWorkExperience.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+  });
+
+  it('should set removedEnrichment flag and prevent auto-linking on subsequent saves', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'c9d0e1f2-def0-4234-5678-901234567890';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: 'company-1',
+      title: 'Engineer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {},
+    });
+
+    const UPSERT_WORK_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          company {
+            id
+          }
+          customCompanyName
+        }
+      }
+    `;
+
+    const res1 = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Engineer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Daily.dev',
+        },
+      },
+    });
+
+    expect(res1.errors).toBeFalsy();
+    expect(res1.data.upsertUserWorkExperience.company).toBeNull();
+    expect(res1.data.upsertUserWorkExperience.customCompanyName).toBe(
+      'Daily.dev',
+    );
+
+    const afterFirstSave = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(afterFirstSave?.flags?.removedEnrichment).toBe(true);
+    expect(afterFirstSave?.companyId).toBeNull();
+
+    const res2 = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Senior Engineer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Daily.dev',
+        },
+      },
+    });
+
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.upsertUserWorkExperience.company).toBeNull();
+    expect(res2.data.upsertUserWorkExperience.customCompanyName).toBe(
+      'Daily.dev',
+    );
+
+    const afterSecondSave = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(afterSecondSave?.companyId).toBeNull();
+    expect(afterSecondSave?.flags?.removedEnrichment).toBe(true);
+  });
+
+  it('should allow re-linking to company after removedEnrichment was set', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'd0e1f2a3-ef01-5345-6789-012345678901';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: null,
+      customCompanyName: 'Some Custom Company',
+      title: 'Developer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: { removedEnrichment: true },
+    });
+
+    const UPSERT_WORK_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          company {
+            id
+            name
+          }
+          customCompanyName
+        }
+      }
+    `;
+
+    const res = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience.company).not.toBeNull();
+    expect(res.data.upsertUserWorkExperience.company.id).toBe('company-1');
+    expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
+
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(updated?.companyId).toBe('company-1');
+  });
+});

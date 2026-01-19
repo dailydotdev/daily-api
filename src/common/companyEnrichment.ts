@@ -102,7 +102,7 @@ async function validateDomain(
   return null;
 }
 
-function getGoogleFaviconUrl(domain: string): string {
+export function getGoogleFaviconUrl(domain: string): string {
   return `${GOOGLE_FAVICON_URL}?domain=${encodeURIComponent(domain)}&sz=${FAVICON_SIZE}`;
 }
 
