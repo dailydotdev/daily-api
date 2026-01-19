@@ -4681,7 +4681,7 @@ describe('mutation deleteUser', () => {
       await con.getRepository(Organization).save({
         id: orgId,
         name: `Test Org ${orgId}`,
-        subscriptionFlags: { status: SubscriptionStatus.Active },
+        recruiterSubscriptionFlags: { status: SubscriptionStatus.Active },
       });
       await con.getRepository(OpportunityJob).save({
         id: oppId,
@@ -4704,7 +4704,7 @@ describe('mutation deleteUser', () => {
         client,
         { mutation: MUTATION },
         'CONFLICT',
-        'Cannot delete your account because one of your organizations has an active subscription. Please cancel the subscription first.',
+        'Cannot delete your account because one of your organizations has an active recruiter subscription. Please cancel the subscription first.',
       );
 
       expect(

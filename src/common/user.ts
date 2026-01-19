@@ -150,14 +150,14 @@ export const deleteUser = async (
           .where('org.id IN (:...ids)', {
             ids: opportunityOrganization.map((item) => item.organizationId),
           })
-          .andWhere(`org."subscriptionFlags"->>'status' = :status`, {
+          .andWhere(`org."recruiterSubscriptionFlags"->>'status' = :status`, {
             status: SubscriptionStatus.Active,
           })
           .getCount();
 
         if (orgsWithActiveSubscription > 0) {
           throw new ConflictError(
-            'Cannot delete your account because one of your organizations has an active subscription. Please cancel the subscription first.',
+            'Cannot delete your account because one of your organizations has an active recruiter subscription. Please cancel the subscription first.',
           );
         }
       }
