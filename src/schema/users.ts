@@ -321,11 +321,8 @@ export interface GQLUserProfileAnalytics {
   updatedAt: Date;
 }
 
-export interface GQLUserProfileAnalyticsHistory {
-  id: string;
+export interface GQLUserProfileAnalyticsHistory extends GQLUserProfileAnalytics {
   date: string;
-  uniqueVisitors: number;
-  updatedAt: Date;
 }
 
 export interface SendReportArgs {

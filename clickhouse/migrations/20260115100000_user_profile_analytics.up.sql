@@ -1,4 +1,3 @@
--- Main aggregation table for user profile analytics
 CREATE TABLE api.user_profile_analytics
 (
     user_id String,
@@ -9,7 +8,6 @@ ENGINE = AggregatingMergeTree
 PARTITION BY toYYYYMM(created_at)
 ORDER BY user_id;
 
--- History table for daily aggregates
 CREATE TABLE api.user_profile_analytics_history
 (
     user_id String,
