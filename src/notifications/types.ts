@@ -199,6 +199,12 @@ export type NotificationExperienceCompanyEnrichedContext =
     companyName: string;
   };
 
+export type NotificationRecruiterExternalPaymentContext =
+  NotificationBaseContext & {
+    opportunityId: string;
+    opportunityTitle: string;
+  };
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

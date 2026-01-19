@@ -29,6 +29,7 @@ import { Organization } from '../../../entity/Organization';
 import { User } from '../../../entity/user/User';
 import { DeletedUser } from '../../../entity/user/DeletedUser';
 import type { EntityManager } from 'typeorm';
+import { triggerTypedEvent } from '../../typedPubsub';
 
 const checkUserValid = async ({
   userId,
@@ -72,9 +73,8 @@ export const createOpportunitySubscription = async ({
 }) => {
   const data = getPaddleSubscriptionData({ event });
   const con = await createOrGetConnection();
-  const { opportunity_id, user_id } = recruiterPaddleCustomDataSchema.parse(
-    event.data.customData,
-  );
+  const { opportunity_id, user_id, external_pay } =
+    recruiterPaddleCustomDataSchema.parse(event.data.customData);
 
   const subscriptionType = extractSubscriptionCycle(
     data.items as PaddleSubscriptionEvent['data']['items'],
@@ -105,9 +105,9 @@ export const createOpportunitySubscription = async ({
 
   const opportunity: Pick<
     OpportunityJob,
-    'id' | 'organizationId' | 'organization'
+    'id' | 'organizationId' | 'organization' | 'title'
   > = await con.getRepository(OpportunityJob).findOneOrFail({
-    select: ['id', 'organizationId', 'organization'],
+    select: ['id', 'organizationId', 'organization', 'title'],
     where: {
       id: opportunity_id,
     },
@@ -195,6 +195,14 @@ export const createOpportunitySubscription = async ({
       },
     );
   });
+
+  // If this is an external payment, notify existing recruiters
+  if (external_pay) {
+    await triggerTypedEvent(logger, 'api.v1.opportunity-external-payment', {
+      opportunityId: opportunity_id,
+      title: opportunity.title,
+    });
+  }
 };
 
 export const cancelRecruiterSubscription = async ({
