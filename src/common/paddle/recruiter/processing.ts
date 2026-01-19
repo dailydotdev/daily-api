@@ -26,7 +26,45 @@ import {
 } from '../../utils';
 import { OpportunityState } from '@dailydotdev/schema';
 import { Organization } from '../../../entity/Organization';
+import { User } from '../../../entity/user/User';
+import { DeletedUser } from '../../../entity/user/DeletedUser';
+import type { EntityManager } from 'typeorm';
 import { triggerTypedEvent } from '../../typedPubsub';
+
+const checkUserValid = async ({
+  userId,
+  con,
+  event,
+}: {
+  userId: string;
+  con: EntityManager;
+  event: SubscriptionCreatedEvent | SubscriptionCanceledEvent;
+}): Promise<boolean> => {
+  const user = await con.getRepository(User).exists({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    const deletedUser = await con.getRepository(DeletedUser).exists({
+      where: { id: userId },
+    });
+
+    logger.warn(
+      {
+        provider: SubscriptionProvider.Paddle,
+        purchaseType: PurchaseType.Recruiter,
+        data: event,
+      },
+      deletedUser
+        ? 'User is deleted during payment processing'
+        : 'User not found during payment processing',
+    );
+
+    return false;
+  }
+
+  return true;
+};
 
 export const createOpportunitySubscription = async ({
   event,
@@ -53,6 +91,16 @@ export const createOpportunitySubscription = async ({
     );
 
     return false;
+  }
+
+  const isUserValid = await checkUserValid({
+    userId: user_id,
+    con: con.manager,
+    event,
+  });
+
+  if (!isUserValid) {
+    return;
   }
 
   const opportunity: Pick<
@@ -167,6 +215,16 @@ export const cancelRecruiterSubscription = async ({
     event.data.customData,
   );
 
+  const isUserValid = await checkUserValid({
+    userId: user_id,
+    con: con.manager,
+    event,
+  });
+
+  if (!isUserValid) {
+    return;
+  }
+
   const opportunity: Pick<
     OpportunityJob,
     'id' | 'organizationId' | 'organization'
@@ -184,7 +242,7 @@ export const cancelRecruiterSubscription = async ({
     con: con.manager,
     userId: user_id,
     opportunityId: opportunity_id,
-    permission: OpportunityPermissions.Edit,
+    permission: OpportunityPermissions.UpdateState,
   });
 
   const organization = await opportunity.organization;
