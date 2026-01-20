@@ -2133,6 +2133,32 @@ const obj = new GraphORM({
       },
     },
   },
+  DatasetStack: {
+    requiredColumns: ['id', 'title'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserStack: {
+    requiredColumns: ['id', 'userId', 'stackId'],
+    fields: {
+      stack: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'stackId',
+        },
+      },
+      startedAt: {
+        transform: transformDate,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
 });
 
 export default obj;

@@ -53,7 +53,7 @@ The migration generator compares entities against the local database schema. Ens
 - **Fastify** - Web framework with plugins for CORS, helmet, cookies, rate limiting
 - **Mercurius** - GraphQL server with caching, upload support, and subscriptions
 - **TypeORM** - Database ORM with entity-based modeling and migrations
-- **PostgreSQL** - Primary database with master/slave replication setup. Favor read replica when you're ok with eventually consistent data.
+- **PostgreSQL** - Primary database with master/slave replication setup. **Prefer read replica for queries** when eventual consistency is acceptable (most read operations). Use primary only for writes and reads that must be immediately consistent after a write.
 - **Redis** - Caching and pub/sub via `@dailydotdev/ts-ioredis-pool`
 - **Temporal** - Workflow orchestration for background jobs
 - **ClickHouse** - Analytics and metrics storage
@@ -155,6 +155,15 @@ The migration generator compares entities against the local database schema. Ens
 - Only create separate exported types if they are used in multiple places
 - For single-use types, define them inline within the parent type
 - Example: Instead of `export type FileData = {...}; type Flags = { file: FileData }`, use `type Flags = { file: { ... } }`
+
+**Imports:**
+- **Avoid barrel file imports** (index.ts re-exports). Import directly from the specific file instead.
+- Example: Use `import { User } from './entity/user/User'` instead of `import { User } from './entity'`
+- This improves build times, makes dependencies clearer, and avoids circular dependency issues
+
+**Zod patterns:**
+- Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
+- **Place Zod schemas in `src/common/schema/`** - not inline in resolver files. Create a dedicated file per domain (e.g., `userStack.ts`, `opportunities.ts`)
 
 ## Best Practices & Lessons Learned
 
