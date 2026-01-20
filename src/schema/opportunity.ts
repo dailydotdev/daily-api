@@ -73,7 +73,7 @@ import {
 } from '../common/opportunity/accessControl';
 import { sanitizeHtml } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, JsonContains, EntityManager, DeepPartial } from 'typeorm';
+import { In, Not, EntityManager, DeepPartial, IsNull } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import { Source, SourceType } from '../entity/Source';
 import {
@@ -118,6 +118,7 @@ import { notifyOpportunityFeedbackSubmitted } from '../common/opportunity/pubsub
 import { triggerTypedEvent } from '../common/typedPubsub';
 import { randomUUID } from 'crypto';
 import { opportunityMatchBatchSize } from '../types';
+import { ClaimableItem, ClaimableItemTypes } from '../entity/ClaimableItem';
 
 export interface GQLOpportunity extends Pick<
   Opportunity,
@@ -1592,11 +1593,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             relations: { keywords: true },
           });
       } else {
+        const claimableItem = await ctx.con
+          .getRepository(ClaimableItem)
+          .findOne({
+            where: {
+              identifier: ctx.trackingId,
+              type: ClaimableItemTypes.Opportunity,
+              claimedById: IsNull(),
+            },
+          });
+
+        if (!claimableItem?.flags?.opportunityId) {
+          throw new NotFoundError('No opportunity found for preview');
+        }
+
         opportunity = await ctx.con
           .getRepository(OpportunityJob)
           .findOneOrFail({
             where: {
-              flags: JsonContains({ anonUserId: ctx.trackingId }),
+              id: claimableItem.flags.opportunityId,
             },
             relations: { keywords: true },
           });
@@ -2860,10 +2875,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       };
 
-      if (!ctx.userId) {
-        flags.anonUserId = ctx.trackingId;
-      }
-
       const opportunity = await ctx.con.transaction(async (entityManager) => {
         const newOpportunity = await ctx.con.getRepository(OpportunityJob).save(
           ctx.con.getRepository(OpportunityJob).create({
@@ -2880,6 +2891,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             entityManager.getRepository(OpportunityUserRecruiter).create({
               opportunityId: newOpportunity.id,
               userId: ctx.userId,
+            }),
+          );
+        } else {
+          await entityManager.getRepository(ClaimableItem).insert(
+            entityManager.getRepository(ClaimableItem).create({
+              identifier: ctx.trackingId,
+              type: ClaimableItemTypes.Opportunity,
+              flags: {
+                opportunityId: newOpportunity.id,
+              },
             }),
           );
         }

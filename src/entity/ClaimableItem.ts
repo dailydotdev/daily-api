@@ -11,6 +11,7 @@ import type { SubscriptionProvider, SubscriptionStatus } from '../common/plus';
 
 export enum ClaimableItemTypes {
   Plus = 'plus',
+  Opportunity = 'opportunity',
 }
 
 export type ClaimableItemFlags = {
@@ -19,6 +20,7 @@ export type ClaimableItemFlags = {
   subscriptionId: string | null;
   provider: SubscriptionProvider | null;
   status: SubscriptionStatus | null;
+  opportunityId?: string;
 };
 
 @Entity()
@@ -27,8 +29,8 @@ export class ClaimableItem {
   id: string;
 
   @Column({ type: 'text' })
-  @Index('IDX_claimable_item_email')
-  email: string;
+  @Index('IDX_claimable_item_identifier')
+  identifier: string; // typically email
 
   @Column({ default: () => 'now()' })
   createdAt: Date;

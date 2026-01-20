@@ -13,10 +13,7 @@ import {
 import { getBufferFromStream } from '../utils';
 import { ValidationError } from 'apollo-server-errors';
 import { garmScraperService } from '../scraper';
-import {
-  acceptedOpportunityFileTypes,
-  opportunityMatchBatchSize,
-} from '../../types';
+import { acceptedOpportunityFileTypes } from '../../types';
 import { getBrokkrClient } from '../brokkr';
 import { opportunityCreateParseSchema } from '../schema/opportunities';
 import { markdown, sanitizeHtml } from '../markdown';
@@ -25,7 +22,6 @@ import { OpportunityLocation } from '../../entity/opportunities/OpportunityLocat
 import { OpportunityKeyword } from '../../entity/OpportunityKeyword';
 import { findDatasetLocation } from '../../entity/dataset/utils';
 import { addOpportunityDefaultQuestionFeedback } from './question';
-import type { Opportunity } from '../../entity/opportunities/Opportunity';
 import { EntityManager } from 'typeorm';
 import { logger } from '../../logger';
 import { randomUUID } from 'node:crypto';
@@ -298,14 +294,6 @@ export async function createOpportunityFromParsedData(
   const locationData = parsedOpportunity.location || [];
 
   return ctx.con.transaction(async (entityManager) => {
-    const flags: Opportunity['flags'] = {};
-
-    if (!ctx.userId) {
-      flags.anonUserId = ctx.trackingId;
-    }
-
-    flags.batchSize = opportunityMatchBatchSize;
-
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { location, ...opportunityData } = parsedOpportunity;
 
@@ -336,7 +324,6 @@ export async function createOpportunityFromParsedData(
         ...opportunityData,
         state: OpportunityState.DRAFT,
         content,
-        flags,
       } as DeepPartial<OpportunityJob>),
     );
 
