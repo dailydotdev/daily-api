@@ -87,6 +87,10 @@ import { SubscriptionStatus } from '../../src/common/plus';
 import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
 import { unsupportedOpportunityDomains } from '../../src/common/schema/opportunities';
 import * as typedPubsub from '../../src/common/typedPubsub';
+import {
+  ClaimableItem,
+  ClaimableItemTypes,
+} from '../../src/entity/ClaimableItem';
 
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
@@ -6138,7 +6142,6 @@ describe('query opportunityPreview', () => {
       { id: opportunitiesFixture[0].id },
       {
         flags: {
-          anonUserId: 'test-anon-user-123',
           preview: {
             userIds: ['1', '2'],
             totalCount: 2000, // mocked total count
@@ -6146,6 +6149,12 @@ describe('query opportunityPreview', () => {
         },
       },
     );
+
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
       variables: { first: 10 },
@@ -6165,7 +6174,6 @@ describe('query opportunityPreview', () => {
       { id: opportunitiesFixture[0].id },
       {
         flags: {
-          anonUserId: 'test-anon-user-123',
           preview: {
             userIds: ['1'],
             totalCount: 1000, // mocked total count
@@ -6173,6 +6181,12 @@ describe('query opportunityPreview', () => {
         },
       },
     );
+
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
       variables: { first: 10 },
@@ -6228,14 +6242,11 @@ describe('query opportunityPreview', () => {
   });
 
   it('should indicate async generation is in progress', async () => {
-    await con.getRepository(OpportunityJob).update(
-      { id: opportunitiesFixture[0].id },
-      {
-        flags: {
-          anonUserId: 'test-anon-user-123',
-        },
-      },
-    );
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
       variables: { first: 10 },
@@ -6259,7 +6270,6 @@ describe('query opportunityPreview', () => {
       { id: opportunitiesFixture[0].id },
       {
         flags: {
-          anonUserId: 'test-anon-user-123',
           preview: {
             userIds: [],
             totalCount: 0,
@@ -6267,6 +6277,12 @@ describe('query opportunityPreview', () => {
         },
       },
     );
+
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
       variables: { first: 10 },
@@ -6290,7 +6306,6 @@ describe('query opportunityPreview', () => {
       { id: opportunitiesFixture[0].id },
       {
         flags: {
-          anonUserId: 'test-anon-user-123',
           preview: {
             userIds: ['1'],
             totalCount: 1000, // mocked total count
@@ -6298,6 +6313,12 @@ describe('query opportunityPreview', () => {
         },
       },
     );
+
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
       variables: { first: 10 },
@@ -6316,14 +6337,11 @@ describe('query opportunityPreview', () => {
   });
 
   it('should send valid opportunity data to gondul', async () => {
-    await con.getRepository(OpportunityJob).update(
-      { id: opportunitiesFixture[0].id },
-      {
-        flags: {
-          anonUserId: 'test-anon-user-123',
-        },
-      },
-    );
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     const opportunityPreviewSpy = jest.spyOn(
       gondulModule.getGondulOpportunityServiceClient().instance,
@@ -6375,14 +6393,11 @@ describe('query opportunityPreview', () => {
   });
 
   it('should send valid locations data for continent matched opportunity', async () => {
-    await con.getRepository(OpportunityJob).update(
-      { id: opportunitiesFixture[0].id },
-      {
-        flags: {
-          anonUserId: 'test-anon-user-123',
-        },
-      },
-    );
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     const continentLocation = await con.getRepository(DatasetLocation).save(
       con.getRepository(DatasetLocation).create({
@@ -6424,14 +6439,11 @@ describe('query opportunityPreview', () => {
   });
 
   it('should default to US location when opportunity has no locations', async () => {
-    await con.getRepository(OpportunityJob).update(
-      { id: opportunitiesFixture[0].id },
-      {
-        flags: {
-          anonUserId: 'test-anon-user-123',
-        },
-      },
-    );
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     await con.getRepository(OpportunityLocation).delete({
       opportunityId: opportunitiesFixture[0].id,
@@ -6463,11 +6475,14 @@ describe('query opportunityPreview', () => {
       { id: opportunitiesFixture[0].id },
       {
         state: OpportunityState.PARSING,
-        flags: {
-          anonUserId: 'test-anon-user-123',
-        },
       },
     );
+
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     await testQueryErrorCode(
       client,
@@ -6485,11 +6500,14 @@ describe('query opportunityPreview', () => {
       { id: opportunitiesFixture[0].id },
       {
         state: OpportunityState.ERROR,
-        flags: {
-          anonUserId: 'test-anon-user-123',
-        },
       },
     );
+
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
 
     await testQueryErrorCode(
       client,
