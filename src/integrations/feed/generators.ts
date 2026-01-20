@@ -17,6 +17,7 @@ import {
 } from './configs';
 import { LofnClient } from '../lofn';
 import { GarmrService } from '../garmr';
+import { FeedOrderBy } from '../../entity/Feed';
 
 /**
  * Utility class for easily generating feeds using provided config and client
@@ -113,6 +114,33 @@ export const feedGenerators: Partial<Record<FeedVersion, FeedGenerator>> =
         },
       ),
       'popular',
+    ),
+    time: new FeedGenerator(
+      feedClient,
+      new FeedPreferencesConfigGenerator(
+        {
+          ...baseFeedConfig,
+          feed_config_name: FeedConfigName.Popular,
+          min_day_range: 14,
+          allowed_content_curations: [
+            'news',
+            'release',
+            'opinion',
+            'comparison',
+            'story',
+          ],
+          order_by: FeedOrderBy.Date,
+        },
+        {
+          includePostTypes: true,
+          includeBlockedSources: true,
+          includeBlockedTags: true,
+          includeContentCuration: true,
+          includeBlockedWords: true,
+          includeBlockedUsers: true,
+        },
+      ),
+      'time',
     ),
     onboarding: new FeedGenerator(
       feedClient,
