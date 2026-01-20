@@ -499,6 +499,7 @@ export type FeedResolverOptions<TArgs, TParams, TPage extends Page> = {
   allowPrivatePosts?: boolean;
   allowSquadPosts?: boolean;
   removeNonPublicThresholdSquads?: boolean;
+  defaultSupportedTypes?: string[];
 };
 
 export function feedResolver<
@@ -530,6 +531,7 @@ export function feedResolver<
     allowPrivatePosts = true,
     allowSquadPosts = true,
     removeNonPublicThresholdSquads = true,
+    defaultSupportedTypes = ['article'],
   }: FeedResolverOptions<TArgs, TParams, TPage> = {},
 ): IFieldResolver<TSource, Context, TArgs> {
   return async (source, args, context, info): Promise<Connection<GQLPost>> => {
@@ -582,7 +584,7 @@ export function feedResolver<
               builder.alias,
             ),
             builder.alias,
-            supportedTypes || ['article'],
+            supportedTypes || defaultSupportedTypes,
             removeHiddenPosts,
             removeBannedPosts,
             allowPrivatePosts,
