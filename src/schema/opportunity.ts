@@ -119,6 +119,7 @@ import { triggerTypedEvent } from '../common/typedPubsub';
 import { randomUUID } from 'crypto';
 import { opportunityMatchBatchSize } from '../types';
 import { ClaimableItem, ClaimableItemTypes } from '../entity/ClaimableItem';
+import { claimAnonOpportunities } from '../common/opportunity/user';
 
 export interface GQLOpportunity extends Pick<
   Opportunity,
@@ -204,6 +205,10 @@ export interface GQLOpportunityStats {
   forReview: number;
   introduced: number;
 }
+
+export type GQLOpportunitiesClaim = {
+  ids: string[];
+};
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -620,6 +625,10 @@ export const typeDefs = /* GraphQL */ `
     introduced: Int!
   }
 
+  type OpportunitiesClaim {
+    ids: [String!]!
+  }
+
   extend type Query {
     """
     Get the public information about a Opportunity listing
@@ -1032,6 +1041,11 @@ export const typeDefs = /* GraphQL */ `
 
       payload: AddOpportunitySeatsInput!
     ): EmptyResponse @auth
+
+    """
+    Claim opportunities associated with an anonymous identifier
+    """
+    claimOpportunities(identifier: String!): OpportunitiesClaim @auth
   }
 `;
 
@@ -3019,6 +3033,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
         throw error;
       }
+    },
+    claimOpportunities: async (
+      _,
+      { identifier }: { identifier: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunitiesClaim> => {
+      const opportunities = await claimAnonOpportunities({
+        anonUserId: identifier,
+        userId: ctx.userId,
+        con: ctx.con.manager,
+      });
+
+      return {
+        ids: opportunities.map((item) => item.id),
+      };
     },
   },
   OpportunityMatch: {

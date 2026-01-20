@@ -1,5 +1,5 @@
 import type { ZodError } from 'zod';
-import { DataSource, IsNull } from 'typeorm';
+import { DataSource, In, IsNull } from 'typeorm';
 import request from 'supertest';
 import { Alerts, Keyword, User } from '../../src/entity';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
@@ -6834,5 +6834,268 @@ describe('mutation reimportOpportunity', () => {
 
     expect(updatedOpportunity.title).toBe('Mocked Opportunity Title');
     expect(updatedOpportunity.state).toBe(originalOpportunity.state); // State should be preserved
+  });
+});
+
+describe('mutation claimOpportunities', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClaimOpportunities($identifier: String!) {
+      claimOpportunities(identifier: $identifier) {
+        ids
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { identifier: 'anon-123' },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should claim multiple opportunities for valid identifier', async () => {
+    loggedUser = '1';
+
+    const oppId1 = 'a50e8400-e29b-41d4-a716-446655440001';
+    const oppId2 = 'a50e8400-e29b-41d4-a716-446655440002';
+
+    // Create opportunities without organization (claimable)
+    await con.getRepository(OpportunityJob).save([
+      {
+        id: oppId1,
+        type: OpportunityType.JOB,
+        state: OpportunityState.DRAFT,
+        title: 'Claimable Opportunity 1',
+        tldr: 'Test opportunity 1',
+        organizationId: null,
+      },
+      {
+        id: oppId2,
+        type: OpportunityType.JOB,
+        state: OpportunityState.DRAFT,
+        title: 'Claimable Opportunity 2',
+        tldr: 'Test opportunity 2',
+        organizationId: null,
+      },
+    ]);
+
+    // Create claimable items for the same anonymous identifier
+    await con.getRepository(ClaimableItem).save([
+      {
+        identifier: 'anon-user-abc',
+        type: ClaimableItemTypes.Opportunity,
+        flags: { opportunityId: oppId1 },
+      },
+      {
+        identifier: 'anon-user-abc',
+        type: ClaimableItemTypes.Opportunity,
+        flags: { opportunityId: oppId2 },
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'anon-user-abc' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities.ids).toHaveLength(2);
+    expect(res.data.claimOpportunities.ids).toEqual(
+      expect.arrayContaining([oppId1, oppId2]),
+    );
+
+    // Verify OpportunityUserRecruiter created for both
+    const recruiters = await con
+      .getRepository(OpportunityUserRecruiter)
+      .findBy({ userId: '1', opportunityId: In([oppId1, oppId2]) });
+    expect(recruiters).toHaveLength(2);
+
+    // Verify ClaimableItems marked as claimed
+    const claimedItems = await con
+      .getRepository(ClaimableItem)
+      .findBy({ identifier: 'anon-user-abc' });
+    expect(claimedItems.every((item) => item.claimedById === '1')).toBe(true);
+    expect(claimedItems.every((item) => item.claimedAt !== null)).toBe(true);
+  });
+
+  it('should return empty when no claimable items match identifier', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'non-existent-identifier' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities).toEqual({ ids: [] });
+  });
+
+  it('should return empty when claimable items are already claimed', async () => {
+    loggedUser = '1';
+
+    const oppId = 'b50e8400-e29b-41d4-a716-446655440001';
+
+    await con.getRepository(OpportunityJob).save({
+      id: oppId,
+      type: OpportunityType.JOB,
+      state: OpportunityState.DRAFT,
+      title: 'Already Claimed Opportunity',
+      tldr: 'Test opportunity',
+      organizationId: null,
+    });
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: 'anon-claimed',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: oppId },
+      claimedById: '2',
+      claimedAt: new Date(),
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'anon-claimed' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities).toEqual({ ids: [] });
+  });
+
+  it('should return empty when opportunities have organization linked', async () => {
+    loggedUser = '1';
+
+    const oppId = 'c50e8400-e29b-41d4-a716-446655440001';
+
+    await con.getRepository(OpportunityJob).save({
+      id: oppId,
+      type: OpportunityType.JOB,
+      state: OpportunityState.DRAFT,
+      title: 'Opportunity With Org',
+      tldr: 'Test opportunity',
+      organizationId: organizationsFixture[0].id,
+    });
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: 'anon-with-org',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: oppId },
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'anon-with-org' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities).toEqual({ ids: [] });
+  });
+
+  it('should return empty when claimable item flags lack opportunityId', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: 'anon-no-opp-id',
+      type: ClaimableItemTypes.Opportunity,
+      flags: {},
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'anon-no-opp-id' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities).toEqual({ ids: [] });
+  });
+
+  it('should only claim opportunities without organization', async () => {
+    loggedUser = '1';
+
+    const oppId1 = 'd50e8400-e29b-41d4-a716-446655440001';
+    const oppId2 = 'd50e8400-e29b-41d4-a716-446655440002';
+
+    await con.getRepository(OpportunityJob).save([
+      {
+        id: oppId1,
+        type: OpportunityType.JOB,
+        state: OpportunityState.DRAFT,
+        title: 'Claimable',
+        tldr: 'Test opportunity 1',
+        organizationId: null,
+      },
+      {
+        id: oppId2,
+        type: OpportunityType.JOB,
+        state: OpportunityState.DRAFT,
+        title: 'Not Claimable - has org',
+        tldr: 'Test opportunity 2',
+        organizationId: organizationsFixture[0].id,
+      },
+    ]);
+
+    await con.getRepository(ClaimableItem).save([
+      {
+        identifier: 'anon-partial',
+        type: ClaimableItemTypes.Opportunity,
+        flags: { opportunityId: oppId1 },
+      },
+      {
+        identifier: 'anon-partial',
+        type: ClaimableItemTypes.Opportunity,
+        flags: { opportunityId: oppId2 },
+      },
+    ]);
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'anon-partial' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities.ids).toEqual([oppId1]);
+
+    // Both claimable items should be marked as claimed
+    const claimedItems = await con
+      .getRepository(ClaimableItem)
+      .findBy({ identifier: 'anon-partial' });
+    expect(claimedItems.every((item) => item.claimedById === '1')).toBe(true);
+  });
+
+  it('should handle existing OpportunityUserRecruiter gracefully', async () => {
+    loggedUser = '1';
+
+    const oppId = 'e50e8400-e29b-41d4-a716-446655440001';
+
+    await con.getRepository(OpportunityJob).save({
+      id: oppId,
+      type: OpportunityType.JOB,
+      state: OpportunityState.DRAFT,
+      title: 'Opportunity with existing recruiter',
+      tldr: 'Test opportunity',
+      organizationId: null,
+    });
+
+    // Pre-existing recruiter relationship
+    await con.getRepository(OpportunityUserRecruiter).save({
+      opportunityId: oppId,
+      userId: '1',
+    });
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: 'anon-existing-recruiter',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: oppId },
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'anon-existing-recruiter' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities.ids).toEqual([oppId]);
+
+    // Should still only have one recruiter record (upsert)
+    const recruiters = await con
+      .getRepository(OpportunityUserRecruiter)
+      .findBy({ opportunityId: oppId, userId: '1' });
+    expect(recruiters).toHaveLength(1);
   });
 });
