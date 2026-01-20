@@ -353,7 +353,7 @@ describe('parseOpportunity worker', () => {
     expect(mockStorageDelete).toHaveBeenCalled();
   });
 
-  it('should clean up GCS file on Brokkr error', async () => {
+  it('should not clean up GCS file on Brokkr error', async () => {
     // Spy on Brokkr parseOpportunity and make it fail
     const parseOpportunitySpy = jest.spyOn(
       brokkrCommon.getBrokkrClient().instance,
@@ -391,8 +391,8 @@ describe('parseOpportunity worker', () => {
     expect(opportunity!.state).toBe(OpportunityState.ERROR);
 
     // Verify GCS file was cleaned up via finally block despite error
-    expect(mockStorageExists).toHaveBeenCalled();
-    expect(mockStorageDelete).toHaveBeenCalled();
+    expect(mockStorageExists).not.toHaveBeenCalled();
+    expect(mockStorageDelete).not.toHaveBeenCalled();
   });
 
   it('should handle missing opportunity', async () => {

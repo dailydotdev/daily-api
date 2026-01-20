@@ -16,6 +16,7 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
   handler: async ({ data }, con, logger) => {
     const startMs = performance.now();
     const { opportunityId } = data;
+    let hasError = false;
 
     // Fetch opportunity early to extract file data for cleanup
     const opportunity = await con.getRepository(OpportunityJob).findOne({
@@ -104,6 +105,8 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
         'parseOpportunity worker: completed',
       );
     } catch (error) {
+      hasError = true;
+
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
@@ -126,7 +129,7 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
       );
     } finally {
       // Clean up GCS file if it exists (regardless of success/failure/early return)
-      if (fileData?.blobName && fileData?.bucketName) {
+      if (!hasError && fileData?.blobName && fileData?.bucketName) {
         await deleteBlobFromGCS({
           blobName: fileData.blobName,
           bucketName: fileData.bucketName,
