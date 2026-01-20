@@ -4878,7 +4878,6 @@ describe('mutation updateOpportunityState', () => {
           'content.overview',
           'content.responsibilities',
           'content.requirements',
-          'questions',
         ]);
       },
     );
