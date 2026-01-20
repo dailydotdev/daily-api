@@ -40,6 +40,7 @@ import { warmIntroNotification } from './warmIntroNotification';
 import { parseCVProfileWorker } from '../opportunity/parseCVProfile';
 import { recruiterNewCandidateNotification } from './recruiterNewCandidateNotification';
 import { recruiterOpportunityLiveNotification } from './recruiterOpportunityLiveNotification';
+import { experienceCompanyEnrichedNotification } from './experienceCompanyEnrichedNotification';
 import { recruiterExternalPaymentNotification } from './recruiterExternalPaymentNotification';
 
 export function notificationWorkerToWorker(
@@ -127,6 +128,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   parseCVProfileWorker,
   recruiterNewCandidateNotification,
   recruiterOpportunityLiveNotification,
+  experienceCompanyEnrichedNotification,
   recruiterExternalPaymentNotification,
 ];
 

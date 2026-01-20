@@ -1,4 +1,4 @@
-import { PostType, FreeformPost, KeywordFlags } from '../entity';
+import { PostType, FreeformPost, KeywordFlags, User } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
@@ -35,6 +35,7 @@ import {
   type NotificationParsedCVProfileContext,
   type NotificationRecruiterNewCandidateContext,
   type NotificationRecruiterOpportunityLiveContext,
+  type NotificationExperienceCompanyEnrichedContext,
   type NotificationRecruiterExternalPaymentContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
@@ -220,6 +221,10 @@ export const notificationTitleMap: Record<
     ctx: NotificationRecruiterOpportunityLiveContext,
   ) =>
     `Your job opportunity <b>${ctx.opportunityTitle}</b> is now <span class="text-theme-color-cabbage">live</span>!`,
+  experience_company_enriched: (
+    ctx: NotificationExperienceCompanyEnrichedContext,
+  ) =>
+    `Your ${ctx.experienceType} experience <b>${ctx.experienceTitle}</b> has been linked to <b>${ctx.companyName}</b>!`,
   recruiter_external_payment: (
     ctx: NotificationRecruiterExternalPaymentContext,
   ) =>
@@ -638,6 +643,18 @@ export const generateNotificationMap: Record<
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
       );
+  },
+  experience_company_enriched: (
+    builder: NotificationBuilder,
+    ctx: NotificationExperienceCompanyEnrichedContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceUser({ id: ctx.userIds[0] } as User)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/settings/profile/experience/${ctx.experienceType}`,
+      )
+      .uniqueKey(ctx.experienceId);
   },
   recruiter_external_payment: (
     builder: NotificationBuilder,

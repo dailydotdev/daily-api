@@ -82,6 +82,7 @@ export enum NotificationType {
   RecruiterNewCandidate = 'recruiter_new_candidate',
   RecruiterOpportunityLive = 'recruiter_opportunity_live',
   RecruiterExternalPayment = 'recruiter_external_payment',
+  ExperienceCompanyEnriched = 'experience_company_enriched',
 }
 
 export enum NotificationPreferenceType {
