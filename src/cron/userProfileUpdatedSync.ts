@@ -1,7 +1,7 @@
 import { subHours } from 'date-fns';
 import { Cron } from './cron';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
-import { In, MoreThan } from 'typeorm';
+import { In } from 'typeorm';
 import { processStream } from '../common/streaming';
 import { logger } from '../logger';
 import { getSecondsTimestamp, triggerTypedEvent } from '../common';
@@ -39,18 +39,12 @@ export const userProfileUpdatedSync: Cron = {
     const userExperiences = await queryReadReplica(
       con,
       async ({ queryRunner }) => {
-        const changedUserProfiles: Pick<UserExperience, 'userId'>[] =
-          await queryRunner.manager.getRepository(UserExperience).find({
-            select: ['userId'],
-            where: {
-              updatedAt: MoreThan(timeThreshold),
-            },
-            relations: {
-              skills: true,
-              company: true,
-              location: true,
-            },
-          });
+        const changedUserProfiles = await queryRunner.manager
+          .getRepository(UserExperience)
+          .createQueryBuilder()
+          .select('DISTINCT "userId"', 'userId')
+          .where('"updatedAt" > :timeThreshold', { timeThreshold })
+          .getRawMany<{ userId: string }>();
 
         // get all experiences for the changed user profiles so we can send full profile updates
         const userExperiences = await queryReadReplica(
