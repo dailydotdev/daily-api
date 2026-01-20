@@ -61,11 +61,9 @@ const additionalSecrets: AdditionalSecret[] = [];
 const vols: VolsType = {
   volumes: [
     { name: 'cert', secret: { secretName: 'cert-secret' } },
-    { name: 'temporal', secret: { secretName: 'temporal-secret' } },
   ],
   volumeMounts: [
     { name: 'cert', mountPath: '/opt/app/cert' },
-    { name: 'temporal', mountPath: '/opt/app/temporal' },
   ],
 };
 
@@ -197,8 +195,6 @@ const livenessProbe: k8s.types.input.core.v1.Probe = {
   periodSeconds: 5,
   initialDelaySeconds,
 };
-
-const temporalCert = config.requireObject<Record<string, string>>('temporal');
 
 type VolsType = {
   volumes: k8s.types.input.core.v1.Volume[];
@@ -431,6 +427,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
+      certificate: { enabled: true },
       podAnnotations: podAnnotations,
       ...vols,
     },
@@ -562,13 +559,6 @@ const [apps] = deployApplicationSuite(
         data: {
           'public.pem': Buffer.from(cert.public).toString('base64'),
           'key.pem': Buffer.from(cert.key).toString('base64'),
-        },
-      },
-      {
-        name: 'temporal-secret',
-        data: {
-          'chain.pem': Buffer.from(temporalCert.chain).toString('base64'),
-          'key.pem': Buffer.from(temporalCert.key).toString('base64'),
         },
       },
       ...additionalSecrets,
