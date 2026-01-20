@@ -1582,6 +1582,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       (ctx, args, { limit, offset }, builder) =>
         builder.limit(limit).offset(offset),
       {
+        removeNonPublicThresholdSquads: false,
         fetchQueryParams: async (ctx, { postIds }): Promise<void> => {
           // limit for non-team members, eg. for brief
           if (postIds.length > briefingPostIdsMaxItems) {

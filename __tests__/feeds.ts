@@ -1149,6 +1149,48 @@ describe('query feedByIds', () => {
     const ids = res.data.feedByIds.edges.map(({ node }) => node.id);
     expect(ids).toEqual(['p3', 'p2', 'p1']);
   });
+
+  it('should return share posts from user source (SourceUser)', async () => {
+    loggedUser = '1';
+    state = await initializeGraphQLTesting(
+      (req) => new MockContext(con, loggedUser, [], req, true),
+    );
+
+    // Create a user source
+    await con.getRepository(Source).save({
+      id: 'user1',
+      name: 'User 1 Source',
+      image: 'http://image.com/user1',
+      handle: 'user1',
+      type: SourceType.User,
+      userId: '1',
+      active: true,
+      private: false,
+    });
+
+    // Create a share post from user source
+    await con.getRepository(SharePost).save({
+      id: 'shareFromUser',
+      shortId: 'shareFromUser',
+      title: 'Shared from user source',
+      url: 'http://shared.com',
+      image: 'http://image/shared',
+      score: 10,
+      sourceId: 'user1',
+      createdAt: new Date(),
+      type: PostType.Share,
+      visible: true,
+      sharedPostId: 'p1',
+      private: false,
+      authorId: '1',
+    });
+
+    const res = await state.client.query(QUERY, {
+      variables: { first: 10, postIds: ['shareFromUser', 'p1'] },
+    });
+    const ids = res.data.feedByIds.edges.map(({ node }) => node.id);
+    expect(ids).toEqual(['shareFromUser', 'p1']);
+  });
 });
 
 describe('query sourceFeed', () => {
