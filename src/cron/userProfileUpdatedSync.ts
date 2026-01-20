@@ -1,7 +1,7 @@
 import { subHours } from 'date-fns';
 import { Cron } from './cron';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
-import { MoreThan } from 'typeorm';
+import { In, MoreThan } from 'typeorm';
 import { processStream } from '../common/streaming';
 import { logger } from '../logger';
 import { getSecondsTimestamp, triggerTypedEvent } from '../common';
@@ -39,22 +39,45 @@ export const userProfileUpdatedSync: Cron = {
     const userExperiences = await queryReadReplica(
       con,
       async ({ queryRunner }) => {
-        return queryRunner.manager.getRepository(UserExperience).find({
-          where: {
-            updatedAt: MoreThan(timeThreshold),
+        const changedUserProfiles: Pick<UserExperience, 'userId'>[] =
+          await queryRunner.manager.getRepository(UserExperience).find({
+            select: ['userId'],
+            where: {
+              updatedAt: MoreThan(timeThreshold),
+            },
+            relations: {
+              skills: true,
+              company: true,
+              location: true,
+            },
+          });
+
+        // get all experiences for the changed user profiles so we can send full profile updates
+        const userExperiences = await queryReadReplica(
+          con,
+          async ({ queryRunner }) => {
+            return queryRunner.manager.getRepository(UserExperience).find({
+              where: {
+                userId: In(
+                  changedUserProfiles.map((profile) => profile.userId),
+                ),
+              },
+              relations: {
+                skills: true,
+                company: true,
+                location: true,
+              },
+            });
           },
-          relations: {
-            skills: true,
-            company: true,
-            location: true,
-          },
-        });
+        );
+
+        return userExperiences;
       },
     );
 
     const experiencesByUser = new Map<string, UserExperience[]>();
 
-    for await (const experience of userExperiences) {
+    for (const experience of userExperiences) {
       let userExperiences = experiencesByUser.get(experience.userId);
 
       if (!userExperiences) {
