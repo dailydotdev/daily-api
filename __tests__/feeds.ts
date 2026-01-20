@@ -570,8 +570,8 @@ describe('query anonymousFeed by time', () => {
   };
 
   const QUERY = `
-  query AnonymousFeed($filters: FiltersInput, $ranking: Ranking, $first: Int, $version: Int) {
-    anonymousFeed(filters: $filters, ranking: $ranking, first: $first, version: $version) {
+  query AnonymousFeed($filters: FiltersInput, $ranking: Ranking, $first: Int, $version: Int, $supportedTypes: [String!]) {
+    anonymousFeed(filters: $filters, ranking: $ranking, first: $first, version: $version, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -617,6 +617,61 @@ describe('query anonymousFeed by time', () => {
     delete res.data.anonymousFeed.pageInfo.endCursor;
     const ids = res.data.anonymousFeed.edges.map((edge) => edge.node.id);
     expect(ids).toIncludeAllMembers(['yt2']);
+  });
+
+  it('should exclude share posts when their original is visible', async () => {
+    // Create a visible SharePost that shares p1
+    await con.getRepository(Post).save({
+      id: 'share-of-p1',
+      shortId: 'share-of-p1',
+      title: 'Share of P1',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(),
+      type: PostType.Share,
+      sharedPostId: 'p1',
+    });
+
+    const res = await client.query(QUERY, {
+      variables: { ...variables, supportedTypes: ['article', 'share'] },
+    });
+    const ids = res.data.anonymousFeed.edges.map(
+      (edge: { node: { id: string } }) => edge.node.id,
+    );
+
+    // Original p1 should be in the feed
+    expect(ids).toContain('p1');
+    // Share should be excluded because original is visible
+    expect(ids).not.toContain('share-of-p1');
+  });
+
+  it('should include share posts when their original is banned', async () => {
+    // Create a visible SharePost that shares p1
+    await con.getRepository(Post).save({
+      id: 'share-of-p1',
+      shortId: 'share-of-p1',
+      title: 'Share of P1',
+      score: 0,
+      sourceId: 'a',
+      createdAt: new Date(),
+      type: PostType.Share,
+      sharedPostId: 'p1',
+    });
+
+    // Ban the original post
+    await con.getRepository(Post).update({ id: 'p1' }, { banned: true });
+
+    const res = await client.query(QUERY, {
+      variables: { ...variables, supportedTypes: ['article', 'share'] },
+    });
+    const ids = res.data.anonymousFeed.edges.map(
+      (edge: { node: { id: string } }) => edge.node.id,
+    );
+
+    // Original p1 should NOT be in the feed (banned)
+    expect(ids).not.toContain('p1');
+    // Share should be included because original is not visible
+    expect(ids).toContain('share-of-p1');
   });
 });
 

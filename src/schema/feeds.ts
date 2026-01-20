@@ -38,7 +38,7 @@ import {
   toGQLEnum,
   whereKeyword,
 } from '../common';
-import { In, Not, SelectQueryBuilder } from 'typeorm';
+import { Brackets, In, Not, SelectQueryBuilder } from 'typeorm';
 import { ensureSourcePermissions, GQLSource } from './sources';
 import {
   CursorPage,
@@ -1132,6 +1132,24 @@ const applyFeedPaging = (
         : `${alias}."createdAt"`,
       'DESC',
     );
+
+  // Deduplication for TIME ranking: exclude shares when original is visible
+  if (ranking === Ranking.TIME) {
+    newBuilder = newBuilder
+      .leftJoin(
+        Post,
+        'original_post',
+        `original_post.id = ${alias}."sharedPostId" AND original_post.banned = FALSE AND original_post."showOnFeed" = TRUE AND original_post.private = FALSE`,
+      )
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where(`${alias}."sharedPostId" IS NULL`).orWhere(
+            'original_post.id IS NULL',
+          );
+        }),
+      );
+  }
+
   if (page.score) {
     newBuilder = newBuilder.andWhere(`${alias}.score < :score`, {
       score: page.score,
