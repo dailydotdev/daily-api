@@ -358,6 +358,7 @@ if (isAdhocEnv) {
         customRequestHeaders: ['X-Client-Region:{client_region}'],
       },
       podAnnotations: podAnnotations,
+      certificate: { enabled: true },
       ...vols,
     },
     {
@@ -384,6 +385,7 @@ if (isAdhocEnv) {
       disableLifecycle: true,
       spot: { enabled: true },
       podAnnotations: podAnnotations,
+      certificate: { enabled: true },
       ...vols,
     },
     {
@@ -413,6 +415,7 @@ if (isAdhocEnv) {
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       spot: { enabled: true },
       podAnnotations: podAnnotations,
+      certificate: { enabled: true },
       ...vols,
     },
     {
@@ -459,6 +462,7 @@ if (isAdhocEnv) {
       serviceType: 'ClusterIP',
       disableLifecycle: true,
       podAnnotations: podAnnotations,
+      certificate: { enabled: true },
       ...vols,
     },
   ];
@@ -489,6 +493,7 @@ if (isAdhocEnv) {
       },
       spot: { enabled: true },
       podAnnotations: podAnnotations,
+      certificate: { enabled: true },
       ...vols,
     });
   }
