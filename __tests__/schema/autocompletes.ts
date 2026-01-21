@@ -1650,7 +1650,6 @@ describe('query autocompleteGithubRepository', () => {
 
     const mockGitHubResponse = {
       total_count: 2,
-      incomplete_results: false,
       items: [
         {
           id: 10270250,
@@ -1715,7 +1714,6 @@ describe('query autocompleteGithubRepository', () => {
 
     const mockGitHubResponse = {
       total_count: 1,
-      incomplete_results: false,
       items: [
         {
           id: 10270250,
@@ -1754,7 +1752,6 @@ describe('query autocompleteGithubRepository', () => {
 
     const mockGitHubResponse = {
       total_count: 0,
-      incomplete_results: false,
       items: [],
     };
 
@@ -1803,7 +1800,6 @@ describe('query autocompleteGithubRepository', () => {
 
     const mockGitHubResponse = {
       total_count: 1,
-      incomplete_results: false,
       items: [
         {
           id: 12345678,
@@ -1850,7 +1846,6 @@ describe('query autocompleteGithubRepository', () => {
 
     const mockGitHubResponse = {
       total_count: 0,
-      incomplete_results: false,
       items: [],
     };
 
