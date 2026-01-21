@@ -233,7 +233,12 @@ const generateExperienceToSave = async <
   const { customCompanyName, companyId, customDomain, repository, ...values } =
     parsed as R & {
       customDomain?: string | null;
-      repository?: { id: string; name: string; url: string; image: string } | null;
+      repository?: {
+        id: string;
+        name: string;
+        url: string;
+        image: string;
+      } | null;
     };
 
   const toUpdate: Partial<UserExperience> = id
