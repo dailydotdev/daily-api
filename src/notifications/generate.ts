@@ -104,11 +104,11 @@ export const notificationTitleMap: Record<
       NotificationSourceContext &
       NotificationDoneByContext,
   ) => {
-    const baseMessage = `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>${ctx.doneBy.name}</b> to the squad`;
+    const baseMessage = `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>!`;
     // Don't mention commenting when welcome post is deleted
     return ctx.post.deleted
-      ? `${baseMessage}.`
-      : `${baseMessage} with a comment.`;
+      ? `${baseMessage} <b>${ctx.doneBy.name}</b> has joined the squad.`
+      : `${baseMessage} Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`;
   },
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,

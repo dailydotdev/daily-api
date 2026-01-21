@@ -1105,7 +1105,7 @@ describe('generateNotification', () => {
     );
     // When post is deleted, title should not mention commenting
     expect(actual.notification.title).toEqual(
-      'Your squad <b>A</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>Tsahi</b> to the squad.',
+      'Your squad <b>A</b> is <span class="text-theme-color-cabbage">growing</span>! <b>Tsahi</b> has joined the squad.',
     );
     expect(actual.avatars).toEqual([
       {
