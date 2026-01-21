@@ -1,4 +1,4 @@
-import type { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import type { FastifyBaseLogger } from 'fastify';
 import { In } from 'typeorm';
 import { OpportunityState } from '@dailydotdev/schema';
@@ -7,25 +7,19 @@ import { Organization } from '../../entity/Organization';
 import { SubscriptionStatus } from '../plus/subscription';
 import { remoteConfig, type SuperAgentTrialConfig } from '../../remoteConfig';
 import { Alerts } from '../../entity/Alerts';
-import { updateFlagsStatement } from '../index';
+import {
+  updateFlagsStatement,
+  updateRecruiterSubscriptionFlags,
+} from '../index';
+
+type DataSourceOrManager = DataSource | EntityManager;
 
 const DEFAULT_TRIAL_CONFIG: SuperAgentTrialConfig = {
   enabled: false,
-  durationDays: 30,
-  features: {
-    batchSize: 150,
-    reminders: true,
-    showSlack: true,
-    showFeedback: true,
-  },
 };
 
 export const getSuperAgentTrialConfig = (): SuperAgentTrialConfig => {
   return remoteConfig.vars.superAgentTrial ?? DEFAULT_TRIAL_CONFIG;
-};
-
-export const isSuperAgentTrialEnabled = (): boolean => {
-  return getSuperAgentTrialConfig().enabled;
 };
 
 /**
@@ -33,7 +27,7 @@ export const isSuperAgentTrialEnabled = (): boolean => {
  * (no opportunities have previously transitioned to IN_REVIEW, LIVE, or CLOSED)
  */
 export const isFirstOpportunitySubmission = async (
-  con: DataSource,
+  con: DataSourceOrManager,
   organizationId: string,
 ): Promise<boolean> => {
   const count = await con.getRepository(OpportunityJob).count({
@@ -58,12 +52,15 @@ export const activateSuperAgentTrial = async ({
   userId,
   logger,
 }: {
-  con: DataSource;
+  con: DataSourceOrManager;
   organizationId: string;
   userId: string;
   logger: FastifyBaseLogger;
 }): Promise<void> => {
   const config = getSuperAgentTrialConfig();
+  if (!config.enabled) {
+    return;
+  }
 
   const trialExpiresAt = new Date();
   trialExpiresAt.setDate(trialExpiresAt.getDate() + config.durationDays);
@@ -78,13 +75,12 @@ export const activateSuperAgentTrial = async ({
   const existingFlags = org.recruiterSubscriptionFlags || {};
 
   await orgRepo.update(organizationId, {
-    recruiterSubscriptionFlags: {
-      ...existingFlags,
+    recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags<Organization>({
       trialExpiresAt,
       trialPlan: existingFlags.items?.[0]?.priceId || null,
       isTrialActive: true,
       status: SubscriptionStatus.Active,
-    },
+    }),
   });
 
   // Set alert to notify user on boot
@@ -108,18 +104,18 @@ export const applyTrialFlagsToOpportunity = async ({
   con,
   opportunityId,
 }: {
-  con: DataSource;
+  con: DataSourceOrManager;
   opportunityId: string;
 }): Promise<void> => {
   const config = getSuperAgentTrialConfig();
+  if (!config.enabled || !config.features) {
+    return;
+  }
 
   await con.getRepository(OpportunityJob).update(opportunityId, {
     flags: updateFlagsStatement<OpportunityJob>({
-      batchSize: config.features.batchSize,
-      reminders: config.features.reminders,
-      showSlack: config.features.showSlack,
-      showFeedback: config.features.showFeedback,
-      plan: 'super_agent_trial',
+      ...config.features,
+      isTrial: true,
     }),
   });
 };
