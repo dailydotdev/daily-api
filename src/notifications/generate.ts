@@ -100,9 +100,16 @@ export const notificationTitleMap: Record<
   ) =>
     `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`,
   squad_member_joined: (
-    ctx: NotificationSourceContext & NotificationDoneByContext,
-  ) =>
-    `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`,
+    ctx: NotificationPostContext &
+      NotificationSourceContext &
+      NotificationDoneByContext,
+  ) => {
+    const baseMessage = `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>!`;
+    // Don't mention commenting when welcome post is deleted
+    return ctx.post.deleted
+      ? `${baseMessage} <b>${ctx.doneBy.name}</b> has joined the squad.`
+      : `${baseMessage} Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`;
+  },
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
@@ -374,14 +381,22 @@ export const generateNotificationMap: Record<
   squad_member_joined: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    builder
+  ) => {
+    const baseBuilder = builder
       .icon(NotificationIcon.Bell)
       .referenceSource(ctx.source)
-      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id)
+      .uniqueKey(ctx.doneBy.id);
+
+    // If welcome post is deleted, link to squad page instead
+    if (ctx.post.deleted) {
+      return baseBuilder.targetSource(ctx.source);
+    }
+
+    // Otherwise, link to the post with comment suggestion
+    return baseBuilder
+      .targetPost(ctx.post)
       .setTargetUrlParameter(
         ctx.post.type === PostType.Welcome
           ? [
@@ -391,7 +406,8 @@ export const generateNotificationMap: Record<
               ],
             ]
           : [],
-      ),
+      );
+  },
   squad_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
