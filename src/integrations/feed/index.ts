@@ -8,5 +8,6 @@ export {
   FeedGenerator,
   feedGenerators,
   versionToFeedGenerator,
+  versionToTimeFeedGenerator,
   feedClient,
 } from './generators';

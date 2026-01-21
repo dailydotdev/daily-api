@@ -171,3 +171,17 @@ export const versionToFeedGenerator = (version: number): FeedGenerator => {
     }),
   );
 };
+
+export const versionToTimeFeedGenerator = (version: number): FeedGenerator => {
+  return new FeedGenerator(
+    feedClient,
+    new FeedLofnConfigGenerator(
+      { ...baseFeedConfig, order_by: FeedOrderBy.Date },
+      lofnClient,
+      {
+        ...opts,
+        feed_version: version.toString() as FeedVersion,
+      },
+    ),
+  );
+};

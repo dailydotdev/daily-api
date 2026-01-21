@@ -61,6 +61,7 @@ import {
   FeedResponse,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
+  versionToTimeFeedGenerator,
 } from '../integrations/feed';
 import {
   AuthenticationError,
@@ -1461,7 +1462,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           source,
           {
             ...(args as FeedArgs),
-            generator: feedGenerators['time']!,
+            generator: versionToTimeFeedGenerator(args.version),
           },
           ctx,
           info,

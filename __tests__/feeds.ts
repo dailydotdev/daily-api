@@ -1073,6 +1073,32 @@ describe('query feed', () => {
     expect(res.data.feed.edges.length).toEqual(1);
   });
 
+  it('should return feed v2 with TIME ranking', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.order_by).toBe(FeedOrderBy.Date);
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, ranking: Ranking.TIME, version: 20 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
+  });
+
   it('should return only article posts by default', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
