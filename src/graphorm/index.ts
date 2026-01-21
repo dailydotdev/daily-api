@@ -1904,6 +1904,10 @@ const obj = new GraphORM({
       customDomain: {
         select: (_, alias) => `${alias}.flags->>'customDomain'`,
       },
+      repository: {
+        select: (_, alias) => `${alias}.flags->'repository'`,
+        jsonType: true,
+      },
     },
   },
   OpportunityMatchCandidatePreference: {
