@@ -1,4 +1,5 @@
-import { DataSource, type EntityManager } from 'typeorm';
+import { DataSource, type EntityManager, In } from 'typeorm';
+import { DatasetLocation } from '../../entity/dataset/DatasetLocation';
 import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
@@ -356,29 +357,51 @@ export const notifyJobOpportunity = async ({
   logger: FastifyBaseLogger;
   opportunityId: string;
 }) => {
-  const [opportunity, organization, keywords, users, locations] =
-    await queryReadReplica(con, async ({ queryRunner }) => {
-      const opportunity = await queryRunner.manager
-        .getRepository(OpportunityJob)
-        .findOneOrFail({
-          where: { id: opportunityId },
-          relations: {
-            organization: true,
-            keywords: true,
-            users: true,
-            locations: true,
-          },
-        });
+  const [
+    opportunity,
+    organization,
+    keywords,
+    users,
+    locations,
+    datasetLocations,
+  ] = await queryReadReplica(con, async ({ queryRunner }) => {
+    const opportunity = await queryRunner.manager
+      .getRepository(OpportunityJob)
+      .findOneOrFail({
+        where: { id: opportunityId },
+        relations: {
+          organization: true,
+          keywords: true,
+          users: true,
+          locations: true,
+        },
+      });
 
-      const [organization, keywords, users, locations] = await Promise.all([
-        opportunity.organization,
-        opportunity.keywords,
-        opportunity.users,
-        opportunity.locations,
-      ]);
+    const [organization, keywords, users, locations] = await Promise.all([
+      opportunity.organization,
+      opportunity.keywords,
+      opportunity.users,
+      opportunity.locations,
+    ]);
 
-      return [opportunity, organization, keywords, users, locations];
-    });
+    // Fetch all DatasetLocations in a single query to avoid N+1
+    const locationIds = locations?.map((l) => l.locationId) ?? [];
+    const datasetLocations =
+      locationIds.length > 0
+        ? await queryRunner.manager.findBy(DatasetLocation, {
+            id: In(locationIds),
+          })
+        : [];
+
+    return [
+      opportunity,
+      organization,
+      keywords,
+      users,
+      locations,
+      datasetLocations,
+    ];
+  });
 
   if (!organization) {
     logger.warn(
@@ -430,27 +453,26 @@ export const notifyJobOpportunity = async ({
     ...users.map((u) => u.userId),
   ]);
 
-  // Build location payloads for all locations
-  const locationPayloads = await Promise.all(
-    (locations ?? []).map(async (locationData) => {
-      const datasetLocation = await locationData.location;
-      const locationCountry = datasetLocation?.country;
-      const continentCode = locationCountry
-        ? continentMap[locationCountry]
-        : null;
+  // Build location payloads for all locations using preloaded DatasetLocations
+  const datasetLocationMap = new Map(datasetLocations.map((dl) => [dl.id, dl]));
+  const locationPayloads = (locations ?? []).map((locationData) => {
+    const datasetLocation = datasetLocationMap.get(locationData.locationId);
+    const locationCountry = datasetLocation?.country;
+    const continentCode = locationCountry
+      ? continentMap[locationCountry]
+      : null;
 
-      // Check if the location country is a continent and return only continent code
-      return continentCode
-        ? { continent: continentCode }
-        : {
-            ...datasetLocation,
-            // Convert null values to undefined for protobuf compatibility
-            subdivision: datasetLocation?.subdivision ?? undefined,
-            city: datasetLocation?.city ?? undefined,
-            type: locationData?.type,
-          };
-    }),
-  );
+    // Check if the location country is a continent and return only continent code
+    return continentCode
+      ? { continent: continentCode }
+      : {
+          ...datasetLocation,
+          // Convert null values to undefined for protobuf compatibility
+          subdivision: datasetLocation?.subdivision ?? undefined,
+          city: datasetLocation?.city ?? undefined,
+          type: locationData?.type,
+        };
+  });
 
   const organizationLocation = await organization.location;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
