@@ -1103,6 +1103,10 @@ describe('generateNotification', () => {
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/squads/a',
     );
+    // When post is deleted, title should not mention commenting
+    expect(actual.notification.title).toEqual(
+      'Your squad <b>A</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>Tsahi</b> to the squad.',
+    );
     expect(actual.avatars).toEqual([
       {
         image: 'http://image.com/a',
