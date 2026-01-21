@@ -4,6 +4,17 @@ import { isProd, isTest } from './common/utils';
 import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
 
+export type SuperAgentTrialConfig = {
+  enabled: boolean;
+  durationDays: number;
+  features: {
+    batchSize: number;
+    reminders: boolean;
+    showSlack: boolean;
+    showFeedback: boolean;
+  };
+};
+
 export type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
@@ -36,6 +47,7 @@ export type RemoteConfigValue = {
     onboarding_funnel_id: string;
   }>;
   dailyBriefLimit: number;
+  superAgentTrial: SuperAgentTrialConfig;
 };
 
 class RemoteConfig {

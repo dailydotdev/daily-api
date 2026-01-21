@@ -116,6 +116,13 @@ import {
 } from '../mocks/opportunity/services';
 import { notifyOpportunityFeedbackSubmitted } from '../common/opportunity/pubsub';
 import { triggerTypedEvent } from '../common/typedPubsub';
+import {
+  activateSuperAgentTrial,
+  applyTrialFlagsToOpportunity,
+  hasActiveSuperAgentTrial,
+  isFirstOpportunitySubmission,
+  isSuperAgentTrialEnabled,
+} from '../common/opportunity/trial';
 import { randomUUID } from 'crypto';
 import { opportunityMatchBatchSize } from '../types';
 
@@ -2548,13 +2555,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             throw new ConflictError(`Opportunity is closed`);
           }
 
+          // Check if this is the first opportunity submission for trial activation
+          const isFirst = isSuperAgentTrialEnabled()
+            ? await isFirstOpportunitySubmission(ctx.con, organization.id)
+            : false;
+
+          // Subscription validation - allow first-time submissions if trial is enabled
           if (
             organization.recruiterSubscriptionFlags.status !==
             SubscriptionStatus.Active
           ) {
-            throw new PaymentRequiredError(
-              `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
-            );
+            if (!isFirst) {
+              throw new PaymentRequiredError(
+                `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
+              );
+            }
+            // First submission - trial will be activated, allow through
           }
 
           opportunityStateLiveSchema.parse({
@@ -2563,6 +2579,51 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             keywords: await opportunity.keywords,
             questions: await opportunity.questions,
           });
+
+          // Handle Super Agent trial activation
+          if (isFirst) {
+            await activateSuperAgentTrial({
+              con: ctx.con,
+              organizationId: organization.id,
+              userId: ctx.userId,
+              logger: ctx.log,
+            });
+
+            await applyTrialFlagsToOpportunity({
+              con: ctx.con,
+              opportunityId: opportunity.id,
+            });
+
+            await ctx.con
+              .getRepository(OpportunityJob)
+              .update({ id }, { state });
+
+            ctx.log.info(
+              {
+                opportunityId: opportunity.id,
+                organizationId: organization.id,
+              },
+              'First opportunity submission - Super Agent trial activated',
+            );
+
+            break;
+          }
+
+          // Check if org has active trial - apply trial flags to this opportunity too
+          if (
+            hasActiveSuperAgentTrial(organization.recruiterSubscriptionFlags)
+          ) {
+            await applyTrialFlagsToOpportunity({
+              con: ctx.con,
+              opportunityId: opportunity.id,
+            });
+
+            await ctx.con
+              .getRepository(OpportunityJob)
+              .update({ id }, { state });
+
+            break;
+          }
 
           const liveOpportunities: Pick<OpportunityJob, 'flags'>[] =
             await ctx.con.getRepository(OpportunityJob).find({

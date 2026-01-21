@@ -76,6 +76,9 @@ export class Alerts {
   @Column({ type: 'bool', default: false })
   showTopReader?: boolean;
 
+  @Column({ type: 'bool', default: false })
+  showSuperAgentTrialUpgrade?: boolean;
+
   @Column({ type: 'uuid', nullable: true })
   @Index('IDX_alerts_opportunity_id')
   opportunityId?: string | null;
@@ -117,6 +120,7 @@ export const ALERTS_DEFAULT: Omit<
   bootPopup: false,
   showRecoverStreak: false,
   showTopReader: false,
+  showSuperAgentTrialUpgrade: false,
   briefBannerLastSeen: null,
   opportunityId: null,
 };
