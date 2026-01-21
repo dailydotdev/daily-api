@@ -3,7 +3,7 @@ import { MigrationInterface, QueryRunner } from "typeorm";
 export class DebeziumReplicationAdhoc1768995735317 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */`
-      DROP PUBLICATION dbz_publication;
+      DROP PUBLICATION IF EXISTS dbz_publication;
     `);
     await queryRunner.query(/* sql */`
       CREATE PUBLICATION dbz_publication
@@ -14,7 +14,7 @@ export class DebeziumReplicationAdhoc1768995735317 implements MigrationInterface
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(/* sql */`
-      DROP PUBLICATION dbz_publication;
+      DROP PUBLICATION IF EXISTS dbz_publication;
     `);
     await queryRunner.query(/* sql */`
       CREATE PUBLICATION dbz_publication
