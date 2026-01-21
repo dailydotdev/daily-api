@@ -2285,7 +2285,9 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
 
     expect(updated.errors).toBeFalsy();
     expect(updated.data.upsertUserGeneralExperience.company).toBeNull();
-    expect(updated.data.upsertUserGeneralExperience.customCompanyName).toBeNull();
+    expect(
+      updated.data.upsertUserGeneralExperience.customCompanyName,
+    ).toBeNull();
     expect(updated.data.upsertUserGeneralExperience.repository).toMatchObject({
       id: '10270250',
       name: 'facebook/react',

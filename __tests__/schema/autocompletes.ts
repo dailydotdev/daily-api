@@ -1656,8 +1656,7 @@ describe('query autocompleteGithubRepository', () => {
           id: 10270250,
           full_name: 'facebook/react',
           html_url: 'https://github.com/facebook/react',
-          description:
-            'The library for web and native user interfaces.',
+          description: 'The library for web and native user interfaces.',
           owner: {
             login: 'facebook',
             avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
@@ -1667,7 +1666,8 @@ describe('query autocompleteGithubRepository', () => {
           id: 75396575,
           full_name: 'facebook/react-native',
           html_url: 'https://github.com/facebook/react-native',
-          description: 'A framework for building native applications using React',
+          description:
+            'A framework for building native applications using React',
           owner: {
             login: 'facebook',
             avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
