@@ -618,6 +618,50 @@ describe('query anonymousFeed by time', () => {
     const ids = res.data.anonymousFeed.edges.map((edge) => edge.node.id);
     expect(ids).toIncludeAllMembers(['yt2']);
   });
+
+  it('should return anonymous feed v2 with TIME ranking', async () => {
+    loggedUser = '1';
+
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        // Verify the request includes order_by: 'date' for TIME ranking
+        expect(body.order_by).toBe(FeedOrderBy.Date);
+        expect(body.feed_config_name).toBe('popular');
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    const ids = res.data.anonymousFeed.edges.map(
+      (edge: { node: { id: string } }) => edge.node.id,
+    );
+    expect(ids).toEqual(['p1', 'p4']);
+  });
+
+  it('should handle empty response from feed service with TIME ranking v2', async () => {
+    loggedUser = '1';
+
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.order_by).toBe(FeedOrderBy.Date);
+        return true;
+      })
+      .reply(200, {
+        data: [],
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.anonymousFeed.edges).toEqual([]);
+  });
 });
 
 describe('query feed', () => {

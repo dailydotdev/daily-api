@@ -173,6 +173,30 @@ The migration generator compares entities against the local database schema. Ens
 - **Export and import, don't duplicate**: When you need the same logic in multiple places, export the function from its original location and import it where needed. This ensures a single source of truth and prevents maintenance issues.
 - **Example lesson**: When implementing `handleOpportunityKeywordsUpdate`, the function was duplicated in both `src/common/opportunity/parse.ts` and `src/schema/opportunity.ts`. This caused lint failures and maintenance burden. The correct approach was to export it from `parse.ts` and import it in `opportunity.ts`.
 
+**Avoiding N+1 Queries with Lazy Relations:**
+- **Never await lazy relations inside loops or map functions** - this causes N+1 query problems where each iteration triggers a separate database query.
+- **Batch fetch related entities** using TypeORM's `In()` operator to fetch all related records in a single query, then create a Map for O(1) lookups.
+- **Example pattern**:
+  ```typescript
+  // BAD: N+1 queries - each iteration awaits a lazy relation
+  const results = await Promise.all(
+    items.map(async (item) => {
+      const related = await item.lazyRelation; // Triggers a query per item!
+      return { ...related, itemId: item.id };
+    })
+  );
+
+  // GOOD: Batch fetch with single query + Map lookup
+  const relatedIds = items.map((item) => item.relatedId);
+  const relatedItems = await repository.findBy({ id: In(relatedIds) });
+  const relatedMap = new Map(relatedItems.map((r) => [r.id, r]));
+  const results = items.map((item) => {
+    const related = relatedMap.get(item.relatedId);
+    return { ...related, itemId: item.id };
+  });
+  ```
+- **Example lesson**: In `notifyJobOpportunity`, locations were fetched one-by-one inside a `Promise.all` map by awaiting `locationData.location`. The fix was to extract all `locationId`s upfront, fetch all `DatasetLocation` records in a single query using `In(locationIds)`, and use a Map for lookups.
+
 ## Pull Requests
 
 Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.
