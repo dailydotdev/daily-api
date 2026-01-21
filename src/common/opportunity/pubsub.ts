@@ -430,21 +430,27 @@ export const notifyJobOpportunity = async ({
     ...users.map((u) => u.userId),
   ]);
 
-  // Check if the location country is a continent and return only continent code
-  const locationData = locations?.[0];
-  const datasetLocation = locationData ? await locationData.location : null;
-  const locationCountry = datasetLocation?.country;
-  const continentCode = locationCountry ? continentMap[locationCountry] : null;
+  // Build location payloads for all locations
+  const locationPayloads = await Promise.all(
+    (locations ?? []).map(async (locationData) => {
+      const datasetLocation = await locationData.location;
+      const locationCountry = datasetLocation?.country;
+      const continentCode = locationCountry
+        ? continentMap[locationCountry]
+        : null;
 
-  const locationPayload = continentCode
-    ? { continent: continentCode }
-    : {
-        ...datasetLocation,
-        // Convert null values to undefined for protobuf compatibility
-        subdivision: datasetLocation?.subdivision ?? undefined,
-        city: datasetLocation?.city ?? undefined,
-        type: locationData?.type,
-      };
+      // Check if the location country is a continent and return only continent code
+      return continentCode
+        ? { continent: continentCode }
+        : {
+            ...datasetLocation,
+            // Convert null values to undefined for protobuf compatibility
+            subdivision: datasetLocation?.subdivision ?? undefined,
+            city: datasetLocation?.city ?? undefined,
+            type: locationData?.type,
+          };
+    }),
+  );
 
   const organizationLocation = await organization.location;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -455,7 +461,7 @@ export const notifyJobOpportunity = async ({
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords.map((k) => k.keyword),
-      location: [locationPayload],
+      location: locationPayloads,
     },
     organization: {
       ...restOrganization,
