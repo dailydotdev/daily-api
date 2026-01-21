@@ -120,7 +120,7 @@
     "isomorphic-dompurify": "^2.35.0",
     "jsonexport": "^3.2.0",
     "jsonwebtoken": "^9.0.3",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "markdown-it": "^14.1.0",
     "markdown-to-txt": "^2.0.1",
     "mercurius": "^16.6.0",
