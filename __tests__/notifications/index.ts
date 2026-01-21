@@ -1065,6 +1065,65 @@ describe('generateNotification', () => {
     expect(actual.attachments.length).toEqual(0);
   });
 
+  it('should generate squad_member_joined notification with squad link when welcome post is deleted', async () => {
+    const type = NotificationType.SquadMemberJoined;
+    await con.getRepository(Source).save(sourcesFixture[0]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    await con.getRepository(User).save(usersFixture);
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      role: SourceMemberRoles.Admin,
+      referralToken: 'random',
+    });
+    const post = await createSquadWelcomePost(con, source as SquadSource, '1');
+    await con
+      .getRepository(WelcomePost)
+      .update({ id: post.id }, { id: 'welcome1', deleted: true });
+    post.id = 'welcome1';
+    post.deleted = true;
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
+      userIds: [userId],
+      post,
+      source,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(source.id);
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.uniqueKey).toEqual('2');
+    // When post is deleted, should link to squad page instead
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
+  });
+
   it('should generate squad_blocked notification', () => {
     const type = NotificationType.SquadBlocked;
     const ctx: NotificationSourceContext = {

@@ -374,14 +374,22 @@ export const generateNotificationMap: Record<
   squad_member_joined: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    builder
+  ) => {
+    const baseBuilder = builder
       .icon(NotificationIcon.Bell)
       .referenceSource(ctx.source)
-      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id)
+      .uniqueKey(ctx.doneBy.id);
+
+    // If welcome post is deleted, link to squad page instead
+    if (ctx.post.deleted) {
+      return baseBuilder.targetSource(ctx.source);
+    }
+
+    // Otherwise, link to the post with comment suggestion
+    return baseBuilder
+      .targetPost(ctx.post)
       .setTargetUrlParameter(
         ctx.post.type === PostType.Welcome
           ? [
@@ -391,7 +399,8 @@ export const generateNotificationMap: Record<
               ],
             ]
           : [],
-      ),
+      );
+  },
   squad_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
