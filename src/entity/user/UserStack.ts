@@ -32,6 +32,12 @@ export class UserStack {
   @Column({ type: 'date', nullable: true })
   startedAt: Date | null;
 
+  @Column({ type: 'text', nullable: true })
+  icon: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  title: string | null;
+
   @Column({ type: 'timestamp', default: () => 'now()' })
   createdAt: Date;
 

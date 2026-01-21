@@ -24,6 +24,8 @@ interface GQLUserStack {
   section: string;
   position: number;
   startedAt: Date | null;
+  icon: string | null;
+  title: string | null;
   createdAt: Date;
 }
 
@@ -71,6 +73,8 @@ export const typeDefs = /* GraphQL */ `
     section: String!
     position: Int!
     startedAt: DateTime
+    icon: String
+    title: String
     createdAt: DateTime!
   }
 
@@ -94,6 +98,7 @@ export const typeDefs = /* GraphQL */ `
   input UpdateUserStackInput {
     section: String
     icon: String
+    title: String
     startedAt: DateTime
   }
 
@@ -227,12 +232,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Create the user stack entry with large position
       // Items are ordered by position ASC, createdAt ASC so new items go to end
+      // Store title/icon at user level if different from dataset
       const userStack = ctx.con.getRepository(UserStack).create({
         userId: ctx.userId,
         stackId: datasetStack.id,
         section: input.section,
         position: NEW_ITEM_POSITION,
         startedAt: input.startedAt ? new Date(input.startedAt) : null,
+        icon: input.icon || null,
+        title: null, // Initial title comes from dataset
       });
 
       await ctx.con.getRepository(UserStack).save(userStack);
@@ -271,6 +279,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         updateData.startedAt = input.startedAt
           ? new Date(input.startedAt)
           : null;
+      }
+      if (input.icon !== undefined) {
+        updateData.icon = input.icon || null;
+      }
+      if (input.title !== undefined) {
+        updateData.title = input.title || null;
       }
 
       if (Object.keys(updateData).length > 0) {
