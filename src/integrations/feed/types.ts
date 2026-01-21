@@ -110,7 +110,8 @@ export type FeedVersion =
   | 'onboarding'
   | 'post_similarity'
   | '30'
-  | 'f1';
+  | 'f1'
+  | 'time';
 
 export const baseFeedConfig: Partial<FeedConfig> = {
   source_types: ['machine', 'squad', 'user'],
