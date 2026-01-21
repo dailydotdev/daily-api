@@ -180,48 +180,14 @@ describe('Super Agent Trial helpers', () => {
       remoteConfig.vars.superAgentTrial = undefined;
     });
 
-    // NOTE: This test requires the showSuperAgentTrialUpgrade column to exist in the alerts table.
-    // Since migrations are protected and not yet applied, this test is skipped.
-    // TODO: Enable this test after running migrations
-    it.skip('should set trial flags on organization and create alert for user', async () => {
+    it('should set trial flags, preserve existing subscription info, and create alert for user', async () => {
+      // Test both scenarios: new org and org with existing subscription
       await saveFixtures(con, Organization, [
         {
           id: `${testUuidBase}6`,
           name: 'Trial Test Org SAT',
           recruiterSubscriptionFlags: {},
         },
-      ]);
-
-      await activateSuperAgentTrial({
-        con,
-        organizationId: `${testUuidBase}6`,
-        userId: '1',
-        logger: mockLogger,
-      });
-
-      const org = await con
-        .getRepository(Organization)
-        .findOneBy({ id: `${testUuidBase}6` });
-      const flags = org?.recruiterSubscriptionFlags;
-
-      expect(flags).toMatchObject({
-        isTrialActive: true,
-        status: SubscriptionStatus.Active,
-      });
-      expect(flags?.trialExpiresAt).toBeDefined();
-      expect(new Date(flags!.trialExpiresAt!).getTime()).toBeGreaterThan(
-        Date.now(),
-      );
-
-      // Verify alert was set
-      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
-      expect(alert?.showSuperAgentTrialUpgrade).toBe(true);
-    });
-
-    // NOTE: This test requires the showSuperAgentTrialUpgrade column to exist in the alerts table.
-    // TODO: Enable this test after running migrations
-    it.skip('should preserve existing subscription info and store original plan', async () => {
-      await saveFixtures(con, Organization, [
         {
           id: `${testUuidBase}7`,
           name: 'Existing Plan Org SAT',
@@ -233,17 +199,44 @@ describe('Super Agent Trial helpers', () => {
         },
       ]);
 
+      // Activate trial for new org
       await activateSuperAgentTrial({
         con,
-        organizationId: `${testUuidBase}7`,
+        organizationId: `${testUuidBase}6`,
         userId: '1',
         logger: mockLogger,
       });
 
-      const org = await con
+      // Verify new org got trial flags
+      const newOrg = await con
+        .getRepository(Organization)
+        .findOneBy({ id: `${testUuidBase}6` });
+      expect(newOrg?.recruiterSubscriptionFlags).toMatchObject({
+        isTrialActive: true,
+        status: SubscriptionStatus.Active,
+      });
+      expect(newOrg?.recruiterSubscriptionFlags.trialExpiresAt).toBeDefined();
+      expect(
+        new Date(newOrg!.recruiterSubscriptionFlags.trialExpiresAt!).getTime(),
+      ).toBeGreaterThan(Date.now());
+
+      // Verify alert was set for user 1
+      const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      expect(alert?.showSuperAgentTrialUpgrade).toBe(true);
+
+      // Activate trial for org with existing subscription
+      await activateSuperAgentTrial({
+        con,
+        organizationId: `${testUuidBase}7`,
+        userId: '2',
+        logger: mockLogger,
+      });
+
+      // Verify existing subscription info was preserved
+      const existingOrg = await con
         .getRepository(Organization)
         .findOneBy({ id: `${testUuidBase}7` });
-      expect(org?.recruiterSubscriptionFlags).toMatchObject({
+      expect(existingOrg?.recruiterSubscriptionFlags).toMatchObject({
         subscriptionId: 'sub_existing',
         trialPlan: 'pri_original',
         isTrialActive: true,
