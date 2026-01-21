@@ -1,6 +1,10 @@
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { saveFixtures } from '../../helpers';
+import {
+  createMockLogger,
+  defaultSuperAgentTrialConfig,
+  saveFixtures,
+} from '../../helpers';
 import { Alerts, User } from '../../../src/entity';
 import { Organization } from '../../../src/entity/Organization';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
@@ -21,12 +25,7 @@ let con: DataSource;
 // UUID base for test IDs (will append different digits for each test entity)
 const testUuidBase = 'a0000000-0000-0000-0000-00000000000';
 
-const mockLogger = {
-  info: jest.fn(),
-  error: jest.fn(),
-  warn: jest.fn(),
-  debug: jest.fn(),
-} as unknown as Parameters<typeof activateSuperAgentTrial>[0]['logger'];
+const mockLogger = createMockLogger();
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -113,16 +112,7 @@ describe('isFirstOpportunitySubmission', () => {
 
 describe('activateSuperAgentTrial', () => {
   beforeEach(() => {
-    remoteConfig.vars.superAgentTrial = {
-      enabled: true,
-      durationDays: 30,
-      features: {
-        batchSize: 150,
-        reminders: true,
-        showSlack: true,
-        showFeedback: true,
-      },
-    };
+    remoteConfig.vars.superAgentTrial = defaultSuperAgentTrialConfig;
   });
 
   afterEach(() => {
@@ -196,16 +186,7 @@ describe('activateSuperAgentTrial', () => {
 
 describe('applyTrialFlagsToOpportunity', () => {
   beforeEach(() => {
-    remoteConfig.vars.superAgentTrial = {
-      enabled: true,
-      durationDays: 30,
-      features: {
-        batchSize: 150,
-        reminders: true,
-        showSlack: true,
-        showFeedback: true,
-      },
-    };
+    remoteConfig.vars.superAgentTrial = defaultSuperAgentTrialConfig;
   });
 
   afterEach(() => {

@@ -16,6 +16,7 @@ import {
   createMockBrokkrTransport,
   createMockGondulOpportunityServiceTransport,
   createMockGondulTransport,
+  defaultSuperAgentTrialConfig,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -5286,16 +5287,7 @@ describe('mutation updateOpportunityState', () => {
     const organizationId = opportunitiesFixture[3].organizationId!;
 
     // Enable Super Agent trial
-    remoteConfig.vars.superAgentTrial = {
-      enabled: true,
-      durationDays: 30,
-      features: {
-        batchSize: 150,
-        reminders: true,
-        showSlack: true,
-        showFeedback: true,
-      },
-    };
+    remoteConfig.vars.superAgentTrial = defaultSuperAgentTrialConfig;
 
     // Setup organization with active subscription
     await con.getRepository(Organization).update(
@@ -5390,16 +5382,7 @@ describe('mutation updateOpportunityState', () => {
     const organizationId = opportunitiesFixture[2].organizationId!;
 
     // Enable Super Agent trial
-    remoteConfig.vars.superAgentTrial = {
-      enabled: true,
-      durationDays: 30,
-      features: {
-        batchSize: 150,
-        reminders: true,
-        showSlack: true,
-        showFeedback: true,
-      },
-    };
+    remoteConfig.vars.superAgentTrial = defaultSuperAgentTrialConfig;
 
     // Setup organization with active subscription but NO available seats
     await con.getRepository(Organization).update(

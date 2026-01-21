@@ -1,5 +1,9 @@
 import cron from '../../src/cron/expireSuperAgentTrial';
-import { expectSuccessfulCron, saveFixtures } from '../helpers';
+import {
+  defaultSuperAgentTrialConfig,
+  expectSuccessfulCron,
+  saveFixtures,
+} from '../helpers';
 import { Organization } from '../../src/entity';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import { DataSource } from 'typeorm';
@@ -21,17 +25,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  // Enable Super Agent trial for tests
-  remoteConfig.vars.superAgentTrial = {
-    enabled: true,
-    durationDays: 30,
-    features: {
-      batchSize: 150,
-      reminders: true,
-      showSlack: true,
-      showFeedback: true,
-    },
-  };
+  remoteConfig.vars.superAgentTrial = defaultSuperAgentTrialConfig;
 
   const expiredDate = subDays(new Date(), 1);
   const futureDate = addDays(new Date(), 10);
