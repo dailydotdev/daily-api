@@ -2159,6 +2159,29 @@ const obj = new GraphORM({
       },
     },
   },
+  DatasetTool: {
+    requiredColumns: ['id', 'title'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserTool: {
+    requiredColumns: ['id', 'userId', 'toolId'],
+    fields: {
+      tool: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'toolId',
+        },
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
 });
 
 export default obj;
