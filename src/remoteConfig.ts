@@ -4,17 +4,16 @@ import { isProd, isTest } from './common/utils';
 import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
 
-export type SuperAgentTrialConfig =
-  Partial<{
-      enabled: true;
-      durationDays: number;
-      features: {
-        batchSize: number;
-        reminders: boolean;
-        showSlack: boolean;
-        showFeedback: boolean;
-      };
-    }>
+export type SuperAgentTrialConfig = Partial<{
+  enabled: true;
+  durationDays: number;
+  features: {
+    batchSize: number;
+    reminders: boolean;
+    showSlack: boolean;
+    showFeedback: boolean;
+  };
+}>;
 
 export type RemoteConfigValue = {
   inc: number;
