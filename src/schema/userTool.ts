@@ -3,98 +3,88 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
-import { UserStack } from '../entity/user/UserStack';
+import { UserTool } from '../entity/user/UserTool';
 import { ValidationError } from 'apollo-server-errors';
 import {
-  addUserStackSchema,
-  updateUserStackSchema,
-  reorderUserStackSchema,
-  type AddUserStackInput,
-  type UpdateUserStackInput,
-  type ReorderUserStackInput,
-} from '../common/schema/userStack';
+  addUserToolSchema,
+  updateUserToolSchema,
+  reorderUserToolSchema,
+  type AddUserToolInput,
+  type UpdateUserToolInput,
+  type ReorderUserToolInput,
+} from '../common/schema/userTool';
 import { findOrCreateDatasetTool } from '../common/datasetTool';
 import { NEW_ITEM_POSITION } from '../common/constants';
 
-interface GQLUserStack {
+interface GQLUserTool {
   id: string;
   userId: string;
   toolId: string;
-  section: string;
+  category: string;
   position: number;
-  startedAt: Date | null;
-  icon: string | null;
-  title: string | null;
   createdAt: Date;
 }
 
 export const typeDefs = /* GraphQL */ `
-  type UserStack {
+  type UserTool {
     id: ID!
     tool: DatasetTool!
-    section: String!
+    category: String!
     position: Int!
-    startedAt: DateTime
-    icon: String
-    title: String
     createdAt: DateTime!
   }
 
-  type UserStackEdge {
-    node: UserStack!
+  type UserToolEdge {
+    node: UserTool!
     cursor: String!
   }
 
-  type UserStackConnection {
+  type UserToolConnection {
     pageInfo: PageInfo!
-    edges: [UserStackEdge!]!
+    edges: [UserToolEdge!]!
   }
 
-  input AddUserStackInput {
+  input AddUserToolInput {
     title: String!
-    section: String!
-    startedAt: DateTime
+    category: String!
   }
 
-  input UpdateUserStackInput {
-    section: String
-    icon: String
-    title: String
-    startedAt: DateTime
+  input UpdateUserToolInput {
+    category: String
   }
 
-  input ReorderUserStackInput {
+  input ReorderUserToolInput {
     id: ID!
     position: Int!
   }
 
   extend type Query {
     """
-    Get a user's stack items
+    Get a user's tools
     """
-    userStack(userId: ID!, first: Int, after: String): UserStackConnection!
+    userTools(userId: ID!, first: Int, after: String): UserToolConnection!
   }
 
   extend type Mutation {
     """
-    Add a stack item to the user's profile (find-or-create in dataset)
+    Add a tool to the user's profile (find-or-create in dataset)
     """
-    addUserStack(input: AddUserStackInput!): UserStack! @auth
+    addUserTool(input: AddUserToolInput!): UserTool! @auth
 
     """
-    Update a user's stack item
+    Update a user's tool
     """
-    updateUserStack(id: ID!, input: UpdateUserStackInput!): UserStack! @auth
+    updateUserTool(id: ID!, input: UpdateUserToolInput!): UserTool! @auth
 
     """
-    Delete a user's stack item
+    Delete a user's tool
     """
-    deleteUserStack(id: ID!): EmptyResponse! @auth
+    deleteUserTool(id: ID!): EmptyResponse! @auth
 
     """
-    Reorder user's stack items
+    Reorder user's tools
     """
-    reorderUserStack(items: [ReorderUserStackInput!]!): [UserStack!]! @auth
+    reorderUserTools(items: [ReorderUserToolInput!]!): [UserTool!]! @auth
   }
 `;
 
@@ -103,19 +93,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    userStack: async (
+    userTools: async (
       _,
       args: { userId: string; first?: number; after?: string },
       ctx: Context,
       info,
     ) => {
-      const pageGenerator = offsetPageGenerator<GQLUserStack>(50, 100);
+      const pageGenerator = offsetPageGenerator<GQLUserTool>(50, 100);
       const page = pageGenerator.connArgsToPage({
         first: args.first,
         after: args.after,
       });
 
-      return graphorm.queryPaginated<GQLUserStack>(
+      return graphorm.queryPaginated<GQLUserTool>(
         ctx,
         info,
         (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
@@ -134,23 +124,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
         undefined,
-        true, // use read replica
+        true,
       );
     },
   },
 
   Mutation: {
-    addUserStack: async (
+    addUserTool: async (
       _,
-      args: { input: AddUserStackInput },
+      args: { input: AddUserToolInput },
       ctx: AuthContext,
       info,
     ) => {
-      const input = addUserStackSchema.parse(args.input);
+      const input = addUserToolSchema.parse(args.input);
 
       const datasetTool = await findOrCreateDatasetTool(ctx.con, input.title);
 
-      const existing = await ctx.con.getRepository(UserStack).findOne({
+      const existing = await ctx.con.getRepository(UserTool).findOne({
         where: {
           userId: ctx.userId,
           toolId: datasetTool.id,
@@ -158,66 +148,50 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       if (existing) {
-        throw new ValidationError('Stack item already exists in your profile');
+        throw new ValidationError('Tool already exists in your profile');
       }
 
-      const userStack = ctx.con.getRepository(UserStack).create({
+      const userTool = ctx.con.getRepository(UserTool).create({
         userId: ctx.userId,
         toolId: datasetTool.id,
-        section: input.section,
+        category: input.category,
         position: NEW_ITEM_POSITION,
-        startedAt: input.startedAt ? new Date(input.startedAt) : null,
-        icon: null,
-        title: null,
       });
 
-      await ctx.con.getRepository(UserStack).save(userStack);
+      await ctx.con.getRepository(UserTool).save(userTool);
 
-      // Return using GraphORM for consistent field resolution
       return graphorm.queryOneOrFail(ctx, info, (builder) => {
         builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
-          id: userStack.id,
+          id: userTool.id,
         });
         return builder;
       });
     },
 
-    updateUserStack: async (
+    updateUserTool: async (
       _,
-      args: { id: string; input: UpdateUserStackInput },
+      args: { id: string; input: UpdateUserToolInput },
       ctx: AuthContext,
       info,
     ) => {
-      const input = updateUserStackSchema.parse(args.input);
+      const input = updateUserToolSchema.parse(args.input);
 
-      const userStack = await ctx.con.getRepository(UserStack).findOne({
+      const userTool = await ctx.con.getRepository(UserTool).findOne({
         where: { id: args.id, userId: ctx.userId },
       });
 
-      if (!userStack) {
-        throw new ValidationError('Stack item not found');
+      if (!userTool) {
+        throw new ValidationError('Tool not found');
       }
 
-      // Build update object
-      const updateData: Partial<UserStack> = {};
-      if (input.section !== undefined) {
-        updateData.section = input.section;
-      }
-      if (input.startedAt !== undefined) {
-        updateData.startedAt = input.startedAt
-          ? new Date(input.startedAt)
-          : null;
-      }
-      if (input.icon !== undefined) {
-        updateData.icon = input.icon || null;
-      }
-      if (input.title !== undefined) {
-        updateData.title = input.title || null;
+      const updateData: Partial<UserTool> = {};
+      if (input.category !== undefined) {
+        updateData.category = input.category;
       }
 
       if (Object.keys(updateData).length > 0) {
         await ctx.con
-          .getRepository(UserStack)
+          .getRepository(UserTool)
           .update({ id: args.id }, updateData);
       }
 
@@ -229,35 +203,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
     },
 
-    deleteUserStack: async (
+    deleteUserTool: async (
       _,
       args: { id: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con
-        .getRepository(UserStack)
+        .getRepository(UserTool)
         .delete({ id: args.id, userId: ctx.userId });
 
       return { _: true };
     },
 
-    reorderUserStack: async (
+    reorderUserTools: async (
       _,
-      args: { items: ReorderUserStackInput[] },
+      args: { items: ReorderUserToolInput[] },
       ctx: AuthContext,
       info,
     ) => {
-      const items = reorderUserStackSchema.parse(args.items);
+      const items = reorderUserToolSchema.parse(args.items);
       const ids = items.map((i) => i.id);
 
-      // Build CASE statement for bulk update
       const whenClauses = items
         .map((item) => `WHEN id = '${item.id}' THEN ${item.position}`)
         .join(' ');
 
-      // Update all positions in a single query, only for user's own items
       await ctx.con
-        .getRepository(UserStack)
+        .getRepository(UserTool)
         .createQueryBuilder()
         .update()
         .set({ position: () => `CASE ${whenClauses} ELSE position END` })
@@ -265,7 +237,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .andWhere('"userId" = :userId', { userId: ctx.userId })
         .execute();
 
-      // Return updated items using GraphORM
       return graphorm.query(ctx, info, (builder) => {
         builder.queryBuilder
           .where(`"${builder.alias}"."id" IN (:...ids)`, { ids })

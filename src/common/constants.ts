@@ -17,3 +17,6 @@ export const SUCCESSFUL_CIO_SYNC_DATE = 'successful_cio_sync_date';
 export const customFeedsPlusDate = new Date('2024-12-11');
 
 export const coresBalanceExpirationSeconds = 60 * ONE_MINUTE_IN_SECONDS;
+
+// Position value for newly added items (tools, stack, hot takes)
+export const NEW_ITEM_POSITION = 999999;

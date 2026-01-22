@@ -2137,7 +2137,25 @@ const obj = new GraphORM({
       },
     },
   },
-  DatasetStack: {
+  UserStack: {
+    requiredColumns: ['id', 'userId', 'toolId'],
+    fields: {
+      tool: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'toolId',
+        },
+      },
+      startedAt: {
+        transform: transformDate,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  DatasetTool: {
     requiredColumns: ['id', 'title'],
     fields: {
       createdAt: {
@@ -2145,18 +2163,15 @@ const obj = new GraphORM({
       },
     },
   },
-  UserStack: {
-    requiredColumns: ['id', 'userId', 'stackId'],
+  UserTool: {
+    requiredColumns: ['id', 'userId', 'toolId'],
     fields: {
-      stack: {
+      tool: {
         relation: {
           isMany: false,
           childColumn: 'id',
-          parentColumn: 'stackId',
+          parentColumn: 'toolId',
         },
-      },
-      startedAt: {
-        transform: transformDate,
       },
       createdAt: {
         transform: transformDate,

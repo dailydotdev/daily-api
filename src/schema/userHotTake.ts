@@ -13,6 +13,7 @@ import {
   type UpdateUserHotTakeInput,
   type ReorderUserHotTakeInput,
 } from '../common/schema/userHotTake';
+import { NEW_ITEM_POSITION } from '../common/constants';
 
 interface GQLUserHotTake {
   id: string;
@@ -25,7 +26,6 @@ interface GQLUserHotTake {
 }
 
 const MAX_HOT_TAKES = 5;
-const NEW_ITEM_POSITION = 999999;
 
 export const typeDefs = /* GraphQL */ `
   type UserHotTake {
