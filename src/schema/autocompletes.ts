@@ -10,8 +10,10 @@ import {
   autocompleteKeywordsSchema,
   autocompleteLocationSchema,
   autocompleteSchema,
+  autocompleteToolsSchema,
   LocationDataset,
 } from '../common/schema/autocompletes';
+import { DatasetTool } from '../entity/dataset/DatasetTool';
 import type z from 'zod';
 import { Company, CompanyType } from '../entity/Company';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
@@ -54,6 +56,12 @@ export const typeDefs = /* GraphQL */ `
     subdivision: String
   }
 
+  type DatasetTool {
+    id: ID!
+    title: String!
+    faviconUrl: String
+  }
+
   extend type Query {
     """
     Get autocomplete based on type
@@ -81,6 +89,9 @@ export const typeDefs = /* GraphQL */ `
       limit: Int
       type: CompanyType
     ): [Company]! @cacheControl(maxAge: 3600)
+
+    autocompleteTools(query: String!): [DatasetTool!]!
+      @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -217,6 +228,28 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           order: { name: 'ASC' },
           where: whereConditions,
         }),
+      );
+    },
+    autocompleteTools: async (
+      _,
+      args: { query: string },
+      ctx: AuthContext,
+    ): Promise<DatasetTool[]> => {
+      const result = autocompleteToolsSchema.safeParse(args);
+      if (!result.success) {
+        return [];
+      }
+
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(DatasetTool)
+          .createQueryBuilder('dt')
+          .where('dt."titleNormalized" LIKE :query', {
+            query: `%${result.data.query}%`,
+          })
+          .orderBy('dt."title"', 'ASC')
+          .limit(10)
+          .getMany(),
       );
     },
   },

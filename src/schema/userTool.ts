@@ -8,7 +8,6 @@ import { UserTool } from '../entity/user/UserTool';
 import { ValidationError } from 'apollo-server-errors';
 import type { DataSource } from 'typeorm';
 import {
-  searchToolSchema,
   addUserToolSchema,
   updateUserToolSchema,
   reorderUserToolSchema,
@@ -88,12 +87,6 @@ const findOrCreateDatasetTool = async (
 };
 
 export const typeDefs = /* GraphQL */ `
-  type DatasetTool {
-    id: ID!
-    title: String!
-    faviconUrl: String
-  }
-
   type UserTool {
     id: ID!
     tool: DatasetTool!
@@ -131,11 +124,6 @@ export const typeDefs = /* GraphQL */ `
     Get a user's tools
     """
     userTools(userId: ID!, first: Int, after: String): UserToolConnection!
-
-    """
-    Search the tools dataset for autocomplete
-    """
-    searchTools(query: String!): [DatasetTool!]!
   }
 
   extend type Mutation {
@@ -199,25 +187,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true,
       );
-    },
-
-    searchTools: async (_, args: { query: string }, ctx: Context) => {
-      const result = searchToolSchema.safeParse(args);
-      if (!result.success) {
-        return [];
-      }
-
-      const results = await ctx.con
-        .getRepository(DatasetTool)
-        .createQueryBuilder('dt')
-        .where('dt."titleNormalized" LIKE :query', {
-          query: `%${result.data.query}%`,
-        })
-        .orderBy('dt."title"', 'ASC')
-        .limit(10)
-        .getMany();
-
-      return results;
     },
   },
 

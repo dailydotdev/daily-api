@@ -1,12 +1,5 @@
 import z from 'zod';
 
-export const searchStackSchema = z.object({
-  query: z
-    .string()
-    .min(1)
-    .transform((v) => v.trim().toLowerCase()),
-});
-
 // GraphQL DateTime scalar passes Date objects, but we may also receive strings
 const dateTimeSchema = z.union([z.string().datetime(), z.date()]);
 
@@ -32,7 +25,6 @@ export const reorderUserStackSchema = z
   .array(reorderUserStackItemSchema)
   .min(1);
 
-export type SearchStackInput = z.infer<typeof searchStackSchema>;
 export type AddUserStackInput = z.infer<typeof addUserStackSchema>;
 export type UpdateUserStackInput = z.infer<typeof updateUserStackSchema>;
 export type ReorderUserStackInput = z.infer<typeof reorderUserStackItemSchema>;

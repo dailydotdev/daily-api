@@ -8,7 +8,6 @@ import { UserStack } from '../entity/user/UserStack';
 import { ValidationError } from 'apollo-server-errors';
 import type { DataSource } from 'typeorm';
 import {
-  searchStackSchema,
   addUserStackSchema,
   updateUserStackSchema,
   reorderUserStackSchema,
@@ -135,11 +134,6 @@ export const typeDefs = /* GraphQL */ `
     Get a user's stack items
     """
     userStack(userId: ID!, first: Int, after: String): UserStackConnection!
-
-    """
-    Search the stack dataset for autocomplete
-    """
-    searchStack(query: String!): [DatasetTool!]!
   }
 
   extend type Mutation {
@@ -203,25 +197,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true, // use read replica
       );
-    },
-
-    searchStack: async (_, args: { query: string }, ctx: Context) => {
-      const result = searchStackSchema.safeParse(args);
-      if (!result.success) {
-        return [];
-      }
-
-      const results = await ctx.con
-        .getRepository(DatasetTool)
-        .createQueryBuilder('dt')
-        .where('dt."titleNormalized" LIKE :query', {
-          query: `%${result.data.query}%`,
-        })
-        .orderBy('dt."title"', 'ASC')
-        .limit(10)
-        .getMany();
-
-      return results;
     },
   },
 
