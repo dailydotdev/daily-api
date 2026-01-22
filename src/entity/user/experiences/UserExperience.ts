@@ -23,10 +23,11 @@ export type UserExperienceFlags = Partial<{
   customImage: string;
   removedEnrichment: boolean;
   repository: {
-    id: string;
+    id: string | null;
+    owner: string | null;
     name: string;
     url: string;
-    image: string;
+    image: string | null;
   };
 }>;
 
