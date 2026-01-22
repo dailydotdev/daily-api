@@ -23,6 +23,7 @@ export type OrganizationLink = z.infer<typeof organizationLinksSchema>;
 
 @Entity()
 @Index('IDX_organization_subflags_subscriptionid', { synchronize: false })
+@Index('IDX_organization_trial_expires_at', { synchronize: false })
 export class Organization {
   @PrimaryColumn({
     type: 'text',

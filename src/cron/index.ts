@@ -23,6 +23,7 @@ import { postAnalyticsClickhouseCron } from './postAnalyticsClickhouse';
 import { postAnalyticsHistoryDayClickhouseCron } from './postAnalyticsHistoryDayClickhouse';
 import { cleanZombieOpportunities } from './cleanZombieOpportunities';
 import { userProfileUpdatedSync } from './userProfileUpdatedSync';
+import expireSuperAgentTrial from './expireSuperAgentTrial';
 
 export const crons: Cron[] = [
   updateViews,
@@ -49,4 +50,5 @@ export const crons: Cron[] = [
   postAnalyticsHistoryDayClickhouseCron,
   cleanZombieOpportunities,
   userProfileUpdatedSync,
+  expireSuperAgentTrial,
 ];
