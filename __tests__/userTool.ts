@@ -81,10 +81,10 @@ describe('query userTools', () => {
   });
 });
 
-describe('query searchTools', () => {
+describe('query autocompleteTools', () => {
   const QUERY = `
-    query SearchTools($query: String!) {
-      searchTools(query: $query) {
+    query AutocompleteTools($query: String!) {
+      autocompleteTools(query: $query) {
         id
         title
       }
@@ -93,22 +93,88 @@ describe('query searchTools', () => {
 
   it('should return matching tools', async () => {
     await con.getRepository(DatasetTool).save([
-      { title: 'VS Code', titleNormalized: 'vs code', faviconSource: 'none' },
+      { title: 'VS Code', titleNormalized: 'vscode', faviconSource: 'none' },
       {
         title: 'Visual Studio',
-        titleNormalized: 'visual studio',
+        titleNormalized: 'visualstudio',
         faviconSource: 'none',
       },
       { title: 'Figma', titleNormalized: 'figma', faviconSource: 'none' },
     ]);
 
     const res = await client.query(QUERY, { variables: { query: 'visual' } });
-    expect(res.data.searchTools).toHaveLength(2);
+    expect(res.data.autocompleteTools).toHaveLength(1);
   });
 
   it('should return empty for no matches', async () => {
     const res = await client.query(QUERY, { variables: { query: 'xyz' } });
-    expect(res.data.searchTools).toEqual([]);
+    expect(res.data.autocompleteTools).toEqual([]);
+  });
+
+  it('should return exact match "React" when searching for react', async () => {
+    await con.getRepository(DatasetTool).save([
+      {
+        title: 'Reactive Resume',
+        titleNormalized: 'reactiveresume',
+        faviconSource: 'none',
+      },
+      {
+        title: 'React Router',
+        titleNormalized: 'reactrouter',
+        faviconSource: 'none',
+      },
+      {
+        title: 'Semantic UI React',
+        titleNormalized: 'semanticuireact',
+        faviconSource: 'none',
+      },
+      { title: 'React', titleNormalized: 'react', faviconSource: 'none' },
+      {
+        title: 'React Hook Form',
+        titleNormalized: 'reacthookform',
+        faviconSource: 'none',
+      },
+      {
+        title: 'PrimeReact',
+        titleNormalized: 'primereact',
+        faviconSource: 'none',
+      },
+      {
+        title: 'React Table',
+        titleNormalized: 'reacttable',
+        faviconSource: 'none',
+      },
+      {
+        title: 'ReactiveX',
+        titleNormalized: 'reactivex',
+        faviconSource: 'none',
+      },
+      {
+        title: 'React Bootstrap',
+        titleNormalized: 'reactbootstrap',
+        faviconSource: 'none',
+      },
+      {
+        title: 'React Query',
+        titleNormalized: 'reactquery',
+        faviconSource: 'none',
+      },
+      { title: 'ReactOS', titleNormalized: 'reactos', faviconSource: 'none' },
+      {
+        title: 'Create React App',
+        titleNormalized: 'createreactapp',
+        faviconSource: 'none',
+      },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { query: 'react' } });
+    // Should find React and prioritize exact/shorter matches
+    const titles = res.data.autocompleteTools.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).toContain('React');
+    // Exact match should be first
+    expect(titles[0]).toBe('React');
   });
 });
 
@@ -148,7 +214,7 @@ describe('mutation addUserTool', () => {
 
     const dataset = await con
       .getRepository(DatasetTool)
-      .findOneBy({ titleNormalized: 'vs code' });
+      .findOneBy({ titleNormalized: 'vscode' });
     expect(dataset).not.toBeNull();
   });
 

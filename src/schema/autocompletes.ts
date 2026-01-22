@@ -240,14 +240,25 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
         return [];
       }
 
+      const normalizedQuery = result.data.query
+        .toLowerCase()
+        .replace(/\s+/g, '');
+
       return queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager
           .getRepository(DatasetTool)
           .createQueryBuilder('dt')
           .where('dt."titleNormalized" LIKE :query', {
-            query: `%${result.data.query}%`,
+            query: `%${normalizedQuery}%`,
           })
-          .orderBy('dt."title"', 'ASC')
+          .setParameter('exactQuery', normalizedQuery)
+          // Prioritize: exact match first, then shorter titles, then alphabetically
+          .orderBy(
+            `CASE WHEN dt."titleNormalized" = :exactQuery THEN 0 ELSE 1 END`,
+            'ASC',
+          )
+          .addOrderBy('LENGTH(dt."title")', 'ASC')
+          .addOrderBy('dt."title"', 'ASC')
           .limit(10)
           .getMany(),
       );
