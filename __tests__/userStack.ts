@@ -114,7 +114,7 @@ describe('mutation addUserStack', () => {
 
     const dataset = await con
       .getRepository(DatasetTool)
-      .findOneBy({ titleNormalized: 'node.js' });
+      .findOneBy({ titleNormalized: 'nodedotjs' });
     expect(dataset).not.toBeNull();
   });
 

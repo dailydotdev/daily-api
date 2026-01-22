@@ -6,7 +6,14 @@ import { uploadToolIcon } from './cloudinary';
 const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org';
 
 const normalizeTitle = (title: string): string =>
-  title.toLowerCase().trim().replace(/\s+/g, '');
+  title
+    .toLowerCase()
+    .trim()
+    .replace(/\./g, 'dot')
+    .replace(/\+/g, 'plus')
+    .replace(/#/g, 'sharp')
+    .replace(/&/g, 'and')
+    .replace(/\s+/g, '');
 
 const toSimpleIconsSlug = (title: string): string =>
   title.toLowerCase().replace(/[^a-z0-9]/g, '');

@@ -259,6 +259,10 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
 
       const normalizedQuery = result.data.query
         .toLowerCase()
+        .replace(/\./g, 'dot')
+        .replace(/\+/g, 'plus')
+        .replace(/#/g, 'sharp')
+        .replace(/&/g, 'and')
         .replace(/\s+/g, '');
 
       return queryReadReplica(ctx.con, ({ queryRunner }) =>
@@ -268,6 +272,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           .where('dt."titleNormalized" LIKE :query', {
             query: `%${normalizedQuery}%`,
           })
+          .andWhere('dt."faviconSource" != :none', { none: 'none' })
           .setParameter('exactQuery', normalizedQuery)
           // Prioritize: exact match first, then shorter titles, then alphabetically
           .orderBy(

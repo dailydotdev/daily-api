@@ -61,12 +61,12 @@ describe('query userTools', () => {
     const tool1 = await con.getRepository(DatasetTool).save({
       title: 'VS Code',
       titleNormalized: 'vs code',
-      faviconSource: 'none',
+      faviconSource: 'simple-icons',
     });
     const tool2 = await con.getRepository(DatasetTool).save({
       title: 'Figma',
       titleNormalized: 'figma',
-      faviconSource: 'none',
+      faviconSource: 'simple-icons',
     });
 
     await con.getRepository(UserTool).save([
@@ -93,13 +93,21 @@ describe('query autocompleteTools', () => {
 
   it('should return matching tools', async () => {
     await con.getRepository(DatasetTool).save([
-      { title: 'VS Code', titleNormalized: 'vscode', faviconSource: 'none' },
+      {
+        title: 'VS Code',
+        titleNormalized: 'vscode',
+        faviconSource: 'simple-icons',
+      },
       {
         title: 'Visual Studio',
         titleNormalized: 'visualstudio',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
-      { title: 'Figma', titleNormalized: 'figma', faviconSource: 'none' },
+      {
+        title: 'Figma',
+        titleNormalized: 'figma',
+        faviconSource: 'simple-icons',
+      },
     ]);
 
     const res = await client.query(QUERY, { variables: { query: 'visual' } });
@@ -116,54 +124,62 @@ describe('query autocompleteTools', () => {
       {
         title: 'Reactive Resume',
         titleNormalized: 'reactiveresume',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
       {
         title: 'React Router',
         titleNormalized: 'reactrouter',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
       {
         title: 'Semantic UI React',
         titleNormalized: 'semanticuireact',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
-      { title: 'React', titleNormalized: 'react', faviconSource: 'none' },
+      {
+        title: 'React',
+        titleNormalized: 'react',
+        faviconSource: 'simple-icons',
+      },
       {
         title: 'React Hook Form',
         titleNormalized: 'reacthookform',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
       {
         title: 'PrimeReact',
         titleNormalized: 'primereact',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
       {
         title: 'React Table',
         titleNormalized: 'reacttable',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
       {
         title: 'ReactiveX',
         titleNormalized: 'reactivex',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
       {
         title: 'React Bootstrap',
         titleNormalized: 'reactbootstrap',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
       {
         title: 'React Query',
         titleNormalized: 'reactquery',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
-      { title: 'ReactOS', titleNormalized: 'reactos', faviconSource: 'none' },
+      {
+        title: 'ReactOS',
+        titleNormalized: 'reactos',
+        faviconSource: 'simple-icons',
+      },
       {
         title: 'Create React App',
         titleNormalized: 'createreactapp',
-        faviconSource: 'none',
+        faviconSource: 'simple-icons',
       },
     ]);
 
@@ -237,7 +253,7 @@ describe('mutation addUserTool', () => {
     await con.getRepository(DatasetTool).save({
       title: 'Figma',
       titleNormalized: 'figma',
-      faviconSource: 'none',
+      faviconSource: 'simple-icons',
     });
 
     await client.mutate(MUTATION, {
@@ -281,7 +297,7 @@ describe('mutation updateUserTool', () => {
     const tool = await con.getRepository(DatasetTool).save({
       title: 'Notion',
       titleNormalized: 'notion',
-      faviconSource: 'none',
+      faviconSource: 'simple-icons',
     });
     const userTool = await con.getRepository(UserTool).save({
       userId: '1',
@@ -327,7 +343,7 @@ describe('mutation deleteUserTool', () => {
     const tool = await con.getRepository(DatasetTool).save({
       title: 'Postman',
       titleNormalized: 'postman',
-      faviconSource: 'none',
+      faviconSource: 'simple-icons',
     });
     const userTool = await con.getRepository(UserTool).save({
       userId: '1',
@@ -360,12 +376,12 @@ describe('mutation reorderUserTools', () => {
     const tool1 = await con.getRepository(DatasetTool).save({
       title: 'Chrome',
       titleNormalized: 'chrome',
-      faviconSource: 'none',
+      faviconSource: 'simple-icons',
     });
     const tool2 = await con.getRepository(DatasetTool).save({
       title: 'Firefox',
       titleNormalized: 'firefox',
-      faviconSource: 'none',
+      faviconSource: 'simple-icons',
     });
 
     const [item1, item2] = await con.getRepository(UserTool).save([
