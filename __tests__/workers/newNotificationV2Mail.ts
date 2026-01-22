@@ -2823,7 +2823,7 @@ describe('recruiter_new_candidate notification', () => {
       opportunityId: opportunitiesFixture[0].id,
       userId: candidate!.id,
       applicationRank: {
-        score: 85,
+        score: 8,
         description: 'Strong JS skills',
       },
     });
@@ -2855,7 +2855,56 @@ describe('recruiter_new_candidate notification', () => {
       candidate_name: 'Ido',
       profile_picture: 'https://daily.dev/ido.jpg',
       job_title: 'Senior Full Stack Developer',
-      score: '85%',
+      score: '8/10',
+      matching_content: 'Strong JS skills',
+      candidate_link: `http://localhost:5002/recruiter/${opportunitiesFixture[0].id}/matches`,
+    });
+  });
+
+  it('should show N/A label when no application score', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+
+    const candidate = await con.getRepository(User).findOneBy({ id: '1' });
+
+    // Create match with application rank score
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: candidate!.id,
+      applicationRank: {
+        description: 'Strong JS skills',
+      },
+    });
+
+    const ctx: NotificationRecruiterNewCandidateContext = {
+      userIds: ['2'],
+      opportunityId: opportunitiesFixture[0].id,
+      candidate: candidate!,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.RecruiterNewCandidate,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      candidate_name: 'Ido',
+      profile_picture: 'https://daily.dev/ido.jpg',
+      job_title: 'Senior Full Stack Developer',
+      score: 'N/A',
       matching_content: 'Strong JS skills',
       candidate_link: `http://localhost:5002/recruiter/${opportunitiesFixture[0].id}/matches`,
     });

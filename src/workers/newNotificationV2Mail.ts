@@ -1195,8 +1195,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const candidateName = candidateAvatar.name;
     const candidatePicture = candidateAvatar.image;
     const matchScore = match?.applicationRank?.score
-      ? `${Math.round(match.applicationRank.score)}%`
-      : '';
+      ? `${Math.round(match.applicationRank.score)}/10`
+      : 'N/A';
     const matchingContent = match?.applicationRank?.description || '';
 
     return {
