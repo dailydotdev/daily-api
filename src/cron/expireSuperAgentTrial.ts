@@ -8,6 +8,7 @@ import { OpportunityUserRecruiter } from '../entity/opportunities/user/Opportuni
 import { Alerts } from '../entity/Alerts';
 import { opportunityMatchBatchSize } from '../types';
 import { queryReadReplica } from '../common/queryReadReplica';
+import { updateRecruiterSubscriptionFlags } from '../common';
 
 const cron: Cron = {
   name: 'expire-super-agent-trial',
@@ -108,16 +109,13 @@ const cron: Cron = {
           const originalPlan = flags.trialPlan;
 
           // Use null to remove JSONB keys (undefined won't be sent to PostgreSQL)
-          const updatedFlags = {
-            ...flags,
-            isTrialActive: false,
-            trialExpiresAt: null,
-            trialPlan: null,
-            status: originalPlan ? flags.status : SubscriptionStatus.None,
-          };
-
           await manager.getRepository(Organization).update(org.id, {
-            recruiterSubscriptionFlags: updatedFlags,
+            recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags({
+              isTrialActive: false,
+              trialExpiresAt: null,
+              trialPlan: null,
+              status: originalPlan ? flags.status : SubscriptionStatus.None,
+            }),
           });
 
           logger.info(
