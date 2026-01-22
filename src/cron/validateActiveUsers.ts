@@ -1,7 +1,6 @@
 import { Cron } from './cron';
 import {
   getAbsoluteDifferenceInDays,
-  isProd,
   SUCCESSFUL_CIO_SYNC_DATE,
   syncSubscriptionsWithActiveState,
 } from '../common';
@@ -26,11 +25,6 @@ const runSync = async (con: DataSource, runDate: Date) => {
 const cron: Cron = {
   name: 'validate-active-users',
   handler: async (con) => {
-    if (isProd) {
-      // currently skip in prod until new resting query and logic is implemented and tested
-      return;
-    }
-
     const runDate = subDays(new Date(), 1);
     const lastSuccessfulDate = await getRedisObject(SUCCESSFUL_CIO_SYNC_DATE);
 

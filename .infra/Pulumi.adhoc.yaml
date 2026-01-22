@@ -99,6 +99,3 @@ config:
     mockExternalServices: true
   api:k8s:
     namespace: local
-  api:temporal:
-    chain: ''
-    key: ''
