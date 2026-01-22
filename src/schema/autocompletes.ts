@@ -275,6 +275,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           .limit(10)
           .getMany(),
       );
+    },
     autocompleteGithubRepository: async (
       _,
       payload: z.infer<typeof autocompleteGithubRepositorySchema>,
