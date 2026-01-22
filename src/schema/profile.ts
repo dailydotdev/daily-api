@@ -69,6 +69,7 @@ export const typeDefs = /* GraphQL */ `
 
   type UserExperienceRepository {
     id: ID!
+    owner: String
     name: String!
     url: String!
     image: String!
@@ -134,6 +135,7 @@ export const typeDefs = /* GraphQL */ `
 
   input RepositoryInput {
     id: ID!
+    owner: String!
     name: String!
     url: String!
     image: String!
@@ -235,6 +237,7 @@ const generateExperienceToSave = async <
       customDomain?: string | null;
       repository?: {
         id: string;
+        owner: string;
         name: string;
         url: string;
         image: string;

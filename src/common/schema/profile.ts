@@ -52,6 +52,7 @@ export const userExperienceProjectSchema = z
 
 export const repositoryInputSchema = z.object({
   id: z.string().min(1),
+  owner: z.string().min(1).max(100),
   name: z.string().min(1).max(200),
   url: z.url(),
   image: z.url(),
