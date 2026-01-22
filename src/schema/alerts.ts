@@ -94,6 +94,11 @@ export const typeDefs = /* GraphQL */ `
     showTopReader: Boolean
 
     """
+    Whether to show the Super Agent trial upgrade notification
+    """
+    showSuperAgentTrialUpgrade: Boolean
+
+    """
     Date of the last time user saw the brief banner
     """
     briefBannerLastSeen: DateTime
