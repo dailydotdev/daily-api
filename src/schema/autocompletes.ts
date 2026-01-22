@@ -59,6 +59,8 @@ export const typeDefs = /* GraphQL */ `
 
   type GitHubRepository {
     id: ID!
+    owner: String!
+    name: String!
     fullName: String!
     url: String!
     image: String!
@@ -247,6 +249,8 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
 
         return data.items.map((repo) => ({
           id: String(repo.id),
+          owner: repo.owner.login,
+          name: repo.name,
           fullName: repo.full_name,
           url: repo.html_url,
           image: repo.owner.avatar_url,
