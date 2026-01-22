@@ -255,6 +255,35 @@ The migration generator compares entities against the local database schema. Ens
   ```
 - **For cron jobs and batch operations**: Keep read-only queries outside the transaction, then wrap all writes in a single transaction.
 
+**Using queryReadReplica Helper:**
+- Use `queryReadReplica` helper from `src/common/queryReadReplica.ts` for read-only queries in common functions and cron jobs.
+- **Example pattern**:
+  ```typescript
+  import { queryReadReplica } from '../common/queryReadReplica';
+
+  const result = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(Entity).find({ where: {...} })
+  );
+  ```
+- **Exception**: Queries during write operations that need immediate consistency should use primary.
+
+**State Checking Patterns:**
+- **Prefer negative checks over listing states** when checking for "non-draft" or similar conditions.
+- Use `state: Not(OpportunityState.DRAFT)` instead of `state: In([IN_REVIEW, LIVE, CLOSED])`.
+- This is more maintainable as new states are added.
+
+**JSONB Key Removal with null vs undefined:**
+- **Use `null` to remove JSONB keys** - `undefined` will not be sent to PostgreSQL.
+- **Example pattern**:
+  ```typescript
+  // BAD: undefined won't remove the key
+  const flags = { ...existingFlags, keyToRemove: undefined };
+
+  // GOOD: null removes the key from JSONB
+  const flags = { ...existingFlags, keyToRemove: null };
+  ```
+- **Hard-code keys for removal** instead of using `Object.keys()` dynamically - it's clearer and safer.
+
 ## Pull Requests
 
 Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.

@@ -185,10 +185,8 @@ describe('expireSuperAgentTrial cron', () => {
     });
     expect(
       expiredWithPlan?.recruiterSubscriptionFlags.trialExpiresAt,
-    ).toBeUndefined();
-    expect(
-      expiredWithPlan?.recruiterSubscriptionFlags.trialPlan,
-    ).toBeUndefined();
+    ).toBeNull();
+    expect(expiredWithPlan?.recruiterSubscriptionFlags.trialPlan).toBeNull();
 
     // Verify expired trial without original plan - downgrades to none
     const expiredNoPlan = await con

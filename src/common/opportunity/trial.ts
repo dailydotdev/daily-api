@@ -1,6 +1,6 @@
 import type { DataSource, EntityManager } from 'typeorm';
 import type { FastifyBaseLogger } from 'fastify';
-import { In } from 'typeorm';
+import { Not } from 'typeorm';
 import { OpportunityState } from '@dailydotdev/schema';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { Organization } from '../../entity/Organization';
@@ -33,11 +33,7 @@ export const isFirstOpportunitySubmission = async (
   const count = await con.getRepository(OpportunityJob).count({
     where: {
       organizationId,
-      state: In([
-        OpportunityState.IN_REVIEW,
-        OpportunityState.LIVE,
-        OpportunityState.CLOSED,
-      ]),
+      state: Not(OpportunityState.DRAFT),
     },
   });
   return count === 0;
@@ -66,7 +62,10 @@ export const activateSuperAgentTrial = async ({
   trialExpiresAt.setDate(trialExpiresAt.getDate() + config.durationDays);
 
   const orgRepo = con.getRepository(Organization);
-  const org = await orgRepo.findOneBy({ id: organizationId });
+  const org = await orgRepo.findOne({
+    select: ['id', 'recruiterSubscriptionFlags'],
+    where: { id: organizationId },
+  });
 
   if (!org) {
     throw new Error(`Organization ${organizationId} not found`);

@@ -6,27 +6,28 @@ import { OpportunityState } from '@dailydotdev/schema';
 import { In } from 'typeorm';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
 import { Alerts } from '../entity/Alerts';
-import { getSuperAgentTrialConfig } from '../common/opportunity/trial';
 import { opportunityMatchBatchSize } from '../types';
+import { queryReadReplica } from '../common/queryReadReplica';
 
 const cron: Cron = {
   name: 'expire-super-agent-trial',
   handler: async (con, logger) => {
-    const trialConfig = getSuperAgentTrialConfig();
     logger.debug('Checking for expired Super Agent trials...');
 
     const now = new Date();
 
     // Find organizations with expired trials using the index
-    const expiredOrgs = await con
-      .getRepository(Organization)
-      .createQueryBuilder('org')
-      .where(`org."recruiterSubscriptionFlags"->>'isTrialActive' = 'true'`)
-      .andWhere(
-        `(org."recruiterSubscriptionFlags"->>'trialExpiresAt')::timestamptz < :now`,
-        { now },
-      )
-      .getMany();
+    const expiredOrgs = await queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager
+        .getRepository(Organization)
+        .createQueryBuilder('org')
+        .where(`org."recruiterSubscriptionFlags"->>'isTrialActive' = 'true'`)
+        .andWhere(
+          `(org."recruiterSubscriptionFlags"->>'trialExpiresAt')::timestamptz < :now`,
+          { now },
+        )
+        .getMany(),
+    );
 
     if (expiredOrgs.length === 0) {
       logger.info('No expired Super Agent trials found');
@@ -36,25 +37,29 @@ const cron: Cron = {
     const expiredOrgIds = expiredOrgs.map((org) => org.id);
 
     // Find trial opportunity IDs for expired orgs (read-only query before transaction)
-    const trialOpportunities = await con
-      .getRepository(OpportunityJob)
-      .createQueryBuilder('op')
-      .select('op.id')
-      .where({ organizationId: In(expiredOrgIds) })
-      .andWhere(`(op.flags->>'isTrial')::boolean = true`)
-      .getMany();
+    const trialOpportunities = await queryReadReplica(con, ({ queryRunner }) =>
+      queryRunner.manager
+        .getRepository(OpportunityJob)
+        .createQueryBuilder('op')
+        .select('op.id')
+        .where({ organizationId: In(expiredOrgIds) })
+        .andWhere(`(op.flags->>'isTrial')::boolean = true`)
+        .getMany(),
+    );
 
     const trialOpportunityIds = trialOpportunities.map((op) => op.id);
 
     // Find recruiter user IDs for these trial opportunities (read-only query before transaction)
     let recruiterUserIds: string[] = [];
     if (trialOpportunityIds.length > 0) {
-      const recruiters = await con
-        .getRepository(OpportunityUserRecruiter)
-        .createQueryBuilder('ou')
-        .select('DISTINCT ou."userId"', 'userId')
-        .where({ opportunityId: In(trialOpportunityIds) })
-        .getRawMany<{ userId: string }>();
+      const recruiters = await queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(OpportunityUserRecruiter)
+          .createQueryBuilder('ou')
+          .select('DISTINCT ou."userId"', 'userId')
+          .where({ opportunityId: In(trialOpportunityIds) })
+          .getRawMany<{ userId: string }>(),
+      );
       recruiterUserIds = recruiters.map((r) => r.userId);
     }
 
@@ -80,22 +85,14 @@ const cron: Cron = {
         // Remove trial features from opportunities (keep them open - user paid for the seat)
         // and reset batchSize to default
         if (trialOpportunityIds.length > 0) {
-          // Get feature keys from config (excluding batchSize which gets reset to default)
-          const featureKeys = Object.keys(
-            trialConfig.enabled ? trialConfig.features : {},
-          ).filter((key) => key !== 'batchSize');
-          // Build JSONB removal expression for trial features + isTrial flag
-          const keysToRemove = ['isTrial', ...featureKeys]
-            .map((key) => `- '${key}'`)
-            .join(' ');
-
+          // Hard-code trial feature keys to remove using PostgreSQL JSONB removal operator
           const result = await manager
             .getRepository(OpportunityJob)
             .createQueryBuilder()
             .update(OpportunityJob)
             .set({
               flags: () =>
-                `flags ${keysToRemove} || '{"batchSize": ${opportunityMatchBatchSize}}'`,
+                `flags - 'isTrial' - 'reminders' - 'showSlack' - 'showFeedback' || '{"batchSize": ${opportunityMatchBatchSize}}'`,
             })
             .where({ id: In(trialOpportunityIds) })
             .andWhere({
@@ -110,11 +107,12 @@ const cron: Cron = {
           const flags = org.recruiterSubscriptionFlags || {};
           const originalPlan = flags.trialPlan;
 
+          // Use null to remove JSONB keys (undefined won't be sent to PostgreSQL)
           const updatedFlags = {
             ...flags,
             isTrialActive: false,
-            trialExpiresAt: undefined,
-            trialPlan: undefined,
+            trialExpiresAt: null,
+            trialPlan: null,
             status: originalPlan ? flags.status : SubscriptionStatus.None,
           };
 
