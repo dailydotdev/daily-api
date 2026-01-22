@@ -45,7 +45,6 @@ describe('query userTools', () => {
             tool {
               id
               title
-              url
             }
           }
         }
@@ -121,7 +120,6 @@ describe('mutation addUserTool', () => {
         category
         tool {
           title
-          url
         }
       }
     }
@@ -134,13 +132,12 @@ describe('mutation addUserTool', () => {
     expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
   });
 
-  it('should create tool and dataset entry with auto-detected favicon', async () => {
+  it('should create tool and dataset entry', async () => {
     loggedUser = '1';
     const res = await client.mutate(MUTATION, {
       variables: {
         input: {
           title: 'VS Code',
-          url: 'https://code.visualstudio.com',
           category: 'Development',
         },
       },
@@ -148,27 +145,22 @@ describe('mutation addUserTool', () => {
 
     expect(res.data.addUserTool.category).toBe('Development');
     expect(res.data.addUserTool.tool.title).toBe('VS Code');
-    expect(res.data.addUserTool.tool.url).toBe('https://code.visualstudio.com');
 
     const dataset = await con
       .getRepository(DatasetTool)
       .findOneBy({ titleNormalized: 'vs code' });
     expect(dataset).not.toBeNull();
-    expect(dataset?.faviconUrl).toBe(
-      'https://www.google.com/s2/favicons?domain=code.visualstudio.com&sz=128',
-    );
-    expect(dataset?.faviconSource).toBe('google');
   });
 
-  it('should create tool without favicon when no URL provided', async () => {
+  it('should create tool without favicon when icon not found', async () => {
     loggedUser = '1';
     await client.mutate(MUTATION, {
-      variables: { input: { title: 'MyTool', category: 'Other' } },
+      variables: { input: { title: 'MyCustomTool', category: 'Other' } },
     });
 
     const dataset = await con
       .getRepository(DatasetTool)
-      .findOneBy({ titleNormalized: 'mytool' });
+      .findOneBy({ titleNormalized: 'mycustomtool' });
     expect(dataset).not.toBeNull();
     expect(dataset?.faviconUrl).toBeNull();
     expect(dataset?.faviconSource).toBe('none');
@@ -190,34 +182,6 @@ describe('mutation addUserTool', () => {
       titleNormalized: 'figma',
     });
     expect(count).toBe(1);
-  });
-
-  it('should update existing tool favicon when URL is provided', async () => {
-    loggedUser = '1';
-    await con.getRepository(DatasetTool).save({
-      title: 'Figma',
-      titleNormalized: 'figma',
-      faviconSource: 'none',
-      faviconUrl: null,
-    });
-
-    await client.mutate(MUTATION, {
-      variables: {
-        input: {
-          title: 'Figma',
-          url: 'https://www.figma.com',
-          category: 'Design',
-        },
-      },
-    });
-
-    const dataset = await con
-      .getRepository(DatasetTool)
-      .findOneBy({ titleNormalized: 'figma' });
-    expect(dataset?.faviconUrl).toBe(
-      'https://www.google.com/s2/favicons?domain=www.figma.com&sz=128',
-    );
-    expect(dataset?.faviconSource).toBe('google');
   });
 
   it('should prevent duplicate tools', async () => {

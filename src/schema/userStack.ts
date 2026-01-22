@@ -3,7 +3,7 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
-import { DatasetStack } from '../entity/dataset/DatasetStack';
+import { DatasetTool } from '../entity/dataset/DatasetTool';
 import { UserStack } from '../entity/user/UserStack';
 import { ValidationError } from 'apollo-server-errors';
 import type { DataSource } from 'typeorm';
@@ -16,11 +16,13 @@ import {
   type UpdateUserStackInput,
   type ReorderUserStackInput,
 } from '../common/schema/userStack';
+import { uploadToolIcon } from '../common/cloudinary';
+import { Readable } from 'stream';
 
 interface GQLUserStack {
   id: string;
   userId: string;
-  stackId: string;
+  toolId: string;
   section: string;
   position: number;
   startedAt: Date | null;
@@ -29,47 +31,69 @@ interface GQLUserStack {
   createdAt: Date;
 }
 
-// Large static position for new items - they'll be sorted by createdAt as tiebreaker
 const NEW_ITEM_POSITION = 999999;
+const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org';
 
-// Helper to normalize title for dataset lookup
 const normalizeTitle = (title: string): string => title.toLowerCase().trim();
 
-// Find or create a dataset stack entry
-const findOrCreateDatasetStack = async (
+const toSimpleIconsSlug = (title: string): string =>
+  title.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const fetchAndUploadToolIcon = async (
+  toolId: string,
+  title: string,
+): Promise<string | null> => {
+  const slug = toSimpleIconsSlug(title);
+  const url = `${SIMPLE_ICONS_CDN}/${slug}`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
+    }
+
+    const svgBuffer = Buffer.from(await response.arrayBuffer());
+    const stream = Readable.from(svgBuffer);
+    const result = await uploadToolIcon(toolId, stream);
+    return result.url;
+  } catch {
+    return null;
+  }
+};
+
+const findOrCreateDatasetTool = async (
   con: DataSource,
   title: string,
-  icon?: string,
-): Promise<DatasetStack> => {
+): Promise<DatasetTool> => {
   const titleNormalized = normalizeTitle(title);
-  const repo = con.getRepository(DatasetStack);
+  const repo = con.getRepository(DatasetTool);
 
-  let stack = await repo.findOne({
+  let tool = await repo.findOne({
     where: { titleNormalized },
   });
 
-  if (!stack) {
-    stack = repo.create({
+  if (!tool) {
+    tool = repo.create({
       title: title.trim(),
       titleNormalized,
-      icon: icon || null,
+      faviconSource: 'none',
     });
-    await repo.save(stack);
+    await repo.save(tool);
+
+    const faviconUrl = await fetchAndUploadToolIcon(tool.id, title);
+    if (faviconUrl) {
+      tool.faviconUrl = faviconUrl;
+      tool.faviconSource = 'simple-icons';
+      await repo.save(tool);
+    }
   }
 
-  return stack;
+  return tool;
 };
 
 export const typeDefs = /* GraphQL */ `
-  type DatasetStack {
-    id: ID!
-    title: String!
-    icon: String
-  }
-
   type UserStack {
     id: ID!
-    stack: DatasetStack!
+    tool: DatasetTool!
     section: String!
     position: Int!
     startedAt: DateTime
@@ -91,7 +115,6 @@ export const typeDefs = /* GraphQL */ `
   input AddUserStackInput {
     title: String!
     section: String!
-    icon: String
     startedAt: DateTime
   }
 
@@ -116,7 +139,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Search the stack dataset for autocomplete
     """
-    searchStack(query: String!): [DatasetStack!]!
+    searchStack(query: String!): [DatasetTool!]!
   }
 
   extend type Mutation {
@@ -189,12 +212,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       const results = await ctx.con
-        .getRepository(DatasetStack)
-        .createQueryBuilder('ds')
-        .where('ds."titleNormalized" LIKE :query', {
+        .getRepository(DatasetTool)
+        .createQueryBuilder('dt')
+        .where('dt."titleNormalized" LIKE :query', {
           query: `%${result.data.query}%`,
         })
-        .orderBy('ds."title"', 'ASC')
+        .orderBy('dt."title"', 'ASC')
         .limit(10)
         .getMany();
 
@@ -211,18 +234,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const input = addUserStackSchema.parse(args.input);
 
-      // Find or create the dataset entry
-      const datasetStack = await findOrCreateDatasetStack(
-        ctx.con,
-        input.title,
-        input.icon,
-      );
+      const datasetTool = await findOrCreateDatasetTool(ctx.con, input.title);
 
-      // Check if user already has this stack
       const existing = await ctx.con.getRepository(UserStack).findOne({
         where: {
           userId: ctx.userId,
-          stackId: datasetStack.id,
+          toolId: datasetTool.id,
         },
       });
 
@@ -230,17 +247,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Stack item already exists in your profile');
       }
 
-      // Create the user stack entry with large position
-      // Items are ordered by position ASC, createdAt ASC so new items go to end
-      // Store title/icon at user level if different from dataset
       const userStack = ctx.con.getRepository(UserStack).create({
         userId: ctx.userId,
-        stackId: datasetStack.id,
+        toolId: datasetTool.id,
         section: input.section,
         position: NEW_ITEM_POSITION,
         startedAt: input.startedAt ? new Date(input.startedAt) : null,
-        icon: input.icon || null,
-        title: null, // Initial title comes from dataset
+        icon: null,
+        title: null,
       });
 
       await ctx.con.getRepository(UserStack).save(userStack);

@@ -13,7 +13,6 @@ const dateTimeSchema = z.union([z.string().datetime(), z.date()]);
 export const addUserStackSchema = z.object({
   title: z.string().min(1).max(255),
   section: z.string().min(1).max(100),
-  icon: z.string().max(50).optional(),
   startedAt: dateTimeSchema.optional(),
 });
 

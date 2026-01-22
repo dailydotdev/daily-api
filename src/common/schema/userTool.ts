@@ -9,7 +9,6 @@ export const searchToolSchema = z.object({
 
 export const addUserToolSchema = z.object({
   title: z.string().min(1).max(255),
-  url: z.string().url().max(2000).nullish(),
   category: z.string().min(1).max(100),
 });
 

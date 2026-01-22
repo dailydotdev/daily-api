@@ -2133,22 +2133,14 @@ const obj = new GraphORM({
       },
     },
   },
-  DatasetStack: {
-    requiredColumns: ['id', 'title'],
-    fields: {
-      createdAt: {
-        transform: transformDate,
-      },
-    },
-  },
   UserStack: {
-    requiredColumns: ['id', 'userId', 'stackId'],
+    requiredColumns: ['id', 'userId', 'toolId'],
     fields: {
-      stack: {
+      tool: {
         relation: {
           isMany: false,
           childColumn: 'id',
-          parentColumn: 'stackId',
+          parentColumn: 'toolId',
         },
       },
       startedAt: {

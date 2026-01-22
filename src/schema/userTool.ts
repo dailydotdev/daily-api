@@ -16,7 +16,8 @@ import {
   type UpdateUserToolInput,
   type ReorderUserToolInput,
 } from '../common/schema/userTool';
-import { getGoogleFaviconUrl } from '../common/companyEnrichment';
+import { uploadToolIcon } from '../common/cloudinary';
+import { Readable } from 'stream';
 
 interface GQLUserTool {
   id: string;
@@ -28,13 +29,29 @@ interface GQLUserTool {
 }
 
 const NEW_ITEM_POSITION = 999999;
+const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org';
 
 const normalizeTitle = (title: string): string => title.toLowerCase().trim();
 
-const extractDomainFromUrl = (url: string): string | null => {
+const toSimpleIconsSlug = (title: string): string =>
+  title.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const fetchAndUploadToolIcon = async (
+  toolId: string,
+  title: string,
+): Promise<string | null> => {
+  const slug = toSimpleIconsSlug(title);
+  const url = `${SIMPLE_ICONS_CDN}/${slug}`;
   try {
-    const parsed = new URL(url);
-    return parsed.hostname;
+    const response = await fetch(url);
+    if (!response.ok) {
+      return null;
+    }
+
+    const svgBuffer = Buffer.from(await response.arrayBuffer());
+    const stream = Readable.from(svgBuffer);
+    const result = await uploadToolIcon(toolId, stream);
+    return result.url;
   } catch {
     return null;
   }
@@ -43,7 +60,6 @@ const extractDomainFromUrl = (url: string): string | null => {
 const findOrCreateDatasetTool = async (
   con: DataSource,
   title: string,
-  url?: string | null,
 ): Promise<DatasetTool> => {
   const titleNormalized = normalizeTitle(title);
   const repo = con.getRepository(DatasetTool);
@@ -53,26 +69,17 @@ const findOrCreateDatasetTool = async (
   });
 
   if (!tool) {
-    const domain = url ? extractDomainFromUrl(url) : null;
-    const faviconUrl = domain ? getGoogleFaviconUrl(domain) : null;
-
     tool = repo.create({
       title: title.trim(),
       titleNormalized,
-      url: url || null,
-      faviconUrl,
-      faviconSource: faviconUrl ? 'google' : 'none',
+      faviconSource: 'none',
     });
     await repo.save(tool);
-  } else if (url && !tool.faviconUrl) {
-    // Update existing tool with favicon if it has a URL but no favicon
-    const domain = extractDomainFromUrl(url);
-    if (domain) {
-      tool.faviconUrl = getGoogleFaviconUrl(domain);
-      tool.faviconSource = 'google';
-      if (!tool.url) {
-        tool.url = url;
-      }
+
+    const faviconUrl = await fetchAndUploadToolIcon(tool.id, title);
+    if (faviconUrl) {
+      tool.faviconUrl = faviconUrl;
+      tool.faviconSource = 'simple-icons';
       await repo.save(tool);
     }
   }
@@ -84,7 +91,6 @@ export const typeDefs = /* GraphQL */ `
   type DatasetTool {
     id: ID!
     title: String!
-    url: String
     faviconUrl: String
   }
 
@@ -108,7 +114,6 @@ export const typeDefs = /* GraphQL */ `
 
   input AddUserToolInput {
     title: String!
-    url: String
     category: String!
   }
 
@@ -225,11 +230,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const input = addUserToolSchema.parse(args.input);
 
-      const datasetTool = await findOrCreateDatasetTool(
-        ctx.con,
-        input.title,
-        input.url,
-      );
+      const datasetTool = await findOrCreateDatasetTool(ctx.con, input.title);
 
       const existing = await ctx.con.getRepository(UserTool).findOne({
         where: {
