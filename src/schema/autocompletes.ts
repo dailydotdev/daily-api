@@ -63,6 +63,8 @@ export const typeDefs = /* GraphQL */ `
     id: ID!
     title: String!
     faviconUrl: String
+  }
+
   type GitHubRepository {
     id: ID!
     fullName: String!
