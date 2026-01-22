@@ -10,8 +10,8 @@ import {
 } from './helpers';
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
-import { DatasetStack } from '../src/entity/dataset/DatasetStack';
 import { UserStack } from '../src/entity/user/UserStack';
+import { DatasetTool } from '../src/entity/dataset/DatasetTool';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -43,10 +43,10 @@ describe('query userStack', () => {
             section
             position
             startedAt
-            stack {
+            tool {
               id
               title
-              icon
+              faviconUrl
             }
           }
         }
@@ -60,24 +60,26 @@ describe('query userStack', () => {
   });
 
   it('should return stack items ordered by position', async () => {
-    const stack1 = await con.getRepository(DatasetStack).save({
+    const tool1 = await con.getRepository(DatasetTool).save({
       title: 'TypeScript',
       titleNormalized: 'typescript',
+      faviconSource: 'none',
     });
-    const stack2 = await con.getRepository(DatasetStack).save({
+    const tool2 = await con.getRepository(DatasetTool).save({
       title: 'React',
       titleNormalized: 'react',
+      faviconSource: 'none',
     });
 
     await con.getRepository(UserStack).save([
-      { userId: '1', stackId: stack1.id, section: 'Languages', position: 1 },
-      { userId: '1', stackId: stack2.id, section: 'Frameworks', position: 0 },
+      { userId: '1', toolId: tool1.id, section: 'Languages', position: 1 },
+      { userId: '1', toolId: tool2.id, section: 'Frameworks', position: 0 },
     ]);
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
     expect(res.data.userStack.edges).toHaveLength(2);
-    expect(res.data.userStack.edges[0].node.stack.title).toBe('React');
-    expect(res.data.userStack.edges[1].node.stack.title).toBe('TypeScript');
+    expect(res.data.userStack.edges[0].node.tool.title).toBe('React');
+    expect(res.data.userStack.edges[1].node.tool.title).toBe('TypeScript');
   });
 });
 
@@ -87,7 +89,7 @@ describe('mutation addUserStack', () => {
       addUserStack(input: $input) {
         id
         section
-        stack {
+        tool {
           title
         }
       }
@@ -108,26 +110,27 @@ describe('mutation addUserStack', () => {
     });
 
     expect(res.data.addUserStack.section).toBe('Runtime');
-    expect(res.data.addUserStack.stack.title).toBe('Node.js');
+    expect(res.data.addUserStack.tool.title).toBe('Node.js');
 
     const dataset = await con
-      .getRepository(DatasetStack)
+      .getRepository(DatasetTool)
       .findOneBy({ titleNormalized: 'node.js' });
     expect(dataset).not.toBeNull();
   });
 
   it('should reuse existing dataset entry', async () => {
     loggedUser = '1';
-    await con.getRepository(DatasetStack).save({
+    await con.getRepository(DatasetTool).save({
       title: 'Python',
       titleNormalized: 'python',
+      faviconSource: 'none',
     });
 
     await client.mutate(MUTATION, {
       variables: { input: { title: 'Python', section: 'Languages' } },
     });
 
-    const count = await con.getRepository(DatasetStack).countBy({
+    const count = await con.getRepository(DatasetTool).countBy({
       titleNormalized: 'python',
     });
     expect(count).toBe(1);
@@ -162,13 +165,14 @@ describe('mutation updateUserStack', () => {
 
   it('should update stack item', async () => {
     loggedUser = '1';
-    const stack = await con.getRepository(DatasetStack).save({
+    const tool = await con.getRepository(DatasetTool).save({
       title: 'Rust',
       titleNormalized: 'rust',
+      faviconSource: 'none',
     });
     const userStack = await con.getRepository(UserStack).save({
       userId: '1',
-      stackId: stack.id,
+      toolId: tool.id,
       section: 'Languages',
       position: 0,
     });
@@ -208,13 +212,14 @@ describe('mutation deleteUserStack', () => {
 
   it('should delete stack item', async () => {
     loggedUser = '1';
-    const stack = await con.getRepository(DatasetStack).save({
+    const tool = await con.getRepository(DatasetTool).save({
       title: 'Java',
       titleNormalized: 'java',
+      faviconSource: 'none',
     });
     const userStack = await con.getRepository(UserStack).save({
       userId: '1',
-      stackId: stack.id,
+      toolId: tool.id,
       section: 'Languages',
       position: 0,
     });
@@ -240,18 +245,18 @@ describe('mutation reorderUserStack', () => {
 
   it('should update positions', async () => {
     loggedUser = '1';
-    const stack1 = await con.getRepository(DatasetStack).save({
+    const stack1 = await con.getRepository(DatasetTool).save({
       title: 'CSS',
       titleNormalized: 'css',
     });
-    const stack2 = await con.getRepository(DatasetStack).save({
+    const stack2 = await con.getRepository(DatasetTool).save({
       title: 'HTML',
       titleNormalized: 'html',
     });
 
     const [item1, item2] = await con.getRepository(UserStack).save([
-      { userId: '1', stackId: stack1.id, section: 'Web', position: 0 },
-      { userId: '1', stackId: stack2.id, section: 'Web', position: 1 },
+      { userId: '1', toolId: stack1.id, section: 'Web', position: 0 },
+      { userId: '1', toolId: stack2.id, section: 'Web', position: 1 },
     ]);
 
     const res = await client.mutate(MUTATION, {

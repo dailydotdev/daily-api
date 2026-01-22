@@ -57,6 +57,10 @@ export class MergeDatasetStackToTool1769072476606 implements MigrationInterface 
         ADD CONSTRAINT "FK_user_stack_tool_id"
         FOREIGN KEY ("toolId") REFERENCES dataset_tool(id) ON DELETE CASCADE
       `);
+
+    await queryRunner.query(`
+        DROP TABLE dataset_stack
+    `)
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
@@ -75,5 +79,15 @@ export class MergeDatasetStackToTool1769072476606 implements MigrationInterface 
         ADD CONSTRAINT "FK_user_stack_stack_id"
         FOREIGN KEY ("stackId") REFERENCES dataset_stack(id) ON DELETE CASCADE
       `);
+    await queryRunner.query(`
+      CREATE TABLE "dataset_stack" (
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "title" text NOT NULL,
+        "titleNormalized" text NOT NULL,
+        "icon" text,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+        CONSTRAINT "PK_dataset_stack_id" PRIMARY KEY ("id")
+      )
+    `);
   }
 }

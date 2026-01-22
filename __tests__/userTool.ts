@@ -81,10 +81,10 @@ describe('query userTools', () => {
   });
 });
 
-describe('query searchTools', () => {
+describe('query autocompleteTools', () => {
   const QUERY = `
-    query SearchTools($query: String!) {
-      searchTools(query: $query) {
+    query AutocompleteTools($query: String!) {
+      autocompleteTools(query: $query) {
         id
         title
       }
@@ -103,12 +103,12 @@ describe('query searchTools', () => {
     ]);
 
     const res = await client.query(QUERY, { variables: { query: 'visual' } });
-    expect(res.data.searchTools).toHaveLength(2);
+    expect(res.data.autocompleteTools).toHaveLength(1);
   });
 
   it('should return empty for no matches', async () => {
     const res = await client.query(QUERY, { variables: { query: 'xyz' } });
-    expect(res.data.searchTools).toEqual([]);
+    expect(res.data.autocompleteTools).toEqual([]);
   });
 });
 
