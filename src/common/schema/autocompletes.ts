@@ -37,4 +37,7 @@ export const autocompleteToolsSchema = z.object({
     .string()
     .min(1)
     .transform((v) => v.trim().toLowerCase()),
+export const autocompleteGithubRepositorySchema = z.object({
+  query: z.string().trim().min(1).max(100),
+  limit: z.number().min(1).max(20).default(10),
 });
