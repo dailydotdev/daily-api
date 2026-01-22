@@ -206,6 +206,8 @@ config:
       secure: AAABAMzCsR5elUVCRaLz51fI7t9RC+ftG9iwGst7tOb4vWHyiJakDQ9thRBJS0HH69V3+wMW5lhkMVYY1AUMiw==
     bragiOrigin:
       secure: AAABAO0h676Ihv0Tlg9REfWdR8OZvJiXsjEZ/MovrnIi3VRTsu4BuYz/H7sbYMP2aonEE8Xk+nqJgCNDRqRlv4U968Hxw+p8
+    githubApiToken:
+      secure: AAABACA15ONR4Q1/2UFpcQ4bAKkkcrNYSQCSClGz0EtdyEKGxyzf1hOS9xQ+2800uXk+bZ29uB0ZdLPtr8gjGrSvykAUkwuf
   api:k8s:
     host: subs.daily.dev
     namespace: daily
