@@ -28,15 +28,19 @@ export const claimAnonOpportunities = async ({
           claimedById: IsNull(),
         });
 
+      const opportunityIds = claimableItems
+        .filter((item) => item.flags.opportunityId)
+        .map((item) => item.flags.opportunityId);
+
+      if (!opportunityIds.length) {
+        return [];
+      }
+
       const opportunities = await entityManager
         .getRepository(OpportunityJob)
         .find({
           where: {
-            id: In(
-              claimableItems
-                .filter((item) => item.flags.opportunityId)
-                .map((item) => item.flags.opportunityId),
-            ),
+            id: In(opportunityIds),
             organizationId: IsNull(), // only claim opportunities not linked to an organization yet
           },
         });
