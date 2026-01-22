@@ -5,7 +5,7 @@ import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
 
 export type SuperAgentTrialConfig =
-  | {
+  Partial<{
       enabled: true;
       durationDays: number;
       features: {
@@ -14,8 +14,7 @@ export type SuperAgentTrialConfig =
         showSlack: boolean;
         showFeedback: boolean;
       };
-    }
-  | { enabled: false };
+    }>
 
 export type RemoteConfigValue = {
   inc: number;
