@@ -1617,3 +1617,253 @@ describe('query autocompleteCompany', () => {
     expect(res.data.autocompleteCompany[0].id).toBe('samsung');
   });
 });
+
+describe('query autocompleteGithubRepository', () => {
+  const QUERY = /* GraphQL */ `
+    query AutocompleteGithubRepository($query: String!, $limit: Int) {
+      autocompleteGithubRepository(query: $query, limit: $limit) {
+        id
+        fullName
+        url
+        image
+        description
+      }
+    }
+  `;
+
+  beforeEach(() => {
+    nock.cleanAll();
+  });
+
+  it('should return unauthenticated when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { query: 'react' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return GitHub repositories for a search query', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 2,
+      items: [
+        {
+          id: 10270250,
+          full_name: 'facebook/react',
+          html_url: 'https://github.com/facebook/react',
+          description: 'The library for web and native user interfaces.',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+        {
+          id: 75396575,
+          full_name: 'facebook/react-native',
+          html_url: 'https://github.com/facebook/react-native',
+          description:
+            'A framework for building native applications using React',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toMatchObject([
+      {
+        id: '10270250',
+        fullName: 'facebook/react',
+        url: 'https://github.com/facebook/react',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+        description: 'The library for web and native user interfaces.',
+      },
+      {
+        id: '75396575',
+        fullName: 'facebook/react-native',
+        url: 'https://github.com/facebook/react-native',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+        description: 'A framework for building native applications using React',
+      },
+    ]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should respect the limit parameter', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 1,
+      items: [
+        {
+          id: 10270250,
+          full_name: 'facebook/react',
+          html_url: 'https://github.com/facebook/react',
+          description: 'The library for web and native user interfaces.',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '5',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react', limit: 5 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository.length).toBe(1);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should return empty array when GitHub API returns no results', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 0,
+      items: [],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'nonexistent-repo-name-xyz',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'nonexistent-repo-name-xyz' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toEqual([]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should return empty array when GitHub API returns an error', async () => {
+    loggedUser = '1';
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(500, { message: 'Internal Server Error' });
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toEqual([]);
+  });
+
+  it('should handle repositories with null description', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 1,
+      items: [
+        {
+          id: 12345678,
+          full_name: 'user/repo-without-description',
+          html_url: 'https://github.com/user/repo-without-description',
+          description: null,
+          owner: {
+            login: 'user',
+            avatar_url: 'https://avatars.githubusercontent.com/u/123?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'repo-without-description',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'repo-without-description' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toMatchObject([
+      {
+        id: '12345678',
+        fullName: 'user/repo-without-description',
+        url: 'https://github.com/user/repo-without-description',
+        image: 'https://avatars.githubusercontent.com/u/123?v=4',
+        description: null,
+      },
+    ]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should URL encode special characters in query', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 0,
+      items: [],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'test repo',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'test repo' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(nock.isDone()).toBe(true);
+  });
+});
