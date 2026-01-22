@@ -7,11 +7,14 @@ import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
   autocompleteCompanySchema,
+  autocompleteGithubRepositorySchema,
   autocompleteKeywordsSchema,
   autocompleteLocationSchema,
   autocompleteSchema,
   LocationDataset,
 } from '../common/schema/autocompletes';
+import { gitHubClient } from '../integrations/github/clients';
+import type { GQLGitHubRepository } from '../integrations/github/types';
 import type z from 'zod';
 import { Company, CompanyType } from '../entity/Company';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
@@ -54,6 +57,14 @@ export const typeDefs = /* GraphQL */ `
     subdivision: String
   }
 
+  type GitHubRepository {
+    id: ID!
+    fullName: String!
+    url: String!
+    image: String!
+    description: String
+  }
+
   extend type Query {
     """
     Get autocomplete based on type
@@ -81,6 +92,11 @@ export const typeDefs = /* GraphQL */ `
       limit: Int
       type: CompanyType
     ): [Company]! @cacheControl(maxAge: 3600)
+
+    autocompleteGithubRepository(
+      query: String!
+      limit: Int = 10
+    ): [GitHubRepository]! @auth @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -218,6 +234,27 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           where: whereConditions,
         }),
       );
+    },
+    autocompleteGithubRepository: async (
+      _,
+      payload: z.infer<typeof autocompleteGithubRepositorySchema>,
+    ): Promise<GQLGitHubRepository[]> => {
+      const { query, limit } =
+        autocompleteGithubRepositorySchema.parse(payload);
+
+      try {
+        const data = await gitHubClient.searchRepositories(query, limit);
+
+        return data.items.map((repo) => ({
+          id: String(repo.id),
+          fullName: repo.full_name,
+          url: repo.html_url,
+          image: repo.owner.avatar_url,
+          description: repo.description,
+        }));
+      } catch {
+        return [];
+      }
     },
   },
 });
