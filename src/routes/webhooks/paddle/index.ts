@@ -74,6 +74,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
               err,
               provider: SubscriptionProvider.Paddle,
               payload: rawRequestBody,
+              signature,
             },
             'Paddle generic error',
           );

@@ -61,6 +61,7 @@ import {
   FeedResponse,
   SimpleFeedConfigGenerator,
   versionToFeedGenerator,
+  versionToTimeFeedGenerator,
 } from '../integrations/feed';
 import {
   AuthenticationError,
@@ -1431,6 +1432,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           info,
         );
       }
+      if (args.version >= 2 && args.ranking === Ranking.TIME) {
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: feedGenerators['time']!,
+          },
+          ctx,
+          info,
+        );
+      }
       return anonymousFeedResolverV1(source, args, ctx, info);
     },
     feed: (source, args: ConfiguredFeedArgs, ctx: Context, info) => {
@@ -1440,6 +1452,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           {
             ...(args as FeedArgs),
             generator: versionToFeedGenerator(args.version),
+          },
+          ctx,
+          info,
+        );
+      }
+      if (args.version >= 2 && args.ranking === Ranking.TIME) {
+        return feedResolverCursor(
+          source,
+          {
+            ...(args as FeedArgs),
+            generator: versionToTimeFeedGenerator(args.version),
           },
           ctx,
           info,

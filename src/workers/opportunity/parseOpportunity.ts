@@ -110,18 +110,24 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
 
-      await con.getRepository(OpportunityJob).update(
-        { id: opportunityId },
-        {
+      await con
+        .getRepository(OpportunityJob)
+        .createQueryBuilder()
+        .update({
           state: OpportunityState.ERROR,
-          flags: updateFlagsStatement<OpportunityJob>({
+          flags: () => `flags || :flagsJson`,
+        })
+        .where({ id: opportunityId })
+        .setParameter(
+          'flagsJson',
+          JSON.stringify({
             parseError:
               error instanceof z.ZodError
                 ? z.prettifyError(error)
                 : errorMessage,
           }),
-        },
-      );
+        )
+        .execute();
 
       logger.error(
         { opportunityId, error, durationMs: performance.now() - startMs },

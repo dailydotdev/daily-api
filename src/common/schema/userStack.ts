@@ -20,6 +20,7 @@ export const addUserStackSchema = z.object({
 export const updateUserStackSchema = z.object({
   section: z.string().min(1).max(100).optional(),
   icon: z.string().max(50).optional(),
+  title: z.string().min(1).max(255).optional(),
   startedAt: dateTimeSchema.nullish(),
 });
 
