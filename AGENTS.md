@@ -197,6 +197,93 @@ The migration generator compares entities against the local database schema. Ens
   ```
 - **Example lesson**: In `notifyJobOpportunity`, locations were fetched one-by-one inside a `Promise.all` map by awaiting `locationData.location`. The fix was to extract all `locationId`s upfront, fetch all `DatasetLocation` records in a single query using `In(locationIds)`, and use a Map for lookups.
 
+**Updating JSONB Flag Fields:**
+- **Use flag update utilities** instead of manually spreading existing flags. Utilities in `src/common/utils.ts` leverage PostgreSQL's JSONB `||` operator for atomic, efficient updates.
+- Available utilities: `updateFlagsStatement`, `updateNotificationFlags`, `updateSubscriptionFlags`, `updateRecruiterSubscriptionFlags`
+- **Example pattern**:
+  ```typescript
+  // BAD: Manual spread - requires reading entity first, non-atomic
+  const entity = await repo.findOneBy({ id });
+  const existingFlags = entity.flags || {};
+  await repo.update(id, {
+    flags: { ...existingFlags, newField: value },
+  });
+
+  // GOOD: Use utility - atomic PostgreSQL JSONB merge
+  await repo.update(id, {
+    flags: updateFlagsStatement<Entity>({ newField: value }),
+  });
+  ```
+- The utilities generate SQL like `flags || '{"newField": "value"}'` which atomically merges without needing to read first (unless you need to reference existing values).
+
+**Using Transactions for Multiple Sequential Updates:**
+- **Wrap multiple sequential database updates in a transaction** to ensure atomicity - if any operation fails, all changes are rolled back.
+- Use `con.transaction(async (manager) => { ... })` pattern where `manager` is an `EntityManager` for all operations within the transaction.
+- **When to use transactions**: Any time you have 2+ sequential write operations that should succeed or fail together.
+- **For reusable functions**: Accept `DataSource | EntityManager` as the connection parameter so the function can participate in a caller's transaction.
+- **Example pattern**:
+  ```typescript
+  // BAD: Multiple sequential updates without transaction
+  await orgRepo.update(orgId, { status: 'active' });
+  await alertsRepo.upsert({ userId, showAlert: true }, { conflictPaths: ['userId'] });
+  await opportunityRepo.update(oppId, { state: 'IN_REVIEW' });
+  // If the third update fails, the first two are already committed!
+
+  // GOOD: Wrap in transaction for atomicity
+  await con.transaction(async (manager) => {
+    await manager.getRepository(Organization).update(orgId, { status: 'active' });
+    await manager.getRepository(Alerts).upsert({ userId, showAlert: true }, { conflictPaths: ['userId'] });
+    await manager.getRepository(OpportunityJob).update(oppId, { state: 'IN_REVIEW' });
+  });
+  // All updates succeed together or none are committed
+
+  // GOOD: Reusable function that accepts either DataSource or EntityManager
+  type DataSourceOrManager = DataSource | EntityManager;
+
+  const updateEntity = async ({ con }: { con: DataSourceOrManager }) => {
+    await con.getRepository(Entity).update(...);
+  };
+
+  // Can be called standalone
+  await updateEntity({ con: dataSource });
+
+  // Or within a transaction
+  await dataSource.transaction(async (manager) => {
+    await updateEntity({ con: manager });
+    await anotherUpdate({ con: manager });
+  });
+  ```
+- **For cron jobs and batch operations**: Keep read-only queries outside the transaction, then wrap all writes in a single transaction.
+
+**Using queryReadReplica Helper:**
+- Use `queryReadReplica` helper from `src/common/queryReadReplica.ts` for read-only queries in common functions and cron jobs.
+- **Example pattern**:
+  ```typescript
+  import { queryReadReplica } from '../common/queryReadReplica';
+
+  const result = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(Entity).find({ where: {...} })
+  );
+  ```
+- **Exception**: Queries during write operations that need immediate consistency should use primary.
+
+**State Checking Patterns:**
+- **Prefer negative checks over listing states** when checking for "non-draft" or similar conditions.
+- Use `state: Not(OpportunityState.DRAFT)` instead of `state: In([IN_REVIEW, LIVE, CLOSED])`.
+- This is more maintainable as new states are added.
+
+**JSONB Key Removal with null vs undefined:**
+- **Use `null` to remove JSONB keys** - `undefined` will not be sent to PostgreSQL.
+- **Example pattern**:
+  ```typescript
+  // BAD: undefined won't remove the key
+  const flags = { ...existingFlags, keyToRemove: undefined };
+
+  // GOOD: null removes the key from JSONB
+  const flags = { ...existingFlags, keyToRemove: null };
+  ```
+- **Hard-code keys for removal** instead of using `Object.keys()` dynamically - it's clearer and safer.
+
 ## Pull Requests
 
 Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.

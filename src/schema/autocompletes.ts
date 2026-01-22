@@ -11,8 +11,10 @@ import {
   autocompleteKeywordsSchema,
   autocompleteLocationSchema,
   autocompleteSchema,
+  autocompleteToolsSchema,
   LocationDataset,
 } from '../common/schema/autocompletes';
+import { DatasetTool } from '../entity/dataset/DatasetTool';
 import { gitHubClient } from '../integrations/github/clients';
 import type { GQLGitHubRepository } from '../integrations/github/types';
 import type z from 'zod';
@@ -57,6 +59,12 @@ export const typeDefs = /* GraphQL */ `
     subdivision: String
   }
 
+  type DatasetTool {
+    id: ID!
+    title: String!
+    faviconUrl: String
+  }
+
   type GitHubRepository {
     id: ID!
     owner: String!
@@ -95,6 +103,8 @@ export const typeDefs = /* GraphQL */ `
       type: CompanyType
     ): [Company]! @cacheControl(maxAge: 3600)
 
+    autocompleteTools(query: String!): [DatasetTool!]!
+      @cacheControl(maxAge: 3600)
     autocompleteGithubRepository(
       query: String!
       limit: Int = 10
@@ -235,6 +245,39 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           order: { name: 'ASC' },
           where: whereConditions,
         }),
+      );
+    },
+    autocompleteTools: async (
+      _,
+      args: { query: string },
+      ctx: AuthContext,
+    ): Promise<DatasetTool[]> => {
+      const result = autocompleteToolsSchema.safeParse(args);
+      if (!result.success) {
+        return [];
+      }
+
+      const normalizedQuery = result.data.query
+        .toLowerCase()
+        .replace(/\s+/g, '');
+
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(DatasetTool)
+          .createQueryBuilder('dt')
+          .where('dt."titleNormalized" LIKE :query', {
+            query: `%${normalizedQuery}%`,
+          })
+          .setParameter('exactQuery', normalizedQuery)
+          // Prioritize: exact match first, then shorter titles, then alphabetically
+          .orderBy(
+            `CASE WHEN dt."titleNormalized" = :exactQuery THEN 0 ELSE 1 END`,
+            'ASC',
+          )
+          .addOrderBy('LENGTH(dt."title")', 'ASC')
+          .addOrderBy('dt."title"', 'ASC')
+          .limit(10)
+          .getMany(),
       );
     },
     autocompleteGithubRepository: async (
