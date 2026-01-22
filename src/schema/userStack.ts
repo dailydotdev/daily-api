@@ -3,12 +3,9 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
-import { DatasetTool } from '../entity/dataset/DatasetTool';
 import { UserStack } from '../entity/user/UserStack';
 import { ValidationError } from 'apollo-server-errors';
-import type { DataSource } from 'typeorm';
 import {
-  searchStackSchema,
   addUserStackSchema,
   updateUserStackSchema,
   reorderUserStackSchema,
@@ -16,8 +13,8 @@ import {
   type UpdateUserStackInput,
   type ReorderUserStackInput,
 } from '../common/schema/userStack';
-import { uploadToolIcon } from '../common/cloudinary';
-import { Readable } from 'stream';
+import { findOrCreateDatasetTool } from '../common/datasetTool';
+import { NEW_ITEM_POSITION } from '../common/constants';
 
 interface GQLUserStack {
   id: string;
@@ -30,65 +27,6 @@ interface GQLUserStack {
   title: string | null;
   createdAt: Date;
 }
-
-const NEW_ITEM_POSITION = 999999;
-const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org';
-
-const normalizeTitle = (title: string): string => title.toLowerCase().trim();
-
-const toSimpleIconsSlug = (title: string): string =>
-  title.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-const fetchAndUploadToolIcon = async (
-  toolId: string,
-  title: string,
-): Promise<string | null> => {
-  const slug = toSimpleIconsSlug(title);
-  const url = `${SIMPLE_ICONS_CDN}/${slug}`;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      return null;
-    }
-
-    const svgBuffer = Buffer.from(await response.arrayBuffer());
-    const stream = Readable.from(svgBuffer);
-    const result = await uploadToolIcon(toolId, stream);
-    return result.url;
-  } catch {
-    return null;
-  }
-};
-
-const findOrCreateDatasetTool = async (
-  con: DataSource,
-  title: string,
-): Promise<DatasetTool> => {
-  const titleNormalized = normalizeTitle(title);
-  const repo = con.getRepository(DatasetTool);
-
-  let tool = await repo.findOne({
-    where: { titleNormalized },
-  });
-
-  if (!tool) {
-    tool = repo.create({
-      title: title.trim(),
-      titleNormalized,
-      faviconSource: 'none',
-    });
-    await repo.save(tool);
-
-    const faviconUrl = await fetchAndUploadToolIcon(tool.id, title);
-    if (faviconUrl) {
-      tool.faviconUrl = faviconUrl;
-      tool.faviconSource = 'simple-icons';
-      await repo.save(tool);
-    }
-  }
-
-  return tool;
-};
 
 export const typeDefs = /* GraphQL */ `
   type UserStack {
@@ -135,11 +73,6 @@ export const typeDefs = /* GraphQL */ `
     Get a user's stack items
     """
     userStack(userId: ID!, first: Int, after: String): UserStackConnection!
-
-    """
-    Search the stack dataset for autocomplete
-    """
-    searchStack(query: String!): [DatasetTool!]!
   }
 
   extend type Mutation {
@@ -203,25 +136,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         undefined,
         true, // use read replica
       );
-    },
-
-    searchStack: async (_, args: { query: string }, ctx: Context) => {
-      const result = searchStackSchema.safeParse(args);
-      if (!result.success) {
-        return [];
-      }
-
-      const results = await ctx.con
-        .getRepository(DatasetTool)
-        .createQueryBuilder('dt')
-        .where('dt."titleNormalized" LIKE :query', {
-          query: `%${result.data.query}%`,
-        })
-        .orderBy('dt."title"', 'ASC')
-        .limit(10)
-        .getMany();
-
-      return results;
     },
   },
 

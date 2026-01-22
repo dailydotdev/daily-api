@@ -31,3 +31,10 @@ export const autocompleteLocationSchema = z.object({
   limit: z.number().min(1).max(50).default(5),
   dataset: z.enum(LocationDataset).default(LocationDataset.External),
 });
+
+export const autocompleteToolsSchema = z.object({
+  query: z
+    .string()
+    .min(1)
+    .transform((v) => v.trim().toLowerCase()),
+});
