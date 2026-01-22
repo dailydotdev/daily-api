@@ -2094,6 +2094,7 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
         customCompanyName
         repository {
           id
+          owner
           name
           url
           image
@@ -2121,7 +2122,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
           startedAt: new Date('2023-01-01'),
           repository: {
             id: '10270250',
-            name: 'facebook/react',
+            owner: 'facebook',
+            name: 'react',
             url: 'https://github.com/facebook/react',
             image: 'https://avatars.githubusercontent.com/u/69631?v=4',
           },
@@ -2139,7 +2141,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
       customCompanyName: null,
       repository: {
         id: '10270250',
-        name: 'facebook/react',
+        owner: 'facebook',
+        name: 'react',
         url: 'https://github.com/facebook/react',
         image: 'https://avatars.githubusercontent.com/u/69631?v=4',
       },
@@ -2152,7 +2155,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
     expect(saved?.flags).toMatchObject({
       repository: {
         id: '10270250',
-        name: 'facebook/react',
+        owner: 'facebook',
+        name: 'react',
         url: 'https://github.com/facebook/react',
         image: 'https://avatars.githubusercontent.com/u/69631?v=4',
       },
@@ -2172,7 +2176,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
           startedAt: new Date('2023-06-01'),
           repository: {
             id: '20929025',
-            name: 'microsoft/TypeScript',
+            owner: 'microsoft',
+            name: 'TypeScript',
             url: 'https://github.com/microsoft/TypeScript',
             image: 'https://avatars.githubusercontent.com/u/6154722?v=4',
           },
@@ -2183,7 +2188,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.upsertUserGeneralExperience.repository).toMatchObject({
       id: '20929025',
-      name: 'microsoft/TypeScript',
+      owner: 'microsoft',
+      name: 'TypeScript',
     });
     expect(res.data.upsertUserGeneralExperience.company).toBeNull();
     expect(res.data.upsertUserGeneralExperience.customCompanyName).toBeNull();
@@ -2201,7 +2207,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
           startedAt: new Date('2023-01-01'),
           repository: {
             id: '123456',
-            name: 'old/repo',
+            owner: 'old',
+            name: 'repo',
             url: 'https://github.com/old/repo',
             image: 'https://avatars.githubusercontent.com/u/1?v=4',
           },
@@ -2222,7 +2229,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
           startedAt: new Date('2023-01-01'),
           repository: {
             id: '789012',
-            name: 'new/repo',
+            owner: 'new',
+            name: 'repo',
             url: 'https://github.com/new/repo',
             image: 'https://avatars.githubusercontent.com/u/2?v=4',
           },
@@ -2236,7 +2244,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
       title: 'Updated Contribution',
       repository: {
         id: '789012',
-        name: 'new/repo',
+        owner: 'new',
+        name: 'repo',
         url: 'https://github.com/new/repo',
         image: 'https://avatars.githubusercontent.com/u/2?v=4',
       },
@@ -2275,7 +2284,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
           startedAt: new Date('2023-01-01'),
           repository: {
             id: '10270250',
-            name: 'facebook/react',
+            owner: 'facebook',
+            name: 'react',
             url: 'https://github.com/facebook/react',
             image: 'https://avatars.githubusercontent.com/u/69631?v=4',
           },
@@ -2290,7 +2300,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
     ).toBeNull();
     expect(updated.data.upsertUserGeneralExperience.repository).toMatchObject({
       id: '10270250',
-      name: 'facebook/react',
+      owner: 'facebook',
+      name: 'react',
     });
   });
 
@@ -2327,7 +2338,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
             startedAt: new Date('2023-01-01'),
             repository: {
               id: '123',
-              name: 'test/repo',
+              owner: 'test',
+              name: 'repo',
               url: 'not-a-valid-url',
               image: 'https://example.com/image.png',
             },
@@ -2352,7 +2364,8 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
             startedAt: new Date('2023-01-01'),
             repository: {
               id: '123',
-              name: 'test/repo',
+              owner: 'test',
+              name: 'repo',
               url: 'https://github.com/test/repo',
               image: 'not-a-valid-url',
             },
