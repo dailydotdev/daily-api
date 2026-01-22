@@ -14,9 +14,7 @@ import {
 
 type DataSourceOrManager = DataSource | EntityManager;
 
-const DEFAULT_TRIAL_CONFIG: SuperAgentTrialConfig = {
-  enabled: false,
-};
+const DEFAULT_TRIAL_CONFIG: SuperAgentTrialConfig = {};
 
 export const getSuperAgentTrialConfig = (): SuperAgentTrialConfig => {
   return remoteConfig.vars.superAgentTrial ?? DEFAULT_TRIAL_CONFIG;
@@ -59,7 +57,7 @@ export const activateSuperAgentTrial = async ({
   }
 
   const trialExpiresAt = new Date();
-  trialExpiresAt.setDate(trialExpiresAt.getDate() + config.durationDays);
+  trialExpiresAt.setDate(trialExpiresAt.getDate() + config.durationDays!);
 
   const orgRepo = con.getRepository(Organization);
   const org = await orgRepo.findOne({
