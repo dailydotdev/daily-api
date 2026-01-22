@@ -34,6 +34,8 @@ export const typeDefs = /* GraphQL */ `
     title: String!
     subtitle: String
     position: Int!
+    upvotes: Int!
+    upvoted: Boolean
     createdAt: DateTime!
   }
 

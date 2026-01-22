@@ -107,6 +107,31 @@ const existsByUserAndPost =
     END`;
   };
 
+const existsByUserAndHotTake =
+  (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
+  (ctx: Context, alias: string, qb: QueryBuilder): string => {
+    let query = qb
+      .select('1')
+      .from(entity, 'a')
+      .where(`a."userId" = :userId`, { userId: ctx.userId })
+      .andWhere(`a."hotTakeId" = ${alias}.id`)
+      .limit(1);
+
+    if (typeof build === 'function') {
+      query = build(query);
+    }
+
+    return /*sql*/ `CASE
+      WHEN
+        ${query.getQuery()}
+        IS NOT NULL
+      THEN
+        TRUE
+      ELSE
+        FALSE
+    END`;
+  };
+
 const nullIfNotLoggedIn = <T>(value: T, ctx: Context): T | null =>
   ctx.userId ? value : null;
 
@@ -2172,6 +2197,18 @@ const obj = new GraphORM({
           childColumn: 'id',
           parentColumn: 'toolId',
         },
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserHotTake: {
+    requiredColumns: ['id', 'userId'],
+    fields: {
+      upvoted: {
+        select: existsByUserAndHotTake('UserHotTakeUpvote'),
+        transform: nullIfNotLoggedIn,
       },
       createdAt: {
         transform: transformDate,

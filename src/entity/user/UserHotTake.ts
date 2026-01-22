@@ -31,6 +31,9 @@ export class UserHotTake {
   @Column({ type: 'integer' })
   position: number;
 
+  @Column({ type: 'integer', default: 0 })
+  upvotes: number;
+
   @Column({ type: 'timestamp', default: () => 'now()' })
   createdAt: Date;
 

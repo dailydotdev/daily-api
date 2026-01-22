@@ -9,6 +9,7 @@ export * from './UserStats';
 export * from './UserTopReader';
 export * from './UserStack';
 export * from './UserHotTake';
+export * from './UserHotTakeUpvote';
 export * from './UserWorkspacePhoto';
 export * from './UserGear';
 export * from './UserTool';

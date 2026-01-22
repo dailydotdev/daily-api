@@ -9,6 +9,8 @@ import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
 import { AuthContext } from '../Context';
 import { UserComment } from '../entity/user/UserComment';
+import { UserHotTake } from '../entity/user/UserHotTake';
+import { UserHotTakeUpvote } from '../entity/user/UserHotTakeUpvote';
 import { UserVote } from '../types';
 
 type UserVoteProps = {
@@ -147,6 +149,51 @@ export const voteComment = async ({
     // Foreign key violation
     if (err?.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Comment or user not found');
+    }
+
+    throw err;
+  }
+
+  return { _: true };
+};
+
+export const voteHotTake = async ({
+  ctx,
+  id,
+  vote,
+}: UserVoteProps): Promise<GQLEmptyResponse> => {
+  try {
+    validateVoteType({ vote });
+
+    const hotTake = await ctx.con
+      .getRepository(UserHotTake)
+      .findOneByOrFail({ id });
+
+    const userHotTakeUpvoteRepo = ctx.con.getRepository(UserHotTakeUpvote);
+
+    switch (vote) {
+      case UserVote.Up:
+        await userHotTakeUpvoteRepo.save({
+          hotTakeId: id,
+          userId: ctx.userId,
+        });
+        break;
+      case UserVote.None:
+        await userHotTakeUpvoteRepo.delete({
+          hotTakeId: id,
+          userId: ctx.userId,
+        });
+        break;
+      case UserVote.Down:
+        throw new ValidationError('Hot takes do not support downvotes');
+      default:
+        throw new ValidationError('Unsupported vote type');
+    }
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
+    if (err?.code === TypeOrmError.FOREIGN_KEY) {
+      throw new NotFoundError('Hot take or user not found');
     }
 
     throw err;

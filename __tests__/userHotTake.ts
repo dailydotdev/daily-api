@@ -11,6 +11,7 @@ import {
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
 import { UserHotTake } from '../src/entity/user/UserHotTake';
+import { UserHotTakeUpvote } from '../src/entity/user/UserHotTakeUpvote';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -81,6 +82,230 @@ describe('query userHotTakes', () => {
       title: 'My opinion',
       subtitle: 'Some context',
     });
+  });
+});
+
+describe('query userHotTakes with upvotes', () => {
+  const QUERY = `
+    query UserHotTakes($userId: ID!) {
+      userHotTakes(userId: $userId) {
+        edges {
+          node {
+            id
+            title
+            upvotes
+            upvoted
+          }
+        }
+      }
+    }
+  `;
+
+  it('should return upvotes count', async () => {
+    const hotTake = await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Popular take',
+      position: 0,
+    });
+
+    await con.getRepository(UserHotTakeUpvote).save([
+      { hotTakeId: hotTake.id, userId: '2' },
+      { hotTakeId: hotTake.id, userId: '3' },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.data.userHotTakes.edges[0].node.upvotes).toBe(2);
+  });
+
+  it('should return upvoted as null when not logged in', async () => {
+    const hotTake = await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Take',
+      position: 0,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.data.userHotTakes.edges[0].node.upvoted).toBeNull();
+  });
+
+  it('should return upvoted as true when user upvoted', async () => {
+    loggedUser = '2';
+    const hotTake = await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Take',
+      position: 0,
+    });
+
+    await con.getRepository(UserHotTakeUpvote).save({
+      hotTakeId: hotTake.id,
+      userId: '2',
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.data.userHotTakes.edges[0].node.upvoted).toBe(true);
+  });
+
+  it('should return upvoted as false when user has not upvoted', async () => {
+    loggedUser = '2';
+    await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Take',
+      position: 0,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.data.userHotTakes.edges[0].node.upvoted).toBe(false);
+  });
+});
+
+describe('mutation vote on hot take', () => {
+  const MUTATION = `
+    mutation Vote($id: ID!, $entity: UserVoteEntity!, $vote: Int!) {
+      vote(id: $id, entity: $entity, vote: $vote) {
+        _
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '00000000-0000-0000-0000-000000000000',
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+    expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('should upvote a hot take', async () => {
+    loggedUser = '2';
+    const hotTake = await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Take',
+      position: 0,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: hotTake.id,
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const upvote = await con.getRepository(UserHotTakeUpvote).findOneBy({
+      hotTakeId: hotTake.id,
+      userId: '2',
+    });
+    expect(upvote).not.toBeNull();
+  });
+
+  it('should remove upvote when voting with 0', async () => {
+    loggedUser = '2';
+    const hotTake = await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Take',
+      position: 0,
+    });
+
+    await con.getRepository(UserHotTakeUpvote).save({
+      hotTakeId: hotTake.id,
+      userId: '2',
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: hotTake.id,
+        entity: 'hot_take',
+        vote: 0,
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const upvote = await con.getRepository(UserHotTakeUpvote).findOneBy({
+      hotTakeId: hotTake.id,
+      userId: '2',
+    });
+    expect(upvote).toBeNull();
+  });
+
+  it('should not allow downvoting hot takes', async () => {
+    loggedUser = '2';
+    const hotTake = await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Take',
+      position: 0,
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: hotTake.id,
+        entity: 'hot_take',
+        vote: -1,
+      },
+    });
+
+    expect(res.errors?.[0]?.message).toBe(
+      'Hot takes do not support downvotes',
+    );
+  });
+
+  it('should return error for non-existent hot take', async () => {
+    loggedUser = '2';
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '00000000-0000-0000-0000-000000000000',
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+
+    expect(res.errors).toBeDefined();
+  });
+
+  it('should allow upvoting same hot take only once', async () => {
+    loggedUser = '2';
+    const hotTake = await con.getRepository(UserHotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'Take',
+      position: 0,
+    });
+
+    await client.mutate(MUTATION, {
+      variables: {
+        id: hotTake.id,
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: hotTake.id,
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+
+    expect(res.errors).toBeUndefined();
+
+    const upvotes = await con.getRepository(UserHotTakeUpvote).findBy({
+      hotTakeId: hotTake.id,
+      userId: '2',
+    });
+    expect(upvotes).toHaveLength(1);
   });
 });
 
