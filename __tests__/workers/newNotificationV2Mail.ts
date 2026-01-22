@@ -2823,7 +2823,7 @@ describe('recruiter_new_candidate notification', () => {
       opportunityId: opportunitiesFixture[0].id,
       userId: candidate!.id,
       applicationRank: {
-        score: 8,
+        score: 8.6799,
         description: 'Strong JS skills',
       },
     });
@@ -2855,7 +2855,7 @@ describe('recruiter_new_candidate notification', () => {
       candidate_name: 'Ido',
       profile_picture: 'https://daily.dev/ido.jpg',
       job_title: 'Senior Full Stack Developer',
-      score: '8/10',
+      score: '8.6/10',
       matching_content: 'Strong JS skills',
       candidate_link: `http://localhost:5002/recruiter/${opportunitiesFixture[0].id}/matches`,
     });
