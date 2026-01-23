@@ -4,6 +4,7 @@ import { AuthContext, BaseContext } from '../Context';
 import {
   CampaignCtaPlacement,
   ChecklistViewState,
+  DefaultWriteTab,
   Settings,
   SETTINGS_DEFAULT,
   SettingsFlagsPublic,
@@ -52,10 +53,12 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   campaignCtaPlacement?: CampaignCtaPlacement;
   customLinks?: string[];
   optOutReadingStreak?: boolean;
+  defaultWriteTab?: DefaultWriteTab;
 }
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(ChecklistViewState, 'ChecklistViewState')}
+  ${toGQLEnum(DefaultWriteTab, 'DefaultWriteTab')}
 
   type SettingsFlagsPublic {
     sidebarSquadExpanded: Boolean
@@ -66,6 +69,7 @@ export const typeDefs = /* GraphQL */ `
     clickbaitShieldEnabled: Boolean
     timezoneMismatchIgnore: String
     lastPrompt: String
+    defaultWriteTab: DefaultWriteTab
   }
 
   input SettingsFlagsPublicInput {
@@ -78,6 +82,7 @@ export const typeDefs = /* GraphQL */ `
     prompt: JSONObject
     timezoneMismatchIgnore: String
     lastPrompt: String
+    defaultWriteTab: DefaultWriteTab
   }
 
   """
@@ -365,6 +370,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         !Object.values(CampaignCtaPlacement).includes(data.campaignCtaPlacement)
       ) {
         throw new ValidationError(`Invalid value for 'campaignCtaPlacement'`);
+      }
+
+      if (
+        data?.flags?.defaultWriteTab &&
+        !Object.values(DefaultWriteTab).includes(data.flags.defaultWriteTab)
+      ) {
+        throw new ValidationError(`Invalid value for 'defaultWriteTab'`);
       }
 
       const promptSchema = z.record(z.string(), z.boolean());

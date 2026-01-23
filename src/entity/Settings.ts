@@ -20,6 +20,12 @@ export enum ChecklistViewState {
   Hidden = 'hidden',
 }
 
+export enum DefaultWriteTab {
+  Share = 'Share',
+  NewPost = 'NewPost',
+  Poll = 'Poll',
+}
+
 export type SettingsFlags = Partial<{
   sidebarSquadExpanded: boolean;
   sidebarCustomFeedsExpanded: boolean;
@@ -30,6 +36,7 @@ export type SettingsFlags = Partial<{
   prompt: object;
   timezoneMismatchIgnore: string;
   lastPrompt: string;
+  defaultWriteTab: DefaultWriteTab;
 }>;
 
 export type SettingsFlagsPublic = Pick<
@@ -43,6 +50,7 @@ export type SettingsFlagsPublic = Pick<
   | 'prompt'
   | 'timezoneMismatchIgnore'
   | 'lastPrompt'
+  | 'defaultWriteTab'
 >;
 
 @Entity()
@@ -143,5 +151,6 @@ export const SETTINGS_DEFAULT = {
     sidebarResourcesExpanded: true,
     sidebarBookmarksExpanded: true,
     clickbaitShieldEnabled: true,
+    defaultWriteTab: DefaultWriteTab.NewPost,
   },
 };
