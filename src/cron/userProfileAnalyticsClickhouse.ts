@@ -40,7 +40,7 @@ export const userProfileAnalyticsClickhouseCron: Cron = {
     const response = await clickhouseClient.query({
       query: /* sql */ `
         SELECT
-            user_id AS id,
+            profile_id AS id,
             max(created_at) AS "updatedAt",
             uniqMerge(unique_visitors) AS "uniqueVisitors"
         FROM api.user_profile_analytics
