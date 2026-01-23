@@ -165,30 +165,35 @@ export const voteHotTake = async ({
   try {
     validateVoteType({ vote });
 
-    const hotTake = await ctx.con
-      .getRepository(UserHotTake)
-      .findOneByOrFail({ id });
-
-    const userHotTakeUpvoteRepo = ctx.con.getRepository(UserHotTakeUpvote);
-
-    switch (vote) {
-      case UserVote.Up:
-        await userHotTakeUpvoteRepo.save({
-          hotTakeId: id,
-          userId: ctx.userId,
-        });
-        break;
-      case UserVote.None:
-        await userHotTakeUpvoteRepo.delete({
-          hotTakeId: id,
-          userId: ctx.userId,
-        });
-        break;
-      case UserVote.Down:
-        throw new ValidationError('Hot takes do not support downvotes');
-      default:
-        throw new ValidationError('Unsupported vote type');
+    if (vote === UserVote.Down) {
+      throw new ValidationError('Hot takes do not support downvotes');
     }
+
+    await ctx.con.transaction(async (manager) => {
+      const hotTakeRepo = manager.getRepository(UserHotTake);
+      const upvoteRepo = manager.getRepository(UserHotTakeUpvote);
+
+      await hotTakeRepo.findOneByOrFail({ id });
+
+      const existingUpvote = await upvoteRepo.findOneBy({
+        hotTakeId: id,
+        userId: ctx.userId,
+      });
+
+      if (vote === UserVote.Up && !existingUpvote) {
+        await upvoteRepo.insert({
+          hotTakeId: id,
+          userId: ctx.userId,
+        });
+        await hotTakeRepo.increment({ id }, 'upvotes', 1);
+      } else if (vote === UserVote.None && existingUpvote) {
+        await upvoteRepo.delete({
+          hotTakeId: id,
+          userId: ctx.userId,
+        });
+        await hotTakeRepo.decrement({ id }, 'upvotes', 1);
+      }
+    });
   } catch (originalError) {
     const err = originalError as TypeORMQueryFailedError;
 
