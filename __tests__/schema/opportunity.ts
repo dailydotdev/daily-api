@@ -3029,7 +3029,9 @@ describe('mutation opportunityApply', () => {
       description: {},
       screening: [],
       feedback: [],
-      applicationRank: {},
+      applicationRank: {
+        selfApplied: true,
+      },
     });
   });
 

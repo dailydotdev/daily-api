@@ -28,6 +28,7 @@ export const applicationScoreSchema = z.object({
   score: z.number().min(0).max(100).optional(),
   description: z.string().optional(),
   warmIntro: z.string().optional(),
+  selfApplied: z.boolean().optional(),
 });
 
 export const opportunityContentSchema = z.object({

@@ -3063,7 +3063,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           description: {},
           screening: [],
           feedback: [],
-          applicationRank: {},
+          applicationRank: {
+            selfApplied: true,
+          },
         }),
       );
 

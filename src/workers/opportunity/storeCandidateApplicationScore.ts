@@ -30,17 +30,28 @@ export const storeCandidateApplicationScore: TypedWorker<'gondul.v1.candidate-ap
         description,
       });
 
-      await con.getRepository(OpportunityMatch).upsert(
-        {
+      const matchExists = await con.getRepository(OpportunityMatch).exists({
+        where: { userId, opportunityId },
+      });
+
+      if (matchExists) {
+        await con.getRepository(OpportunityMatch).update(
+          {
+            userId,
+            opportunityId,
+          },
+          {
+            applicationRank: () =>
+              `"applicationRank" || '${JSON.stringify(applicationRank)}'`,
+          },
+        );
+      } else {
+        await con.getRepository(OpportunityMatch).insert({
           userId,
           opportunityId,
           applicationRank,
-        },
-        {
-          conflictPaths: ['userId', 'opportunityId'],
-          skipUpdateIfNoValuesChanged: true,
-        },
-      );
+        });
+      }
     },
     parseMessage: (message) => ApplicationScored.fromBinary(message.data),
   };

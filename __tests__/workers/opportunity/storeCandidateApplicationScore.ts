@@ -60,7 +60,11 @@ describe('storeCandidateApplicationScore worker', () => {
     await con.getRepository(OpportunityMatch).save({
       userId: '1',
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      applicationRank: { score: 60, description: 'Previous score' },
+      applicationRank: {
+        score: 60,
+        description: 'Previous score',
+        selfApplied: true,
+      },
     });
 
     const updatedScoreData = new ApplicationScored({
@@ -86,6 +90,7 @@ describe('storeCandidateApplicationScore worker', () => {
     expect(match?.applicationRank).toEqual({
       score: 90,
       description: 'Updated score after review',
+      selfApplied: true,
     });
   });
 

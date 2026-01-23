@@ -114,6 +114,13 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
           type: 'section',
           text: {
             type: 'mrkdwn',
+            text: `*Self applied:*\n${match.applicationRank?.selfApplied ? 'Yes' : 'No'}`,
+          },
+        },
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
             text: `*CV:*\n${cvSignedUrl ? `<${cvSignedUrl}|Download CV>` : 'N/A'}`,
           },
         },
