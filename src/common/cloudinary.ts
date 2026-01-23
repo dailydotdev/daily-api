@@ -35,6 +35,7 @@ export enum UploadPreset {
   TopReaderBadge = 'top_reader_badge',
   Organization = 'organization',
   ToolIcon = 'tool_icon',
+  WorkspacePhoto = 'workspace_photo',
 }
 
 interface OptionalProps {

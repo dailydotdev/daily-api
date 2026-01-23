@@ -2215,6 +2215,14 @@ const obj = new GraphORM({
       },
     },
   },
+  UserWorkspacePhoto: {
+    requiredColumns: ['id', 'userId', 'image'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
 });
 
 export default obj;
