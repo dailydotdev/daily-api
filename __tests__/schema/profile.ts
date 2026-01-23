@@ -2375,4 +2375,146 @@ describe('mutation upsertUserGeneralExperience with repository', () => {
       'ZOD_VALIDATION_ERROR',
     );
   });
+
+  it('should create an opensource experience with custom repository (null id)', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'GitLab Contributor',
+          description: 'Contributing to a GitLab project',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: 'myorg',
+            name: 'myproject',
+            url: 'https://gitlab.com/myorg/myproject',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'opensource',
+      title: 'GitLab Contributor',
+      company: null,
+      customCompanyName: null,
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'myproject',
+        url: 'https://gitlab.com/myorg/myproject',
+        image: null,
+      },
+    });
+
+    // Verify the repository is stored in flags
+    const saved = await con.getRepository(UserExperience).findOne({
+      where: { id: res.data.upsertUserGeneralExperience.id },
+    });
+    expect(saved?.flags).toMatchObject({
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'myproject',
+        url: 'https://gitlab.com/myorg/myproject',
+        image: null,
+      },
+    });
+  });
+
+  it('should create an opensource experience with custom repository without owner', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Custom Repo Contributor',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: null,
+            name: 'standalone-project',
+            url: 'https://example.com/standalone-project',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      type: 'opensource',
+      repository: {
+        id: null,
+        owner: null,
+        name: 'standalone-project',
+        url: 'https://example.com/standalone-project',
+        image: null,
+      },
+    });
+  });
+
+  it('should update from GitHub repository to custom repository', async () => {
+    loggedUser = '1';
+
+    // First create with GitHub repository
+    const created = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Initial Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '10270250',
+            owner: 'facebook',
+            name: 'react',
+            url: 'https://github.com/facebook/react',
+            image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Update to custom repository
+    const updated = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'opensource',
+          title: 'Moved to GitLab',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: 'myorg',
+            name: 'forked-project',
+            url: 'https://gitlab.com/myorg/forked-project',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience).toMatchObject({
+      id: experienceId,
+      title: 'Moved to GitLab',
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'forked-project',
+        url: 'https://gitlab.com/myorg/forked-project',
+        image: null,
+      },
+    });
+  });
 });

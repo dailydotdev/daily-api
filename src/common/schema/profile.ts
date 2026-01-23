@@ -51,11 +51,11 @@ export const userExperienceProjectSchema = z
   .extend(userExperienceInputBaseSchema.shape);
 
 export const repositoryInputSchema = z.object({
-  id: z.string().min(1),
-  owner: z.string().min(1).max(100),
+  id: z.string().min(1).nullish(),
+  owner: z.string().max(100).nullish(),
   name: z.string().min(1).max(200),
   url: z.url(),
-  image: z.url(),
+  image: z.url().nullish(),
 });
 
 export const userExperienceOpenSourceSchema = z
