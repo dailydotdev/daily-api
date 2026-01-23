@@ -234,4 +234,3 @@ describe('mutation reorderUserWorkspacePhotos', () => {
     ).toBe(0);
   });
 });
-
