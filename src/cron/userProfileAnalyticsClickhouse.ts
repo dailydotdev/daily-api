@@ -45,8 +45,8 @@ export const userProfileAnalyticsClickhouseCron: Cron = {
             uniqMerge(unique_visitors) AS "uniqueVisitors"
         FROM api.user_profile_analytics
         FINAL
-        WHERE user_id IN (
-          SELECT DISTINCT user_id
+        WHERE profile_id IN (
+          SELECT DISTINCT profile_id
           FROM api.user_profile_analytics
           WHERE created_at > {lastRunAt: DateTime}
         )

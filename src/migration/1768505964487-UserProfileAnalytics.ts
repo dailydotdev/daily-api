@@ -24,29 +24,9 @@ export class UserProfileAnalytics1768505964487 implements MigrationInterface {
           CONSTRAINT "PK_user_profile_analytics_history" PRIMARY KEY ("id", "date")
         )`,
     );
-
-    await queryRunner.query(
-      `ALTER TABLE "user_profile_analytics"
-         ADD CONSTRAINT "FK_user_profile_analytics_user"
-         FOREIGN KEY ("id") REFERENCES "user"("id")
-         ON DELETE CASCADE ON UPDATE NO ACTION`,
-    );
-
-    await queryRunner.query(
-      `ALTER TABLE "user_profile_analytics_history"
-         ADD CONSTRAINT "FK_user_profile_analytics_history_user"
-         FOREIGN KEY ("id") REFERENCES "user"("id")
-         ON DELETE CASCADE ON UPDATE NO ACTION`,
-    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "user_profile_analytics_history" DROP CONSTRAINT "FK_user_profile_analytics_history_user"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "user_profile_analytics" DROP CONSTRAINT "FK_user_profile_analytics_user"`,
-    );
     await queryRunner.query(`DROP TABLE "user_profile_analytics_history"`);
     await queryRunner.query(`DROP TABLE "user_profile_analytics"`);
   }
