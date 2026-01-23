@@ -36,6 +36,10 @@ import { RESUME_BUCKET_NAME } from '../../../src/config';
 import { createClient } from '@connectrpc/connect';
 import type { ServiceClient } from '../../../src/types';
 import * as brokkrCommon from '../../../src/common/brokkr';
+import {
+  ClaimableItem,
+  ClaimableItemTypes,
+} from '../../../src/entity/ClaimableItem';
 
 const mockStorageDownload = jest.fn();
 const mockStorageDelete = jest.fn();
@@ -561,6 +565,12 @@ describe('parseOpportunity worker', () => {
   });
 
   it('should handle anonymous user (trackingId only)', async () => {
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'anon1',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: testOpportunityId },
+    });
+
     await con.getRepository(OpportunityJob).save({
       id: testOpportunityId,
       type: OpportunityType.JOB,
@@ -570,7 +580,6 @@ describe('parseOpportunity worker', () => {
       content: new OpportunityContent({}),
       flags: {
         batchSize: 100,
-        anonUserId: 'anon1',
         file: {
           blobName: testBlobName,
           bucketName: RESUME_BUCKET_NAME,
@@ -590,7 +599,6 @@ describe('parseOpportunity worker', () => {
     });
 
     expect(opportunity!.state).toBe(OpportunityState.DRAFT);
-    expect(opportunity!.flags?.anonUserId).toBe('anon1');
 
     // Verify no recruiter was assigned
     const recruiter = await con
