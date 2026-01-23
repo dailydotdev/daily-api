@@ -132,11 +132,11 @@ export const crons: Cron[] = [
   },
   {
     name: 'user-profile-analytics-clickhouse',
-    schedule: '*/5 * * * *',
+    schedule: '7 */1 * * *',
   },
   {
     name: 'user-profile-analytics-history-clickhouse',
-    schedule: '3-59/5 * * * *',
+    schedule: '15 */1 * * *',
   },
   {
     name: 'clean-zombie-opportunities',
