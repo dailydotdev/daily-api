@@ -113,7 +113,7 @@ const existsByUserAndHotTake =
     let query = qb
       .select('1')
       .from(entity, 'a')
-      .where(`a."userId" = :userId`, { userId: ctx.userId })
+      .where(`a."userId" = :upvoterUserId`, { upvoterUserId: ctx.userId })
       .andWhere(`a."hotTakeId" = ${alias}.id`)
       .limit(1);
 

@@ -9,6 +9,7 @@ export class HotTakeVoting1769156534090 implements MigrationInterface {
     await queryRunner.query(`ALTER INDEX "IDX_user_hot_take_user_id" RENAME TO "IDX_hot_take_user_id"`);
     await queryRunner.query(`ALTER TABLE "hot_take" RENAME CONSTRAINT "PK_user_hot_take_id" TO "PK_hot_take_id"`);
     await queryRunner.query(`ALTER TABLE "hot_take" RENAME CONSTRAINT "FK_user_hot_take_user_id" TO "FK_hot_take_user_id"`);
+    await queryRunner.query(`ALTER TABLE "hot_take" ADD COLUMN "upvotes" integer NOT NULL DEFAULT 0`);
 
     // Create new user_hot_take table (like user_post)
     await queryRunner.query(`
@@ -142,6 +143,7 @@ export class HotTakeVoting1769156534090 implements MigrationInterface {
     await queryRunner.query('ALTER TABLE "hot_take" RENAME CONSTRAINT "FK_hot_take_user_id" TO "FK_user_hot_take_user_id"');
     await queryRunner.query('ALTER TABLE "hot_take" RENAME CONSTRAINT "PK_hot_take_id" TO "PK_user_hot_take_id"');
     await queryRunner.query('ALTER INDEX "IDX_hot_take_user_id" RENAME TO "IDX_user_hot_take_user_id"');
+    await queryRunner.query(`ALTER TABLE "hot_take" DROP COLUMN "upvotes"`);
     await queryRunner.query('ALTER TABLE "hot_take" RENAME TO "user_hot_take"');
   }
 }
