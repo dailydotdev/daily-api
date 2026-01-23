@@ -2203,11 +2203,13 @@ const obj = new GraphORM({
       },
     },
   },
-  UserHotTake: {
+  HotTake: {
     requiredColumns: ['id', 'userId'],
     fields: {
       upvoted: {
-        select: existsByUserAndHotTake('UserHotTakeUpvote'),
+        select: existsByUserAndHotTake('UserHotTake', (qb) =>
+          qb.andWhere(`${qb.alias}.vote = 1`),
+        ),
         transform: nullIfNotLoggedIn,
       },
       createdAt: {

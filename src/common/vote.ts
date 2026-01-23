@@ -9,8 +9,8 @@ import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
 import { AuthContext } from '../Context';
 import { UserComment } from '../entity/user/UserComment';
+import { HotTake } from '../entity/user/HotTake';
 import { UserHotTake } from '../entity/user/UserHotTake';
-import { UserHotTakeUpvote } from '../entity/user/UserHotTakeUpvote';
 import { UserVote } from '../types';
 
 type UserVoteProps = {
@@ -165,34 +165,16 @@ export const voteHotTake = async ({
   try {
     validateVoteType({ vote });
 
-    if (vote === UserVote.Down) {
-      throw new ValidationError('Hot takes do not support downvotes');
-    }
+    // Verify hot take exists
+    await ctx.con.getRepository(HotTake).findOneByOrFail({ id });
 
-    await ctx.con.transaction(async (manager) => {
-      const hotTakeRepo = manager.getRepository(UserHotTake);
-      const upvoteRepo = manager.getRepository(UserHotTakeUpvote);
+    const userHotTakeRepo = ctx.con.getRepository(UserHotTake);
 
-      await hotTakeRepo.findOneByOrFail({ id });
-
-      const existingUpvote = await upvoteRepo.findOneBy({
-        hotTakeId: id,
-        userId: ctx.userId,
-      });
-
-      if (vote === UserVote.Up && !existingUpvote) {
-        await upvoteRepo.insert({
-          hotTakeId: id,
-          userId: ctx.userId,
-        });
-        await hotTakeRepo.increment({ id }, 'upvotes', 1);
-      } else if (vote === UserVote.None && existingUpvote) {
-        await upvoteRepo.delete({
-          hotTakeId: id,
-          userId: ctx.userId,
-        });
-        await hotTakeRepo.decrement({ id }, 'upvotes', 1);
-      }
+    // Save vote (triggers handle upvotes count updates)
+    await userHotTakeRepo.save({
+      hotTakeId: id,
+      userId: ctx.userId,
+      vote,
     });
   } catch (originalError) {
     const err = originalError as TypeORMQueryFailedError;

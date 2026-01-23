@@ -1,41 +1,48 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   Index,
   JoinColumn,
   ManyToOne,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './User';
+import type { HotTake } from './HotTake';
+import { UserVote } from '../../types';
 
 @Entity()
-@Index('IDX_user_hot_take_user_id', ['userId'])
+@Index(['hotTakeId', 'userId'], { unique: true })
+@Index(['userId', 'vote', 'votedAt'])
 export class UserHotTake {
-  @PrimaryGeneratedColumn('uuid', {
-    primaryKeyConstraintName: 'PK_user_hot_take_id',
-  })
-  id: string;
+  @PrimaryColumn({ type: 'uuid' })
+  hotTakeId: string;
 
-  @Column({ type: 'text' })
+  @PrimaryColumn({ type: 'text' })
   userId: string;
 
-  @Column({ type: 'text' })
-  emoji: string;
-
-  @Column({ type: 'text' })
-  title: string;
-
-  @Column({ type: 'text', nullable: true })
-  subtitle: string | null;
-
-  @Column({ type: 'integer' })
-  position: number;
-
-  @Column({ type: 'integer', default: 0 })
-  upvotes: number;
-
-  @Column({ type: 'timestamp', default: () => 'now()' })
+  @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
+
+  @Column({ default: null, nullable: true })
+  votedAt: Date;
+
+  @Column({ type: 'smallint', default: UserVote.None })
+  vote: UserVote = UserVote.None;
+
+  @ManyToOne('HotTake', {
+    lazy: true,
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({
+    name: 'hotTakeId',
+    foreignKeyConstraintName: 'FK_user_hot_take_hot_take_id',
+  })
+  hotTake: Promise<HotTake>;
 
   @ManyToOne('User', {
     lazy: true,

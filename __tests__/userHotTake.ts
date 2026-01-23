@@ -10,8 +10,9 @@ import {
 } from './helpers';
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
+import { HotTake } from '../src/entity/user/HotTake';
 import { UserHotTake } from '../src/entity/user/UserHotTake';
-import { UserHotTakeUpvote } from '../src/entity/user/UserHotTakeUpvote';
+import { UserVote } from '../src/types';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -56,7 +57,7 @@ describe('query userHotTakes', () => {
   });
 
   it('should return hot takes ordered by position', async () => {
-    await con.getRepository(UserHotTake).save([
+    await con.getRepository(HotTake).save([
       { userId: '1', emoji: '🔥', title: 'Hot take 1', position: 1 },
       { userId: '1', emoji: '💡', title: 'Hot take 2', position: 0 },
     ]);
@@ -68,7 +69,7 @@ describe('query userHotTakes', () => {
   });
 
   it('should return hot takes with subtitle', async () => {
-    await con.getRepository(UserHotTake).save({
+    await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🎯',
       title: 'My opinion',
@@ -102,16 +103,16 @@ describe('query userHotTakes with upvotes', () => {
   `;
 
   it('should return upvotes count', async () => {
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Popular take',
       position: 0,
     });
 
-    await con.getRepository(UserHotTakeUpvote).save([
-      { hotTakeId: hotTake.id, userId: '2' },
-      { hotTakeId: hotTake.id, userId: '3' },
+    await con.getRepository(UserHotTake).save([
+      { hotTakeId: hotTake.id, userId: '2', vote: UserVote.Up },
+      { hotTakeId: hotTake.id, userId: '3', vote: UserVote.Up },
     ]);
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
@@ -119,7 +120,7 @@ describe('query userHotTakes with upvotes', () => {
   });
 
   it('should return upvoted as null when not logged in', async () => {
-    await con.getRepository(UserHotTake).save({
+    await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
@@ -132,16 +133,17 @@ describe('query userHotTakes with upvotes', () => {
 
   it('should return upvoted as true when user upvoted', async () => {
     loggedUser = '2';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
       position: 0,
     });
 
-    await con.getRepository(UserHotTakeUpvote).save({
+    await con.getRepository(UserHotTake).save({
       hotTakeId: hotTake.id,
       userId: '2',
+      vote: UserVote.Up,
     });
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
@@ -150,7 +152,7 @@ describe('query userHotTakes with upvotes', () => {
 
   it('should return upvoted as false when user has not upvoted', async () => {
     loggedUser = '2';
-    await con.getRepository(UserHotTake).save({
+    await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
@@ -184,7 +186,7 @@ describe('mutation vote on hot take', () => {
 
   it('should upvote a hot take', async () => {
     loggedUser = '2';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
@@ -201,25 +203,27 @@ describe('mutation vote on hot take', () => {
 
     expect(res.errors).toBeUndefined();
 
-    const upvote = await con.getRepository(UserHotTakeUpvote).findOneBy({
+    const userHotTake = await con.getRepository(UserHotTake).findOneBy({
       hotTakeId: hotTake.id,
       userId: '2',
     });
-    expect(upvote).not.toBeNull();
+    expect(userHotTake).not.toBeNull();
+    expect(userHotTake?.vote).toBe(UserVote.Up);
   });
 
   it('should remove upvote when voting with 0', async () => {
     loggedUser = '2';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
       position: 0,
     });
 
-    await con.getRepository(UserHotTakeUpvote).save({
+    await con.getRepository(UserHotTake).save({
       hotTakeId: hotTake.id,
       userId: '2',
+      vote: UserVote.Up,
     });
 
     const res = await client.mutate(MUTATION, {
@@ -232,16 +236,16 @@ describe('mutation vote on hot take', () => {
 
     expect(res.errors).toBeUndefined();
 
-    const upvote = await con.getRepository(UserHotTakeUpvote).findOneBy({
+    const userHotTake = await con.getRepository(UserHotTake).findOneBy({
       hotTakeId: hotTake.id,
       userId: '2',
     });
-    expect(upvote).toBeNull();
+    expect(userHotTake?.vote).toBe(UserVote.None);
   });
 
-  it('should not allow downvoting hot takes', async () => {
+  it('should allow downvoting hot takes', async () => {
     loggedUser = '2';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
@@ -256,7 +260,13 @@ describe('mutation vote on hot take', () => {
       },
     });
 
-    expect(res.errors?.[0]?.message).toBe('Hot takes do not support downvotes');
+    expect(res.errors).toBeUndefined();
+
+    const userHotTake = await con.getRepository(UserHotTake).findOneBy({
+      hotTakeId: hotTake.id,
+      userId: '2',
+    });
+    expect(userHotTake?.vote).toBe(UserVote.Down);
   });
 
   it('should return error for non-existent hot take', async () => {
@@ -274,7 +284,7 @@ describe('mutation vote on hot take', () => {
 
   it('should allow upvoting same hot take only once', async () => {
     loggedUser = '2';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
@@ -299,7 +309,7 @@ describe('mutation vote on hot take', () => {
 
     expect(res.errors).toBeUndefined();
 
-    const upvotes = await con.getRepository(UserHotTakeUpvote).findBy({
+    const upvotes = await con.getRepository(UserHotTake).findBy({
       hotTakeId: hotTake.id,
       userId: '2',
     });
@@ -358,7 +368,7 @@ describe('mutation addUserHotTake', () => {
 
   it('should enforce maximum of 5 hot takes', async () => {
     loggedUser = '1';
-    await con.getRepository(UserHotTake).save([
+    await con.getRepository(HotTake).save([
       { userId: '1', emoji: '1️⃣', title: 'Take 1', position: 0 },
       { userId: '1', emoji: '2️⃣', title: 'Take 2', position: 1 },
       { userId: '1', emoji: '3️⃣', title: 'Take 3', position: 2 },
@@ -398,7 +408,7 @@ describe('mutation updateUserHotTake', () => {
 
   it('should update hot take', async () => {
     loggedUser = '1';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Original',
@@ -421,7 +431,7 @@ describe('mutation updateUserHotTake', () => {
 
   it('should update subtitle', async () => {
     loggedUser = '1';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Hot take',
@@ -451,7 +461,7 @@ describe('mutation updateUserHotTake', () => {
 
   it('should not allow updating other user hot take', async () => {
     loggedUser = '1';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '2',
       emoji: '🔥',
       title: 'Other user take',
@@ -486,7 +496,7 @@ describe('mutation deleteUserHotTake', () => {
 
   it('should delete hot take', async () => {
     loggedUser = '1';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'To delete',
@@ -496,14 +506,14 @@ describe('mutation deleteUserHotTake', () => {
     await client.mutate(MUTATION, { variables: { id: hotTake.id } });
 
     const deleted = await con
-      .getRepository(UserHotTake)
+      .getRepository(HotTake)
       .findOneBy({ id: hotTake.id });
     expect(deleted).toBeNull();
   });
 
   it('should not delete other user hot take', async () => {
     loggedUser = '1';
-    const hotTake = await con.getRepository(UserHotTake).save({
+    const hotTake = await con.getRepository(HotTake).save({
       userId: '2',
       emoji: '🔥',
       title: 'Other user take',
@@ -513,7 +523,7 @@ describe('mutation deleteUserHotTake', () => {
     await client.mutate(MUTATION, { variables: { id: hotTake.id } });
 
     const notDeleted = await con
-      .getRepository(UserHotTake)
+      .getRepository(HotTake)
       .findOneBy({ id: hotTake.id });
     expect(notDeleted).not.toBeNull();
   });
@@ -538,7 +548,7 @@ describe('mutation reorderUserHotTakes', () => {
 
   it('should update positions', async () => {
     loggedUser = '1';
-    const [item1, item2] = await con.getRepository(UserHotTake).save([
+    const [item1, item2] = await con.getRepository(HotTake).save([
       { userId: '1', emoji: '1️⃣', title: 'Take 1', position: 0 },
       { userId: '1', emoji: '2️⃣', title: 'Take 2', position: 1 },
     ]);
@@ -563,7 +573,7 @@ describe('mutation reorderUserHotTakes', () => {
 
   it('should not reorder other user hot takes', async () => {
     loggedUser = '1';
-    const otherUserItem = await con.getRepository(UserHotTake).save({
+    const otherUserItem = await con.getRepository(HotTake).save({
       userId: '2',
       emoji: '🔥',
       title: 'Other user',
@@ -577,7 +587,7 @@ describe('mutation reorderUserHotTakes', () => {
     });
 
     const notUpdated = await con
-      .getRepository(UserHotTake)
+      .getRepository(HotTake)
       .findOneBy({ id: otherUserItem.id });
     expect(notUpdated?.position).toBe(0);
   });
