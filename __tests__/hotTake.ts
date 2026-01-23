@@ -34,10 +34,10 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
 });
 
-describe('query userHotTakes', () => {
+describe('query hotTakes', () => {
   const QUERY = `
-    query UserHotTakes($userId: ID!) {
-      userHotTakes(userId: $userId) {
+    query HotTakes($userId: ID!) {
+      hotTakes(userId: $userId) {
         edges {
           node {
             id
@@ -53,7 +53,7 @@ describe('query userHotTakes', () => {
 
   it('should return empty list for user with no hot takes', async () => {
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userHotTakes.edges).toEqual([]);
+    expect(res.data.hotTakes.edges).toEqual([]);
   });
 
   it('should return hot takes ordered by position', async () => {
@@ -63,9 +63,9 @@ describe('query userHotTakes', () => {
     ]);
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userHotTakes.edges).toHaveLength(2);
-    expect(res.data.userHotTakes.edges[0].node.title).toBe('Hot take 2');
-    expect(res.data.userHotTakes.edges[1].node.title).toBe('Hot take 1');
+    expect(res.data.hotTakes.edges).toHaveLength(2);
+    expect(res.data.hotTakes.edges[0].node.title).toBe('Hot take 2');
+    expect(res.data.hotTakes.edges[1].node.title).toBe('Hot take 1');
   });
 
   it('should return hot takes with subtitle', async () => {
@@ -78,7 +78,7 @@ describe('query userHotTakes', () => {
     });
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userHotTakes.edges[0].node).toMatchObject({
+    expect(res.data.hotTakes.edges[0].node).toMatchObject({
       emoji: '🎯',
       title: 'My opinion',
       subtitle: 'Some context',
@@ -86,10 +86,10 @@ describe('query userHotTakes', () => {
   });
 });
 
-describe('query userHotTakes with upvotes', () => {
+describe('query hotTakes with upvotes', () => {
   const QUERY = `
-    query UserHotTakes($userId: ID!) {
-      userHotTakes(userId: $userId) {
+    query HotTakes($userId: ID!) {
+      hotTakes(userId: $userId) {
         edges {
           node {
             id
@@ -116,7 +116,7 @@ describe('query userHotTakes with upvotes', () => {
     ]);
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userHotTakes.edges[0].node.upvotes).toBe(2);
+    expect(res.data.hotTakes.edges[0].node.upvotes).toBe(2);
   });
 
   it('should return upvoted as null when not logged in', async () => {
@@ -128,7 +128,7 @@ describe('query userHotTakes with upvotes', () => {
     });
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userHotTakes.edges[0].node.upvoted).toBeNull();
+    expect(res.data.hotTakes.edges[0].node.upvoted).toBeNull();
   });
 
   it('should return upvoted as true when user upvoted', async () => {
@@ -147,7 +147,7 @@ describe('query userHotTakes with upvotes', () => {
     });
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userHotTakes.edges[0].node.upvoted).toBe(true);
+    expect(res.data.hotTakes.edges[0].node.upvoted).toBe(true);
   });
 
   it('should return upvoted as false when user has not upvoted', async () => {
@@ -160,7 +160,7 @@ describe('query userHotTakes with upvotes', () => {
     });
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userHotTakes.edges[0].node.upvoted).toBe(false);
+    expect(res.data.hotTakes.edges[0].node.upvoted).toBe(false);
   });
 });
 
@@ -317,10 +317,10 @@ describe('mutation vote on hot take', () => {
   });
 });
 
-describe('mutation addUserHotTake', () => {
+describe('mutation addHotTake', () => {
   const MUTATION = `
-    mutation AddUserHotTake($input: AddUserHotTakeInput!) {
-      addUserHotTake(input: $input) {
+    mutation AddHotTake($input: AddHotTakeInput!) {
+      addHotTake(input: $input) {
         id
         emoji
         title
@@ -344,7 +344,7 @@ describe('mutation addUserHotTake', () => {
     });
 
     expect(res.errors).toBeUndefined();
-    expect(res.data.addUserHotTake).toMatchObject({
+    expect(res.data.addHotTake).toMatchObject({
       emoji: '🔥',
       title: 'Hot take',
       subtitle: null,
@@ -359,7 +359,7 @@ describe('mutation addUserHotTake', () => {
       },
     });
 
-    expect(res.data.addUserHotTake).toMatchObject({
+    expect(res.data.addHotTake).toMatchObject({
       emoji: '💡',
       title: 'Idea',
       subtitle: 'Explanation',
@@ -384,10 +384,10 @@ describe('mutation addUserHotTake', () => {
   });
 });
 
-describe('mutation updateUserHotTake', () => {
+describe('mutation updateHotTake', () => {
   const MUTATION = `
-    mutation UpdateUserHotTake($id: ID!, $input: UpdateUserHotTakeInput!) {
-      updateUserHotTake(id: $id, input: $input) {
+    mutation UpdateHotTake($id: ID!, $input: UpdateHotTakeInput!) {
+      updateHotTake(id: $id, input: $input) {
         id
         emoji
         title
@@ -423,7 +423,7 @@ describe('mutation updateUserHotTake', () => {
     });
 
     expect(res.errors).toBeUndefined();
-    expect(res.data.updateUserHotTake).toMatchObject({
+    expect(res.data.updateHotTake).toMatchObject({
       emoji: '💯',
       title: 'Updated',
     });
@@ -445,7 +445,7 @@ describe('mutation updateUserHotTake', () => {
       },
     });
 
-    expect(res.data.updateUserHotTake.subtitle).toBe('New context');
+    expect(res.data.updateHotTake.subtitle).toBe('New context');
   });
 
   it('should return error for non-existent item', async () => {
@@ -478,10 +478,10 @@ describe('mutation updateUserHotTake', () => {
   });
 });
 
-describe('mutation deleteUserHotTake', () => {
+describe('mutation deleteHotTake', () => {
   const MUTATION = `
-    mutation DeleteUserHotTake($id: ID!) {
-      deleteUserHotTake(id: $id) {
+    mutation DeleteHotTake($id: ID!) {
+      deleteHotTake(id: $id) {
         _
       }
     }
@@ -529,10 +529,10 @@ describe('mutation deleteUserHotTake', () => {
   });
 });
 
-describe('mutation reorderUserHotTakes', () => {
+describe('mutation reorderHotTakes', () => {
   const MUTATION = `
-    mutation ReorderUserHotTakes($items: [ReorderUserHotTakeInput!]!) {
-      reorderUserHotTakes(items: $items) {
+    mutation ReorderHotTakes($items: [ReorderHotTakeInput!]!) {
+      reorderHotTakes(items: $items) {
         id
         position
       }
@@ -562,7 +562,7 @@ describe('mutation reorderUserHotTakes', () => {
       },
     });
 
-    const reordered = res.data.reorderUserHotTakes;
+    const reordered = res.data.reorderHotTakes;
     expect(
       reordered.find((i: { id: string }) => i.id === item1.id).position,
     ).toBe(1);
