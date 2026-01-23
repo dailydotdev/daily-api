@@ -269,3 +269,23 @@ export const checkCoresAccess = async ({
 
   return checkUserCoresAccess({ user, requiredRole });
 };
+
+export const hasUserProfileAnalyticsPermissions = ({
+  ctx,
+  userId,
+}: {
+  ctx: AuthContext;
+  userId: string;
+}): boolean => {
+  const { userId: requesterId, isTeamMember } = ctx;
+
+  if (isTeamMember) {
+    return true;
+  }
+
+  if (!requesterId) {
+    return false;
+  }
+
+  return requesterId === userId;
+};

@@ -7,6 +7,8 @@ export * from './UserPersonalizedDigest';
 export * from './UserMarketingCta';
 export * from './UserStats';
 export * from './UserTopReader';
+export * from './UserProfileAnalytics';
+export * from './UserProfileAnalyticsHistory';
 export * from './UserStack';
 export * from './HotTake';
 export * from './UserHotTake';

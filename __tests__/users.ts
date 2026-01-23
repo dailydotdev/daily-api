@@ -57,6 +57,8 @@ import {
   UserTopReader,
   View,
 } from '../src/entity';
+import { UserProfileAnalytics } from '../src/entity/user/UserProfileAnalytics';
+import { UserProfileAnalyticsHistory } from '../src/entity/user/UserProfileAnalyticsHistory';
 import { sourcesFixture } from './fixture/source';
 import {
   CioTransactionalMessageTemplateId,
@@ -178,6 +180,7 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 let isPlus: boolean;
+let isTeamMember = false;
 const userTimezone = 'Pacific/Midway';
 
 jest.mock('../src/common/paddle/index.ts', () => ({
@@ -216,7 +219,7 @@ beforeAll(async () => {
         loggedUser,
         undefined,
         undefined,
-        undefined,
+        isTeamMember,
         isPlus,
         'US',
       ),
@@ -230,6 +233,7 @@ const now = new Date();
 beforeEach(async () => {
   loggedUser = null;
   isPlus = false;
+  isTeamMember = false;
   nock.cleanAll();
   jest.clearAllMocks();
 
@@ -7654,5 +7658,188 @@ describe('mutation clearResume', () => {
         userId: loggedUser,
       }),
     ).toEqual(0);
+  });
+});
+
+describe('query userProfileAnalytics', () => {
+  const QUERY = `
+    query UserProfileAnalytics($userId: ID!) {
+      userProfileAnalytics(userId: $userId) {
+        id
+        uniqueVisitors
+        updatedAt
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return null when viewing another user analytics', async () => {
+    loggedUser = '2';
+
+    await con.getRepository(UserProfileAnalytics).save({
+      id: '1',
+      uniqueVisitors: 150,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalytics).toBeNull();
+  });
+
+  it('should return analytics for own profile', async () => {
+    loggedUser = '1';
+
+    const analytics = await con.getRepository(UserProfileAnalytics).save({
+      id: '1',
+      uniqueVisitors: 150,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalytics).toMatchObject({
+      id: '1',
+      uniqueVisitors: 150,
+      updatedAt: analytics.updatedAt.toISOString(),
+    });
+  });
+
+  it('should allow team member to view any user analytics', async () => {
+    loggedUser = '2';
+    isTeamMember = true;
+
+    const analytics = await con.getRepository(UserProfileAnalytics).save({
+      id: '1',
+      uniqueVisitors: 150,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalytics).toMatchObject({
+      id: '1',
+      uniqueVisitors: 150,
+      updatedAt: analytics.updatedAt.toISOString(),
+    });
+  });
+
+  it('should return not found error when no analytics record exists', () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'NOT_FOUND',
+    );
+  });
+});
+
+describe('query userProfileAnalyticsHistory', () => {
+  const QUERY = `
+    query UserProfileAnalyticsHistory($userId: ID!, $first: Int, $after: String) {
+      userProfileAnalyticsHistory(userId: $userId, first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          node {
+            id
+            date
+            uniqueVisitors
+            updatedAt
+          }
+        }
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return null when viewing another user history', async () => {
+    loggedUser = '2';
+
+    await con
+      .getRepository(UserProfileAnalyticsHistory)
+      .save([{ id: '1', date: '2026-01-15', uniqueVisitors: 10 }]);
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory).toBeNull();
+  });
+
+  it('should return history for own profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserProfileAnalyticsHistory).save([
+      { id: '1', date: '2026-01-15', uniqueVisitors: 10 },
+      { id: '1', date: '2026-01-14', uniqueVisitors: 25 },
+      { id: '1', date: '2026-01-13', uniqueVisitors: 15 },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(3);
+    expect(res.data.userProfileAnalyticsHistory.edges[0].node).toMatchObject({
+      id: '1',
+      date: '2026-01-15T00:00:00.000Z',
+      uniqueVisitors: 10,
+    });
+  });
+
+  it('should allow team member to view any user history', async () => {
+    loggedUser = '2';
+    isTeamMember = true;
+
+    await con
+      .getRepository(UserProfileAnalyticsHistory)
+      .save([{ id: '1', date: '2026-01-15', uniqueVisitors: 10 }]);
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(1);
+    expect(res.data.userProfileAnalyticsHistory.edges[0].node).toMatchObject({
+      id: '1',
+      date: '2026-01-15T00:00:00.000Z',
+      uniqueVisitors: 10,
+    });
+  });
+
+  it('should paginate with first parameter', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserProfileAnalyticsHistory).save([
+      { id: '1', date: '2026-01-15', uniqueVisitors: 10 },
+      { id: '1', date: '2026-01-14', uniqueVisitors: 25 },
+      { id: '1', date: '2026-01-13', uniqueVisitors: 15 },
+      { id: '1', date: '2026-01-12', uniqueVisitors: 20 },
+      { id: '1', date: '2026-01-11', uniqueVisitors: 30 },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { userId: '1', first: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(2);
+    expect(res.data.userProfileAnalyticsHistory.pageInfo.hasNextPage).toBe(
+      true,
+    );
+  });
+
+  it('should return empty edges when no history exists', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(0);
   });
 });
