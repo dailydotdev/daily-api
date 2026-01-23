@@ -261,7 +261,7 @@ export const updateClaimableItem = async (
 
   const existingEntries = await con.getRepository(ClaimableItem).find({
     where: {
-      email: customer.email,
+      identifier: customer.email,
       claimedAt: IsNull(),
     },
   });
@@ -272,7 +272,7 @@ export const updateClaimableItem = async (
 
   await con.getRepository(ClaimableItem).insert({
     type: ClaimableItemTypes.Plus,
-    email: customer.email,
+    identifier: customer.email,
     flags: {
       cycle: extractSubscriptionCycle(data.items),
       createdAt: data.startedAt,
@@ -296,7 +296,7 @@ export const dropClaimableItem = async (
   const customer = await paddleInstance.customers.get(data.customerId);
 
   await con.getRepository(ClaimableItem).delete({
-    email: customer.email,
+    identifier: customer.email,
     claimedAt: IsNull(),
     flags: JsonContains({
       subscriptionId: data.id,

@@ -72,7 +72,7 @@ import {
 } from '../common/opportunity/accessControl';
 import { sanitizeHtml } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, JsonContains, EntityManager, DeepPartial } from 'typeorm';
+import { In, Not, EntityManager, DeepPartial, IsNull } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import { Source, SourceType } from '../entity/Source';
 import {
@@ -124,6 +124,8 @@ import {
 } from '../common/opportunity/stateTransition';
 import { randomUUID } from 'crypto';
 import { opportunityMatchBatchSize } from '../types';
+import { ClaimableItem, ClaimableItemTypes } from '../entity/ClaimableItem';
+import { claimAnonOpportunities } from '../common/opportunity/user';
 
 export interface GQLOpportunity extends Pick<
   Opportunity,
@@ -209,6 +211,10 @@ export interface GQLOpportunityStats {
   forReview: number;
   introduced: number;
 }
+
+export type GQLOpportunitiesClaim = {
+  ids: string[];
+};
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -625,6 +631,10 @@ export const typeDefs = /* GraphQL */ `
     introduced: Int!
   }
 
+  type OpportunitiesClaim {
+    ids: [String!]!
+  }
+
   extend type Query {
     """
     Get the public information about a Opportunity listing
@@ -1037,6 +1047,11 @@ export const typeDefs = /* GraphQL */ `
 
       payload: AddOpportunitySeatsInput!
     ): EmptyResponse @auth
+
+    """
+    Claim opportunities associated with an anonymous identifier
+    """
+    claimOpportunities(identifier: String!): OpportunitiesClaim @auth
   }
 `;
 
@@ -1626,11 +1641,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             relations: { keywords: true },
           });
       } else {
+        const claimableItem = await ctx.con
+          .getRepository(ClaimableItem)
+          .findOne({
+            where: {
+              identifier: ctx.trackingId,
+              type: ClaimableItemTypes.Opportunity,
+              claimedById: IsNull(),
+            },
+          });
+
+        if (!claimableItem?.flags?.opportunityId) {
+          throw new NotFoundError('No opportunity found for preview');
+        }
+
         opportunity = await ctx.con
           .getRepository(OpportunityJob)
           .findOneOrFail({
             where: {
-              flags: JsonContains({ anonUserId: ctx.trackingId }),
+              id: claimableItem.flags.opportunityId,
             },
             relations: { keywords: true },
           });
@@ -2817,10 +2846,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       };
 
-      if (!ctx.userId) {
-        flags.anonUserId = ctx.trackingId;
-      }
-
       const opportunity = await ctx.con.transaction(async (entityManager) => {
         const newOpportunity = await ctx.con.getRepository(OpportunityJob).save(
           ctx.con.getRepository(OpportunityJob).create({
@@ -2837,6 +2862,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             entityManager.getRepository(OpportunityUserRecruiter).create({
               opportunityId: newOpportunity.id,
               userId: ctx.userId,
+            }),
+          );
+        } else {
+          await entityManager.getRepository(ClaimableItem).insert(
+            entityManager.getRepository(ClaimableItem).create({
+              identifier: ctx.trackingId,
+              type: ClaimableItemTypes.Opportunity,
+              flags: {
+                opportunityId: newOpportunity.id,
+              },
             }),
           );
         }
@@ -2955,6 +2990,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
         throw error;
       }
+    },
+    claimOpportunities: async (
+      _,
+      { identifier }: { identifier: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunitiesClaim> => {
+      const opportunities = await claimAnonOpportunities({
+        anonUserId: identifier,
+        userId: ctx.userId,
+        con: ctx.con.manager,
+      });
+
+      return {
+        ids: opportunities.map((item) => item.id),
+      };
     },
   },
   OpportunityMatch: {

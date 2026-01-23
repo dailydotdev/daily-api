@@ -1222,10 +1222,10 @@ describe('plus subscription', () => {
 
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneByOrFail({ email: mockCustomer.email });
+      .findOneByOrFail({ identifier: mockCustomer.email });
 
     expect(claimableItem).toBeTruthy();
-    expect(claimableItem.email).toBe('test@example.com');
+    expect(claimableItem.identifier).toBe('test@example.com');
     expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
     expect(claimableItem.flags).toHaveProperty(
       'cycle',
@@ -1259,7 +1259,7 @@ it('should throw an error if the email already has a claimable subscription', as
   });
 
   await con.getRepository(ClaimableItem).save({
-    email: 'test@example.com',
+    identifier: 'test@example.com',
     type: ClaimableItemTypes.Plus,
     flags: {
       cycle: SubscriptionCycles.Yearly,
@@ -1279,7 +1279,7 @@ it('should not throw an error if the email has claimed a previously claimable su
     .mockResolvedValue(mockCustomer as Customer);
 
   await con.getRepository(ClaimableItem).save({
-    email: 'test@example.com',
+    identifier: 'test@example.com',
     type: ClaimableItemTypes.Plus,
     flags: {
       cycle: SubscriptionCycles.Yearly,
@@ -1310,10 +1310,10 @@ describe('anonymous subscription', () => {
 
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneByOrFail({ email: mockCustomer.email });
+      .findOneByOrFail({ identifier: mockCustomer.email });
 
     expect(claimableItem).toBeTruthy();
-    expect(claimableItem.email).toBe('test@example.com');
+    expect(claimableItem.identifier).toBe('test@example.com');
     expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
     expect(claimableItem.flags).toHaveProperty(
       'cycle',
@@ -1346,7 +1346,7 @@ describe('anonymous subscription', () => {
     });
 
     await con.getRepository(ClaimableItem).save({
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
         status: SubscriptionStatus.Active,
@@ -1369,7 +1369,7 @@ describe('anonymous subscription', () => {
       .mockResolvedValue(mockCustomer as Customer);
 
     await con.getRepository(ClaimableItem).save({
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
         status: SubscriptionStatus.Active,
@@ -1393,7 +1393,7 @@ describe('anonymous subscription', () => {
     const mockCustomer = { email: 'test@example.com' };
 
     await con.getRepository(ClaimableItem).save({
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
         status: SubscriptionStatus.Active,
@@ -1418,7 +1418,7 @@ describe('anonymous subscription', () => {
 
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneBy({ email: mockCustomer.email });
+      .findOneBy({ identifier: mockCustomer.email });
 
     expect(claimableItem).toBeNull();
   });
