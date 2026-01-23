@@ -87,6 +87,7 @@ import {
   validateWorkEmailDomain,
   voteComment,
   votePost,
+  voteHotTake,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -3449,6 +3450,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return votePost({ ctx, id, vote });
         case UserVoteEntity.Comment:
           return voteComment({ ctx, id, vote });
+        case UserVoteEntity.HotTake:
+          return voteHotTake({ ctx, id, vote });
         default:
           throw new ValidationError('Unsupported vote entity');
       }

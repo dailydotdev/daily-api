@@ -10,6 +10,7 @@ export * from './UserTopReader';
 export * from './UserProfileAnalytics';
 export * from './UserProfileAnalyticsHistory';
 export * from './UserStack';
+export * from './HotTake';
 export * from './UserHotTake';
 export * from './UserWorkspacePhoto';
 export * from './UserGear';
