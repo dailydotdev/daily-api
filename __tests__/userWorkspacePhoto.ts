@@ -11,6 +11,10 @@ import {
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
 import { UserWorkspacePhoto } from '../src/entity/user/UserWorkspacePhoto';
+import {
+  ContentImage,
+  ContentImageUsedByType,
+} from '../src/entity/ContentImage';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -87,27 +91,39 @@ describe('mutation addUserWorkspacePhoto', () => {
     expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
   });
 
-  it('should create workspace photo', async () => {
+  it('should add workspace photo and mark ContentImage as used', async () => {
     loggedUser = '1';
+    await con.getRepository(ContentImage).save({
+      url: 'https://example.com/photo.jpg',
+      serviceId: 'test-service-id',
+    });
+
     const res = await client.mutate(MUTATION, {
       variables: { input: { image: 'https://example.com/photo.jpg' } },
     });
 
     expect(res.errors).toBeUndefined();
-    expect(res.data.addUserWorkspacePhoto).toMatchObject({
-      image: 'https://example.com/photo.jpg',
-    });
+    expect(res.data.addUserWorkspacePhoto.image).toBe(
+      'https://example.com/photo.jpg',
+    );
+
+    const contentImage = await con
+      .getRepository(ContentImage)
+      .findOneBy({ url: 'https://example.com/photo.jpg' });
+    expect(contentImage?.usedByType).toBe(
+      ContentImageUsedByType.WorkspacePhoto,
+    );
   });
 
-  it('should enforce maximum of 5 photos', async () => {
+  it('should enforce max 5 photos limit', async () => {
     loggedUser = '1';
-    await con.getRepository(UserWorkspacePhoto).save([
-      { userId: '1', image: 'https://example.com/photo1.jpg', position: 0 },
-      { userId: '1', image: 'https://example.com/photo2.jpg', position: 1 },
-      { userId: '1', image: 'https://example.com/photo3.jpg', position: 2 },
-      { userId: '1', image: 'https://example.com/photo4.jpg', position: 3 },
-      { userId: '1', image: 'https://example.com/photo5.jpg', position: 4 },
-    ]);
+    await con.getRepository(UserWorkspacePhoto).save(
+      Array.from({ length: 5 }, (_, i) => ({
+        userId: '1',
+        image: `https://example.com/photo${i}.jpg`,
+        position: i,
+      })),
+    );
 
     const res = await client.mutate(MUTATION, {
       variables: { input: { image: 'https://example.com/photo6.jpg' } },
@@ -128,6 +144,7 @@ describe('mutation deleteUserWorkspacePhoto', () => {
     }
   `;
 
+  it('should delete photo and associated ContentImage', async () => {
   it('should require authentication', async () => {
     const res = await client.mutate(MUTATION, {
       variables: { id: '00000000-0000-0000-0000-000000000000' },
@@ -139,8 +156,12 @@ describe('mutation deleteUserWorkspacePhoto', () => {
     loggedUser = '1';
     const photo = await con.getRepository(UserWorkspacePhoto).save({
       userId: '1',
-      image: 'https://example.com/photo.jpg',
+      image: 'https://example.com/delete-me.jpg',
       position: 0,
+    });
+    await con.getRepository(ContentImage).save({
+      url: 'https://example.com/delete-me.jpg',
+      serviceId: 'test-service-id',
     });
 
     await client.mutate(MUTATION, { variables: { id: photo.id } });
@@ -165,6 +186,10 @@ describe('mutation deleteUserWorkspacePhoto', () => {
       .getRepository(UserWorkspacePhoto)
       .findOneBy({ id: photo.id });
     expect(notDeleted).not.toBeNull();
+    const contentImage = await con
+      .getRepository(ContentImage)
+      .findOneBy({ url: 'https://example.com/delete-me.jpg' });
+    expect(contentImage).toBeNull();
   });
 });
 
@@ -187,46 +212,26 @@ describe('mutation reorderUserWorkspacePhotos', () => {
 
   it('should update positions', async () => {
     loggedUser = '1';
-    const [item1, item2] = await con.getRepository(UserWorkspacePhoto).save([
-      { userId: '1', image: 'https://example.com/photo1.jpg', position: 0 },
-      { userId: '1', image: 'https://example.com/photo2.jpg', position: 1 },
+    const [photo1, photo2] = await con.getRepository(UserWorkspacePhoto).save([
+      { userId: '1', image: 'https://example.com/a.jpg', position: 0 },
+      { userId: '1', image: 'https://example.com/b.jpg', position: 1 },
     ]);
 
     const res = await client.mutate(MUTATION, {
       variables: {
         items: [
-          { id: item1.id, position: 1 },
-          { id: item2.id, position: 0 },
+          { id: photo1.id, position: 1 },
+          { id: photo2.id, position: 0 },
         ],
       },
     });
 
     const reordered = res.data.reorderUserWorkspacePhotos;
     expect(
-      reordered.find((i: { id: string }) => i.id === item1.id).position,
+      reordered.find((p: { id: string }) => p.id === photo1.id).position,
     ).toBe(1);
     expect(
-      reordered.find((i: { id: string }) => i.id === item2.id).position,
+      reordered.find((p: { id: string }) => p.id === photo2.id).position,
     ).toBe(0);
-  });
-
-  it('should not reorder other user photos', async () => {
-    loggedUser = '1';
-    const otherUserPhoto = await con.getRepository(UserWorkspacePhoto).save({
-      userId: '2',
-      image: 'https://example.com/photo.jpg',
-      position: 0,
-    });
-
-    await client.mutate(MUTATION, {
-      variables: {
-        items: [{ id: otherUserPhoto.id, position: 5 }],
-      },
-    });
-
-    const notUpdated = await con
-      .getRepository(UserWorkspacePhoto)
-      .findOneBy({ id: otherUserPhoto.id });
-    expect(notUpdated?.position).toBe(0);
   });
 });

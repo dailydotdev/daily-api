@@ -1,10 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
+import { ValidationError } from 'apollo-server-errors';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
 import { UserWorkspacePhoto } from '../entity/user/UserWorkspacePhoto';
-import { ValidationError } from 'apollo-server-errors';
+import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
 import {
   addUserWorkspacePhotoSchema,
   reorderUserWorkspacePhotoSchema,
@@ -13,6 +14,8 @@ import {
 } from '../common/schema/userWorkspacePhoto';
 import { NEW_ITEM_POSITION } from '../common/constants';
 
+const MAX_WORKSPACE_PHOTOS = 5;
+
 interface GQLUserWorkspacePhoto {
   id: string;
   userId: string;
@@ -20,8 +23,6 @@ interface GQLUserWorkspacePhoto {
   position: number;
   createdAt: Date;
 }
-
-const MAX_WORKSPACE_PHOTOS = 5;
 
 export const typeDefs = /* GraphQL */ `
   type UserWorkspacePhoto {
@@ -133,27 +134,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const input = addUserWorkspacePhotoSchema.parse(args.input);
 
-      const count = await ctx.con.getRepository(UserWorkspacePhoto).count({
-        where: { userId: ctx.userId },
-      });
+      // Check photo limit
+      const existingCount = await ctx.con
+        .getRepository(UserWorkspacePhoto)
+        .count({ where: { userId: ctx.userId } });
 
-      if (count >= MAX_WORKSPACE_PHOTOS) {
+      if (existingCount >= MAX_WORKSPACE_PHOTOS) {
         throw new ValidationError(
           `Maximum of ${MAX_WORKSPACE_PHOTOS} workspace photos allowed`,
         );
       }
 
-      const photo = ctx.con.getRepository(UserWorkspacePhoto).create({
-        userId: ctx.userId,
-        image: input.image,
-        position: NEW_ITEM_POSITION,
-      });
+      const userWorkspacePhoto = ctx.con
+        .getRepository(UserWorkspacePhoto)
+        .create({
+          userId: ctx.userId,
+          image: input.image,
+          position: NEW_ITEM_POSITION,
+        });
 
-      await ctx.con.getRepository(UserWorkspacePhoto).save(photo);
+      await ctx.con.getRepository(UserWorkspacePhoto).save(userWorkspacePhoto);
+
+      // Mark the ContentImage as used
+      await ctx.con.getRepository(ContentImage).update(
+        { url: input.image },
+        {
+          usedByType: ContentImageUsedByType.WorkspacePhoto,
+          usedById: userWorkspacePhoto.id,
+        },
+      );
 
       return graphorm.queryOneOrFail(ctx, info, (builder) => {
         builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
-          id: photo.id,
+          id: userWorkspacePhoto.id,
         });
         return builder;
       });
@@ -164,9 +177,22 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: { id: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
+      // Find the photo first to get the image URL
+      const photo = await ctx.con
+        .getRepository(UserWorkspacePhoto)
+        .findOne({ where: { id: args.id, userId: ctx.userId } });
+
+      if (!photo) {
+        return { _: true };
+      }
+
+      // Delete the photo
       await ctx.con
         .getRepository(UserWorkspacePhoto)
         .delete({ id: args.id, userId: ctx.userId });
+
+      // Delete the ContentImage record since we know the image is no longer needed
+      await ctx.con.getRepository(ContentImage).delete({ url: photo.image });
 
       return { _: true };
     },
