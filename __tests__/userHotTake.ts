@@ -119,7 +119,7 @@ describe('query userHotTakes with upvotes', () => {
   });
 
   it('should return upvoted as null when not logged in', async () => {
-    const hotTake = await con.getRepository(UserHotTake).save({
+    await con.getRepository(UserHotTake).save({
       userId: '1',
       emoji: '🔥',
       title: 'Take',
@@ -256,9 +256,7 @@ describe('mutation vote on hot take', () => {
       },
     });
 
-    expect(res.errors?.[0]?.message).toBe(
-      'Hot takes do not support downvotes',
-    );
+    expect(res.errors?.[0]?.message).toBe('Hot takes do not support downvotes');
   });
 
   it('should return error for non-existent hot take', async () => {
