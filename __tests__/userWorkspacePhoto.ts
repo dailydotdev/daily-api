@@ -144,7 +144,6 @@ describe('mutation deleteUserWorkspacePhoto', () => {
     }
   `;
 
-  it('should delete photo and associated ContentImage', async () => {
   it('should require authentication', async () => {
     const res = await client.mutate(MUTATION, {
       variables: { id: '00000000-0000-0000-0000-000000000000' },
@@ -235,3 +234,4 @@ describe('mutation reorderUserWorkspacePhotos', () => {
     ).toBe(0);
   });
 });
+
