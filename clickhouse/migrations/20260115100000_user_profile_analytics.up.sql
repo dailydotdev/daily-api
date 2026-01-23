@@ -30,7 +30,9 @@ SELECT
 FROM events.raw_events
 WHERE event_name = 'profile view'
 AND target_id IS NOT NULL
-GROUP BY target_id;
+AND server_timestamp > '2026-01-23 10:25:00'
+GROUP BY target_id
+SETTINGS materialized_views_ignore_errors = 1;
 
 -- MV for daily history
 CREATE MATERIALIZED VIEW api.user_profile_analytics_history_mv
@@ -44,4 +46,6 @@ SELECT
 FROM events.raw_events
 WHERE event_name = 'profile view'
 AND target_id IS NOT NULL
-GROUP BY date, target_id;
+AND server_timestamp > '2026-01-23 10:25:00'
+GROUP BY date, target_id
+SETTINGS materialized_views_ignore_errors = 1;
