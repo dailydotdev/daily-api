@@ -376,6 +376,10 @@ export const recruiterSubscriptionFlagsSchema = z
       },
     ),
     hasSlackConnection: z.string().optional(),
+    // Super Agent trial fields
+    trialExpiresAt: z.coerce.date().nullish(),
+    trialPlan: z.string().nullish(),
+    isTrialActive: z.boolean().nullish(),
   })
   .partial();
 

@@ -34,6 +34,8 @@ export enum UploadPreset {
   ProfileCover = 'cover',
   TopReaderBadge = 'top_reader_badge',
   Organization = 'organization',
+  ToolIcon = 'tool_icon',
+  WorkspacePhoto = 'workspace_photo',
 }
 
 interface OptionalProps {
@@ -104,6 +106,13 @@ export const uploadProfileCover: UploadFn = (userId, stream) =>
   uploadFile(
     `${UploadPreset.ProfileCover}_${userId}`,
     UploadPreset.ProfileCover,
+    stream,
+  );
+
+export const uploadToolIcon: UploadFn = (toolId, stream) =>
+  uploadFile(
+    `${UploadPreset.ToolIcon}_${toolId}`,
+    UploadPreset.ToolIcon,
     stream,
   );
 

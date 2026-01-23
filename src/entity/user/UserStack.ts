@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import type { User } from './User';
-import type { DatasetStack } from '../dataset/DatasetStack';
+import type { DatasetTool } from '../dataset/DatasetTool';
 
 @Entity()
 @Index('IDX_user_stack_user_id', ['userId'])
@@ -21,7 +21,7 @@ export class UserStack {
   userId: string;
 
   @Column({ type: 'uuid' })
-  stackId: string;
+  toolId: string;
 
   @Column({ type: 'text' })
   section: string;
@@ -51,13 +51,13 @@ export class UserStack {
   })
   user: Promise<User>;
 
-  @ManyToOne('DatasetStack', {
+  @ManyToOne('DatasetTool', {
     lazy: true,
     onDelete: 'CASCADE',
   })
   @JoinColumn({
-    name: 'stackId',
-    foreignKeyConstraintName: 'FK_user_stack_stack_id',
+    name: 'toolId',
+    foreignKeyConstraintName: 'FK_user_stack_tool_id',
   })
-  stack: Promise<DatasetStack>;
+  tool: Promise<DatasetTool>;
 }

@@ -729,3 +729,30 @@ export const createMockGondulOpportunityServiceTransport = () => {
     });
   });
 };
+
+/**
+ * Creates a mock logger for testing purposes.
+ * Use this when a function requires a logger parameter.
+ */
+export const createMockLogger = () =>
+  ({
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+  }) as unknown as Logger;
+
+/**
+ * Default Super Agent trial configuration for testing.
+ * Use with `setupSuperAgentTrial()` or directly with remoteConfig.
+ */
+export const defaultSuperAgentTrialConfig = {
+  enabled: true,
+  durationDays: 30,
+  features: {
+    batchSize: 150,
+    reminders: true,
+    showSlack: true,
+    showFeedback: true,
+  },
+};

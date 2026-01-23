@@ -7,6 +7,7 @@ export interface GitHubRepositoryOwner {
 
 export interface GitHubRepository {
   id: number;
+  name: string;
   full_name: string;
   html_url: string;
   description: string | null;
@@ -20,6 +21,8 @@ export interface GitHubSearchResponse {
 
 export interface GQLGitHubRepository {
   id: string;
+  owner: string;
+  name: string;
   fullName: string;
   url: string;
   image: string;

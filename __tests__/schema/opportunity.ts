@@ -16,6 +16,7 @@ import {
   createMockBrokkrTransport,
   createMockGondulOpportunityServiceTransport,
   createMockGondulTransport,
+  defaultSuperAgentTrialConfig,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
@@ -91,6 +92,7 @@ import {
   ClaimableItem,
   ClaimableItemTypes,
 } from '../../src/entity/ClaimableItem';
+import { remoteConfig } from '../../src/remoteConfig';
 
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
@@ -5279,6 +5281,175 @@ describe('mutation updateOpportunityState', () => {
       'PAYMENT_REQUIRED',
       "Your don't have any more seats available. Please update your subscription to add more seats.",
     );
+  });
+
+  it('should allocate seat and apply trial features on first submission when trial is enabled', async () => {
+    loggedUser = '1';
+
+    // Use opportunitiesFixture[3] (DRAFT state, organizationId is different org)
+    const opportunityId = opportunitiesFixture[3].id;
+    const organizationId = opportunitiesFixture[3].organizationId!;
+
+    // Enable Super Agent trial
+    remoteConfig.vars.superAgentTrial = defaultSuperAgentTrialConfig;
+
+    // Setup organization with active subscription
+    await con.getRepository(Organization).update(
+      { id: organizationId },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [{ priceId: 'pri_test_seat', quantity: 2 }],
+          }),
+      },
+    );
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(OpportunityKeyword).save({
+      opportunityId,
+      keyword: 'typescript',
+    });
+
+    await con.getRepository(QuestionScreening).save({
+      opportunityId,
+      title: 'Tell us about a recent project',
+      questionOrder: 0,
+    });
+
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+        meta: {
+          ...opportunitiesFixture[3].meta,
+          salary: {
+            ...opportunitiesFixture[3].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
+        },
+      },
+    );
+
+    // Submit the opportunity
+    const res = await client.mutate(MUTATION, {
+      variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify opportunity state and flags
+    const updatedOpp = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: opportunityId });
+
+    expect(updatedOpp.state).toBe(OpportunityState.IN_REVIEW);
+    // Seat should be allocated (plan set to subscription priceId)
+    expect(updatedOpp.flags?.plan).toBe('pri_test_seat');
+    // Trial features should also be applied
+    expect(updatedOpp.flags?.isTrial).toBe(true);
+    expect(updatedOpp.flags?.batchSize).toBe(150);
+    expect(updatedOpp.flags?.reminders).toBe(true);
+
+    // Verify organization trial was activated
+    const updatedOrg = await con
+      .getRepository(Organization)
+      .findOneByOrFail({ id: organizationId });
+
+    expect(updatedOrg.recruiterSubscriptionFlags.isTrialActive).toBe(true);
+    expect(updatedOrg.recruiterSubscriptionFlags.trialExpiresAt).toBeDefined();
+
+    // Verify alert was created for the user
+    const alert = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+    expect(alert?.showSuperAgentTrialUpgrade).toBe(true);
+
+    // Cleanup
+    remoteConfig.vars.superAgentTrial = undefined;
+  });
+
+  it('should require payment even when trial is enabled', async () => {
+    loggedUser = '1';
+
+    // Use opportunitiesFixture[2] (DRAFT state, different from the one used above)
+    const opportunityId = opportunitiesFixture[2].id;
+    const organizationId = opportunitiesFixture[2].organizationId!;
+
+    // Enable Super Agent trial
+    remoteConfig.vars.superAgentTrial = defaultSuperAgentTrialConfig;
+
+    // Setup organization with active subscription but NO available seats
+    await con.getRepository(Organization).update(
+      { id: organizationId },
+      {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            subscriptionId: 'sub_test',
+            status: SubscriptionStatus.Active,
+            items: [], // No seats available
+          }),
+      },
+    );
+
+    await con.getRepository(OpportunityUser).save({
+      opportunityId,
+      userId: '1',
+      type: OpportunityUserType.Recruiter,
+    });
+
+    await con.getRepository(OpportunityKeyword).save({
+      opportunityId,
+      keyword: 'typescript',
+    });
+
+    await con.getRepository(QuestionScreening).save({
+      opportunityId,
+      title: 'Tell us about a recent project',
+      questionOrder: 0,
+    });
+
+    await con.getRepository(Opportunity).update(
+      { id: opportunityId },
+      {
+        content: {
+          overview: { content: 'Overview content', html: '' },
+          responsibilities: { content: 'Responsibilities content', html: '' },
+          requirements: { content: 'Requirements content', html: '' },
+        },
+        meta: {
+          ...opportunitiesFixture[2].meta,
+          salary: {
+            ...opportunitiesFixture[2].meta?.salary,
+            min: 2000,
+            max: 2500,
+          },
+        },
+      },
+    );
+
+    // Should fail even though trial is enabled - user must have paid for a seat
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: { id: opportunityId, state: OpportunityState.IN_REVIEW },
+      },
+      'PAYMENT_REQUIRED',
+      "Your don't have any more seats available. Please update your subscription to add more seats.",
+    );
+
+    // Cleanup
+    remoteConfig.vars.superAgentTrial = undefined;
   });
 });
 

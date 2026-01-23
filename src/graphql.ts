@@ -35,6 +35,8 @@ import * as autocompletes from './schema/autocompletes';
 import * as profile from './schema/profile';
 import * as userStack from './schema/userStack';
 import * as userHotTake from './schema/userHotTake';
+import * as userTool from './schema/userTool';
+import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -86,6 +88,8 @@ export const schema = urlDirective.transformer(
               profile.typeDefs,
               userStack.typeDefs,
               userHotTake.typeDefs,
+              userTool.typeDefs,
+              userWorkspacePhoto.typeDefs,
             ],
             resolvers: merge(
               common.resolvers,
@@ -120,6 +124,8 @@ export const schema = urlDirective.transformer(
               profile.resolvers,
               userStack.resolvers,
               userHotTake.resolvers,
+              userTool.resolvers,
+              userWorkspacePhoto.resolvers,
             ),
           }),
         ),
