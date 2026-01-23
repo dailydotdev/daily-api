@@ -4,6 +4,7 @@ import { OpportunityUser } from '../../entity/opportunities/user';
 import { OpportunityUserType } from '../../entity/opportunities/types';
 import { ConflictError, NotFoundError } from '../../errors';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
+import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityState } from '@dailydotdev/schema';
 
 export enum OpportunityPermissions {
@@ -11,6 +12,7 @@ export enum OpportunityPermissions {
   UpdateState = 'opportunity_update_state',
   ViewDraft = 'opportunity_view_draft',
   CreateSlackChannel = 'opportunity_create_slack_channel',
+  Apply = 'opportunity_apply',
 }
 
 export const ensureOpportunityPermissions = async ({
@@ -36,6 +38,18 @@ export const ensureOpportunityPermissions = async ({
 
   // Team members have access to all opportunities
   if (isTeamMember) {
+    return;
+  }
+
+  if (permission === OpportunityPermissions.Apply) {
+    const existingMatch = await con.getRepository(OpportunityMatch).exists({
+      where: { opportunityId, userId },
+    });
+
+    if (existingMatch) {
+      throw new ConflictError('You have already applied to this opportunity');
+    }
+
     return;
   }
 

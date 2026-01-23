@@ -456,6 +456,38 @@ describe('query opportunityById', () => {
     );
   });
 
+  it('should allow anonymous user to view LIVE opportunity', async () => {
+    // loggedUser is null by default from beforeEach
+    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityById.id).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
+    expect(res.data.opportunityById.state).toEqual(OpportunityState.LIVE);
+  });
+
+  it('should return NOT_FOUND for anonymous user viewing non-LIVE opportunity', async () => {
+    // Update to DRAFT state
+    await con
+      .getRepository(Opportunity)
+      .update(
+        { id: '550e8400-e29b-41d4-a716-446655440001' },
+        { state: OpportunityState.DRAFT },
+      );
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: OPPORTUNITY_BY_ID_QUERY,
+        variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+      },
+      'NOT_FOUND',
+    );
+  });
+
   it('should return null for non-live opportunity when user is not a recruiter', async () => {
     loggedUser = '2';
 
@@ -2815,6 +2847,127 @@ describe('mutation rejectOpportunityMatch', () => {
       },
       'FORBIDDEN',
       'Access denied! Match is not pending',
+    );
+  });
+});
+
+describe('mutation opportunityApply', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation OpportunityApply($id: ID!) {
+      opportunityApply(id: $id) {
+        opportunityId
+        userId
+        status
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should allow authenticated user to apply to LIVE opportunity', async () => {
+    loggedUser = '3';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440002', // LIVE opportunity without match for user 3
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityApply).toEqual({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+      userId: '3',
+      status: OpportunityMatchStatus.CandidateApplied,
+    });
+
+    // Verify the match was created in the database
+    const match = await con.getRepository(OpportunityMatch).findOne({
+      where: {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+        userId: '3',
+      },
+    });
+
+    expect(match).toMatchObject({
+      status: OpportunityMatchStatus.CandidateApplied,
+      description: {},
+      screening: [],
+      feedback: [],
+      applicationRank: {},
+    });
+  });
+
+  it('should return error for non-LIVE opportunity', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440003', // DRAFT state
+        },
+      },
+      'CONFLICT',
+      'Can not apply to this opportunity',
+    );
+  });
+
+  it('should return error if already applied', async () => {
+    loggedUser = '1'; // User who already has a match in the fixture
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      },
+      'CONFLICT',
+      'You have already applied to this opportunity',
+    );
+  });
+
+  it('should return error for non-existent opportunity', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '550e8400-e29b-41d4-a716-000000000000',
+        },
+      },
+      'NOT_FOUND',
+      'Opportunity not found!',
+    );
+  });
+
+  it('should return error for invalid UUID', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'not-a-valid-uuid',
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
     );
   });
 });

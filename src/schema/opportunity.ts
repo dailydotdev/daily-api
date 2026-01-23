@@ -1052,6 +1052,16 @@ export const typeDefs = /* GraphQL */ `
     Claim opportunities associated with an anonymous identifier
     """
     claimOpportunities(identifier: String!): OpportunitiesClaim @auth
+
+    """
+    Apply to an opportunity as an authenticated user
+    """
+    opportunityApply(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): OpportunityMatch @auth
   }
 `;
 
@@ -3005,6 +3015,58 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return {
         ids: opportunities.map((item) => item.id),
       };
+    },
+    opportunityApply: async (
+      _,
+      { id: idArgument }: { id: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLOpportunityMatch> => {
+      const opportunityId = z.uuid().parse(idArgument);
+
+      // Check user hasn't already applied
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.Apply,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      // Verify opportunity exists and is LIVE
+      const opportunity = await ctx.con.getRepository(OpportunityJob).findOne({
+        where: { id: opportunityId },
+        select: ['id', 'state'],
+      });
+
+      if (!opportunity) {
+        throw new NotFoundError('Opportunity not found!');
+      }
+
+      if (opportunity.state !== OpportunityState.LIVE) {
+        throw new ConflictError('Can not apply to this opportunity');
+      }
+
+      await ctx.con.getRepository(OpportunityMatch).save({
+        opportunityId,
+        userId: ctx.userId,
+        status: OpportunityMatchStatus.CandidateApplied,
+        description: {},
+        screening: [],
+        feedback: [],
+        applicationRank: {},
+      });
+
+      return await graphorm.queryOneOrFail<GQLOpportunityMatch>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where({ opportunityId })
+            .andWhere({ userId: ctx.userId });
+          return builder;
+        },
+      );
     },
   },
   OpportunityMatch: {
