@@ -3047,15 +3047,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ConflictError('Can not apply to this opportunity');
       }
 
-      await ctx.con.getRepository(OpportunityMatch).save({
-        opportunityId,
-        userId: ctx.userId,
-        status: OpportunityMatchStatus.CandidateApplied,
-        description: {},
-        screening: [],
-        feedback: [],
-        applicationRank: {},
-      });
+      await ctx.con.getRepository(OpportunityMatch).insert(
+        ctx.con.getRepository(OpportunityMatch).create({
+          opportunityId,
+          userId: ctx.userId,
+          status: OpportunityMatchStatus.CandidateApplied,
+          description: {},
+          screening: [],
+          feedback: [],
+          applicationRank: {},
+        }),
+      );
 
       return await graphorm.queryOneOrFail<GQLOpportunityMatch>(
         ctx,
