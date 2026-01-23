@@ -2626,6 +2626,57 @@ describe('mutation saveOpportunityFeedbackAnswers', () => {
         );
       },
     );
+
+    it('should save screening answers for candidate applied', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(OpportunityMatch).update(
+        {
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          userId: '1',
+        },
+        {
+          status: OpportunityMatchStatus.CandidateReview,
+        },
+      );
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          answers: [
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440001',
+              answer: 'JavaScript',
+            },
+            {
+              questionId: '750e8400-e29b-41d4-a716-446655440002',
+              answer: 'Built a full-stack app',
+            },
+          ],
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.saveOpportunityScreeningAnswers).toEqual({ _: true });
+
+      const match = await con.getRepository(OpportunityMatch).findOneByOrFail({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+      });
+
+      expect(match.screening).toEqual(
+        expect.arrayContaining([
+          {
+            screening: 'What is your favorite programming language?',
+            answer: 'JavaScript',
+          },
+          {
+            screening: 'Describe a challenging project you worked on.',
+            answer: 'Built a full-stack app',
+          },
+        ]),
+      );
+    });
   });
 
   it('should return error when the questionId does not belong to opportunity', async () => {
@@ -2749,6 +2800,43 @@ describe('mutation acceptOpportunityMatch', () => {
       'Access denied! Match is not pending',
     );
   });
+
+  it('should accept opportunity match for candidate applied', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+      },
+      { status: OpportunityMatchStatus.CandidateApplied },
+    );
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateApplied,
+      }),
+    ).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.acceptOpportunityMatch).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateReview,
+      }),
+    ).toEqual(1);
+  });
 });
 
 describe('mutation rejectOpportunityMatch', () => {
@@ -2848,6 +2936,43 @@ describe('mutation rejectOpportunityMatch', () => {
       'FORBIDDEN',
       'Access denied! Match is not pending',
     );
+  });
+
+  it('should reject opportunity match for candidate applied', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+      },
+      { status: OpportunityMatchStatus.CandidateApplied },
+    );
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateApplied,
+      }),
+    ).toEqual(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.rejectOpportunityMatch).toEqual({ _: true });
+
+    expect(
+      await con.getRepository(OpportunityMatch).countBy({
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        userId: '1',
+        status: OpportunityMatchStatus.CandidateRejected,
+      }),
+    ).toEqual(1);
   });
 });
 

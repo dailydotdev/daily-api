@@ -1148,7 +1148,12 @@ async function updateCandidateMatchStatus(
     throw new ForbiddenError('Access denied! No match found');
   }
 
-  if (match.status !== OpportunityMatchStatus.Pending) {
+  if (
+    ![
+      OpportunityMatchStatus.Pending,
+      OpportunityMatchStatus.CandidateApplied,
+    ].includes(match.status)
+  ) {
     ctx.log.error(
       { opportunityId, userId, status: match.status },
       'Match is not pending',
@@ -2131,7 +2136,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         con.getRepository(OpportunityMatch).findOneBy({
           opportunityId,
           userId,
-          status: OpportunityMatchStatus.Pending,
+          status: In([
+            OpportunityMatchStatus.Pending,
+            OpportunityMatchStatus.CandidateApplied,
+          ]),
         }),
         con.getRepository(OpportunityJob).findOneOrFail({
           where: { id: opportunityId, state: OpportunityState.LIVE },
