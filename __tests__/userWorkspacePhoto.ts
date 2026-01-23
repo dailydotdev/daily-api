@@ -144,7 +144,14 @@ describe('mutation deleteUserWorkspacePhoto', () => {
     }
   `;
 
-  it('should delete photo and associated ContentImage', async () => {
+  it('should require authentication', async () => {
+    const res = await client.mutate(MUTATION, {
+      variables: { id: '00000000-0000-0000-0000-000000000000' },
+    });
+    expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('should delete photo', async () => {
     loggedUser = '1';
     const photo = await con.getRepository(UserWorkspacePhoto).save({
       userId: '1',
@@ -162,7 +169,22 @@ describe('mutation deleteUserWorkspacePhoto', () => {
       .getRepository(UserWorkspacePhoto)
       .findOneBy({ id: photo.id });
     expect(deleted).toBeNull();
+  });
 
+  it('should not delete other user photo', async () => {
+    loggedUser = '1';
+    const photo = await con.getRepository(UserWorkspacePhoto).save({
+      userId: '2',
+      image: 'https://example.com/photo.jpg',
+      position: 0,
+    });
+
+    await client.mutate(MUTATION, { variables: { id: photo.id } });
+
+    const notDeleted = await con
+      .getRepository(UserWorkspacePhoto)
+      .findOneBy({ id: photo.id });
+    expect(notDeleted).not.toBeNull();
     const contentImage = await con
       .getRepository(ContentImage)
       .findOneBy({ url: 'https://example.com/delete-me.jpg' });
@@ -179,6 +201,13 @@ describe('mutation reorderUserWorkspacePhotos', () => {
       }
     }
   `;
+
+  it('should require authentication', async () => {
+    const res = await client.mutate(MUTATION, {
+      variables: { items: [] },
+    });
+    expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  });
 
   it('should update positions', async () => {
     loggedUser = '1';

@@ -64,7 +64,7 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Mutation {
     """
-    Add a workspace photo to the user's profile
+    Add a workspace photo to the user's profile (max 5)
     """
     addUserWorkspacePhoto(
       input: AddUserWorkspacePhotoInput!
@@ -120,7 +120,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return builder;
         },
         undefined,
-        true, // use read replica
+        true,
       );
     },
   },
