@@ -20,6 +20,12 @@ export enum ChecklistViewState {
   Hidden = 'hidden',
 }
 
+export enum DefaultWriteTab {
+  Share = 'share',
+  NewPost = 'newpost',
+  Poll = 'poll',
+}
+
 export type SettingsFlags = Partial<{
   sidebarSquadExpanded: boolean;
   sidebarCustomFeedsExpanded: boolean;
@@ -105,6 +111,9 @@ export class Settings {
   @Column({ type: 'text', default: ChecklistViewState.Hidden })
   onboardingChecklistView: ChecklistViewState;
 
+  @Column({ type: 'text', default: DefaultWriteTab.Share })
+  defaultWriteTab: DefaultWriteTab;
+
   @UpdateDateColumn()
   updatedAt: Date | null;
 
@@ -136,6 +145,7 @@ export const SETTINGS_DEFAULT = {
   sortCommentsBy: SortCommentsBy.OldestFirst,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
   onboardingChecklistView: ChecklistViewState.Hidden,
+  defaultWriteTab: DefaultWriteTab.Share,
   flags: {
     sidebarSquadExpanded: true,
     sidebarCustomFeedsExpanded: true,

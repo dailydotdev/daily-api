@@ -112,6 +112,7 @@ describe('mutation updateUserSettings', () => {
     campaignCtaPlacement
     onboardingChecklistView
     sortCommentsBy
+    defaultWriteTab
     flags {
       sidebarCustomFeedsExpanded
       sidebarOtherExpanded
@@ -426,6 +427,48 @@ describe('mutation updateUserSettings', () => {
 
     expect(res.data.updateUserSettings.onboardingChecklistView).toBe(
       ChecklistViewState.Open,
+    );
+  });
+
+  it('should update defaultWriteTab', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.insert({
+      userId: '1',
+    });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: { defaultWriteTab: 'newpost' },
+      },
+    });
+
+    expect(res.data.updateUserSettings.defaultWriteTab).toBe('newpost');
+  });
+
+  it('should return a validation error if passed an invalid value for defaultWriteTab', async () => {
+    loggedUser = '1';
+
+    const repo = con.getRepository(Settings);
+    await repo.insert({
+      userId: '1',
+    });
+
+    await testQueryError(
+      client,
+      {
+        query: MUTATION,
+        variables: {
+          data: { defaultWriteTab: 'invalid' },
+        },
+      },
+      (errors) => {
+        expect(errors[0].extensions.code).toEqual('GRAPHQL_VALIDATION_FAILED');
+        expect(errors[0].message).toEqual(
+          `Invalid value for 'defaultWriteTab'`,
+        );
+      },
     );
   });
 });
