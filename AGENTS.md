@@ -36,6 +36,8 @@ The migration generator compares entities against the local database schema. Ens
 
 **IMPORTANT: Review generated migrations for schema drift.** The generator may include unrelated changes from local schema differences. Always review and clean up migrations to include only the intended changes.
 
+**After generating a migration, use the `/format-migration` skill** to format the SQL code for readability and consistency. This skill ensures proper SQL formatting with multi-line queries, correct constraint placement, and index handling best practices.
+
 **Building & Testing:**
 - `pnpm run build` - Compile TypeScript to build directory
 - `pnpm run lint` - Run ESLint (max 0 warnings)
