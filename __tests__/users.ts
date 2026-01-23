@@ -7121,7 +7121,7 @@ describe('add claimable items to user', () => {
       await con.getRepository(ClaimableItem).save({
         id: claimableItemUuid,
         type: ClaimableItemTypes.Plus,
-        email: 'john.doe@example.com',
+        identifier: 'john.doe@example.com',
         flags,
       });
 
@@ -7233,7 +7233,7 @@ describe('add claimable items to user', () => {
       await con.getRepository(ClaimableItem).save({
         id: claimableItemUuid,
         type: ClaimableItemTypes.Plus,
-        email: 'johnclaim@email.com',
+        identifier: 'johnclaim@email.com',
         flags,
       });
 

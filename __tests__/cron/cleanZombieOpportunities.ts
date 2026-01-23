@@ -12,8 +12,13 @@ import { randomUUID } from 'node:crypto';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import { subDays } from 'date-fns';
 import { Organization } from '../../src/entity/Organization';
-import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
+import {
+  ClaimableItem,
+  ClaimableItemTypes,
+} from '../../src/entity/ClaimableItem';
+import { Opportunity } from '../../src/entity/opportunities/Opportunity';
+import { OpportunityState } from '@dailydotdev/schema';
 
 let con: DataSource;
 
@@ -33,20 +38,19 @@ beforeEach(async () => {
     opportunitiesFixture.map((opportunity) => {
       return {
         ...opportunity,
+        state: OpportunityState.DRAFT,
         id: randomUUID(),
       };
     }),
   );
 
-  await saveFixtures(
-    con,
-    OpportunityJob,
+  const opps1 = await con.getRepository(OpportunityJob).save(
     opportunitiesFixture.map((opportunity) => {
       return {
         ...opportunity,
+        state: OpportunityState.DRAFT,
         id: randomUUID(),
         organizationId: null,
-        flags: { anonUserId: randomUUID() },
         createdAt: subDays(new Date(), 3),
       };
     }),
@@ -54,14 +58,40 @@ beforeEach(async () => {
 
   await saveFixtures(
     con,
-    OpportunityJob,
+    ClaimableItem,
+    opps1.map((opportunity) => {
+      return {
+        identifier: randomUUID(),
+        type: ClaimableItemTypes.Opportunity,
+        flags: {
+          opportunityId: opportunity.id,
+        },
+      };
+    }),
+  );
+
+  const opps2 = await con.getRepository(OpportunityJob).save(
     opportunitiesFixture.map((opportunity) => {
       return {
         ...opportunity,
+        state: OpportunityState.DRAFT,
         id: randomUUID(),
         organizationId: null,
-        flags: { anonUserId: randomUUID() },
         createdAt: subDays(new Date(), 1),
+      };
+    }),
+  );
+
+  await saveFixtures(
+    con,
+    ClaimableItem,
+    opps2.map((opportunity) => {
+      return {
+        identifier: randomUUID(),
+        type: ClaimableItemTypes.Opportunity,
+        flags: {
+          opportunityId: opportunity.id,
+        },
       };
     }),
   );
@@ -79,10 +109,14 @@ describe('cleanZombieOpportunities cron', () => {
 
     expect(opportunities.length).toEqual(15);
 
+    const claimableItems = await con.getRepository(ClaimableItem).find();
+
     const zombieOpportunitiesCount = opportunities.filter((opportunity) => {
       return (
         !(opportunity as OpportunityJob).organizationId &&
-        opportunity.flags?.anonUserId &&
+        claimableItems.some(
+          (item) => item.flags.opportunityId === opportunity.id,
+        ) &&
         opportunity.createdAt < subDays(new Date(), 2)
       );
     }).length;

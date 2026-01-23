@@ -388,7 +388,7 @@ export const addClaimableItemsToUser = async (
 ) => {
   const subscription = await con
     .getRepository(ClaimableItem)
-    .findOneBy({ email: body.email, claimedById: IsNull() });
+    .findOneBy({ identifier: body.email, claimedById: IsNull() });
 
   if (subscription) {
     await paddleInstance.subscriptions.update(

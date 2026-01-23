@@ -31,6 +31,7 @@ import { generateShortId } from '../src/ids';
 import { OpportunityUser } from '../src/entity/opportunities/user';
 import { OpportunityUserType } from '../src/entity/opportunities/types';
 import { QuestionFeedback } from '../src/entity/questions/QuestionFeedback';
+import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -793,18 +794,23 @@ describe('POST /p/newUser', () => {
         title: 'Test',
         tldr: 'Test',
         state: OpportunityState.DRAFT,
-        flags: {
-          anonUserId,
-        },
       }),
     );
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: anonUserId,
+      type: ClaimableItemTypes.Opportunity,
+      flags: {
+        opportunityId: opportunity.id,
+      },
+    });
 
     const { body } = await request(app.server)
       .post('/p/newUser')
       .set('Content-type', 'application/json')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .send({
-        id: opportunity.flags.anonUserId,
+        id: anonUserId,
         name: anonUserId,
         image: usersFixture[0].image,
         username: anonUserId,
@@ -816,10 +822,15 @@ describe('POST /p/newUser', () => {
     expect(body.status).toEqual('ok');
     expect(body.userId).toEqual(anonUserId);
 
-    const updatedOpportunity = await con
-      .getRepository(OpportunityJob)
-      .findOneBy({ id: opportunity.id });
-    expect(updatedOpportunity!.flags.anonUserId).toBeNull();
+    const updatedClaimableItem = await con
+      .getRepository(ClaimableItem)
+      .findOneBy({
+        identifier: anonUserId,
+        type: ClaimableItemTypes.Opportunity,
+      });
+    expect(updatedClaimableItem).not.toBeNull();
+    expect(updatedClaimableItem!.claimedAt).toBeInstanceOf(Date);
+    expect(updatedClaimableItem!.claimedById).toBe(anonUserId);
 
     const opportunityUser = await con.getRepository(OpportunityUser).findOneBy({
       opportunityId: opportunity.id,
