@@ -10,4 +10,5 @@ export enum OpportunityMatchStatus {
   CandidateTimeOut = 'candidate_time_out',
   RecruiterAccepted = 'recruiter_accepted',
   RecruiterRejected = 'recruiter_rejected',
+  CandidateApplied = 'candidate_applied',
 }
