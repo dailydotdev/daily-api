@@ -354,7 +354,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type OpportunityMatchDescription {
-    reasoning: String!
+    reasoning: String
   }
 
   type ScreeningAnswer {
