@@ -61,7 +61,9 @@
       "Write",
       "Task",
       "TodoWrite",
-      "WebSearch"
+      "WebSearch",
+      "Skill(local-env)",
+      "Skill(format-migration)"
     ],
     "deny": [
       "Bash(rm -rf /)",
