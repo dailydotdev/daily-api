@@ -146,4 +146,8 @@ export const crons: Cron[] = [
     name: 'user-profile-updated-sync',
     schedule: '45 */3 * * *',
   },
+  {
+    name: 'expire-super-agent-trial',
+    schedule: '0 */6 * * *',
+  },
 ];

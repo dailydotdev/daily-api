@@ -4,11 +4,6 @@ import { StorageKey, StorageTopic, generateStorageKey } from '../config';
 import { logger } from '../logger';
 import { getRedisListLength, popFromRedisList } from '../redis';
 import { Cron } from './cron';
-import {
-  UserPersonalizedDigest,
-  UserPersonalizedDigestType,
-} from '../entity/user/UserPersonalizedDigest';
-import { User } from '../entity/user/User';
 
 const redisKey = generateStorageKey(
   StorageTopic.CIO,
@@ -33,35 +28,7 @@ const cron: Cron = {
         // Store it in a set to remove duplicates
         const userIds = new Set(userIdsRaw);
 
-        const userRecords = await con
-          .createQueryBuilder(User, 'u')
-          .leftJoin(
-            UserPersonalizedDigest,
-            'upd',
-            'upd."userId" = u.id AND upd.type = :digestType',
-            { digestType: UserPersonalizedDigestType.Digest },
-          )
-          .where('u.id IN (:...ids)', { ids: Array.from(userIds) })
-          .select('u.id AS "userId"')
-          .addSelect(
-            `
-            CASE
-              WHEN upd.flags->>'unrested' = 'true' THEN true
-              ELSE false
-            END AS unrested
-            `,
-          )
-          .getRawMany<{
-            userId: string;
-            unrested: boolean;
-          }>();
-
-        await syncSubscription(
-          userRecords
-            .filter((item) => !item.unrested)
-            .map((item) => item.userId),
-          con,
-        );
+        await syncSubscription([...userIds], con);
 
         // Wait for a bit to avoid rate limiting
         await setTimeout(200);

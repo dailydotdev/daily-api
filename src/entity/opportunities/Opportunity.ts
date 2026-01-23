@@ -23,7 +23,6 @@ import type { OpportunityLocation } from './OpportunityLocation';
 import type { OpportunityPreviewStatus } from '../../common/opportunity/types';
 
 export type OpportunityFlags = Partial<{
-  anonUserId: string | null;
   preview: {
     userIds: string[];
     totalCount: number;
@@ -43,6 +42,7 @@ export type OpportunityFlags = Partial<{
     trackingId?: string;
   } | null;
   parseError: string | null;
+  isTrial: boolean;
 }>;
 
 export type OpportunityFlagsPublic = Pick<

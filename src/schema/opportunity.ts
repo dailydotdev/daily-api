@@ -59,7 +59,6 @@ import {
 } from '../common/googleCloud';
 import {
   opportunityEditSchema,
-  opportunityStateLiveSchema,
   opportunityUpdateStateSchema,
   createSharedSlackChannelSchema,
   parseOpportunitySchema,
@@ -73,7 +72,7 @@ import {
 } from '../common/opportunity/accessControl';
 import { sanitizeHtml } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not, JsonContains, EntityManager, DeepPartial } from 'typeorm';
+import { In, Not, EntityManager, DeepPartial, IsNull } from 'typeorm';
 import { Organization } from '../entity/Organization';
 import { Source, SourceType } from '../entity/Source';
 import {
@@ -116,8 +115,17 @@ import {
 } from '../mocks/opportunity/services';
 import { notifyOpportunityFeedbackSubmitted } from '../common/opportunity/pubsub';
 import { triggerTypedEvent } from '../common/typedPubsub';
+import {
+  handleInReviewSubmission,
+  handleLiveTransition,
+  validateInReviewTransition,
+  type OpportunityWithRelations,
+  type StateUpdateContext,
+} from '../common/opportunity/stateTransition';
 import { randomUUID } from 'crypto';
 import { opportunityMatchBatchSize } from '../types';
+import { ClaimableItem, ClaimableItemTypes } from '../entity/ClaimableItem';
+import { claimAnonOpportunities } from '../common/opportunity/user';
 
 export interface GQLOpportunity extends Pick<
   Opportunity,
@@ -203,6 +211,10 @@ export interface GQLOpportunityStats {
   forReview: number;
   introduced: number;
 }
+
+export type GQLOpportunitiesClaim = {
+  ids: string[];
+};
 
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
@@ -619,6 +631,10 @@ export const typeDefs = /* GraphQL */ `
     introduced: Int!
   }
 
+  type OpportunitiesClaim {
+    ids: [String!]!
+  }
+
   extend type Query {
     """
     Get the public information about a Opportunity listing
@@ -1031,6 +1047,11 @@ export const typeDefs = /* GraphQL */ `
 
       payload: AddOpportunitySeatsInput!
     ): EmptyResponse @auth
+
+    """
+    Claim opportunities associated with an anonymous identifier
+    """
+    claimOpportunities(identifier: String!): OpportunitiesClaim @auth
   }
 `;
 
@@ -1304,6 +1325,34 @@ async function handleOpportunityRecruiterUpdate(
     },
   );
 }
+
+/**
+ * Handles transition to CLOSED state
+ */
+const handleClosedTransition = async ({
+  ctx,
+  opportunity,
+  organization,
+}: {
+  ctx: StateUpdateContext;
+  opportunity: OpportunityJob;
+  organization: Organization | null;
+}): Promise<void> => {
+  if (opportunity.state !== OpportunityState.LIVE) {
+    throw new ConflictError(`This opportunity is not live`);
+  }
+
+  const subscriptionId =
+    organization?.recruiterSubscriptionFlags.subscriptionId;
+
+  if (!subscriptionId) {
+    throw new ConflictError(`Opportunity subscription not found`);
+  }
+
+  await ctx.con
+    .getRepository(OpportunityJob)
+    .update({ id: opportunity.id }, { state: OpportunityState.CLOSED });
+};
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -1592,11 +1641,25 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             relations: { keywords: true },
           });
       } else {
+        const claimableItem = await ctx.con
+          .getRepository(ClaimableItem)
+          .findOne({
+            where: {
+              identifier: ctx.trackingId,
+              type: ClaimableItemTypes.Opportunity,
+              claimedById: IsNull(),
+            },
+          });
+
+        if (!claimableItem?.flags?.opportunityId) {
+          throw new NotFoundError('No opportunity found for preview');
+        }
+
         opportunity = await ctx.con
           .getRepository(OpportunityJob)
           .findOneOrFail({
             where: {
-              flags: JsonContains({ anonUserId: ctx.trackingId }),
+              id: claimableItem.flags.opportunityId,
             },
             relations: { keywords: true },
           });
@@ -2523,7 +2586,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         isTeamMember: ctx.isTeamMember,
       });
 
-      const opportunity = await ctx.con
+      const opportunity = (await ctx.con
         .getRepository(OpportunityJob)
         .findOneOrFail({
           where: { id },
@@ -2532,120 +2595,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             keywords: true,
             questions: true,
           },
-        });
+        })) as OpportunityWithRelations;
 
       const organization = await opportunity.organization;
+      const stateCtx: StateUpdateContext = {
+        con: ctx.con,
+        userId: ctx.userId,
+        log: ctx.log,
+        isTeamMember: ctx.isTeamMember,
+      };
 
       switch (state) {
         case OpportunityState.IN_REVIEW: {
-          if (!organization) {
-            throw new ConflictError(
-              `Opportunity must have an organization assigned`,
-            );
-          }
-
-          if (opportunity.state === OpportunityState.CLOSED) {
-            throw new ConflictError(`Opportunity is closed`);
-          }
-
-          if (
-            organization.recruiterSubscriptionFlags.status !==
-            SubscriptionStatus.Active
-          ) {
-            throw new PaymentRequiredError(
-              `Opportunity subscription is not active yet, make sure your payment was processed in full. Contact support if the issue persists.`,
-            );
-          }
-
-          opportunityStateLiveSchema.parse({
-            ...opportunity,
-            organization: await opportunity.organization,
-            keywords: await opportunity.keywords,
-            questions: await opportunity.questions,
+          await validateInReviewTransition({ opportunity, organization });
+          await handleInReviewSubmission({
+            ctx: stateCtx,
+            opportunity,
+            organization: organization!,
           });
-
-          const liveOpportunities: Pick<OpportunityJob, 'flags'>[] =
-            await ctx.con.getRepository(OpportunityJob).find({
-              select: ['flags'],
-              where: {
-                organizationId: organization.id,
-                state: In([OpportunityState.LIVE, OpportunityState.IN_REVIEW]),
-              },
-              take: 100,
-            });
-
-          const organizationPlans = [
-            ...(organization.recruiterSubscriptionFlags.items || []),
-          ];
-
-          // look through live opportunities and decrement plan quantities
-          // to figure out how many seats are left
-          liveOpportunities.reduce((acc, opportunity) => {
-            const planPriceId = opportunity.flags?.plan;
-
-            const planForOpportunity = organizationPlans.find(
-              (plan) => plan.priceId === planPriceId,
-            );
-
-            if (planForOpportunity) {
-              planForOpportunity.quantity -= 1;
-            }
-
-            return acc;
-          }, organizationPlans);
-
-          // for now just assign first plan available
-          const newPlan = organizationPlans.find((plan) => plan.quantity > 0);
-
-          if (!newPlan) {
-            throw new PaymentRequiredError(
-              `Your don't have any more seats available. Please update your subscription to add more seats.`,
-            );
-          }
-
-          await ctx.con.getRepository(OpportunityJob).update(
-            { id },
-            {
-              state,
-              flags: updateFlagsStatement<OpportunityJob>({
-                plan: newPlan.priceId,
-              }),
-            },
-          );
-
           break;
         }
         case OpportunityState.LIVE: {
-          if (!ctx.isTeamMember) {
-            throw new ConflictError('Invalid state transition');
-          }
-
-          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
-
+          await handleLiveTransition({ ctx: stateCtx, opportunityId: id });
           break;
         }
-        case OpportunityState.CLOSED:
-          if (opportunity.state !== OpportunityState.LIVE) {
-            throw new ConflictError(`This opportunity is not live`);
-          }
-
-          const subscriptionid =
-            organization.recruiterSubscriptionFlags.subscriptionId;
-
-          if (!subscriptionid) {
-            throw new ConflictError(`Opportunity subscription not found`);
-          }
-
-          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
-
+        case OpportunityState.CLOSED: {
+          await handleClosedTransition({
+            ctx: stateCtx,
+            opportunity,
+            organization,
+          });
           break;
+        }
         default:
           throw new ConflictError('Invalid state transition');
       }
 
-      return {
-        _: true,
-      };
+      return { _: true };
     },
     addOpportunitySeats: async (
       _,
@@ -2860,10 +2846,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       };
 
-      if (!ctx.userId) {
-        flags.anonUserId = ctx.trackingId;
-      }
-
       const opportunity = await ctx.con.transaction(async (entityManager) => {
         const newOpportunity = await ctx.con.getRepository(OpportunityJob).save(
           ctx.con.getRepository(OpportunityJob).create({
@@ -2880,6 +2862,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             entityManager.getRepository(OpportunityUserRecruiter).create({
               opportunityId: newOpportunity.id,
               userId: ctx.userId,
+            }),
+          );
+        } else {
+          await entityManager.getRepository(ClaimableItem).insert(
+            entityManager.getRepository(ClaimableItem).create({
+              identifier: ctx.trackingId,
+              type: ClaimableItemTypes.Opportunity,
+              flags: {
+                opportunityId: newOpportunity.id,
+              },
             }),
           );
         }
@@ -2998,6 +2990,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
         throw error;
       }
+    },
+    claimOpportunities: async (
+      _,
+      { identifier }: { identifier: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunitiesClaim> => {
+      const opportunities = await claimAnonOpportunities({
+        anonUserId: identifier,
+        userId: ctx.userId,
+        con: ctx.con.manager,
+      });
+
+      return {
+        ids: opportunities.map((item) => item.id),
+      };
     },
   },
   OpportunityMatch: {

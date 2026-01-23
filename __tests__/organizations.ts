@@ -750,7 +750,7 @@ describe('mutation joinOrganization', () => {
   it('should return forbidden if organization do not match', async () => {
     loggedUser = '3';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -764,7 +764,7 @@ describe('mutation joinOrganization', () => {
   it('should return forbidden if token do not match', async () => {
     loggedUser = '3';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -778,7 +778,7 @@ describe('mutation joinOrganization', () => {
   it('should return forbidden if inviter does not have permission to invite', async () => {
     loggedUser = '3';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -886,7 +886,7 @@ describe('query getOrganizationByIdAndInviteToken', () => {
   it('should return forbidden if token and organization do not match', async () => {
     loggedUser = '3';
 
-    testQueryErrorCode(
+    await testQueryErrorCode(
       client,
       {
         query: QUERY,
@@ -900,7 +900,7 @@ describe('query getOrganizationByIdAndInviteToken', () => {
   it('should return forbidden if inviter does not have permission to invite', async () => {
     loggedUser = '3';
 
-    testQueryErrorCode(
+    await testQueryErrorCode(
       client,
       {
         query: QUERY,

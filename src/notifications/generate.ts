@@ -36,6 +36,7 @@ import {
   type NotificationRecruiterNewCandidateContext,
   type NotificationRecruiterOpportunityLiveContext,
   type NotificationExperienceCompanyEnrichedContext,
+  type NotificationRecruiterExternalPaymentContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -99,9 +100,16 @@ export const notificationTitleMap: Record<
   ) =>
     `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`,
   squad_member_joined: (
-    ctx: NotificationSourceContext & NotificationDoneByContext,
-  ) =>
-    `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`,
+    ctx: NotificationPostContext &
+      NotificationSourceContext &
+      NotificationDoneByContext,
+  ) => {
+    const baseMessage = `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>!`;
+    // Don't mention commenting when welcome post is deleted
+    return ctx.post.deleted
+      ? `${baseMessage} <b>${ctx.doneBy.name}</b> has joined the squad.`
+      : `${baseMessage} Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`;
+  },
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
@@ -224,6 +232,10 @@ export const notificationTitleMap: Record<
     ctx: NotificationExperienceCompanyEnrichedContext,
   ) =>
     `Your ${ctx.experienceType} experience <b>${ctx.experienceTitle}</b> has been linked to <b>${ctx.companyName}</b>!`,
+  recruiter_external_payment: (
+    ctx: NotificationRecruiterExternalPaymentContext,
+  ) =>
+    `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
 };
 
 export const generateNotificationMap: Record<
@@ -369,14 +381,22 @@ export const generateNotificationMap: Record<
   squad_member_joined: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    builder
+  ) => {
+    const baseBuilder = builder
       .icon(NotificationIcon.Bell)
       .referenceSource(ctx.source)
-      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id)
+      .uniqueKey(ctx.doneBy.id);
+
+    // If welcome post is deleted, link to squad page instead
+    if (ctx.post.deleted) {
+      return baseBuilder.targetSource(ctx.source);
+    }
+
+    // Otherwise, link to the post with comment suggestion
+    return baseBuilder
+      .targetPost(ctx.post)
       .setTargetUrlParameter(
         ctx.post.type === PostType.Welcome
           ? [
@@ -386,7 +406,8 @@ export const generateNotificationMap: Record<
               ],
             ]
           : [],
-      ),
+      );
+  },
   squad_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
@@ -650,5 +671,16 @@ export const generateNotificationMap: Record<
         `${process.env.COMMENTS_PREFIX}/settings/profile/experience/${ctx.experienceType}`,
       )
       .uniqueKey(ctx.experienceId);
+  },
+  recruiter_external_payment: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterExternalPaymentContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/prepare`,
+      );
   },
 };

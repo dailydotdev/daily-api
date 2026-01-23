@@ -9,3 +9,8 @@ export * from './UserStats';
 export * from './UserTopReader';
 export * from './UserProfileAnalytics';
 export * from './UserProfileAnalyticsHistory';
+export * from './UserStack';
+export * from './UserHotTake';
+export * from './UserWorkspacePhoto';
+export * from './UserGear';
+export * from './UserTool';

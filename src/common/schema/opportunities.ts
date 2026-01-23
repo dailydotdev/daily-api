@@ -219,9 +219,6 @@ export const opportunityEditSchema = z
             .optional(),
         }),
       )
-      .min(1, {
-        error: 'At least one question is required',
-      })
       .max(3, {
         error: 'No more than three questions are allowed',
       }),
@@ -379,6 +376,10 @@ export const recruiterSubscriptionFlagsSchema = z
       },
     ),
     hasSlackConnection: z.string().optional(),
+    // Super Agent trial fields
+    trialExpiresAt: z.coerce.date().nullish(),
+    trialPlan: z.string().nullish(),
+    isTrialActive: z.boolean().nullish(),
   })
   .partial();
 

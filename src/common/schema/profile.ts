@@ -50,6 +50,21 @@ export const userExperienceProjectSchema = z
   .object({ url: z.url().nullish() })
   .extend(userExperienceInputBaseSchema.shape);
 
+export const repositoryInputSchema = z.object({
+  id: z.string().min(1).nullish(),
+  owner: z.string().max(100).nullish(),
+  name: z.string().min(1).max(200),
+  url: z.url(),
+  image: z.url().nullish(),
+});
+
+export const userExperienceOpenSourceSchema = z
+  .object({
+    url: z.url().nullish(),
+    repository: repositoryInputSchema.nullish(),
+  })
+  .extend(userExperienceInputBaseSchema.shape);
+
 export const userExperienceWorkSchema = z
   .object({
     externalReferenceId: z.string().optional(),
@@ -77,7 +92,7 @@ const experienceTypeToSchema: Record<
   [UserExperienceType.Project]: userExperienceProjectSchema,
   [UserExperienceType.Work]: userExperienceWorkSchema,
   [UserExperienceType.Volunteering]: userExperienceProjectSchema,
-  [UserExperienceType.OpenSource]: userExperienceProjectSchema,
+  [UserExperienceType.OpenSource]: userExperienceOpenSourceSchema,
 };
 
 const experienceCompanyCopy = {
@@ -98,7 +113,14 @@ export const getExperienceSchema = (type: UserExperienceType) => {
         path: ['endedAt'],
       });
     }
-    if (!data.customCompanyName && !data.companyId) {
+
+    // open source experiences do not have companies.
+    const hasRepository =
+      type === UserExperienceType.OpenSource &&
+      'repository' in data &&
+      data.repository;
+
+    if (!data.customCompanyName && !data.companyId && !hasRepository) {
       ctx.addIssue({
         code: 'custom',
         message: `${experienceCompanyCopy[type]} is required`,

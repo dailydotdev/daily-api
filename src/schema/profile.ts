@@ -67,6 +67,14 @@ export const typeDefs = /* GraphQL */ `
     value: String!
   }
 
+  type UserExperienceRepository {
+    id: ID
+    owner: String
+    name: String!
+    url: String!
+    image: String
+  }
+
   type UserExperience {
     id: ID!
     type: UserExperienceType!
@@ -82,6 +90,7 @@ export const typeDefs = /* GraphQL */ `
     isOwner: Boolean
     image: String
     customDomain: String
+    repository: UserExperienceRepository
 
     # custom props per child entity
     url: String
@@ -124,12 +133,21 @@ export const typeDefs = /* GraphQL */ `
     userExperienceById(id: ID!): UserExperience
   }
 
+  input RepositoryInput {
+    id: ID
+    owner: String
+    name: String!
+    url: String!
+    image: String
+  }
+
   input UserGeneralExperienceInput {
     ${baseExperienceInput}
     url: String
     grade: String
     externalReferenceId: String
     customDomain: String
+    repository: RepositoryInput
   }
 
   input UserExperienceWorkInput {
@@ -214,8 +232,17 @@ const generateExperienceToSave = async <
 }> => {
   const schema = getExperienceSchema(input.type);
   const parsed = schema.parse(input) as R;
-  const { customCompanyName, companyId, customDomain, ...values } =
-    parsed as R & { customDomain?: string | null };
+  const { customCompanyName, companyId, customDomain, repository, ...values } =
+    parsed as R & {
+      customDomain?: string | null;
+      repository?: {
+        id: string | null;
+        owner: string | null;
+        name: string;
+        url: string;
+        image: string | null;
+      } | null;
+    };
 
   const toUpdate: Partial<UserExperience> = id
     ? await ctx.con
@@ -223,16 +250,21 @@ const generateExperienceToSave = async <
         .findOneOrFail({ where: { id, userId: ctx.userId } })
     : {};
 
+  const hasRepository =
+    input.type === UserExperienceType.OpenSource && repository;
+
   const userRemovingCompany = !!toUpdate.companyId && !companyId;
   const skipAutoLinking =
     userRemovingCompany || !!toUpdate.flags?.removedEnrichment;
 
-  const resolved = await resolveCompanyState(
-    ctx,
-    companyId,
-    customCompanyName,
-    skipAutoLinking,
-  );
+  const resolved = hasRepository
+    ? { companyId: null, customCompanyName: null }
+    : await resolveCompanyState(
+        ctx,
+        companyId,
+        customCompanyName,
+        skipAutoLinking,
+      );
 
   const toSave: Partial<UserExperience> = {
     ...values,
@@ -240,7 +272,13 @@ const generateExperienceToSave = async <
     customCompanyName: resolved.customCompanyName,
   };
 
-  if (customDomain) {
+  // Handle repository for OpenSource type
+  if (hasRepository) {
+    toSave.flags = {
+      ...toUpdate.flags,
+      repository,
+    };
+  } else if (customDomain) {
     const customImage = resolved.companyId
       ? null
       : getGoogleFaviconUrl(customDomain);
@@ -251,7 +289,7 @@ const generateExperienceToSave = async <
     };
   }
 
-  if (userRemovingCompany) {
+  if (userRemovingCompany && !hasRepository) {
     toSave.flags = {
       ...toSave.flags,
       removedEnrichment: true,

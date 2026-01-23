@@ -2073,3 +2073,448 @@ describe('UserExperience image field', () => {
     expect(updated?.companyId).toBe('company-1');
   });
 });
+
+describe('mutation upsertUserGeneralExperience with repository', () => {
+  const UPSERT_OPENSOURCE_MUTATION = /* GraphQL */ `
+    mutation UpsertUserGeneralExperience(
+      $input: UserGeneralExperienceInput!
+      $id: ID
+    ) {
+      upsertUserGeneralExperience(input: $input, id: $id) {
+        id
+        type
+        title
+        description
+        startedAt
+        endedAt
+        company {
+          id
+          name
+        }
+        customCompanyName
+        repository {
+          id
+          owner
+          name
+          url
+          image
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    loggedUser = null;
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Company, companiesFixture);
+    await saveFixtures(con, UserExperience, userExperiencesFixture);
+  });
+
+  it('should create an opensource experience with repository', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'React Core Contributor',
+          description: 'Contributing to React core',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '10270250',
+            owner: 'facebook',
+            name: 'react',
+            url: 'https://github.com/facebook/react',
+            image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'opensource',
+      title: 'React Core Contributor',
+      description: 'Contributing to React core',
+      company: null,
+      customCompanyName: null,
+      repository: {
+        id: '10270250',
+        owner: 'facebook',
+        name: 'react',
+        url: 'https://github.com/facebook/react',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+      },
+    });
+
+    // Verify the repository is stored in flags
+    const saved = await con.getRepository(UserExperience).findOne({
+      where: { id: res.data.upsertUserGeneralExperience.id },
+    });
+    expect(saved?.flags).toMatchObject({
+      repository: {
+        id: '10270250',
+        owner: 'facebook',
+        name: 'react',
+        url: 'https://github.com/facebook/react',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+      },
+    });
+    expect(saved?.companyId).toBeNull();
+    expect(saved?.customCompanyName).toBeNull();
+  });
+
+  it('should allow opensource experience without company when repository is provided', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'TypeScript Contributor',
+          startedAt: new Date('2023-06-01'),
+          repository: {
+            id: '20929025',
+            owner: 'microsoft',
+            name: 'TypeScript',
+            url: 'https://github.com/microsoft/TypeScript',
+            image: 'https://avatars.githubusercontent.com/u/6154722?v=4',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.repository).toMatchObject({
+      id: '20929025',
+      owner: 'microsoft',
+      name: 'TypeScript',
+    });
+    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(res.data.upsertUserGeneralExperience.customCompanyName).toBeNull();
+  });
+
+  it('should update an opensource experience with repository', async () => {
+    loggedUser = '1';
+
+    // First create an experience
+    const created = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Initial Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '123456',
+            owner: 'old',
+            name: 'repo',
+            url: 'https://github.com/old/repo',
+            image: 'https://avatars.githubusercontent.com/u/1?v=4',
+          },
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Update with new repository
+    const updated = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'opensource',
+          title: 'Updated Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '789012',
+            owner: 'new',
+            name: 'repo',
+            url: 'https://github.com/new/repo',
+            image: 'https://avatars.githubusercontent.com/u/2?v=4',
+          },
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience).toMatchObject({
+      id: experienceId,
+      title: 'Updated Contribution',
+      repository: {
+        id: '789012',
+        owner: 'new',
+        name: 'repo',
+        url: 'https://github.com/new/repo',
+        image: 'https://avatars.githubusercontent.com/u/2?v=4',
+      },
+    });
+  });
+
+  it('should clear company when repository is provided for opensource', async () => {
+    loggedUser = '1';
+
+    // Create an experience with company first
+    const created = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Company Contribution',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    expect(created.data.upsertUserGeneralExperience.company?.id).toBe(
+      'company-1',
+    );
+
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Update with repository - should clear company
+    const updated = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'opensource',
+          title: 'Company Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '10270250',
+            owner: 'facebook',
+            name: 'react',
+            url: 'https://github.com/facebook/react',
+            image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(
+      updated.data.upsertUserGeneralExperience.customCompanyName,
+    ).toBeNull();
+    expect(updated.data.upsertUserGeneralExperience.repository).toMatchObject({
+      id: '10270250',
+      owner: 'facebook',
+      name: 'react',
+    });
+  });
+
+  it('should require company or repository for opensource type', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_OPENSOURCE_MUTATION,
+        variables: {
+          input: {
+            type: 'opensource',
+            title: 'Contribution Without Company or Repository',
+            startedAt: new Date('2023-01-01'),
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should validate repository URL format', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_OPENSOURCE_MUTATION,
+        variables: {
+          input: {
+            type: 'opensource',
+            title: 'Invalid Repository',
+            startedAt: new Date('2023-01-01'),
+            repository: {
+              id: '123',
+              owner: 'test',
+              name: 'repo',
+              url: 'not-a-valid-url',
+              image: 'https://example.com/image.png',
+            },
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should validate repository image URL format', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_OPENSOURCE_MUTATION,
+        variables: {
+          input: {
+            type: 'opensource',
+            title: 'Invalid Repository Image',
+            startedAt: new Date('2023-01-01'),
+            repository: {
+              id: '123',
+              owner: 'test',
+              name: 'repo',
+              url: 'https://github.com/test/repo',
+              image: 'not-a-valid-url',
+            },
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should create an opensource experience with custom repository (null id)', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'GitLab Contributor',
+          description: 'Contributing to a GitLab project',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: 'myorg',
+            name: 'myproject',
+            url: 'https://gitlab.com/myorg/myproject',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'opensource',
+      title: 'GitLab Contributor',
+      company: null,
+      customCompanyName: null,
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'myproject',
+        url: 'https://gitlab.com/myorg/myproject',
+        image: null,
+      },
+    });
+
+    // Verify the repository is stored in flags
+    const saved = await con.getRepository(UserExperience).findOne({
+      where: { id: res.data.upsertUserGeneralExperience.id },
+    });
+    expect(saved?.flags).toMatchObject({
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'myproject',
+        url: 'https://gitlab.com/myorg/myproject',
+        image: null,
+      },
+    });
+  });
+
+  it('should create an opensource experience with custom repository without owner', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Custom Repo Contributor',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: null,
+            name: 'standalone-project',
+            url: 'https://example.com/standalone-project',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      type: 'opensource',
+      repository: {
+        id: null,
+        owner: null,
+        name: 'standalone-project',
+        url: 'https://example.com/standalone-project',
+        image: null,
+      },
+    });
+  });
+
+  it('should update from GitHub repository to custom repository', async () => {
+    loggedUser = '1';
+
+    // First create with GitHub repository
+    const created = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Initial Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '10270250',
+            owner: 'facebook',
+            name: 'react',
+            url: 'https://github.com/facebook/react',
+            image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Update to custom repository
+    const updated = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'opensource',
+          title: 'Moved to GitLab',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: 'myorg',
+            name: 'forked-project',
+            url: 'https://gitlab.com/myorg/forked-project',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience).toMatchObject({
+      id: experienceId,
+      title: 'Moved to GitLab',
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'forked-project',
+        url: 'https://gitlab.com/myorg/forked-project',
+        image: null,
+      },
+    });
+  });
+});

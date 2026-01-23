@@ -872,6 +872,15 @@ describe('query autocompleteLocation', () => {
           iso3: 'GBR',
           externalId: 'uk1',
         },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440006',
+          country: 'United States',
+          subdivision: null,
+          city: null,
+          iso2: 'US',
+          iso3: 'USA',
+          externalId: 'usa-country',
+        },
       ]);
     });
 
@@ -902,19 +911,19 @@ describe('query autocompleteLocation', () => {
 
       expect(res.errors).toBeFalsy();
       expect(res.data.autocompleteLocation).toHaveLength(2);
-      // Note: ORDER BY subdivision ASC puts non-null values before null
+      // Note: ORDER BY subdivision ASC NULLS FIRST puts null values before non-null
       expect(res.data.autocompleteLocation).toEqual([
-        {
-          id: 'de1',
-          country: 'Germany',
-          city: 'Munich',
-          subdivision: 'Bavaria',
-        },
         {
           id: 'de2',
           country: 'Germany',
           city: 'Berlin',
           subdivision: null,
+        },
+        {
+          id: 'de1',
+          country: 'Germany',
+          city: 'Munich',
+          subdivision: 'Bavaria',
         },
       ]);
     });
@@ -963,7 +972,27 @@ describe('query autocompleteLocation', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.autocompleteLocation).toHaveLength(2);
+      expect(res.data.autocompleteLocation).toHaveLength(3);
+    });
+
+    it('should prioritize country-level entries over city-level entries', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'united states', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      // Country-level entry should appear first (null subdivision and city)
+      expect(res.data.autocompleteLocation[0]).toEqual({
+        id: 'usa-country',
+        country: 'United States',
+        city: null,
+        subdivision: null,
+      });
+      // Then city-level entries sorted alphabetically by subdivision
+      expect(res.data.autocompleteLocation[1].subdivision).toBe('California');
+      expect(res.data.autocompleteLocation[2].subdivision).toBe('New York');
     });
 
     it('should return empty array when no matches found', async () => {
@@ -1586,5 +1615,255 @@ describe('query autocompleteCompany', () => {
     // Should only return Samsung, not other companies with non-Latin altNames
     expect(res.data.autocompleteCompany.length).toBe(1);
     expect(res.data.autocompleteCompany[0].id).toBe('samsung');
+  });
+});
+
+describe('query autocompleteGithubRepository', () => {
+  const QUERY = /* GraphQL */ `
+    query AutocompleteGithubRepository($query: String!, $limit: Int) {
+      autocompleteGithubRepository(query: $query, limit: $limit) {
+        id
+        fullName
+        url
+        image
+        description
+      }
+    }
+  `;
+
+  beforeEach(() => {
+    nock.cleanAll();
+  });
+
+  it('should return unauthenticated when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { query: 'react' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return GitHub repositories for a search query', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 2,
+      items: [
+        {
+          id: 10270250,
+          full_name: 'facebook/react',
+          html_url: 'https://github.com/facebook/react',
+          description: 'The library for web and native user interfaces.',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+        {
+          id: 75396575,
+          full_name: 'facebook/react-native',
+          html_url: 'https://github.com/facebook/react-native',
+          description:
+            'A framework for building native applications using React',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toMatchObject([
+      {
+        id: '10270250',
+        fullName: 'facebook/react',
+        url: 'https://github.com/facebook/react',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+        description: 'The library for web and native user interfaces.',
+      },
+      {
+        id: '75396575',
+        fullName: 'facebook/react-native',
+        url: 'https://github.com/facebook/react-native',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+        description: 'A framework for building native applications using React',
+      },
+    ]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should respect the limit parameter', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 1,
+      items: [
+        {
+          id: 10270250,
+          full_name: 'facebook/react',
+          html_url: 'https://github.com/facebook/react',
+          description: 'The library for web and native user interfaces.',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '5',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react', limit: 5 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository.length).toBe(1);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should return empty array when GitHub API returns no results', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 0,
+      items: [],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'nonexistent-repo-name-xyz',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'nonexistent-repo-name-xyz' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toEqual([]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should return empty array when GitHub API returns an error', async () => {
+    loggedUser = '1';
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(500, { message: 'Internal Server Error' });
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toEqual([]);
+  });
+
+  it('should handle repositories with null description', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 1,
+      items: [
+        {
+          id: 12345678,
+          full_name: 'user/repo-without-description',
+          html_url: 'https://github.com/user/repo-without-description',
+          description: null,
+          owner: {
+            login: 'user',
+            avatar_url: 'https://avatars.githubusercontent.com/u/123?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'repo-without-description',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'repo-without-description' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toMatchObject([
+      {
+        id: '12345678',
+        fullName: 'user/repo-without-description',
+        url: 'https://github.com/user/repo-without-description',
+        image: 'https://avatars.githubusercontent.com/u/123?v=4',
+        description: null,
+      },
+    ]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should URL encode special characters in query', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 0,
+      items: [],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'test repo',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'test repo' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(nock.isDone()).toBe(true);
   });
 });

@@ -7,11 +7,16 @@ import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
   autocompleteCompanySchema,
+  autocompleteGithubRepositorySchema,
   autocompleteKeywordsSchema,
   autocompleteLocationSchema,
   autocompleteSchema,
+  autocompleteToolsSchema,
   LocationDataset,
 } from '../common/schema/autocompletes';
+import { DatasetTool } from '../entity/dataset/DatasetTool';
+import { gitHubClient } from '../integrations/github/clients';
+import type { GQLGitHubRepository } from '../integrations/github/types';
 import type z from 'zod';
 import { Company, CompanyType } from '../entity/Company';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
@@ -54,6 +59,22 @@ export const typeDefs = /* GraphQL */ `
     subdivision: String
   }
 
+  type DatasetTool {
+    id: ID!
+    title: String!
+    faviconUrl: String
+  }
+
+  type GitHubRepository {
+    id: ID!
+    owner: String!
+    name: String!
+    fullName: String!
+    url: String!
+    image: String!
+    description: String
+  }
+
   extend type Query {
     """
     Get autocomplete based on type
@@ -81,6 +102,13 @@ export const typeDefs = /* GraphQL */ `
       limit: Int
       type: CompanyType
     ): [Company]! @cacheControl(maxAge: 3600)
+
+    autocompleteTools(query: String!): [DatasetTool!]!
+      @cacheControl(maxAge: 3600)
+    autocompleteGithubRepository(
+      query: String!
+      limit: Int = 10
+    ): [GitHubRepository]! @auth @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -124,8 +152,8 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
               .orWhere('dl.subdivision ILIKE :query', { query: `%${query}%` })
               .orWhere('dl.continent ILIKE :query', { query: `%${query}%` })
               .orderBy('dl.country', 'ASC')
-              .addOrderBy('dl.subdivision', 'ASC')
-              .addOrderBy('dl.city', 'ASC')
+              .addOrderBy('dl.subdivision', 'ASC', 'NULLS FIRST')
+              .addOrderBy('dl.city', 'ASC', 'NULLS FIRST')
               .limit(limit)
               .getMany(),
           );
@@ -218,6 +246,67 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
           where: whereConditions,
         }),
       );
+    },
+    autocompleteTools: async (
+      _,
+      args: { query: string },
+      ctx: AuthContext,
+    ): Promise<DatasetTool[]> => {
+      const result = autocompleteToolsSchema.safeParse(args);
+      if (!result.success) {
+        return [];
+      }
+
+      const normalizedQuery = result.data.query
+        .toLowerCase()
+        .replace(/\./g, 'dot')
+        .replace(/\+/g, 'plus')
+        .replace(/#/g, 'sharp')
+        .replace(/&/g, 'and')
+        .replace(/\s+/g, '');
+
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(DatasetTool)
+          .createQueryBuilder('dt')
+          .where('dt."titleNormalized" LIKE :query', {
+            query: `%${normalizedQuery}%`,
+          })
+          .andWhere('dt."faviconSource" != :none', { none: 'none' })
+          .setParameter('exactQuery', normalizedQuery)
+          // Prioritize: exact match first, then shorter titles, then alphabetically
+          .orderBy(
+            `CASE WHEN dt."titleNormalized" = :exactQuery THEN 0 ELSE 1 END`,
+            'ASC',
+          )
+          .addOrderBy('LENGTH(dt."title")', 'ASC')
+          .addOrderBy('dt."title"', 'ASC')
+          .limit(10)
+          .getMany(),
+      );
+    },
+    autocompleteGithubRepository: async (
+      _,
+      payload: z.infer<typeof autocompleteGithubRepositorySchema>,
+    ): Promise<GQLGitHubRepository[]> => {
+      const { query, limit } =
+        autocompleteGithubRepositorySchema.parse(payload);
+
+      try {
+        const data = await gitHubClient.searchRepositories(query, limit);
+
+        return data.items.map((repo) => ({
+          id: String(repo.id),
+          owner: repo.owner.login,
+          name: repo.name,
+          fullName: repo.full_name,
+          url: repo.html_url,
+          image: repo.owner.avatar_url,
+          description: repo.description,
+        }));
+      } catch {
+        return [];
+      }
     },
   },
 });

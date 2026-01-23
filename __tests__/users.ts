@@ -143,7 +143,17 @@ import { getGeo } from '../src/common/geo';
 import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import * as njordCommon from '../src/common/njord';
 import { createClient } from '@connectrpc/connect';
-import { Credits, EntityType } from '@dailydotdev/schema';
+import {
+  Credits,
+  EntityType,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
+import { Organization } from '../src/entity';
+import { Opportunity } from '../src/entity/opportunities/Opportunity';
+import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
+import { OpportunityUser } from '../src/entity/opportunities/user';
+import { OpportunityUserType } from '../src/entity/opportunities/types';
 import * as googleCloud from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
 import { Bucket } from '@google-cloud/storage';
@@ -4655,6 +4665,63 @@ describe('mutation deleteUser', () => {
       expect(userOne).toEqual(null);
     });
   });
+
+  describe('opportunity and organization cleanup', () => {
+    const testUserId = 'opp-cleanup-user';
+    const testUserId2 = 'opp-cleanup-user-2';
+
+    beforeEach(async () => {
+      await saveFixtures(con, User, [
+        { id: testUserId, username: testUserId },
+        { id: testUserId2, username: testUserId2 },
+      ]);
+    });
+
+    it('should block deletion when organization has active subscription', async () => {
+      loggedUser = testUserId;
+      const oppId = randomUUID();
+      const orgId = randomUUID();
+
+      await con.getRepository(Organization).save({
+        id: orgId,
+        name: `Test Org ${orgId}`,
+        recruiterSubscriptionFlags: { status: SubscriptionStatus.Active },
+      });
+      await con.getRepository(OpportunityJob).save({
+        id: oppId,
+        type: OpportunityType.JOB,
+        state: OpportunityState.DRAFT,
+        title: 'Test Opportunity',
+        tldr: 'Test',
+        content: {},
+        meta: {},
+        flags: {},
+        organizationId: orgId,
+      });
+      await con.getRepository(OpportunityUser).save({
+        opportunityId: oppId,
+        userId: testUserId,
+        type: OpportunityUserType.Recruiter,
+      });
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION },
+        'CONFLICT',
+        'Cannot delete your account because one of your organizations has an active recruiter subscription. Please cancel the subscription first.',
+      );
+
+      expect(
+        await con.getRepository(User).findOneBy({ id: testUserId }),
+      ).not.toBeNull();
+      expect(
+        await con.getRepository(Opportunity).findOneBy({ id: oppId }),
+      ).not.toBeNull();
+      expect(
+        await con.getRepository(Organization).findOneBy({ id: orgId }),
+      ).not.toBeNull();
+    });
+  });
 });
 
 describe('POST /v1/users/logout', () => {
@@ -7058,7 +7125,7 @@ describe('add claimable items to user', () => {
       await con.getRepository(ClaimableItem).save({
         id: claimableItemUuid,
         type: ClaimableItemTypes.Plus,
-        email: 'john.doe@example.com',
+        identifier: 'john.doe@example.com',
         flags,
       });
 
@@ -7170,7 +7237,7 @@ describe('add claimable items to user', () => {
       await con.getRepository(ClaimableItem).save({
         id: claimableItemUuid,
         type: ClaimableItemTypes.Plus,
-        email: 'johnclaim@email.com',
+        identifier: 'johnclaim@email.com',
         flags,
       });
 

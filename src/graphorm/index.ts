@@ -1923,6 +1923,10 @@ const obj = new GraphORM({
       customDomain: {
         select: (_, alias) => `${alias}.flags->>'customDomain'`,
       },
+      repository: {
+        select: (_, alias) => `${alias}.flags->'repository'`,
+        jsonType: true,
+      },
     },
   },
   OpportunityMatchCandidatePreference: {
@@ -2149,6 +2153,55 @@ const obj = new GraphORM({
               .orderBy('sm."createdAt"', 'DESC')
               .limit(5),
         },
+      },
+    },
+  },
+  UserStack: {
+    requiredColumns: ['id', 'userId', 'toolId'],
+    fields: {
+      tool: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'toolId',
+        },
+      },
+      startedAt: {
+        transform: transformDate,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  DatasetTool: {
+    requiredColumns: ['id', 'title'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserTool: {
+    requiredColumns: ['id', 'userId', 'toolId'],
+    fields: {
+      tool: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'toolId',
+        },
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserWorkspacePhoto: {
+    requiredColumns: ['id', 'userId', 'image'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
       },
     },
   },

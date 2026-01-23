@@ -4,6 +4,7 @@ import { zCoerceStringBoolean } from '../../schema/common';
 export const recruiterPaddleCustomDataSchema = z.object({
   user_id: z.string(),
   opportunity_id: z.uuid(),
+  external_pay: zCoerceStringBoolean.nullish(),
 });
 
 export const recruiterPaddlePricingCustomDataSchema = z.object({

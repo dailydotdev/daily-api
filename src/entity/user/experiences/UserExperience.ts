@@ -22,6 +22,13 @@ export type UserExperienceFlags = Partial<{
   customDomain: string;
   customImage: string;
   removedEnrichment: boolean;
+  repository: {
+    id: string | null;
+    owner: string | null;
+    name: string;
+    url: string;
+    image: string | null;
+  };
 }>;
 
 @Entity()
