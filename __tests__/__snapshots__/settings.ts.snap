@@ -10,6 +10,7 @@ Object {
     "enableCardAnimations": true,
     "flags": Object {
       "clickbaitShieldEnabled": null,
+      "defaultWriteTab": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -44,6 +45,7 @@ Object {
     "enableCardAnimations": true,
     "flags": Object {
       "clickbaitShieldEnabled": null,
+      "defaultWriteTab": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -80,6 +82,7 @@ Object {
     "enableCardAnimations": true,
     "flags": Object {
       "clickbaitShieldEnabled": null,
+      "defaultWriteTab": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
@@ -116,6 +119,7 @@ Object {
     "enableCardAnimations": true,
     "flags": Object {
       "clickbaitShieldEnabled": null,
+      "defaultWriteTab": null,
       "sidebarBookmarksExpanded": null,
       "sidebarCustomFeedsExpanded": null,
       "sidebarOtherExpanded": null,
