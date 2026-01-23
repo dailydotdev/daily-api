@@ -169,6 +169,7 @@ export enum UserVote {
 export enum UserVoteEntity {
   Comment = 'comment',
   Post = 'post',
+  HotTake = 'hot_take',
 }
 
 export const maxFeedsPerUser = 20;

@@ -8,6 +8,7 @@ export * from './UserMarketingCta';
 export * from './UserStats';
 export * from './UserTopReader';
 export * from './UserStack';
+export * from './HotTake';
 export * from './UserHotTake';
 export * from './UserWorkspacePhoto';
 export * from './UserGear';

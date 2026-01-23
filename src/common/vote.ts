@@ -9,6 +9,8 @@ import { GQLEmptyResponse } from '../schema/common';
 import { ensureSourcePermissions } from '../schema/sources';
 import { AuthContext } from '../Context';
 import { UserComment } from '../entity/user/UserComment';
+import { HotTake } from '../entity/user/HotTake';
+import { UserHotTake } from '../entity/user/UserHotTake';
 import { UserVote } from '../types';
 
 type UserVoteProps = {
@@ -147,6 +149,38 @@ export const voteComment = async ({
     // Foreign key violation
     if (err?.code === TypeOrmError.FOREIGN_KEY) {
       throw new NotFoundError('Comment or user not found');
+    }
+
+    throw err;
+  }
+
+  return { _: true };
+};
+
+export const voteHotTake = async ({
+  ctx,
+  id,
+  vote,
+}: UserVoteProps): Promise<GQLEmptyResponse> => {
+  try {
+    validateVoteType({ vote });
+
+    // Verify hot take exists
+    await ctx.con.getRepository(HotTake).findOneByOrFail({ id });
+
+    const userHotTakeRepo = ctx.con.getRepository(UserHotTake);
+
+    // Save vote (triggers handle upvotes count updates)
+    await userHotTakeRepo.save({
+      hotTakeId: id,
+      userId: ctx.userId,
+      vote,
+    });
+  } catch (originalError) {
+    const err = originalError as TypeORMQueryFailedError;
+
+    if (err?.code === TypeOrmError.FOREIGN_KEY) {
+      throw new NotFoundError('Hot take or user not found');
     }
 
     throw err;

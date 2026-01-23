@@ -3,7 +3,7 @@ import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import graphorm from '../graphorm';
 import { offsetPageGenerator, GQLEmptyResponse } from './common';
-import { UserHotTake } from '../entity/user/UserHotTake';
+import { HotTake } from '../entity/user/HotTake';
 import { ValidationError } from 'apollo-server-errors';
 import {
   addUserHotTakeSchema,
@@ -15,7 +15,7 @@ import {
 } from '../common/schema/userHotTake';
 import { NEW_ITEM_POSITION } from '../common/constants';
 
-interface GQLUserHotTake {
+interface GQLHotTake {
   id: string;
   userId: string;
   emoji: string;
@@ -28,38 +28,40 @@ interface GQLUserHotTake {
 const MAX_HOT_TAKES = 5;
 
 export const typeDefs = /* GraphQL */ `
-  type UserHotTake {
+  type HotTake {
     id: ID!
     emoji: String!
     title: String!
     subtitle: String
     position: Int!
+    upvotes: Int!
+    upvoted: Boolean
     createdAt: DateTime!
   }
 
-  type UserHotTakeEdge {
-    node: UserHotTake!
+  type HotTakeEdge {
+    node: HotTake!
     cursor: String!
   }
 
-  type UserHotTakeConnection {
+  type HotTakeConnection {
     pageInfo: PageInfo!
-    edges: [UserHotTakeEdge!]!
+    edges: [HotTakeEdge!]!
   }
 
-  input AddUserHotTakeInput {
+  input AddHotTakeInput {
     emoji: String!
     title: String!
     subtitle: String
   }
 
-  input UpdateUserHotTakeInput {
+  input UpdateHotTakeInput {
     emoji: String
     title: String
     subtitle: String
   }
 
-  input ReorderUserHotTakeInput {
+  input ReorderHotTakeInput {
     id: ID!
     position: Int!
   }
@@ -68,31 +70,29 @@ export const typeDefs = /* GraphQL */ `
     """
     Get a user's hot takes
     """
-    userHotTakes(userId: ID!, first: Int, after: String): UserHotTakeConnection!
+    hotTakes(userId: ID!, first: Int, after: String): HotTakeConnection!
   }
 
   extend type Mutation {
     """
     Add a hot take to the user's profile (max 5)
     """
-    addUserHotTake(input: AddUserHotTakeInput!): UserHotTake! @auth
+    addHotTake(input: AddHotTakeInput!): HotTake! @auth
 
     """
-    Update a user's hot take
+    Update a hot take
     """
-    updateUserHotTake(id: ID!, input: UpdateUserHotTakeInput!): UserHotTake!
-      @auth
+    updateHotTake(id: ID!, input: UpdateHotTakeInput!): HotTake! @auth
 
     """
-    Delete a user's hot take
+    Delete a hot take
     """
-    deleteUserHotTake(id: ID!): EmptyResponse! @auth
+    deleteHotTake(id: ID!): EmptyResponse! @auth
 
     """
-    Reorder user's hot takes
+    Reorder hot takes
     """
-    reorderUserHotTakes(items: [ReorderUserHotTakeInput!]!): [UserHotTake!]!
-      @auth
+    reorderHotTakes(items: [ReorderHotTakeInput!]!): [HotTake!]! @auth
   }
 `;
 
@@ -101,19 +101,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    userHotTakes: async (
+    hotTakes: async (
       _,
       args: { userId: string; first?: number; after?: string },
       ctx: Context,
       info,
     ) => {
-      const pageGenerator = offsetPageGenerator<GQLUserHotTake>(50, 100);
+      const pageGenerator = offsetPageGenerator<GQLHotTake>(50, 100);
       const page = pageGenerator.connArgsToPage({
         first: args.first,
         after: args.after,
       });
 
-      return graphorm.queryPaginated<GQLUserHotTake>(
+      return graphorm.queryPaginated<GQLHotTake>(
         ctx,
         info,
         (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
@@ -138,7 +138,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   },
 
   Mutation: {
-    addUserHotTake: async (
+    addHotTake: async (
       _,
       args: { input: AddUserHotTakeInput },
       ctx: AuthContext,
@@ -146,7 +146,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const input = addUserHotTakeSchema.parse(args.input);
 
-      const count = await ctx.con.getRepository(UserHotTake).count({
+      const count = await ctx.con.getRepository(HotTake).count({
         where: { userId: ctx.userId },
       });
 
@@ -156,7 +156,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      const hotTake = ctx.con.getRepository(UserHotTake).create({
+      const hotTake = ctx.con.getRepository(HotTake).create({
         userId: ctx.userId,
         emoji: input.emoji,
         title: input.title,
@@ -164,7 +164,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         position: NEW_ITEM_POSITION,
       });
 
-      await ctx.con.getRepository(UserHotTake).save(hotTake);
+      await ctx.con.getRepository(HotTake).save(hotTake);
 
       return graphorm.queryOneOrFail(ctx, info, (builder) => {
         builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
@@ -174,7 +174,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
     },
 
-    updateUserHotTake: async (
+    updateHotTake: async (
       _,
       args: { id: string; input: UpdateUserHotTakeInput },
       ctx: AuthContext,
@@ -182,7 +182,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const input = updateUserHotTakeSchema.parse(args.input);
 
-      const hotTake = await ctx.con.getRepository(UserHotTake).findOne({
+      const hotTake = await ctx.con.getRepository(HotTake).findOne({
         where: { id: args.id, userId: ctx.userId },
       });
 
@@ -190,7 +190,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Hot take not found');
       }
 
-      const updateData: Partial<UserHotTake> = {};
+      const updateData: Partial<HotTake> = {};
       if (input.emoji !== undefined) {
         updateData.emoji = input.emoji;
       }
@@ -203,7 +203,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (Object.keys(updateData).length > 0) {
         await ctx.con
-          .getRepository(UserHotTake)
+          .getRepository(HotTake)
           .update({ id: args.id }, updateData);
       }
 
@@ -215,19 +215,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
     },
 
-    deleteUserHotTake: async (
+    deleteHotTake: async (
       _,
       args: { id: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
       await ctx.con
-        .getRepository(UserHotTake)
+        .getRepository(HotTake)
         .delete({ id: args.id, userId: ctx.userId });
 
       return { _: true };
     },
 
-    reorderUserHotTakes: async (
+    reorderHotTakes: async (
       _,
       args: { items: ReorderUserHotTakeInput[] },
       ctx: AuthContext,
@@ -241,7 +241,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .join(' ');
 
       await ctx.con
-        .getRepository(UserHotTake)
+        .getRepository(HotTake)
         .createQueryBuilder()
         .update()
         .set({ position: () => `CASE ${whenClauses} ELSE position END` })
