@@ -6,15 +6,15 @@ import { offsetPageGenerator, GQLEmptyResponse } from './common';
 import { UserGear } from '../entity/user/UserGear';
 import { ValidationError } from 'apollo-server-errors';
 import {
-  addUserGearSchema,
-  reorderUserGearSchema,
-  type AddUserGearInput,
-  type ReorderUserGearInput,
-} from '../common/schema/userGear';
+  addGearSchema,
+  reorderGearSchema,
+  type AddGearInput,
+  type ReorderGearInput,
+} from '../common/schema/gear';
 import { findOrCreateDatasetGear } from '../common/datasetGear';
 import { NEW_ITEM_POSITION } from '../common/constants';
 
-interface GQLUserGear {
+interface GQLGear {
   id: string;
   userId: string;
   gearId: string;
@@ -23,21 +23,21 @@ interface GQLUserGear {
 }
 
 export const typeDefs = /* GraphQL */ `
-  type UserGear {
+  type Gear {
     id: ID!
     gear: DatasetGear!
     position: Int!
     createdAt: DateTime!
   }
 
-  type UserGearEdge {
-    node: UserGear!
+  type GearEdge {
+    node: Gear!
     cursor: String!
   }
 
-  type UserGearConnection {
+  type GearConnection {
     pageInfo: PageInfo!
-    edges: [UserGearEdge!]!
+    edges: [GearEdge!]!
   }
 
   type DatasetGear {
@@ -45,11 +45,11 @@ export const typeDefs = /* GraphQL */ `
     name: String!
   }
 
-  input AddUserGearInput {
+  input AddGearInput {
     name: String!
   }
 
-  input ReorderUserGearInput {
+  input ReorderGearInput {
     id: ID!
     position: Int!
   }
@@ -58,29 +58,24 @@ export const typeDefs = /* GraphQL */ `
     """
     Get a user's gear
     """
-    userGear(userId: ID!, first: Int, after: String): UserGearConnection!
-
-    """
-    Autocomplete gear from dataset
-    """
-    autocompleteGear(query: String!): [DatasetGear!]!
+    gear(userId: ID!, first: Int, after: String): GearConnection!
   }
 
   extend type Mutation {
     """
     Add gear to the user's profile (find-or-create in dataset)
     """
-    addUserGear(input: AddUserGearInput!): UserGear! @auth
+    addGear(input: AddGearInput!): Gear! @auth
 
     """
     Delete a user's gear
     """
-    deleteUserGear(id: ID!): EmptyResponse! @auth
+    deleteGear(id: ID!): EmptyResponse! @auth
 
     """
     Reorder user's gear
     """
-    reorderUserGear(items: [ReorderUserGearInput!]!): [UserGear!]! @auth
+    reorderGear(items: [ReorderGearInput!]!): [Gear!]! @auth
   }
 `;
 
@@ -89,19 +84,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    userGear: async (
+    gear: async (
       _,
       args: { userId: string; first?: number; after?: string },
       ctx: Context,
       info,
     ) => {
-      const pageGenerator = offsetPageGenerator<GQLUserGear>(50, 100);
+      const pageGenerator = offsetPageGenerator<GQLGear>(50, 100);
       const page = pageGenerator.connArgsToPage({
         first: args.first,
         after: args.after,
       });
 
-      return graphorm.queryPaginated<GQLUserGear>(
+      return graphorm.queryPaginated<GQLGear>(
         ctx,
         info,
         (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
@@ -123,56 +118,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         true,
       );
     },
-
-    autocompleteGear: async (
-      _,
-      args: { query: string },
-      ctx: Context,
-    ) => {
-      const query = args.query?.trim().toLowerCase();
-      if (!query || query.length < 1) {
-        return [];
-      }
-
-      const normalizedQuery = query
-        .replace(/\./g, 'dot')
-        .replace(/\+/g, 'plus')
-        .replace(/#/g, 'sharp')
-        .replace(/&/g, 'and')
-        .replace(/\s+/g, '');
-
-      const { DatasetGear } = await import('../entity/dataset/DatasetGear');
-      const { queryReadReplica } = await import('../common/queryReadReplica');
-
-      return queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(DatasetGear)
-          .createQueryBuilder('dg')
-          .where('dg."nameNormalized" LIKE :query', {
-            query: `%${normalizedQuery}%`,
-          })
-          .setParameter('exactQuery', normalizedQuery)
-          // Prioritize: exact match first, then shorter names, then alphabetically
-          .orderBy(
-            `CASE WHEN dg."nameNormalized" = :exactQuery THEN 0 ELSE 1 END`,
-            'ASC',
-          )
-          .addOrderBy('LENGTH(dg."name")', 'ASC')
-          .addOrderBy('dg."name"', 'ASC')
-          .limit(10)
-          .getMany(),
-      );
-    },
   },
 
   Mutation: {
-    addUserGear: async (
+    addGear: async (
       _,
-      args: { input: AddUserGearInput },
+      args: { input: AddGearInput },
       ctx: AuthContext,
       info,
     ) => {
-      const input = addUserGearSchema.parse(args.input);
+      const input = addGearSchema.parse(args.input);
 
       const datasetGear = await findOrCreateDatasetGear(ctx.con, input.name);
 
@@ -187,23 +142,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ValidationError('Gear already exists in your profile');
       }
 
-      const userGear = ctx.con.getRepository(UserGear).create({
+      const gear = ctx.con.getRepository(UserGear).create({
         userId: ctx.userId,
         gearId: datasetGear.id,
         position: NEW_ITEM_POSITION,
       });
 
-      await ctx.con.getRepository(UserGear).save(userGear);
+      await ctx.con.getRepository(UserGear).save(gear);
 
       return graphorm.queryOneOrFail(ctx, info, (builder) => {
         builder.queryBuilder.where(`"${builder.alias}"."id" = :id`, {
-          id: userGear.id,
+          id: gear.id,
         });
         return builder;
       });
     },
 
-    deleteUserGear: async (
+    deleteGear: async (
       _,
       args: { id: string },
       ctx: AuthContext,
@@ -215,13 +170,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
 
-    reorderUserGear: async (
+    reorderGear: async (
       _,
-      args: { items: ReorderUserGearInput[] },
+      args: { items: ReorderGearInput[] },
       ctx: AuthContext,
       info,
     ) => {
-      const items = reorderUserGearSchema.parse(args.items);
+      const items = reorderGearSchema.parse(args.items);
       const ids = items.map((i) => i.id);
 
       const whenClauses = items

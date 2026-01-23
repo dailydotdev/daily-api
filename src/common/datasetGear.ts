@@ -8,7 +8,6 @@ const normalizeName = (name: string): string =>
     .replace(/\./g, 'dot')
     .replace(/\+/g, 'plus')
     .replace(/#/g, 'sharp')
-    .replace(/&/g, 'and')
     .replace(/\s+/g, '');
 
 export const findOrCreateDatasetGear = async (

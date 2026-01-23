@@ -33,10 +33,10 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
 });
 
-describe('query userGear', () => {
+describe('query gear', () => {
   const QUERY = `
-    query UserGear($userId: ID!) {
-      userGear(userId: $userId) {
+    query Gear($userId: ID!) {
+      gear(userId: $userId) {
         edges {
           node {
             id
@@ -53,7 +53,7 @@ describe('query userGear', () => {
 
   it('should return empty list for user with no gear', async () => {
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userGear.edges).toEqual([]);
+    expect(res.data.gear.edges).toEqual([]);
   });
 
   it('should return gear ordered by position', async () => {
@@ -72,59 +72,16 @@ describe('query userGear', () => {
     ]);
 
     const res = await client.query(QUERY, { variables: { userId: '1' } });
-    expect(res.data.userGear.edges).toHaveLength(2);
-    expect(res.data.userGear.edges[0].node.gear.name).toBe('Keyboard');
-    expect(res.data.userGear.edges[1].node.gear.name).toBe('MacBook Pro');
+    expect(res.data.gear.edges).toHaveLength(2);
+    expect(res.data.gear.edges[0].node.gear.name).toBe('Keyboard');
+    expect(res.data.gear.edges[1].node.gear.name).toBe('MacBook Pro');
   });
 });
 
-describe('query autocompleteGear', () => {
-  const QUERY = `
-    query AutocompleteGear($query: String!) {
-      autocompleteGear(query: $query) {
-        id
-        name
-      }
-    }
-  `;
-
-  it('should return matching gear', async () => {
-    await con.getRepository(DatasetGear).save([
-      { name: 'MacBook Pro', nameNormalized: 'macbookpro' },
-      { name: 'MacBook Air', nameNormalized: 'macbookair' },
-      { name: 'Keyboard', nameNormalized: 'keyboard' },
-    ]);
-
-    const res = await client.query(QUERY, { variables: { query: 'macbook' } });
-    expect(res.data.autocompleteGear).toHaveLength(2);
-  });
-
-  it('should return empty for no matches', async () => {
-    const res = await client.query(QUERY, { variables: { query: 'xyz' } });
-    expect(res.data.autocompleteGear).toEqual([]);
-  });
-
-  it('should return exact match first when searching', async () => {
-    await con.getRepository(DatasetGear).save([
-      { name: 'Monitor Stand', nameNormalized: 'monitorstand' },
-      { name: 'Monitor', nameNormalized: 'monitor' },
-      { name: 'Monitor Arm', nameNormalized: 'monitorarm' },
-    ]);
-
-    const res = await client.query(QUERY, { variables: { query: 'monitor' } });
-    const names = res.data.autocompleteGear.map(
-      (g: { name: string }) => g.name,
-    );
-    expect(names).toContain('Monitor');
-    // Exact match should be first
-    expect(names[0]).toBe('Monitor');
-  });
-});
-
-describe('mutation addUserGear', () => {
+describe('mutation addGear', () => {
   const MUTATION = `
-    mutation AddUserGear($input: AddUserGearInput!) {
-      addUserGear(input: $input) {
+    mutation AddGear($input: AddGearInput!) {
+      addGear(input: $input) {
         id
         gear {
           name
@@ -150,7 +107,7 @@ describe('mutation addUserGear', () => {
       },
     });
 
-    expect(res.data.addUserGear.gear.name).toBe('MacBook Pro');
+    expect(res.data.addGear.gear.name).toBe('MacBook Pro');
 
     const dataset = await con
       .getRepository(DatasetGear)
@@ -191,10 +148,10 @@ describe('mutation addUserGear', () => {
   });
 });
 
-describe('mutation deleteUserGear', () => {
+describe('mutation deleteGear', () => {
   const MUTATION = `
-    mutation DeleteUserGear($id: ID!) {
-      deleteUserGear(id: $id) {
+    mutation DeleteGear($id: ID!) {
+      deleteGear(id: $id) {
         _
       }
     }
@@ -249,10 +206,10 @@ describe('mutation deleteUserGear', () => {
   });
 });
 
-describe('mutation reorderUserGear', () => {
+describe('mutation reorderGear', () => {
   const MUTATION = `
-    mutation ReorderUserGear($items: [ReorderUserGearInput!]!) {
-      reorderUserGear(items: $items) {
+    mutation ReorderGear($items: [ReorderGearInput!]!) {
+      reorderGear(items: $items) {
         id
         position
       }
@@ -293,7 +250,7 @@ describe('mutation reorderUserGear', () => {
       },
     });
 
-    const reordered = res.data.reorderUserGear;
+    const reordered = res.data.reorderGear;
     expect(
       reordered.find((i: { id: string }) => i.id === item1.id).position,
     ).toBe(1);

@@ -2252,7 +2252,7 @@ const obj = new GraphORM({
       },
     },
   },
-  UserGear: {
+  Gear: {
     requiredColumns: ['id', 'userId', 'gearId'],
     fields: {
       gear: {

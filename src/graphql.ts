@@ -36,7 +36,7 @@ import * as profile from './schema/profile';
 import * as userStack from './schema/userStack';
 import * as userHotTake from './schema/userHotTake';
 import * as userTool from './schema/userTool';
-import * as userGear from './schema/userGear';
+import * as gear from './schema/gear';
 import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
@@ -90,7 +90,7 @@ export const schema = urlDirective.transformer(
               userStack.typeDefs,
               userHotTake.typeDefs,
               userTool.typeDefs,
-              userGear.typeDefs,
+              gear.typeDefs,
               userWorkspacePhoto.typeDefs,
             ],
             resolvers: merge(
@@ -127,7 +127,7 @@ export const schema = urlDirective.transformer(
               userStack.resolvers,
               userHotTake.resolvers,
               userTool.resolvers,
-              userGear.resolvers,
+              gear.resolvers,
               userWorkspacePhoto.resolvers,
             ),
           }),

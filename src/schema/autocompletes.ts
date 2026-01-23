@@ -12,6 +12,7 @@ import {
   autocompleteLocationSchema,
   autocompleteSchema,
   autocompleteToolsSchema,
+  autocompleteGearSchema,
   LocationDataset,
 } from '../common/schema/autocompletes';
 import { DatasetTool } from '../entity/dataset/DatasetTool';
@@ -65,6 +66,11 @@ export const typeDefs = /* GraphQL */ `
     faviconUrl: String
   }
 
+  type DatasetGear {
+    id: ID!
+    name: String!
+  }
+
   type GitHubRepository {
     id: ID!
     owner: String!
@@ -109,6 +115,12 @@ export const typeDefs = /* GraphQL */ `
       query: String!
       limit: Int = 10
     ): [GitHubRepository]! @auth @cacheControl(maxAge: 3600)
+
+    """
+    Autocomplete gear from dataset
+    """
+    autocompleteGear(query: String!): [DatasetGear!]!
+      @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -307,6 +319,43 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       } catch {
         return [];
       }
+    },
+    autocompleteGear: async (
+      _,
+      args: { query: string },
+      ctx: AuthContext,
+    ) => {
+      const result = autocompleteGearSchema.safeParse(args);
+      if (!result.success) {
+        return [];
+      }
+
+      const normalizedQuery = result.data.query
+        .replace(/\./g, 'dot')
+        .replace(/\+/g, 'plus')
+        .replace(/#/g, 'sharp')
+        .replace(/\s+/g, '');
+
+      const { DatasetGear } = await import('../entity/dataset/DatasetGear');
+
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(DatasetGear)
+          .createQueryBuilder('dg')
+          .where('dg."nameNormalized" LIKE :query', {
+            query: `%${normalizedQuery}%`,
+          })
+          .setParameter('exactQuery', normalizedQuery)
+          // Prioritize: exact match first, then shorter names, then alphabetically
+          .orderBy(
+            `CASE WHEN dg."nameNormalized" = :exactQuery THEN 0 ELSE 1 END`,
+            'ASC',
+          )
+          .addOrderBy('LENGTH(dg."name")', 'ASC')
+          .addOrderBy('dg."name"', 'ASC')
+          .limit(10)
+          .getMany(),
+      );
     },
   },
 });
