@@ -1,6 +1,7 @@
 version: 2.1
 orbs:
-  common: dailydotdev/common@0.0.14
+  common: dailydotdev/common@0.0.16
+
 jobs:
   build-app:
     executor:
@@ -82,10 +83,18 @@ workflows:
             branches:
               ignore:
                 - main
+      - common/pulumi-refresh:
+          context: PROD
+          filters:
+            branches:
+              only:
+                - main
       - common/pulumi-up:
           requires:
             - common/build-docker
+            - common/pulumi-refresh
           context: PROD
+          refresh-stack: false
           filters:
             branches:
               only:
