@@ -35,16 +35,18 @@ export const storeCandidateApplicationScore: TypedWorker<'gondul.v1.candidate-ap
       });
 
       if (matchExists) {
-        await con.getRepository(OpportunityMatch).update(
-          {
+        await con
+          .getRepository(OpportunityMatch)
+          .createQueryBuilder()
+          .update({
+            applicationRank: () => `"applicationRank" || :applicationRankJson`,
+          })
+          .where({
             userId,
             opportunityId,
-          },
-          {
-            applicationRank: () =>
-              `"applicationRank" || '${JSON.stringify(applicationRank)}'`,
-          },
-        );
+          })
+          .setParameter('applicationRankJson', JSON.stringify(applicationRank))
+          .execute();
       } else {
         await con.getRepository(OpportunityMatch).insert({
           userId,
