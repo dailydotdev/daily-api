@@ -1,11 +1,11 @@
 import { TypedWorker } from './worker';
 import { CandidateRejectedOpportunityMessage } from '@dailydotdev/schema';
 import { User } from '../entity';
-import { sendEmail, baseNotificationEmailData, formatMailDate } from '../common';
+import { sendEmail, baseNotificationEmailData, formatMailDate, ONE_MINUTE_IN_SECONDS } from '../common';
 import { isSubscribedToNotificationType } from './notifications/utils';
 import { NotificationChannel, NotificationType } from '../notifications/common';
 
-const REJECTION_EMAIL_DELAY_MS = 30 * 60 * 1000; // 30 minutes
+const REJECTION_EMAIL_DELAY_MS = 30 * ONE_MINUTE_IN_SECONDS * 1000;
 
 const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
   subscription: 'api.recruiter-rejected-candidate-match-email',
