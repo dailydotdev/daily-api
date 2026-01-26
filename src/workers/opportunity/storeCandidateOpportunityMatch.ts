@@ -5,7 +5,7 @@ import { opportunityMatchDescriptionSchema } from '../../common/schema/opportuni
 import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
 import { logger } from '../../logger';
-import { updateFlagsStatement } from '../../common';
+import { systemUserIds, updateFlagsStatement } from '../../common';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -25,6 +25,10 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
           { opportunityId, userId },
           'storeCandidateOpportunityMatch: User not found',
         );
+        return;
+      }
+
+      if (systemUserIds.includes(userId)) {
         return;
       }
 

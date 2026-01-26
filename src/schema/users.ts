@@ -70,7 +70,6 @@ import {
   type GQLUserTopReader,
   mapCloudinaryUrl,
   parseBigInt,
-  playwrightUser,
   resubscribeUser,
   sendEmail,
   StreakRecoverQueryResult,
@@ -88,6 +87,7 @@ import {
   voteComment,
   votePost,
   voteHotTake,
+  systemUserIds,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -1699,7 +1699,7 @@ export const getMarketingCta = async (
     return null;
   }
 
-  if (userId === playwrightUser.id) {
+  if (systemUserIds.includes(userId)) {
     return null;
   }
 
