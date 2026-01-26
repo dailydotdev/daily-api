@@ -494,6 +494,9 @@ describe('leaderboard', () => {
             id
             title
           }
+          user {
+            id
+          }
         }
       }
     `;

@@ -143,6 +143,14 @@ export const hotTakeFixture: DeepPartial<HotTake>[] = [
     upvotes: 37,
   },
   {
+    userId: '2',
+    emoji: '🧥',
+    title: 'Summer is overrated',
+    subtitle: 'Sweating is not a hobby.',
+    position: 1,
+    upvotes: 87,
+  },
+  {
     userId: '3',
     emoji: '📱',
     title: 'Dark mode is mostly vibes',

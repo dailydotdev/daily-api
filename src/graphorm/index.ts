@@ -2277,6 +2277,13 @@ const obj = new GraphORM({
           parentColumn: 'hotTakeId',
         },
       },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
 });

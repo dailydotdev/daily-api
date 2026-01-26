@@ -9,6 +9,7 @@ import { HotTake } from './user';
       .select('base.id', 'hotTakeId')
       .addSelect('base.upvotes', 'score')
       .addSelect('base."createdAt"', 'createdAt')
+      .addSelect('base."userId"', 'userId')
       .addSelect(
         `ROW_NUMBER() OVER (
           PARTITION BY base."userId"
@@ -23,6 +24,7 @@ import { HotTake } from './user';
       .createQueryBuilder()
       .select('ranked."hotTakeId"', 'hotTakeId')
       .addSelect('ranked."score"', 'score')
+      .addSelect('ranked."userId"', 'userId')
       .from(`(${ranked.getQuery()})`, 'ranked')
       .setParameters(ranked.getParameters())
       .where('ranked."rn" <= 3')

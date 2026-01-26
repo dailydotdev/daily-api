@@ -8,12 +8,14 @@ export class PopularHotTake1769425967697 implements MigrationInterface {
       CREATE MATERIALIZED VIEW IF NOT EXISTS "popular_hot_take" AS
       SELECT
         ranked."hotTakeId" AS "hotTakeId",
-        ranked."score" AS "score"
+        ranked."score" AS "score",
+        ranked."userId" AS "userId"
       FROM (
         SELECT
           "base"."id" AS "hotTakeId",
           "base"."upvotes" AS "score",
           "base"."createdAt" AS "createdAt",
+          "base"."userId" AS "userId",
           ROW_NUMBER() OVER (
             PARTITION BY "base"."userId"
             ORDER BY "base"."upvotes" DESC, "base"."createdAt" DESC
@@ -41,7 +43,7 @@ export class PopularHotTake1769425967697 implements MigrationInterface {
         "public",
         "MATERIALIZED_VIEW",
         "popular_hot_take",
-        'SELECT ranked."hotTakeId" AS "hotTakeId", ranked."score" AS "score" FROM (SELECT "base"."id" AS "hotTakeId", "base"."upvotes" AS "score", "base"."createdAt" AS "createdAt", ROW_NUMBER() OVER ( PARTITION BY "base"."userId" ORDER BY "base"."upvotes" DESC, "base"."createdAt" DESC ) AS "rn" FROM "public"."hot_take" "base" WHERE "base"."upvotes" > 0) "ranked" WHERE ranked."rn" <= 3 ORDER BY ranked."score" DESC, ranked."createdAt" DESC',
+        'SELECT ranked."hotTakeId" AS "hotTakeId", ranked."score" AS "score", ranked."userId" AS "userId" FROM (SELECT "base"."id" AS "hotTakeId", "base"."upvotes" AS "score", "base"."createdAt" AS "createdAt", "base"."userId" AS "userId", ROW_NUMBER() OVER ( PARTITION BY "base"."userId" ORDER BY "base"."upvotes" DESC, "base"."createdAt" DESC ) AS "rn" FROM "public"."hot_take" "base" WHERE "base"."upvotes" > 0) "ranked" WHERE ranked."rn" <= 3 ORDER BY ranked."score" DESC, ranked."createdAt" DESC',
       ]
     );
   }

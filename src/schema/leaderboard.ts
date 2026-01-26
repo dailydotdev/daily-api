@@ -2,11 +2,12 @@ import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, type AuthContext } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
-import { HotTake, User, UserCompany, UserStats, UserStreak } from '../entity';
+import { User, UserCompany, UserStats, UserStreak } from '../entity';
 import { DataSource, In, Not } from 'typeorm';
 import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
 import { MODERATORS } from '../config';
 import graphorm from '../graphorm';
+import type { GQLHotTake } from './userHotTake';
 
 export type GQLUserLeaderboard = {
   score: number;
@@ -20,7 +21,8 @@ export type GQLCompanyLeaderboard = {
 
 export type GQLPopularHotTake = {
   score: number;
-  hotTake: Promise<HotTake>;
+  hotTake: Promise<GQLHotTake>;
+  user: Promise<GQLUser>;
 };
 
 export const typeDefs = /* GraphQL */ `
@@ -35,8 +37,9 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type PopularHotTake {
-    score: Int
-    hotTake: HotTake
+    score: Int!
+    hotTake: HotTake!
+    user: User!
   }
 
   extend type Query {

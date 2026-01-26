@@ -15,7 +15,7 @@ import {
 } from '../common/schema/userHotTake';
 import { NEW_ITEM_POSITION } from '../common/constants';
 
-interface GQLHotTake {
+export interface GQLHotTake {
   id: string;
   userId: string;
   emoji: string;
