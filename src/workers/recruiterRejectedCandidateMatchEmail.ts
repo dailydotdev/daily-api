@@ -1,9 +1,15 @@
 import { TypedWorker } from './worker';
 import { CandidateRejectedOpportunityMessage } from '@dailydotdev/schema';
 import { User } from '../entity';
-import { sendEmail, baseNotificationEmailData } from '../common';
+import {
+  sendEmail,
+  baseNotificationEmailData,
+  ONE_MINUTE_IN_SECONDS,
+} from '../common';
 import { isSubscribedToNotificationType } from './notifications/utils';
 import { NotificationChannel, NotificationType } from '../notifications/common';
+
+const REJECTION_EMAIL_DELAY_MS = 30 * ONE_MINUTE_IN_SECONDS;
 
 const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
   subscription: 'api.recruiter-rejected-candidate-match-email',
@@ -46,10 +52,12 @@ const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
         return;
       }
 
+      const sendDate = new Date(Date.now() + REJECTION_EMAIL_DELAY_MS);
       await sendEmail({
         ...baseNotificationEmailData,
         reply_to: 'ido@daily.dev',
         transactional_message_id: '88',
+        send_at: Math.floor(sendDate.getTime()),
         message_data: {
           opportunity_id: opportunityId,
         },
