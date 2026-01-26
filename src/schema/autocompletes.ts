@@ -320,11 +320,7 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
         return [];
       }
     },
-    autocompleteGear: async (
-      _,
-      args: { query: string },
-      ctx: AuthContext,
-    ) => {
+    autocompleteGear: async (_, args: { query: string }, ctx: AuthContext) => {
       const result = autocompleteGearSchema.safeParse(args);
       if (!result.success) {
         return [];
