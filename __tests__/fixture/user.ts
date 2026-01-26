@@ -1,5 +1,5 @@
 import { DeepPartial } from 'typeorm';
-import { User } from '../../src/entity';
+import { User, type HotTake } from '../../src/entity';
 import { SubscriptionCycles } from '../../src/paddle';
 import { DEFAULT_NOTIFICATION_SETTINGS } from '../../src/notifications/common';
 
@@ -106,5 +106,72 @@ export const badUsersFixture: DeepPartial<User>[] = [
       vordr: false,
       trustScore: 1,
     },
+  },
+];
+
+export const hotTakeFixture: DeepPartial<HotTake>[] = [
+  {
+    userId: '1',
+    emoji: '🍕',
+    title: 'Cold pizza is a valid breakfast',
+    subtitle: 'It is efficient, not sad.',
+    position: 1,
+    upvotes: 72,
+  },
+  {
+    userId: '2',
+    emoji: '☕',
+    title: 'Decaf is still coffee',
+    subtitle: 'Sometimes you want the taste, not the panic.',
+    position: 1,
+    upvotes: 41,
+  },
+  {
+    userId: '2',
+    emoji: '🧊',
+    title: 'Ice in drinks is a scam',
+    subtitle: 'I asked for a beverage, not a geometry lesson.',
+    position: 1,
+    upvotes: 64,
+  },
+  {
+    userId: '2',
+    emoji: '🍫',
+    title: 'Chocolate belongs in the fridge',
+    subtitle: 'Crunch is the point.',
+    position: 1,
+    upvotes: 37,
+  },
+  {
+    userId: '3',
+    emoji: '📱',
+    title: 'Dark mode is mostly vibes',
+    subtitle: 'Light mode isn’t a moral failing.',
+    position: 1,
+    upvotes: 58,
+  },
+  {
+    userId: '4',
+    emoji: '🛌',
+    title: 'Naps are a legitimate hobby',
+    subtitle: 'If it restores stats, it counts.',
+    position: 1,
+    upvotes: 89,
+  },
+  {
+    userId: '4',
+    emoji: '📵',
+    title: 'Push notifications should be opt-in, not default',
+    subtitle: 'My phone is not a dispatcher.',
+    position: 1,
+    upvotes: 95,
+  },
+  {
+    userId: '4',
+    emoji: '🧺',
+    title: 'Laundry is just a recurring side quest',
+    subtitle: 'The loot is clean socks.',
+    position: 1,
+    upvotes: 0,
   },
 ];
