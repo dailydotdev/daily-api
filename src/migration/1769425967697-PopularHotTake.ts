@@ -7,11 +7,22 @@ export class PopularHotTake1769425967697 implements MigrationInterface {
     await queryRunner.query(/* sql */ `
       CREATE MATERIALIZED VIEW IF NOT EXISTS "popular_hot_take" AS
       SELECT
-        id AS "hotTakeId",
-        upvotes AS "score"
-      FROM "public"."hot_take" "base"
-      WHERE upvotes > 0
-      ORDER BY upvotes DESC, "createdAt" DESC
+        ranked."hotTakeId" AS "hotTakeId",
+        ranked."score" AS "score"
+      FROM (
+        SELECT
+          "base"."id" AS "hotTakeId",
+          "base"."upvotes" AS "score",
+          "base"."createdAt" AS "createdAt",
+          ROW_NUMBER() OVER (
+            PARTITION BY "base"."userId"
+            ORDER BY "base"."upvotes" DESC, "base"."createdAt" DESC
+          ) AS "rn"
+        FROM "public"."hot_take" "base"
+        WHERE "base"."upvotes" > 0
+      ) "ranked"
+      WHERE ranked."rn" <= 3
+      ORDER BY ranked."score" DESC, ranked."createdAt" DESC
     `);
 
     await queryRunner.query(
@@ -30,7 +41,7 @@ export class PopularHotTake1769425967697 implements MigrationInterface {
         "public",
         "MATERIALIZED_VIEW",
         "popular_hot_take",
-        'SELECT id AS "hotTakeId", upvotes AS "score" FROM "public"."hot_take" "base" WHERE upvotes > 0 ORDER BY upvotes DESC, "createdAt" DESC',
+        'SELECT ranked."hotTakeId" AS "hotTakeId", ranked."score" AS "score" FROM (SELECT "base"."id" AS "hotTakeId", "base"."upvotes" AS "score", "base"."createdAt" AS "createdAt", ROW_NUMBER() OVER ( PARTITION BY "base"."userId" ORDER BY "base"."upvotes" DESC, "base"."createdAt" DESC ) AS "rn" FROM "public"."hot_take" "base" WHERE "base"."upvotes" > 0) "ranked" WHERE ranked."rn" <= 3 ORDER BY ranked."score" DESC, ranked."createdAt" DESC',
       ]
     );
   }
