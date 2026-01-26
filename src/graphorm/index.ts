@@ -2268,6 +2268,24 @@ const obj = new GraphORM({
       },
     },
   },
+  PopularHotTake: {
+    fields: {
+      hotTake: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'hotTakeId',
+        },
+      },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
+    },
+  },
 });
 
 export default obj;

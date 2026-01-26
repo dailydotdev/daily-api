@@ -6,6 +6,7 @@ import {
   saveFixtures,
 } from './helpers';
 import {
+  HotTake,
   Post,
   Source,
   User,
@@ -13,11 +14,12 @@ import {
   UserStats,
   UserStreak,
 } from '../src/entity';
+import { PopularHotTake } from '../src/entity/PopularHotTake';
 
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 
-import { usersFixture } from './fixture/user';
+import { hotTakeFixture, usersFixture } from './fixture/user';
 import { postsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
 import { Company } from '../src/entity/Company';
@@ -481,5 +483,40 @@ describe('leaderboard', () => {
         },
       },
     ]);
+  });
+
+  describe('popularHotTakes', () => {
+    const QUERY = /* GraphQL */ `
+      query PopularHotTakes($limit: Int) {
+        popularHotTakes(limit: $limit) {
+          score
+          hotTake {
+            id
+            title
+          }
+          user {
+            id
+          }
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      await saveFixtures(con, HotTake, hotTakeFixture);
+
+      await con.query(
+        `REFRESH MATERIALIZED VIEW ${con.getRepository(PopularHotTake).metadata.tableName}`,
+      );
+    });
+
+    it('should return popular hot takes', async () => {
+      const res = await client.query(QUERY);
+      expect(res.data.popularHotTakes).toHaveLength(7);
+    });
+
+    it('should limit return popular hot takes', async () => {
+      const res = await client.query(QUERY, { variables: { limit: 5 } });
+      expect(res.data.popularHotTakes).toHaveLength(5);
+    });
   });
 });
