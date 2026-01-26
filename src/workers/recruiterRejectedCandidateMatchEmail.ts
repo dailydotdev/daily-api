@@ -61,7 +61,6 @@ const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
         send_at: Math.floor(sendDate.getTime() / 1000),
         message_data: {
           opportunity_id: opportunityId,
-          send_date: formatMailDate(sendDate),
         },
         identifiers: {
           id: user.id,
