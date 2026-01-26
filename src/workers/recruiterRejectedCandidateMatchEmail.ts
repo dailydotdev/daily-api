@@ -1,7 +1,12 @@
 import { TypedWorker } from './worker';
 import { CandidateRejectedOpportunityMessage } from '@dailydotdev/schema';
 import { User } from '../entity';
-import { sendEmail, baseNotificationEmailData, formatMailDate, ONE_MINUTE_IN_SECONDS } from '../common';
+import {
+  sendEmail,
+  baseNotificationEmailData,
+  formatMailDate,
+  ONE_MINUTE_IN_SECONDS,
+} from '../common';
 import { isSubscribedToNotificationType } from './notifications/utils';
 import { NotificationChannel, NotificationType } from '../notifications/common';
 
