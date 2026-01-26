@@ -106,6 +106,14 @@ The migration generator compares entities against the local database schema. Ens
 - **Monetization**: Paddle subscription management, premium features, cores/transactions
 - **Opportunities**: Job matching, recruiter features, candidate profiles
 
+**Roles & Permissions:**
+- **System Moderator**: Users with `Roles.Moderator` in their roles array (`ctx.roles.includes(Roles.Moderator)`). System moderators have elevated privileges across the platform including:
+  - Banning/unbanning posts
+  - Deleting any post or comment
+  - Promoting/demoting squad members in any squad (without needing to be a squad member)
+- **Squad Roles** (`SourceMemberRoles`): Admin, Moderator, Member, Blocked - these are per-squad roles stored in `SourceMember.role`
+- The `@auth(requires: [MODERATOR])` GraphQL directive restricts mutations to system moderators only
+
 **Testing Strategy:**
 - Jest with supertest for integration testing
 - Database reset before each test run via pretest hook

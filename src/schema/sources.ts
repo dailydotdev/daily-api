@@ -17,6 +17,7 @@ import {
 } from '../entity';
 import { SourceType, SourceUser } from '../entity/Source';
 import {
+  Roles,
   SourceMemberRoles,
   sourceRoleRank,
   sourceRoleRankKeys,
@@ -1026,6 +1027,12 @@ export const canAccessSource = async (
   permission: SourcePermissions,
   validateRankAgainstId?: string,
 ): Promise<boolean> => {
+  // System moderators can perform any action on any squad
+  const isSystemModerator = ctx.roles?.includes(Roles.Moderator);
+  if (isSystemModerator) {
+    return true;
+  }
+
   if (permission === SourcePermissions.View && !source.private) {
     if (sourceTypesWithMembers.includes(source.type)) {
       const isMemberBlocked = member?.role === SourceMemberRoles.Blocked;
