@@ -1172,8 +1172,8 @@ describe('query feedByConfig', () => {
 
 describe('query feedByIds', () => {
   const QUERY = `
-  query FeedByIds($first: Int, $postIds: [String!]!) {
-    feedByIds(first: $first, postIds: $postIds) {
+  query FeedByIds($first: Int, $postIds: [String!]!, $supportedTypes: [String!]) {
+    feedByIds(first: $first, postIds: $postIds, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -1249,7 +1249,11 @@ describe('query feedByIds', () => {
     });
 
     const res = await state.client.query(QUERY, {
-      variables: { first: 10, postIds: ['userSharePost1', 'p1'] },
+      variables: {
+        first: 10,
+        postIds: ['userSharePost1', 'p1'],
+        supportedTypes: ['article', 'share'],
+      },
     });
     const ids = res.data.feedByIds.edges.map(({ node }) => node.id);
     expect(ids).toContain('userSharePost1');
