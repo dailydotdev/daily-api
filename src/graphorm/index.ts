@@ -2244,6 +2244,30 @@ const obj = new GraphORM({
       },
     },
   },
+  DatasetGear: {
+    requiredColumns: ['id', 'name'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  Gear: {
+    from: 'UserGear',
+    requiredColumns: ['id', 'userId', 'gearId'],
+    fields: {
+      gear: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'gearId',
+        },
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
 });
 
 export default obj;
