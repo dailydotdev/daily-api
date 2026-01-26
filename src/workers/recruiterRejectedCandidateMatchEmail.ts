@@ -9,7 +9,7 @@ import {
 import { isSubscribedToNotificationType } from './notifications/utils';
 import { NotificationChannel, NotificationType } from '../notifications/common';
 
-const REJECTION_EMAIL_DELAY_MS = 30 * ONE_MINUTE_IN_SECONDS;
+const REJECTION_EMAIL_DELAY_MS = 30 * ONE_MINUTE_IN_SECONDS * 1000;
 
 const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
   subscription: 'api.recruiter-rejected-candidate-match-email',
@@ -57,7 +57,7 @@ const worker: TypedWorker<'api.v1.recruiter-rejected-candidate-match'> = {
         ...baseNotificationEmailData,
         reply_to: 'ido@daily.dev',
         transactional_message_id: '88',
-        send_at: Math.floor(sendDate.getTime()),
+        send_at: Math.floor(sendDate.getTime() / 1000),
         message_data: {
           opportunity_id: opportunityId,
         },
