@@ -418,6 +418,36 @@ describe('mutation updateUserInfo', () => {
       expect(clearFile).not.toHaveBeenCalled();
     });
 
+    it('should preserve existing image when image field is not provided (ENG-421)', async () => {
+      // This test verifies the fix for ENG-421: Profile picture was getting reset
+      // when updating other fields (like experienceLevel) without providing image field
+      loggedUser = '1';
+      const repo = con.getRepository(User);
+
+      const existingImage = 'https://example.com/avatar.jpg';
+      await repo.update({ id: loggedUser }, { image: existingImage });
+
+      // Update only experienceLevel, NOT providing image field at all
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            experienceLevel: 'SENIOR',
+            username: 'uuu1',
+            name: 'Test User',
+            // Note: image field is intentionally NOT provided
+          },
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      // Image should be preserved, not reset to fallback
+      const updatedUser = await repo.findOneBy({ id: loggedUser });
+      expect(updatedUser?.image).toEqual(existingImage);
+      expect(updatedUser?.experienceLevel).toEqual('SENIOR');
+      expect(clearFile).not.toHaveBeenCalled();
+    });
+
     it('should not clear cover when only updating other fields', async () => {
       loggedUser = '1';
       const repo = con.getRepository(User);
