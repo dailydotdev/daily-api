@@ -12,9 +12,8 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-beforeEach(async () => {
+beforeEach(() => {
   jest.resetAllMocks();
-  await con.getRepository(NotificationV2).delete({});
 });
 
 describe('cleanupRecruiterNewCandidateNotification', () => {
