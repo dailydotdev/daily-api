@@ -125,7 +125,10 @@ import {
   SourcePostModeration,
   SourcePostModerationStatus,
 } from '../../entity/SourcePostModeration';
-import { cleanupSourcePostModerationNotifications } from '../../notifications/common';
+import {
+  cleanupRecruiterNewCandidateNotification,
+  cleanupSourcePostModerationNotifications,
+} from '../../notifications/common';
 import { UserReport } from '../../entity/UserReport';
 import {
   UserTransaction,
@@ -1328,6 +1331,11 @@ const onOpportunityMatchChange = async (
         logger,
         data: data.payload.after!,
       });
+      await cleanupRecruiterNewCandidateNotification(
+        con,
+        data.payload.after!.opportunityId,
+        data.payload.after!.userId,
+      );
     }
     if (
       data.payload.after?.status === OpportunityMatchStatus.CandidateRejected &&
@@ -1347,6 +1355,11 @@ const onOpportunityMatchChange = async (
         logger,
         data: data.payload.after!,
       });
+      await cleanupRecruiterNewCandidateNotification(
+        con,
+        data.payload.after!.opportunityId,
+        data.payload.after!.userId,
+      );
     }
   }
 };

@@ -13,6 +13,7 @@ import {
   type NotificationPostAnalyticsContext,
   NotificationPostContext,
   NotificationPostModerationContext,
+  type NotificationRecruiterNewCandidateContext,
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
@@ -2283,5 +2284,45 @@ describe('parsed_cv_profile notifications', () => {
     expect(actual.notification.title).toBe(
       "We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.",
     );
+  });
+});
+
+describe('recruiter_new_candidate notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should generate recruiter_new_candidate notification with uniqueKey set to candidate id', async () => {
+    const type = NotificationType.RecruiterNewCandidate;
+    const opportunityId = '550e8400-e29b-41d4-a716-446655440001';
+    const candidate = usersFixture[0] as Reference<User>;
+
+    const ctx: NotificationRecruiterNewCandidateContext = {
+      userIds: ['recruiter1', 'recruiter2'],
+      opportunityId,
+      candidate,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['recruiter1', 'recruiter2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(opportunityId);
+    expect(actual.notification.referenceType).toEqual('opportunity');
+    expect(actual.notification.icon).toEqual('Opportunity');
+    expect(actual.notification.uniqueKey).toEqual(candidate.id);
+    expect(actual.notification.targetUrl).toEqual(
+      `http://localhost:5002/opportunity/${opportunityId}/matches`,
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: candidate.image,
+        name: candidate.name,
+        referenceId: candidate.id,
+        targetUrl: `http://localhost:5002/${candidate.username}`,
+        type: 'user',
+      },
+    ]);
   });
 });
