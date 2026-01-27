@@ -207,6 +207,68 @@ The migration generator compares entities against the local database schema. Ens
   ```
 - **Example lesson**: In `notifyJobOpportunity`, locations were fetched one-by-one inside a `Promise.all` map by awaiting `locationData.location`. The fix was to extract all `locationId`s upfront, fetch all `DatasetLocation` records in a single query using `In(locationIds)`, and use a Map for lookups.
 
+**Using Eager Loading with TypeORM Relations:**
+- **Prefer eager loading over separate queries** when you need to access entity relations. Instead of fetching an entity and then querying for related records separately, use TypeORM's query builder with `leftJoinAndSelect()` to fetch everything in a single query.
+- **This is more efficient than both**: (1) awaiting lazy relations, which triggers separate queries, and (2) extracting IDs and fetching with `In()`, which requires two queries.
+- **Example pattern**:
+  ```typescript
+  // BAD: Separate query for related entities
+  const entities = await repo.find({ where: { ... } });
+  const relatedIds = entities.map((e) => e.relatedId);
+  const related = await relatedRepo.find({ where: { id: In(relatedIds) } });
+  // Two queries total
+
+  // BAD: Awaiting lazy relations (even worse - N queries)
+  const entities = await repo.find({ where: { ... } });
+  const related = await Promise.all(entities.map((e) => e.lazyRelation));
+  // N+1 queries total
+
+  // GOOD: Eager load with query builder - single query with JOIN
+  const entities = await repo
+    .createQueryBuilder('entity')
+    .leftJoinAndSelect('entity.relation', 'relation')
+    .where('entity.someField = :value', { value })
+    .getMany();
+  // Now entities[0].relation is already loaded, no await needed
+  // Single query with JOIN
+  ```
+
+**Selecting Only Necessary Fields:**
+- **Always use `.select()` to fetch only the fields you need** when using query builder. This reduces data transfer, improves query performance, and makes the code more maintainable by explicitly documenting which fields are used.
+- **Specify fields for both the main entity and joined relations** - don't let TypeORM fetch all columns by default.
+- **Example pattern**:
+  ```typescript
+  // BAD: Fetches ALL columns from both tables
+  const entities = await repo
+    .createQueryBuilder('entity')
+    .leftJoinAndSelect('entity.user', 'user')
+    .where('entity.id = :id', { id })
+    .getMany();
+  // User entity has 20+ columns but we only need 3
+
+  // GOOD: Select only the fields you actually use
+  const entities = await repo
+    .createQueryBuilder('entity')
+    .leftJoinAndSelect('entity.user', 'user')
+    .select([
+      'entity.id',
+      'entity.someField',
+      'user.id',
+      'user.name',
+      'user.email',
+    ])
+    .where('entity.id = :id', { id })
+    .getMany();
+  // Now only fetches the 5 columns we actually need
+  ```
+- **Important TypeORM quirk**: When using `leftJoinAndSelect` with explicit `.select()`, TypeORM maps joined relations to `__relationName__` (double underscore prefix) instead of the normal property name. Access via type assertion:
+  ```typescript
+  // With explicit .select(), relation is NOT on entity.user
+  // It's mapped to entity.__user__ instead
+  const user = (entity as unknown as { __user__: User }).__user__;
+  const name = user?.name || 'Unknown';
+  ```
+
 **Updating JSONB Flag Fields:**
 - **Use flag update utilities** instead of manually spreading existing flags. Utilities in `src/common/utils.ts` leverage PostgreSQL's JSONB `||` operator for atomic, efficient updates.
 - Available utilities: `updateFlagsStatement`, `updateNotificationFlags`, `updateSubscriptionFlags`, `updateRecruiterSubscriptionFlags`
