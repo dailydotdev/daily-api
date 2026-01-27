@@ -1165,8 +1165,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       })
       .getMany();
 
-    // Access already loaded user relations
-    const recruiters = recruiterUsers.map((r) => r.user).filter(Boolean);
+    // Resolve lazy user relations (data is already loaded via leftJoinAndSelect)
+    const recruiters = (
+      await Promise.all(recruiterUsers.map((r) => r.user))
+    ).filter(Boolean);
 
     // Use first recruiter's name for the title
     const firstRecruiter = recruiters[0];
@@ -1179,8 +1181,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .filter(Boolean)
       .join(',');
 
-    // Access already loaded user relation from match
-    const candidate = match.user;
+    // Resolve lazy user relation from match (data is already loaded via leftJoinAndSelect)
+    const candidate = await match.user;
     const candidateName = candidate?.name || candidate?.username || 'Candidate';
 
     return {
