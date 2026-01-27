@@ -2874,7 +2874,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const filesToClear = [];
 
-      if ((!data.image || !!upload) && user.image) {
+      // Clear existing avatar when uploading new one or explicitly setting to null (not when undefined)
+      if ((!!upload || data.image === null) && user.image) {
         filesToClear.push(
           clearFile({ referenceId: user.id, preset: UploadPreset.Avatar }),
         );
@@ -2898,6 +2899,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           if (upload && cloudinaryUrl) {
             const file = await upload;
             return (await uploadAvatar(user.id, file.createReadStream())).url;
+          }
+          // Preserve existing image if no new image is provided (undefined)
+          // Use fallback if explicitly set to null or user has no image
+          if (data.image === undefined) {
+            return user.image ?? fallbackImages.avatar;
           }
           return data.image || fallbackImages.avatar;
         })(),
