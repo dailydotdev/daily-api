@@ -534,3 +534,20 @@ export const cleanupSourcePostModerationNotifications = async (
     type: NotificationType.SourcePostSubmitted,
   });
 };
+
+export const cleanupRecruiterNewCandidateNotification = async (
+  con: DataSource | EntityManager,
+  opportunityId: string,
+  candidateUserId: string,
+) => {
+  if (!opportunityId || !candidateUserId) {
+    return;
+  }
+
+  await con.getRepository(NotificationV2).delete({
+    referenceId: opportunityId,
+    referenceType: 'opportunity',
+    type: NotificationType.RecruiterNewCandidate,
+    uniqueKey: candidateUserId,
+  });
+};
