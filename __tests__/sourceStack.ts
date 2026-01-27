@@ -12,7 +12,7 @@ import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
 import { SourceStack } from '../src/entity/sources/SourceStack';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
-import { Source, SourceMember, SourceType } from '../src/entity';
+import { Source, SourceMember } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
 

@@ -16,7 +16,7 @@ import {
 import { findOrCreateDatasetTool } from '../common/datasetTool';
 import { NEW_ITEM_POSITION } from '../common/constants';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
-import { SourceType } from '../entity/Source';
+import { Source, SourceType } from '../entity/Source';
 
 interface GQLSourceStack {
   id: string;
@@ -160,17 +160,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ) => {
       const input = addSourceStackSchema.parse(args.input);
 
+      // First check if source is a Squad (before permission check for better error message)
+      const sourceCheck = await ctx.con
+        .getRepository(Source)
+        .findOneByOrFail([{ id: args.sourceId }, { handle: args.sourceId }]);
+
+      if (sourceCheck.type !== SourceType.Squad) {
+        throw new ValidationError('Stack can only be added to Squads');
+      }
+
       // Verify user has Edit permission on the source
       const source = await ensureSourcePermissions(
         ctx,
         args.sourceId,
         SourcePermissions.Edit,
       );
-
-      // Ensure this is a Squad
-      if (source.type !== SourceType.Squad) {
-        throw new ValidationError('Stack can only be added to Squads');
-      }
 
       const datasetTool = await findOrCreateDatasetTool(ctx.con, input.title);
 
