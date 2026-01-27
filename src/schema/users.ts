@@ -1866,9 +1866,7 @@ function buildSocialLinksFromLegacyFields(
     if (handle) {
       // Validate handle for blocked content
       if (validateVordrWords(handle)) {
-        throw new ValidationError(
-          'Invalid URL',
-        );
+        throw new ValidationError('Invalid URL');
       }
 
       const url = buildUrlFromHandle(handle, platform);
