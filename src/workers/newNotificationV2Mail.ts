@@ -1127,6 +1127,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .getRepository(OpportunityMatch)
       .createQueryBuilder('match')
       .leftJoinAndSelect('match.user', 'user')
+      .select([
+        'match.applicationRank',
+        'user.id',
+        'user.name',
+        'user.username',
+      ])
       .where('match.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
       })
@@ -1147,6 +1153,13 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .getRepository(OpportunityUserRecruiter)
       .createQueryBuilder('recruiter')
       .leftJoinAndSelect('recruiter.user', 'user')
+      .select([
+        'recruiter.id',
+        'user.id',
+        'user.name',
+        'user.username',
+        'user.email',
+      ])
       .where('recruiter.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
       })
