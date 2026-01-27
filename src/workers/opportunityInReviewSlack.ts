@@ -47,17 +47,6 @@ const worker: TypedWorker<'api.v1.opportunity-in-review'> = {
               },
               {
                 type: 'button',
-                text: {
-                  type: 'plain_text',
-                  text: 'Accept + Super Agent (30d)',
-                  emoji: true,
-                },
-                style: 'primary',
-                action_id: 'opportunity_review_accept_upgrade',
-                value: JSON.stringify({ opportunityId }),
-              },
-              {
-                type: 'button',
                 text: { type: 'plain_text', text: 'Reject', emoji: true },
                 style: 'danger',
                 action_id: 'opportunity_review_reject',

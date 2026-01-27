@@ -68,19 +68,6 @@ describe('opportunityInReviewSlack worker', () => {
             },
             {
               type: 'button',
-              text: {
-                type: 'plain_text',
-                text: 'Accept + Super Agent (30d)',
-                emoji: true,
-              },
-              style: 'primary',
-              action_id: 'opportunity_review_accept_upgrade',
-              value: JSON.stringify({
-                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-              }),
-            },
-            {
-              type: 'button',
               text: { type: 'plain_text', text: 'Reject', emoji: true },
               style: 'danger',
               action_id: 'opportunity_review_reject',
@@ -145,19 +132,6 @@ describe('opportunityInReviewSlack worker', () => {
             },
             {
               type: 'button',
-              text: {
-                type: 'plain_text',
-                text: 'Accept + Super Agent (30d)',
-                emoji: true,
-              },
-              style: 'primary',
-              action_id: 'opportunity_review_accept_upgrade',
-              value: JSON.stringify({
-                opportunityId: '550e8400-e29b-41d4-a716-446655440002',
-              }),
-            },
-            {
-              type: 'button',
               text: { type: 'plain_text', text: 'Reject', emoji: true },
               style: 'danger',
               action_id: 'opportunity_review_reject',
@@ -201,19 +175,6 @@ describe('opportunityInReviewSlack worker', () => {
               text: { type: 'plain_text', text: 'Accept', emoji: true },
               style: 'primary',
               action_id: 'opportunity_review_accept',
-              value: JSON.stringify({
-                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-              }),
-            },
-            {
-              type: 'button',
-              text: {
-                type: 'plain_text',
-                text: 'Accept + Super Agent (30d)',
-                emoji: true,
-              },
-              style: 'primary',
-              action_id: 'opportunity_review_accept_upgrade',
               value: JSON.stringify({
                 opportunityId: '550e8400-e29b-41d4-a716-446655440001',
               }),

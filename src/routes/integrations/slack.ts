@@ -30,7 +30,6 @@ import {
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityState } from '@dailydotdev/schema';
-import { activateSuperAgentTrialManual } from '../../common/opportunity/trial';
 
 const redirectResponse = ({
   res,
@@ -367,7 +366,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         // Check if this is an opportunity review action
         const opportunityReviewActions = [
           'opportunity_review_accept',
-          'opportunity_review_accept_upgrade',
           'opportunity_review_reject',
         ];
 
@@ -407,27 +405,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
                 );
               await respond(
                 `:white_check_mark: Accepted "${opportunity.title}" (${organization.name}) by @${payload.user?.username || 'unknown'}`,
-                payload.response_url,
-              );
-              break;
-
-            case 'opportunity_review_accept_upgrade':
-              await con.transaction(async (manager) => {
-                await manager
-                  .getRepository(OpportunityJob)
-                  .update(
-                    { id: opportunityId },
-                    { state: OpportunityState.LIVE },
-                  );
-                await activateSuperAgentTrialManual({
-                  con: manager,
-                  organizationId: organization.id,
-                  durationDays: 30,
-                  logger: req.log,
-                });
-              });
-              await respond(
-                `:white_check_mark: :star: Accepted with Super Agent upgrade "${opportunity.title}" (${organization.name}) by @${payload.user?.username || 'unknown'}`,
                 payload.response_url,
               );
               break;

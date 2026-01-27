@@ -730,39 +730,6 @@ describe('POST /integrations/slack/interactions - opportunity review', () => {
     expect(updatedOpportunity?.state).toBe(OpportunityState.CLOSED);
   });
 
-  it('should accept opportunity with upgrade and set trial flags', async () => {
-    nock('https://hooks.slack.com').post('/actions/test').reply(200);
-
-    await request(app.server)
-      .post('/integrations/slack/interactions')
-      .set('Content-Type', 'application/x-www-form-urlencoded')
-      .set('x-slack-request-timestamp', '1722461509')
-      .set('x-slack-signature', 'v0=test')
-      .send(
-        createOpportunityReviewPayload(
-          'opportunity_review_accept_upgrade',
-          inReviewOpportunityFixture.id!,
-        ),
-      )
-      .expect(200);
-
-    const updatedOpportunity = await con
-      .getRepository(OpportunityJob)
-      .findOneBy({
-        id: inReviewOpportunityFixture.id,
-      });
-    expect(updatedOpportunity?.state).toBe(OpportunityState.LIVE);
-
-    // Check organization has trial flags set
-    const organization = await con.getRepository(Organization).findOneBy({
-      id: inReviewOpportunityFixture.organizationId!,
-    });
-    expect(organization?.recruiterSubscriptionFlags?.isTrialActive).toBe(true);
-    expect(
-      organization?.recruiterSubscriptionFlags?.trialExpiresAt,
-    ).toBeDefined();
-  });
-
   it('should return 200 for already processed opportunity (not IN_REVIEW)', async () => {
     nock('https://hooks.slack.com').post('/actions/test').reply(200);
 

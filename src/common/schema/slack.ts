@@ -34,7 +34,6 @@ export const slackOpportunityReviewPayloadSchema = z.object({
       z.object({
         action_id: z.enum([
           'opportunity_review_accept',
-          'opportunity_review_accept_upgrade',
           'opportunity_review_reject',
         ]),
         value: z.string(),
