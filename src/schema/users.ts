@@ -1867,7 +1867,7 @@ function buildSocialLinksFromLegacyFields(
       // Validate handle for blocked content
       if (validateVordrWords(handle)) {
         throw new ValidationError(
-          'Social links cannot contain blocked content',
+          'Invalid URL',
         );
       }
 
@@ -1937,7 +1937,7 @@ function processSocialLinksForDualWrite(
   // Check for blocked words in social link URLs
   for (const { url } of validated) {
     if (validateVordrWords(url)) {
-      throw new ValidationError('Social links cannot contain blocked content');
+      throw new ValidationError('Invalid URL');
     }
   }
 
