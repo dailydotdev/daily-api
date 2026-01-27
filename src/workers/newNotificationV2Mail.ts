@@ -1139,17 +1139,47 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    const recruiterUser = await con
-      .getRepository(OpportunityUserRecruiter)
-      .findOneBy({
+    // Fetch ALL recruiters for this opportunity
+    const recruiterUsers = await con.getRepository(OpportunityUserRecruiter).find({
+      where: {
         opportunityId: notif.referenceId,
-      });
-    const recruiter = await recruiterUser?.user;
+      },
+    });
+
+    // Fetch user details for all recruiters
+    const recruiterIds = recruiterUsers.map((r) => r.userId);
+    const recruiters =
+      recruiterIds.length > 0
+        ? await con.getRepository(User).find({
+            where: { id: In(recruiterIds) },
+            select: ['id', 'name', 'username', 'email'],
+          })
+        : [];
+
+    // Use first recruiter's name for the title
+    const firstRecruiter = recruiters[0];
+    const recruiterName =
+      firstRecruiter?.name || firstRecruiter?.username || 'Recruiter';
+
+    // Collect all recruiter emails for CC
+    const recruiterEmails = recruiters
+      .map((r) => r.email)
+      .filter(Boolean)
+      .join(',');
+
+    // Fetch candidate user to get their name
+    const candidate = await con.getRepository(User).findOne({
+      where: { id: user.id },
+      select: ['name', 'username'],
+    });
+
+    const candidateName =
+      candidate?.name || candidate?.username || 'Candidate';
 
     return {
-      title: `[Action Required] It's a match!`,
+      title: `[Action Required] Intro: ${candidateName} <> ${recruiterName}`,
       copy: warmIntro,
-      cc: recruiter?.email,
+      cc: recruiterEmails || undefined,
     };
   },
   parsed_cv_profile: async () => {
