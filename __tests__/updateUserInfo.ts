@@ -11,6 +11,7 @@ import {
 import { User } from '../src/entity';
 import { clearFile, UploadPreset } from '../src/common/cloudinary';
 import { fallbackImages } from '../src/config';
+import { remoteConfig } from '../src/remoteConfig';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -786,6 +787,112 @@ describe('mutation updateUserInfo', () => {
           { platform: 'portfolio', url: 'https://shamun.dev' },
         ]),
       );
+    });
+
+    it('should reject socialLinks with blocked words in URLs', async () => {
+      loggedUser = '1';
+      const originalVordrWords = remoteConfig.vars.vordrWords;
+
+      try {
+        // Set up blocked words
+        remoteConfig.vars.vordrWords = ['spam', 'blocked'];
+
+        const user = await con
+          .getRepository(User)
+          .findOneBy({ id: loggedUser });
+
+        const res = await client.mutate(MUTATION, {
+          variables: {
+            data: {
+              name: user?.name,
+              username: 'testuser',
+              socialLinks: [
+                { platform: 'github', url: 'https://github.com/spamuser' },
+              ],
+            },
+          },
+        });
+
+        expect(res.errors).toBeTruthy();
+        expect(res.errors?.[0].message).toContain('blocked content');
+      } finally {
+        // Restore original vordr words
+        remoteConfig.vars.vordrWords = originalVordrWords;
+      }
+    });
+
+    it('should reject legacy social fields with blocked words', async () => {
+      loggedUser = '1';
+      const originalVordrWords = remoteConfig.vars.vordrWords;
+
+      try {
+        // Set up blocked words
+        remoteConfig.vars.vordrWords = ['spam', 'blocked'];
+
+        const user = await con
+          .getRepository(User)
+          .findOneBy({ id: loggedUser });
+
+        const res = await client.mutate(MUTATION, {
+          variables: {
+            data: {
+              name: user?.name,
+              username: 'testuser',
+              github: 'spamuser',
+            },
+          },
+        });
+
+        expect(res.errors).toBeTruthy();
+        expect(res.errors?.[0].message).toContain('blocked content');
+      } finally {
+        // Restore original vordr words
+        remoteConfig.vars.vordrWords = originalVordrWords;
+      }
+    });
+
+    it('should accept socialLinks without blocked words', async () => {
+      loggedUser = '1';
+      const originalVordrWords = remoteConfig.vars.vordrWords;
+
+      try {
+        // Set up blocked words that won't match
+        remoteConfig.vars.vordrWords = ['spam', 'blocked'];
+
+        const user = await con
+          .getRepository(User)
+          .findOneBy({ id: loggedUser });
+
+        const res = await client.mutate(MUTATION, {
+          variables: {
+            data: {
+              name: user?.name,
+              username: 'testuser',
+              socialLinks: [
+                { platform: 'github', url: 'https://github.com/validuser' },
+                { platform: 'twitter', url: 'https://x.com/validuser' },
+              ],
+            },
+          },
+        });
+
+        expect(res.errors).toBeFalsy();
+        expect(res.data.updateUserInfo.github).toBe('validuser');
+
+        const updated = await con
+          .getRepository(User)
+          .findOneBy({ id: loggedUser });
+        expect(updated?.socialLinks).toHaveLength(2);
+        expect(updated?.socialLinks).toEqual(
+          expect.arrayContaining([
+            { platform: 'github', url: 'https://github.com/validuser' },
+            { platform: 'twitter', url: 'https://x.com/validuser' },
+          ]),
+        );
+      } finally {
+        // Restore original vordr words
+        remoteConfig.vars.vordrWords = originalVordrWords;
+      }
     });
   });
 });
