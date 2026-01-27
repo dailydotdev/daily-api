@@ -2207,21 +2207,6 @@ const obj = new GraphORM({
       },
     },
   },
-  UserTool: {
-    requiredColumns: ['id', 'userId', 'toolId'],
-    fields: {
-      tool: {
-        relation: {
-          isMany: false,
-          childColumn: 'id',
-          parentColumn: 'toolId',
-        },
-      },
-      createdAt: {
-        transform: transformDate,
-      },
-    },
-  },
   HotTake: {
     requiredColumns: ['id', 'userId'],
     fields: {
