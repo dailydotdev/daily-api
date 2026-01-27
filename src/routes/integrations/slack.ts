@@ -24,9 +24,13 @@ import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import {
   slackOpportunityActionValueSchema,
   slackOpportunityCandidateReviewPayloadSchema,
+  slackOpportunityReviewPayloadSchema,
+  slackOpportunityReviewValueSchema,
 } from '../../common/schema/slack';
 import { queryReadReplica } from '../../common/queryReadReplica';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
+import { OpportunityState } from '@dailydotdev/schema';
+import { activateSuperAgentTrialManual } from '../../common/opportunity/trial';
 
 const redirectResponse = ({
   res,
@@ -342,29 +346,123 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             ? new URLSearchParams(req.body).get('payload')
             : (req.body as { payload?: string }).payload;
 
-        const payload = slackOpportunityCandidateReviewPayloadSchema.parse(
-          JSON.parse(payloadString || '{}'),
-        );
-        const action = payload.actions[0];
-        const { opportunityId, userId } =
-          slackOpportunityActionValueSchema.parse(JSON.parse(action.value));
+        const rawPayload = JSON.parse(payloadString || '{}');
+        const action = rawPayload.actions?.[0];
+
+        if (!action) {
+          return res.status(200).send();
+        }
 
         const con = await createOrGetConnection();
-        const match = await con
-          .getRepository(OpportunityMatch)
-          .findOne({ where: { opportunityId, userId } });
 
-        const respond = (text: string) =>
-          payload.response_url &&
-          fetch(payload.response_url, {
+        // Helper to send response back to Slack
+        const respond = (text: string, responseUrl?: string) =>
+          responseUrl &&
+          fetch(responseUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ replace_original: true, text }),
           });
 
+        // Check if this is an opportunity review action
+        const opportunityReviewActions = [
+          'opportunity_review_accept',
+          'opportunity_review_accept_upgrade',
+          'opportunity_review_reject',
+        ];
+
+        if (opportunityReviewActions.includes(action.action_id)) {
+          const payload = slackOpportunityReviewPayloadSchema.parse(rawPayload);
+          const { opportunityId } = slackOpportunityReviewValueSchema.parse(
+            JSON.parse(action.value),
+          );
+
+          const opportunity = await con.getRepository(OpportunityJob).findOne({
+            where: { id: opportunityId },
+            relations: { organization: true },
+          });
+
+          if (
+            !opportunity ||
+            opportunity.state !== OpportunityState.IN_REVIEW
+          ) {
+            await respond(
+              opportunity
+                ? `Already processed: state is ${opportunity.state}`
+                : 'Opportunity not found',
+              payload.response_url,
+            );
+            return res.status(200).send();
+          }
+
+          const organization = await opportunity.organization;
+
+          switch (action.action_id) {
+            case 'opportunity_review_accept':
+              await con
+                .getRepository(OpportunityJob)
+                .update(
+                  { id: opportunityId },
+                  { state: OpportunityState.LIVE },
+                );
+              await respond(
+                `:white_check_mark: Accepted "${opportunity.title}" (${organization.name}) by @${payload.user?.username || 'unknown'}`,
+                payload.response_url,
+              );
+              break;
+
+            case 'opportunity_review_accept_upgrade':
+              await con.transaction(async (manager) => {
+                await manager
+                  .getRepository(OpportunityJob)
+                  .update(
+                    { id: opportunityId },
+                    { state: OpportunityState.LIVE },
+                  );
+                await activateSuperAgentTrialManual({
+                  con: manager,
+                  organizationId: organization.id,
+                  durationDays: 30,
+                  logger: req.log,
+                });
+              });
+              await respond(
+                `:white_check_mark: :star: Accepted with Super Agent upgrade "${opportunity.title}" (${organization.name}) by @${payload.user?.username || 'unknown'}`,
+                payload.response_url,
+              );
+              break;
+
+            case 'opportunity_review_reject':
+              await con
+                .getRepository(OpportunityJob)
+                .update(
+                  { id: opportunityId },
+                  { state: OpportunityState.CLOSED },
+                );
+              await respond(
+                `:x: Rejected "${opportunity.title}" (${organization.name}) by @${payload.user?.username || 'unknown'}`,
+                payload.response_url,
+              );
+              break;
+          }
+
+          return res.status(200).send();
+        }
+
+        // Handle candidate review actions
+        const payload =
+          slackOpportunityCandidateReviewPayloadSchema.parse(rawPayload);
+        const { opportunityId, userId } =
+          slackOpportunityActionValueSchema.parse(JSON.parse(action.value));
+
+        const match = await con
+          .getRepository(OpportunityMatch)
+          .findOne({ where: { opportunityId, userId } });
+
         if (!match || match.status !== OpportunityMatchStatus.CandidateReview) {
           await respond(
             match ? `Already processed: ${match.status}` : 'Match not found',
+            payload.response_url,
           );
           return res.status(200).send();
         }
@@ -394,6 +492,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
         await respond(
           `${isAccept ? ':white_check_mark: Accepted' : ':x: Rejected'} (${opportunity.title} - ${organization.name}) by @${payload.user?.username || 'unknown'}`,
+          payload.response_url,
         );
         return res.status(200).send();
       } catch {

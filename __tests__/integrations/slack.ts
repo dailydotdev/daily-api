@@ -3,7 +3,7 @@ import { FastifyInstance } from 'fastify';
 import { authorizeRequest, saveFixtures } from '../helpers';
 import { Organization, User } from '../../src/entity';
 import { usersFixture } from '../fixture';
-import { DataSource } from 'typeorm';
+import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import request from 'supertest';
 import nock from 'nock';
@@ -25,6 +25,7 @@ import {
 } from '../fixture/opportunity';
 import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
+import { OpportunityState } from '@dailydotdev/schema';
 
 jest.mock('../../src/integrations/analytics', () => ({
   ...(jest.requireActual('../../src/integrations/analytics') as Record<
@@ -629,6 +630,176 @@ describe('POST /integrations/slack/interactions', () => {
             actions: [{ action_id: 'unknown_action', value: '{}' }],
           }),
         )}`,
+      )
+      .expect(200);
+  });
+});
+
+describe('POST /integrations/slack/interactions - opportunity review', () => {
+  const createOpportunityReviewPayload = (
+    actionId: string,
+    opportunityId: string,
+  ) =>
+    `payload=${encodeURIComponent(
+      JSON.stringify({
+        type: 'block_actions',
+        actions: [
+          {
+            action_id: actionId,
+            value: JSON.stringify({ opportunityId }),
+          },
+        ],
+        response_url: 'https://hooks.slack.com/actions/test',
+        user: { id: 'U123', username: 'testuser' },
+      }),
+    )}`;
+
+  const inReviewOpportunityFixture: DeepPartial<OpportunityJob> = {
+    id: '550e8400-e29b-41d4-a716-446655440099',
+    type: 'job' as const,
+    state: OpportunityState.IN_REVIEW,
+    title: 'Test Job In Review',
+    tldr: 'Test opportunity submitted for review',
+    content: {
+      overview: {
+        content: 'Test opportunity content...',
+        html: '<p>Test opportunity content...</p>',
+      },
+    },
+    meta: {},
+    createdAt: new Date('2023-01-01'),
+    updatedAt: new Date('2023-01-01'),
+    organizationId: '550e8400-e29b-41d4-a716-446655440000',
+  };
+
+  beforeEach(async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, OpportunityJob, [
+      ...opportunitiesFixture,
+      inReviewOpportunityFixture,
+    ]);
+    mockVerifySlackSignature.mockReturnValue(true);
+  });
+
+  it('should accept opportunity and update state to LIVE', async () => {
+    nock('https://hooks.slack.com').post('/actions/test').reply(200);
+
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set('x-slack-signature', 'v0=test')
+      .send(
+        createOpportunityReviewPayload(
+          'opportunity_review_accept',
+          inReviewOpportunityFixture.id!,
+        ),
+      )
+      .expect(200);
+
+    const updatedOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneBy({
+        id: inReviewOpportunityFixture.id,
+      });
+    expect(updatedOpportunity?.state).toBe(OpportunityState.LIVE);
+  });
+
+  it('should reject opportunity and update state to CLOSED', async () => {
+    nock('https://hooks.slack.com').post('/actions/test').reply(200);
+
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set('x-slack-signature', 'v0=test')
+      .send(
+        createOpportunityReviewPayload(
+          'opportunity_review_reject',
+          inReviewOpportunityFixture.id!,
+        ),
+      )
+      .expect(200);
+
+    const updatedOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneBy({
+        id: inReviewOpportunityFixture.id,
+      });
+    expect(updatedOpportunity?.state).toBe(OpportunityState.CLOSED);
+  });
+
+  it('should accept opportunity with upgrade and set trial flags', async () => {
+    nock('https://hooks.slack.com').post('/actions/test').reply(200);
+
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set('x-slack-signature', 'v0=test')
+      .send(
+        createOpportunityReviewPayload(
+          'opportunity_review_accept_upgrade',
+          inReviewOpportunityFixture.id!,
+        ),
+      )
+      .expect(200);
+
+    const updatedOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneBy({
+        id: inReviewOpportunityFixture.id,
+      });
+    expect(updatedOpportunity?.state).toBe(OpportunityState.LIVE);
+
+    // Check organization has trial flags set
+    const organization = await con.getRepository(Organization).findOneBy({
+      id: inReviewOpportunityFixture.organizationId!,
+    });
+    expect(organization?.recruiterSubscriptionFlags?.isTrialActive).toBe(true);
+    expect(
+      organization?.recruiterSubscriptionFlags?.trialExpiresAt,
+    ).toBeDefined();
+  });
+
+  it('should return 200 for already processed opportunity (not IN_REVIEW)', async () => {
+    nock('https://hooks.slack.com').post('/actions/test').reply(200);
+
+    // Use an already LIVE opportunity
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set('x-slack-signature', 'v0=test')
+      .send(
+        createOpportunityReviewPayload(
+          'opportunity_review_accept',
+          '550e8400-e29b-41d4-a716-446655440001', // LIVE opportunity from fixture
+        ),
+      )
+      .expect(200);
+
+    // Should not change the state
+    const opportunity = await con.getRepository(OpportunityJob).findOneBy({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+    });
+    expect(opportunity?.state).toBe(OpportunityState.LIVE);
+  });
+
+  it('should return 200 for non-existent opportunity', async () => {
+    nock('https://hooks.slack.com').post('/actions/test').reply(200);
+
+    await request(app.server)
+      .post('/integrations/slack/interactions')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .set('x-slack-request-timestamp', '1722461509')
+      .set('x-slack-signature', 'v0=test')
+      .send(
+        createOpportunityReviewPayload(
+          'opportunity_review_accept',
+          'non-existent-id',
+        ),
       )
       .expect(200);
   });

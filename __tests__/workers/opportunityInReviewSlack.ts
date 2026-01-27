@@ -32,7 +32,7 @@ beforeEach(async () => {
 });
 
 describe('opportunityInReviewSlack worker', () => {
-  it('should send a slack notification when an opportunity is submitted for review', async () => {
+  it('should send a slack notification with Block Kit buttons when an opportunity is submitted for review', async () => {
     const eventData = {
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
       organizationId: '550e8400-e29b-41d4-a716-446655440000',
@@ -46,21 +46,49 @@ describe('opportunityInReviewSlack worker', () => {
 
     expect(mockRecruiterSend).toHaveBeenCalledWith({
       text: 'New opportunity submitted for review!',
-      attachments: [
+      blocks: [
         {
-          title: 'Senior Full Stack Developer',
-          title_link: `${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440001`,
-          fields: [
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*New opportunity submitted for review*\n*Title:* <${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440001|Senior Full Stack Developer>\n*Organization:* Daily Dev Inc\n*ID:* \`550e8400-e29b-41d4-a716-446655440001\``,
+          },
+        },
+        {
+          type: 'actions',
+          elements: [
             {
-              title: 'Organization',
-              value: 'Daily Dev Inc',
+              type: 'button',
+              text: { type: 'plain_text', text: 'Accept', emoji: true },
+              style: 'primary',
+              action_id: 'opportunity_review_accept',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+              }),
             },
             {
-              title: 'Opportunity ID',
-              value: '550e8400-e29b-41d4-a716-446655440001',
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: 'Accept + Super Agent (30d)',
+                emoji: true,
+              },
+              style: 'primary',
+              action_id: 'opportunity_review_accept_upgrade',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+              }),
+            },
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Reject', emoji: true },
+              style: 'danger',
+              action_id: 'opportunity_review_reject',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+              }),
             },
           ],
-          color: '#FFB800',
         },
       ],
     });
@@ -95,21 +123,49 @@ describe('opportunityInReviewSlack worker', () => {
 
     expect(mockRecruiterSend).toHaveBeenCalledWith({
       text: 'New opportunity submitted for review!',
-      attachments: [
+      blocks: [
         {
-          title: 'Frontend Developer',
-          title_link: `${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440002`,
-          fields: [
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*New opportunity submitted for review*\n*Title:* <${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440002|Frontend Developer>\n*Organization:* Yearly Dev Inc\n*ID:* \`550e8400-e29b-41d4-a716-446655440002\``,
+          },
+        },
+        {
+          type: 'actions',
+          elements: [
             {
-              title: 'Organization',
-              value: 'Yearly Dev Inc',
+              type: 'button',
+              text: { type: 'plain_text', text: 'Accept', emoji: true },
+              style: 'primary',
+              action_id: 'opportunity_review_accept',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+              }),
             },
             {
-              title: 'Opportunity ID',
-              value: '550e8400-e29b-41d4-a716-446655440002',
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: 'Accept + Super Agent (30d)',
+                emoji: true,
+              },
+              style: 'primary',
+              action_id: 'opportunity_review_accept_upgrade',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+              }),
+            },
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Reject', emoji: true },
+              style: 'danger',
+              action_id: 'opportunity_review_reject',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440002',
+              }),
             },
           ],
-          color: '#FFB800',
         },
       ],
     });
@@ -129,21 +185,49 @@ describe('opportunityInReviewSlack worker', () => {
 
     expect(mockRecruiterSend).toHaveBeenCalledWith({
       text: 'New opportunity submitted for review!',
-      attachments: [
+      blocks: [
         {
-          title: 'Backend Engineer - Node.js',
-          title_link: `${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440001`,
-          fields: [
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `*New opportunity submitted for review*\n*Title:* <${process.env.COMMENTS_PREFIX}/jobs/550e8400-e29b-41d4-a716-446655440001|Backend Engineer - Node.js>\n*Organization:* Daily Dev Inc\n*ID:* \`550e8400-e29b-41d4-a716-446655440001\``,
+          },
+        },
+        {
+          type: 'actions',
+          elements: [
             {
-              title: 'Organization',
-              value: 'Daily Dev Inc',
+              type: 'button',
+              text: { type: 'plain_text', text: 'Accept', emoji: true },
+              style: 'primary',
+              action_id: 'opportunity_review_accept',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+              }),
             },
             {
-              title: 'Opportunity ID',
-              value: '550e8400-e29b-41d4-a716-446655440001',
+              type: 'button',
+              text: {
+                type: 'plain_text',
+                text: 'Accept + Super Agent (30d)',
+                emoji: true,
+              },
+              style: 'primary',
+              action_id: 'opportunity_review_accept_upgrade',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+              }),
+            },
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Reject', emoji: true },
+              style: 'danger',
+              action_id: 'opportunity_review_reject',
+              value: JSON.stringify({
+                opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+              }),
             },
           ],
-          color: '#FFB800',
         },
       ],
     });

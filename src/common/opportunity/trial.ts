@@ -134,3 +134,47 @@ export const hasActiveSuperAgentTrial = (
   }
   return new Date(recruiterSubscriptionFlags.trialExpiresAt) > new Date();
 };
+
+/**
+ * Manually activate Super Agent trial for an organization (admin action)
+ * Unlike activateSuperAgentTrial, this ignores remote config and uses provided duration
+ */
+export const activateSuperAgentTrialManual = async ({
+  con,
+  organizationId,
+  durationDays,
+  logger,
+}: {
+  con: DataSourceOrManager;
+  organizationId: string;
+  durationDays: number;
+  logger: FastifyBaseLogger;
+}): Promise<void> => {
+  const trialExpiresAt = new Date();
+  trialExpiresAt.setDate(trialExpiresAt.getDate() + durationDays);
+
+  const orgRepo = con.getRepository(Organization);
+  const org = await orgRepo.findOne({
+    select: ['id', 'recruiterSubscriptionFlags'],
+    where: { id: organizationId },
+  });
+
+  if (!org) {
+    throw new Error(`Organization ${organizationId} not found`);
+  }
+
+  const existingFlags = org.recruiterSubscriptionFlags || {};
+
+  await orgRepo.update(organizationId, {
+    recruiterSubscriptionFlags: updateRecruiterSubscriptionFlags<Organization>({
+      trialExpiresAt,
+      trialPlan: existingFlags.items?.[0]?.priceId || null,
+      isTrialActive: true,
+    }),
+  });
+
+  logger.info(
+    { organizationId, trialExpiresAt, durationDays },
+    'Super Agent trial manually activated via Slack',
+  );
+};
