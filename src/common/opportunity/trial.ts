@@ -134,4 +134,3 @@ export const hasActiveSuperAgentTrial = (
   }
   return new Date(recruiterSubscriptionFlags.trialExpiresAt) > new Date();
 };
-
