@@ -190,7 +190,11 @@ describe('cleanupRecruiterNewCandidateNotification', () => {
 
     // Call cleanup when no notification exists - should not throw
     await expect(
-      cleanupRecruiterNewCandidateNotification(con, opportunityId, candidateUserId),
+      cleanupRecruiterNewCandidateNotification(
+        con,
+        opportunityId,
+        candidateUserId,
+      ),
     ).resolves.not.toThrow();
   });
 
