@@ -27,21 +27,32 @@ const worker: TypedWorker<'api.v1.opportunity-in-review'> = {
 
       await webhooks.recruiter.send({
         text: 'New opportunity submitted for review!',
-        attachments: [
+        blocks: [
           {
-            title,
-            title_link: `${process.env.COMMENTS_PREFIX}/jobs/${opportunityId}`,
-            fields: [
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: `*New opportunity submitted for review*\n*Title:* <${process.env.COMMENTS_PREFIX}/jobs/${opportunityId}|${title}>\n*Organization:* ${organization.name}\n*ID:* \`${opportunityId}\``,
+            },
+          },
+          {
+            type: 'actions',
+            elements: [
               {
-                title: 'Organization',
-                value: organization.name,
+                type: 'button',
+                text: { type: 'plain_text', text: 'Accept', emoji: true },
+                style: 'primary',
+                action_id: 'opportunity_review_accept',
+                value: JSON.stringify({ opportunityId }),
               },
               {
-                title: 'Opportunity ID',
-                value: opportunityId,
+                type: 'button',
+                text: { type: 'plain_text', text: 'Reject', emoji: true },
+                style: 'danger',
+                action_id: 'opportunity_review_reject',
+                value: JSON.stringify({ opportunityId }),
               },
             ],
-            color: '#FFB800', // Yellow/orange for review state
           },
         ],
       });

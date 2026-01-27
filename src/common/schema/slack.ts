@@ -18,11 +18,37 @@ export const slackOpportunityCandidateReviewPayloadSchema = z.object({
       }),
     )
     .min(1),
-  response_url: z.string().url().optional(),
+  response_url: z.url().optional(),
   user: z
     .object({
       id: z.string(),
       username: z.string(),
     })
     .optional(),
+});
+
+export const slackOpportunityReviewPayloadSchema = z.object({
+  type: z.literal('block_actions'),
+  actions: z
+    .array(
+      z.object({
+        action_id: z.enum([
+          'opportunity_review_accept',
+          'opportunity_review_reject',
+        ]),
+        value: z.string(),
+      }),
+    )
+    .min(1),
+  response_url: z.url().optional(),
+  user: z
+    .object({
+      id: z.string(),
+      username: z.string(),
+    })
+    .optional(),
+});
+
+export const slackOpportunityReviewValueSchema = z.object({
+  opportunityId: z.string(),
 });
