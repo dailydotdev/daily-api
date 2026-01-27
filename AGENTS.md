@@ -232,10 +232,9 @@ The migration generator compares entities against the local database schema. Ens
   // Now entities[0].relation is already loaded, no await needed
   // Single query with JOIN
   ```
-- **Example lesson**: In `warm_intro` notification handler, the code was fetching `OpportunityUserRecruiter` records, extracting `userId`s, then fetching `User` records separately with `In()`. Similarly for the candidate, it was fetching the `User` separately. The fix was to use `createQueryBuilder().leftJoinAndSelect('entity.user', 'user')` to eager load the user relation in the same query, eliminating the extra queries.
 
 **Selecting Only Necessary Fields:**
-- **Always use `.select()` to fetch only the fields you need** when using query builder with joins. This reduces data transfer, improves query performance, and makes the code more maintainable by explicitly documenting which fields are used.
+- **Always use `.select()` to fetch only the fields you need** when using query builder. This reduces data transfer, improves query performance, and makes the code more maintainable by explicitly documenting which fields are used.
 - **Specify fields for both the main entity and joined relations** - don't let TypeORM fetch all columns by default.
 - **Example pattern**:
   ```typescript
@@ -262,7 +261,6 @@ The migration generator compares entities against the local database schema. Ens
     .getMany();
   // Now only fetches the 5 columns we actually need
   ```
-- **Example lesson**: In `warm_intro` notification handler, the queries were using `leftJoinAndSelect()` but fetching all columns from the `User` table. The code only needed `name`, `username`, and `email` fields. Adding `.select()` to specify only these fields reduced unnecessary data transfer.
 
 **Updating JSONB Flag Fields:**
 - **Use flag update utilities** instead of manually spreading existing flags. Utilities in `src/common/utils.ts` leverage PostgreSQL's JSONB `||` operator for atomic, efficient updates.

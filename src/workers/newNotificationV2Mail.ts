@@ -1181,8 +1181,7 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
 
     // Access already loaded user relation from match
     const candidate = match.user;
-    const candidateName =
-      candidate?.name || candidate?.username || 'Candidate';
+    const candidateName = candidate?.name || candidate?.username || 'Candidate';
 
     return {
       title: `[Action Required] Intro: ${candidateName} <> ${recruiterName}`,
