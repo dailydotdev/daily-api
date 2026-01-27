@@ -18,6 +18,7 @@ export * from './SourceDisplay';
 export * from './SourceFeed';
 export * from './SourceMember';
 export * from './SourceRequest';
+export * from './sources/SourceStack';
 export * from './TagSegment';
 export * from './View';
 export * from './Comment';
