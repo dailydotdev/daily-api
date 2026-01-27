@@ -418,9 +418,7 @@ describe('mutation updateUserInfo', () => {
       expect(clearFile).not.toHaveBeenCalled();
     });
 
-    it('should preserve existing image when image field is not provided (ENG-421)', async () => {
-      // This test verifies the fix for ENG-421: Profile picture was getting reset
-      // when updating other fields (like experienceLevel) without providing image field
+    it('should preserve existing image when image field is not provided', async () => {
       loggedUser = '1';
       const repo = con.getRepository(User);
 

@@ -2874,8 +2874,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       const filesToClear = [];
 
-      // Clear the existing avatar file when uploading a new one OR when explicitly setting image to null
-      // Don't clear when image is simply not provided (undefined)
+      // Clear existing avatar when uploading new one or explicitly setting to null (not when undefined)
       if ((!!upload || data.image === null) && user.image) {
         filesToClear.push(
           clearFile({ referenceId: user.id, preset: UploadPreset.Avatar }),
