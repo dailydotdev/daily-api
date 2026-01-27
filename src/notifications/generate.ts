@@ -647,7 +647,8 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.candidate)
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/matches`,
-      );
+      )
+      .uniqueKey(ctx.candidate.id);
   },
   recruiter_opportunity_live: (
     builder: NotificationBuilder,
