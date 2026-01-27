@@ -2739,7 +2739,7 @@ describe('poll result notifications', () => {
 });
 
 describe('warm_intro notification', () => {
-  it('should send email to both candidate and recruiter', async () => {
+  it('should send email with candidate and recruiter names in title', async () => {
     await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
@@ -2799,13 +2799,99 @@ describe('warm_intro notification', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
 
     expect(args.message_data).toEqual({
-      title: `[Action Required] It's a match!`,
+      title: '[Action Required] Intro: Ido <> John Recruiter',
       copy: '<p>Great match based on your experience!</p>',
       cc: 'recruiter@test.com',
     });
 
     // Verify both emails are in the 'to' field
     expect(args.to).toEqual('ido@daily.dev,recruiter@test.com');
+    expect(args.transactional_message_id).toEqual('85');
+  });
+
+  it('should CC all recruiters when multiple recruiters exist', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+    await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
+
+    // Create first recruiter user
+    const recruiter1 = await con.getRepository(User).save({
+      id: 'recruiter1',
+      name: 'John Recruiter',
+      email: 'john@test.com',
+      username: 'johnrecruiter',
+    });
+
+    // Create second recruiter user
+    const recruiter2 = await con.getRepository(User).save({
+      id: 'recruiter2',
+      name: 'Jane Recruiter',
+      email: 'jane@test.com',
+      username: 'janerecruiter',
+    });
+
+    // Link both recruiters to opportunity
+    await con.getRepository(OpportunityUserRecruiter).save([
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: recruiter1.id,
+        type: OpportunityUserType.Recruiter,
+      },
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: recruiter2.id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Update opportunity match with warmIntro
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '1',
+      },
+      {
+        applicationRank: {
+          warmIntro: '<p>Great match based on your experience!</p>',
+        },
+      },
+    );
+
+    const ctx: NotificationWarmIntroContext = {
+      userIds: ['1'],
+      opportunityId: opportunitiesFixture[0].id,
+      description: 'Great match based on your experience!',
+      recruiter: recruiter1,
+      organization: organizationsFixture[0],
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.WarmIntro,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    // Title should use first recruiter's name
+    expect(args.message_data?.title).toEqual(
+      '[Action Required] Intro: Ido <> John Recruiter',
+    );
+    expect(args.message_data?.copy).toEqual(
+      '<p>Great match based on your experience!</p>',
+    );
+    // CC should contain all recruiter emails (comma-separated)
+    expect(args.message_data?.cc).toEqual('john@test.com,jane@test.com');
     expect(args.transactional_message_id).toEqual('85');
   });
 });

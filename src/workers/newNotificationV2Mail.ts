@@ -1123,13 +1123,22 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   warm_intro: async (con, user, notif) => {
-    const match = await con.getRepository(OpportunityMatch).findOne({
-      select: ['applicationRank'],
-      where: {
+    const match = await con
+      .getRepository(OpportunityMatch)
+      .createQueryBuilder('match')
+      .leftJoinAndSelect('match.user', 'matchUser')
+      .select([
+        'match.applicationRank',
+        'matchUser.id',
+        'matchUser.name',
+        'matchUser.username',
+      ])
+      .where('match.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
-        userId: user.id,
-      },
-    });
+      })
+      .andWhere('match.userId = :userId', { userId: user.id })
+      .getOne();
+
     if (!match) {
       return null;
     }
@@ -1139,17 +1148,45 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    const recruiterUser = await con
+    // Fetch recruiters with user relation in single query
+    const recruiterRecords = await con
       .getRepository(OpportunityUserRecruiter)
-      .findOneBy({
+      .createQueryBuilder('recruiter')
+      .leftJoinAndSelect('recruiter.user', 'recruiterUser')
+      .select([
+        'recruiter.opportunityId',
+        'recruiter.userId',
+        'recruiterUser.id',
+        'recruiterUser.name',
+        'recruiterUser.username',
+        'recruiterUser.email',
+      ])
+      .where('recruiter.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
-      });
-    const recruiter = await recruiterUser?.user;
+      })
+      .getMany();
+
+    // User relations are loaded via leftJoinAndSelect (TypeORM maps to __relationName__)
+    const candidate = (match as unknown as { __user__: User }).__user__;
+    const candidateName = candidate?.name || candidate?.username || 'Candidate';
+
+    const recruiters = recruiterRecords
+      .map((r) => (r as unknown as { __user__: User }).__user__)
+      .filter(Boolean);
+
+    const firstRecruiter = recruiters[0];
+    const recruiterName =
+      firstRecruiter?.name || firstRecruiter?.username || 'Recruiter';
+
+    const recruiterEmails = recruiters
+      .map((r) => r.email)
+      .filter(Boolean)
+      .join(',');
 
     return {
-      title: `[Action Required] It's a match!`,
+      title: `[Action Required] Intro: ${candidateName} <> ${recruiterName}`,
       copy: warmIntro,
-      cc: recruiter?.email,
+      cc: recruiterEmails || undefined,
     };
   },
   parsed_cv_profile: async () => {
