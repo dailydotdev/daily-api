@@ -18,7 +18,7 @@ export const slackOpportunityCandidateReviewPayloadSchema = z.object({
       }),
     )
     .min(1),
-  response_url: z.string().url().optional(),
+  response_url: z.url().optional(),
   user: z
     .object({
       id: z.string(),
@@ -40,7 +40,7 @@ export const slackOpportunityReviewPayloadSchema = z.object({
       }),
     )
     .min(1),
-  response_url: z.string().url().optional(),
+  response_url: z.url().optional(),
   user: z
     .object({
       id: z.string(),
