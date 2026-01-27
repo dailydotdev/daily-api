@@ -1126,12 +1126,12 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     const match = await con
       .getRepository(OpportunityMatch)
       .createQueryBuilder('match')
-      .leftJoinAndSelect('match.user', 'user')
+      .leftJoinAndSelect('match.user', 'matchUser')
       .select([
         'match.applicationRank',
-        'user.id',
-        'user.name',
-        'user.username',
+        'matchUser.id',
+        'matchUser.name',
+        'matchUser.username',
       ])
       .where('match.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
@@ -1148,42 +1148,40 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    // Fetch ALL recruiters for this opportunity with user relation eager loaded
-    const recruiterUsers = await con
+    // Fetch recruiters with user relation in single query
+    const recruiterRecords = await con
       .getRepository(OpportunityUserRecruiter)
       .createQueryBuilder('recruiter')
-      .leftJoinAndSelect('recruiter.user', 'user')
+      .leftJoinAndSelect('recruiter.user', 'recruiterUser')
       .select([
-        'recruiter.id',
-        'user.id',
-        'user.name',
-        'user.username',
-        'user.email',
+        'recruiter.opportunityId',
+        'recruiter.userId',
+        'recruiterUser.id',
+        'recruiterUser.name',
+        'recruiterUser.username',
+        'recruiterUser.email',
       ])
       .where('recruiter.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
       })
       .getMany();
 
-    // Resolve lazy user relations (data is already loaded via leftJoinAndSelect)
-    const recruiters = (
-      await Promise.all(recruiterUsers.map((r) => r.user))
-    ).filter(Boolean);
+    // User relations are loaded via leftJoinAndSelect (TypeORM maps to __relationName__)
+    const candidate = (match as unknown as { __user__: User }).__user__;
+    const candidateName = candidate?.name || candidate?.username || 'Candidate';
 
-    // Use first recruiter's name for the title
+    const recruiters = recruiterRecords
+      .map((r) => (r as unknown as { __user__: User }).__user__)
+      .filter(Boolean);
+
     const firstRecruiter = recruiters[0];
     const recruiterName =
       firstRecruiter?.name || firstRecruiter?.username || 'Recruiter';
 
-    // Collect all recruiter emails for CC
     const recruiterEmails = recruiters
       .map((r) => r.email)
       .filter(Boolean)
       .join(',');
-
-    // Resolve lazy user relation from match (data is already loaded via leftJoinAndSelect)
-    const candidate = await match.user;
-    const candidateName = candidate?.name || candidate?.username || 'Candidate';
 
     return {
       title: `[Action Required] Intro: ${candidateName} <> ${recruiterName}`,

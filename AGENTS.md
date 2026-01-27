@@ -261,6 +261,13 @@ The migration generator compares entities against the local database schema. Ens
     .getMany();
   // Now only fetches the 5 columns we actually need
   ```
+- **Important TypeORM quirk**: When using `leftJoinAndSelect` with explicit `.select()`, TypeORM maps joined relations to `__relationName__` (double underscore prefix) instead of the normal property name. Access via type assertion:
+  ```typescript
+  // With explicit .select(), relation is NOT on entity.user
+  // It's mapped to entity.__user__ instead
+  const user = (entity as unknown as { __user__: User }).__user__;
+  const name = user?.name || 'Unknown';
+  ```
 
 **Updating JSONB Flag Fields:**
 - **Use flag update utilities** instead of manually spreading existing flags. Utilities in `src/common/utils.ts` leverage PostgreSQL's JSONB `||` operator for atomic, efficient updates.
