@@ -1123,13 +1123,16 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   warm_intro: async (con, user, notif) => {
-    const match = await con.getRepository(OpportunityMatch).findOne({
-      select: ['applicationRank'],
-      where: {
+    const match = await con
+      .getRepository(OpportunityMatch)
+      .createQueryBuilder('match')
+      .leftJoinAndSelect('match.user', 'user')
+      .where('match.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
-        userId: user.id,
-      },
-    });
+      })
+      .andWhere('match.userId = :userId', { userId: user.id })
+      .getOne();
+
     if (!match) {
       return null;
     }
@@ -1139,22 +1142,18 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    // Fetch ALL recruiters for this opportunity
-    const recruiterUsers = await con.getRepository(OpportunityUserRecruiter).find({
-      where: {
+    // Fetch ALL recruiters for this opportunity with user relation eager loaded
+    const recruiterUsers = await con
+      .getRepository(OpportunityUserRecruiter)
+      .createQueryBuilder('recruiter')
+      .leftJoinAndSelect('recruiter.user', 'user')
+      .where('recruiter.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
-      },
-    });
+      })
+      .getMany();
 
-    // Fetch user details for all recruiters
-    const recruiterIds = recruiterUsers.map((r) => r.userId);
-    const recruiters =
-      recruiterIds.length > 0
-        ? await con.getRepository(User).find({
-            where: { id: In(recruiterIds) },
-            select: ['id', 'name', 'username', 'email'],
-          })
-        : [];
+    // Access already loaded user relations
+    const recruiters = recruiterUsers.map((r) => r.user).filter(Boolean);
 
     // Use first recruiter's name for the title
     const firstRecruiter = recruiters[0];
@@ -1167,12 +1166,8 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       .filter(Boolean)
       .join(',');
 
-    // Fetch candidate user to get their name
-    const candidate = await con.getRepository(User).findOne({
-      where: { id: user.id },
-      select: ['name', 'username'],
-    });
-
+    // Access already loaded user relation from match
+    const candidate = match.user;
     const candidateName =
       candidate?.name || candidate?.username || 'Candidate';
 

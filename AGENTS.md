@@ -207,6 +207,33 @@ The migration generator compares entities against the local database schema. Ens
   ```
 - **Example lesson**: In `notifyJobOpportunity`, locations were fetched one-by-one inside a `Promise.all` map by awaiting `locationData.location`. The fix was to extract all `locationId`s upfront, fetch all `DatasetLocation` records in a single query using `In(locationIds)`, and use a Map for lookups.
 
+**Using Eager Loading with TypeORM Relations:**
+- **Prefer eager loading over separate queries** when you need to access entity relations. Instead of fetching an entity and then querying for related records separately, use TypeORM's query builder with `leftJoinAndSelect()` to fetch everything in a single query.
+- **This is more efficient than both**: (1) awaiting lazy relations, which triggers separate queries, and (2) extracting IDs and fetching with `In()`, which requires two queries.
+- **Example pattern**:
+  ```typescript
+  // BAD: Separate query for related entities
+  const entities = await repo.find({ where: { ... } });
+  const relatedIds = entities.map((e) => e.relatedId);
+  const related = await relatedRepo.find({ where: { id: In(relatedIds) } });
+  // Two queries total
+
+  // BAD: Awaiting lazy relations (even worse - N queries)
+  const entities = await repo.find({ where: { ... } });
+  const related = await Promise.all(entities.map((e) => e.lazyRelation));
+  // N+1 queries total
+
+  // GOOD: Eager load with query builder - single query with JOIN
+  const entities = await repo
+    .createQueryBuilder('entity')
+    .leftJoinAndSelect('entity.relation', 'relation')
+    .where('entity.someField = :value', { value })
+    .getMany();
+  // Now entities[0].relation is already loaded, no await needed
+  // Single query with JOIN
+  ```
+- **Example lesson**: In `warm_intro` notification handler, the code was fetching `OpportunityUserRecruiter` records, extracting `userId`s, then fetching `User` records separately with `In()`. Similarly for the candidate, it was fetching the `User` separately. The fix was to use `createQueryBuilder().leftJoinAndSelect('entity.user', 'user')` to eager load the user relation in the same query, eliminating the extra queries.
+
 **Updating JSONB Flag Fields:**
 - **Use flag update utilities** instead of manually spreading existing flags. Utilities in `src/common/utils.ts` leverage PostgreSQL's JSONB `||` operator for atomic, efficient updates.
 - Available utilities: `updateFlagsStatement`, `updateNotificationFlags`, `updateSubscriptionFlags`, `updateRecruiterSubscriptionFlags`
