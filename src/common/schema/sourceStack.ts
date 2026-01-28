@@ -2,11 +2,9 @@ import z from 'zod';
 
 export const addSourceStackSchema = z.object({
   title: z.string().min(1).max(255),
-  section: z.string().min(1).max(100),
 });
 
 export const updateSourceStackSchema = z.object({
-  section: z.string().min(1).max(100).optional(),
   icon: z.string().max(50).optional(),
   title: z.string().min(1).max(255).optional(),
 });

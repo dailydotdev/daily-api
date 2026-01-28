@@ -27,9 +27,6 @@ export class SourceStack {
   @Column({ type: 'uuid' })
   toolId: string;
 
-  @Column({ type: 'text' })
-  section: string;
-
   @Column({ type: 'integer' })
   position: number;
 

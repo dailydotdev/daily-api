@@ -44,7 +44,6 @@ describe('query sourceStack', () => {
         edges {
           node {
             id
-            section
             position
             tool {
               id
@@ -98,14 +97,12 @@ describe('query sourceStack', () => {
       {
         sourceId: 'squad',
         toolId: tool1.id,
-        section: 'Languages',
         position: 1,
         createdById: '1',
       },
       {
         sourceId: 'squad',
         toolId: tool2.id,
-        section: 'Frameworks',
         position: 0,
         createdById: '1',
       },
@@ -127,7 +124,6 @@ describe('query sourceStack', () => {
     await con.getRepository(SourceStack).save({
       sourceId: 'm', // 'm' is public squad
       toolId: tool.id,
-      section: 'Languages',
       position: 0,
       createdById: '1',
     });
@@ -144,7 +140,6 @@ describe('mutation addSourceStack', () => {
     mutation AddSourceStack($sourceId: ID!, $input: AddSourceStackInput!) {
       addSourceStack(sourceId: $sourceId, input: $input) {
         id
-        section
         tool {
           title
         }
@@ -156,7 +151,7 @@ describe('mutation addSourceStack', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         sourceId: 'squad',
-        input: { title: 'Node.js', section: 'Runtime' },
+        input: { title: 'Node.js' },
       },
     });
     expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
@@ -175,7 +170,7 @@ describe('mutation addSourceStack', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         sourceId: 'squad',
-        input: { title: 'Node.js', section: 'Runtime' },
+        input: { title: 'Node.js' },
       },
     });
     expect(res.errors?.[0]?.extensions?.code).toBe('FORBIDDEN');
@@ -194,12 +189,11 @@ describe('mutation addSourceStack', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         sourceId: 'squad',
-        input: { title: 'Node.js', section: 'Runtime' },
+        input: { title: 'Node.js' },
       },
     });
 
     expect(res.errors).toBeUndefined();
-    expect(res.data.addSourceStack.section).toBe('Runtime');
     expect(res.data.addSourceStack.tool.title).toBe('Node.js');
 
     const dataset = await con
@@ -220,14 +214,14 @@ describe('mutation addSourceStack', () => {
     await client.mutate(MUTATION, {
       variables: {
         sourceId: 'squad',
-        input: { title: 'Go', section: 'Languages' },
+        input: { title: 'Go' },
       },
     });
 
     const res = await client.mutate(MUTATION, {
       variables: {
         sourceId: 'squad',
-        input: { title: 'Go', section: 'Languages' },
+        input: { title: 'Go' },
       },
     });
 
@@ -242,7 +236,7 @@ describe('mutation addSourceStack', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         sourceId: 'a',
-        input: { title: 'Node.js', section: 'Runtime' },
+        input: { title: 'Node.js' },
       },
     });
 
@@ -255,7 +249,6 @@ describe('mutation updateSourceStack', () => {
     mutation UpdateSourceStack($id: ID!, $input: UpdateSourceStackInput!) {
       updateSourceStack(id: $id, input: $input) {
         id
-        section
         title
       }
     }
@@ -278,7 +271,6 @@ describe('mutation updateSourceStack', () => {
     const sourceStack = await con.getRepository(SourceStack).save({
       sourceId: 'squad',
       toolId: tool.id,
-      section: 'Languages',
       position: 0,
       createdById: '1',
     });
@@ -286,12 +278,12 @@ describe('mutation updateSourceStack', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         id: sourceStack.id,
-        input: { section: 'Systems' },
+        input: { title: 'Custom Rust' },
       },
     });
 
     expect(res.errors).toBeUndefined();
-    expect(res.data.updateSourceStack.section).toBe('Systems');
+    expect(res.data.updateSourceStack.title).toBe('Custom Rust');
   });
 
   it('should allow admin to update any item', async () => {
@@ -319,7 +311,6 @@ describe('mutation updateSourceStack', () => {
     const sourceStack = await con.getRepository(SourceStack).save({
       sourceId: 'squad',
       toolId: tool.id,
-      section: 'Languages',
       position: 0,
       createdById: '1', // Created by user 1
     });
@@ -328,12 +319,12 @@ describe('mutation updateSourceStack', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         id: sourceStack.id,
-        input: { section: 'Updated' },
+        input: { title: 'Updated Title' },
       },
     });
 
     expect(res.errors).toBeUndefined();
-    expect(res.data.updateSourceStack.section).toBe('Updated');
+    expect(res.data.updateSourceStack.title).toBe('Updated Title');
   });
 
   it('should return error for non-existent item', async () => {
@@ -348,7 +339,7 @@ describe('mutation updateSourceStack', () => {
     const res = await client.mutate(MUTATION, {
       variables: {
         id: '00000000-0000-0000-0000-000000000000',
-        input: { section: 'Test' },
+        input: { title: 'Test' },
       },
     });
     expect(res.errors?.[0]?.message).toBe('Stack item not found');
@@ -381,7 +372,6 @@ describe('mutation deleteSourceStack', () => {
     const sourceStack = await con.getRepository(SourceStack).save({
       sourceId: 'squad',
       toolId: tool.id,
-      section: 'Languages',
       position: 0,
       createdById: '1',
     });
@@ -419,7 +409,6 @@ describe('mutation deleteSourceStack', () => {
     const sourceStack = await con.getRepository(SourceStack).save({
       sourceId: 'squad',
       toolId: tool.id,
-      section: 'Languages',
       position: 0,
       createdById: '1', // Created by user 1
     });
@@ -458,7 +447,6 @@ describe('mutation deleteSourceStack', () => {
     const sourceStack = await con.getRepository(SourceStack).save({
       sourceId: 'squad',
       toolId: tool.id,
-      section: 'Languages',
       position: 0,
       createdById: '1', // Created by user 1
     });
@@ -521,14 +509,12 @@ describe('mutation reorderSourceStack', () => {
       {
         sourceId: 'squad',
         toolId: stack1.id,
-        section: 'Web',
         position: 0,
         createdById: '1',
       },
       {
         sourceId: 'squad',
         toolId: stack2.id,
-        section: 'Web',
         position: 1,
         createdById: '1',
       },

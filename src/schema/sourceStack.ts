@@ -22,7 +22,6 @@ interface GQLSourceStack {
   id: string;
   sourceId: string;
   toolId: string;
-  section: string;
   position: number;
   icon: string | null;
   title: string | null;
@@ -34,7 +33,6 @@ export const typeDefs = /* GraphQL */ `
   type SourceStack {
     id: ID!
     tool: DatasetTool!
-    section: String!
     position: Int!
     icon: String
     title: String
@@ -54,11 +52,9 @@ export const typeDefs = /* GraphQL */ `
 
   input AddSourceStackInput {
     title: String!
-    section: String!
   }
 
   input UpdateSourceStackInput {
-    section: String
     icon: String
     title: String
   }
@@ -192,7 +188,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const sourceStack = ctx.con.getRepository(SourceStack).create({
         sourceId: source.id,
         toolId: datasetTool.id,
-        section: input.section,
         position: NEW_ITEM_POSITION,
         icon: null,
         title: null,
@@ -244,9 +239,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Build update object
       const updateData: Partial<SourceStack> = {};
-      if (input.section !== undefined) {
-        updateData.section = input.section;
-      }
       if (input.icon !== undefined) {
         updateData.icon = input.icon || null;
       }

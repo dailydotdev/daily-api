@@ -10,7 +10,6 @@ export class AddSourceStack1769541356722 implements MigrationInterface {
         "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "sourceId" text NOT NULL,
         "toolId" uuid NOT NULL,
-        "section" text NOT NULL,
         "position" integer NOT NULL,
         "icon" text,
         "title" text,
