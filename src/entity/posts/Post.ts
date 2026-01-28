@@ -24,6 +24,7 @@ export enum PostType {
   VideoYouTube = 'video:youtube',
   Brief = 'brief',
   Poll = 'poll',
+  Tweet = 'tweet',
 }
 
 export const postTypes: string[] = Object.values(PostType);
