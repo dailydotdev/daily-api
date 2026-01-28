@@ -105,7 +105,6 @@ describe('detectPlatformFromUrl', () => {
     // Medium URLs have /@ pattern but should NOT be detected as Mastodon
     const result = detectPlatformFromUrl('https://medium.com/@redvelvetx');
     expect(result).toBe('medium');
-    expect(result).not.toBe('mastodon');
   });
 
   it('should return null for unknown domains', () => {
@@ -124,9 +123,6 @@ describe('extractHandleFromUrl', () => {
     expect(extractHandleFromUrl('https://medium.com/@testuser', 'medium')).toBe(
       'testuser',
     );
-    expect(
-      extractHandleFromUrl('https://medium.com/@redvelvetx', 'medium'),
-    ).toBe('redvelvetx');
   });
 
   it('should extract handle from twitter URL', () => {
