@@ -81,6 +81,10 @@ export const kaggleSchema = socialUrlSchema(
   /^(?:(?:https:\/\/)?(?:www\.)?kaggle\.com\/)?(?<value>[\w-]{2,})\/?$/,
 );
 
+export const mediumSchema = socialUrlSchema(
+  /^(?:(?:https:\/\/)?(?:www\.)?medium\.com\/@)?(?<value>[\w-]{2,})\/?$/,
+);
+
 export const socialFieldsSchema = z.object({
   github: githubSchema,
   twitter: twitterSchema,
@@ -121,6 +125,7 @@ const PLATFORM_DOMAINS: Record<string, string> = {
   'gitlab.com': 'gitlab',
   'bitbucket.org': 'bitbucket',
   'kaggle.com': 'kaggle',
+  'medium.com': 'medium',
 };
 
 /**
@@ -145,7 +150,17 @@ export function detectPlatformFromUrl(url: string): string | null {
     }
 
     // Special handling for mastodon instances (format: instance/@username)
-    if (hostname.match(/^[a-z0-9-]+\.[a-z]{2,}$/) && url.includes('/@')) {
+    // Only match if:
+    // 1. Hostname looks like a domain (word.tld pattern)
+    // 2. URL contains /@username pattern
+    // 3. Hostname is NOT a known platform domain
+    if (
+      hostname.match(/^[a-z0-9-]+\.[a-z]{2,}$/) &&
+      url.includes('/@') &&
+      !Object.keys(PLATFORM_DOMAINS).some(
+        (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+      )
+    ) {
       return 'mastodon';
     }
 
@@ -226,6 +241,9 @@ export function extractHandleFromUrl(
       case 'bluesky':
         // https://bsky.app/profile/username.bsky.social
         return pathname.replace(/^\/profile\//, '') || null;
+      case 'medium':
+        // https://medium.com/@username
+        return pathname.replace(/^\/@?/, '') || null;
       case 'mastodon':
         // Full URL is stored for mastodon
         return url;
