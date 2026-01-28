@@ -471,7 +471,7 @@ importers:
         specifier: ^10.9.2
         version: 10.9.2(@swc/core@1.15.8)(@types/node@22.15.32)(typescript@5.9.3)
       typescript:
-        specifier: 5.9.3
+        specifier: ^5.9.3
         version: 5.9.3
 
 packages:

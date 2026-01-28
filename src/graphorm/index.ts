@@ -2207,6 +2207,28 @@ const obj = new GraphORM({
       },
     },
   },
+  SourceStack: {
+    requiredColumns: ['id', 'sourceId', 'toolId', 'createdById'],
+    fields: {
+      tool: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'toolId',
+        },
+      },
+      createdBy: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'createdById',
+        },
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
   HotTake: {
     requiredColumns: ['id', 'userId'],
     fields: {
