@@ -121,6 +121,7 @@ The migration generator compares entities against the local database schema. Ens
 - Mercurius integration testing for GraphQL endpoints
 - Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
 - When evaluating response objects (GraphQL, API), prefer `toEqual` and `toMatchObject` over multiple `expect().toBe()` lines
+- Avoid redundant test assertions - if an assertion already verifies the value, don't add negative checks that are logically implied (e.g., if `expect(result).toBe('a')` passes, don't also check `expect(result).not.toBe('b')`)
 
 **Infrastructure Concerns:**
 - OpenTelemetry for distributed tracing and metrics

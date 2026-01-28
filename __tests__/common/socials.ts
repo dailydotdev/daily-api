@@ -1,5 +1,6 @@
 import {
   detectPlatformFromUrl,
+  extractHandleFromUrl,
   socialLinksInputSchema,
   MAX_SOCIAL_LINKS,
 } from '../../src/common/schema/socials';
@@ -84,6 +85,28 @@ describe('detectPlatformFromUrl', () => {
     );
   });
 
+  it('should detect unknown mastodon instances with /@ path', () => {
+    expect(detectPlatformFromUrl('https://unknown-instance.xyz/@user')).toBe(
+      'mastodon',
+    );
+    expect(detectPlatformFromUrl('https://hachyderm.io/@username')).toBe(
+      'mastodon',
+    );
+  });
+
+  it('should detect medium.com', () => {
+    expect(detectPlatformFromUrl('https://medium.com/@user')).toBe('medium');
+    expect(detectPlatformFromUrl('https://www.medium.com/@user')).toBe(
+      'medium',
+    );
+  });
+
+  it('should NOT detect medium.com as mastodon', () => {
+    // Medium URLs have /@ pattern but should NOT be detected as Mastodon
+    const result = detectPlatformFromUrl('https://medium.com/@redvelvetx');
+    expect(result).toBe('medium');
+  });
+
   it('should return null for unknown domains', () => {
     expect(detectPlatformFromUrl('https://example.com/profile')).toBeNull();
     expect(detectPlatformFromUrl('https://mysite.io/about')).toBeNull();
@@ -92,6 +115,26 @@ describe('detectPlatformFromUrl', () => {
   it('should return null for invalid URLs', () => {
     expect(detectPlatformFromUrl('not-a-url')).toBeNull();
     expect(detectPlatformFromUrl('')).toBeNull();
+  });
+});
+
+describe('extractHandleFromUrl', () => {
+  it('should extract handle from medium URL', () => {
+    expect(extractHandleFromUrl('https://medium.com/@testuser', 'medium')).toBe(
+      'testuser',
+    );
+  });
+
+  it('should extract handle from twitter URL', () => {
+    expect(extractHandleFromUrl('https://x.com/testuser', 'twitter')).toBe(
+      'testuser',
+    );
+  });
+
+  it('should extract handle from github URL', () => {
+    expect(extractHandleFromUrl('https://github.com/testuser', 'github')).toBe(
+      'testuser',
+    );
   });
 });
 
