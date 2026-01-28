@@ -96,7 +96,9 @@ describe('detectPlatformFromUrl', () => {
 
   it('should detect medium.com', () => {
     expect(detectPlatformFromUrl('https://medium.com/@user')).toBe('medium');
-    expect(detectPlatformFromUrl('https://www.medium.com/@user')).toBe('medium');
+    expect(detectPlatformFromUrl('https://www.medium.com/@user')).toBe(
+      'medium',
+    );
   });
 
   it('should NOT detect medium.com as mastodon', () => {
