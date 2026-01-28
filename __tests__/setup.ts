@@ -24,6 +24,7 @@ jest.mock('../src/remoteConfig', () => ({
         'vordrwillcatchyou',
         'andvordrwillhavefun',
         'and vordr will win',
+        'forbidden.com',
       ],
       vordrIps: ['192.0.2.0/24', '198.51.100.0/24', '203.0.113.0/24'],
       ignoredWorkEmailDomains: ['igored.com', 'ignored.org'],

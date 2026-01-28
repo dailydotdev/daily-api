@@ -154,6 +154,7 @@ import { generateAppAccountToken } from '../common/storekit';
 import { UserAction, UserActionType } from '../entity/user/UserAction';
 import { insertOrIgnoreAction } from './actions';
 import { getGeo } from '../common/geo';
+import { validateVordrWords } from '../common/vordr';
 import {
   getBalance,
   throwUserTransactionError,
@@ -1863,6 +1864,11 @@ function buildSocialLinksFromLegacyFields(
         : (existingUser[platform] as string | null);
 
     if (handle) {
+      // Validate handle for blocked content
+      if (validateVordrWords(handle)) {
+        throw new ValidationError('Invalid URL');
+      }
+
       const url = buildUrlFromHandle(handle, platform);
       if (url) {
         socialLinks.push({ platform, url });
@@ -1925,6 +1931,13 @@ function processSocialLinksForDualWrite(
 } {
   // Validate and transform using Zod schema
   const validated = socialLinksInputSchema.parse(socialLinksInput);
+
+  // Check for blocked words in social link URLs
+  for (const { url } of validated) {
+    if (validateVordrWords(url)) {
+      throw new ValidationError('Invalid URL');
+    }
+  }
 
   // Build legacy column values (first occurrence wins)
   const legacyColumns: Record<string, string | null> = {};

@@ -787,5 +787,74 @@ describe('mutation updateUserInfo', () => {
         ]),
       );
     });
+
+    it('should reject socialLinks with blocked words in URLs', async () => {
+      loggedUser = '1';
+
+      const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            username: 'testuser',
+            socialLinks: [
+              { platform: 'portfolio', url: 'https://forbidden.com' },
+            ],
+          },
+        },
+      });
+
+      expect(res.errors).toBeTruthy();
+      expect(res.errors?.[0].message).toContain('Invalid URL');
+    });
+
+    it('should reject legacy social fields with blocked words', async () => {
+      loggedUser = '1';
+      const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            portfolio: 'forbidden.com',
+          },
+        },
+      });
+
+      expect(res.errors).toBeTruthy();
+      expect(res.errors?.[0].message).toContain('portfolio is invalid');
+    });
+
+    it('should accept socialLinks without blocked words', async () => {
+      loggedUser = '1';
+
+      const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            username: 'testuser',
+            socialLinks: [
+              { platform: 'portfolio', url: 'https://allowed.com' },
+            ],
+          },
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const updated = await con
+        .getRepository(User)
+        .findOneBy({ id: loggedUser });
+
+      expect(updated?.socialLinks).toHaveLength(1);
+      expect(updated?.socialLinks).toEqual(
+        expect.arrayContaining([
+          { platform: 'portfolio', url: 'https://allowed.com' },
+        ]),
+      );
+    });
   });
 });

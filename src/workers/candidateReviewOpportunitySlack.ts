@@ -1,6 +1,6 @@
 import { ApplicationScored } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
-import { ONE_DAY_IN_MINUTES, truncateText, webhooks } from '../common';
+import { ONE_DAY_IN_MINUTES, webhooks } from '../common';
 import { generateResumeSignedUrl } from '../common/googleCloud';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
@@ -141,15 +141,13 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
                 type: 'section' as const,
                 text: {
                   type: 'mrkdwn' as const,
-                  text: `*Screening:*\n\`\`\`${truncateText(
-                    JSON.stringify(
-                      match.screening.map((s) => ({
-                        q: s.screening,
-                        a: s.answer,
-                      })),
-                      null,
-                      2,
-                    ),
+                  text: `*Screening:*\n\`\`\`${JSON.stringify(
+                    match.screening.map((s) => ({
+                      q: s.screening,
+                      a: s.answer,
+                    })),
+                    null,
+                    2,
                   )}\`\`\``,
                 },
               },
