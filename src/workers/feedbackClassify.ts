@@ -1,25 +1,8 @@
 import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
-import { Feedback, FeedbackCategory, FeedbackStatus } from '../entity/Feedback';
+import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { getBragiClient } from '../integrations/bragi';
 import { createFeedbackIssue } from '../integrations/linear';
-
-const mapCategoryToProto = (
-  category: FeedbackCategory,
-): UserFeedbackCategory => {
-  switch (category) {
-    case FeedbackCategory.Bug:
-      return UserFeedbackCategory.BUG;
-    case FeedbackCategory.FeatureRequest:
-      return UserFeedbackCategory.FEATURE_REQUEST;
-    case FeedbackCategory.General:
-      return UserFeedbackCategory.GENERAL;
-    case FeedbackCategory.Other:
-      return UserFeedbackCategory.OTHER;
-    default:
-      return UserFeedbackCategory.UNSPECIFIED;
-  }
-};
 
 /**
  * Worker that processes new feedback submissions:
@@ -64,7 +47,7 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
         const bragiClient = getBragiClient();
         const response = await bragiClient.garmr.execute(async () =>
           bragiClient.instance.classifyUserFeedback({
-            category: mapCategoryToProto(feedback.category),
+            category: feedback.category,
             description: feedback.description,
             pageUrl: feedback.pageUrl ?? undefined,
             userAgent: feedback.userAgent ?? undefined,

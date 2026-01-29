@@ -7,14 +7,10 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 import type { User } from './user';
 
-export enum FeedbackCategory {
-  Bug = 'BUG',
-  FeatureRequest = 'FEATURE_REQUEST',
-  General = 'GENERAL',
-  Other = 'OTHER',
-}
+export { UserFeedbackCategory as FeedbackCategory };
 
 export enum FeedbackStatus {
   Pending = 'pending',
@@ -47,7 +43,7 @@ export class Feedback {
   userId: string;
 
   @Column({ type: 'text' })
-  category: FeedbackCategory;
+  category: UserFeedbackCategory;
 
   @Column({ type: 'text' })
   description: string;

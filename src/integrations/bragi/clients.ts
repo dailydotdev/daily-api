@@ -2,6 +2,10 @@ import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
+  FeedbackCategory,
+  FeedbackPlatform,
+  FeedbackSentiment,
+  FeedbackUrgency,
   Pipelines,
   UserFeedbackSentiment,
   UserFeedbackTeam,
@@ -33,6 +37,14 @@ export const getBragiClient = (
   if (isMockEnabled() || !clientTransport) {
     return {
       instance: {
+        parseFeedback: async () => ({
+          classification: {
+            platform: FeedbackPlatform.RECRUITER,
+            category: FeedbackCategory.FEATURE_REQUEST,
+            sentiment: FeedbackSentiment.POSITIVE,
+            urgency: FeedbackUrgency.LOW,
+          },
+        }),
         classifyUserFeedback: async () => ({
           id: 'mock-id',
           classification: {

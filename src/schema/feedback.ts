@@ -1,10 +1,12 @@
 import { IResolvers } from '@graphql-tools/utils';
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
-import { Feedback, FeedbackCategory, FeedbackStatus } from '../entity/Feedback';
+import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { ValidationError } from 'apollo-server-errors';
 import { feedbackInputSchema } from '../common/schema/feedback';
 import { ZodError } from 'zod/v4';
+import { toGQLEnum } from '../common/utils';
 
 interface GQLFeedbackInput {
   category: string;
@@ -19,12 +21,7 @@ interface GQLFeedbackResult {
 }
 
 export const typeDefs = /* GraphQL */ `
-  enum FeedbackCategory {
-    BUG
-    FEATURE_REQUEST
-    GENERAL
-    OTHER
-  }
+  ${toGQLEnum(UserFeedbackCategory, 'FeedbackCategory')}
 
   """
   Input for submitting user feedback
@@ -102,7 +99,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       // CDC will pick this up and handle classification via PubSub
       const feedback = await ctx.con.getRepository(Feedback).save({
         userId: ctx.userId,
-        category: input.category as FeedbackCategory,
+        category: input.category as UserFeedbackCategory,
         description: input.description.trim(),
         pageUrl: input.pageUrl || null,
         userAgent: input.userAgent || null,
