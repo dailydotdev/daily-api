@@ -385,7 +385,7 @@ export const getIconSlug = (
   title: string,
   source: Exclude<IconSource, 'none'>,
 ): string => {
-  const normalizedTitle = title.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizedTitle = normalizeTitle(title);
   const mapping = ICON_SLUG_MAPPINGS[normalizedTitle];
 
   if (mapping) {
