@@ -7,9 +7,9 @@ const SIMPLE_ICONS_CDN = 'https://cdn.simpleicons.org';
 const DEVICON_CDN = 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons';
 const ICONIFY_API = 'https://api.iconify.design/logos';
 
-type IconSource = 'simple-icons' | 'devicon' | 'iconify' | 'none';
+export type IconSource = 'simple-icons' | 'devicon' | 'iconify' | 'none';
 
-const normalizeTitle = (title: string): string =>
+export const normalizeTitle = (title: string): string =>
   title
     .toLowerCase()
     .trim()
@@ -18,15 +18,6 @@ const normalizeTitle = (title: string): string =>
     .replace(/#/g, 'sharp')
     .replace(/&/g, 'and')
     .replace(/\s+/g, '');
-
-const toSimpleIconsSlug = (title: string): string =>
-  title.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-const toDeviconSlug = (title: string): string =>
-  title.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-const toIconifySlug = (title: string): string =>
-  title.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const tryFetchIcon = async (url: string): Promise<Buffer | null> => {
   try {
@@ -40,32 +31,29 @@ const tryFetchIcon = async (url: string): Promise<Buffer | null> => {
   }
 };
 
-const fetchAndUploadToolIcon = async (
+export const fetchAndUploadToolIcon = async (
   toolId: string,
   title: string,
 ): Promise<{ url: string; source: IconSource } | null> => {
-  const sources: Array<{ url: string; source: IconSource }> = [];
+  const slug = normalizeTitle(title);
 
-  // Simple Icons
-  const simpleIconsSlug = toSimpleIconsSlug(title);
-  sources.push({
-    url: `${SIMPLE_ICONS_CDN}/${simpleIconsSlug}`,
-    source: 'simple-icons',
-  });
-
-  // Devicon
-  const deviconSlug = toDeviconSlug(title);
-  sources.push({
-    url: `${DEVICON_CDN}/${deviconSlug}/${deviconSlug}-original.svg`,
-    source: 'devicon',
-  });
-
-  // Iconify
-  const iconifySlug = toIconifySlug(title);
-  sources.push({
-    url: `${ICONIFY_API}:${iconifySlug}.svg`,
-    source: 'iconify',
-  });
+  const sources: Array<{
+    url: string;
+    source: Exclude<IconSource, 'none'>;
+  }> = [
+    {
+      url: `${SIMPLE_ICONS_CDN}/${slug}`,
+      source: 'simple-icons',
+    },
+    {
+      url: `${DEVICON_CDN}/${slug}/${slug}-original.svg`,
+      source: 'devicon',
+    },
+    {
+      url: `${ICONIFY_API}:${slug}.svg`,
+      source: 'iconify',
+    },
+  ];
 
   // Try each source in order
   for (const { url, source } of sources) {
