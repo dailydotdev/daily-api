@@ -25,6 +25,7 @@ export const cleanZombieOpportunities: Cron = {
         .andWhere({
           state: OpportunityState.DRAFT,
         })
+        .andWhere(`flags->>'public_draft' IS DISTINCT FROM 'true'`)
         .returning('id');
 
       const { affected, raw } = await query.execute();
