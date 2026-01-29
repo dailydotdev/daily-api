@@ -1,6 +1,6 @@
 import { cleanZombieOpportunities as cron } from '../../src/cron/cleanZombieOpportunities';
 import { expectSuccessfulCron, saveFixtures } from '../helpers';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { crons } from '../../src/cron/index';
 import {
@@ -19,6 +19,7 @@ import {
 } from '../../src/entity/ClaimableItem';
 import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityState } from '@dailydotdev/schema';
+import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
 
 let con: DataSource;
 
@@ -131,5 +132,64 @@ describe('cleanZombieOpportunities cron', () => {
       .getCount();
 
     expect(opportunitiesCount).toEqual(10);
+  });
+
+  it('should not clean created opportunities not updated for more then 2 days with preview status READY', async () => {
+    const opportunitiesWithPreview = await con
+      .getRepository(OpportunityJob)
+      .save([
+        {
+          ...opportunitiesFixture[0],
+          state: OpportunityState.DRAFT,
+          id: randomUUID(),
+          organizationId: null,
+          createdAt: subDays(new Date(), 5),
+          flags: {
+            preview: {
+              status: OpportunityPreviewStatus.READY,
+            },
+          },
+        },
+        {
+          ...opportunitiesFixture[0],
+          state: OpportunityState.DRAFT,
+          id: randomUUID(),
+          organizationId: null,
+          createdAt: subDays(new Date(), 5),
+          flags: {
+            preview: {
+              status: OpportunityPreviewStatus.PENDING,
+            },
+          },
+        },
+        {
+          ...opportunitiesFixture[0],
+          state: OpportunityState.DRAFT,
+          id: randomUUID(),
+          organizationId: null,
+          createdAt: subDays(new Date(), 5),
+          flags: {
+            preview: {},
+          },
+        },
+      ]);
+
+    const opportunities = await con.getRepository(Opportunity).find({
+      where: { id: In(opportunitiesWithPreview.map((op) => op.id)) },
+    });
+
+    expect(opportunities.length).toEqual(3);
+
+    await expectSuccessfulCron(cron);
+
+    const opportunitiesAfterCron = await con.getRepository(Opportunity).find({
+      where: { id: In(opportunitiesWithPreview.map((op) => op.id)) },
+    });
+
+    expect(opportunitiesAfterCron.length).toEqual(1);
+
+    expect(opportunitiesAfterCron[0].id).toEqual(
+      opportunitiesWithPreview[0].id,
+    );
   });
 });

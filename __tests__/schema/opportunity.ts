@@ -93,6 +93,7 @@ import {
   ClaimableItemTypes,
 } from '../../src/entity/ClaimableItem';
 import { remoteConfig } from '../../src/remoteConfig';
+import { randomUUID } from 'node:crypto';
 
 // Mock Slack WebClient
 const mockConversationsCreate = jest.fn();
@@ -6970,6 +6971,151 @@ describe('query opportunityPreview', () => {
       'Opportunity is not ready for preview yet',
     );
   });
+
+  it('should return preview using provided identifier parameter', async () => {
+    const customIdentifier = 'recruiter@example.com';
+
+    // Create an opportunity with cached preview data
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          preview: {
+            userIds: ['1', '2'],
+            totalCount: 2000,
+          },
+        },
+      },
+    );
+
+    // Create ClaimableItem with custom identifier (email)
+    await con.getRepository(ClaimableItem).insert({
+      identifier: customIdentifier,
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    // Query with identifier parameter (different from trackingId)
+    const QUERY_WITH_IDENTIFIER = /* GraphQL */ `
+      query OpportunityPreview(
+        $first: Int
+        $after: String
+        $opportunityId: ID
+        $identifier: String
+      ) {
+        opportunityPreview(
+          first: $first
+          after: $after
+          opportunityId: $opportunityId
+          identifier: $identifier
+        ) {
+          edges {
+            node {
+              id
+            }
+          }
+          result {
+            opportunityId
+            totalCount
+            status
+          }
+        }
+      }
+    `;
+
+    const res = await client.query(QUERY_WITH_IDENTIFIER, {
+      variables: { first: 10, identifier: customIdentifier },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+    expect(res.data.opportunityPreview.result.totalCount).toBe(2122);
+  });
+
+  it('should fallback to trackingId when identifier is not provided', async () => {
+    // Create an opportunity with cached preview data
+    await con.getRepository(OpportunityJob).update(
+      { id: opportunitiesFixture[0].id },
+      {
+        flags: {
+          preview: {
+            userIds: ['1', '2'],
+            totalCount: 2000,
+          },
+        },
+      },
+    );
+
+    // Create ClaimableItem with trackingId (existing flow)
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'test-anon-user-123',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    // Query without identifier parameter - should use trackingId
+    const res = await client.query(OPPORTUNITY_PREVIEW_QUERY, {
+      variables: { first: 10 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.opportunityPreview).toBeDefined();
+    expect(res.data.opportunityPreview.result).toBeDefined();
+    expect(res.data.opportunityPreview.result.opportunityId).toBe(
+      opportunitiesFixture[0].id,
+    );
+  });
+
+  it('should not find opportunity when identifier does not match', async () => {
+    const customIdentifier = 'recruiter@example.com';
+
+    // Create ClaimableItem with a different identifier
+    await con.getRepository(ClaimableItem).insert({
+      identifier: 'different-identifier',
+      type: ClaimableItemTypes.Opportunity,
+      flags: { opportunityId: opportunitiesFixture[0].id },
+    });
+
+    // Query with non-matching identifier
+    const QUERY_WITH_IDENTIFIER = /* GraphQL */ `
+      query OpportunityPreview(
+        $first: Int
+        $after: String
+        $opportunityId: ID
+        $identifier: String
+      ) {
+        opportunityPreview(
+          first: $first
+          after: $after
+          opportunityId: $opportunityId
+          identifier: $identifier
+        ) {
+          edges {
+            node {
+              id
+            }
+          }
+          result {
+            opportunityId
+          }
+        }
+      }
+    `;
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY_WITH_IDENTIFIER,
+        variables: { first: 10, identifier: customIdentifier },
+      },
+      'NOT_FOUND',
+      'No opportunity found for preview',
+    );
+  });
 });
 
 describe('query opportunityStats', () => {
@@ -7548,5 +7694,45 @@ describe('mutation claimOpportunities', () => {
       .getRepository(OpportunityUserRecruiter)
       .findBy({ opportunityId: oppId, userId: '1' });
     expect(recruiters).toHaveLength(1);
+  });
+
+  it('should clear public_draft flag after claim', async () => {
+    loggedUser = '1';
+
+    // Create opportunities without organization (claimable)
+    const opportunity = await con.getRepository(OpportunityJob).save({
+      id: randomUUID(),
+      type: OpportunityType.JOB,
+      state: OpportunityState.DRAFT,
+      title: 'Claimable Opportunity 1',
+      tldr: 'Test opportunity 1',
+      organizationId: null,
+      flags: { public_draft: true },
+    });
+
+    // Create claimable items for the same anonymous identifier
+    await con.getRepository(ClaimableItem).save(
+      con.getRepository(ClaimableItem).create({
+        identifier: 'anon-user-abc',
+        type: ClaimableItemTypes.Opportunity,
+        flags: { opportunityId: opportunity.id },
+      }),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { identifier: 'anon-user-abc' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.claimOpportunities.ids).toHaveLength(1);
+    expect(res.data.claimOpportunities.ids).toEqual(
+      expect.arrayContaining([opportunity.id]),
+    );
+
+    const updatedOpportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: opportunity.id });
+
+    expect(updatedOpportunity.flags?.public_draft).toBeFalse();
   });
 });
