@@ -145,9 +145,7 @@ describe('cleanZombieOpportunities cron', () => {
           organizationId: null,
           createdAt: subDays(new Date(), 5),
           flags: {
-            preview: {
-              status: OpportunityPreviewStatus.READY,
-            },
+            public_draft: true,
           },
         },
         {

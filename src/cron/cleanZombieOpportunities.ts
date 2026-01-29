@@ -5,7 +5,6 @@ import { IsNull, LessThan } from 'typeorm';
 import { Opportunity } from '../entity/opportunities/Opportunity';
 import { OpportunityState } from '@dailydotdev/schema';
 import { ClaimableItem } from '../entity/ClaimableItem';
-import { OpportunityPreviewStatus } from '../common/opportunity/types';
 
 export const cleanZombieOpportunities: Cron = {
   name: 'clean-zombie-opportunities',
@@ -26,12 +25,7 @@ export const cleanZombieOpportunities: Cron = {
         .andWhere({
           state: OpportunityState.DRAFT,
         })
-        .andWhere(
-          `flags->'preview'->>'status' IS DISTINCT FROM :previewStatus`,
-          {
-            previewStatus: OpportunityPreviewStatus.READY,
-          },
-        )
+        .andWhere(`flags->>'public_draft' IS DISTINCT FROM 'true'`)
         .returning('id');
 
       const { affected, raw } = await query.execute();
