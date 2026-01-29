@@ -4,6 +4,7 @@ import type { Opportunity } from '../../entity/opportunities/Opportunity';
 import { OpportunityUserRecruiter } from '../../entity/opportunities/user/OpportunityUserRecruiter';
 import { logger } from '../../logger';
 import { ClaimableItem, ClaimableItemTypes } from '../../entity/ClaimableItem';
+import { updateFlagsStatement } from '../utils';
 
 export const claimAnonOpportunities = async ({
   anonUserId,
@@ -68,6 +69,17 @@ export const claimAnonOpportunities = async ({
         {
           claimedById: userId,
           claimedAt: new Date(),
+        },
+      );
+
+      await entityManager.getRepository(OpportunityJob).update(
+        {
+          id: In(opportunities.map((opportunity) => opportunity.id)),
+        },
+        {
+          flags: updateFlagsStatement<OpportunityJob>({
+            public_draft: false,
+          }),
         },
       );
 

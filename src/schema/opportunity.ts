@@ -741,6 +741,11 @@ export const typeDefs = /* GraphQL */ `
       Opportunity ID
       """
       opportunityId: ID
+
+      """
+      Identifier for public opportunities (email or trackingId)
+      """
+      identifier: String
     ): OpportunityPreviewConnection!
 
     """
@@ -1380,19 +1385,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLOpportunity> => {
-      const opportunity = await graphorm.queryOneOrFail<GQLOpportunity>(
-        ctx,
-        info,
-        (builder) => {
+      const [opportunity, opportunityDb] = await Promise.all([
+        graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
           builder.queryBuilder.where({ id });
 
           builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
 
           return builder;
-        },
-      );
+        }),
+        queryReadReplica(ctx.con, async ({ queryRunner }) => {
+          return queryRunner.manager
+            .getRepository(OpportunityJob)
+            .findOneOrFail({
+              select: ['id', 'state', 'flags'],
+              where: { id },
+            });
+        }),
+      ]);
 
-      if (opportunity.state !== OpportunityState.LIVE) {
+      if (
+        opportunityDb.state === OpportunityState.DRAFT &&
+        opportunityDb.flags?.public_draft
+      ) {
+        return opportunity;
+      }
+
+      if (opportunityDb.state !== OpportunityState.LIVE) {
         if (!ctx.userId) {
           throw new NotFoundError('Not found!');
         }
@@ -1631,7 +1649,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ),
     opportunityPreview: async (
       _,
-      args: ConnectionArguments & { opportunityId?: string },
+      args: ConnectionArguments & {
+        opportunityId?: string;
+        identifier?: string;
+      },
       ctx: Context,
       info: GraphQLResolveInfo,
     ): Promise<GQLOpportunityPreviewConnection> => {
@@ -1656,11 +1677,14 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             relations: { keywords: true },
           });
       } else {
+        // Use provided identifier, or fall back to ctx.trackingId
+        const lookupIdentifier = args.identifier || ctx.trackingId;
+
         const claimableItem = await ctx.con
           .getRepository(ClaimableItem)
           .findOne({
             where: {
-              identifier: ctx.trackingId,
+              identifier: lookupIdentifier,
               type: ClaimableItemTypes.Opportunity,
               claimedById: IsNull(),
             },
