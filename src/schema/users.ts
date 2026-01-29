@@ -175,7 +175,6 @@ import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchem
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
-import { UserExperienceType } from '../entity/user/experiences/types';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -1767,27 +1766,7 @@ const getUserCompanies = async (
         .andWhere(`${builder.alias}."userId" = :userId`, {
           userId: ctx.userId,
         })
-        .andWhere(`${builder.alias}."verified" = true`)
-        .andWhere(
-          `EXISTS (
-            SELECT 1 FROM user_experience ue
-            WHERE ue."userId" = :userId
-            AND ue."companyId" = ${builder.alias}."companyId"
-            AND ue.type = :ueType
-            AND ue."endedAt" IS NULL
-          )`,
-          { ueType: UserExperienceType.Work },
-        )
-        .orderBy(
-          `(
-            SELECT MAX(ue2."startedAt") FROM user_experience ue2
-            WHERE ue2."userId" = :userId
-            AND ue2."companyId" = ${builder.alias}."companyId"
-            AND ue2.type = :ueType
-            AND ue2."endedAt" IS NULL
-          )`,
-          'DESC',
-        );
+        .andWhere(`${builder.alias}."verified" = true`);
 
       return builder;
     },

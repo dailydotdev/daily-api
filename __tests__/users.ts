@@ -2232,49 +2232,15 @@ describe('user company', () => {
     it('should not authorize when not logged in', () =>
       testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-    it('should return user companies that are verified and have current work experience', async () => {
+    it('should return user companies that are verified', async () => {
       loggedUser = '1';
       const res = await client.query(QUERY);
       expect(res.errors).toBeFalsy();
-      // u1@com5.com is excluded because it has no companyId
-      // Companies are ordered by most recent startedAt
       expect(res.data.companies).toMatchObject([
         { email: 'u1@com1.com', company: { id: '1' } },
         { email: 'u1@com2.com', company: { id: '2' } },
+        { email: 'u1@com5.com', company: null },
       ]);
-    });
-
-    it('should not return companies without current work experience', async () => {
-      loggedUser = '1';
-      // End the work experience at Company 1
-      await con
-        .getRepository(UserExperience)
-        .update(
-          { userId: '1', companyId: '1' },
-          { endedAt: new Date('2023-12-31') },
-        );
-      const res = await client.query(QUERY);
-      expect(res.errors).toBeFalsy();
-      // Only Company 2 should remain
-      expect(res.data.companies).toMatchObject([
-        { email: 'u1@com2.com', company: { id: '2' } },
-      ]);
-    });
-
-    it('should order companies by most recent startedAt', async () => {
-      loggedUser = '1';
-      // Make Company 2 more recent
-      await con
-        .getRepository(UserExperience)
-        .update(
-          { userId: '1', companyId: '2' },
-          { startedAt: new Date('2024-06-01') },
-        );
-      const res = await client.query(QUERY);
-      expect(res.errors).toBeFalsy();
-      // Company 2 should come first now
-      expect(res.data.companies[0].company.id).toBe('2');
-      expect(res.data.companies[1].company.id).toBe('1');
     });
   });
 
