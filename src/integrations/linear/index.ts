@@ -1,17 +1,34 @@
 import { LinearClient } from '@linear/sdk';
 import type { FeedbackClassification } from '../../entity/Feedback';
+import { GarmrNoopService, GarmrService, IGarmrClient } from '../garmr';
 
-let linearClient: LinearClient | null = null;
+interface ILinearClient extends IGarmrClient {
+  instance: LinearClient | null;
+}
 
-export const getLinearClient = (): LinearClient | null => {
+let linearClient: ILinearClient | null = null;
+
+const garmrLinearService = new GarmrService({
+  service: 'linear',
+  breakerOpts: {
+    halfOpenAfter: 5 * 1000,
+    threshold: 0.1,
+    duration: 10 * 1000,
+  },
+});
+
+export const getLinearClient = (): ILinearClient | null => {
   if (!process.env.LINEAR_API_KEY) {
     return null;
   }
 
   if (!linearClient) {
-    linearClient = new LinearClient({
-      apiKey: process.env.LINEAR_API_KEY,
-    });
+    linearClient = {
+      instance: new LinearClient({
+        apiKey: process.env.LINEAR_API_KEY,
+      }),
+      garmr: garmrLinearService,
+    };
   }
 
   return linearClient;
@@ -131,7 +148,7 @@ export const createFeedbackIssue = async (
   input: CreateFeedbackIssueInput,
 ): Promise<CreateFeedbackIssueResult | null> => {
   const client = getLinearClient();
-  if (!client) {
+  if (!client || !client.instance) {
     return null;
   }
 
@@ -140,34 +157,36 @@ export const createFeedbackIssue = async (
     return null;
   }
 
-  const priority = mapUrgencyToPriority(input.classification?.urgency);
-  const categoryDisplay = getCategoryDisplayName(input.category);
-  const description = buildIssueDescription(input);
+  return client.garmr.execute(async () => {
+    const priority = mapUrgencyToPriority(input.classification?.urgency);
+    const categoryDisplay = getCategoryDisplayName(input.category);
+    const description = buildIssueDescription(input);
 
-  const firstLine = input.description.trim().split('\n')[0];
-  const title = `[Feedback] ${categoryDisplay}: ${firstLine.slice(0, 80)}${firstLine.length > 80 ? '...' : ''}`;
+    const firstLine = input.description.trim().split('\n')[0];
+    const title = `[Feedback] ${categoryDisplay}: ${firstLine.slice(0, 80)}${firstLine.length > 80 ? '...' : ''}`;
 
-  const issuePayload = await client.createIssue({
-    teamId,
-    title,
-    description,
-    priority,
-    labelIds: await getOrCreateLabels(client, teamId, input),
+    const issuePayload = await client.instance!.createIssue({
+      teamId,
+      title,
+      description,
+      priority,
+      labelIds: await getOrCreateLabels(client.instance!, teamId, input),
+    });
+
+    const issue = await issuePayload.issue;
+    if (!issue) {
+      return null;
+    }
+
+    return {
+      id: issue.id,
+      url: issue.url,
+    };
   });
-
-  const issue = await issuePayload.issue;
-  if (!issue) {
-    return null;
-  }
-
-  return {
-    id: issue.id,
-    url: issue.url,
-  };
 };
 
 const getOrCreateLabels = async (
-  client: LinearClient,
+  linearInstance: LinearClient,
   teamId: string,
   input: CreateFeedbackIssueInput,
 ): Promise<string[]> => {
@@ -177,7 +196,7 @@ const getOrCreateLabels = async (
   ];
 
   try {
-    const existingLabels = await client.issueLabels({
+    const existingLabels = await linearInstance.issueLabels({
       filter: { team: { id: { eq: teamId } } },
     });
 
@@ -191,7 +210,7 @@ const getOrCreateLabels = async (
         result.push(existingMap.get(name)!);
       } else {
         const color = name === 'user-feedback' ? '#6366f1' : '#8b5cf6';
-        const payload = await client.createIssueLabel({
+        const payload = await linearInstance.createIssueLabel({
           teamId,
           name,
           color,

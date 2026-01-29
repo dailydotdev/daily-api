@@ -2,12 +2,9 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { Feedback } from '../entity/Feedback';
-import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { MoreThan } from 'typeorm';
+import { ValidationError } from 'apollo-server-errors';
 import { feedbackInputSchema } from '../common/schema/feedback';
 import { ZodError } from 'zod';
-
-const FEEDBACK_RATE_LIMIT_PER_HOUR = 5;
 
 interface GQLFeedbackInput {
   category: string;
@@ -71,24 +68,13 @@ export const typeDefs = /* GraphQL */ `
 
   extend type Mutation {
     """
-    Submit user feedback
+    Submit user feedback (rate limited to 10 per day)
     """
-    submitFeedback(input: FeedbackInput!): FeedbackResult! @auth
+    submitFeedback(input: FeedbackInput!): FeedbackResult!
+      @auth
+      @rateLimit(limit: 10, duration: 86400)
   }
 `;
-
-async function countRecentFeedback(
-  ctx: AuthContext,
-  intervalHours: number,
-): Promise<number> {
-  const cutoffTime = new Date();
-  cutoffTime.setHours(cutoffTime.getHours() - intervalHours);
-
-  return ctx.con.getRepository(Feedback).countBy({
-    userId: ctx.userId,
-    createdAt: MoreThan(cutoffTime),
-  });
-}
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -110,14 +96,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           );
         }
         throw err;
-      }
-
-      // Rate limit check
-      const recentCount = await countRecentFeedback(ctx, 1);
-      if (recentCount >= FEEDBACK_RATE_LIMIT_PER_HOUR) {
-        throw new ForbiddenError(
-          'Too many feedback submissions. Please try again later.',
-        );
       }
 
       // Create feedback record
