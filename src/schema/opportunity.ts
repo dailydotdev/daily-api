@@ -1393,8 +1393,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
           return builder;
         }),
-        await queryReadReplica(ctx.con, async ({ queryRunner }) => {
-          return await queryRunner.manager
+        queryReadReplica(ctx.con, async ({ queryRunner }) => {
+          return queryRunner.manager
             .getRepository(OpportunityJob)
             .findOneOrFail({
               select: ['id', 'state', 'flags'],
