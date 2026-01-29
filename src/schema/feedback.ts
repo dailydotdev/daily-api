@@ -1,12 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { ValidationError } from 'apollo-server-errors';
 import { feedbackInputSchema } from '../common/schema/feedback';
 import { ZodError } from 'zod/v4';
-import { toGQLEnum } from '../common/utils';
+import { GQLEmptyResponse } from './common';
 
 interface GQLFeedbackInput {
   category: string;
@@ -15,14 +14,7 @@ interface GQLFeedbackInput {
   userAgent?: string;
 }
 
-interface GQLFeedbackResult {
-  success: boolean;
-  feedbackId?: string;
-}
-
 export const typeDefs = /* GraphQL */ `
-  ${toGQLEnum(UserFeedbackCategory, 'FeedbackCategory')}
-
   """
   Input for submitting user feedback
   """
@@ -30,7 +22,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Category of feedback (BUG, FEATURE_REQUEST, GENERAL, OTHER)
     """
-    category: FeedbackCategory!
+    category: ProtoEnumValue!
 
     """
     User's feedback description (max 2000 characters)
@@ -67,7 +59,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Submit user feedback (rate limited to 10 per day)
     """
-    submitFeedback(input: FeedbackInput!): FeedbackResult!
+    submitFeedback(input: FeedbackInput!): EmptyResponse!
       @auth
       @rateLimit(limit: 10, duration: 86400)
   }
@@ -82,7 +74,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       { input }: { input: GQLFeedbackInput },
       ctx: AuthContext,
-    ): Promise<GQLFeedbackResult> => {
+    ): Promise<GQLEmptyResponse> => {
       // Validate input with Zod
       try {
         feedbackInputSchema.parse(input);
@@ -97,9 +89,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       // Create feedback record
       // CDC will pick this up and handle classification via PubSub
-      const feedback = await ctx.con.getRepository(Feedback).save({
+      await ctx.con.getRepository(Feedback).save({
         userId: ctx.userId,
-        category: input.category as UserFeedbackCategory,
+        category: input.category,
         description: input.description.trim(),
         pageUrl: input.pageUrl || null,
         userAgent: input.userAgent || null,
@@ -108,8 +100,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       return {
-        success: true,
-        feedbackId: feedback.id,
+        _: true,
       };
     },
   },
