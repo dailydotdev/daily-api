@@ -1,10 +1,10 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
-import { Feedback } from '../entity/Feedback';
+import { Feedback, FeedbackCategory, FeedbackStatus } from '../entity/Feedback';
 import { ValidationError } from 'apollo-server-errors';
 import { feedbackInputSchema } from '../common/schema/feedback';
-import { ZodError } from 'zod';
+import { ZodError } from 'zod/v4';
 
 interface GQLFeedbackInput {
   category: string;
@@ -92,7 +92,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       } catch (err) {
         if (err instanceof ZodError) {
           throw new ValidationError(
-            err.errors.map((e) => e.message).join(', '),
+            err.issues.map((e) => e.message).join(', '),
           );
         }
         throw err;
@@ -102,11 +102,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       // CDC will pick this up and handle classification via PubSub
       const feedback = await ctx.con.getRepository(Feedback).save({
         userId: ctx.userId,
-        category: input.category,
+        category: input.category as FeedbackCategory,
         description: input.description.trim(),
         pageUrl: input.pageUrl || null,
         userAgent: input.userAgent || null,
-        status: 'pending',
+        status: FeedbackStatus.Pending,
         flags: {},
       });
 

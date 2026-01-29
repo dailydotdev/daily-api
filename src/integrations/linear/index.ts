@@ -1,6 +1,6 @@
 import { LinearClient } from '@linear/sdk';
 import type { FeedbackClassification } from '../../entity/Feedback';
-import { GarmrNoopService, GarmrService, IGarmrClient } from '../garmr';
+import { GarmrService, IGarmrClient } from '../garmr';
 
 interface ILinearClient extends IGarmrClient {
   instance: LinearClient | null;
@@ -50,13 +50,13 @@ interface CreateFeedbackIssueResult {
 
 const mapUrgencyToPriority = (urgency?: string): number => {
   switch (urgency) {
-    case 'FEEDBACK_URGENCY_CRITICAL':
+    case '1': // CRITICAL
       return 1;
-    case 'FEEDBACK_URGENCY_HIGH':
+    case '2': // HIGH
       return 2;
-    case 'FEEDBACK_URGENCY_MEDIUM':
+    case '3': // MEDIUM
       return 3;
-    case 'FEEDBACK_URGENCY_LOW':
+    case '4': // LOW
       return 4;
     default:
       return 3;
@@ -80,12 +80,14 @@ const getCategoryDisplayName = (category: string): string => {
 
 const getSentimentEmoji = (sentiment?: string): string => {
   switch (sentiment) {
-    case 'FEEDBACK_SENTIMENT_POSITIVE':
+    case '1': // POSITIVE
       return '😊';
-    case 'FEEDBACK_SENTIMENT_NEGATIVE':
+    case '2': // NEGATIVE
       return '😟';
-    case 'FEEDBACK_SENTIMENT_NEUTRAL':
+    case '3': // NEUTRAL
       return '😐';
+    case '4': // MIXED
+      return '🤔';
     default:
       return '📝';
   }
@@ -93,16 +95,44 @@ const getSentimentEmoji = (sentiment?: string): string => {
 
 const getUrgencyDisplayName = (urgency?: string): string => {
   switch (urgency) {
-    case 'FEEDBACK_URGENCY_CRITICAL':
+    case '1': // CRITICAL
       return '🔴 Critical';
-    case 'FEEDBACK_URGENCY_HIGH':
+    case '2': // HIGH
       return '🟠 High';
-    case 'FEEDBACK_URGENCY_MEDIUM':
+    case '3': // MEDIUM
       return '🟡 Medium';
-    case 'FEEDBACK_URGENCY_LOW':
+    case '4': // LOW
       return '🟢 Low';
     default:
       return 'Medium';
+  }
+};
+
+const getSentimentDisplayName = (sentiment?: string): string => {
+  switch (sentiment) {
+    case '1':
+      return 'Positive';
+    case '2':
+      return 'Negative';
+    case '3':
+      return 'Neutral';
+    case '4':
+      return 'Mixed';
+    default:
+      return 'Unknown';
+  }
+};
+
+const getTeamDisplayName = (team?: string): string => {
+  switch (team) {
+    case '1':
+      return 'Engineering';
+    case '2':
+      return 'Product';
+    case '3':
+      return 'Support';
+    default:
+      return 'Unassigned';
   }
 };
 
@@ -119,15 +149,26 @@ const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
 
   const sentimentEmoji = getSentimentEmoji(classification?.sentiment);
   const urgencyDisplay = getUrgencyDisplayName(classification?.urgency);
+  const sentimentDisplay = getSentimentDisplayName(classification?.sentiment);
+  const teamDisplay = getTeamDisplayName(classification?.suggestedTeam);
   const categoryDisplay = getCategoryDisplayName(input.category);
+  const tagsDisplay = classification?.tags?.length
+    ? classification.tags.join(', ')
+    : 'None';
 
-  return `## User Feedback ${sentimentEmoji}
+  const warningSection = classification?.hasPromptInjection
+    ? `> ⚠️ **Warning**: Potential prompt injection detected in this feedback\n\n`
+    : '';
+
+  return `${warningSection}## User Feedback ${sentimentEmoji}
 
 | Field | Value |
 |-------|-------|
 | **Category** | ${categoryDisplay} |
-| **Sentiment** | ${classification?.sentiment?.replace('FEEDBACK_SENTIMENT_', '') || 'Unknown'} |
+| **Sentiment** | ${sentimentDisplay} |
 | **Urgency** | ${urgencyDisplay} |
+| **Suggested Team** | ${teamDisplay} |
+| **Tags** | ${tagsDisplay} |
 | **Page URL** | ${input.pageUrl || 'N/A'} |
 
 ### User's Description
@@ -140,7 +181,6 @@ ${sanitizedDescription}
 
 - **Feedback ID**: \`${input.feedbackId}\`
 - **User ID**: \`${input.userId}\`
-- **Platform**: ${classification?.platform?.replace('FEEDBACK_PLATFORM_', '') || 'Unknown'}
 `;
 };
 
@@ -162,8 +202,13 @@ export const createFeedbackIssue = async (
     const categoryDisplay = getCategoryDisplayName(input.category);
     const description = buildIssueDescription(input);
 
-    const firstLine = input.description.trim().split('\n')[0];
-    const title = `[Feedback] ${categoryDisplay}: ${firstLine.slice(0, 80)}${firstLine.length > 80 ? '...' : ''}`;
+    // Use AI-generated summary if available, otherwise fall back to first line
+    const title = input.classification?.summary
+      ? `[Feedback] ${categoryDisplay}: ${input.classification.summary.slice(0, 80)}`
+      : (() => {
+          const firstLine = input.description.trim().split('\n')[0];
+          return `[Feedback] ${categoryDisplay}: ${firstLine.slice(0, 80)}${firstLine.length > 80 ? '...' : ''}`;
+        })();
 
     const issuePayload = await client.instance!.createIssue({
       teamId,
@@ -193,6 +238,8 @@ const getOrCreateLabels = async (
   const labelNames = [
     'user-feedback',
     `feedback-${input.category.toLowerCase().replace('_', '-')}`,
+    // Add classification tags as labels (prefixed to avoid conflicts)
+    ...(input.classification?.tags?.map((tag) => `tag-${tag}`) ?? []),
   ];
 
   try {
@@ -209,7 +256,12 @@ const getOrCreateLabels = async (
       if (existingMap.has(name)) {
         result.push(existingMap.get(name)!);
       } else {
-        const color = name === 'user-feedback' ? '#6366f1' : '#8b5cf6';
+        const color =
+          name === 'user-feedback'
+            ? '#6366f1'
+            : name.startsWith('tag-')
+              ? '#10b981'
+              : '#8b5cf6';
         const payload = await linearInstance.createIssueLabel({
           teamId,
           name,

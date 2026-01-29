@@ -1,4 +1,4 @@
-import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
+import { expectSuccessfulTypedBackground } from '../helpers';
 import worker from '../../src/workers/feedbackClassify';
 import { Feedback } from '../../src/entity/Feedback';
 import { User } from '../../src/entity';
@@ -47,7 +47,9 @@ describe('feedbackClassify worker', () => {
       feedback: { id: feedback.id },
     });
 
-    const updated = await con.getRepository(Feedback).findOneBy({ id: feedback.id });
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
     expect(updated?.status).toBe('completed');
     expect(updated?.classification).toBeDefined();
   });
@@ -65,7 +67,9 @@ describe('feedbackClassify worker', () => {
       feedback: { id: feedback.id },
     });
 
-    const updated = await con.getRepository(Feedback).findOneBy({ id: feedback.id });
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
     expect(updated?.status).toBe('spam');
   });
 
@@ -82,7 +86,9 @@ describe('feedbackClassify worker', () => {
       feedback: { id: feedback.id },
     });
 
-    const updated = await con.getRepository(Feedback).findOneBy({ id: feedback.id });
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
     expect(updated?.status).toBe('completed');
   });
 });

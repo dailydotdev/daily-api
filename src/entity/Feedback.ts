@@ -25,10 +25,12 @@ export enum FeedbackStatus {
 }
 
 export type FeedbackClassification = {
-  platform?: string;
-  category?: string;
   sentiment?: string;
   urgency?: string;
+  tags?: string[];
+  summary?: string;
+  hasPromptInjection?: boolean;
+  suggestedTeam?: string;
 };
 
 export type FeedbackFlags = Partial<{

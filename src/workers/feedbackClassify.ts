@@ -1,7 +1,25 @@
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
-import { Feedback } from '../entity/Feedback';
+import { Feedback, FeedbackCategory, FeedbackStatus } from '../entity/Feedback';
 import { getBragiClient } from '../integrations/bragi';
 import { createFeedbackIssue } from '../integrations/linear';
+
+const mapCategoryToProto = (
+  category: FeedbackCategory,
+): UserFeedbackCategory => {
+  switch (category) {
+    case FeedbackCategory.Bug:
+      return UserFeedbackCategory.BUG;
+    case FeedbackCategory.FeatureRequest:
+      return UserFeedbackCategory.FEATURE_REQUEST;
+    case FeedbackCategory.General:
+      return UserFeedbackCategory.GENERAL;
+    case FeedbackCategory.Other:
+      return UserFeedbackCategory.OTHER;
+    default:
+      return UserFeedbackCategory.UNSPECIFIED;
+  }
+};
 
 /**
  * Worker that processes new feedback submissions:
@@ -25,12 +43,12 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
         return;
       }
 
-      if (feedback.status === 'spam') {
+      if (feedback.status === FeedbackStatus.Spam) {
         logger.info(logDetails, 'Feedback is spam, skipping');
         return;
       }
 
-      if (feedback.status !== 'pending') {
+      if (feedback.status !== FeedbackStatus.Pending) {
         logger.info(
           { ...logDetails, status: feedback.status },
           'Feedback already processed, skipping',
@@ -38,24 +56,29 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
         return;
       }
 
-      await repo.update(feedbackId, { status: 'processing' });
+      await repo.update(feedbackId, { status: FeedbackStatus.Processing });
 
       // Attempt classification (optional - Garmr handles retries)
       let classification = null;
       try {
         const bragiClient = getBragiClient();
         const response = await bragiClient.garmr.execute(async () =>
-          bragiClient.instance.parseFeedback({
-            feedback: feedback.description,
+          bragiClient.instance.classifyUserFeedback({
+            category: mapCategoryToProto(feedback.category),
+            description: feedback.description,
+            pageUrl: feedback.pageUrl ?? undefined,
+            userAgent: feedback.userAgent ?? undefined,
           }),
         );
 
         if (response.classification) {
           classification = {
-            platform: response.classification.platform?.toString(),
-            category: response.classification.category?.toString(),
             sentiment: response.classification.sentiment?.toString(),
             urgency: response.classification.urgency?.toString(),
+            tags: response.classification.tags,
+            summary: response.classification.summary,
+            hasPromptInjection: response.classification.hasPromptInjection,
+            suggestedTeam: response.classification.suggestedTeam?.toString(),
           };
         }
       } catch (err) {
@@ -97,7 +120,7 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
       await repo.update(feedbackId, {
         linearIssueId,
         linearIssueUrl,
-        status: 'completed',
+        status: FeedbackStatus.Completed,
       });
     } catch (err) {
       logger.error({ ...logDetails, err }, 'Failed to process feedback');

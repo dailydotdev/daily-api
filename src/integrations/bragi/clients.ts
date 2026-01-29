@@ -2,11 +2,10 @@ import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
-  FeedbackCategory,
-  FeedbackPlatform,
-  FeedbackSentiment,
-  FeedbackUrgency,
   Pipelines,
+  UserFeedbackSentiment,
+  UserFeedbackTeam,
+  UserFeedbackUrgency,
 } from '@dailydotdev/schema';
 import { GarmrService, GarmrNoopService } from '../garmr';
 import type { ServiceClient } from '../../types';
@@ -34,12 +33,15 @@ export const getBragiClient = (
   if (isMockEnabled() || !clientTransport) {
     return {
       instance: {
-        parseFeedback: async () => ({
+        classifyUserFeedback: async () => ({
+          id: 'mock-id',
           classification: {
-            platform: FeedbackPlatform.RECRUITER,
-            category: FeedbackCategory.FEATURE_REQUEST,
-            sentiment: FeedbackSentiment.POSITIVE,
-            urgency: FeedbackUrgency.LOW,
+            sentiment: UserFeedbackSentiment.POSITIVE,
+            urgency: UserFeedbackUrgency.LOW,
+            tags: ['feedback'],
+            summary: 'Mock feedback summary',
+            hasPromptInjection: false,
+            suggestedTeam: UserFeedbackTeam.PRODUCT,
           },
         }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
