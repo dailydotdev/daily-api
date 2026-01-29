@@ -136,11 +136,21 @@ const getTeamDisplayName = (team?: string): string => {
   }
 };
 
+/**
+ * Sanitizes user content for Linear issue descriptions by escaping special markdown characters
+ * to prevent unintended formatting or potential injection attacks.
+ *
+ * Transformations:
+ * - Escapes triple backticks (```) to prevent code block injection
+ * - Escapes markdown links [text](url) to prevent malicious link rendering
+ * - Escapes HTML-like tags <tag> to prevent potential XSS or @ mentions (e.g., @huginn)
+ * - Truncates to 2000 characters to stay within Linear's limits
+ */
 const sanitizeForLinear = (content: string): string =>
   content
-    .replace(/```/g, '\\`\\`\\`')
-    .replace(/\[([^\]]*)\]\(([^)]*)\)/g, '\\[$1\\]\\($2\\)')
-    .replace(/<([^>]+)>/g, '&lt;$1&gt;')
+    .replace(/```/g, '\\`\\`\\`') // Escape code blocks
+    .replace(/\[([^\]]*)\]\(([^)]*)\)/g, '\\[$1\\]\\($2\\)') // Escape markdown links
+    .replace(/<([^>]+)>/g, '&lt;$1&gt;') // Escape HTML-like tags and @ mentions
     .slice(0, 2000);
 
 const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {

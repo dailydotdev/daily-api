@@ -7,7 +7,7 @@ export const feedbackCategorySchema = z.literal([
   'OTHER',
 ]);
 
-export const feedbackStatusSchema = z.literal([
+export const feedbackStatusSchema = z.enum([
   'pending',
   'processing',
   'completed',
