@@ -43,6 +43,7 @@ export type OpportunityFlags = Partial<{
   } | null;
   parseError: string | null;
   isTrial: boolean;
+  public_draft: boolean;
 }>;
 
 export type OpportunityFlagsPublic = Pick<
