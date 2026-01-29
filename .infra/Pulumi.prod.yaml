@@ -208,6 +208,8 @@ config:
       secure: AAABAO0h676Ihv0Tlg9REfWdR8OZvJiXsjEZ/MovrnIi3VRTsu4BuYz/H7sbYMP2aonEE8Xk+nqJgCNDRqRlv4U968Hxw+p8
     githubApiToken:
       secure: AAABACA15ONR4Q1/2UFpcQ4bAKkkcrNYSQCSClGz0EtdyEKGxyzf1hOS9xQ+2800uXk+bZ29uB0ZdLPtr8gjGrSvykAUkwuf
+    linearApiKey:
+      secure: AAABAMww+9EdprrAELx5dXgtK002QnfSSQ53IynfBB3gU41p/NtzKR56A3tTrzpeEaXfDKDY600Y1gFeAjYrCn4WJLSJ95HT3BDiINrQi1E=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

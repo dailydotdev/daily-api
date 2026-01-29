@@ -20,6 +20,7 @@ import {
   Submission,
   PostMention,
   SourceMember,
+  Feedback,
 } from '../entity';
 import {
   type EventLogger,
@@ -261,6 +262,9 @@ export type PubSubSchema = {
   };
   'api.v1.opportunity-parse': {
     opportunityId: string;
+  };
+  'api.v1.feedback-created': {
+    feedback: ChangeObject<Feedback>;
   };
 };
 

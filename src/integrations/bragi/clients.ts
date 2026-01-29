@@ -7,6 +7,9 @@ import {
   FeedbackSentiment,
   FeedbackUrgency,
   Pipelines,
+  UserFeedbackSentiment,
+  UserFeedbackTeam,
+  UserFeedbackUrgency,
 } from '@dailydotdev/schema';
 import { GarmrService, GarmrNoopService } from '../garmr';
 import type { ServiceClient } from '../../types';
@@ -40,6 +43,17 @@ export const getBragiClient = (
             category: FeedbackCategory.FEATURE_REQUEST,
             sentiment: FeedbackSentiment.POSITIVE,
             urgency: FeedbackUrgency.LOW,
+          },
+        }),
+        classifyUserFeedback: async () => ({
+          id: 'mock-id',
+          classification: {
+            sentiment: UserFeedbackSentiment.POSITIVE,
+            urgency: UserFeedbackUrgency.LOW,
+            tags: ['feedback'],
+            summary: 'Mock feedback summary',
+            hasPromptInjection: false,
+            suggestedTeam: UserFeedbackTeam.PRODUCT,
           },
         }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,

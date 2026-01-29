@@ -35,8 +35,8 @@ importers:
         specifier: ^2.4.3
         version: 2.4.3(graphql-subscriptions@3.0.0(graphql@16.12.0))
       '@dailydotdev/schema':
-        specifier: 0.2.66
-        version: 0.2.66(@bufbuild/protobuf@1.10.0)
+        specifier: 0.2.67
+        version: 0.2.67(@bufbuild/protobuf@1.10.0)
       '@dailydotdev/ts-ioredis-pool':
         specifier: ^1.0.2
         version: 1.0.2
@@ -82,6 +82,9 @@ importers:
       '@grpc/grpc-js':
         specifier: ^1.14.3
         version: 1.14.3
+      '@linear/sdk':
+        specifier: ^28.0.0
+        version: 28.0.0
       '@mando75/typeorm-graphql-loader':
         specifier: ^0.3.0
         version: 0.3.0(typeorm@0.3.28(ioredis@5.9.0)(pg-query-stream@4.10.3(pg@8.16.3))(pg@8.16.3)(ts-node@10.9.2(@swc/core@1.15.8)(@types/node@22.15.32)(typescript@5.9.3)))
@@ -771,8 +774,8 @@ packages:
     peerDependencies:
       graphql-subscriptions: ^1.0.0 || ^2.0.0
 
-  '@dailydotdev/schema@0.2.66':
-    resolution: {integrity: sha512-txFsQYRd3uxpDRPGrwBMa5l0kOaTXXoD0dm51FgPjaCGE4UN0uqg8GxzU+BLHuaBPIYmJ4HEu7LEwlMHVUhySg==}
+  '@dailydotdev/schema@0.2.67':
+    resolution: {integrity: sha512-o0eHmAQ6pLj79OgJ81PceOWdEQklwfZlpzJ2n7UWoSk76wy7AiiDiiWCzQ+N4cpW8xDNboCdefWn8AqyVZZC2Q==}
     peerDependencies:
       '@bufbuild/protobuf': 1.x
 
@@ -1118,6 +1121,10 @@ packages:
     engines: {node: '>=10.0'}
     peerDependencies:
       tslib: '2'
+
+  '@linear/sdk@28.0.0':
+    resolution: {integrity: sha512-s8KWjI9YOFcTXFM/HpBjD80ezuQRy/pBrINK5GWWAl8gfRvJk0YbQM5KGAs2Wz48OsWigCgn4FHI4EEPiHmEeQ==}
+    engines: {node: '>=12.x', yarn: 1.x}
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -3193,6 +3200,10 @@ packages:
       '@types/koa':
         optional: true
 
+  graphql@15.10.1:
+    resolution: {integrity: sha512-BL/Xd/T9baO6NFzoMpiMD7YUZ62R6viR5tp/MULVEnbYJXZA//kRNW7J0j1w/wXArgL0sCxhDfK5dczSKn3+cg==}
+    engines: {node: '>= 10.x'}
+
   graphql@16.12.0:
     resolution: {integrity: sha512-DKKrynuQRne0PNpEbzuEdHlYOMksHSUI8Zc9Unei5gTsMNA2/vMpoMz/yKba50pejK56qj98qM0SjYxAKi13gQ==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
@@ -3458,6 +3469,9 @@ packages:
   isomorphic-dompurify@2.35.0:
     resolution: {integrity: sha512-a9+LQqylQCU8f1zmsYmg2tfrbdY2YS/Hc+xntcq/mDI2MY3Q108nq8K23BWDIg6YGC5JsUMC15fj2ZMqCzt/+A==}
     engines: {node: '>=20.19.5'}
+
+  isomorphic-unfetch@3.1.0:
+    resolution: {integrity: sha512-geDJjpoZ8N0kWexiwkX8F9NkTsXhetLPVbZFQ+JTW239QNOwvB0gniuR1Wc6f0AMTn7/mFGyXvHTifrCp/GH8Q==}
 
   istanbul-lib-coverage@3.2.0:
     resolution: {integrity: sha512-eOeJ5BHCmHYvQK7xt9GkdHuzuCGS1Y6g9Gvnx3Ym33fz/HpLRYxiS0wHNr+m/MBC8B647Xt608vCDEvhl9c6Mw==}
@@ -5130,6 +5144,9 @@ packages:
     resolution: {integrity: sha512-QEg3HPMll0o3t2ourKwOeUAZ159Kn9mx5pnzHRQO8+Wixmh88YdZRiIwat0iNzNNXn0yoEtXJqFpyW7eM8BV7g==}
     engines: {node: '>=20.18.1'}
 
+  unfetch@4.2.0:
+    resolution: {integrity: sha512-F9p7yYCn6cIW9El1zi0HI6vqpeIvBsr3dSuRO6Xuppb1u5rXpCPmMvLSyECLhybr9isec8Ohl0hPekMVrEinDA==}
+
   unicorn-magic@0.1.0:
     resolution: {integrity: sha512-lRfVq8fE8gz6QMBuDM6a+LO3IAzTi05H6gCVaUpir2E1Rwpo4ZUog45KpNXKC/Mn3Yb9UDuHumeFTo9iV/D9FQ==}
     engines: {node: '>=18'}
@@ -5686,7 +5703,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@dailydotdev/schema@0.2.66(@bufbuild/protobuf@1.10.0)':
+  '@dailydotdev/schema@0.2.67(@bufbuild/protobuf@1.10.0)':
     dependencies:
       '@bufbuild/protobuf': 1.10.0
 
@@ -5998,6 +6015,10 @@ snapshots:
       graphql: 16.12.0
       tslib: 2.8.1
 
+  '@graphql-typed-document-node/core@3.2.0(graphql@15.10.1)':
+    dependencies:
+      graphql: 15.10.1
+
   '@graphql-typed-document-node/core@3.2.0(graphql@16.12.0)':
     dependencies:
       graphql: 16.12.0
@@ -6270,6 +6291,14 @@ snapshots:
   '@jsonjoy.com/util@1.5.0(tslib@2.8.1)':
     dependencies:
       tslib: 2.8.1
+
+  '@linear/sdk@28.0.0':
+    dependencies:
+      '@graphql-typed-document-node/core': 3.2.0(graphql@15.10.1)
+      graphql: 15.10.1
+      isomorphic-unfetch: 3.1.0
+    transitivePeerDependencies:
+      - encoding
 
   '@lukeed/ms@2.0.2': {}
 
@@ -8664,6 +8693,8 @@ snapshots:
     optionalDependencies:
       '@types/express': 5.0.6
 
+  graphql@15.10.1: {}
+
   graphql@16.12.0: {}
 
   gtoken@7.1.0:
@@ -8915,6 +8946,13 @@ snapshots:
       - canvas
       - supports-color
       - utf-8-validate
+
+  isomorphic-unfetch@3.1.0:
+    dependencies:
+      node-fetch: 2.7.0
+      unfetch: 4.2.0
+    transitivePeerDependencies:
+      - encoding
 
   istanbul-lib-coverage@3.2.0: {}
 
@@ -10701,6 +10739,8 @@ snapshots:
       '@fastify/busboy': 2.1.0
 
   undici@7.16.0: {}
+
+  unfetch@4.2.0: {}
 
   unicorn-magic@0.1.0: {}
 
