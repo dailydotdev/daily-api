@@ -1,16 +1,16 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
-import { Feedback, FeedbackCategory, FeedbackStatus } from '../entity';
+import { Feedback } from '../entity/Feedback';
 import { ForbiddenError, ValidationError } from 'apollo-server-errors';
-import { toGQLEnum } from '../common';
 import { MoreThan } from 'typeorm';
+import { feedbackInputSchema } from '../common/schema/feedback';
+import { ZodError } from 'zod';
 
-const FEEDBACK_MAX_DESCRIPTION_LENGTH = 2000;
 const FEEDBACK_RATE_LIMIT_PER_HOUR = 5;
 
 interface GQLFeedbackInput {
-  category: FeedbackCategory;
+  category: string;
   description: string;
   pageUrl?: string;
   userAgent?: string;
@@ -22,7 +22,12 @@ interface GQLFeedbackResult {
 }
 
 export const typeDefs = /* GraphQL */ `
-  ${toGQLEnum(FeedbackCategory, 'FeedbackCategory')}
+  enum FeedbackCategory {
+    BUG
+    FEATURE_REQUEST
+    GENERAL
+    OTHER
+  }
 
   """
   Input for submitting user feedback
@@ -95,20 +100,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { input }: { input: GQLFeedbackInput },
       ctx: AuthContext,
     ): Promise<GQLFeedbackResult> => {
-      // Validate description length
-      if (input.description.length > FEEDBACK_MAX_DESCRIPTION_LENGTH) {
-        throw new ValidationError(
-          `Description must be ${FEEDBACK_MAX_DESCRIPTION_LENGTH} characters or less`,
-        );
-      }
-
-      if (input.description.trim().length === 0) {
-        throw new ValidationError('Description cannot be empty');
-      }
-
-      // Validate category
-      if (!Object.values(FeedbackCategory).includes(input.category)) {
-        throw new ValidationError('Invalid feedback category');
+      // Validate input with Zod
+      try {
+        feedbackInputSchema.parse(input);
+      } catch (err) {
+        if (err instanceof ZodError) {
+          throw new ValidationError(
+            err.errors.map((e) => e.message).join(', '),
+          );
+        }
+        throw err;
       }
 
       // Rate limit check
@@ -127,7 +128,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         description: input.description.trim(),
         pageUrl: input.pageUrl || null,
         userAgent: input.userAgent || null,
-        status: FeedbackStatus.Pending,
+        status: 'pending',
         flags: {},
       });
 

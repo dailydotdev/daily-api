@@ -1,9 +1,9 @@
 import { LinearClient } from '@linear/sdk';
-import { FeedbackCategory, FeedbackClassification } from '../../entity';
+import type { FeedbackClassification } from '../../entity/Feedback';
 
 let linearClient: LinearClient | null = null;
 
-export function getLinearClient(): LinearClient | null {
+export const getLinearClient = (): LinearClient | null => {
   if (!process.env.LINEAR_API_KEY) {
     return null;
   }
@@ -15,12 +15,12 @@ export function getLinearClient(): LinearClient | null {
   }
 
   return linearClient;
-}
+};
 
 interface CreateFeedbackIssueInput {
   feedbackId: string;
   userId: string;
-  category: FeedbackCategory;
+  category: string;
   description: string;
   pageUrl?: string | null;
   classification: FeedbackClassification | null;
@@ -31,8 +31,7 @@ interface CreateFeedbackIssueResult {
   url: string;
 }
 
-// Map classification urgency to Linear priority (1=Urgent, 2=High, 3=Medium, 4=Low, 0=No priority)
-function mapUrgencyToPriority(urgency?: string): number {
+const mapUrgencyToPriority = (urgency?: string): number => {
   switch (urgency) {
     case 'FEEDBACK_URGENCY_CRITICAL':
       return 1;
@@ -43,28 +42,26 @@ function mapUrgencyToPriority(urgency?: string): number {
     case 'FEEDBACK_URGENCY_LOW':
       return 4;
     default:
-      return 3; // Default to medium
+      return 3;
   }
-}
+};
 
-// Map category to display name
-function getCategoryDisplayName(category: FeedbackCategory): string {
+const getCategoryDisplayName = (category: string): string => {
   switch (category) {
-    case FeedbackCategory.Bug:
+    case 'BUG':
       return 'Bug Report';
-    case FeedbackCategory.FeatureRequest:
+    case 'FEATURE_REQUEST':
       return 'Feature Request';
-    case FeedbackCategory.General:
+    case 'GENERAL':
       return 'General Feedback';
-    case FeedbackCategory.Other:
+    case 'OTHER':
       return 'Other';
     default:
       return 'Feedback';
   }
-}
+};
 
-// Map sentiment to emoji
-function getSentimentEmoji(sentiment?: string): string {
+const getSentimentEmoji = (sentiment?: string): string => {
   switch (sentiment) {
     case 'FEEDBACK_SENTIMENT_POSITIVE':
       return '😊';
@@ -75,10 +72,9 @@ function getSentimentEmoji(sentiment?: string): string {
     default:
       return '📝';
   }
-}
+};
 
-// Map urgency to display name
-function getUrgencyDisplayName(urgency?: string): string {
+const getUrgencyDisplayName = (urgency?: string): string => {
   switch (urgency) {
     case 'FEEDBACK_URGENCY_CRITICAL':
       return '🔴 Critical';
@@ -91,18 +87,16 @@ function getUrgencyDisplayName(urgency?: string): string {
     default:
       return 'Medium';
   }
-}
+};
 
-// Sanitize description to prevent Linear markdown injection
-function sanitizeForLinear(content: string): string {
-  return content
+const sanitizeForLinear = (content: string): string =>
+  content
     .replace(/```/g, '\\`\\`\\`')
     .replace(/\[([^\]]*)\]\(([^)]*)\)/g, '\\[$1\\]\\($2\\)')
     .replace(/<([^>]+)>/g, '&lt;$1&gt;')
     .slice(0, 2000);
-}
 
-function buildIssueDescription(input: CreateFeedbackIssueInput): string {
+const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
   const { classification } = input;
   const sanitizedDescription = sanitizeForLinear(input.description);
 
@@ -131,11 +125,11 @@ ${sanitizedDescription}
 - **User ID**: \`${input.userId}\`
 - **Platform**: ${classification?.platform?.replace('FEEDBACK_PLATFORM_', '') || 'Unknown'}
 `;
-}
+};
 
-export async function createFeedbackIssue(
+export const createFeedbackIssue = async (
   input: CreateFeedbackIssueInput,
-): Promise<CreateFeedbackIssueResult | null> {
+): Promise<CreateFeedbackIssueResult | null> => {
   const client = getLinearClient();
   if (!client) {
     return null;
@@ -150,11 +144,9 @@ export async function createFeedbackIssue(
   const categoryDisplay = getCategoryDisplayName(input.category);
   const description = buildIssueDescription(input);
 
-  // Create title - use first line of description truncated
   const firstLine = input.description.trim().split('\n')[0];
   const title = `[Feedback] ${categoryDisplay}: ${firstLine.slice(0, 80)}${firstLine.length > 80 ? '...' : ''}`;
 
-  // Create the issue
   const issuePayload = await client.createIssue({
     teamId,
     title,
@@ -172,13 +164,13 @@ export async function createFeedbackIssue(
     id: issue.id,
     url: issue.url,
   };
-}
+};
 
-async function getOrCreateLabels(
+const getOrCreateLabels = async (
   client: LinearClient,
   teamId: string,
   input: CreateFeedbackIssueInput,
-): Promise<string[]> {
+): Promise<string[]> => {
   const labelNames = [
     'user-feedback',
     `feedback-${input.category.toLowerCase().replace('_', '-')}`,
@@ -198,7 +190,6 @@ async function getOrCreateLabels(
       if (existingMap.has(name)) {
         result.push(existingMap.get(name)!);
       } else {
-        // Create the label
         const color = name === 'user-feedback' ? '#6366f1' : '#8b5cf6';
         const payload = await client.createIssueLabel({
           teamId,
@@ -214,7 +205,6 @@ async function getOrCreateLabels(
 
     return result;
   } catch {
-    // If we can't get/create labels, return empty array
     return [];
   }
-}
+};

@@ -9,21 +9,6 @@ import {
 } from 'typeorm';
 import type { User } from './user';
 
-export enum FeedbackCategory {
-  Bug = 'BUG',
-  FeatureRequest = 'FEATURE_REQUEST',
-  General = 'GENERAL',
-  Other = 'OTHER',
-}
-
-export enum FeedbackStatus {
-  Pending = 'pending',
-  Processing = 'processing',
-  Completed = 'completed',
-  Failed = 'failed',
-  Spam = 'spam',
-}
-
 export type FeedbackClassification = {
   platform?: string;
   category?: string;
@@ -45,7 +30,7 @@ export class Feedback {
   userId: string;
 
   @Column({ type: 'text' })
-  category: FeedbackCategory;
+  category: string;
 
   @Column({ type: 'text' })
   description: string;
@@ -65,9 +50,9 @@ export class Feedback {
   @Column({ type: 'text', nullable: true })
   linearIssueUrl: string | null;
 
-  @Column({ type: 'text', default: FeedbackStatus.Pending })
+  @Column({ type: 'text', default: 'pending' })
   @Index('IDX_feedback_status')
-  status: FeedbackStatus;
+  status: string;
 
   @Column({ type: 'jsonb', default: {} })
   flags: FeedbackFlags;
