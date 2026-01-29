@@ -114,6 +114,8 @@ import {
 } from '../src/entity/UserIntegration';
 import { Company } from '../src/entity/Company';
 import { UserCompany } from '../src/entity/UserCompany';
+import { UserExperience } from '../src/entity/user/experiences/UserExperience';
+import { UserExperienceType } from '../src/entity/user/experiences/types';
 import { SourceReport } from '../src/entity/sources/SourceReport';
 import { SourceMemberRoles } from '../src/roles';
 import { rateLimiterName } from '../src/directive/rateLimit';
@@ -2045,6 +2047,33 @@ describe('user company', () => {
       },
       { userId: '1', verified: true, email: 'u1@com5.com', code: '123' },
     ]);
+    // Add current work experiences for verified companies
+    await con.getRepository(UserExperience).save([
+      {
+        userId: '1',
+        companyId: '1',
+        title: 'Engineer',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2023-01-01'),
+        endedAt: null, // Current position
+      },
+      {
+        userId: '1',
+        companyId: '2',
+        title: 'Developer',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2022-01-01'),
+        endedAt: null, // Current position
+      },
+      {
+        userId: '2',
+        companyId: '3',
+        title: 'Manager',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2021-01-01'),
+        endedAt: null, // Current position
+      },
+    ]);
   });
 
   describe('query user (companies)', () => {
@@ -2097,6 +2126,97 @@ describe('user company', () => {
       expect(res.errors).toBeFalsy();
       expect(res.data.user.companies).toMatchObject([]);
     });
+
+    it('should not return verified company with no work experiences', async () => {
+      // Company 1 is verified for user 1, but let's remove the work experience
+      await con
+        .getRepository(UserExperience)
+        .delete({ userId: '1', companyId: '1' });
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Should only return Company 2 now since Company 1 has no work experience
+      expect(res.data.user.companies).toMatchObject([
+        { id: '2', name: 'Company 2' },
+      ]);
+    });
+
+    it('should not return verified company with only ended work experiences', async () => {
+      // Update user 1's work experience at Company 1 to be ended
+      await con
+        .getRepository(UserExperience)
+        .update(
+          { userId: '1', companyId: '1' },
+          { endedAt: new Date('2023-12-31') },
+        );
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Should only return Company 2 now since Company 1 has no current work experience
+      expect(res.data.user.companies).toMatchObject([
+        { id: '2', name: 'Company 2' },
+      ]);
+    });
+
+    it('should return company if user has at least one current work experience (multiple experiences at same company)', async () => {
+      // Add an ended work experience for user 1 at Company 1 (in addition to current one)
+      await con.getRepository(UserExperience).save({
+        userId: '1',
+        companyId: '1',
+        title: 'Previous Role',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2020-01-01'),
+        endedAt: new Date('2022-12-31'), // Ended
+      });
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Should still return both companies since Company 1 has at least one current experience
+      expect(res.data.user.companies.length).toBe(2);
+    });
+
+    it('should order companies by most recent startedAt (current positions)', async () => {
+      // Update Company 2's experience to have a more recent start date than Company 1
+      await con
+        .getRepository(UserExperience)
+        .update(
+          { userId: '1', companyId: '2' },
+          { startedAt: new Date('2024-06-01') },
+        );
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Company 2 should come first due to more recent start date
+      expect(res.data.user.companies[0].id).toBe('2');
+      expect(res.data.user.companies[1].id).toBe('1');
+    });
+
+    it('should ignore non-work experience types', async () => {
+      // Remove the work experience and add an education experience
+      await con
+        .getRepository(UserExperience)
+        .delete({ userId: '1', companyId: '1' });
+      await con.getRepository(UserExperience).save({
+        userId: '1',
+        companyId: '1',
+        title: 'CS Degree',
+        type: UserExperienceType.Education,
+        startedAt: new Date('2020-01-01'),
+        endedAt: null, // Current education
+      });
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Company 1 should not be returned since education type doesn't count
+      expect(res.data.user.companies).toMatchObject([
+        { id: '2', name: 'Company 2' },
+      ]);
+    });
   });
 
   describe('query companies', () => {
@@ -2112,15 +2232,49 @@ describe('user company', () => {
     it('should not authorize when not logged in', () =>
       testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED'));
 
-    it('should return user companies that are verified', async () => {
+    it('should return user companies that are verified and have current work experience', async () => {
       loggedUser = '1';
       const res = await client.query(QUERY);
       expect(res.errors).toBeFalsy();
+      // u1@com5.com is excluded because it has no companyId
+      // Companies are ordered by most recent startedAt
       expect(res.data.companies).toMatchObject([
         { email: 'u1@com1.com', company: { id: '1' } },
         { email: 'u1@com2.com', company: { id: '2' } },
-        { email: 'u1@com5.com', company: null },
       ]);
+    });
+
+    it('should not return companies without current work experience', async () => {
+      loggedUser = '1';
+      // End the work experience at Company 1
+      await con
+        .getRepository(UserExperience)
+        .update(
+          { userId: '1', companyId: '1' },
+          { endedAt: new Date('2023-12-31') },
+        );
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      // Only Company 2 should remain
+      expect(res.data.companies).toMatchObject([
+        { email: 'u1@com2.com', company: { id: '2' } },
+      ]);
+    });
+
+    it('should order companies by most recent startedAt', async () => {
+      loggedUser = '1';
+      // Make Company 2 more recent
+      await con
+        .getRepository(UserExperience)
+        .update(
+          { userId: '1', companyId: '2' },
+          { startedAt: new Date('2024-06-01') },
+        );
+      const res = await client.query(QUERY);
+      expect(res.errors).toBeFalsy();
+      // Company 2 should come first now
+      expect(res.data.companies[0].company.id).toBe('2');
+      expect(res.data.companies[1].company.id).toBe('1');
     });
   });
 

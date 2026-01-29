@@ -68,6 +68,7 @@ import {
 } from '../entity/contentPreference/ContentPreferenceOrganization';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
+import { UserExperienceType } from '../entity/user/experiences/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
 import { extractHandleFromUrl } from '../common/schema/socials';
 import type { GCSBlob } from '../common/schema/userCandidate';
@@ -297,6 +298,26 @@ const obj = new GraphORM({
               )
               .where('uc.verified = true')
               .andWhere(`uc."userId" = "${parentAlias}".id`)
+              .andWhere(
+                `EXISTS (
+                  SELECT 1 FROM user_experience ue
+                  WHERE ue."userId" = "${parentAlias}".id
+                  AND ue."companyId" = "${childAlias}".id
+                  AND ue.type = :ueType
+                  AND ue."endedAt" IS NULL
+                )`,
+                { ueType: UserExperienceType.Work },
+              )
+              .orderBy(
+                `(
+                  SELECT MAX(ue2."startedAt") FROM user_experience ue2
+                  WHERE ue2."userId" = "${parentAlias}".id
+                  AND ue2."companyId" = "${childAlias}".id
+                  AND ue2.type = :ueType
+                  AND ue2."endedAt" IS NULL
+                )`,
+                'DESC',
+              )
               .limit(50),
         },
       },
