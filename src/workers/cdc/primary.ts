@@ -42,6 +42,7 @@ import {
   UserPost,
   UserStreak,
   UserTopReader,
+  Feedback,
 } from '../../entity';
 import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
@@ -1726,6 +1727,19 @@ const onOpportunityUserChange = async (
   }
 };
 
+const onFeedbackChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<Feedback>,
+) => {
+  // Only trigger event on new feedback creation
+  if (data.payload.op === 'c') {
+    await triggerTypedEvent(logger, 'api.v1.feedback-created', {
+      feedback: data.payload.after!,
+    });
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1859,6 +1873,9 @@ const worker: Worker = {
           break;
         case getTableName(con, OpportunityUser):
           await onOpportunityUserChange(con, logger, data);
+          break;
+        case getTableName(con, Feedback):
+          await onFeedbackChange(con, logger, data);
           break;
       }
     } catch (err) {

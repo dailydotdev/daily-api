@@ -52,6 +52,7 @@
     "@graphql-tools/utils": "^10.11.0",
     "@growthbook/growthbook": "^1.6.2",
     "@grpc/grpc-js": "^1.14.3",
+    "@linear/sdk": "^28.0.0",
     "@mando75/typeorm-graphql-loader": "^0.3.0",
     "@maxmind/geoip2-node": "^6.3.4",
     "@onesignal/node-onesignal": "^1.0.0-beta9",
