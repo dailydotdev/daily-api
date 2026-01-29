@@ -83,7 +83,10 @@ import * as gondulCommon from '../../src/common/gondul';
 import type { ServiceClient } from '../../src/types';
 import { OpportunityJob } from '../../src/entity/opportunities/OpportunityJob';
 import * as brokkrCommon from '../../src/common/brokkr';
-import { updateRecruiterSubscriptionFlags } from '../../src/common';
+import {
+  updateFlagsStatement,
+  updateRecruiterSubscriptionFlags,
+} from '../../src/common';
 import { SubscriptionStatus } from '../../src/common/plus';
 import { OpportunityPreviewStatus } from '../../src/common/opportunity/types';
 import { unsupportedOpportunityDomains } from '../../src/common/schema/opportunities';
@@ -555,6 +558,28 @@ describe('query opportunityById', () => {
     );
 
     isTeamMember = false;
+  });
+
+  it('should return public draft opportunity for anonymous user', async () => {
+    await con.getRepository(Opportunity).update(
+      { id: '550e8400-e29b-41d4-a716-446655440001' },
+      {
+        state: OpportunityState.DRAFT,
+        flags: updateFlagsStatement<Opportunity>({
+          public_draft: true,
+        }),
+      },
+    );
+
+    const res = await client.query(OPPORTUNITY_BY_ID_QUERY, {
+      variables: { id: '550e8400-e29b-41d4-a716-446655440001' },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    expect(res.data.opportunityById.id).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
   });
 });
 
