@@ -122,6 +122,12 @@ The migration generator compares entities against the local database schema. Ens
 - Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
 - When evaluating response objects (GraphQL, API), prefer `toEqual` and `toMatchObject` over multiple `expect().toBe()` lines
 - Avoid redundant test assertions - if an assertion already verifies the value, don't add negative checks that are logically implied (e.g., if `expect(result).toBe('a')` passes, don't also check `expect(result).not.toBe('b')`)
+- **Typed worker tests**: Always use the generic type parameter with `expectSuccessfulTypedBackground<'topic-name'>()` for type safety. Use `toChangeObject()` to convert entities to the expected message payload format:
+  ```typescript
+  await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
+    feedback: toChangeObject(feedback),
+  });
+  ```
 
 **Infrastructure Concerns:**
 - OpenTelemetry for distributed tracing and metrics

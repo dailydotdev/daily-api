@@ -20,27 +20,27 @@ const infraDigestWorkersMap = infraDigestWorkers.reduce(
 
 describe('pubsub workers', () => {
   it('should have all subscriptions from typed workers to be defined', () => {
-    const allIsFound = typedWorkers.every(
-      ({ subscription }) => subscription in infraWorkersMap,
-    );
+    const missing = typedWorkers
+      .filter(({ subscription }) => !(subscription in infraWorkersMap))
+      .map(({ subscription }) => subscription);
 
-    expect(allIsFound).toBe(true);
+    expect(missing).toEqual([]);
   });
 
   it('should have all subscriptions from legacy workers to be defined', () => {
-    const allIsFound = legacyWorkers.every(
-      ({ subscription }) => subscription in infraWorkersMap,
-    );
+    const missing = legacyWorkers
+      .filter(({ subscription }) => !(subscription in infraWorkersMap))
+      .map(({ subscription }) => subscription);
 
-    expect(allIsFound).toBe(true);
+    expect(missing).toEqual([]);
   });
 
   it('should have all subscriptions from personalized digest workers to be defined', () => {
-    const allIsFound = personalizedDigestWorkers.every(
-      ({ subscription }) => subscription in infraDigestWorkersMap,
-    );
+    const missing = personalizedDigestWorkers
+      .filter(({ subscription }) => !(subscription in infraDigestWorkersMap))
+      .map(({ subscription }) => subscription);
 
-    expect(allIsFound).toBe(true);
+    expect(missing).toEqual([]);
   });
 });
 
@@ -61,19 +61,25 @@ describe('infra subscriptions', () => {
   );
 
   it('should have every subscriptions to have a subscriber worker', () => {
-    const allIsFound = infraWorkers.every(
-      ({ subscription }) =>
-        subscription in typedWorkersMap || subscription in legacyWorkersMap,
-    );
+    const missing = infraWorkers
+      .filter(
+        ({ subscription }) =>
+          !(
+            subscription in typedWorkersMap || subscription in legacyWorkersMap
+          ),
+      )
+      .map(({ subscription }) => subscription);
 
-    expect(allIsFound).toBe(true);
+    expect(missing).toEqual([]);
   });
 
   it('should have every digest subscriptions to have a digest subscriber worker', () => {
-    const allIsFound = infraDigestWorkers.every(
-      ({ subscription }) => subscription in personalizedDigestWorkersMap,
-    );
+    const missing = infraDigestWorkers
+      .filter(
+        ({ subscription }) => !(subscription in personalizedDigestWorkersMap),
+      )
+      .map(({ subscription }) => subscription);
 
-    expect(allIsFound).toBe(true);
+    expect(missing).toEqual([]);
   });
 });
