@@ -212,6 +212,8 @@ config:
       secure: AAABAMww+9EdprrAELx5dXgtK002QnfSSQ53IynfBB3gU41p/NtzKR56A3tTrzpeEaXfDKDY600Y1gFeAjYrCn4WJLSJ95HT3BDiINrQi1E=
     linearFeedbackTeamId:
       secure: AAABAJ1KpZ9DXMnK9H+8FVUQCgwKSrianvxqnMXqyxouKwIPYY1Hvmerh+VZapUwolreX0NSKwbhaIEdzt8okltKexQ=
+    slackUserFeedbackWebhook:
+      secure: AAABAOdXRr1kkATusYHaoqsfa0Xi+xvqFZEHt1vUxKXvwl20h/7LkIhd65gFyjLvr3+jMG5iBUs8SIQy43QFjAgnpLsH9mq+987c+AJXCsXumIuBiP2pKeOKQJlVpIpwvr354kKr0l2TJsFEz9Bl7/w=
   api:k8s:
     host: subs.daily.dev
     namespace: daily

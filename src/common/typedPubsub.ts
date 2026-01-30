@@ -265,6 +265,9 @@ export type PubSubSchema = {
   'api.v1.feedback-created': {
     feedbackId: string;
   };
+  'api.v1.feedback-updated': {
+    feedbackId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
