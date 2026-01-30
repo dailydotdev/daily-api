@@ -3,6 +3,7 @@ import {
   RateLimitOnLimit,
   RateLimitOptions,
   defaultKeyGenerator,
+  defaultPointsCalculator,
   rateLimitDirective,
 } from 'graphql-rate-limit-directive';
 import {
@@ -121,6 +122,20 @@ const rateLimiterConfig: RateLimitOptions<Context, IRateLimiterRedisOptions> = {
     storeClient: singleRedisClient,
   },
   limiterClass: CustomRateLimiterRedis,
+  pointsCalculator: (directiveArgs, source, args, context, info) => {
+    switch (info.fieldName) {
+      case 'parseOpportunity':
+        return context.isTeamMember ? 0 : 1;
+      default:
+        return defaultPointsCalculator(
+          directiveArgs,
+          source,
+          args,
+          context,
+          info,
+        );
+    }
+  },
 };
 
 const { rateLimitDirectiveTransformer, rateLimitDirectiveTypeDefs } =
