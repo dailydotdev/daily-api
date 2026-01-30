@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './user';
-import { FeedbackCategory } from '@dailydotdev/schema';
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 
 export enum FeedbackStatus {
   Pending = 0,
@@ -40,8 +40,11 @@ export class Feedback {
   @Column({ length: 36 })
   userId: string;
 
-  @Column({ type: 'integer', comment: 'FeedbackCategory from protobuf schema' })
-  category: FeedbackCategory;
+  @Column({
+    type: 'integer',
+    comment: 'UserFeedbackCategory from protobuf schema',
+  })
+  category: UserFeedbackCategory;
 
   @Column({ type: 'text' })
   description: string;
@@ -64,7 +67,7 @@ export class Feedback {
   @Column({
     type: 'integer',
     default: FeedbackStatus.Pending,
-    comment: 'FeedbackStatus from protobuf schema',
+    comment: 'FeedbackStatus enum internal',
   })
   @Index('IDX_feedback_status')
   status: FeedbackStatus;

@@ -10,7 +10,7 @@ export class FeedbackCategoryInteger1769762715889 implements MigrationInterface 
       `);
     await queryRunner.query(`
         COMMENT ON COLUMN "feedback"."category"
-        IS 'FeedbackCategory from protobuf schema'
+        IS 'UserFeedbackCategory from protobuf schema'
       `);
     await queryRunner.query(`
         ALTER TABLE "feedback"
