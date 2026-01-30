@@ -210,6 +210,8 @@ config:
       secure: AAABACA15ONR4Q1/2UFpcQ4bAKkkcrNYSQCSClGz0EtdyEKGxyzf1hOS9xQ+2800uXk+bZ29uB0ZdLPtr8gjGrSvykAUkwuf
     linearApiKey:
       secure: AAABAMww+9EdprrAELx5dXgtK002QnfSSQ53IynfBB3gU41p/NtzKR56A3tTrzpeEaXfDKDY600Y1gFeAjYrCn4WJLSJ95HT3BDiINrQi1E=
+    linearFeedbackTeamId:
+      secure: AAABAJ1KpZ9DXMnK9H+8FVUQCgwKSrianvxqnMXqyxouKwIPYY1Hvmerh+VZapUwolreX0NSKwbhaIEdzt8okltKexQ=
   api:k8s:
     host: subs.daily.dev
     namespace: daily
