@@ -1735,7 +1735,7 @@ const onFeedbackChange = async (
   // Only trigger event on new feedback creation
   if (data.payload.op === 'c') {
     await triggerTypedEvent(logger, 'api.v1.feedback-created', {
-      feedback: data.payload.after!,
+      feedbackId: data.payload.after!.id,
     });
   }
 };

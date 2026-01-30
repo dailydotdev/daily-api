@@ -5,7 +5,6 @@ import { User } from '../../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { typedWorkers } from '../../src/workers';
-import { toChangeObject } from '../../src/common';
 
 const mockClassifyUserFeedback = jest.fn();
 const mockCreateFeedbackIssue = jest.fn();
@@ -81,7 +80,7 @@ describe('feedbackClassify worker', () => {
     });
 
     await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-      feedback: toChangeObject<Feedback>(feedback),
+      feedbackId: feedback.id,
     });
 
     const updated = await con
@@ -110,7 +109,7 @@ describe('feedbackClassify worker', () => {
     });
 
     await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-      feedback: toChangeObject<Feedback>(feedback),
+      feedbackId: feedback.id,
     });
 
     const updated = await con
@@ -129,7 +128,7 @@ describe('feedbackClassify worker', () => {
     });
 
     await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-      feedback: toChangeObject<Feedback>(feedback),
+      feedbackId: feedback.id,
     });
 
     const updated = await con
@@ -151,14 +150,14 @@ describe('feedbackClassify worker', () => {
 
     await expect(
       expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-        feedback: toChangeObject<Feedback>(feedback),
+        feedbackId: feedback.id,
       }),
     ).rejects.toThrow('Linear client not configured');
   });
 
   it('should skip processing if feedback not found', async () => {
     await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-      feedback: { id: '00000000-0000-0000-0000-000000000000' } as Feedback,
+      feedbackId: '00000000-0000-0000-0000-000000000000',
     });
 
     expect(mockClassifyUserFeedback).not.toHaveBeenCalled();
