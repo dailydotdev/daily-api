@@ -1732,9 +1732,12 @@ const onFeedbackChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<Feedback>,
 ) => {
-  // Only trigger event on new feedback creation
   if (data.payload.op === 'c') {
     await triggerTypedEvent(logger, 'api.v1.feedback-created', {
+      feedbackId: data.payload.after!.id,
+    });
+  } else if (data.payload.op === 'u') {
+    await triggerTypedEvent(logger, 'api.v1.feedback-updated', {
       feedbackId: data.payload.after!.id,
     });
   }

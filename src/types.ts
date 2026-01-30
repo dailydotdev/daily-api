@@ -65,6 +65,7 @@ declare global {
       SLACK_VORDR_WEBHOOK: string;
       SLACK_TRANSACTIONS_WEBHOOK: string;
       SLACK_ADS_WEBHOOK: string;
+      SLACK_USER_FEEDBACK_WEBHOOK: string;
       NJORD_ORIGIN: string;
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;

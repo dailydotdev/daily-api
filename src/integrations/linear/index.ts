@@ -8,6 +8,10 @@ import {
 
 import type { FeedbackClassification } from '../../entity/Feedback';
 import { GarmrService, IGarmrClient } from '../garmr';
+import {
+  getCategoryDisplayName,
+  getSentimentEmoji,
+} from '../../common/feedback';
 
 interface ILinearClient extends IGarmrClient {
   instance: LinearClient | null;
@@ -58,21 +62,6 @@ interface CreateFeedbackIssueResult {
 const mapUrgencyToPriority = (urgency?: string): number =>
   Number(urgency) || UserFeedbackUrgency.MEDIUM;
 
-const getCategoryDisplayName = (category: number): string => {
-  switch (category) {
-    case UserFeedbackCategory.BUG:
-      return 'Bug Report';
-    case UserFeedbackCategory.FEATURE_REQUEST:
-      return 'Feature Request';
-    case UserFeedbackCategory.GENERAL:
-      return 'General Feedback';
-    case UserFeedbackCategory.OTHER:
-      return 'Other';
-    default:
-      return 'Feedback';
-  }
-};
-
 const getCategoryLabelName = (category: number): string => {
   switch (category) {
     case UserFeedbackCategory.BUG:
@@ -85,21 +74,6 @@ const getCategoryLabelName = (category: number): string => {
       return 'other';
     default:
       return 'unknown';
-  }
-};
-
-const getSentimentEmoji = (sentiment?: string): string => {
-  switch (Number(sentiment)) {
-    case UserFeedbackSentiment.POSITIVE:
-      return '😊';
-    case UserFeedbackSentiment.NEGATIVE:
-      return '😟';
-    case UserFeedbackSentiment.NEUTRAL:
-      return '😐';
-    case UserFeedbackSentiment.MIXED:
-      return '🤔';
-    default:
-      return '📝';
   }
 };
 
