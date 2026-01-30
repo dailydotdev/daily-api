@@ -842,6 +842,63 @@ describe('POST /p/newUser', () => {
       type: OpportunityUserType.Recruiter,
     });
   });
+
+  it('should claim opportunities that user created with email', async () => {
+    const anonUserId = await generateShortId();
+
+    const opportunity = await con.getRepository(OpportunityJob).save(
+      con.getRepository(OpportunityJob).create({
+        title: 'Test',
+        tldr: 'Test',
+        state: OpportunityState.DRAFT,
+      }),
+    );
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: `test+${anonUserId}@gmail.com`,
+      type: ClaimableItemTypes.Opportunity,
+      flags: {
+        opportunityId: opportunity.id,
+      },
+    });
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: anonUserId,
+        name: anonUserId,
+        image: usersFixture[0].image,
+        username: anonUserId,
+        email: `test+${anonUserId}@gmail.com`,
+        experienceLevel: 'LESS_THAN_1_YEAR',
+      })
+      .expect(200);
+
+    expect(body.status).toEqual('ok');
+    expect(body.userId).toEqual(anonUserId);
+
+    const updatedClaimableItem = await con
+      .getRepository(ClaimableItem)
+      .findOneBy({
+        identifier: `test+${anonUserId}@gmail.com`,
+        type: ClaimableItemTypes.Opportunity,
+      });
+    expect(updatedClaimableItem).not.toBeNull();
+    expect(updatedClaimableItem!.claimedAt).toBeInstanceOf(Date);
+    expect(updatedClaimableItem!.claimedById).toBe(anonUserId);
+
+    const opportunityUser = await con.getRepository(OpportunityUser).findOneBy({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+    });
+    expect(opportunityUser).toEqual({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+      type: OpportunityUserType.Recruiter,
+    });
+  });
 });
 
 describe('POST /p/checkUsername', () => {

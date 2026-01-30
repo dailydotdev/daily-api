@@ -263,6 +263,7 @@ export const updateClaimableItem = async (
     where: {
       identifier: customer.email,
       claimedAt: IsNull(),
+      type: ClaimableItemTypes.Plus,
     },
   });
 
@@ -297,6 +298,7 @@ export const dropClaimableItem = async (
 
   await con.getRepository(ClaimableItem).delete({
     identifier: customer.email,
+    type: ClaimableItemTypes.Plus,
     claimedAt: IsNull(),
     flags: JsonContains({
       subscriptionId: data.id,
