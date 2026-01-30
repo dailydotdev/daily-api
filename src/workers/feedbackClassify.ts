@@ -1,4 +1,3 @@
-import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { getBragiClient } from '../integrations/bragi';
