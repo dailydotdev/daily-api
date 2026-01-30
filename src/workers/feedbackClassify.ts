@@ -16,7 +16,7 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
   subscription: 'api.feedback-classify',
   handler: async (message, con, logger): Promise<void> => {
     const { data } = message;
-    const feedbackId = data.feedback.id;
+    const { feedbackId } = data;
     const logDetails = { feedbackId, messageId: message.messageId };
 
     try {
@@ -56,6 +56,10 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
           pageUrl: feedback.pageUrl ?? undefined,
           userAgent: feedback.userAgent ?? undefined,
         }),
+      );
+      console.info(
+        { ...logDetails, response },
+        'Bragi classification response',
       );
 
       const classification = response.classification
