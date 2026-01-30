@@ -8,13 +8,14 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { User } from './user';
+import { UserFeedbackCategory } from '@dailydotdev/schema';
 
 export enum FeedbackStatus {
-  Pending = 'pending',
-  Processing = 'processing',
-  Completed = 'completed',
-  Failed = 'failed',
-  Spam = 'spam',
+  Pending = 0,
+  Processing = 1,
+  Completed = 2,
+  Failed = 3,
+  Spam = 4,
 }
 
 export type FeedbackClassification = {
@@ -39,8 +40,11 @@ export class Feedback {
   @Column({ length: 36 })
   userId: string;
 
-  @Column({ type: 'text' })
-  category: string;
+  @Column({
+    type: 'integer',
+    comment: 'UserFeedbackCategory from protobuf schema',
+  })
+  category: UserFeedbackCategory;
 
   @Column({ type: 'text' })
   description: string;
@@ -60,7 +64,11 @@ export class Feedback {
   @Column({ type: 'text', nullable: true })
   linearIssueUrl: string | null;
 
-  @Column({ type: 'text', default: FeedbackStatus.Pending })
+  @Column({
+    type: 'integer',
+    default: FeedbackStatus.Pending,
+    comment: 'FeedbackStatus enum internal',
+  })
   @Index('IDX_feedback_status')
   status: FeedbackStatus;
 

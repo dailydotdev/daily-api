@@ -1,4 +1,3 @@
-import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { getBragiClient } from '../integrations/bragi';
@@ -45,13 +44,10 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
 
       // External API calls outside transaction
       const bragiClient = getBragiClient();
-      const category =
-        UserFeedbackCategory[
-          feedback.category as keyof typeof UserFeedbackCategory
-        ];
+
       const response = await bragiClient.garmr.execute(async () =>
         bragiClient.instance.classifyUserFeedback({
-          category,
+          category: feedback.category,
           description: feedback.description,
           pageUrl: feedback.pageUrl ?? undefined,
           userAgent: feedback.userAgent ?? undefined,
