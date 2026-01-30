@@ -61,7 +61,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     if (body.id && operationResult.status === 'ok') {
       const identifiers = [body.id, body.email].filter(Boolean);
 
-      const opportunities = await Promise.all(
+      const opportunityGroups = await Promise.all(
         identifiers.map((identifier) => {
           return claimAnonOpportunities({
             anonUserId: identifier,
@@ -71,7 +71,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         }),
       );
 
-      if (opportunities.flat(1).length > 0) {
+      const opportunities = opportunityGroups.flat(1);
+
+      if (opportunities.length > 0) {
         logger.info(
           {
             anonUserId: body.id,
