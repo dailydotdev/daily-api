@@ -8,7 +8,7 @@ import { ZodError } from 'zod/v4';
 import { GQLEmptyResponse } from './common';
 
 interface GQLFeedbackInput {
-  category: string;
+  category: number;
   description: string;
   pageUrl?: string;
   userAgent?: string;

@@ -1,4 +1,11 @@
 import { LinearClient } from '@linear/sdk';
+import {
+  UserFeedbackCategory,
+  UserFeedbackSentiment,
+  UserFeedbackTeam,
+  UserFeedbackUrgency,
+} from '@dailydotdev/schema';
+
 import type { FeedbackClassification } from '../../entity/Feedback';
 import { GarmrService, IGarmrClient } from '../garmr';
 
@@ -37,7 +44,7 @@ export const getLinearClient = (): ILinearClient | null => {
 interface CreateFeedbackIssueInput {
   feedbackId: string;
   userId: string;
-  category: string;
+  category: number;
   description: string;
   pageUrl?: string | null;
   classification: FeedbackClassification | null;
@@ -48,45 +55,48 @@ interface CreateFeedbackIssueResult {
   url: string;
 }
 
-const mapUrgencyToPriority = (urgency?: string): number => {
-  switch (urgency) {
-    case '1': // CRITICAL
-      return 1;
-    case '2': // HIGH
-      return 2;
-    case '3': // MEDIUM
-      return 3;
-    case '4': // LOW
-      return 4;
-    default:
-      return 3;
-  }
-};
+const mapUrgencyToPriority = (urgency?: string): number =>
+  Number(urgency) || UserFeedbackUrgency.MEDIUM;
 
-const getCategoryDisplayName = (category: string): string => {
+const getCategoryDisplayName = (category: number): string => {
   switch (category) {
-    case 'BUG':
+    case UserFeedbackCategory.BUG:
       return 'Bug Report';
-    case 'FEATURE_REQUEST':
+    case UserFeedbackCategory.FEATURE_REQUEST:
       return 'Feature Request';
-    case 'GENERAL':
+    case UserFeedbackCategory.GENERAL:
       return 'General Feedback';
-    case 'OTHER':
+    case UserFeedbackCategory.OTHER:
       return 'Other';
     default:
       return 'Feedback';
   }
 };
 
+const getCategoryLabelName = (category: number): string => {
+  switch (category) {
+    case UserFeedbackCategory.BUG:
+      return 'bug';
+    case UserFeedbackCategory.FEATURE_REQUEST:
+      return 'feature-request';
+    case UserFeedbackCategory.GENERAL:
+      return 'general';
+    case UserFeedbackCategory.OTHER:
+      return 'other';
+    default:
+      return 'unknown';
+  }
+};
+
 const getSentimentEmoji = (sentiment?: string): string => {
-  switch (sentiment) {
-    case '1': // POSITIVE
+  switch (Number(sentiment)) {
+    case UserFeedbackSentiment.POSITIVE:
       return '😊';
-    case '2': // NEGATIVE
+    case UserFeedbackSentiment.NEGATIVE:
       return '😟';
-    case '3': // NEUTRAL
+    case UserFeedbackSentiment.NEUTRAL:
       return '😐';
-    case '4': // MIXED
+    case UserFeedbackSentiment.MIXED:
       return '🤔';
     default:
       return '📝';
@@ -94,14 +104,14 @@ const getSentimentEmoji = (sentiment?: string): string => {
 };
 
 const getUrgencyDisplayName = (urgency?: string): string => {
-  switch (urgency) {
-    case '1': // CRITICAL
+  switch (Number(urgency)) {
+    case UserFeedbackUrgency.CRITICAL:
       return '🔴 Critical';
-    case '2': // HIGH
+    case UserFeedbackUrgency.HIGH:
       return '🟠 High';
-    case '3': // MEDIUM
+    case UserFeedbackUrgency.MEDIUM:
       return '🟡 Medium';
-    case '4': // LOW
+    case UserFeedbackUrgency.LOW:
       return '🟢 Low';
     default:
       return 'Medium';
@@ -109,14 +119,14 @@ const getUrgencyDisplayName = (urgency?: string): string => {
 };
 
 const getSentimentDisplayName = (sentiment?: string): string => {
-  switch (sentiment) {
-    case '1':
+  switch (Number(sentiment)) {
+    case UserFeedbackSentiment.POSITIVE:
       return 'Positive';
-    case '2':
+    case UserFeedbackSentiment.NEGATIVE:
       return 'Negative';
-    case '3':
+    case UserFeedbackSentiment.NEUTRAL:
       return 'Neutral';
-    case '4':
+    case UserFeedbackSentiment.MIXED:
       return 'Mixed';
     default:
       return 'Unknown';
@@ -124,12 +134,12 @@ const getSentimentDisplayName = (sentiment?: string): string => {
 };
 
 const getTeamDisplayName = (team?: string): string => {
-  switch (team) {
-    case '1':
+  switch (Number(team)) {
+    case UserFeedbackTeam.ENGINEERING:
       return 'Engineering';
-    case '2':
+    case UserFeedbackTeam.PRODUCT:
       return 'Product';
-    case '3':
+    case UserFeedbackTeam.SUPPORT:
       return 'Support';
     default:
       return 'Unassigned';
@@ -247,7 +257,7 @@ const getOrCreateLabels = async (
 ): Promise<string[]> => {
   const labelNames = [
     'user-feedback',
-    `feedback-${input.category.toLowerCase().replace('_', '-')}`,
+    `feedback-${getCategoryLabelName(input.category)}`,
     // Add classification tags as labels (prefixed to avoid conflicts)
     ...(input.classification?.tags?.map((tag) => `tag-${tag}`) ?? []),
   ];
