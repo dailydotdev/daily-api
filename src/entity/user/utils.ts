@@ -30,7 +30,7 @@ import { getUserCoresRole } from '../../common/user';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
 import { DeletedUser } from './DeletedUser';
-import { ClaimableItem } from '../ClaimableItem';
+import { ClaimableItem, ClaimableItemTypes } from '../ClaimableItem';
 import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
 import { getGeo } from '../../common/geo';
 import {
@@ -386,9 +386,11 @@ export const addClaimableItemsToUser = async (
   con: DataSource,
   body: AddUserData,
 ) => {
-  const subscription = await con
-    .getRepository(ClaimableItem)
-    .findOneBy({ identifier: body.email, claimedById: IsNull() });
+  const subscription = await con.getRepository(ClaimableItem).findOneBy({
+    identifier: body.email,
+    claimedById: IsNull(),
+    type: ClaimableItemTypes.Plus,
+  });
 
   if (subscription) {
     await paddleInstance.subscriptions.update(
