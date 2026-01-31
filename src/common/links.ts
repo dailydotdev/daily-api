@@ -193,3 +193,26 @@ export const getShortGenericInviteLink = async (
   const genericInviteURL = await getShortUrl(rawInviteURL.toString(), log);
   return genericInviteURL.toString();
 };
+
+/**
+ * Validates that a URL's hostname is an allowed daily.dev domain.
+ * This prevents subdomain spoofing attacks where URLs like
+ * "https://app.daily.dev.attacker.com" could pass a simple prefix check.
+ */
+export const isAllowedShortenerUrl = (url: string): boolean => {
+  try {
+    const parsedUrl = new URL(url);
+    const commentsPrefix = process.env.COMMENTS_PREFIX;
+
+    if (!commentsPrefix) {
+      return false;
+    }
+
+    const allowedUrl = new URL(commentsPrefix);
+
+    // Exact hostname match required - no subdomain spoofing allowed
+    return parsedUrl.hostname === allowedUrl.hostname;
+  } catch {
+    return false;
+  }
+};
