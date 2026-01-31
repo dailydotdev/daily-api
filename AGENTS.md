@@ -115,6 +115,9 @@ The migration generator compares entities against the local database schema. Ens
 - The `@auth(requires: [MODERATOR])` GraphQL directive restricts mutations to system moderators only
 
 **Testing Strategy:**
+- **Prefer integration tests over unit tests** - Integration tests provide more value by testing the full stack (GraphQL/API endpoints, validation, database interactions)
+- **Unit tests should be rare** - Only create unit tests for complex utility functions with significant business logic. Simple validation or formatting functions are better tested through integration tests
+- **Avoid test duplication** - Don't create both unit and integration tests for the same functionality. If integration tests cover the behavior, unit tests are redundant
 - Jest with supertest for integration testing
 - Database reset before each test run via pretest hook
 - Fixtures in `__tests__/fixture/` for test data
