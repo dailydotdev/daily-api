@@ -5,7 +5,7 @@ const cron: Cron = {
   handler: async (con) => {
     await con.transaction(async (entityManager): Promise<void> => {
       await entityManager.query(
-        `update "public"."post" p
+        `update post p
            set "discussionScore" = v.score
            FROM (
                   select
@@ -33,7 +33,7 @@ const cron: Cron = {
            WHERE p.id = v.id`,
       );
       await entityManager.query(
-        `update "public"."post" p
+        `update post p
            set "discussionScore" = null
            FROM (
                   select res.id
