@@ -1,5 +1,30 @@
 import z from 'zod';
 
+export const feedbackClassificationSchema = z.object({
+  platform: z.number(),
+  category: z.number(),
+  sentiment: z.number(),
+  urgency: z.number(),
+});
+
+export const opportunityFeedbackSchema = z.object({
+  screening: z.string(),
+  answer: z.string(),
+  classification: feedbackClassificationSchema.optional(),
+});
+
+export type OpportunityFeedback = z.infer<typeof opportunityFeedbackSchema>;
+export type FeedbackClassification = z.infer<
+  typeof feedbackClassificationSchema
+>;
+
+export const anonymousUserContextSchema = z.object({
+  seniority: z.string().nullable().optional(),
+  locationCountry: z.string().nullable().optional(),
+});
+
+export type AnonymousUserContext = z.infer<typeof anonymousUserContextSchema>;
+
 export const opportunityScreeningAnswersSchema = z.object({
   id: z.uuid(),
   answers: z

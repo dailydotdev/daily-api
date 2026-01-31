@@ -153,6 +153,7 @@ describe('query userExperiences', () => {
             startedAt
             endedAt
             createdAt
+            isOwner
             company {
               id
               name
@@ -185,17 +186,6 @@ describe('query userExperiences', () => {
     expect(res.data.userExperiences.pageInfo.hasNextPage).toBe(false);
   });
 
-  it('should return only 1 experience for non-logged-in user', async () => {
-    loggedUser = null;
-
-    const res = await client.query(USER_EXPERIENCES_QUERY, {
-      variables: { userId: '1' },
-    });
-
-    expect(res.errors).toBeFalsy();
-    expect(res.data.userExperiences.edges).toHaveLength(1);
-  });
-
   it('should return all fields for logged-in users', async () => {
     loggedUser = '1';
 
@@ -217,6 +207,7 @@ describe('query userExperiences', () => {
       description: 'Working on API infrastructure',
       startedAt: '2022-01-01T00:00:00.000Z',
       createdAt: '2022-01-01T00:00:00.000Z',
+      isOwner: true,
       company: {
         id: 'company-1',
         name: 'Daily.dev',
@@ -328,7 +319,67 @@ describe('query userExperiences', () => {
     expect(res.data.userExperiences.edges).toHaveLength(1);
     expect(res.data.userExperiences.edges[0].node).toMatchObject({
       id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+      isOwner: false,
     });
+  });
+
+  it('should return empty list when viewing another user with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 2's hideExperience to true
+    await con.getRepository(User).update({ id: '2' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(0);
+    expect(res.data.userExperiences.pageInfo.hasNextPage).toBe(false);
+  });
+
+  it('should return own experiences even with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 1's hideExperience to true
+    await con.getRepository(User).update({ id: '1' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '1' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(4);
+  });
+
+  it('should return experiences for another user when hideExperience is false', async () => {
+    loggedUser = '1';
+
+    // Explicitly set user 2's hideExperience to false
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { hideExperience: false });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(1);
+  });
+
+  it('should return empty list for anonymous user when owner has hideExperience enabled', async () => {
+    loggedUser = null;
+
+    // Set user 2's hideExperience to true
+    await con.getRepository(User).update({ id: '2' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCES_QUERY, {
+      variables: { userId: '2' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperiences.edges).toHaveLength(0);
   });
 
   it('should return cursor for each edge', async () => {
@@ -395,6 +446,7 @@ describe('query userExperienceById', () => {
         startedAt
         endedAt
         createdAt
+        isOwner
         company {
           id
           name
@@ -419,6 +471,7 @@ describe('query userExperienceById', () => {
       subtitle: 'Backend Team',
       description: 'Working on API infrastructure',
       endedAt: null,
+      isOwner: true,
       company: {
         name: 'Daily.dev',
       },
@@ -458,17 +511,15 @@ describe('query userExperienceById', () => {
     });
   });
 
-  it('should return error when experience does not exist', async () => {
+  it('should return null when experience does not exist', async () => {
     loggedUser = '1';
 
-    await testQueryErrorCode(
-      client,
-      {
-        query: USER_EXPERIENCE_BY_ID_QUERY,
-        variables: { id: 'f47ac10b-58cc-4372-a567-3e02b2c3d479' }, // manually adjusted to be unique
-      },
-      'NOT_FOUND',
-    );
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-3e02b2c3d479' }, // manually adjusted to be unique
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toBeNull();
   });
 
   it('should work for non-logged-in users', async () => {
@@ -481,6 +532,7 @@ describe('query userExperienceById', () => {
     expect(res.errors).toBeFalsy();
     expect(res.data.userExperienceById).toMatchObject({
       id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      isOwner: false,
     });
   });
 
@@ -495,7 +547,72 @@ describe('query userExperienceById', () => {
     expect(res.data.userExperienceById).toMatchObject({
       id: 'd4e5f6a7-89ab-4def-c012-456789012345',
       title: 'Product Manager',
+      isOwner: false,
     });
+  });
+
+  it('should return null when viewing another user experience with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 2's hideExperience to true
+    await con.getRepository(User).update({ id: '2' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' }, // User 2's experience
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toBeNull();
+  });
+
+  it('should return own experience even with hideExperience enabled', async () => {
+    loggedUser = '1';
+
+    // Set user 1's hideExperience to true
+    await con.getRepository(User).update({ id: '1' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }, // User 1's experience
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+      title: 'Senior Software Engineer',
+    });
+  });
+
+  it('should return experience from another user when hideExperience is false', async () => {
+    loggedUser = '1';
+
+    // Explicitly set user 2's hideExperience to false
+    await con
+      .getRepository(User)
+      .update({ id: '2' }, { hideExperience: false });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'd4e5f6a7-89ab-4def-c012-456789012345' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toMatchObject({
+      id: 'd4e5f6a7-89ab-4def-c012-456789012345',
+      title: 'Product Manager',
+    });
+  });
+
+  it('should return null for anonymous user when owner has hideExperience enabled', async () => {
+    loggedUser = null;
+
+    // Set user 1's hideExperience to true
+    await con.getRepository(User).update({ id: '1' }, { hideExperience: true });
+
+    const res = await client.query(USER_EXPERIENCE_BY_ID_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }, // User 1's experience
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById).toBeNull();
   });
 });
 
@@ -1655,5 +1772,749 @@ describe('mutation removeUserExperience', () => {
 
     // Should succeed without error
     expect(res.errors).toBeFalsy();
+  });
+});
+
+describe('UserExperience image field', () => {
+  const USER_EXPERIENCE_IMAGE_QUERY = /* GraphQL */ `
+    query UserExperienceById($id: ID!) {
+      userExperienceById(id: $id) {
+        id
+        image
+        customDomain
+        company {
+          id
+          image
+        }
+      }
+    }
+  `;
+
+  it('should return company image when experience has companyId', async () => {
+    loggedUser = '1';
+
+    // exp-1 has companyId 'company-1' which has image 'https://daily.dev/logo.png'
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+    expect(res.data.userExperienceById.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+  });
+
+  it('should return customImage from flags when no companyId', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'e5f6a7b8-9abc-4ef0-1234-567890123456';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: null,
+      customCompanyName: 'Custom Company',
+      title: 'Developer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {
+        customDomain: 'https://custom.com',
+        customImage:
+          'https://www.google.com/s2/favicons?domain=custom.com&sz=128',
+      },
+    });
+
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: experienceId },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company).toBeNull();
+    expect(res.data.userExperienceById.customDomain).toBe('https://custom.com');
+    expect(res.data.userExperienceById.image).toBe(
+      'https://www.google.com/s2/favicons?domain=custom.com&sz=128',
+    );
+  });
+
+  it('should prioritize company image over customImage when both exist', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'f6a7b8c9-abcd-4f01-2345-678901234567';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: 'company-1',
+      title: 'Engineer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {
+        customDomain: 'https://other.com',
+        customImage:
+          'https://www.google.com/s2/favicons?domain=other.com&sz=128',
+      },
+    });
+
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: experienceId },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+    expect(res.data.userExperienceById.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+    expect(res.data.userExperienceById.customDomain).toBe('https://other.com');
+  });
+
+  it('should return null image when neither companyId nor customImage exists', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'a7b8c9d0-bcde-4012-3456-789012345678';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: null,
+      customCompanyName: 'No Image Company',
+      title: 'Intern',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {},
+    });
+
+    const res = await client.query(USER_EXPERIENCE_IMAGE_QUERY, {
+      variables: { id: experienceId },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userExperienceById.company).toBeNull();
+    expect(res.data.userExperienceById.image).toBeNull();
+    expect(res.data.userExperienceById.customDomain).toBeNull();
+  });
+
+  it('should still link to existing company when customDomain is provided', async () => {
+    loggedUser = '1';
+
+    const UPSERT_WORK_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          image
+          customDomain
+          customCompanyName
+          company {
+            id
+            name
+            image
+          }
+        }
+      }
+    `;
+
+    const res = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        input: {
+          type: 'work',
+          title: 'Engineer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Daily.dev',
+          customDomain: 'https://mycustomdomain.com',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience.company).not.toBeNull();
+    expect(res.data.upsertUserWorkExperience.company.name).toBe('Daily.dev');
+    expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
+    expect(res.data.upsertUserWorkExperience.customDomain).toBe(
+      'mycustomdomain.com',
+    );
+    expect(res.data.upsertUserWorkExperience.image).toBe(
+      'https://daily.dev/logo.png',
+    );
+  });
+
+  it('should set removedEnrichment flag and prevent auto-linking on subsequent saves', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'c9d0e1f2-def0-4234-5678-901234567890';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: 'company-1',
+      title: 'Engineer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: {},
+    });
+
+    const UPSERT_WORK_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          company {
+            id
+          }
+          customCompanyName
+        }
+      }
+    `;
+
+    const res1 = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Engineer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Daily.dev',
+        },
+      },
+    });
+
+    expect(res1.errors).toBeFalsy();
+    expect(res1.data.upsertUserWorkExperience.company).toBeNull();
+    expect(res1.data.upsertUserWorkExperience.customCompanyName).toBe(
+      'Daily.dev',
+    );
+
+    const afterFirstSave = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(afterFirstSave?.flags?.removedEnrichment).toBe(true);
+    expect(afterFirstSave?.companyId).toBeNull();
+
+    const res2 = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Senior Engineer',
+          startedAt: new Date('2023-01-01'),
+          customCompanyName: 'Daily.dev',
+        },
+      },
+    });
+
+    expect(res2.errors).toBeFalsy();
+    expect(res2.data.upsertUserWorkExperience.company).toBeNull();
+    expect(res2.data.upsertUserWorkExperience.customCompanyName).toBe(
+      'Daily.dev',
+    );
+
+    const afterSecondSave = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(afterSecondSave?.companyId).toBeNull();
+    expect(afterSecondSave?.flags?.removedEnrichment).toBe(true);
+  });
+
+  it('should allow re-linking to company after removedEnrichment was set', async () => {
+    loggedUser = '1';
+
+    const experienceId = 'd0e1f2a3-ef01-5345-6789-012345678901';
+    await con.getRepository(UserExperience).save({
+      id: experienceId,
+      userId: '1',
+      companyId: null,
+      customCompanyName: 'Some Custom Company',
+      title: 'Developer',
+      startedAt: new Date('2023-01-01'),
+      type: UserExperienceType.Work,
+      flags: { removedEnrichment: true },
+    });
+
+    const UPSERT_WORK_MUTATION = /* GraphQL */ `
+      mutation UpsertUserWorkExperience(
+        $input: UserExperienceWorkInput!
+        $id: ID
+      ) {
+        upsertUserWorkExperience(input: $input, id: $id) {
+          id
+          company {
+            id
+            name
+          }
+          customCompanyName
+        }
+      }
+    `;
+
+    const res = await client.mutate(UPSERT_WORK_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'work',
+          title: 'Developer',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserWorkExperience.company).not.toBeNull();
+    expect(res.data.upsertUserWorkExperience.company.id).toBe('company-1');
+    expect(res.data.upsertUserWorkExperience.customCompanyName).toBeNull();
+
+    const updated = await con
+      .getRepository(UserExperience)
+      .findOne({ where: { id: experienceId } });
+    expect(updated?.companyId).toBe('company-1');
+  });
+});
+
+describe('mutation upsertUserGeneralExperience with repository', () => {
+  const UPSERT_OPENSOURCE_MUTATION = /* GraphQL */ `
+    mutation UpsertUserGeneralExperience(
+      $input: UserGeneralExperienceInput!
+      $id: ID
+    ) {
+      upsertUserGeneralExperience(input: $input, id: $id) {
+        id
+        type
+        title
+        description
+        startedAt
+        endedAt
+        company {
+          id
+          name
+        }
+        customCompanyName
+        repository {
+          id
+          owner
+          name
+          url
+          image
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    loggedUser = null;
+    await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Company, companiesFixture);
+    await saveFixtures(con, UserExperience, userExperiencesFixture);
+  });
+
+  it('should create an opensource experience with repository', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'React Core Contributor',
+          description: 'Contributing to React core',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '10270250',
+            owner: 'facebook',
+            name: 'react',
+            url: 'https://github.com/facebook/react',
+            image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'opensource',
+      title: 'React Core Contributor',
+      description: 'Contributing to React core',
+      company: null,
+      customCompanyName: null,
+      repository: {
+        id: '10270250',
+        owner: 'facebook',
+        name: 'react',
+        url: 'https://github.com/facebook/react',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+      },
+    });
+
+    // Verify the repository is stored in flags
+    const saved = await con.getRepository(UserExperience).findOne({
+      where: { id: res.data.upsertUserGeneralExperience.id },
+    });
+    expect(saved?.flags).toMatchObject({
+      repository: {
+        id: '10270250',
+        owner: 'facebook',
+        name: 'react',
+        url: 'https://github.com/facebook/react',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+      },
+    });
+    expect(saved?.companyId).toBeNull();
+    expect(saved?.customCompanyName).toBeNull();
+  });
+
+  it('should allow opensource experience without company when repository is provided', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'TypeScript Contributor',
+          startedAt: new Date('2023-06-01'),
+          repository: {
+            id: '20929025',
+            owner: 'microsoft',
+            name: 'TypeScript',
+            url: 'https://github.com/microsoft/TypeScript',
+            image: 'https://avatars.githubusercontent.com/u/6154722?v=4',
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience.repository).toMatchObject({
+      id: '20929025',
+      owner: 'microsoft',
+      name: 'TypeScript',
+    });
+    expect(res.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(res.data.upsertUserGeneralExperience.customCompanyName).toBeNull();
+  });
+
+  it('should update an opensource experience with repository', async () => {
+    loggedUser = '1';
+
+    // First create an experience
+    const created = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Initial Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '123456',
+            owner: 'old',
+            name: 'repo',
+            url: 'https://github.com/old/repo',
+            image: 'https://avatars.githubusercontent.com/u/1?v=4',
+          },
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Update with new repository
+    const updated = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'opensource',
+          title: 'Updated Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '789012',
+            owner: 'new',
+            name: 'repo',
+            url: 'https://github.com/new/repo',
+            image: 'https://avatars.githubusercontent.com/u/2?v=4',
+          },
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience).toMatchObject({
+      id: experienceId,
+      title: 'Updated Contribution',
+      repository: {
+        id: '789012',
+        owner: 'new',
+        name: 'repo',
+        url: 'https://github.com/new/repo',
+        image: 'https://avatars.githubusercontent.com/u/2?v=4',
+      },
+    });
+  });
+
+  it('should clear company when repository is provided for opensource', async () => {
+    loggedUser = '1';
+
+    // Create an experience with company first
+    const created = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Company Contribution',
+          startedAt: new Date('2023-01-01'),
+          companyId: 'company-1',
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    expect(created.data.upsertUserGeneralExperience.company?.id).toBe(
+      'company-1',
+    );
+
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Update with repository - should clear company
+    const updated = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'opensource',
+          title: 'Company Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '10270250',
+            owner: 'facebook',
+            name: 'react',
+            url: 'https://github.com/facebook/react',
+            image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience.company).toBeNull();
+    expect(
+      updated.data.upsertUserGeneralExperience.customCompanyName,
+    ).toBeNull();
+    expect(updated.data.upsertUserGeneralExperience.repository).toMatchObject({
+      id: '10270250',
+      owner: 'facebook',
+      name: 'react',
+    });
+  });
+
+  it('should require company or repository for opensource type', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_OPENSOURCE_MUTATION,
+        variables: {
+          input: {
+            type: 'opensource',
+            title: 'Contribution Without Company or Repository',
+            startedAt: new Date('2023-01-01'),
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should validate repository URL format', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_OPENSOURCE_MUTATION,
+        variables: {
+          input: {
+            type: 'opensource',
+            title: 'Invalid Repository',
+            startedAt: new Date('2023-01-01'),
+            repository: {
+              id: '123',
+              owner: 'test',
+              name: 'repo',
+              url: 'not-a-valid-url',
+              image: 'https://example.com/image.png',
+            },
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should validate repository image URL format', async () => {
+    loggedUser = '1';
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: UPSERT_OPENSOURCE_MUTATION,
+        variables: {
+          input: {
+            type: 'opensource',
+            title: 'Invalid Repository Image',
+            startedAt: new Date('2023-01-01'),
+            repository: {
+              id: '123',
+              owner: 'test',
+              name: 'repo',
+              url: 'https://github.com/test/repo',
+              image: 'not-a-valid-url',
+            },
+          },
+        },
+      },
+      'ZOD_VALIDATION_ERROR',
+    );
+  });
+
+  it('should create an opensource experience with custom repository (null id)', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'GitLab Contributor',
+          description: 'Contributing to a GitLab project',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: 'myorg',
+            name: 'myproject',
+            url: 'https://gitlab.com/myorg/myproject',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      id: expect.any(String),
+      type: 'opensource',
+      title: 'GitLab Contributor',
+      company: null,
+      customCompanyName: null,
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'myproject',
+        url: 'https://gitlab.com/myorg/myproject',
+        image: null,
+      },
+    });
+
+    // Verify the repository is stored in flags
+    const saved = await con.getRepository(UserExperience).findOne({
+      where: { id: res.data.upsertUserGeneralExperience.id },
+    });
+    expect(saved?.flags).toMatchObject({
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'myproject',
+        url: 'https://gitlab.com/myorg/myproject',
+        image: null,
+      },
+    });
+  });
+
+  it('should create an opensource experience with custom repository without owner', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Custom Repo Contributor',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: null,
+            name: 'standalone-project',
+            url: 'https://example.com/standalone-project',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.upsertUserGeneralExperience).toMatchObject({
+      type: 'opensource',
+      repository: {
+        id: null,
+        owner: null,
+        name: 'standalone-project',
+        url: 'https://example.com/standalone-project',
+        image: null,
+      },
+    });
+  });
+
+  it('should update from GitHub repository to custom repository', async () => {
+    loggedUser = '1';
+
+    // First create with GitHub repository
+    const created = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        input: {
+          type: 'opensource',
+          title: 'Initial Contribution',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: '10270250',
+            owner: 'facebook',
+            name: 'react',
+            url: 'https://github.com/facebook/react',
+            image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      },
+    });
+
+    expect(created.errors).toBeFalsy();
+    const experienceId = created.data.upsertUserGeneralExperience.id;
+
+    // Update to custom repository
+    const updated = await client.mutate(UPSERT_OPENSOURCE_MUTATION, {
+      variables: {
+        id: experienceId,
+        input: {
+          type: 'opensource',
+          title: 'Moved to GitLab',
+          startedAt: new Date('2023-01-01'),
+          repository: {
+            id: null,
+            owner: 'myorg',
+            name: 'forked-project',
+            url: 'https://gitlab.com/myorg/forked-project',
+            image: null,
+          },
+        },
+      },
+    });
+
+    expect(updated.errors).toBeFalsy();
+    expect(updated.data.upsertUserGeneralExperience).toMatchObject({
+      id: experienceId,
+      title: 'Moved to GitLab',
+      repository: {
+        id: null,
+        owner: 'myorg',
+        name: 'forked-project',
+        url: 'https://gitlab.com/myorg/forked-project',
+        image: null,
+      },
+    });
   });
 });

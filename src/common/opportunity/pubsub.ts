@@ -1,4 +1,5 @@
-import { DataSource, type EntityManager } from 'typeorm';
+import { DataSource, type EntityManager, In } from 'typeorm';
+import { DatasetLocation } from '../../entity/dataset/DatasetLocation';
 import { FastifyBaseLogger } from 'fastify';
 import {
   CandidateAcceptedOpportunityMessage,
@@ -9,6 +10,7 @@ import {
   RecruiterAcceptedCandidateMatchMessage,
   Salary,
   UserCV,
+  Location,
 } from '@dailydotdev/schema';
 import {
   debeziumTimeToDate,
@@ -18,7 +20,7 @@ import {
 } from '../../common';
 import { getSecondsTimestamp } from '../date';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
-import { ChangeObject } from '../../types';
+import { ChangeObject, continentMap } from '../../types';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { UserCandidateKeyword } from '../../entity/user/UserCandidateKeyword';
@@ -70,6 +72,103 @@ const fetchCandidateKeywords = async (
   return feedKeywords.map((k) => k.keyword);
 };
 
+const buildAndSendCandidateOpportunityMessage = async ({
+  con,
+  logger,
+  data,
+  topic,
+}: {
+  con: DataSource;
+  logger: FastifyBaseLogger;
+  data: ChangeObject<OpportunityMatch>;
+  topic:
+    | 'api.v1.candidate-accepted-opportunity'
+    | 'api.v1.candidate-review-opportunity';
+}) => {
+  const { match, candidatePreference, keywords, locationData } =
+    await con.transaction(async (manager) => {
+      const [match, candidatePreference] = await Promise.all([
+        manager.getRepository(OpportunityMatch).findOneBy({
+          opportunityId: data.opportunityId,
+          userId: data.userId,
+        }),
+        manager
+          .getRepository(UserCandidatePreference)
+          .findOne({ where: { userId: data.userId }, relations: ['location'] }),
+      ]);
+
+      const keywords = await fetchCandidateKeywords(
+        manager,
+        candidatePreference,
+      );
+
+      const locationData = await candidatePreference?.location;
+
+      return { match, candidatePreference, keywords, locationData };
+    });
+
+  if (!match) {
+    logger.warn(
+      { opportunityId: data.opportunityId, userId: data.userId, topic },
+      'Opportunity match not found for notification',
+    );
+    return;
+  }
+
+  if (!candidatePreference) {
+    logger.warn(
+      { userId: data.userId, topic },
+      'Candidate preference not found for user',
+    );
+    return;
+  }
+
+  const cvLastModifiedDate =
+    typeof candidatePreference.cv.lastModified === 'string'
+      ? new Date(candidatePreference.cv.lastModified)
+      : candidatePreference.cv.lastModified;
+
+  // Prioritize relational location over customLocation
+  const locationArray = locationData
+    ? [
+        {
+          ...locationData,
+          // Convert null to undefined for protobuf compatibility
+          subdivision: locationData.subdivision ?? undefined,
+          city: locationData.city ?? undefined,
+          externalId: locationData.externalId ?? undefined,
+        },
+      ]
+    : candidatePreference.customLocation || [];
+
+  const message = new CandidateAcceptedOpportunityMessage({
+    opportunityId: match.opportunityId,
+    userId: match.userId,
+    createdAt: getSecondsTimestamp(match.createdAt),
+    updatedAt: getSecondsTimestamp(match.updatedAt),
+    screening: match.screening,
+    candidatePreference: {
+      ...candidatePreference,
+      location: locationArray,
+      salaryExpectation: new Salary({
+        min: candidatePreference.salaryExpectation?.min
+          ? BigInt(candidatePreference.salaryExpectation.min)
+          : undefined,
+        period: candidatePreference.salaryExpectation?.period ?? undefined,
+      }),
+      cv: new UserCV({
+        ...candidatePreference.cv,
+        lastModified: getSecondsTimestamp(cvLastModifiedDate || 0) || undefined,
+      }),
+      updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
+      keywords: keywords,
+      cvParsedMarkdown: candidatePreference.cvParsedMarkdown || undefined,
+    },
+  });
+
+  await triggerTypedEvent(logger, topic, message);
+};
+
 export const notifyOpportunityMatchAccepted = async ({
   con,
   logger,
@@ -84,80 +183,17 @@ export const notifyOpportunityMatchAccepted = async ({
     return;
   }
 
-  const { match, candidatePreference, keywords } = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
-      const [match, candidatePreference] = await Promise.all([
-        queryRunner.manager.getRepository(OpportunityMatch).findOneBy({
-          opportunityId: data.opportunityId,
-          userId: data.userId,
-        }),
-        queryRunner.manager
-          .getRepository(UserCandidatePreference)
-          .findOneBy({ userId: data.userId }),
-      ]);
-
-      const keywords = await fetchCandidateKeywords(
-        queryRunner.manager,
-        candidatePreference,
-      );
-
-      return { match, candidatePreference, keywords };
-    },
-  );
-
-  if (!match) {
-    logger.warn(
-      { opportunityId: data.opportunityId, userId: data.userId },
-      'Opportunity match not found for accepted notification',
-    );
-    return;
-  }
-
-  if (!candidatePreference) {
-    logger.warn(
-      { userId: data.userId },
-      'Candidate preference not found for user accepting opportunity',
-    );
-    return;
-  }
-
-  const message = new CandidateAcceptedOpportunityMessage({
-    opportunityId: match.opportunityId,
-    userId: match.userId,
-    createdAt: getSecondsTimestamp(match.createdAt),
-    updatedAt: getSecondsTimestamp(match.updatedAt),
-    screening: match.screening,
-    candidatePreference: {
-      ...candidatePreference,
-      salaryExpectation: new Salary({
-        min: candidatePreference.salaryExpectation?.min
-          ? BigInt(candidatePreference.salaryExpectation.min)
-          : undefined,
-        period: candidatePreference.salaryExpectation?.period ?? undefined,
-      }),
-      cv: new UserCV({
-        ...candidatePreference.cv,
-        lastModified:
-          getSecondsTimestamp(candidatePreference.cv.lastModified || 0) ||
-          undefined,
-      }),
-      updatedAt: getSecondsTimestamp(candidatePreference.updatedAt),
-      keywords: keywords,
-      cvParsedMarkdown: candidatePreference.cvParsedMarkdown || undefined,
-    },
-  });
-
   try {
-    await triggerTypedEvent(
+    await buildAndSendCandidateOpportunityMessage({
+      con,
       logger,
-      'api.v1.candidate-accepted-opportunity',
-      message,
-    );
+      data,
+      topic: 'api.v1.candidate-accepted-opportunity',
+    });
   } catch (_err) {
     const err = _err as Error;
     logger.error(
-      { err, message },
+      { err, opportunityId: data.opportunityId, userId: data.userId },
       'failed to send opportunity match accepted event',
     );
   }
@@ -321,29 +357,51 @@ export const notifyJobOpportunity = async ({
   logger: FastifyBaseLogger;
   opportunityId: string;
 }) => {
-  const [opportunity, organization, keywords, users] = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
-      const opportunity = await queryRunner.manager
-        .getRepository(OpportunityJob)
-        .findOneOrFail({
-          where: { id: opportunityId },
-          relations: {
-            organization: true,
-            keywords: true,
-            users: true,
-          },
-        });
+  const [
+    opportunity,
+    organization,
+    keywords,
+    users,
+    locations,
+    datasetLocations,
+  ] = await queryReadReplica(con, async ({ queryRunner }) => {
+    const opportunity = await queryRunner.manager
+      .getRepository(OpportunityJob)
+      .findOneOrFail({
+        where: { id: opportunityId },
+        relations: {
+          organization: true,
+          keywords: true,
+          users: true,
+          locations: true,
+        },
+      });
 
-      const [organization, keywords, users] = await Promise.all([
-        opportunity.organization,
-        opportunity.keywords,
-        opportunity.users,
-      ]);
+    const [organization, keywords, users, locations] = await Promise.all([
+      opportunity.organization,
+      opportunity.keywords,
+      opportunity.users,
+      opportunity.locations,
+    ]);
 
-      return [opportunity, organization, keywords, users];
-    },
-  );
+    // Fetch all DatasetLocations in a single query to avoid N+1
+    const locationIds = locations?.map((l) => l.locationId) ?? [];
+    const datasetLocations =
+      locationIds.length > 0
+        ? await queryRunner.manager.findBy(DatasetLocation, {
+            id: In(locationIds),
+          })
+        : [];
+
+    return [
+      opportunity,
+      organization,
+      keywords,
+      users,
+      locations,
+      datasetLocations,
+    ];
+  });
 
   if (!organization) {
     logger.warn(
@@ -395,17 +453,50 @@ export const notifyJobOpportunity = async ({
     ...users.map((u) => u.userId),
   ]);
 
+  // Build location payloads for all locations using preloaded DatasetLocations
+  const datasetLocationMap = new Map(datasetLocations.map((dl) => [dl.id, dl]));
+  const locationPayloads = (locations ?? []).map((locationData) => {
+    const datasetLocation = datasetLocationMap.get(locationData.locationId);
+    const locationCountry = datasetLocation?.country;
+    const continentCode = locationCountry
+      ? continentMap[locationCountry]
+      : null;
+
+    // Check if the location country is a continent and return only continent code
+    return continentCode
+      ? { continent: continentCode }
+      : {
+          ...datasetLocation,
+          // Convert null values to undefined for protobuf compatibility
+          subdivision: datasetLocation?.subdivision ?? undefined,
+          city: datasetLocation?.city ?? undefined,
+          type: locationData?.type,
+        };
+  });
+
+  const organizationLocation = await organization.location;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { location, locationId, ...restOrganization } = organization;
   const message = new OpportunityMessage({
     opportunity: {
       ...opportunity,
       createdAt: getSecondsTimestamp(opportunity.createdAt),
       updatedAt: getSecondsTimestamp(opportunity.updatedAt),
       keywords: keywords.map((k) => k.keyword),
+      location: locationPayloads,
     },
     organization: {
-      ...organization,
+      ...restOrganization,
       createdAt: getSecondsTimestamp(organization.createdAt),
       updatedAt: getSecondsTimestamp(organization.updatedAt),
+      ...(organizationLocation && {
+        location: new Location({
+          country: organizationLocation.country,
+          city: organizationLocation.city || undefined,
+          subdivision: organizationLocation.subdivision || undefined,
+          iso2: organizationLocation.iso2,
+        }),
+      }),
     },
     excludedUserIds,
   });
@@ -427,19 +518,20 @@ export const notifyCandidatePreferenceChange = async ({
   logger: FastifyBaseLogger;
   userId: string;
 }) => {
-  const { candidatePreference, keywords } = await queryReadReplica(
-    con,
-    async ({ queryRunner }) => {
-      const candidatePreference = await queryRunner.manager
+  const { candidatePreference, keywords, locationData } = await con.transaction(
+    async (manager) => {
+      const candidatePreference = await manager
         .getRepository(UserCandidatePreference)
-        .findOneBy({ userId: userId });
+        .findOne({ where: { userId: userId }, relations: ['location'] });
 
       const keywords = await fetchCandidateKeywords(
-        queryRunner.manager,
+        manager,
         candidatePreference,
       );
 
-      return { candidatePreference, keywords };
+      const locationData = await candidatePreference?.location;
+
+      return { candidatePreference, keywords, locationData };
     },
   );
 
@@ -451,9 +543,28 @@ export const notifyCandidatePreferenceChange = async ({
     return;
   }
 
+  const cvLastModifiedDate =
+    typeof candidatePreference?.cv?.lastModified === 'string'
+      ? new Date(candidatePreference.cv.lastModified)
+      : candidatePreference?.cv?.lastModified;
+
+  // Prioritize relational location over customLocation
+  const locationArray = locationData
+    ? [
+        {
+          ...locationData,
+          // Convert null to undefined for protobuf compatibility
+          subdivision: locationData.subdivision ?? undefined,
+          city: locationData.city ?? undefined,
+          externalId: locationData.externalId ?? undefined,
+        },
+      ]
+    : candidatePreference.customLocation || [];
+
   const message = new CandidatePreferenceUpdated({
     payload: {
       ...candidatePreference,
+      location: locationArray,
       salaryExpectation: new Salary({
         min: candidatePreference.salaryExpectation?.min
           ? BigInt(candidatePreference.salaryExpectation.min)
@@ -462,9 +573,7 @@ export const notifyCandidatePreferenceChange = async ({
       }),
       cv: new UserCV({
         ...candidatePreference?.cv,
-        lastModified:
-          getSecondsTimestamp(candidatePreference?.cv?.lastModified || 0) ||
-          undefined,
+        lastModified: getSecondsTimestamp(cvLastModifiedDate || 0) || undefined,
       }),
       updatedAt:
         getSecondsTimestamp(candidatePreference?.updatedAt) || undefined,
@@ -486,4 +595,36 @@ export const notifyCandidatePreferenceChange = async ({
       'failed to send candidate preference updated event',
     );
   }
+};
+
+export const notifyOpportunityMatchCandidateReview = async ({
+  con,
+  logger,
+  data,
+}: {
+  con: DataSource;
+  logger: FastifyBaseLogger;
+  data: ChangeObject<OpportunityMatch>;
+}) => {
+  await buildAndSendCandidateOpportunityMessage({
+    con,
+    logger,
+    data,
+    topic: 'api.v1.candidate-review-opportunity',
+  });
+};
+
+export const notifyOpportunityFeedbackSubmitted = async ({
+  logger,
+  opportunityId,
+  userId,
+}: {
+  logger: FastifyBaseLogger;
+  opportunityId: string;
+  userId: string;
+}) => {
+  await triggerTypedEvent(logger, 'api.v1.opportunity-feedback-submitted', {
+    opportunityId,
+    userId,
+  });
 };

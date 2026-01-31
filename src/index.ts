@@ -73,7 +73,9 @@ export default async function app(
     logger: loggerConfig,
     disableRequestLogging: true,
     trustProxy: true,
-    useSemicolonDelimiter: true,
+    routerOptions: {
+      useSemicolonDelimiter: true,
+    },
   });
 
   app.log.info('loading features');
@@ -136,7 +138,7 @@ export default async function app(
     runFirst: true,
   });
 
-  app.setErrorHandler((err, req, res) => {
+  app.setErrorHandler((err: Error, req, res) => {
     req.log.error({ err }, err.message);
     res.code(500).send({ statusCode: 500, error: 'Internal Server Error' });
   });

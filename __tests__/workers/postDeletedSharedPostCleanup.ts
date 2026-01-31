@@ -53,9 +53,8 @@ beforeEach(async () => {
 
 describe('postDeletedSharedPostCleanup worker', () => {
   it('should be registered', async () => {
-    const worker = await import(
-      '../../src/workers/postDeletedSharedPostCleanup'
-    );
+    const worker =
+      await import('../../src/workers/postDeletedSharedPostCleanup');
 
     const registeredWorker = workers.find(
       (item) => item.subscription === worker.default.subscription,

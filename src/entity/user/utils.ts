@@ -12,23 +12,12 @@ import { generateTrackingId } from '../../ids';
 import { fallbackImages } from '../../config';
 import { validateAndTransformHandle } from '../../common/handles';
 import {
-  bskySocialUrlMatch,
-  codepenSocialUrlMatch,
   DEFAULT_TIMEZONE,
   DEFAULT_WEEK_START,
-  githubSocialUrlMatch,
-  linkedinSocialUrlMatch,
-  mastodonSocialUrlMatch,
   portfolioLimit,
-  redditSocialUrlMatch,
-  roadmapShSocialUrlMatch,
   safeJSONParse,
-  socialUrlMatch,
-  stackoverflowSocialUrlMatch,
-  threadsSocialUrlMatch,
-  twitterSocialUrlMatch,
-  youtubeSocialUrlMatch,
 } from '../../common';
+import { socialFieldsSchema } from '../../common/schema/socials';
 import { ValidationError } from 'apollo-server-errors';
 import { GQLUpdateUserInput } from '../../schema/users';
 import { validateValidTimeZone } from '../../common/timezone';
@@ -41,7 +30,7 @@ import { getUserCoresRole } from '../../common/user';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { UserActionType } from './UserAction';
 import { DeletedUser } from './DeletedUser';
-import { ClaimableItem } from '../ClaimableItem';
+import { ClaimableItem, ClaimableItemTypes } from '../ClaimableItem';
 import { cio, identifyAnonymousFunnelSubscription } from '../../cio';
 import { getGeo } from '../../common/geo';
 import {
@@ -397,9 +386,11 @@ export const addClaimableItemsToUser = async (
   con: DataSource,
   body: AddUserData,
 ) => {
-  const subscription = await con
-    .getRepository(ClaimableItem)
-    .findOneBy({ email: body.email, claimedById: IsNull() });
+  const subscription = await con.getRepository(ClaimableItem).findOneBy({
+    identifier: body.email,
+    claimedById: IsNull(),
+    type: ClaimableItemTypes.Plus,
+  });
 
   if (subscription) {
     await paddleInstance.subscriptions.update(
@@ -503,23 +494,29 @@ export const validateUserUpdate = async (
 
   const regexParams: ValidateRegex[] = [
     ['name', data.name, nameRegex, !user.name],
-    ['github', data.github, githubSocialUrlMatch],
-    ['twitter', data.twitter, twitterSocialUrlMatch],
-    ['hashnode', data.hashnode, socialUrlMatch],
-    ['roadmap', data.roadmap, roadmapShSocialUrlMatch],
-    ['threads', data.threads, threadsSocialUrlMatch],
-    ['codepen', data.codepen, codepenSocialUrlMatch],
-    ['reddit', data.reddit, redditSocialUrlMatch],
-    ['stackoverflow', data.stackoverflow, stackoverflowSocialUrlMatch],
-    ['youtube', data.youtube, youtubeSocialUrlMatch],
-    ['linkedin', data.linkedin, linkedinSocialUrlMatch],
-    ['mastodon', data.mastodon, mastodonSocialUrlMatch],
-    ['portfolio', data.portfolio, socialUrlMatch],
-    ['bluesky', data.bluesky, bskySocialUrlMatch],
   ];
 
   try {
-    return validateRegex(regexParams, data);
+    const validatedName = validateRegex(regexParams, data);
+    const socialResult = socialFieldsSchema.safeParse(data);
+
+    if (!socialResult.success) {
+      const errors = socialResult.error.flatten().fieldErrors;
+      const formattedErrors = Object.fromEntries(
+        Object.entries(errors).map(([key]) => [key, `${key} is invalid!`]),
+      );
+      logger.warn(
+        { errors: formattedErrors },
+        'social handles validation error',
+      );
+      throw new ValidationError(JSON.stringify(formattedErrors));
+    }
+
+    const socialData = Object.fromEntries(
+      Object.entries(socialResult.data).filter(([, v]) => v !== undefined),
+    );
+
+    return { ...validatedName, ...socialData };
   } catch (originalError) {
     if (originalError instanceof ValidationError) {
       const validationError: ValidationError = originalError;

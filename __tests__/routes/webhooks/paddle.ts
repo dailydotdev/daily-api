@@ -33,6 +33,21 @@ import {
   processCoresTransactionPaymentFailed,
   processCoresTransactionUpdated,
 } from '../../../src/common/paddle/cores/processing';
+import { processRecruiterPaddleEvent } from '../../../src/common/paddle/recruiter/eventHandler';
+import * as paddleCommon from '../../../src/common/paddle';
+import {
+  recruiterSubscriptionCreated,
+  recruiterSubscriptionCanceled,
+  recruiterTransactionCompleted,
+} from '../../fixture/paddle/subscription';
+import * as slackCommon from '../../../src/common/slack';
+import { Organization } from '../../../src/entity/Organization';
+import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
+import { OpportunityUser } from '../../../src/entity/opportunities/user';
+import { OpportunityUserType } from '../../../src/entity/opportunities/types';
+import { OpportunityState, OpportunityType } from '@dailydotdev/schema';
+import { SubscriptionStatus } from '../../../src/common/plus/subscription';
+import { SubscriptionCycles } from '../../../src/paddle';
 
 let con: DataSource;
 
@@ -712,6 +727,330 @@ describe('cores product', () => {
       updatedAt: expect.any(Date),
       value: 600,
       valueIncFees: 600,
+    });
+  });
+});
+
+describe('recruiter product', () => {
+  const testOrganizationId = '550e8400-e29b-41d4-a716-446655440000';
+  const testOpportunityId = '550e8400-e29b-41d4-a716-446655440003';
+  const testUserId = 'recruiter-user-1';
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+
+    // Mock analytics event logging to avoid external HTTP calls
+    jest
+      .spyOn(paddleCommon, 'logPaddleAnalyticsEvent')
+      .mockResolvedValue(undefined);
+
+    // Mock slack webhook to avoid external HTTP calls
+    jest
+      .spyOn(slackCommon.webhooks.transactions, 'send')
+      .mockResolvedValue({ text: 'ok' });
+
+    // Create test user
+    await saveFixtures(con, User, [
+      {
+        ...usersFixture[0],
+        id: testUserId,
+      },
+    ]);
+
+    // Create test organization without active subscription
+    await saveFixtures(con, Organization, [
+      {
+        id: testOrganizationId,
+        name: 'Test Org for Recruiter',
+        recruiterSubscriptionFlags: {},
+      },
+    ]);
+
+    // Create test opportunity in DRAFT state
+    await saveFixtures(con, OpportunityJob, [
+      {
+        id: testOpportunityId,
+        type: OpportunityType.JOB,
+        state: OpportunityState.DRAFT,
+        title: 'Test Opportunity',
+        tldr: 'Test opportunity for recruiter subscription',
+        organizationId: testOrganizationId,
+        content: {},
+        meta: {},
+        flags: {},
+      },
+    ]);
+
+    // Create opportunity user (recruiter) relationship
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: testOpportunityId,
+        userId: testUserId,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+  });
+
+  it('subscription created success', async () => {
+    await processRecruiterPaddleEvent(recruiterSubscriptionCreated);
+
+    const organization = await con
+      .getRepository(Organization)
+      .findOneByOrFail({ id: testOrganizationId });
+
+    expect(organization.recruiterSubscriptionFlags).toMatchObject({
+      status: SubscriptionStatus.Active,
+      subscriptionId: 'sub_01jrec123subscription001',
+      cycle: 'monthly',
+      provider: 'paddle',
+    });
+    expect(organization.recruiterSubscriptionFlags?.items).toHaveLength(1);
+    expect(organization.recruiterSubscriptionFlags?.items?.[0]).toMatchObject({
+      priceId: 'pri_recruiter_monthly',
+      quantity: 1,
+    });
+
+    const opportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: testOpportunityId });
+
+    expect(opportunity.state).toBe(OpportunityState.DRAFT);
+    expect(opportunity.flags).toMatchObject({
+      batchSize: 100,
+      plan: 'pri_recruiter_monthly',
+      reminders: true,
+      showSlack: true,
+      showFeedback: true,
+    });
+  });
+
+  it('subscription canceled success', async () => {
+    // Set up organization with active subscription (without going through create flow)
+    await con.getRepository(Organization).update(
+      { id: testOrganizationId },
+      {
+        recruiterSubscriptionFlags: {
+          status: SubscriptionStatus.Active,
+          subscriptionId: 'sub_01jrec123subscription001',
+          provider: SubscriptionProvider.Paddle,
+          cycle: SubscriptionCycles.Monthly,
+          items: [{ priceId: 'pri_recruiter_monthly', quantity: 1 }],
+        },
+      },
+    );
+
+    // Now cancel it
+    await processRecruiterPaddleEvent(recruiterSubscriptionCanceled);
+
+    const organization = await con
+      .getRepository(Organization)
+      .findOneByOrFail({ id: testOrganizationId });
+
+    expect(organization.recruiterSubscriptionFlags?.status).toBe(
+      SubscriptionStatus.Cancelled,
+    );
+    expect(organization.recruiterSubscriptionFlags?.cycle).toBeNull();
+    expect(organization.recruiterSubscriptionFlags?.items).toEqual([]);
+
+    const opportunity = await con
+      .getRepository(OpportunityJob)
+      .findOneByOrFail({ id: testOpportunityId });
+
+    expect(opportunity.state).toBe(OpportunityState.CLOSED);
+  });
+
+  it('subscription created throws if billing cycle missing', async () => {
+    const eventWithNoBillingCycle = {
+      ...recruiterSubscriptionCreated,
+      data: {
+        ...recruiterSubscriptionCreated.data,
+        items: [
+          {
+            ...recruiterSubscriptionCreated.data.items[0],
+            price: {
+              ...recruiterSubscriptionCreated.data.items[0].price,
+              billingCycle: null,
+            },
+          },
+        ],
+      },
+    };
+
+    await expect(
+      processRecruiterPaddleEvent(
+        eventWithNoBillingCycle as unknown as typeof recruiterSubscriptionCreated,
+      ),
+    ).rejects.toThrow('Invalid input');
+  });
+
+  it('subscription created throws if opportunity not found', async () => {
+    const eventWithInvalidOpportunity = {
+      ...recruiterSubscriptionCreated,
+      data: {
+        ...recruiterSubscriptionCreated.data,
+        customData: {
+          ...recruiterSubscriptionCreated.data.customData,
+          opportunity_id: '00000000-0000-0000-0000-000000000000',
+        },
+      },
+    };
+
+    await expect(
+      processRecruiterPaddleEvent(
+        eventWithInvalidOpportunity as typeof recruiterSubscriptionCreated,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('subscription created throws if organization missing', async () => {
+    // Update opportunity to have no organization
+    await con
+      .getRepository(OpportunityJob)
+      .update({ id: testOpportunityId }, { organizationId: null });
+
+    await expect(
+      processRecruiterPaddleEvent(recruiterSubscriptionCreated),
+    ).rejects.toThrow(
+      'Opportunity does not have organization during payment processing',
+    );
+  });
+
+  it('subscription created throws if organization already has active subscription', async () => {
+    // Set organization with active subscription
+    await con.getRepository(Organization).update(
+      { id: testOrganizationId },
+      {
+        recruiterSubscriptionFlags: {
+          status: SubscriptionStatus.Active,
+          subscriptionId: 'existing-sub',
+          provider: SubscriptionProvider.Paddle,
+          items: [],
+        },
+      },
+    );
+
+    await expect(
+      processRecruiterPaddleEvent(recruiterSubscriptionCreated),
+    ).rejects.toThrow('Organization already has active recruiter subscription');
+  });
+
+  it('subscription created throws if user lacks edit permission', async () => {
+    // Remove the OpportunityUser relationship
+    await con.getRepository(OpportunityUser).delete({
+      opportunityId: testOpportunityId,
+      userId: testUserId,
+    });
+
+    await expect(
+      processRecruiterPaddleEvent(recruiterSubscriptionCreated),
+    ).rejects.toThrow('Access denied!');
+  });
+
+  it('subscription created throws if multiple items in subscription', async () => {
+    const eventWithMultipleItems = {
+      ...recruiterSubscriptionCreated,
+      data: {
+        ...recruiterSubscriptionCreated.data,
+        items: [
+          ...recruiterSubscriptionCreated.data.items,
+          {
+            ...recruiterSubscriptionCreated.data.items[0],
+            price: {
+              ...recruiterSubscriptionCreated.data.items[0].price,
+              id: 'pri_recruiter_yearly',
+            },
+          },
+        ],
+      },
+    };
+
+    await expect(
+      processRecruiterPaddleEvent(
+        eventWithMultipleItems as typeof recruiterSubscriptionCreated,
+      ),
+    ).rejects.toThrow('Multiple items in subscription not supported yet');
+  });
+
+  it('subscription created throws if price missing', async () => {
+    const eventWithNoPrice = {
+      ...recruiterSubscriptionCreated,
+      data: {
+        ...recruiterSubscriptionCreated.data,
+        items: [
+          {
+            ...recruiterSubscriptionCreated.data.items[0],
+            price: undefined,
+          },
+        ],
+      },
+    };
+
+    await expect(
+      processRecruiterPaddleEvent(
+        eventWithNoPrice as unknown as typeof recruiterSubscriptionCreated,
+      ),
+    ).rejects.toThrow('Invalid input');
+  });
+
+  it('subscription canceled throws if opportunity not found', async () => {
+    const eventWithInvalidOpportunity = {
+      ...recruiterSubscriptionCanceled,
+      data: {
+        ...recruiterSubscriptionCanceled.data,
+        customData: {
+          ...recruiterSubscriptionCanceled.data.customData,
+          opportunity_id: '00000000-0000-0000-0000-000000000000',
+        },
+      },
+    };
+
+    await expect(
+      processRecruiterPaddleEvent(
+        eventWithInvalidOpportunity as typeof recruiterSubscriptionCanceled,
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('subscription canceled throws if organization missing', async () => {
+    // Update opportunity to have no organization
+    await con
+      .getRepository(OpportunityJob)
+      .update({ id: testOpportunityId }, { organizationId: null });
+
+    await expect(
+      processRecruiterPaddleEvent(recruiterSubscriptionCanceled),
+    ).rejects.toThrow(
+      'Opportunity does not have organization during payment processing',
+    );
+  });
+
+  it('subscription canceled throws if user lacks edit permission', async () => {
+    // Remove the OpportunityUser relationship
+    await con.getRepository(OpportunityUser).delete({
+      opportunityId: testOpportunityId,
+      userId: testUserId,
+    });
+
+    await expect(
+      processRecruiterPaddleEvent(recruiterSubscriptionCanceled),
+    ).rejects.toThrow('Access denied!');
+  });
+
+  it('transaction completed sends slack notification', async () => {
+    const slackSpy = jest.spyOn(slackCommon.webhooks.transactions, 'send');
+
+    await processRecruiterPaddleEvent(recruiterTransactionCompleted);
+
+    expect(slackSpy).toHaveBeenCalledTimes(1);
+    expect(slackSpy).toHaveBeenCalledWith({
+      blocks: expect.arrayContaining([
+        expect.objectContaining({
+          type: 'header',
+          text: expect.objectContaining({
+            text: 'New job subscription :tears-of-joy-office: :paddle:',
+          }),
+        }),
+      ]),
     });
   });
 });

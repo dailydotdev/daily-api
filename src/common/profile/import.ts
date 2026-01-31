@@ -2,6 +2,7 @@ import { type EntityManager } from 'typeorm';
 import {
   userExperienceCertificationImportSchema,
   userExperienceEducationImportSchema,
+  userExperienceInputBaseSchema,
   userExperienceProjectImportSchema,
   userExperienceWorkImportSchema,
 } from '../../../src/common/schema/profile';
@@ -10,11 +11,13 @@ import { Company } from '../../../src/entity/Company';
 import { UserExperienceWork } from '../../../src/entity/user/experiences/UserExperienceWork';
 import { insertOrIgnoreUserExperienceSkills } from '../../../src/entity/user/experiences/UserExperienceSkill';
 import { textFromEnumValue } from '../../../src/common';
-import { LocationType } from '@dailydotdev/schema';
+import { EmploymentType, LocationType } from '@dailydotdev/schema';
 import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 import { UserExperienceEducation } from '../../../src/entity/user/experiences/UserExperienceEducation';
 import { UserExperienceCertification } from '../../../src/entity/user/experiences/UserExperienceCertification';
 import { UserExperienceProject } from '../../../src/entity/user/experiences/UserExperienceProject';
+import z from 'zod';
+import { UserExperienceType } from '../../entity/user/experiences/types';
 
 const resolveUserCompanyPart = async ({
   name,
@@ -34,9 +37,11 @@ const resolveUserCompanyPart = async ({
   const company = await con
     .getRepository(Company)
     .createQueryBuilder()
+    .setParameter('companyName', name)
     .addSelect('id')
-    .addSelect(`similarity(name, '${name}')`, 'similarity')
+    .addSelect(`similarity(name, :companyName)`, 'similarity')
     .orderBy('similarity', 'DESC')
+    .limit(1)
     .getRawOne<Pick<Company, 'id'> & { similarity: number }>();
 
   if (company && company.similarity > threshold) {
@@ -55,10 +60,14 @@ const resolveUserLocationPart = async ({
   con,
   threshold = 0.5,
 }: {
-  location?: Partial<Pick<DatasetLocation, 'country' | 'subdivision' | 'city'>>;
+  location?: {
+    city?: string | null;
+    subdivision?: string | null;
+    country?: string | null;
+  } | null;
   con: EntityManager;
   threshold?: number;
-}): Promise<Partial<Pick<UserExperience, 'locationId'>>> => {
+}): Promise<Partial<Pick<UserExperience, 'locationId' | 'customLocation'>>> => {
   if (!location) {
     return {};
   }
@@ -69,30 +78,36 @@ const resolveUserLocationPart = async ({
     .addSelect('id');
 
   if (location.city) {
-    datasetLocationQb.addSelect(
-      `coalesce(similarity(city, '${location.city}'), 0)`,
-      'similarityCity',
-    );
+    datasetLocationQb
+      .setParameter('locationCity', location.city)
+      .addSelect(
+        `coalesce(similarity(city, :locationCity), 0)`,
+        'similarityCity',
+      );
     datasetLocationQb.addOrderBy('"similarityCity"', 'DESC');
   }
 
   if (location.subdivision) {
-    datasetLocationQb.addSelect(
-      `coalesce(similarity(subdivision, '${location.subdivision}'), 0)`,
-      'similaritySubdivision',
-    );
+    datasetLocationQb
+      .setParameter('locationSubdivision', location.subdivision)
+      .addSelect(
+        `coalesce(similarity(subdivision, :locationSubdivision), 0)`,
+        'similaritySubdivision',
+      );
     datasetLocationQb.addOrderBy('"similaritySubdivision"', 'DESC');
   }
 
   if (location.country) {
-    datasetLocationQb.addSelect(
-      `coalesce(similarity(country, '${location.country}'), 0)`,
-      'similarityCountry',
-    );
+    datasetLocationQb
+      .setParameter('locationCountry', location.country)
+      .addSelect(
+        `coalesce(similarity(country, :locationCountry), 0)`,
+        'similarityCountry',
+      );
     datasetLocationQb.addOrderBy('"similarityCountry"', 'DESC');
   }
 
-  const datasetLocation = await datasetLocationQb.getRawOne<
+  const datasetLocation = await datasetLocationQb.limit(1).getRawOne<
     Pick<DatasetLocation, 'id'> & {
       similarityCountry: number;
       similaritySubdivision: number;
@@ -111,7 +126,9 @@ const resolveUserLocationPart = async ({
     };
   }
 
-  return {};
+  return {
+    customLocation: location,
+  };
 };
 
 export const importUserExperienceWork = async ({
@@ -123,7 +140,7 @@ export const importUserExperienceWork = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceWorkImportSchema.parse(data);
+  const userExperience = await userExperienceWorkImportSchema.parseAsync(data);
 
   const {
     company,
@@ -134,10 +151,13 @@ export const importUserExperienceWork = async ({
     skills,
     ended_at: endedAt,
     location,
+    flags,
+    employment_type: employmentType,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceWork).insert(
     con.getRepository(UserExperienceWork).create({
+      flags,
       userId: userId,
       ...(await resolveUserCompanyPart({
         name: company,
@@ -150,7 +170,6 @@ export const importUserExperienceWork = async ({
       locationType: locationType
         ? (Object.entries(LocationType).find(([, value]) => {
             return (
-              // TODO cv-parsing remove this replace when cv is adjusted to not use prefix
               locationType.replace('LOCATION_TYPE_', '') ===
               textFromEnumValue(LocationType, value)
             );
@@ -160,6 +179,14 @@ export const importUserExperienceWork = async ({
         location,
         con: con,
       })),
+      employmentType: employmentType
+        ? (Object.entries(EmploymentType).find(([, value]) => {
+            return (
+              employmentType.replace('EMPLOYMENT_TYPE_', '') ===
+              textFromEnumValue(EmploymentType, value)
+            );
+          })?.[1] as EmploymentType)
+        : undefined,
     }),
   );
 
@@ -183,9 +210,9 @@ export const importUserExperienceEducation = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceEducationImportSchema.parse(data);
+  const userExperience =
+    await userExperienceEducationImportSchema.parseAsync(data);
 
-  // TODO cv-parsing potentially won't be needed once cv is adjusted to use camelCase
   const {
     company,
     title,
@@ -195,10 +222,13 @@ export const importUserExperienceEducation = async ({
     ended_at: endedAt,
     location,
     subtitle,
+    flags,
+    grade,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceEducation).insert(
     con.getRepository(UserExperienceEducation).create({
+      flags,
       userId: userId,
       ...(await resolveUserCompanyPart({
         name: company,
@@ -213,6 +243,7 @@ export const importUserExperienceEducation = async ({
         con: con,
       })),
       subtitle,
+      grade,
     }),
   );
 
@@ -236,19 +267,23 @@ export const importUserExperienceCertification = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceCertificationImportSchema.parse(data);
+  const userExperience =
+    await userExperienceCertificationImportSchema.parseAsync(data);
 
   const {
     company,
     title,
     started_at: startedAt,
     ended_at: endedAt,
+    flags,
+    url,
   } = userExperience;
 
   const insertResult = await con
     .getRepository(UserExperienceCertification)
     .insert(
       con.getRepository(UserExperienceCertification).create({
+        flags,
         userId: userId,
         ...(await resolveUserCompanyPart({
           name: company,
@@ -257,6 +292,7 @@ export const importUserExperienceCertification = async ({
         title,
         startedAt,
         endedAt,
+        url,
       }),
     );
 
@@ -276,7 +312,8 @@ export const importUserExperienceProject = async ({
   con: EntityManager;
   userId: string;
 }): Promise<{ experienceId: string }> => {
-  const userExperience = userExperienceProjectImportSchema.parse(data);
+  const userExperience =
+    await userExperienceProjectImportSchema.parseAsync(data);
 
   const {
     title,
@@ -284,15 +321,19 @@ export const importUserExperienceProject = async ({
     started_at: startedAt,
     ended_at: endedAt,
     skills,
+    flags,
+    url,
   } = userExperience;
 
   const insertResult = await con.getRepository(UserExperienceProject).insert(
     con.getRepository(UserExperienceProject).create({
+      flags,
       userId: userId,
       title,
       description,
       startedAt,
       endedAt,
+      url,
     }),
   );
 
@@ -305,4 +346,99 @@ export const importUserExperienceProject = async ({
   return {
     experienceId,
   };
+};
+
+export const importUserExperienceFromJSON = async ({
+  con,
+  dataJson,
+  userId,
+  importId,
+  transaction = false,
+}: {
+  con: EntityManager;
+  dataJson: unknown;
+  userId: string;
+  importId?: string;
+  transaction?: boolean;
+}) => {
+  if (!userId) {
+    throw new Error('userId is required');
+  }
+
+  const data = await z
+    .preprocess(
+      (item) => {
+        if (item === null) {
+          return [];
+        }
+
+        if (typeof item === 'object' && !Array.isArray(item)) {
+          return [];
+        }
+
+        return item;
+      },
+      z.array(
+        userExperienceInputBaseSchema
+          .pick({
+            type: true,
+          })
+          .loose(),
+      ),
+    )
+    .parseAsync(dataJson);
+
+  const transactionFn = async <T>(
+    callback: (entityManager: EntityManager) => Promise<T>,
+  ) => {
+    return transaction ? con.transaction(callback) : callback(con);
+  };
+
+  await transactionFn(async (entityManager) => {
+    for (const item of data) {
+      const importData = {
+        ...item,
+        flags: importId ? { import: importId } : undefined,
+      };
+
+      switch (importData.type) {
+        case UserExperienceType.Work:
+          await importUserExperienceWork({
+            data: importData,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        case UserExperienceType.Education:
+          await importUserExperienceEducation({
+            data: importData,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        case UserExperienceType.Certification:
+          await importUserExperienceCertification({
+            data: importData,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        case UserExperienceType.Project:
+        case UserExperienceType.OpenSource:
+        case UserExperienceType.Volunteering:
+          await importUserExperienceProject({
+            data: importData,
+            con: entityManager,
+            userId,
+          });
+
+          break;
+        default:
+          throw new Error(`Unsupported experience type: ${importData.type}`);
+      }
+    }
+  });
 };

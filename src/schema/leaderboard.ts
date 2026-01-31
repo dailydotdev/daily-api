@@ -1,11 +1,13 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { BaseContext } from '../Context';
+import { BaseContext, type AuthContext } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserCompany, UserStats, UserStreak } from '../entity';
 import { DataSource, In, Not } from 'typeorm';
 import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
 import { MODERATORS } from '../config';
+import graphorm from '../graphorm';
+import type { GQLHotTake } from './userHotTake';
 
 export type GQLUserLeaderboard = {
   score: number;
@@ -17,6 +19,12 @@ export type GQLCompanyLeaderboard = {
   company: Pick<GQLCompany, 'name' | 'image'>;
 };
 
+export type GQLPopularHotTake = {
+  score: number;
+  hotTake: Promise<GQLHotTake>;
+  user: Promise<GQLUser>;
+};
+
 export const typeDefs = /* GraphQL */ `
   type Leaderboard {
     score: Int
@@ -26,6 +34,12 @@ export const typeDefs = /* GraphQL */ `
   type CompanyLeaderboard {
     score: Int
     company: Company
+  }
+
+  type PopularHotTake {
+    score: Int!
+    hotTake: HotTake!
+    user: User!
   }
 
   extend type Query {
@@ -98,6 +112,16 @@ export const typeDefs = /* GraphQL */ `
       """
       limit: Int
     ): [CompanyLeaderboard] @cacheControl(maxAge: 600)
+
+    """
+    Get the most popular hot takes
+    """
+    popularHotTakes(
+      """
+      Limit the number of hot takes returned
+      """
+      limit: Int
+    ): [PopularHotTake] @cacheControl(maxAge: 600)
   }
 `;
 
@@ -137,12 +161,14 @@ const getUserLeaderboardForStat = async ({
       }
     >();
 
-  return users.map(({ score, ...user }) => {
-    return {
-      score,
-      user: user,
-    };
-  });
+  return users
+    .filter((user) => !!user.id)
+    .map(({ score, ...user }) => {
+      return {
+        score,
+        user: user,
+      };
+    });
 };
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
@@ -237,5 +263,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         company: { name: company.name, image: company.image },
       }));
     },
+    popularHotTakes: async (
+      _,
+      args,
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLPopularHotTake[]> =>
+      graphorm.query(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.limit(getLimit(args)),
+        }),
+        true,
+      ),
   },
 });

@@ -19,6 +19,37 @@ import type { OpportunityKeyword } from '../OpportunityKeyword';
 import type { OpportunityMatch } from '../OpportunityMatch';
 import type { QuestionScreening } from '../questions/QuestionScreening';
 import type { QuestionFeedback } from '../questions/QuestionFeedback';
+import type { OpportunityLocation } from './OpportunityLocation';
+import type { OpportunityPreviewStatus } from '../../common/opportunity/types';
+
+export type OpportunityFlags = Partial<{
+  preview: {
+    userIds: string[];
+    totalCount: number;
+    status: OpportunityPreviewStatus;
+  };
+  batchSize: number;
+  plan: string;
+  reminders: boolean | null;
+  showSlack: boolean | null;
+  showFeedback: boolean | null;
+  file: {
+    blobName: string;
+    bucketName: string;
+    mimeType: string;
+    extension: string;
+    userId?: string;
+    trackingId?: string;
+  } | null;
+  parseError: string | null;
+  isTrial: boolean;
+  public_draft: boolean;
+}>;
+
+export type OpportunityFlagsPublic = Pick<
+  OpportunityFlags,
+  'batchSize' | 'plan' | 'showSlack' | 'showFeedback'
+>;
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -93,4 +124,14 @@ export class Opportunity {
     { lazy: true },
   )
   feedbackQuestions: Promise<QuestionFeedback[]>;
+
+  @OneToMany(
+    'OpportunityLocation',
+    (location: OpportunityLocation) => location.opportunity,
+    { lazy: true },
+  )
+  locations: Promise<OpportunityLocation[]>;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: OpportunityFlags;
 }

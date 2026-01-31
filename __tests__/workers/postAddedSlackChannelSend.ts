@@ -42,10 +42,14 @@ jest.mock('@slack/web-api', () => ({
   WebClient: function () {
     return {
       conversations: {
-        join: conversationsJoin,
+        get join() {
+          return conversationsJoin;
+        },
       },
       chat: {
-        postMessage: chatPostMessage,
+        get postMessage() {
+          return chatPostMessage;
+        },
       },
     };
   },

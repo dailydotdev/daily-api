@@ -9,6 +9,7 @@ import { remoteConfig } from '../../../remoteConfig';
 import { processCorePaddleEvent } from '../../../common/paddle/cores/eventHandler';
 import { processPlusPaddleEvent } from '../../../common/paddle/plus/eventHandler';
 import { processOrganizationPaddleEvent } from '../../../common/paddle/organization/eventHandler';
+import { processRecruiterPaddleEvent } from '../../../common/paddle/recruiter/eventHandler';
 
 export const paddle = async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(async (fastify: FastifyInstance): Promise<void> => {
@@ -50,6 +51,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
                 await processPlusPaddleEvent(event);
                 break;
               case isPurchaseType(PurchaseType.Recruiter, event):
+                await processRecruiterPaddleEvent(event);
                 break;
               default:
                 logger.info(
@@ -72,6 +74,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
               err,
               provider: SubscriptionProvider.Paddle,
               payload: rawRequestBody,
+              signature,
             },
             'Paddle generic error',
           );

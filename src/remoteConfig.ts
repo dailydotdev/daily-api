@@ -4,6 +4,17 @@ import { isProd, isTest } from './common/utils';
 import type { CoresRole } from './types';
 import type { PurchaseType } from './common/plus';
 
+export type SuperAgentTrialConfig = Partial<{
+  enabled: true;
+  durationDays: number;
+  features: {
+    batchSize: number;
+    reminders: boolean;
+    showSlack: boolean;
+    showFeedback: boolean;
+  };
+}>;
+
 export type RemoteConfigValue = {
   inc: number;
   vordrWords: string[];
@@ -30,11 +41,13 @@ export type RemoteConfigValue = {
   paddleIps: string[];
   paddleTestDiscountIds: string[];
   paddleProductIds: Partial<Record<PurchaseType, string>>;
+  recruiterChannelInviteUsers: string[];
   funnelIds: Partial<{
     web_funnel_id: string;
     onboarding_funnel_id: string;
   }>;
   dailyBriefLimit: number;
+  superAgentTrial: SuperAgentTrialConfig;
 };
 
 class RemoteConfig {

@@ -33,6 +33,8 @@ export const systemUser = {
   name: 'System',
 };
 
+export const systemUserIds = [systemUser.id, ghostUser.id, playwrightUser.id];
+
 export const demoCompany = {
   id: 'e8c7a930-ca69-4cba-b26c-b6c810d6ab7d',
 };
@@ -100,7 +102,7 @@ export const uniqueifyArray = <T>(array: T[]): T[] => {
   return [...new Set(array)];
 };
 
-export /**
+/**
  * Remove duplicate values from an array of objects per unique key
  *
  * @template T
@@ -110,7 +112,7 @@ export /**
  * @param {(item: T, index: number, uniqueKey: string) => R} [processItem] Optional function to process the item before adding it to the result array
  * @return {*}  {R[]}
  */
-const uniqueifyObjectArray = <T, R = T>(
+export const uniqueifyObjectArray = <T, R = T>(
   array: T[],
   uniqueKey: (item: T) => string,
   processItem?: (item: T, index: number, uniqueKey: string) => R,
@@ -320,3 +322,23 @@ export const textToSlug = (text: string): string =>
     locale: 'en',
     replacement: '-',
   }).substring(0, 100);
+
+export const truncateText = (
+  text: string | null | undefined,
+  maxLength = 500,
+): string | null =>
+  text
+    ? text.length > maxLength
+      ? `${text.slice(0, maxLength - 3)}...`
+      : text
+    : null;
+
+export const updateRecruiterSubscriptionFlags = <
+  Entity extends {
+    recruiterSubscriptionFlags: object;
+  },
+>(
+  update: Partial<Entity['recruiterSubscriptionFlags']>,
+): (() => string) => {
+  return () => `recruiterSubscriptionFlags || '${JSON.stringify(update)}'`;
+};

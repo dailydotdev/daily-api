@@ -296,6 +296,8 @@ describe('users for reactivation', () => {
           'cio_subscription_preferences.topics.topic_28': true,
           created_at: 1656427727,
           first_name: 'Ido',
+          has_active_recruiter_subscription: false,
+          is_recruiter: false,
           name: 'Ido',
           permalink: 'http://localhost:5002/idoshamun',
           referral_link: 'http://localhost:5002/join?cid=generic&userid=1',

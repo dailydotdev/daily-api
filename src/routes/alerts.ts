@@ -18,6 +18,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         lastBootPopup
         lastFeedSettingsFeedback
         showTopReader
+        showSuperAgentTrialUpgrade
         briefBannerLastSeen
         opportunityId
       }

@@ -3,24 +3,27 @@ import '../src/config';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import createOrGetConnection from '../src/db';
-import { type DataSource } from 'typeorm';
-import { readFile } from 'node:fs/promises';
-import { userExperienceInputBaseSchema } from '../src/common/schema/profile';
-import { UserExperienceType } from '../src/entity/user/experiences/types';
-import {
-  importUserExperienceWork,
-  importUserExperienceEducation,
-  importUserExperienceCertification,
-  importUserExperienceProject,
-} from '../src/common/profile/import';
+import { QueryFailedError, type DataSource } from 'typeorm';
+import { readFile, stat, readdir } from 'node:fs/promises';
+import { importUserExperienceFromJSON } from '../src/common/profile/import';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import type { PropsParameters } from '../src/types';
 
 /**
  * Import profile from JSON to user by id
  *
- * npx ts-node bin/importProfileFromJSON.ts --path ~/Downloads/testuser.json -u testuser
+ * Single file usage:
+ *
+ * npx ts-node bin/importProfileFromJSON.ts --path ~/Downloads/testuser.json
+ *
+ * Directory usage:
+ *
+ * npx ts-node bin/importProfileFromJSON.ts --path ~/Downloads/profiles --limit 100 --offset 0 --import import_run_test
  */
 const main = async () => {
   let con: DataSource | null = null;
+  let failedImports = 0;
 
   try {
     const { values } = parseArgs({
@@ -29,79 +32,139 @@ const main = async () => {
           type: 'string',
           short: 'p',
         },
-        userId: {
+        limit: {
           type: 'string',
-          short: 'u',
+          short: 'l',
+        },
+        offset: {
+          type: 'string',
+          short: 'o',
+        },
+        uid: {
+          type: 'string',
+        },
+        batch: {
+          type: 'string',
+          short: 'b',
         },
       },
     });
 
     const paramsSchema = z.object({
       path: z.string().nonempty(),
-      userId: z.string().nonempty(),
+      limit: z.coerce.number().int().positive().default(10),
+      offset: z.coerce.number().int().positive().default(0),
+      uid: z.string().nonempty().default(randomUUID()),
+      batch: z.coerce.number().int().positive().default(100),
     });
 
     const params = paramsSchema.parse(values);
 
+    console.log(`Starting import with ID: ${params.uid}`);
+
     con = await createOrGetConnection();
 
-    const dataJSON = JSON.parse(await readFile(params.path, 'utf-8'));
+    const pathStat = await stat(params.path);
 
-    const data = z
-      .array(
-        userExperienceInputBaseSchema
-          .pick({
-            type: true,
-          })
-          .loose(),
-      )
-      .parse(dataJSON);
+    let filePaths = [params.path];
 
-    await con.transaction(async (entityManager) => {
-      for (const item of data) {
-        switch (item.type) {
-          case UserExperienceType.Work:
-            await importUserExperienceWork({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
+    if (pathStat.isDirectory()) {
+      filePaths = await readdir(params.path, 'utf-8');
+    }
 
-            break;
-          case UserExperienceType.Education:
-            await importUserExperienceEducation({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
+    filePaths.sort(); // ensure consistent order for offset/limit
 
-            break;
-          case UserExperienceType.Certification:
-            await importUserExperienceCertification({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
+    console.log(`Found files: ${filePaths.length}`);
 
-            break;
-          case UserExperienceType.Project:
-            await importUserExperienceProject({
-              data: item,
-              con: entityManager,
-              userId: params.userId,
-            });
+    console.log(
+      `Importing: ${Math.min(params.limit, filePaths.length)} (limit ${params.limit}, offset ${params.offset})`,
+    );
 
-            break;
-          default:
-            throw new Error(`Unsupported experience type: ${item.type}`);
+    const runner = async (
+      data: Omit<
+        PropsParameters<typeof importUserExperienceFromJSON>,
+        'con'
+      > & {
+        filePath: string;
+      },
+    ) => {
+      try {
+        await con!.transaction(async (entityManager) => {
+          await importUserExperienceFromJSON({ ...data, con: entityManager });
+        });
+      } catch (error) {
+        failedImports += 1;
+
+        if (error instanceof QueryFailedError) {
+          console.error({
+            type: 'db_query_failed',
+            message: error.message,
+            query: error.query,
+            filePath: data.filePath,
+          });
+        } else if (error instanceof z.ZodError) {
+          console.error({
+            type: 'zod_error',
+            message: error.issues[0].message,
+            path: error.issues[0].path,
+            filePath: data.filePath,
+          });
+        } else {
+          console.error(error);
         }
       }
-    });
+    };
+
+    let batch = [];
+
+    for (const [index, fileName] of filePaths
+      .slice(params.offset, params.offset + params.limit)
+      .entries()) {
+      const filePath =
+        params.path === fileName ? fileName : path.join(params.path, fileName);
+
+      if (!filePath.endsWith('.json')) {
+        throw { type: 'not_json_ext', filePath };
+      }
+
+      const userId = filePath.split('/').pop()?.split('.json')[0];
+
+      if (!userId) {
+        throw { type: 'no_user_id', filePath };
+      }
+
+      const dataJSON = JSON.parse(await readFile(filePath, 'utf-8'));
+
+      batch.push({
+        dataJson: dataJSON,
+        userId,
+        importId: params.uid,
+        filePath,
+      });
+
+      if (batch.length >= params.batch) {
+        await Promise.all(batch.map((item) => runner(item)));
+
+        batch = [];
+
+        console.log(`Done batch of ${params.batch}, index: ${index + 1}`);
+      }
+    }
+
+    if (batch.length > 0) {
+      await Promise.all(batch.map((item) => runner(item)));
+    }
   } catch (error) {
     console.error(error instanceof z.ZodError ? z.prettifyError(error) : error);
   } finally {
     if (con) {
       con.destroy();
+    }
+
+    if (failedImports > 0) {
+      console.log(`Failed imports: ${failedImports}`);
+    } else {
+      console.log('Done!');
     }
 
     process.exit(0);

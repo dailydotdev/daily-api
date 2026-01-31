@@ -26,7 +26,6 @@ import type { UserNotificationFlags } from '../entity/user/User';
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
   CommunityPicksSucceeded = 'community_picks_succeeded',
-  CommunityPicksGranted = 'community_picks_granted',
   ArticlePicked = 'article_picked',
   ArticleNewComment = 'article_new_comment',
   ArticleUpvoteMilestone = 'article_upvote_milestone',
@@ -79,6 +78,11 @@ export enum NotificationType {
   PollResult = 'poll_result',
   PollResultAuthor = 'poll_result_author',
   WarmIntro = 'warm_intro',
+  ParsedCVProfile = 'parsed_cv_profile',
+  RecruiterNewCandidate = 'recruiter_new_candidate',
+  RecruiterOpportunityLive = 'recruiter_opportunity_live',
+  RecruiterExternalPayment = 'recruiter_external_payment',
+  ExperienceCompanyEnriched = 'experience_company_enriched',
 }
 
 export enum NotificationPreferenceType {
@@ -279,6 +283,18 @@ export const DEFAULT_NOTIFICATION_SETTINGS: UserNotificationFlags = {
     inApp: NotificationPreferenceStatus.Subscribed,
   },
   [NotificationType.PollResultAuthor]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.RecruiterNewCandidate]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.RecruiterOpportunityLive]: {
+    email: NotificationPreferenceStatus.Subscribed,
+    inApp: NotificationPreferenceStatus.Subscribed,
+  },
+  [NotificationType.RecruiterExternalPayment]: {
     email: NotificationPreferenceStatus.Subscribed,
     inApp: NotificationPreferenceStatus.Subscribed,
   },
@@ -516,5 +532,22 @@ export const cleanupSourcePostModerationNotifications = async (
     referenceId: post.id,
     referenceType: 'post_moderation',
     type: NotificationType.SourcePostSubmitted,
+  });
+};
+
+export const cleanupRecruiterNewCandidateNotification = async (
+  con: DataSource | EntityManager,
+  opportunityId: string,
+  candidateUserId: string,
+) => {
+  if (!opportunityId || !candidateUserId) {
+    return;
+  }
+
+  await con.getRepository(NotificationV2).delete({
+    referenceId: opportunityId,
+    referenceType: 'opportunity',
+    type: NotificationType.RecruiterNewCandidate,
+    uniqueKey: candidateUserId,
   });
 };

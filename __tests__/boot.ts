@@ -88,6 +88,8 @@ import {
   ContentPreferenceOrganization,
   ContentPreferenceOrganizationStatus,
 } from '../src/entity/contentPreference/ContentPreferenceOrganization';
+import { UserExperienceWork } from '../src/entity/user/experiences/UserExperienceWork';
+import { UserExperienceEducation } from '../src/entity/user/experiences/UserExperienceEducation';
 
 let app: FastifyInstance;
 let con: DataSource;
@@ -135,6 +137,9 @@ const LOGGED_IN_BODY = {
     company: null,
     experienceLevel: null,
     isTeamMember: false,
+    twitter: null,
+    github: 'idogithub',
+    hashnode: null,
     bluesky: null,
     roadmap: null,
     threads: null,
@@ -159,6 +164,15 @@ const LOGGED_IN_BODY = {
     clickbaitTries: null,
     hasLocationSet: false,
     location: null,
+    hideExperience: false,
+    profileCompletion: {
+      percentage: 20,
+      hasProfileImage: true,
+      hasHeadline: false,
+      hasExperienceLevel: false,
+      hasWork: false,
+      hasEducation: false,
+    },
   },
   marketingCta: null,
   feeds: [],
@@ -360,6 +374,110 @@ describe('anonymous boot', () => {
       )
       .expect(200);
     expect(res.body).toEqual(ANONYMOUS_BODY);
+  });
+});
+
+describe('recruiter default theme', () => {
+  it('should return light theme for anonymous user with referrer=recruiter', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('bright');
+  });
+
+  it('should return dark theme for anonymous user without referrer', async () => {
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('darcula');
+  });
+
+  it('should return dark theme for unknown referrer values', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?referrer=unknown`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('darcula');
+  });
+
+  it('should persist theme in Redis and return it on subsequent visits', async () => {
+    // First visit with recruiter referrer
+    const first = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(first.body.settings.theme).toEqual('bright');
+
+    // Second visit without referrer should still return light theme
+    const second = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.settings.theme).toEqual('bright');
+  });
+
+  it('should not override stored theme with new referrer', async () => {
+    // First visit without referrer (dark theme)
+    const first = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(first.body.settings.theme).toEqual('darcula');
+
+    // Second visit with recruiter referrer should still return dark theme
+    const second = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', first.headers['set-cookie'])
+      .expect(200);
+    expect(second.body.settings.theme).toEqual('darcula');
+  });
+
+  it('should store theme in Redis with correct key pattern', async () => {
+    const res = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+
+    const trackingId = res.body.user.id;
+    const themeKey = generateStorageKey(StorageTopic.Boot, 'theme', trackingId);
+    const storedTheme = await getRedisObject(themeKey);
+    expect(storedTheme).toEqual('bright');
+  });
+
+  it('should persist theme after login', async () => {
+    const anon = await request(app.server)
+      .get(`${BASE_PATH}?referrer=recruiter`)
+      .set('User-Agent', TEST_UA)
+      .expect(200);
+    expect(anon.body.settings.theme).toEqual('bright');
+
+    // Simulate theme migration on login
+    const themeKey = generateStorageKey(StorageTopic.Boot, 'theme', '1');
+    await setRedisObject(themeKey, 'bright');
+
+    mockLoggedIn();
+    const loggedIn = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(loggedIn.body.settings.theme).toEqual('bright');
+  });
+
+  it('should prefer DB settings over Redis theme', async () => {
+    const themeKey = generateStorageKey(StorageTopic.Boot, 'theme', '1');
+    await setRedisObject(themeKey, 'bright');
+    await con.getRepository(Settings).save({ userId: '1', theme: 'darcula' });
+
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+    expect(res.body.settings.theme).toEqual('darcula');
   });
 });
 
@@ -1733,6 +1851,7 @@ describe('funnel boot', () => {
         'hasLocationSet',
         'location',
         'readme',
+        'profileCompletion',
       ]),
     });
   });
@@ -1928,6 +2047,127 @@ describe('funnel boot', () => {
       // Verify cookie values
       expect(legacyFunnelCookie?.value).toEqual(FUNNEL_DATA.session.id);
       expect(onboardingFunnelCookie?.value).toEqual(FUNNEL_DATA.session.id);
+    });
+  });
+});
+
+describe('boot profile completion', () => {
+  const BASE_PATH = '/boot';
+
+  it('should return profileCompletion with 0% for user with no profile data', async () => {
+    await con
+      .getRepository(User)
+      .update({ id: '1' }, { image: '', bio: null, experienceLevel: null });
+
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.user.profileCompletion).toEqual({
+      percentage: 0,
+      hasProfileImage: false,
+      hasHeadline: false,
+      hasExperienceLevel: false,
+      hasWork: false,
+      hasEducation: false,
+    });
+  });
+
+  it('should return profileCompletion with 20% for user with only profile image', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        image: 'https://example.com/image.jpg',
+        bio: null,
+        experienceLevel: null,
+      },
+    );
+
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.user.profileCompletion).toEqual({
+      percentage: 20,
+      hasProfileImage: true,
+      hasHeadline: false,
+      hasExperienceLevel: false,
+      hasWork: false,
+      hasEducation: false,
+    });
+  });
+
+  it('should return profileCompletion with 60% for user with image, bio, and experience level', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        image: 'https://example.com/image.jpg',
+        bio: 'Software engineer',
+        experienceLevel: 'MORE_THAN_4_YEARS',
+      },
+    );
+
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.user.profileCompletion).toEqual({
+      percentage: 60,
+      hasProfileImage: true,
+      hasHeadline: true,
+      hasExperienceLevel: true,
+      hasWork: false,
+      hasEducation: false,
+    });
+  });
+
+  it('should return profileCompletion with 100% for user with complete profile', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        image: 'https://example.com/image.jpg',
+        bio: 'Software engineer',
+        experienceLevel: 'MORE_THAN_4_YEARS',
+      },
+    );
+
+    // Add work experience
+    await con.getRepository(UserExperienceWork).save({
+      userId: '1',
+      title: 'Software Engineer',
+      startedAt: new Date('2020-01-01'),
+    });
+
+    // Add education
+    await con.getRepository(UserExperienceEducation).save({
+      userId: '1',
+      title: 'Computer Science',
+      startedAt: new Date('2016-01-01'),
+    });
+
+    mockLoggedIn();
+    const res = await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    expect(res.body.user.profileCompletion).toEqual({
+      percentage: 100,
+      hasProfileImage: true,
+      hasHeadline: true,
+      hasExperienceLevel: true,
+      hasWork: true,
+      hasEducation: true,
     });
   });
 });

@@ -134,7 +134,11 @@ export const typeDefs = /* GraphQL */ `
     pricePreviews: PricePreviews! @auth
     corePricePreviews: PricePreviews! @auth
     pricingMetadata(type: PricingType): [ProductPricingMetadata!]! @auth
-    pricingPreview(type: PricingType, locale: String): [ProductPricingPreview!]!
+    pricingPreview(
+      type: PricingType
+      locale: String
+      discountId: String
+    ): [ProductPricingPreview!]!
     pricingPreviewByIds(
       """
       The IDs of the prices to preview
@@ -323,6 +327,7 @@ export interface GQLCustomData {
 interface PaddlePricingPreviewArgs {
   type?: PurchaseType;
   locale?: string;
+  discountId?: string;
 }
 
 interface PaddlePricingPreviewByIdsArgs {
@@ -445,7 +450,11 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
     ): Promise<BasePricingMetadata[]> => getPricingMetadata(ctx, type),
     pricingPreview: async (
       _,
-      { type = PurchaseType.Plus, locale }: PaddlePricingPreviewArgs,
+      {
+        type = PurchaseType.Plus,
+        locale,
+        discountId,
+      }: PaddlePricingPreviewArgs,
       ctx,
     ): Promise<BasePricingPreview[]> => {
       const metadata = await getPricingMetadata(ctx, type);
@@ -453,7 +462,7 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
         .map(({ idMap }) => idMap.paddle)
         .filter(Boolean) as string[];
 
-      const preview = await getPlusPricePreview(ctx, ids);
+      const preview = await getPlusPricePreview(ctx, ids, discountId);
 
       // consolidate the preview data and metadata
       const consolidated = metadata.map((meta) => {

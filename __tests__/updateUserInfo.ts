@@ -10,6 +10,7 @@ import {
 } from './helpers';
 import { User } from '../src/entity';
 import { clearFile, UploadPreset } from '../src/common/cloudinary';
+import { fallbackImages } from '../src/config';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -83,6 +84,7 @@ describe('mutation updateUserInfo', () => {
         twitter
         github
         hashnode
+        linkedin
         createdAt
         infoConfirmed
         timezone
@@ -94,6 +96,11 @@ describe('mutation updateUserInfo', () => {
           id
           country
           city
+        }
+        hideExperience
+        socialLinks {
+          platform
+          url
         }
       }
     }
@@ -254,7 +261,7 @@ describe('mutation updateUserInfo', () => {
       expect(res.errors).toBeFalsy();
 
       const updatedUser = await repo.findOneBy({ id: loggedUser });
-      expect(updatedUser?.image).toBeNull();
+      expect(updatedUser?.image).toBe(fallbackImages.avatar);
       expect(clearFile).toHaveBeenCalledWith({
         referenceId: loggedUser,
         preset: UploadPreset.Avatar,
@@ -318,7 +325,7 @@ describe('mutation updateUserInfo', () => {
       expect(res.errors).toBeFalsy();
 
       const updatedUser = await repo.findOneBy({ id: loggedUser });
-      expect(updatedUser?.image).toBeNull();
+      expect(updatedUser?.image).toBe(fallbackImages.avatar);
       expect(updatedUser?.cover).toBeNull();
 
       expect(clearFile).toHaveBeenCalledTimes(2);
@@ -408,6 +415,34 @@ describe('mutation updateUserInfo', () => {
       const updatedUser = await repo.findOneBy({ id: loggedUser });
       expect(updatedUser?.image).toEqual(existingImage);
       expect(updatedUser?.bio).toEqual('New bio');
+      expect(clearFile).not.toHaveBeenCalled();
+    });
+
+    it('should preserve existing image when image field is not provided', async () => {
+      loggedUser = '1';
+      const repo = con.getRepository(User);
+
+      const existingImage = 'https://example.com/avatar.jpg';
+      await repo.update({ id: loggedUser }, { image: existingImage });
+
+      // Update only experienceLevel, NOT providing image field at all
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            experienceLevel: 'SENIOR',
+            username: 'uuu1',
+            name: 'Test User',
+            // Note: image field is intentionally NOT provided
+          },
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      // Image should be preserved, not reset to fallback
+      const updatedUser = await repo.findOneBy({ id: loggedUser });
+      expect(updatedUser?.image).toEqual(existingImage);
+      expect(updatedUser?.experienceLevel).toEqual('SENIOR');
       expect(clearFile).not.toHaveBeenCalled();
     });
 
@@ -660,5 +695,166 @@ describe('mutation updateUserInfo', () => {
     expect(updatedUser?.readme).toEqual('# My Profile\n\nWelcome!');
     expect(updatedUser?.readmeHtml).toContain('<h1>');
     // locationId check skipped - requires DatasetLocation records
+  });
+
+  it('should update hideExperience', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(User);
+
+    // Verify initial state is false
+    const user = await repo.findOneBy({ id: loggedUser });
+    expect(user?.hideExperience).toBe(false);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          hideExperience: true,
+          username: 'testuser',
+          name: 'Test User',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserInfo.hideExperience).toBe(true);
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser?.hideExperience).toBe(true);
+  });
+
+  it('should update hideExperience to false', async () => {
+    loggedUser = '1';
+    const repo = con.getRepository(User);
+
+    // Set hideExperience to true first
+    await repo.update({ id: loggedUser }, { hideExperience: true });
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          hideExperience: false,
+          username: 'testuser',
+          name: 'Test User',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateUserInfo.hideExperience).toBe(false);
+
+    const updatedUser = await repo.findOneBy({ id: loggedUser });
+    expect(updatedUser?.hideExperience).toBe(false);
+  });
+
+  describe('socialLinks', () => {
+    it('should reverse dual-write: update socialLinks when legacy fields are provided', async () => {
+      loggedUser = '1';
+      const repo = con.getRepository(User);
+      const user = await repo.findOneBy({ id: loggedUser });
+
+      // Use legacy format (individual fields like the client currently sends)
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            username: 'testuser',
+            github: 'idoshamun',
+            linkedin: 'ido-shamun',
+            twitter: 'idoshamun',
+            portfolio: 'https://shamun.dev',
+            youtube: null,
+            stackoverflow: null,
+          },
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      // Verify legacy columns are updated
+      expect(res.data.updateUserInfo.github).toBe('idoshamun');
+      expect(res.data.updateUserInfo.linkedin).toBe('ido-shamun');
+      expect(res.data.updateUserInfo.twitter).toBe('idoshamun');
+
+      // Verify socialLinks JSONB is also populated with full URLs (order may vary)
+      const updated = await repo.findOneBy({ id: loggedUser });
+      expect(updated?.socialLinks).toHaveLength(4);
+      expect(updated?.socialLinks).toEqual(
+        expect.arrayContaining([
+          { platform: 'github', url: 'https://github.com/idoshamun' },
+          { platform: 'linkedin', url: 'https://linkedin.com/in/ido-shamun' },
+          { platform: 'twitter', url: 'https://x.com/idoshamun' },
+          { platform: 'portfolio', url: 'https://shamun.dev' },
+        ]),
+      );
+    });
+
+    it('should reject socialLinks with blocked words in URLs', async () => {
+      loggedUser = '1';
+
+      const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            username: 'testuser',
+            socialLinks: [
+              { platform: 'portfolio', url: 'https://forbidden.com' },
+            ],
+          },
+        },
+      });
+
+      expect(res.errors).toBeTruthy();
+      expect(res.errors?.[0].message).toContain('Invalid URL');
+    });
+
+    it('should reject legacy social fields with blocked words', async () => {
+      loggedUser = '1';
+      const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            portfolio: 'forbidden.com',
+          },
+        },
+      });
+
+      expect(res.errors).toBeTruthy();
+      expect(res.errors?.[0].message).toContain('portfolio is invalid');
+    });
+
+    it('should accept socialLinks without blocked words', async () => {
+      loggedUser = '1';
+
+      const user = await con.getRepository(User).findOneBy({ id: loggedUser });
+
+      const res = await client.mutate(MUTATION, {
+        variables: {
+          data: {
+            name: user?.name,
+            username: 'testuser',
+            socialLinks: [
+              { platform: 'portfolio', url: 'https://allowed.com' },
+            ],
+          },
+        },
+      });
+
+      expect(res.errors).toBeFalsy();
+
+      const updated = await con
+        .getRepository(User)
+        .findOneBy({ id: loggedUser });
+
+      expect(updated?.socialLinks).toHaveLength(1);
+      expect(updated?.socialLinks).toEqual(
+        expect.arrayContaining([
+          { platform: 'portfolio', url: 'https://allowed.com' },
+        ]),
+      );
+    });
   });
 });

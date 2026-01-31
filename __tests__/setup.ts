@@ -24,6 +24,7 @@ jest.mock('../src/remoteConfig', () => ({
         'vordrwillcatchyou',
         'andvordrwillhavefun',
         'and vordr will win',
+        'forbidden.com',
       ],
       vordrIps: ['192.0.2.0/24', '198.51.100.0/24', '203.0.113.0/24'],
       ignoredWorkEmailDomains: ['igored.com', 'ignored.org'],
@@ -43,7 +44,9 @@ jest.mock('../src/remoteConfig', () => ({
         cores: 'pro_01jn6djzggt2cwharv1r3hv9as',
         plus: 'pro_01jcdn61rc967gqyscegtee0qm',
         organization: 'pro_01jvm22wepxc0x539bc4w6jybx',
+        recruiter: 'pro_recruiter',
       },
+      recruiterChannelInviteUsers: ['U013C30NE3V'],
     } as typeof remoteConfig.vars,
     validLanguages: {
       en: 'English',

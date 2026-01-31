@@ -51,7 +51,13 @@ import type { Company } from './entity/Company';
 import { DataSource, In } from 'typeorm';
 import { logger } from './logger';
 import { OpportunityMatch } from './entity/OpportunityMatch';
-import { OpportunityMatchStatus } from './entity/opportunities/types';
+import {
+  OpportunityMatchStatus,
+  OpportunityUserType,
+} from './entity/opportunities/types';
+import { OpportunityUser } from './entity/opportunities/user/OpportunityUser';
+import { ContentPreferenceOrganization } from './entity/contentPreference/ContentPreferenceOrganization';
+import { SubscriptionStatus } from './common/plus/subscription';
 
 export const cio = new TrackClient(
   process.env.CIO_SITE_ID,
@@ -167,15 +173,37 @@ export const identifyUserOpportunities = async ({
   if (!isProd) {
     return;
   }
-  const opportunities = await con.getRepository(OpportunityMatch).find({
+
+  // Get all pending opportunity matches for the user
+  const matches = await con.getRepository(OpportunityMatch).find({
     where: {
       userId,
       status: OpportunityMatchStatus.Pending,
     },
-    select: ['opportunityId'],
+    relations: ['opportunity'],
     order: { createdAt: 'ASC' },
   });
-  const ids = opportunities.map((opportunity) => opportunity.opportunityId);
+
+  const opportunitiesWithReminders = (
+    await Promise.all(
+      matches.map(async (match) => {
+        const opportunity = await match.opportunity;
+        return {
+          match,
+          opportunity,
+          hasReminders: opportunity?.flags?.reminders === true,
+        };
+      }),
+    )
+  )
+    .filter((item) => item.hasReminders)
+    .map((item) => ({
+      id: item.match.opportunityId,
+      title: item.opportunity?.title || '',
+    }));
+
+  const ids = opportunitiesWithReminders.map((opp) => opp.id);
+
   try {
     await cio.identify(userId, {
       opportunities: ids?.length > 0 ? ids : null,
@@ -188,6 +216,42 @@ export const identifyUserOpportunities = async ({
     throw err;
   }
 };
+
+/**
+ * Checks if a user is a recruiter by checking if they have any recruiter
+ * records in the OpportunityUser table.
+ */
+export const isUserRecruiter = async (
+  con: ConnectionManager,
+  userId: string,
+): Promise<boolean> => {
+  const recruiterRecord = await con.getRepository(OpportunityUser).findOne({
+    where: {
+      userId,
+      type: OpportunityUserType.Recruiter,
+    },
+  });
+
+  return !!recruiterRecord;
+};
+
+/**
+ * Checks if a user has an active recruiter subscription through their organization(s).
+ * This helps identify users who created opportunities but haven't completed payment.
+ */
+export const hasActiveRecruiterSubscription = async (
+  con: ConnectionManager,
+  userId: string,
+): Promise<boolean> =>
+  await con
+    .getRepository(ContentPreferenceOrganization)
+    .createQueryBuilder('cpo')
+    .innerJoin('cpo.organization', 'org')
+    .where('cpo.userId = :userId', { userId })
+    .andWhere(`org."recruiterSubscriptionFlags"->>'status' = :status`, {
+      status: SubscriptionStatus.Active,
+    })
+    .getExists();
 
 export const generateIdentifyObject = async (
   con: ConnectionManager,
@@ -261,7 +325,12 @@ export const getIdentifyAttributes = async (
     delete dup[field];
   }
 
-  const [genericInviteURL, personalizedDigest] = await Promise.all([
+  const [
+    genericInviteURL,
+    personalizedDigest,
+    isRecruiter,
+    hasActiveSubscription,
+  ] = await Promise.all([
     getShortGenericInviteLink(logger, id),
     con.getRepository(UserPersonalizedDigest).findOne({
       select: ['userId'],
@@ -273,6 +342,8 @@ export const getIdentifyAttributes = async (
         ]),
       },
     }),
+    isUserRecruiter(con, id),
+    hasActiveRecruiterSubscription(con, id),
   ]);
 
   return {
@@ -283,6 +354,8 @@ export const getIdentifyAttributes = async (
       ? dateToCioTimestamp(getDateBaseFromType(dup.updatedAt))
       : undefined,
     referral_link: genericInviteURL,
+    is_recruiter: isRecruiter,
+    has_active_recruiter_subscription: hasActiveSubscription,
     [`cio_subscription_preferences.topics.topic_${CioUnsubscribeTopic.Digest}`]:
       !!personalizedDigest,
     ...(user.notificationFlags

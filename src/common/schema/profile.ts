@@ -1,6 +1,12 @@
 import z from 'zod';
 import { UserExperienceType } from '../../entity/user/experiences/types';
-import { paginationSchema } from './common';
+import { paginationSchema, urlParseSchema } from './common';
+import { domainOnly } from '../links';
+
+const domainSchema = z.preprocess(
+  (val) => (val === '' ? null : val),
+  urlParseSchema.transform(domainOnly).nullish(),
+);
 
 export const userExperiencesSchema = z
   .object({
@@ -12,7 +18,7 @@ export const userExperiencesSchema = z
 export const userExperienceInputBaseSchema = z.object({
   type: z.enum(UserExperienceType),
   title: z.string().max(1000).nonempty(),
-  description: z.string().max(5000).optional(),
+  description: z.string().max(5000).nullish(),
   subtitle: z.string().max(1000).optional().nullable(),
   startedAt: z.date(),
   endedAt: z.date().optional().nullable().default(null),
@@ -28,17 +34,35 @@ export const userExperienceInputBaseSchema = z.object({
 
 export const userExperienceCertificationSchema = z
   .object({
-    url: z.url().optional(),
-    externalReferenceId: z.string().optional(),
+    url: z.url().nullish(),
+    externalReferenceId: z.string().nullish(),
   })
   .extend(userExperienceInputBaseSchema.shape);
 
 export const userExperienceEducationSchema = z
-  .object({ grade: z.string().optional() })
+  .object({
+    grade: z.string().nullish(),
+    customDomain: domainSchema,
+  })
   .extend(userExperienceInputBaseSchema.shape);
 
 export const userExperienceProjectSchema = z
-  .object({ url: z.url().optional() })
+  .object({ url: z.url().nullish() })
+  .extend(userExperienceInputBaseSchema.shape);
+
+export const repositoryInputSchema = z.object({
+  id: z.string().min(1).nullish(),
+  owner: z.string().max(100).nullish(),
+  name: z.string().min(1).max(200),
+  url: z.url(),
+  image: z.url().nullish(),
+});
+
+export const userExperienceOpenSourceSchema = z
+  .object({
+    url: z.url().nullish(),
+    repository: repositoryInputSchema.nullish(),
+  })
   .extend(userExperienceInputBaseSchema.shape);
 
 export const userExperienceWorkSchema = z
@@ -55,6 +79,7 @@ export const userExperienceWorkSchema = z
       .max(50)
       .optional()
       .default([]),
+    customDomain: domainSchema,
   })
   .extend(userExperienceInputBaseSchema.shape);
 
@@ -67,7 +92,7 @@ const experienceTypeToSchema: Record<
   [UserExperienceType.Project]: userExperienceProjectSchema,
   [UserExperienceType.Work]: userExperienceWorkSchema,
   [UserExperienceType.Volunteering]: userExperienceProjectSchema,
-  [UserExperienceType.OpenSource]: userExperienceProjectSchema,
+  [UserExperienceType.OpenSource]: userExperienceOpenSourceSchema,
 };
 
 const experienceCompanyCopy = {
@@ -88,7 +113,14 @@ export const getExperienceSchema = (type: UserExperienceType) => {
         path: ['endedAt'],
       });
     }
-    if (!data.customCompanyName && !data.companyId) {
+
+    // open source experiences do not have companies.
+    const hasRepository =
+      type === UserExperienceType.OpenSource &&
+      'repository' in data &&
+      data.repository;
+
+    if (!data.customCompanyName && !data.companyId && !hasRepository) {
       ctx.addIssue({
         code: 'custom',
         message: `${experienceCompanyCopy[type]} is required`,
@@ -100,51 +132,85 @@ export const getExperienceSchema = (type: UserExperienceType) => {
 
 export const userExperienceWorkImportSchema = z.object({
   type: z.string(),
-  company: z.string(),
-  title: z.string(),
-  description: z.string().optional(),
+  company: z.string().nullish(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Work experience'),
+  description: z.string().nullish(),
   started_at: z.coerce.date().default(() => new Date()),
-  location_type: z.string().optional(),
-  skills: z.array(z.string()).optional(),
+  location_type: z.string().nullish(),
+  skills: z
+    .array(z.string())
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default([]),
   ended_at: z.coerce.date().nullish().default(null),
   location: z
     .object({
-      city: z.string().optional(),
-      country: z.string(),
+      city: z.string().nullish(),
+      country: z.string().nullish(),
     })
-    .optional(),
+    .nullish(),
+  flags: z.object({ import: z.string() }).partial().optional(),
+  employment_type: z.string().nullish(),
 });
 
 export const userExperienceEducationImportSchema = z.object({
   type: z.string(),
-  company: z.string().optional(),
-  title: z.string(),
-  description: z.string().optional(),
+  company: z.string().nullish(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Education'),
+  description: z.string().nullish(),
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
   location: z
     .object({
-      city: z.string().optional(),
-      country: z.string(),
+      city: z.string().nullish(),
+      country: z.string().nullish(),
     })
-    .optional(),
-  skills: z.array(z.string()).optional(),
-  subtitle: z.string().optional(),
+    .nullish(),
+  skills: z
+    .array(z.string())
+    .nullish()
+    .transform((n) => (n === null ? undefined : n)),
+  subtitle: z.string().nullish(),
+  flags: z.object({ import: z.string() }).partial().optional(),
+  grade: z.string().nullish(),
 });
 
 export const userExperienceCertificationImportSchema = z.object({
   type: z.string(),
-  company: z.string().optional(),
-  title: z.string(),
+  company: z.string().nullish(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Certification'),
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
+  flags: z.object({ import: z.string() }).partial().optional(),
+  url: urlParseSchema.nullish().catch(undefined),
 });
 
 export const userExperienceProjectImportSchema = z.object({
   type: z.string(),
-  title: z.string(),
-  description: z.string(),
+  title: z
+    .string()
+    .nullish()
+    .transform((n) => (n === null ? undefined : n))
+    .default('Project'),
+  description: z.string().nullish(),
   started_at: z.coerce.date().default(() => new Date()),
   ended_at: z.coerce.date().nullish().default(null),
-  skills: z.array(z.string()),
+  skills: z
+    .array(z.string())
+    .nullish()
+    .transform((n) => (n === null ? undefined : n)),
+  flags: z.object({ import: z.string() }).partial().optional(),
+  url: urlParseSchema.nullish().catch(undefined),
 });

@@ -64,6 +64,7 @@ describe('query userAlerts', () => {
         lastBootPopup
         lastFeedSettingsFeedback
         showTopReader
+        showSuperAgentTrialUpgrade
         briefBannerLastSeen
         opportunityId
       }
@@ -408,7 +409,7 @@ describe('mutation clearOpportunityAlert', () => {
   it('should clear opportunityId from alerts', async () => {
     loggedUser = '1';
 
-    saveFixtures(con, OpportunityJob, [
+    await saveFixtures(con, OpportunityJob, [
       {
         ...opportunitiesFixture[0],
         id: '45bef485-ba42-4fd9-8c8c-a2ea4b2d1d62',

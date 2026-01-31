@@ -1081,7 +1081,7 @@ describe('plus subscription', () => {
     const data = getSubscriptionData({
       user_id: userId,
     });
-    await updateUserSubscription({ event: data, state: true });
+    await updateUserSubscription({ event: data });
 
     const updatedUser = await con
       .getRepository(User)
@@ -1091,6 +1091,120 @@ describe('plus subscription', () => {
     expect(updatedUser.subscriptionFlags?.provider).toEqual(
       SubscriptionProvider.Paddle,
     );
+  });
+
+  it('should activate subscription when status is trialing', async () => {
+    const userId = 'whp-1';
+    const user = await con.getRepository(User).findOneByOrFail({ id: userId });
+    const isInitiallyPlus = isPlusMember(user.subscriptionFlags?.cycle);
+    expect(isInitiallyPlus).toBe(false);
+
+    const data = getSubscriptionData(
+      {
+        user_id: userId,
+      },
+      'trialing',
+    );
+    await updateUserSubscription({ event: data });
+
+    const updatedUser = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
+    const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
+    expect(isFinallyPlus).toBe(true);
+    expect(updatedUser.subscriptionFlags?.provider).toEqual(
+      SubscriptionProvider.Paddle,
+    );
+    expect(updatedUser.subscriptionFlags?.status).toEqual(
+      SubscriptionStatus.Active,
+    );
+  });
+
+  it('should revoke subscription when status is canceled', async () => {
+    const userId = 'whp-1';
+    await con.getRepository(User).update(
+      { id: userId },
+      {
+        subscriptionFlags: {
+          cycle: SubscriptionCycles.Yearly,
+          provider: SubscriptionProvider.Paddle,
+          status: SubscriptionStatus.Active,
+          subscriptionId: '1',
+        },
+      },
+    );
+
+    const data = getSubscriptionData(
+      {
+        user_id: userId,
+      },
+      'canceled',
+    );
+    await updateUserSubscription({ event: data });
+
+    const updatedUser = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
+    const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
+    expect(isFinallyPlus).toBe(false);
+  });
+
+  it('should revoke subscription when status is paused', async () => {
+    const userId = 'whp-1';
+    await con.getRepository(User).update(
+      { id: userId },
+      {
+        subscriptionFlags: {
+          cycle: SubscriptionCycles.Yearly,
+          provider: SubscriptionProvider.Paddle,
+          status: SubscriptionStatus.Active,
+          subscriptionId: '1',
+        },
+      },
+    );
+
+    const data = getSubscriptionData(
+      {
+        user_id: userId,
+      },
+      'paused',
+    );
+    await updateUserSubscription({ event: data });
+
+    const updatedUser = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
+    const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
+    expect(isFinallyPlus).toBe(false);
+  });
+
+  it('should revoke subscription when status is past_due', async () => {
+    const userId = 'whp-1';
+    await con.getRepository(User).update(
+      { id: userId },
+      {
+        subscriptionFlags: {
+          cycle: SubscriptionCycles.Yearly,
+          provider: SubscriptionProvider.Paddle,
+          status: SubscriptionStatus.Active,
+          subscriptionId: '1',
+        },
+      },
+    );
+
+    const data = getSubscriptionData(
+      {
+        user_id: userId,
+      },
+      'past_due',
+    );
+    await updateUserSubscription({ event: data });
+
+    const updatedUser = await con
+      .getRepository(User)
+      .findOneByOrFail({ id: userId });
+    const isFinallyPlus = isPlusMember(updatedUser.subscriptionFlags?.cycle);
+    expect(isFinallyPlus).toBe(false);
   });
 
   it('should add an anonymous subscription to the claimable_items table', async () => {
@@ -1104,14 +1218,14 @@ describe('plus subscription', () => {
       user_id: undefined,
     });
 
-    await updateUserSubscription({ event: data, state: true });
+    await updateUserSubscription({ event: data });
 
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneByOrFail({ email: mockCustomer.email });
+      .findOneByOrFail({ identifier: mockCustomer.email });
 
     expect(claimableItem).toBeTruthy();
-    expect(claimableItem.email).toBe('test@example.com');
+    expect(claimableItem.identifier).toBe('test@example.com');
     expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
     expect(claimableItem.flags).toHaveProperty(
       'cycle',
@@ -1145,16 +1259,16 @@ it('should throw an error if the email already has a claimable subscription', as
   });
 
   await con.getRepository(ClaimableItem).save({
-    email: 'test@example.com',
+    identifier: 'test@example.com',
     type: ClaimableItemTypes.Plus,
     flags: {
       cycle: SubscriptionCycles.Yearly,
     },
   });
 
-  await expect(
-    updateUserSubscription({ event: data, state: true }),
-  ).rejects.toThrow(`User already has a claimable subscription`);
+  await expect(updateUserSubscription({ event: data })).rejects.toThrow(
+    `User already has a claimable subscription`,
+  );
 });
 
 it('should not throw an error if the email has claimed a previously claimable subscription', async () => {
@@ -1165,7 +1279,7 @@ it('should not throw an error if the email has claimed a previously claimable su
     .mockResolvedValue(mockCustomer as Customer);
 
   await con.getRepository(ClaimableItem).save({
-    email: 'test@example.com',
+    identifier: 'test@example.com',
     type: ClaimableItemTypes.Plus,
     flags: {
       cycle: SubscriptionCycles.Yearly,
@@ -1177,9 +1291,7 @@ it('should not throw an error if the email has claimed a previously claimable su
     user_id: undefined,
   });
 
-  await expect(
-    updateUserSubscription({ event: data, state: true }),
-  ).resolves.not.toThrow();
+  await expect(updateUserSubscription({ event: data })).resolves.not.toThrow();
 });
 
 describe('anonymous subscription', () => {
@@ -1194,14 +1306,14 @@ describe('anonymous subscription', () => {
       user_id: undefined,
     });
 
-    await updateUserSubscription({ event: data, state: true });
+    await updateUserSubscription({ event: data });
 
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneByOrFail({ email: mockCustomer.email });
+      .findOneByOrFail({ identifier: mockCustomer.email });
 
     expect(claimableItem).toBeTruthy();
-    expect(claimableItem.email).toBe('test@example.com');
+    expect(claimableItem.identifier).toBe('test@example.com');
     expect(claimableItem.type).toBe(ClaimableItemTypes.Plus);
     expect(claimableItem.flags).toHaveProperty(
       'cycle',
@@ -1234,7 +1346,7 @@ describe('anonymous subscription', () => {
     });
 
     await con.getRepository(ClaimableItem).save({
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
         status: SubscriptionStatus.Active,
@@ -1244,9 +1356,9 @@ describe('anonymous subscription', () => {
       },
     });
 
-    await expect(
-      updateUserSubscription({ event: data, state: true }),
-    ).rejects.toThrow(`User already has a claimable subscription`);
+    await expect(updateUserSubscription({ event: data })).rejects.toThrow(
+      `User already has a claimable subscription`,
+    );
   });
 
   it('should not throw an error if the email has claimed a previously claimable subscription', async () => {
@@ -1257,7 +1369,7 @@ describe('anonymous subscription', () => {
       .mockResolvedValue(mockCustomer as Customer);
 
     await con.getRepository(ClaimableItem).save({
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
         status: SubscriptionStatus.Active,
@@ -1273,7 +1385,7 @@ describe('anonymous subscription', () => {
     });
 
     await expect(
-      updateUserSubscription({ event: data, state: true }),
+      updateUserSubscription({ event: data }),
     ).resolves.not.toThrow();
   });
 
@@ -1281,7 +1393,7 @@ describe('anonymous subscription', () => {
     const mockCustomer = { email: 'test@example.com' };
 
     await con.getRepository(ClaimableItem).save({
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       type: ClaimableItemTypes.Plus,
       flags: {
         status: SubscriptionStatus.Active,
@@ -1302,11 +1414,11 @@ describe('anonymous subscription', () => {
       'canceled',
     );
 
-    await updateUserSubscription({ event: data, state: false });
+    await updateUserSubscription({ event: data });
 
     const claimableItem = await con
       .getRepository(ClaimableItem)
-      .findOneBy({ email: mockCustomer.email });
+      .findOneBy({ identifier: mockCustomer.email });
 
     expect(claimableItem).toBeNull();
   });

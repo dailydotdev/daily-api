@@ -408,6 +408,48 @@ describe('query userComments', () => {
   });
 });
 
+describe('query topComments', () => {
+  const QUERY = `query TopComments($postId: ID!, $first: Int) {
+    topComments(postId: $postId, first: $first) {
+      id
+      numUpvotes
+      content
+    }
+  }`;
+
+  it('should return comments ordered by upvotes descending', async () => {
+    // Set different upvote counts for comments on p1
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
+    await con.getRepository(Comment).update({ id: 'c3' }, { upvotes: 10 });
+    await con.getRepository(Comment).update({ id: 'c6' }, { upvotes: 3 });
+
+    const res = await client.query(QUERY, { variables: { postId: 'p1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topComments).toHaveLength(3);
+    // Should be ordered by upvotes descending
+    expect(res.data.topComments[0].id).toEqual('c3');
+    expect(res.data.topComments[0].numUpvotes).toEqual(10);
+    expect(res.data.topComments[1].id).toEqual('c1');
+    expect(res.data.topComments[1].numUpvotes).toEqual(5);
+    expect(res.data.topComments[2].id).toEqual('c6');
+    expect(res.data.topComments[2].numUpvotes).toEqual(3);
+  });
+
+  it('should support querying by post slug', async () => {
+    // The slug is auto-generated from title and id: 'P1' + 'p1' -> 'p1-p1'
+    await con.getRepository(Comment).update({ id: 'c1' }, { upvotes: 5 });
+    await con.getRepository(Comment).update({ id: 'c3' }, { upvotes: 10 });
+
+    const res = await client.query(QUERY, {
+      variables: { postId: 'p1-p1' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.topComments).toHaveLength(3);
+    expect(res.data.topComments[0].id).toEqual('c3');
+    expect(res.data.topComments[0].numUpvotes).toEqual(10);
+  });
+});
+
 describe('query commentFeed', () => {
   const QUERY = `query CommentFeed($after: String, $first: Int) {
     commentFeed(after: $after, first: $first) {
@@ -688,6 +730,38 @@ describe('query commentPreview', () => {
     });
     expect(mention9.errors).toBeFalsy();
     expect(mention9.data.commentPreview).toMatchSnapshot();
+  });
+
+  it('should not convert @ in URLs to mentions but should convert @ outside URLs', async () => {
+    loggedUser = '1';
+    await saveCommentMentionFixtures();
+
+    // @Lee outside URL should become mention, @Lee inside URL should not
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '@Lee check https://example.com/@Lee/profile',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    // Should have exactly one mention (the one outside the URL)
+    const mentionMatches = res.data.commentPreview.match(/data-mention-id/g);
+    expect(mentionMatches).toHaveLength(1);
+    // URL should be preserved with @ intact
+    expect(res.data.commentPreview).toContain(
+      'href="https://example.com/@Lee/profile"',
+    );
+  });
+
+  it('should use link text as URL fallback when href is invalid', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: {
+        content: '[www.google.com](url)',
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    // The invalid "url" href should be replaced with the link text
+    expect(res.data.commentPreview).toContain('href="https://www.google.com"');
   });
 
   it('should only render markdown not HTML', async () => {

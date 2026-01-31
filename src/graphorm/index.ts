@@ -21,7 +21,9 @@ import {
   type PostFlagsPublic,
   type Campaign,
   type OrganizationLink,
+  SourceType,
 } from '../entity';
+import { type Organization } from '../entity/Organization';
 import {
   OrganizationMemberRole,
   SourceMemberRoles,
@@ -41,7 +43,12 @@ import {
 import { GQLComment } from '../schema/comments';
 import { GQLUserPost } from '../schema/posts';
 import { UserComment } from '../entity/user/UserComment';
-import { type ContentLanguage, type I18nRecord, UserVote } from '../types';
+import {
+  type ContentLanguage,
+  type I18nRecord,
+  opportunityMatchBatchSize,
+  UserVote,
+} from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
 import {
@@ -61,9 +68,20 @@ import {
 } from '../entity/contentPreference/ContentPreferenceOrganization';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
 import { OpportunityUserType } from '../entity/opportunities/types';
+import { UserExperienceType } from '../entity/user/experiences/types';
 import { OrganizationLinkType } from '../common/schema/organizations';
+import { extractHandleFromUrl } from '../common/schema/socials';
 import type { GCSBlob } from '../common/schema/userCandidate';
 import { QuestionType } from '../entity/questions/types';
+import { snotraClient } from '../integrations/snotra';
+import type { OpportunityFlagsPublic } from '../entity/opportunities/Opportunity';
+import { isNullOrUndefined } from '../common/object';
+
+export enum LocationVerificationStatus {
+  GeoIP = 'geoip',
+  UserProvided = 'user_provided',
+  Verified = 'verified',
+}
 
 const existsByUserAndPost =
   (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
@@ -73,6 +91,31 @@ const existsByUserAndPost =
       .from(entity, 'a')
       .where(`a."userId" = :userId`, { userId: ctx.userId })
       .andWhere(`a."postId" = ${alias}.id`)
+      .limit(1);
+
+    if (typeof build === 'function') {
+      query = build(query);
+    }
+
+    return /*sql*/ `CASE
+      WHEN
+        ${query.getQuery()}
+        IS NOT NULL
+      THEN
+        TRUE
+      ELSE
+        FALSE
+    END`;
+  };
+
+const existsByUserAndHotTake =
+  (entity: string, build?: (queryBuilder: QueryBuilder) => QueryBuilder) =>
+  (ctx: Context, alias: string, qb: QueryBuilder): string => {
+    let query = qb
+      .select('1')
+      .from(entity, 'a')
+      .where(`a."userId" = :upvoterUserId`, { upvoterUserId: ctx.userId })
+      .andWhere(`a."hotTakeId" = ${alias}.id`)
       .limit(1);
 
     if (typeof build === 'function') {
@@ -255,6 +298,26 @@ const obj = new GraphORM({
               )
               .where('uc.verified = true')
               .andWhere(`uc."userId" = "${parentAlias}".id`)
+              .andWhere(
+                `EXISTS (
+                  SELECT 1 FROM user_experience ue
+                  WHERE ue."userId" = "${parentAlias}".id
+                  AND ue."companyId" = "${childAlias}".id
+                  AND ue.type = :ueType
+                  AND ue."endedAt" IS NULL
+                )`,
+                { ueType: UserExperienceType.Work },
+              )
+              .orderBy(
+                `(
+                  SELECT MAX(ue2."startedAt") FROM user_experience ue2
+                  WHERE ue2."userId" = "${parentAlias}".id
+                  AND ue2."companyId" = "${childAlias}".id
+                  AND ue2.type = :ueType
+                  AND ue2."endedAt" IS NULL
+                )`,
+                'DESC',
+              )
               .limit(50),
         },
       },
@@ -285,6 +348,101 @@ const obj = new GraphORM({
               .where(`${childAlias}."userId" = ${parentAlias}.id`)
               .orderBy(`${childAlias}."issuedAt"`, 'DESC')
               .limit(1),
+        },
+      },
+      socialLinks: {
+        jsonType: true,
+      },
+      // Legacy social fields - resolved from socialLinks for backwards compatibility
+      twitter: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'twitter');
+          return link ? extractHandleFromUrl(link.url, 'twitter') : null;
+        },
+      },
+      github: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'github');
+          return link ? extractHandleFromUrl(link.url, 'github') : null;
+        },
+      },
+      linkedin: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'linkedin');
+          return link ? extractHandleFromUrl(link.url, 'linkedin') : null;
+        },
+      },
+      threads: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'threads');
+          return link ? extractHandleFromUrl(link.url, 'threads') : null;
+        },
+      },
+      roadmap: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'roadmap');
+          return link ? extractHandleFromUrl(link.url, 'roadmap') : null;
+        },
+      },
+      codepen: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'codepen');
+          return link ? extractHandleFromUrl(link.url, 'codepen') : null;
+        },
+      },
+      reddit: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'reddit');
+          return link ? extractHandleFromUrl(link.url, 'reddit') : null;
+        },
+      },
+      stackoverflow: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'stackoverflow');
+          return link ? extractHandleFromUrl(link.url, 'stackoverflow') : null;
+        },
+      },
+      youtube: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'youtube');
+          return link ? extractHandleFromUrl(link.url, 'youtube') : null;
+        },
+      },
+      bluesky: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'bluesky');
+          return link ? extractHandleFromUrl(link.url, 'bluesky') : null;
+        },
+      },
+      mastodon: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'mastodon');
+          return link ? extractHandleFromUrl(link.url, 'mastodon') : null;
+        },
+      },
+      hashnode: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'hashnode');
+          return link ? extractHandleFromUrl(link.url, 'hashnode') : null;
+        },
+      },
+      portfolio: {
+        alias: { field: 'socialLinks', type: 'jsonb' },
+        transform: (socialLinks: Array<{ platform: string; url: string }>) => {
+          const link = socialLinks?.find((l) => l.platform === 'portfolio');
+          return link ? extractHandleFromUrl(link.url, 'portfolio') : null;
         },
       },
     },
@@ -1361,6 +1519,30 @@ const obj = new GraphORM({
       customLinks: organizationLink(OrganizationLinkType.Custom),
       socialLinks: organizationLink(OrganizationLinkType.Social),
       pressLinks: organizationLink(OrganizationLinkType.Press),
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
+        },
+      },
+      recruiterTotalSeats: {
+        select: (_, alias) => {
+          return `${alias}."recruiterSubscriptionFlags"->'items'`;
+        },
+        transform: (
+          value: Organization['recruiterSubscriptionFlags']['items'] | null,
+        ) => {
+          if (!value) {
+            return 0;
+          }
+
+          return value.length;
+        },
+      },
+      recruiterSubscriptionFlags: {
+        jsonType: true,
+      },
     },
   },
   OrganizationMember: {
@@ -1498,6 +1680,25 @@ const obj = new GraphORM({
       },
     },
   },
+  UserProfileAnalytics: {
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserProfileAnalyticsHistory: {
+    requiredColumns: ['id', 'date', 'updatedAt'],
+    fields: {
+      date: {
+        transform: transformDate,
+      },
+      updatedAt: {
+        transform: transformDate,
+      },
+    },
+  },
   Opportunity: {
     requiredColumns: ['id', 'createdAt'],
     fields: {
@@ -1518,9 +1719,6 @@ const obj = new GraphORM({
         },
       },
       meta: {
-        jsonType: true,
-      },
-      location: {
         jsonType: true,
       },
       recruiters: {
@@ -1574,6 +1772,29 @@ const obj = new GraphORM({
               .orderBy(`${childAlias}."questionOrder"`, 'ASC'),
         },
       },
+      flags: {
+        jsonType: true,
+        transform: (value: OpportunityFlagsPublic): OpportunityFlagsPublic => {
+          return {
+            batchSize: value?.batchSize ?? opportunityMatchBatchSize,
+            plan: value?.plan,
+            showSlack: value?.showSlack ?? false,
+            showFeedback: value?.showFeedback ?? false,
+          };
+        },
+      },
+    },
+  },
+  OpportunityLocation: {
+    requiredColumns: ['id', 'type'],
+    fields: {
+      location: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'locationId',
+        },
+      },
     },
   },
   OpportunityScreeningQuestion: {
@@ -1599,6 +1820,7 @@ const obj = new GraphORM({
     },
   },
   OpportunityMatch: {
+    requiredColumns: ['updatedAt'],
     ignoredColumns: ['engagementProfile'],
     fields: {
       createdAt: {
@@ -1640,6 +1862,13 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+      previewUser: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserCandidatePreference: {
@@ -1668,6 +1897,31 @@ const obj = new GraphORM({
       },
       location: {
         jsonType: true,
+        select: (_, alias) => `
+          COALESCE(
+            CASE
+              WHEN ${alias}."locationId" IS NOT NULL THEN
+                (
+                  SELECT jsonb_build_array(
+                    jsonb_build_object(
+                      'city', dl.city,
+                      'subdivision', dl.subdivision,
+                      'country', dl.country
+                    )
+                  )
+                  FROM dataset_location dl
+                  WHERE dl.id = ${alias}."locationId"
+                )
+              ELSE NULL
+            END,
+            ${alias}."customLocation"
+          )
+        `,
+        transform: (value: unknown) => {
+          if (isNullOrUndefined(value)) return [];
+          if (Array.isArray(value)) return value;
+          return [value];
+        },
       },
       keywords: {
         relation: {
@@ -1680,9 +1934,22 @@ const obj = new GraphORM({
   },
   Location: {
     from: 'DatasetLocation',
+    fields: {
+      // to not break existing implementations frontend only knows about country (which is like a name for dataset location)
+      country: {
+        select: (_, alias) => `COALESCE(${alias}.country, ${alias}.continent)`,
+      },
+    },
   },
   UserExperience: {
+    requiredColumns: ['userId'],
     fields: {
+      isOwner: {
+        select: 'userId',
+        transform: (userId: string, ctx: Context): boolean => {
+          return !!ctx.userId && ctx.userId === userId;
+        },
+      },
       startedAt: {
         transform: transformDate,
       },
@@ -1691,6 +1958,20 @@ const obj = new GraphORM({
       },
       createdAt: {
         transform: transformDate,
+      },
+      customLocation: {
+        jsonType: true,
+      },
+      image: {
+        select: (_, alias) =>
+          `COALESCE((SELECT c.image FROM company c WHERE c.id = ${alias}."companyId"), ${alias}.flags->>'customImage')`,
+      },
+      customDomain: {
+        select: (_, alias) => `${alias}.flags->>'customDomain'`,
+      },
+      repository: {
+        select: (_, alias) => `${alias}.flags->'repository'`,
+        jsonType: true,
       },
     },
   },
@@ -1709,6 +1990,327 @@ const obj = new GraphORM({
       salaryExpectation: {
         jsonType: true,
         transform: nullIfNotSameUserById,
+      },
+    },
+  },
+  OpportunityPreviewCompany: {
+    from: 'UserExperience',
+    requiredColumns: ['userId', 'verified', 'type', 'startedAt'],
+    additionalQuery: (_, alias, qb) =>
+      qb.leftJoin('company', 'c', `c.id = ${alias}."companyId"`),
+    fields: {
+      name: {
+        rawSelect: true,
+        select: (_, alias) => `COALESCE(c.name, ${alias}."customCompanyName")`,
+      },
+      favicon: {
+        rawSelect: true,
+        select: () => 'c.image',
+      },
+    },
+  },
+  OpportunityPreviewUser: {
+    from: 'User',
+    requiredColumns: ['id'],
+    fields: {
+      profileImage: {
+        select: 'image',
+      },
+      anonId: {
+        select: () => 'NULL',
+        transform: (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) return null;
+
+          // Deterministic hash from userId
+          let hash = 0;
+          for (let i = 0; i < user.id.length; i++) {
+            hash = (hash << 5) - hash + user.id.charCodeAt(i);
+            hash = hash & hash;
+          }
+          const totalCount =
+            (ctx as Context & { previewTotalCount?: number })
+              .previewTotalCount || 1000;
+          const anonNumber = (Math.abs(hash) % totalCount) + 1;
+          return `anon #${anonNumber}`;
+        },
+      },
+      description: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          try {
+            const profile = await snotraClient.getProfile({
+              user_id: user.id,
+            });
+            return profile?.profile_text || null;
+          } catch (error) {
+            return null;
+          }
+        },
+      },
+      openToWork: {
+        select: (_, alias, qb) =>
+          qb
+            .select('ucp.status')
+            .from('user_candidate_preference', 'ucp')
+            .where(`ucp."userId" = ${alias}.id`)
+            .limit(1),
+        transform: (status: number | null): boolean => status !== 1,
+      },
+      seniority: {
+        select: 'experienceLevel',
+      },
+      company: {
+        relation: {
+          isMany: false,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}."userId" = ${parentAlias}.id`)
+              .andWhere(`${childAlias}.verified = true`)
+              .andWhere(`${childAlias}.type = 'work'`)
+              .orderBy(`${childAlias}."startedAt"`, 'DESC')
+              .limit(1),
+        },
+      },
+      location: {
+        select: (_, alias) => `
+          COALESCE(
+            (
+              SELECT COALESCE(
+                (
+                  SELECT jsonb_build_object(
+                    'city', dl.city,
+                    'subdivision', dl.subdivision,
+                    'country', dl.country
+                  )
+                  FROM dataset_location dl
+                  WHERE dl.id = ucp."locationId"
+                ),
+                ucp."customLocation"->0
+              )
+              FROM user_candidate_preference ucp
+              WHERE ucp."userId" = ${alias}.id
+              LIMIT 1
+            ),
+            CASE
+              WHEN ${alias}.flags->'country' IS NOT NULL OR ${alias}.flags->'city' IS NOT NULL THEN
+                jsonb_build_object(
+                  'city', ${alias}.flags->'city',
+                  'country', ${alias}.flags->'country'
+                )
+              ELSE NULL
+            END
+          )
+        `,
+        transform: (data: Record<string, unknown>): string | null => {
+          if (!data) return null;
+
+          if (data.city || data.subdivision || data.country) {
+            return [data.city, data.subdivision, data.country]
+              .filter(Boolean)
+              .join(', ');
+          }
+
+          return null;
+        },
+      },
+      locationVerified: {
+        select: (_, alias, qb) =>
+          qb
+            .select(
+              `CASE WHEN ucp."locationId" IS NOT NULL OR ucp."customLocation" IS NOT NULL THEN '${LocationVerificationStatus.UserProvided}' ELSE '${LocationVerificationStatus.GeoIP}' END`,
+            )
+            .from('user_candidate_preference', 'ucp')
+            .where(`ucp."userId" = ${alias}.id`)
+            .limit(1),
+        transform: (status: string | null): LocationVerificationStatus =>
+          (status as LocationVerificationStatus) ??
+          LocationVerificationStatus.GeoIP,
+      },
+      lastActivity: {
+        select: () => 'NULL',
+        transform: async (_, ctx, parent) => {
+          const user = parent as User;
+          if (!user.id) {
+            return null;
+          }
+          return await ctx.dataLoader.userLastActive.load({
+            userId: user.id,
+          });
+        },
+      },
+      topTags: {
+        select: (_, alias) => `
+    COALESCE(
+      (
+        SELECT ARRAY(
+          SELECT tag
+          FROM (
+            SELECT
+              pk.keyword AS tag,
+              COUNT(*) AS count
+            FROM (
+              SELECT v."postId"
+              FROM "view" v
+              WHERE v."userId" = ${alias}.id
+                AND v.hidden = false
+              ORDER BY v.timestamp DESC
+              LIMIT 100
+            ) recent_reads
+            JOIN post_keyword pk ON recent_reads."postId" = pk."postId"
+            WHERE pk.status = 'allow'
+              AND pk.keyword != 'general-programming'
+            GROUP BY pk.keyword
+            ORDER BY COUNT(*) DESC
+            LIMIT 5
+          ) top_tags
+        )
+      ),
+      ARRAY[]::text[]
+    )
+  `,
+      },
+      recentlyRead: {
+        relation: {
+          isMany: true,
+          parentColumn: 'id',
+          childColumn: 'userId',
+          order: 'DESC',
+          sort: 'issuedAt',
+          limit: 3,
+        },
+      },
+      activeSquads: {
+        relation: {
+          isMany: true,
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .innerJoin(
+                SourceMember,
+                'sm',
+                `sm."sourceId" = "${childAlias}".id`,
+              )
+              .where(`sm."userId" = ${parentAlias}.id`)
+              .andWhere(`"${childAlias}".type = :squadType`, {
+                squadType: SourceType.Squad,
+              })
+              .andWhere(`"${childAlias}".active = true`)
+              .orderBy('sm."createdAt"', 'DESC')
+              .limit(5),
+        },
+      },
+    },
+  },
+  UserStack: {
+    requiredColumns: ['id', 'userId', 'toolId'],
+    fields: {
+      tool: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'toolId',
+        },
+      },
+      startedAt: {
+        transform: transformDate,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  DatasetTool: {
+    requiredColumns: ['id', 'title'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  SourceStack: {
+    requiredColumns: ['id', 'sourceId', 'toolId', 'createdById'],
+    fields: {
+      tool: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'toolId',
+        },
+      },
+      createdBy: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'createdById',
+        },
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  HotTake: {
+    requiredColumns: ['id', 'userId'],
+    fields: {
+      upvoted: {
+        select: existsByUserAndHotTake('UserHotTake', (qb) =>
+          qb.andWhere(`${qb.alias}.vote = 1`),
+        ),
+        transform: nullIfNotLoggedIn,
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  UserWorkspacePhoto: {
+    requiredColumns: ['id', 'userId', 'image'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  DatasetGear: {
+    requiredColumns: ['id', 'name'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  Gear: {
+    from: 'UserGear',
+    requiredColumns: ['id', 'userId', 'gearId'],
+    fields: {
+      gear: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'gearId',
+        },
+      },
+      createdAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  PopularHotTake: {
+    fields: {
+      hotTake: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'hotTakeId',
+        },
+      },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
       },
     },
   },

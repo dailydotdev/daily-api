@@ -29,6 +29,8 @@ import {
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import { logger } from '../logger';
+import { claimAnonOpportunities } from '../common/opportunity/user';
+import { addOpportunityDefaultQuestionFeedback } from '../common/opportunity/question';
 
 interface SearchUsername {
   search: string;
@@ -55,6 +57,33 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     const operationResult = await addNewUser(con, body, req);
 
     await addClaimableItemsToUser(con, body);
+
+    if (body.id && operationResult.status === 'ok') {
+      const identifiers = [body.id, body.email].filter(Boolean);
+
+      const opportunityGroups = await Promise.all(
+        identifiers.map((identifier) => {
+          return claimAnonOpportunities({
+            anonUserId: identifier,
+            userId: operationResult.userId,
+            con: con.manager,
+          });
+        }),
+      );
+
+      const opportunities = opportunityGroups.flat(1);
+
+      if (opportunities.length > 0) {
+        logger.info(
+          {
+            anonUserId: body.id,
+            userId: operationResult.userId,
+            opportunities,
+          },
+          'Claimed anon opportunities for new user',
+        );
+      }
+    }
 
     return res.status(200).send(operationResult);
   });
@@ -132,9 +161,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         .execute();
 
       const id = opportunityJob.raw?.[0]?.id;
+
       if (!id) {
         return res.status(500).send();
       }
+
+      await addOpportunityDefaultQuestionFeedback({
+        entityManager,
+        opportunityId: id,
+      });
 
       if (Array.isArray(keywords)) {
         await entityManager.getRepository(OpportunityKeyword).insert(

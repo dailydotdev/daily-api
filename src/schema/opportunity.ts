@@ -1,18 +1,26 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
-// @ts-expect-error - no types
-import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
+import { GraphQLResolveInfo } from 'graphql';
 import { traceResolvers } from './trace';
+import { remoteConfig } from '../remoteConfig';
 import { AuthContext, BaseContext, type Context } from '../Context';
-import graphorm from '../graphorm';
+import graphorm, { LocationVerificationStatus } from '../graphorm';
 import {
-  Opportunity,
+  FeedbackPlatform,
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
+  Opportunity as OpportunityMessage,
+  Location as LocationMessage,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
-import { toGQLEnum, updateFlagsStatement } from '../common';
+import {
+  getSecondsTimestamp,
+  toGQLEnum,
+  uniqueifyObjectArray,
+  updateFlagsStatement,
+  updateRecruiterSubscriptionFlags,
+} from '../common';
 import {
   OpportunityMatchStatus,
   OpportunityUserType,
@@ -30,63 +38,116 @@ import {
   opportunityFeedbackAnswersSchema,
 } from '../common/schema/opportunityMatch';
 import { OpportunityJob } from '../entity/opportunities/OpportunityJob';
-import { ForbiddenError } from 'apollo-server-errors';
-import { ConflictError, NotFoundError } from '../errors';
+import { OpportunityUserRecruiter } from '../entity/opportunities/user/OpportunityUserRecruiter';
+import {
+  AuthenticationError,
+  ForbiddenError,
+  ValidationError,
+} from 'apollo-server-errors';
+import { ConflictError, NotFoundError, PaymentRequiredError } from '../errors';
 import { UserCandidateKeyword } from '../entity/user/UserCandidateKeyword';
-import { EMPLOYMENT_AGREEMENT_BUCKET_NAME } from '../config';
+import { User } from '../entity/user/User';
+import {
+  EMPLOYMENT_AGREEMENT_BUCKET_NAME,
+  RESUME_BUCKET_NAME,
+} from '../config';
 import {
   deleteEmploymentAgreementByUserId,
   generateResumeSignedUrl,
   uploadEmploymentAgreementFromBuffer,
+  uploadResumeFromBuffer,
 } from '../common/googleCloud';
-import { uploadOrganizationImage } from '../common/cloudinary';
 import {
   opportunityEditSchema,
-  opportunityStateLiveSchema,
   opportunityUpdateStateSchema,
+  createSharedSlackChannelSchema,
+  parseOpportunitySchema,
+  reimportOpportunitySchema,
+  opportunityMatchesQuerySchema,
+  addOpportunitySeatsSchema,
 } from '../common/schema/opportunities';
-import { OpportunityKeyword } from '../entity/OpportunityKeyword';
 import {
   ensureOpportunityPermissions,
   OpportunityPermissions,
 } from '../common/opportunity/accessControl';
-import { markdown } from '../common/markdown';
+import { sanitizeHtml } from '../common/markdown';
 import { QuestionScreening } from '../entity/questions/QuestionScreening';
-import { In, Not } from 'typeorm';
+import { In, Not, EntityManager, DeepPartial, IsNull } from 'typeorm';
 import { Organization } from '../entity/Organization';
+import { Source, SourceType } from '../entity/Source';
 import {
   OrganizationLinkType,
   SocialMediaType,
 } from '../common/schema/organizations';
-import { getGondulClient } from '../common/gondul';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
+import { OpportunityLocation } from '../entity/opportunities/OpportunityLocation';
+import {
+  getGondulClient,
+  getGondulOpportunityServiceClient,
+} from '../common/gondul';
 import { createOpportunityPrompt } from '../common/opportunity/prompt';
 import { queryPaginatedByDate } from '../common/datePageGenerator';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { applyDeterministicVariation } from '../common/number';
 import { ConnectionArguments } from 'graphql-relay';
 import { ProfileResponse, snotraClient } from '../integrations/snotra';
+import { slackClient } from '../common/slack';
+import { cursorToOffset, offsetToCursor } from 'graphql-relay/index';
+import { getShowcaseCompanies } from '../common/opportunity/companies';
+import { Opportunity } from '../entity/opportunities/Opportunity';
+import type { GQLSource } from './sources';
+import { SubscriptionStatus } from '../common/plus';
+import { paddleInstance } from '../common/paddle';
+import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
+import { OpportunityPreviewStatus } from '../common/opportunity/types';
+import {
+  getOpportunityFileBuffer,
+  validateOpportunityFileType,
+  parseOpportunityWithBrokkr,
+  updateOpportunityFromParsedData,
+  handleOpportunityKeywordsUpdate,
+} from '../common/opportunity/parse';
+import {
+  isMockEnabled,
+  mockPreviewTags,
+  mockPreviewSquadIds,
+} from '../mocks/opportunity/services';
+import { notifyOpportunityFeedbackSubmitted } from '../common/opportunity/pubsub';
+import { triggerTypedEvent } from '../common/typedPubsub';
+import {
+  handleInReviewSubmission,
+  handleLiveTransition,
+  validateInReviewTransition,
+  type OpportunityWithRelations,
+  type StateUpdateContext,
+} from '../common/opportunity/stateTransition';
+import { randomUUID } from 'crypto';
+import { opportunityMatchBatchSize } from '../types';
+import { ClaimableItem, ClaimableItemTypes } from '../entity/ClaimableItem';
+import { claimAnonOpportunities } from '../common/opportunity/user';
 
-export interface GQLOpportunity
-  extends Pick<
-    Opportunity,
-    'id' | 'type' | 'state' | 'title' | 'tldr' | 'content' | 'keywords'
-  > {
+export interface GQLOpportunity extends Pick<
+  Opportunity,
+  'id' | 'type' | 'state' | 'title' | 'tldr' | 'content' | 'keywords' | 'flags'
+> {
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface GQLOpportunityMatch
-  extends Pick<
-    OpportunityMatch,
-    'status' | 'description' | 'userId' | 'opportunityId'
-  > {
+export interface GQLOpportunityMatch extends Pick<
+  OpportunityMatch,
+  'status' | 'description' | 'userId' | 'opportunityId'
+> {
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface GQLUserCandidatePreference
-  extends Omit<
-    UserCandidatePreference,
-    'userId' | 'user' | 'updatedAt' | 'cvParsed'
-  > {
+export interface GQLUserCandidatePreference extends Omit<
+  UserCandidatePreference,
+  'userId' | 'user' | 'updatedAt' | 'cvParsed' | 'location'
+> {
+  location?: Array<DatasetLocation>;
   keywords?: Array<{ keyword: string }>;
 }
 
@@ -97,10 +158,69 @@ export type GQLOpportunityScreeningQuestion = Pick<
   order: number;
 };
 
+export interface GQLTopReaderBadge {
+  tag: string;
+  issuedAt: Date;
+}
+
+export interface GQLOpportunityPreviewUser extends Pick<User, 'id'> {
+  profileImage: string | null;
+  anonId: string;
+  description: string | null;
+  openToWork: boolean;
+  seniority: string | null;
+  location: string | null;
+  locationVerified: LocationVerificationStatus;
+  company: { name: string; favicon?: string } | null;
+  lastActivity: Date | null;
+  topTags: string[] | null;
+  recentlyRead: GQLTopReaderBadge[] | null;
+  activeSquads: GQLSource[] | null;
+}
+
+export interface GQLOpportunityPreviewEdge {
+  node: GQLOpportunityPreviewUser;
+  cursor: string;
+}
+
+export interface GQLOpportunityPreviewResult {
+  totalCount: number;
+  tags: string[] | null;
+  companies: Array<{ name: string; favicon?: string }> | null;
+  squads: GQLSource[] | null;
+  opportunityId: string;
+  status: OpportunityPreviewStatus;
+}
+
+export interface GQLOpportunityPreviewConnection {
+  edges: GQLOpportunityPreviewEdge[];
+  pageInfo: {
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    startCursor: string | null;
+    endCursor: string | null;
+  };
+  result: GQLOpportunityPreviewResult;
+}
+
+export interface GQLOpportunityStats {
+  matched: number;
+  reached: number;
+  considered: number;
+  decided: number;
+  forReview: number;
+  introduced: number;
+}
+
+export type GQLOpportunitiesClaim = {
+  ids: string[];
+};
+
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(OpportunityMatchStatus, 'OpportunityMatchStatus')}
   ${toGQLEnum(OrganizationLinkType, 'OrganizationLinkType')}
   ${toGQLEnum(SocialMediaType, 'SocialMediaType')}
+  ${toGQLEnum(LocationVerificationStatus, 'LocationVerificationStatus')}
 
   type OpportunityContentBlock {
     content: String
@@ -131,8 +251,12 @@ export const typeDefs = /* GraphQL */ `
     city: String
     country: String
     subdivision: String
-    continent: String
-    type: ProtoEnumValue
+  }
+
+  type OpportunityLocation {
+    id: ID!
+    location: Location!
+    type: ProtoEnumValue!
   }
 
   type OpportunityMeta {
@@ -178,6 +302,40 @@ export const typeDefs = /* GraphQL */ `
     edges: [OpportunityEdge!]!
   }
 
+  """
+  Flags for the opportunity
+  """
+  type OpportunityFlagsPublic {
+    batchSize: Int
+    plan: String
+    showSlack: Boolean
+    showFeedback: Boolean
+  }
+
+  """
+  Minimal organization info for public opportunity
+  """
+  type OpportunityPublicOrganization {
+    name: String!
+  }
+
+  """
+  Minimal flags for public opportunity
+  """
+  type OpportunityPublicFlags {
+    plan: String
+  }
+
+  """
+  Minimal opportunity info for public access
+  """
+  type OpportunityPublic {
+    id: ID!
+    title: String!
+    organization: OpportunityPublicOrganization
+    flags: OpportunityPublicFlags
+  }
+
   type Opportunity {
     id: ID!
     type: ProtoEnumValue!
@@ -186,16 +344,17 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     content: OpportunityContent!
     meta: OpportunityMeta!
-    location: [Location]!
-    organization: Organization!
+    locations: [OpportunityLocation]!
+    organization: Organization
     recruiters: [User!]!
     keywords: [OpportunityKeyword]!
     questions: [OpportunityScreeningQuestion]!
     feedbackQuestions: [OpportunityFeedbackQuestion]!
+    flags: OpportunityFlagsPublic
   }
 
   type OpportunityMatchDescription {
-    reasoning: String!
+    reasoning: String
   }
 
   type ScreeningAnswer {
@@ -221,11 +380,13 @@ export const typeDefs = /* GraphQL */ `
     createdAt: DateTime!
     updatedAt: DateTime!
     user: User!
+    opportunity: Opportunity
     candidatePreferences: UserCandidatePreference
     screening: [ScreeningAnswer!]!
     feedback: [ScreeningAnswer!]!
     applicationRank: ApplicationRank!
     engagementProfile: EngagementProfile
+    previewUser: OpportunityPreviewUser
   }
 
   type OpportunityMatchEdge {
@@ -237,9 +398,63 @@ export const typeDefs = /* GraphQL */ `
     cursor: String!
   }
 
+  type OpportunityMatchPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean
+    startCursor: String
+    endCursor: String
+    """
+    Total number of matches for the given status filter
+    """
+    totalCount: Int!
+  }
+
   type OpportunityMatchConnection {
-    pageInfo: PageInfo!
+    pageInfo: OpportunityMatchPageInfo!
     edges: [OpportunityMatchEdge!]!
+  }
+
+  """
+  Anonymous user context data captured at feedback submission time
+  """
+  type AnonymousUserContext {
+    """
+    User's seniority/experience level (e.g., junior, senior, staff)
+    """
+    seniority: String
+    """
+    User's country (general location, not specific city)
+    """
+    locationCountry: String
+  }
+
+  type FeedbackClassification {
+    platform: Int!
+    category: Int!
+    sentiment: Int!
+    urgency: Int!
+    screening: String!
+    answer: String!
+    """
+    Anonymous user context captured at feedback submission
+    """
+    userContext: AnonymousUserContext
+  }
+
+  type FeedbackClassificationEdge {
+    node: FeedbackClassification!
+    cursor: String!
+  }
+
+  type FeedbackClassificationPageInfo {
+    hasNextPage: Boolean!
+    endCursor: String
+    totalCount: Int!
+  }
+
+  type FeedbackClassificationConnection {
+    pageInfo: FeedbackClassificationPageInfo!
+    edges: [FeedbackClassificationEdge!]!
   }
 
   type GCSBlob {
@@ -270,6 +485,156 @@ export const typeDefs = /* GraphQL */ `
     keywords: [UserCandidateKeyword!]!
   }
 
+  type OpportunityPreviewCompany {
+    name: String!
+    favicon: String
+  }
+
+  """
+  Top reader badge with tag and issue date
+  """
+  type TopReaderBadge {
+    """
+    The keyword/tag name
+    """
+    tag: String!
+
+    """
+    When the badge was issued
+    """
+    issuedAt: DateTime!
+  }
+
+  type OpportunityPreviewUser {
+    """
+    Real user ID
+    """
+    id: String!
+
+    """
+    User profile image
+    """
+    profileImage: String
+
+    """
+    Anonymized ID (e.g., anon #1002)
+    """
+    anonId: String!
+
+    """
+    User description/bio
+    """
+    description: String
+
+    """
+    Whether the user is open to work
+    """
+    openToWork: Boolean!
+
+    """
+    User seniority level
+    """
+    seniority: String
+
+    """
+    User location (from preferences or geo flags)
+    """
+    location: String
+
+    """
+    Location verification status: geoip (inferred from geo flags), user_provided (from dataset_location or custom), or verified (future use)
+    """
+    locationVerified: LocationVerificationStatus!
+
+    """
+    Active company from experience
+    """
+    company: OpportunityPreviewCompany
+
+    """
+    Last activity timestamp
+    """
+    lastActivity: DateTime
+
+    """
+    Top tags for the user
+    """
+    topTags: [String!]!
+
+    """
+    Recently read badges with tags and issue dates (limit 3)
+    """
+    recentlyRead: [UserTopReader!]
+
+    """
+    Active squads
+    """
+    activeSquads: [Source!]!
+  }
+
+  type OpportunityPreviewEdge {
+    node: OpportunityPreviewUser!
+    cursor: String!
+  }
+
+  type OpportunityPreviewPageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+  }
+
+  type OpportunityPreviewResult {
+    tags: [String!]!
+    companies: [OpportunityPreviewCompany!]!
+    squads: [Source!]!
+    totalCount: Int
+    opportunityId: String!
+    status: ProtoEnumValue!
+  }
+
+  type OpportunityPreviewConnection {
+    edges: [OpportunityPreviewEdge!]!
+    pageInfo: OpportunityPreviewPageInfo!
+    result: OpportunityPreviewResult
+  }
+
+  type OpportunityStats {
+    """
+    Mock value for matched candidates
+    """
+    matched: Int!
+
+    """
+    Total count of all matches regardless of status
+    """
+    reached: Int!
+
+    """
+    Count of matches that are not pending (all statuses except pending)
+    """
+    considered: Int!
+
+    """
+    Count of candidate_rejected matches
+    """
+    decided: Int!
+
+    """
+    Count of candidate_accepted matches
+    """
+    forReview: Int!
+
+    """
+    Count of recruiter_accepted matches
+    """
+    introduced: Int!
+  }
+
+  type OpportunitiesClaim {
+    ids: [String!]!
+  }
+
   extend type Query {
     """
     Get the public information about a Opportunity listing
@@ -280,6 +645,15 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): Opportunity
+    """
+    Get public information about an opportunity (accessible by anonymous users)
+    """
+    opportunityByIdPublic(
+      """
+      Id of Opportunity
+      """
+      id: ID!
+    ): OpportunityPublic
     """
     Gets the status and description from the Opportunity match
     """
@@ -322,6 +696,10 @@ export const typeDefs = /* GraphQL */ `
       """
       opportunityId: ID!
       """
+      Filter by match status (allowed: candidate_accepted, recruiter_accepted, recruiter_rejected)
+      """
+      status: OpportunityMatchStatus
+      """
       Paginate after opaque cursor
       """
       after: String
@@ -330,6 +708,73 @@ export const typeDefs = /* GraphQL */ `
       """
       first: Int
     ): OpportunityMatchConnection! @auth
+
+    """
+    Get all opportunity matches for the authenticated user
+    """
+    userOpportunityMatches(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): OpportunityMatchConnection! @auth
+
+    """
+    Get a preview of potential candidate matches for an opportunity owned by the anonymous user
+    """
+    opportunityPreview(
+      """
+      Number of users to return
+      """
+      first: Int
+
+      """
+      Cursor for pagination
+      """
+      after: String
+
+      """
+      Opportunity ID
+      """
+      opportunityId: ID
+
+      """
+      Identifier for public opportunities (email or trackingId)
+      """
+      identifier: String
+    ): OpportunityPreviewConnection!
+
+    """
+    Get statistics for an opportunity's matches
+    """
+    opportunityStats(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+    ): OpportunityStats! @auth
+
+    """
+    Get paginated classified feedback for an opportunity (recruiter platform only)
+    """
+    opportunityFeedback(
+      """
+      Id of the Opportunity
+      """
+      opportunityId: ID!
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): FeedbackClassificationConnection! @auth
   }
 
   input SalaryExpectationInput {
@@ -386,23 +831,10 @@ export const typeDefs = /* GraphQL */ `
     placeholder: String
   }
 
-  input OrganizationLinkInput {
-    type: OrganizationLinkType!
-    socialType: SocialMediaType
+  input RecruiterInput {
+    userId: ID!
     title: String
-    link: String!
-  }
-
-  input OrganizationEditInput {
-    website: String
-    description: String
-    perks: [String!]
-    founded: Int
-    location: String
-    category: String
-    size: Int
-    stage: Int
-    links: [OrganizationLinkInput!]
+    bio: String
   }
 
   input OpportunityEditInput {
@@ -410,10 +842,50 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     meta: OpportunityMetaInput
     location: [LocationInput]
+    externalLocationId: String
+    locationType: ProtoEnumValue
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
-    organization: OrganizationEditInput
+    recruiter: RecruiterInput
+  }
+
+  input ParseOpportunityInput {
+    """
+    PDF, Word file to parse
+    """
+    file: Upload
+
+    """
+    URL to scrape and parse
+    """
+    url: String
+  }
+
+  input ReimportOpportunityInput {
+    """
+    ID of the opportunity to update
+    """
+    opportunityId: ID!
+
+    """
+    PDF, Word file to parse
+    """
+    file: Upload
+
+    """
+    URL to scrape and parse
+    """
+    url: String
+  }
+
+  input OpportunitySeatInput {
+    priceId: String!
+    quantity: Int!
+  }
+
+  input AddOpportunitySeatsInput {
+    seats: [OpportunitySeatInput!]!
   }
 
   extend type Mutation {
@@ -427,6 +899,7 @@ export const typeDefs = /* GraphQL */ `
       employmentType: [ProtoEnumValue]
       salaryExpectation: SalaryExpectationInput
       location: [LocationInput]
+      externalLocationId: String
       locationType: [ProtoEnumValue]
       customKeywords: Boolean
     ): EmptyResponse @auth
@@ -520,22 +993,7 @@ export const typeDefs = /* GraphQL */ `
       Opportunity data to update
       """
       payload: OpportunityEditInput!
-
-      """
-      Organization image to upload
-      """
-      organizationImage: Upload
     ): Opportunity! @auth
-
-    """
-    Clear the organization image for an opportunity
-    """
-    clearOrganizationImage(
-      """
-      Id of the Opportunity
-      """
-      id: ID!
-    ): EmptyResponse @auth
 
     recommendOpportunityScreeningQuestions(
       """
@@ -552,6 +1010,63 @@ export const typeDefs = /* GraphQL */ `
 
       state: ProtoEnumValue!
     ): EmptyResponse @auth
+
+    """
+    Parse an opportunity from a URL or file upload
+    """
+    parseOpportunity(payload: ParseOpportunityInput!): Opportunity!
+      @rateLimit(limit: 10, duration: 3600)
+
+    """
+    Re-import and update an existing opportunity from a URL or file upload
+    """
+    reimportOpportunity(payload: ReimportOpportunityInput!): Opportunity!
+      @auth
+      @rateLimit(limit: 10, duration: 3600)
+
+    """
+    Create a shared Slack channel and invite a user by email
+    """
+    createSharedSlackChannel(
+      """
+      Opportunity ID
+      """
+      opportunityId: ID!
+
+      """
+      Email address of the user to invite
+      """
+      email: String!
+
+      """
+      Name of the channel to create (lowercase letters, numbers, hyphens, and underscores only)
+      """
+      channelName: String!
+    ): EmptyResponse @auth
+
+    addOpportunitySeats(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+
+      payload: AddOpportunitySeatsInput!
+    ): EmptyResponse @auth
+
+    """
+    Claim opportunities associated with an anonymous identifier
+    """
+    claimOpportunities(identifier: String!): OpportunitiesClaim @auth
+
+    """
+    Apply to an opportunity as an authenticated user
+    """
+    opportunityApply(
+      """
+      Id of the Opportunity
+      """
+      id: ID!
+    ): OpportunityMatch @auth
   }
 `;
 
@@ -638,7 +1153,12 @@ async function updateCandidateMatchStatus(
     throw new ForbiddenError('Access denied! No match found');
   }
 
-  if (match.status !== OpportunityMatchStatus.Pending) {
+  if (
+    ![
+      OpportunityMatchStatus.Pending,
+      OpportunityMatchStatus.CandidateApplied,
+    ].includes(match.status)
+  ) {
     ctx.log.error(
       { opportunityId, userId, status: match.status },
       'Match is not pending',
@@ -670,6 +1190,190 @@ async function updateCandidateMatchStatus(
   });
 }
 
+/**
+ * Renders content for opportunity fields
+ * Sanitizes HTML content from WYSIWYG editor
+ */
+async function renderOpportunityContent(
+  content: Record<string, { content?: string }> | undefined,
+): Promise<OpportunityContent> {
+  const renderedContent: Record<string, { content: string; html: string }> = {};
+
+  for (const [key, value] of Object.entries(content || {})) {
+    if (typeof value.content !== 'string') {
+      continue;
+    }
+
+    const html = await sanitizeHtml(value.content);
+
+    renderedContent[key] = {
+      content: value.content,
+      html,
+    };
+  }
+
+  return new OpportunityContent(renderedContent);
+}
+
+/**
+ * Handles opportunity location updates
+ * Creates or updates locations based on externalLocationId and locationType
+ */
+async function handleOpportunityLocationUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  externalLocationId: string | null | undefined,
+  locationType: number | undefined | null,
+  ctx: AuthContext,
+): Promise<void> {
+  if (externalLocationId) {
+    // If externalLocationId is provided, replace all locations with the new one
+    await entityManager.getRepository(OpportunityLocation).delete({
+      opportunityId,
+    });
+
+    const location = await findOrCreateDatasetLocation(
+      ctx.con,
+      externalLocationId,
+    );
+
+    // Create new OpportunityLocation relationship
+    if (location) {
+      await entityManager.getRepository(OpportunityLocation).insert({
+        opportunityId,
+        locationId: location.id,
+        type: locationType || 1,
+      });
+    }
+  } else if (locationType !== undefined && locationType !== null) {
+    // If only locationType is provided (no externalLocationId), update existing locations
+    await entityManager
+      .getRepository(OpportunityLocation)
+      .update({ opportunityId }, { type: locationType });
+  }
+}
+
+/**
+ * Handles opportunity screening questions updates
+ * Validates questions ownership and upserts them with proper ordering
+ */
+async function handleOpportunityScreeningQuestionsUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  questions:
+    | Array<{ id?: string; title: string; placeholder?: string | null }>
+    | undefined,
+): Promise<void> {
+  if (!Array.isArray(questions)) {
+    return;
+  }
+
+  const questionIds = questions.map((item) => item.id).filter(Boolean);
+
+  const hasQuestionsFromOtherOpportunity = await entityManager
+    .getRepository(QuestionScreening)
+    .exists({
+      where: { id: In(questionIds), opportunityId: Not(opportunityId) },
+    });
+
+  if (hasQuestionsFromOtherOpportunity) {
+    throw new ConflictError('Not allowed to edit some questions!');
+  }
+
+  await entityManager.getRepository(QuestionScreening).delete({
+    id: Not(In(questionIds)),
+    opportunityId,
+  });
+
+  await entityManager.getRepository(QuestionScreening).upsert(
+    questions.map((question, index) => {
+      return entityManager.getRepository(QuestionScreening).create({
+        id: question.id,
+        opportunityId,
+        title: question.title,
+        placeholder: question.placeholder ?? undefined,
+        questionOrder: index,
+      });
+    }),
+    { conflictPaths: ['id'] },
+  );
+}
+
+/**
+ * Handles recruiter information updates for an opportunity
+ * Validates recruiter is assigned to the opportunity and updates their profile
+ */
+async function handleOpportunityRecruiterUpdate(
+  entityManager: EntityManager,
+  opportunityId: string,
+  recruiter: { userId: string; title?: string; bio?: string } | undefined,
+  ctx: AuthContext,
+): Promise<void> {
+  if (!recruiter) {
+    return;
+  }
+
+  // Check if the recruiter is part of the recruiters for this opportunity
+  const existingRecruiter = await entityManager
+    .getRepository(OpportunityUserRecruiter)
+    .findOne({
+      where: {
+        opportunityId,
+        userId: recruiter.userId,
+        type: OpportunityUserType.Recruiter,
+      },
+    });
+
+  if (!existingRecruiter) {
+    ctx.log.error(
+      { opportunityId, userId: recruiter.userId },
+      'Recruiter is not part of this opportunity',
+    );
+    throw new ForbiddenError(
+      'Access denied! Recruiter is not part of this opportunity',
+    );
+  }
+
+  // Update the recruiter's title and bio on the User entity
+  await entityManager.getRepository(User).update(
+    {
+      id: recruiter.userId,
+    },
+    {
+      title: recruiter.title,
+      bio: recruiter.bio,
+    },
+  );
+}
+
+/**
+ * Handles transition to CLOSED state
+ */
+const handleClosedTransition = async ({
+  ctx,
+  opportunity,
+  organization,
+}: {
+  ctx: StateUpdateContext;
+  opportunity: OpportunityJob;
+  organization: Organization | null;
+}): Promise<void> => {
+  if (opportunity.state !== OpportunityState.LIVE) {
+    throw new ConflictError(`This opportunity is not live`);
+  }
+
+  const subscriptionId =
+    organization?.recruiterSubscriptionFlags.subscriptionId;
+
+  if (!subscriptionId) {
+    throw new ConflictError(`Opportunity subscription not found`);
+  }
+
+  await ctx.con
+    .getRepository(OpportunityJob)
+    .update({ id: opportunity.id }, { state: OpportunityState.CLOSED });
+};
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -681,19 +1385,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ): Promise<GQLOpportunity> => {
-      const opportunity = await graphorm.queryOneOrFail<GQLOpportunity>(
-        ctx,
-        info,
-        (builder) => {
+      const [opportunity, opportunityDb] = await Promise.all([
+        graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
           builder.queryBuilder.where({ id });
 
           builder.queryBuilder.addSelect(`${builder.alias}.state`, 'state');
 
           return builder;
-        },
-      );
+        }),
+        queryReadReplica(ctx.con, async ({ queryRunner }) => {
+          return queryRunner.manager
+            .getRepository(OpportunityJob)
+            .findOneOrFail({
+              select: ['id', 'state', 'flags'],
+              where: { id },
+            });
+        }),
+      ]);
 
-      if (opportunity.state !== OpportunityState.LIVE) {
+      if (
+        opportunityDb.state === OpportunityState.DRAFT &&
+        opportunityDb.flags?.public_draft
+      ) {
+        return opportunity;
+      }
+
+      if (opportunityDb.state !== OpportunityState.LIVE) {
         if (!ctx.userId) {
           throw new NotFoundError('Not found!');
         }
@@ -709,6 +1426,27 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return opportunity;
     },
+    opportunityByIdPublic: async (_, { id }: { id: string }, ctx: Context) =>
+      queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const opportunity = await queryRunner.manager
+          .getRepository(OpportunityJob)
+          .createQueryBuilder('o')
+          .leftJoinAndSelect('o.organization', 'org')
+          .where('o.id = :id', { id })
+          .getOne();
+
+        if (!opportunity) {
+          return null;
+        }
+
+        const organization = await opportunity.organization;
+        return {
+          id: opportunity.id,
+          title: opportunity.title,
+          organization: organization ? { name: organization.name } : null,
+          flags: { plan: opportunity.flags?.plan ?? null },
+        };
+      }),
     getOpportunityMatch: async (
       _,
       { id }: { id: string },
@@ -747,6 +1485,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       return {
         ...new UserCandidatePreference(),
+        location: [],
         keywords: [],
       };
     },
@@ -756,9 +1495,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: Context,
       info,
     ) => {
-      // Default to LIVE opportunities if no state is provided
-      const opportunityState = args.state ?? OpportunityState.LIVE;
-
       if (!ctx.userId) {
         throw new NotFoundError('Not found!');
       }
@@ -774,7 +1510,18 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         { key: 'createdAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder.where({ state: opportunityState });
+            if (args?.state) {
+              const validatedInput = z
+                .object({ state: z.enum(OpportunityState).nullish() })
+                .parse(args);
+              builder.queryBuilder.where({ state: validatedInput.state });
+            }
+
+            builder.queryBuilder.andWhere({
+              state: Not(
+                In([OpportunityState.ERROR, OpportunityState.PARSING]),
+              ),
+            });
 
             if (!ctx.isTeamMember) {
               builder.queryBuilder
@@ -798,7 +1545,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     },
     opportunityMatches: async (
       _,
-      args: ConnectionArguments & { opportunityId: string },
+      args: ConnectionArguments & {
+        opportunityId: string;
+        status?: OpportunityMatchStatus;
+      },
       ctx: AuthContext,
       info,
     ) => {
@@ -806,53 +1556,553 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new NotFoundError('Not found!');
       }
 
+      // Validate and parse args using Zod schema
+      const validatedArgs = opportunityMatchesQuerySchema.parse(args);
+
       // First verify the user has access to this opportunity
       await ensureOpportunityPermissions({
         con: ctx.con.manager,
         userId: ctx.userId,
-        opportunityId: args.opportunityId,
+        opportunityId: validatedArgs.opportunityId,
         permission: OpportunityPermissions.UpdateState,
         isTeamMember: ctx.isTeamMember,
       });
 
-      return await queryPaginatedByDate<
-        GQLOpportunityMatch,
-        'updatedAt',
-        typeof args
-      >(
+      // If status is provided, filter by that status; otherwise use all allowed statuses
+      const statusesToFilter = validatedArgs.status
+        ? [validatedArgs.status]
+        : [
+            OpportunityMatchStatus.CandidateAccepted,
+            OpportunityMatchStatus.RecruiterAccepted,
+            OpportunityMatchStatus.RecruiterRejected,
+          ];
+
+      const [connection, totalCount] = await Promise.all([
+        queryPaginatedByDate<GQLOpportunityMatch, 'updatedAt', typeof args>(
+          ctx,
+          info,
+          args,
+          { key: 'updatedAt', maxSize: 50 },
+          {
+            queryBuilder: (builder) => {
+              builder.queryBuilder
+                .where({ opportunityId: validatedArgs.opportunityId })
+                .andWhere(`${builder.alias}.status IN (:...statuses)`, {
+                  statuses: statusesToFilter,
+                })
+                // Order by candidate_accepted status first (priority 0), then others (priority 1)
+                // Then by updatedAt ascending (oldest first) within each group
+                .addOrderBy(
+                  `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
+                  'ASC',
+                )
+                .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
+                .setParameter(
+                  'candidateAcceptedStatus',
+                  OpportunityMatchStatus.CandidateAccepted,
+                );
+
+              return builder;
+            },
+            orderByKey: 'ASC',
+            readReplica: true,
+          },
+        ),
+        queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(OpportunityMatch).count({
+            where: {
+              opportunityId: validatedArgs.opportunityId,
+              status: In(statusesToFilter),
+            },
+          }),
+        ),
+      ]);
+
+      return {
+        ...connection,
+        pageInfo: {
+          ...connection.pageInfo,
+          totalCount,
+        },
+      };
+    },
+    userOpportunityMatches: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ) =>
+      await queryPaginatedByDate<GQLOpportunityMatch, 'updatedAt', typeof args>(
         ctx,
         info,
         args,
         { key: 'updatedAt', maxSize: 50 },
         {
           queryBuilder: (builder) => {
-            builder.queryBuilder
-              .where({ opportunityId: args.opportunityId })
-              .andWhere(`${builder.alias}.status IN (:...statuses)`, {
-                statuses: [
-                  OpportunityMatchStatus.CandidateAccepted,
-                  OpportunityMatchStatus.RecruiterAccepted,
-                  OpportunityMatchStatus.RecruiterRejected,
-                ],
-              })
-              // Order by candidate_accepted status first (priority 0), then others (priority 1)
-              // Then by updatedAt ascending (oldest first) within each group
-              .addOrderBy(
-                `CASE WHEN ${builder.alias}.status = :candidateAcceptedStatus THEN 0 ELSE 1 END`,
-                'ASC',
-              )
-              .addOrderBy(`${builder.alias}.updatedAt`, 'ASC')
-              .setParameter(
-                'candidateAcceptedStatus',
-                OpportunityMatchStatus.CandidateAccepted,
-              );
+            builder.queryBuilder.where({ userId: ctx.userId });
 
             return builder;
           },
-          orderByKey: 'ASC',
+          orderByKey: 'DESC',
           readReplica: true,
         },
+      ),
+    opportunityPreview: async (
+      _,
+      args: ConnectionArguments & {
+        opportunityId?: string;
+        identifier?: string;
+      },
+      ctx: Context,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLOpportunityPreviewConnection> => {
+      const { after, first = 20 } = args;
+      const offset = after ? cursorToOffset(after) : 0;
+
+      let opportunity: OpportunityJob;
+
+      if (args.opportunityId) {
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId || '',
+          opportunityId: args.opportunityId,
+          permission: OpportunityPermissions.ViewDraft,
+          isTeamMember: ctx.isTeamMember,
+        });
+
+        opportunity = await ctx.con
+          .getRepository(OpportunityJob)
+          .findOneOrFail({
+            where: { id: args.opportunityId },
+            relations: { keywords: true },
+          });
+      } else {
+        // Use provided identifier, or fall back to ctx.trackingId
+        const lookupIdentifier = args.identifier || ctx.trackingId;
+
+        const claimableItem = await ctx.con
+          .getRepository(ClaimableItem)
+          .findOne({
+            where: {
+              identifier: lookupIdentifier,
+              type: ClaimableItemTypes.Opportunity,
+              claimedById: IsNull(),
+            },
+          });
+
+        if (!claimableItem?.flags?.opportunityId) {
+          throw new NotFoundError('No opportunity found for preview');
+        }
+
+        opportunity = await ctx.con
+          .getRepository(OpportunityJob)
+          .findOneOrFail({
+            where: {
+              id: claimableItem.flags.opportunityId,
+            },
+            relations: { keywords: true },
+          });
+      }
+
+      if (
+        [OpportunityState.PARSING, OpportunityState.ERROR].includes(
+          opportunity.state,
+        )
+      ) {
+        throw new ConflictError('Opportunity is not ready for preview yet');
+      }
+
+      const keywords = await opportunity.keywords;
+
+      let opportunityPreview: OpportunityJob['flags']['preview'] = {
+        userIds: [],
+        totalCount: 0,
+        status: OpportunityPreviewStatus.UNSPECIFIED,
+      };
+
+      // In mock mode, if preview is stuck at PENDING, re-fetch with mock data
+      const shouldRefetchInMockMode =
+        isMockEnabled() &&
+        opportunity.flags?.preview?.status === OpportunityPreviewStatus.PENDING;
+
+      if (opportunity.flags?.preview && !shouldRefetchInMockMode) {
+        opportunityPreview = opportunity.flags.preview;
+
+        if (!opportunityPreview.status) {
+          const isEmptyPreview = opportunityPreview.userIds.length === 0;
+
+          opportunityPreview.status = isEmptyPreview
+            ? OpportunityPreviewStatus.UNSPECIFIED
+            : OpportunityPreviewStatus.READY;
+        }
+      } else {
+        const opportunityContent: Record<string, unknown> = {};
+
+        // since this is json endpoint we need to make sure all keys are present
+        // even if empty, remove this when we move to protobuf service call
+        Object.keys(new OpportunityContent()).forEach((key) => {
+          const opportunityKey = key as keyof OpportunityContent;
+
+          opportunityContent[opportunityKey] =
+            opportunity.content[opportunityKey] || {};
+        });
+
+        // Fetch locations from OpportunityLocation table
+        const opportunityLocations = await ctx.con
+          .getRepository(OpportunityLocation)
+          .find({
+            where: { opportunityId: opportunity.id },
+            relations: ['location'],
+          });
+
+        const locations = await Promise.all(
+          opportunityLocations.map(async (ol) => {
+            const datasetLocation = await ol.location;
+
+            if (!datasetLocation.country && datasetLocation.continent) {
+              return new LocationMessage({
+                type: ol.type,
+                continent: datasetLocation.continent,
+              });
+            }
+
+            return new LocationMessage({
+              ...datasetLocation,
+              type: ol.type,
+              city: datasetLocation.city || undefined,
+              subdivision: datasetLocation.subdivision || undefined,
+              country: datasetLocation.country || undefined,
+            });
+          }),
+        );
+
+        // Default to US location if no locations are specified
+        if (locations.length === 0) {
+          locations.push(
+            new LocationMessage({
+              iso2: 'US',
+              country: 'United States',
+            }),
+          );
+        }
+
+        const opportunityMessage = new OpportunityMessage({
+          id: opportunity.id,
+          createdAt: getSecondsTimestamp(opportunity.createdAt),
+          updatedAt: getSecondsTimestamp(opportunity.updatedAt),
+          type: opportunity.type,
+          state: opportunity.state,
+          title: opportunity.title,
+          tldr: opportunity.tldr,
+          content: opportunityContent,
+          meta: opportunity.meta,
+          location: locations,
+          keywords: keywords.map((k) => k.keyword),
+          flags: opportunity.flags,
+        });
+
+        const gondulOpportunityServiceClient =
+          getGondulOpportunityServiceClient();
+
+        const previewResult =
+          await gondulOpportunityServiceClient.garmr.execute(() => {
+            return gondulOpportunityServiceClient.instance.preview(
+              opportunityMessage,
+            );
+          });
+
+        // In mock mode, use the returned data directly instead of waiting for async worker
+        // The mock returns userIds/totalCount directly for immediate testing
+        const mockResult = previewResult as unknown as {
+          userIds?: string[];
+          totalCount?: number;
+        };
+        if (isMockEnabled() && mockResult?.userIds) {
+          opportunityPreview = {
+            userIds: mockResult.userIds,
+            totalCount: mockResult.totalCount || mockResult.userIds.length,
+            status: OpportunityPreviewStatus.READY,
+          };
+        } else {
+          opportunityPreview.status = OpportunityPreviewStatus.PENDING;
+        }
+
+        await ctx.con.getRepository(OpportunityJob).update(
+          { id: opportunity.id },
+          {
+            flags: updateFlagsStatement<OpportunityJob>({
+              preview: opportunityPreview,
+            }),
+          },
+        );
+      }
+
+      const connection =
+        await graphorm.queryPaginated<GQLOpportunityPreviewUser>(
+          ctx,
+          info,
+          () => !!after,
+          (nodeSize) => nodeSize === first,
+          (_, i) => offsetToCursor(offset + i + 1),
+          (builder) => {
+            builder.queryBuilder.where(`${builder.alias}.id IN (:...userIds)`, {
+              userIds: opportunityPreview.userIds.length
+                ? opportunityPreview.userIds
+                : ['nosuchid'],
+            });
+            return builder;
+          },
+          (nodes) => {
+            // Sort nodes in JavaScript based on userIds order
+            const userIdIndexMap = new Map(
+              opportunityPreview.userIds.map((id, index) => [id, index]),
+            );
+            return nodes.sort((a, b) => {
+              const indexA = userIdIndexMap.get(a.id) ?? Infinity;
+              const indexB = userIdIndexMap.get(b.id) ?? Infinity;
+              return indexA - indexB;
+            });
+          },
+          true,
+        );
+
+      const flatTags = connection.edges.flatMap(({ node }) => {
+        return node.topTags || [];
+      });
+      const uniqueTagsMap = flatTags.reduce(
+        (acc, item) => {
+          // map tags to how much they appear across all users
+          if (typeof acc[item] === 'undefined') {
+            acc[item] = 1;
+          } else {
+            acc[item] += 1;
+          }
+
+          return acc;
+        },
+        {} as Record<string, number>,
       );
+      // final map and sort to get X tags that appear the most
+      let tags = Object.entries(uniqueTagsMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 16)
+        .map(([tag]) => tag);
+
+      // In mock mode, use mock tags if no real tags found
+      if (isMockEnabled() && tags.length === 0) {
+        tags = mockPreviewTags;
+      }
+
+      const companies = getShowcaseCompanies();
+
+      let squads = uniqueifyObjectArray(
+        connection.edges.flatMap(({ node }) =>
+          (node.activeSquads || []).map((squad) => squad),
+        ),
+        (squad) => squad.handle,
+      );
+
+      // In mock mode, use mock squads if no real squads found
+      if (
+        isMockEnabled() &&
+        squads.length === 0 &&
+        mockPreviewSquadIds.length
+      ) {
+        const mockSquads = await ctx.con.getRepository(Source).find({
+          where: { id: In(mockPreviewSquadIds), type: SourceType.Squad },
+        });
+        squads = mockSquads.map((squad) => ({
+          ...squad,
+          public: !squad.private,
+          members: undefined,
+        }));
+      }
+
+      return {
+        ...connection,
+        result: {
+          tags,
+          companies,
+          squads,
+          totalCount: applyDeterministicVariation({
+            value: opportunityPreview.totalCount,
+            seed: opportunity.id,
+            maxVariationPercent: 7.6,
+          }),
+          status: opportunityPreview.status,
+          opportunityId: opportunity.id,
+        },
+      };
+    },
+    opportunityStats: async (
+      _,
+      { opportunityId }: { opportunityId: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunityStats> => {
+      // Verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(OpportunityMatch)
+          .createQueryBuilder('match')
+          .select('COUNT(*)', 'reached')
+          .addSelect(
+            `COUNT(CASE WHEN match.status != :pending THEN 1 END)`,
+            'considered',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateRejected THEN 1 END)`,
+            'decided',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :candidateAccepted THEN 1 END)`,
+            'forReview',
+          )
+          .addSelect(
+            `COUNT(CASE WHEN match.status = :recruiterAccepted THEN 1 END)`,
+            'introduced',
+          )
+          .where('match.opportunityId = :opportunityId', { opportunityId })
+          .setParameter('pending', OpportunityMatchStatus.Pending)
+          .setParameter(
+            'candidateRejected',
+            OpportunityMatchStatus.CandidateRejected,
+          )
+          .setParameter(
+            'candidateAccepted',
+            OpportunityMatchStatus.CandidateAccepted,
+          )
+          .setParameter(
+            'recruiterAccepted',
+            OpportunityMatchStatus.RecruiterAccepted,
+          )
+          .getRawOne<{
+            reached: string;
+            considered: string;
+            decided: string;
+            forReview: string;
+            introduced: string;
+          }>(),
+      );
+
+      // Get counts per status using SQL aggregation
+
+      return {
+        matched: 12_000, // Mock value as requested
+        reached: parseInt(result?.reached || '0', 10),
+        considered: parseInt(result?.considered || '0', 10),
+        decided: parseInt(result?.decided || '0', 10),
+        forReview: parseInt(result?.forReview || '0', 10),
+        introduced: parseInt(result?.introduced || '0', 10),
+      };
+    },
+    opportunityFeedback: async (
+      _,
+      args: ConnectionArguments & { opportunityId: string },
+      ctx: AuthContext,
+    ) => {
+      const { opportunityId, first = 10, after } = args;
+
+      // Verify the user has access to this opportunity
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      // Get matches that have feedback with recruiter platform classification
+      const matches = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(OpportunityMatch).find({
+          where: {
+            opportunityId,
+          },
+          select: ['feedback', 'userId'],
+        }),
+      );
+
+      // Gather unique userIds and fetch their anonymous context with candidate preferences
+      const userIds = [...new Set(matches.map((m) => m.userId))];
+
+      const users = await ctx.con.getRepository(User).find({
+        where: { id: In(userIds) },
+        select: ['id', 'experienceLevel', 'flags'],
+        relations: ['candidatePreference', 'candidatePreference.location'],
+      });
+
+      const userContextMap = new Map(
+        await Promise.all(
+          users.map(async (user) => {
+            const flags = (user.flags ?? {}) as Record<string, unknown>;
+            const preference = await user.candidatePreference;
+            const preferenceLocation = preference?.location
+              ? await preference.location
+              : null;
+
+            return [
+              user.id,
+              {
+                seniority: user.experienceLevel ?? null,
+                // Prioritize candidatePreference location country over flags.country
+                locationCountry:
+                  preferenceLocation?.country ??
+                  (flags.country as string) ??
+                  null,
+              },
+            ] as const;
+          }),
+        ),
+      );
+
+      // Extract feedback items with recruiter platform classification
+      const allFeedback = matches
+        .flatMap((match) =>
+          (match.feedback ?? []).map((f) => ({
+            ...f,
+            userId: match.userId,
+          })),
+        )
+        .filter(
+          (f) => f.classification?.platform === FeedbackPlatform.RECRUITER,
+        )
+        .map(({ screening, answer, classification, userId }) => ({
+          screening,
+          answer,
+          platform: classification!.platform,
+          category: classification!.category,
+          sentiment: classification!.sentiment,
+          urgency: classification!.urgency,
+          userContext: userContextMap.get(userId) ?? {},
+        }));
+
+      const totalCount = allFeedback.length;
+
+      // Apply cursor-based pagination
+      const offset = after ? (cursorToOffset(after) ?? -1) + 1 : 0;
+      const limit = Math.min(first ?? 10, 50);
+      const paginatedFeedback = allFeedback.slice(offset, offset + limit);
+
+      const edges = paginatedFeedback.map((node, index) => ({
+        node,
+        cursor: offsetToCursor(offset + index),
+      }));
+
+      return {
+        pageInfo: {
+          hasNextPage: offset + paginatedFeedback.length < totalCount,
+          endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
+          totalCount,
+        },
+        edges,
+      };
     },
   },
   Mutation: {
@@ -867,10 +2117,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw preferences.error;
       }
 
+      // Handle externalLocationId -> locationId mapping
+      const location = await findOrCreateDatasetLocation(
+        con,
+        preferences.data.externalLocationId,
+      );
+
       await con.getRepository(UserCandidatePreference).upsert(
         {
           userId,
-          ...preferences.data,
+          status: preferences.data.status,
+          role: preferences.data.role,
+          roleType: preferences.data.roleType,
+          employmentType: preferences.data.employmentType,
+          salaryExpectation: preferences.data.salaryExpectation,
+          locationType: preferences.data.locationType,
+          customKeywords: preferences.data.customKeywords,
+          locationId: location?.id ?? null,
         },
         {
           conflictPaths: ['userId'],
@@ -897,7 +2160,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         con.getRepository(OpportunityMatch).findOneBy({
           opportunityId,
           userId,
-          status: OpportunityMatchStatus.Pending,
+          status: In([
+            OpportunityMatchStatus.Pending,
+            OpportunityMatchStatus.CandidateApplied,
+          ]),
         }),
         con.getRepository(OpportunityJob).findOneOrFail({
           where: { id: opportunityId, state: OpportunityState.LIVE },
@@ -1018,6 +2284,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           skipUpdateIfNoValuesChanged: true,
         },
       );
+
+      await notifyOpportunityFeedbackSubmitted({
+        logger: log,
+        opportunityId,
+        userId,
+      });
+
       return { _: true };
     },
     acceptOpportunityMatch: async (
@@ -1028,7 +2301,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await updateCandidateMatchStatus(
         id,
         ctx.userId,
-        OpportunityMatchStatus.CandidateAccepted,
+        OpportunityMatchStatus.CandidateReview,
         ctx,
       );
 
@@ -1136,7 +2409,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw error;
       }
 
-      const { file } = data;
+      const file = await data.file;
 
       const blobName = ctx.userId;
       await uploadEmploymentAgreementFromBuffer(blobName, file.buffer, {
@@ -1195,11 +2468,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       {
         id,
         payload,
-        organizationImage,
       }: {
         id: string;
         payload: z.infer<typeof opportunityEditSchema>;
-        organizationImage?: Promise<FileUpload>;
       },
       ctx: AuthContext,
       info,
@@ -1219,27 +2490,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           keywords,
           content,
           questions,
-          organization,
+          recruiter,
+          externalLocationId,
+          locationType,
           ...opportunityUpdate
         } = opportunity;
 
-        const renderedContent: Record<
-          string,
-          { content: string; html: string }
-        > = {};
-
-        Object.entries(content || {}).forEach(([key, value]) => {
-          if (typeof value.content !== 'string') {
-            return;
-          }
-
-          renderedContent[key] = {
-            content: value.content,
-            html: markdown.render(value.content),
-          };
-        });
-
-        const opportunityContent = new OpportunityContent(renderedContent);
+        const opportunityContent = await renderOpportunityContent(content);
 
         await entityManager
           .getRepository(OpportunityJob)
@@ -1254,122 +2511,39 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
 
-        if (organization || organizationImage) {
-          const opportunityJob = await entityManager
-            .getRepository(OpportunityJob)
-            .findOne({
-              where: { id },
-              select: ['organizationId'],
-            });
+        await handleOpportunityLocationUpdate(
+          entityManager,
+          id,
+          externalLocationId,
+          locationType,
+          ctx,
+        );
 
-          if (opportunityJob?.organizationId) {
-            const organizationUpdate: Record<string, unknown> = {
-              ...organization,
-            };
+        await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 
-            // Handle image upload
-            if (organizationImage) {
-              const { createReadStream } = await organizationImage;
-              const stream = createReadStream();
-              const { url: imageUrl } = await uploadOrganizationImage(
-                opportunityJob.organizationId,
-                stream,
-              );
-              organizationUpdate.image = imageUrl;
-            }
+        await handleOpportunityScreeningQuestionsUpdate(
+          entityManager,
+          id,
+          questions,
+        );
 
-            if (Object.keys(organizationUpdate).length > 0) {
-              await entityManager
-                .getRepository(Organization)
-                .update(
-                  { id: opportunityJob.organizationId },
-                  organizationUpdate,
-                );
-            }
-          }
-        }
-
-        if (Array.isArray(keywords)) {
-          await entityManager.getRepository(OpportunityKeyword).delete({
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(OpportunityKeyword).insert(
-            keywords.map((keyword) => ({
-              opportunityId: id,
-              keyword: keyword.keyword,
-            })),
-          );
-        }
-
-        if (Array.isArray(questions)) {
-          const questionIds = questions.map((item) => item.id).filter(Boolean);
-
-          const hasQuestionsFromOtherOpportunity = await entityManager
-            .getRepository(QuestionScreening)
-            .exists({
-              where: { id: In(questionIds), opportunityId: Not(id) },
-            });
-
-          if (hasQuestionsFromOtherOpportunity) {
-            throw new ConflictError('Not allowed to edit some questions!');
-          }
-
-          await entityManager.getRepository(QuestionScreening).delete({
-            id: Not(In(questionIds)),
-            opportunityId: id,
-          });
-
-          await entityManager.getRepository(QuestionScreening).upsert(
-            questions.map((question, index) => {
-              return entityManager.getRepository(QuestionScreening).create({
-                id: question.id,
-                opportunityId: id,
-                title: question.title,
-                placeholder: question.placeholder,
-                questionOrder: index,
-              });
-            }),
-            { conflictPaths: ['id'] },
-          );
-        }
+        await handleOpportunityRecruiterUpdate(
+          entityManager,
+          id,
+          recruiter,
+          ctx,
+        );
       });
 
-      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
-        builder.queryBuilder.where({ id });
+      return await graphorm.queryOneOrFail<GQLOpportunity>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where({ id });
 
-        return builder;
-      });
-    },
-    clearOrganizationImage: async (
-      _,
-      { id }: { id: string },
-      ctx: AuthContext,
-    ): Promise<GQLEmptyResponse> => {
-      await ensureOpportunityPermissions({
-        con: ctx.con.manager,
-        userId: ctx.userId,
-        opportunityId: id,
-        permission: OpportunityPermissions.Edit,
-        isTeamMember: ctx.isTeamMember,
-      });
-
-      const opportunityJob = await ctx.con
-        .getRepository(OpportunityJob)
-        .findOne({
-          where: { id },
-          select: ['organizationId'],
-        });
-
-      if (!opportunityJob?.organizationId) {
-        throw new NotFoundError('Opportunity not found');
-      }
-
-      await ctx.con
-        .getRepository(Organization)
-        .update(opportunityJob.organizationId, { image: null });
-
-      return { _: true };
+          return builder;
+        },
+      );
     },
     recommendOpportunityScreeningQuestions: async (
       _,
@@ -1400,6 +2574,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           where: { id },
           relations: {
             organization: true,
+            locations: {
+              location: true,
+            },
           },
         });
 
@@ -1412,7 +2589,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const result = await gondulClient.garmr.execute(async () => {
         return await gondulClient.instance.screeningQuestions(
           new ScreeningQuestionsRequest({
-            jobOpportunity: createOpportunityPrompt({ opportunity }),
+            jobOpportunity: await createOpportunityPrompt({ opportunity }),
           }),
         );
       });
@@ -1451,7 +2628,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         isTeamMember: ctx.isTeamMember,
       });
 
-      const opportunity = await ctx.con
+      const opportunity = (await ctx.con
         .getRepository(OpportunityJob)
         .findOneOrFail({
           where: { id },
@@ -1460,32 +2637,472 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             keywords: true,
             questions: true,
           },
-        });
+        })) as OpportunityWithRelations;
+
+      const organization = await opportunity.organization;
+      const stateCtx: StateUpdateContext = {
+        con: ctx.con,
+        userId: ctx.userId,
+        log: ctx.log,
+        isTeamMember: ctx.isTeamMember,
+      };
 
       switch (state) {
-        case OpportunityState.LIVE: {
-          if (opportunity.state === OpportunityState.CLOSED) {
-            throw new ConflictError(`Opportunity is closed`);
-          }
-
-          opportunityStateLiveSchema.parse({
-            ...opportunity,
-            organization: await opportunity.organization,
-            keywords: await opportunity.keywords,
-            questions: await opportunity.questions,
+        case OpportunityState.IN_REVIEW: {
+          await validateInReviewTransition({ opportunity, organization });
+          await handleInReviewSubmission({
+            ctx: stateCtx,
+            opportunity,
+            organization: organization!,
           });
-
-          await ctx.con.getRepository(OpportunityJob).update({ id }, { state });
-
+          break;
+        }
+        case OpportunityState.LIVE: {
+          await handleLiveTransition({ ctx: stateCtx, opportunityId: id });
+          break;
+        }
+        case OpportunityState.CLOSED: {
+          await handleClosedTransition({
+            ctx: stateCtx,
+            opportunity,
+            organization,
+          });
           break;
         }
         default:
           throw new ConflictError('Invalid state transition');
       }
 
-      return {
-        _: true,
+      return { _: true };
+    },
+    addOpportunitySeats: async (
+      _,
+      { id, payload }: { id: string; payload: unknown },
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { seats } = addOpportunitySeatsSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId: id,
+        permission: OpportunityPermissions.UpdateState,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id },
+          relations: {
+            organization: true,
+          },
+        });
+
+      const organization = await opportunity.organization;
+
+      if (!organization) {
+        throw new NotFoundError(
+          'Opportunity must have organization to update subscription',
+        );
+      }
+
+      const subscriptionid =
+        organization.recruiterSubscriptionFlags.subscriptionId;
+
+      if (!subscriptionid) {
+        throw new ConflictError(`Opportunity subscription not found`);
+      }
+
+      const subscription =
+        await paddleInstance.subscriptions.get(subscriptionid);
+
+      const subscriptionItems = subscription.items.map((item) => {
+        return {
+          priceId: item.price.id,
+          quantity: item.quantity,
+        };
+      }) as ISubscriptionUpdateItem[];
+
+      seats.forEach((seat) => {
+        const { priceId } = seat;
+
+        // find the existing price item
+        const priceItem = subscriptionItems.find(
+          (item) => item.priceId === priceId,
+        );
+
+        const quantityToAdd = 1;
+
+        // if not found, add new item with quantity 1, else increment quantity
+        if (!priceItem) {
+          subscriptionItems.push({ priceId, quantity: quantityToAdd });
+        } else {
+          priceItem.quantity += quantityToAdd;
+        }
+      });
+
+      const updateResult = await paddleInstance.subscriptions.update(
+        subscriptionid,
+        {
+          prorationBillingMode: 'prorated_immediately',
+          items: subscriptionItems,
+        },
+      );
+
+      await ctx.con.getRepository(Organization).update(organization.id, {
+        recruiterSubscriptionFlags:
+          updateRecruiterSubscriptionFlags<Organization>({
+            items: updateResult.items.map((item) => {
+              return {
+                priceId: item.price.id,
+                quantity: item.quantity,
+              };
+            }),
+          }),
+      });
+
+      return { _: true };
+    },
+    createSharedSlackChannel: async (
+      _,
+      payload: z.infer<typeof createSharedSlackChannelSchema>,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      const { opportunityId, channelName, email } =
+        createSharedSlackChannelSchema.parse(payload);
+
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.CreateSlackChannel,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      const opportunity = await ctx.con
+        .getRepository(OpportunityJob)
+        .findOneOrFail({
+          where: { id: opportunityId },
+          relations: { organization: true },
+        });
+
+      // Get the organization and check subscription status
+      const organization = await opportunity.organization;
+
+      // Check if organization has an active subscription
+      if (
+        organization.recruiterSubscriptionFlags.status !==
+        SubscriptionStatus.Active
+      ) {
+        throw new PaymentRequiredError(
+          'Your organization subscription is not active. Please ensure your payment has been processed before creating Slack channels.',
+        );
+      }
+
+      // Check if organization already has a Slack connection
+      if (organization.recruiterSubscriptionFlags.hasSlackConnection) {
+        throw new ConflictError(
+          'Your organization already has a Slack channel connection. Please contact support if you need to create a new channel.',
+        );
+      }
+
+      try {
+        const createResult = await slackClient.createConversation(
+          channelName,
+          false,
+        );
+
+        if (!createResult?.channel) {
+          return { _: false };
+        }
+
+        await slackClient.inviteSharedToConversation(
+          createResult.channel.id as string,
+          [email],
+          true,
+        );
+
+        const csUsers = remoteConfig.vars.recruiterChannelInviteUsers ?? [];
+
+        if (csUsers.length > 0) {
+          await slackClient.inviteUsers({
+            channel: createResult.channel.id as string,
+            userIds: csUsers,
+          });
+        }
+
+        // Mark organization as having a Slack connection and store channel name
+        await ctx.con.getRepository(Organization).update(
+          { id: organization.id },
+          {
+            recruiterSubscriptionFlags:
+              updateRecruiterSubscriptionFlags<Organization>({
+                hasSlackConnection: createResult.channel.name as string,
+              }),
+          },
+        );
+
+        return { _: true };
+      } catch (originalError) {
+        const error = originalError as Error;
+
+        if (error.message === 'An API error occurred: name_taken') {
+          throw new ConflictError('Channel name already exists');
+        }
+
+        throw error;
+      }
+    },
+    parseOpportunity: async (
+      _,
+      {
+        payload,
+      }: {
+        payload: unknown;
+      },
+      ctx: Context,
+      info,
+    ): Promise<GQLOpportunity> => {
+      if (!(ctx.userId || ctx.trackingId)) {
+        throw new ValidationError('User identifier is required');
+      }
+
+      const parsedPayload = await parseOpportunitySchema.parseAsync(payload);
+      const { buffer, extension } =
+        await getOpportunityFileBuffer(parsedPayload);
+      const { mime } = await validateOpportunityFileType(buffer, extension);
+
+      const fileName = `opportunity-${randomUUID()}.${extension}`;
+      await uploadResumeFromBuffer(fileName, buffer, { contentType: mime });
+
+      const flags: OpportunityJob['flags'] = {
+        batchSize: opportunityMatchBatchSize,
+        file: {
+          blobName: fileName,
+          bucketName: RESUME_BUCKET_NAME,
+          mimeType: mime,
+          extension,
+          userId: ctx.userId,
+          trackingId: ctx.trackingId,
+        },
       };
+
+      const opportunity = await ctx.con.transaction(async (entityManager) => {
+        const newOpportunity = await ctx.con.getRepository(OpportunityJob).save(
+          ctx.con.getRepository(OpportunityJob).create({
+            state: OpportunityState.PARSING,
+            title: 'Processing...',
+            tldr: '',
+            content: new OpportunityContent({}).toJson(),
+            flags,
+          } as DeepPartial<OpportunityJob>),
+        );
+
+        if (ctx.userId) {
+          await entityManager.getRepository(OpportunityUserRecruiter).insert(
+            entityManager.getRepository(OpportunityUserRecruiter).create({
+              opportunityId: newOpportunity.id,
+              userId: ctx.userId,
+            }),
+          );
+        } else {
+          await entityManager.getRepository(ClaimableItem).insert(
+            entityManager.getRepository(ClaimableItem).create({
+              identifier: ctx.trackingId,
+              type: ClaimableItemTypes.Opportunity,
+              flags: {
+                opportunityId: newOpportunity.id,
+              },
+            }),
+          );
+        }
+
+        return newOpportunity;
+      });
+
+      await triggerTypedEvent(ctx.log, 'api.v1.opportunity-parse', {
+        opportunityId: opportunity.id,
+      });
+
+      return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+        builder.queryBuilder.where({ id: opportunity.id });
+        return builder;
+      });
+    },
+    reimportOpportunity: async (
+      _,
+      {
+        payload,
+      }: {
+        payload: unknown;
+      },
+      ctx: Context,
+      info,
+    ): Promise<GQLOpportunity> => {
+      if (!ctx.userId) {
+        throw new AuthenticationError('User must be authenticated');
+      }
+
+      try {
+        const startTime = Date.now();
+        let stepStart = startTime;
+
+        const parsedPayload =
+          await reimportOpportunitySchema.parseAsync(payload);
+        ctx.log.info(
+          {
+            durationMs: Date.now() - stepStart,
+            opportunityId: parsedPayload.opportunityId,
+          },
+          'reimportOpportunity: payload schema validated',
+        );
+
+        // Check user has permission to edit this opportunity
+        stepStart = Date.now();
+        await ensureOpportunityPermissions({
+          con: ctx.con.manager,
+          userId: ctx.userId,
+          opportunityId: parsedPayload.opportunityId,
+          permission: OpportunityPermissions.Edit,
+          isTeamMember: ctx.isTeamMember,
+        });
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart },
+          'reimportOpportunity: permissions verified',
+        );
+
+        stepStart = Date.now();
+        const { buffer, extension } =
+          await getOpportunityFileBuffer(parsedPayload);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, bufferSize: buffer.length },
+          'reimportOpportunity: file buffer acquired',
+        );
+
+        stepStart = Date.now();
+        const { mime } = await validateOpportunityFileType(buffer, extension);
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, mime },
+          'reimportOpportunity: file type validated',
+        );
+
+        stepStart = Date.now();
+        const parsedData = await parseOpportunityWithBrokkr({
+          buffer,
+          mime,
+          extension,
+        });
+        ctx.log.info(
+          {
+            durationMs: Date.now() - stepStart,
+            title: parsedData.opportunity.title,
+          },
+          'reimportOpportunity: Brokkr parsing completed',
+        );
+
+        stepStart = Date.now();
+        const opportunityId = await updateOpportunityFromParsedData(
+          {
+            con: ctx.con,
+            log: ctx.log,
+          },
+          parsedPayload.opportunityId,
+          parsedData,
+        );
+        ctx.log.info(
+          { durationMs: Date.now() - stepStart, opportunityId },
+          'reimportOpportunity: database records updated',
+        );
+
+        const totalDurationMs = Date.now() - startTime;
+        ctx.log.info(
+          { totalDurationMs, opportunityId },
+          'reimportOpportunity: completed successfully',
+        );
+
+        return graphorm.queryOneOrFail<GQLOpportunity>(ctx, info, (builder) => {
+          builder.queryBuilder.where({ id: opportunityId });
+          return builder;
+        });
+      } catch (error) {
+        ctx.log.error(
+          { error },
+          'reimportOpportunity: failed to reimport opportunity',
+        );
+        throw error;
+      }
+    },
+    claimOpportunities: async (
+      _,
+      { identifier }: { identifier: string },
+      ctx: AuthContext,
+    ): Promise<GQLOpportunitiesClaim> => {
+      const opportunities = await claimAnonOpportunities({
+        anonUserId: identifier,
+        userId: ctx.userId,
+        con: ctx.con.manager,
+      });
+
+      return {
+        ids: opportunities.map((item) => item.id),
+      };
+    },
+    opportunityApply: async (
+      _,
+      { id: idArgument }: { id: string },
+      ctx: AuthContext,
+      info,
+    ): Promise<GQLOpportunityMatch> => {
+      const opportunityId = z.uuid().parse(idArgument);
+
+      // Check user hasn't already applied
+      await ensureOpportunityPermissions({
+        con: ctx.con.manager,
+        userId: ctx.userId,
+        opportunityId,
+        permission: OpportunityPermissions.Apply,
+        isTeamMember: ctx.isTeamMember,
+      });
+
+      // Verify opportunity exists and is LIVE
+      const opportunity = await ctx.con.getRepository(OpportunityJob).findOne({
+        where: { id: opportunityId },
+        select: ['id', 'state'],
+      });
+
+      if (!opportunity) {
+        throw new NotFoundError('Opportunity not found!');
+      }
+
+      if (opportunity.state !== OpportunityState.LIVE) {
+        throw new ConflictError('Can not apply to this opportunity');
+      }
+
+      await ctx.con.getRepository(OpportunityMatch).insert(
+        ctx.con.getRepository(OpportunityMatch).create({
+          opportunityId,
+          userId: ctx.userId,
+          status: OpportunityMatchStatus.CandidateApplied,
+          description: {},
+          screening: [],
+          feedback: [],
+          applicationRank: {
+            selfApplied: true,
+          },
+        }),
+      );
+
+      return await graphorm.queryOneOrFail<GQLOpportunityMatch>(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .where({ opportunityId })
+            .andWhere({ userId: ctx.userId });
+          return builder;
+        },
+      );
     },
   },
   OpportunityMatch: {

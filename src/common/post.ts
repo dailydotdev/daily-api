@@ -150,6 +150,12 @@ export const getPostCommenterIds = async (
 export const DEFAULT_POST_TITLE = 'No title';
 
 export const postScraperOrigin = process.env.POST_SCRAPER_ORIGIN;
+export const yggdrasilOrigin = process.env.YGGDRASIL_ORIGIN;
+
+// Response from yggdrasil includes final_url for redirect handling
+interface YggdrasilPreviewResponse extends ExternalLinkPreview {
+  final_url?: string;
+}
 
 export const fetchLinkPreview = async (
   url: string,
@@ -158,12 +164,28 @@ export const fetchLinkPreview = async (
     throw new ValidationError('URL is not valid');
   }
 
+  // Use yggdrasil if configured, otherwise fall back to post-scraper
+  const previewOrigin = yggdrasilOrigin || postScraperOrigin;
+
   try {
-    return await retryFetchParse(`${postScraperOrigin}/preview`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
+    const response = await retryFetchParse<YggdrasilPreviewResponse>(
+      `${previewOrigin}/preview`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      },
+    );
+
+    // Normalize response: yggdrasil returns final_url, post-scraper returns url as final
+    if (response.final_url) {
+      return {
+        ...response,
+        url: response.final_url,
+      };
+    }
+
+    return response;
   } catch (err) {
     if (err instanceof HttpError) {
       if (err.statusCode >= 400 && err.statusCode < 500) {
@@ -365,7 +387,8 @@ export const insertFreeformPost = async ({
 };
 
 export interface CreateSourcePostModeration
-  extends Omit<CreatePost, 'authorId' | 'content' | 'contentHtml' | 'id'>,
+  extends
+    Omit<CreatePost, 'authorId' | 'content' | 'contentHtml' | 'id'>,
     Pick<
       SourcePostModeration,
       'titleHtml' | 'content' | 'type' | 'sharedPostId' | 'createdById'
@@ -481,7 +504,7 @@ export const createSourcePostModeration = async ({
   });
 
   const content = `${args.title} ${args.content}`.trim();
-  const dedupKey = generateDeduplicationKey(args);
+  const dedupKey = await generateDeduplicationKey(args, con);
 
   const [warningReason, vordr] = await Promise.all([
     getModerationWarningFlag({
@@ -511,8 +534,10 @@ export const createSourcePostModeration = async ({
     .save(newModerationEntry);
 };
 
-export interface CreateSourcePostModerationArgs
-  extends Pick<EditPostArgs, 'title' | 'image'> {
+export interface CreateSourcePostModerationArgs extends Pick<
+  EditPostArgs,
+  'title' | 'image'
+> {
   content?: string | null;
   imageUrl?: string;
   sourceId: string;
@@ -524,13 +549,17 @@ export interface CreateSourcePostModerationArgs
   duration?: number;
 }
 
-export interface EditPostArgs
-  extends Pick<GQLPost, 'id' | 'title' | 'content'> {
+export interface EditPostArgs extends Pick<
+  GQLPost,
+  'id' | 'title' | 'content'
+> {
   image: Promise<FileUpload>;
 }
 
-export interface CreatePostArgs
-  extends Pick<EditPostArgs, 'title' | 'content' | 'image'> {
+export interface CreatePostArgs extends Pick<
+  EditPostArgs,
+  'title' | 'content' | 'image'
+> {
   sourceId: string;
 }
 
@@ -539,14 +568,17 @@ export interface PollOptionInput {
   order: number;
 }
 
-export interface CreatePollPostProps
-  extends Pick<CreatePostArgs, 'title' | 'sourceId'> {
+export interface CreatePollPostProps extends Pick<
+  CreatePostArgs,
+  'title' | 'sourceId'
+> {
   options: PollOptionInput[];
   duration: number;
 }
 
 export interface CreateMultipleSourcePostProps
-  extends Omit<CreatePostArgs, 'sourceId'>,
+  extends
+    Omit<CreatePostArgs, 'sourceId'>,
     Pick<CreatePollPostProps, 'options' | 'duration'> {
   sharedPostId?: string;
   externalLink?: string;

@@ -433,6 +433,21 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): CommentBalance!
+
+    """
+    Get top comments of a post ordered by upvotes
+    """
+    topComments(
+      """
+      Post id
+      """
+      postId: ID!
+
+      """
+      Number of comments to return (max 20)
+      """
+      first: Int
+    ): [Comment!]!
   }
 
   extend type Mutation {
@@ -521,10 +536,18 @@ export interface GQLUserCommentsArgs extends ConnectionArguments {
   userId: string;
 }
 
+export interface GQLTopCommentsArgs {
+  postId: string;
+  first?: number;
+}
+
 export interface MentionedUser {
   id: string;
   username?: string;
 }
+
+// Regex to match URLs (http, https, ftp) to exclude from mention parsing
+const urlRegex = /(?:https?|ftp):\/\/[^\s<>]+/gi;
 
 export const getMentions = async (
   con: DataSource | EntityManager,
@@ -533,7 +556,10 @@ export const getMentions = async (
   sourceId?: string,
 ): Promise<MentionedUser[]> => {
   if (!content?.length) return [];
-  const replaced = content.replace(mentionSpecialCharacters, ' ');
+  // Remove URLs from content before extracting mentions to avoid
+  // treating @ symbols in URLs as user mentions
+  const contentWithoutUrls = content.replace(urlRegex, ' ');
+  const replaced = contentWithoutUrls.replace(mentionSpecialCharacters, ' ');
   const words = replaced.split(' ');
   const result = words.reduce((list, word) => {
     if (word.length === 1 || word.charAt(0) !== '@') {
@@ -979,6 +1005,34 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .getRawOne();
 
       return result;
+    },
+    topComments: async (
+      _,
+      args: GQLTopCommentsArgs,
+      ctx: Context,
+      info,
+    ): Promise<GQLComment[]> => {
+      const maxLimit = 20;
+      const limit = Math.min(args.first ?? maxLimit, maxLimit);
+
+      const post = await ctx.con.getRepository(Post).findOneOrFail({
+        select: ['id', 'sourceId'],
+        where: [{ id: args.postId }, { slug: args.postId }],
+      });
+      await ensureSourcePermissions(ctx, post.sourceId);
+
+      return graphorm.query<GQLComment>(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`${builder.alias}.postId = :postId`, {
+            postId: post.id,
+          })
+          .andWhere(`${builder.alias}.parentId is null`)
+          .andWhere(whereVordrFilter(builder.alias, ctx.userId))
+          .orderBy(`${builder.alias}.upvotes`, 'DESC')
+          .limit(limit);
+
+        return builder;
+      });
     },
   },
   Mutation: {

@@ -9,11 +9,20 @@ import { logPaddleAnalyticsEvent, planChanged } from '../index';
 import { AnalyticsEventName } from '../../../integrations/analytics';
 
 export const processPlusPaddleEvent = async (event: EventEntity) => {
-  switch (event?.eventType) {
+  // log all incoming events for monitoring
+  logger.info(
+    {
+      provider: SubscriptionProvider.Paddle,
+      purchaseType: PurchaseType.Plus,
+      occurredAt: event.occurredAt,
+    },
+    event.eventType,
+  );
+
+  switch (event.eventType) {
     case EventName.SubscriptionCreated:
       await updateUserSubscription({
         event,
-        state: true,
       });
 
       break;
@@ -21,7 +30,6 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
       await Promise.all([
         updateUserSubscription({
           event,
-          state: false,
         }),
         logPaddleAnalyticsEvent(event, AnalyticsEventName.CancelSubscription),
       ]);
@@ -31,7 +39,6 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
       if (didPlanChange) {
         await updateUserSubscription({
           event,
-          state: true,
         });
         await logPaddleAnalyticsEvent(
           event,
@@ -46,12 +53,6 @@ export const processPlusPaddleEvent = async (event: EventEntity) => {
       ]);
       break;
     default:
-      logger.info(
-        {
-          provider: SubscriptionProvider.Paddle,
-          purchaseType: PurchaseType.Plus,
-        },
-        event?.eventType,
-      );
+      break;
   }
 };

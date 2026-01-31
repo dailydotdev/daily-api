@@ -1,11 +1,10 @@
-import { PostType, FreeformPost, KeywordFlags } from '../entity';
+import { PostType, FreeformPost, KeywordFlags, User } from '../entity';
 import { NotificationBuilder } from './builder';
 import { NotificationIcon } from './icons';
 import {
   generateDevCard,
   getOrganizationPermalink,
   notificationsLink,
-  scoutArticleLink,
   squadsFeaturedPage,
   subscribeNotificationsLink,
 } from '../common';
@@ -33,6 +32,11 @@ import {
   type NotificationPostAnalyticsContext,
   type NotificationWarmIntroContext,
   type NotificationStreakRestoreContext,
+  type NotificationParsedCVProfileContext,
+  type NotificationRecruiterNewCandidateContext,
+  type NotificationRecruiterOpportunityLiveContext,
+  type NotificationExperienceCompanyEnrichedContext,
+  type NotificationRecruiterExternalPaymentContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -66,8 +70,6 @@ export const notificationTitleMap: Record<
   community_picks_failed: systemTitle,
   community_picks_succeeded: () =>
     `<b>Community Picks:</b> A link you scouted was accepted and is now <span class="text-theme-color-cabbage">live</span> on the daily.dev feed!`,
-  community_picks_granted: () =>
-    `<b>Community Picks:</b> You have earned enough reputation to <span class="text-theme-color-cabbage">scout and submit</span> links.`,
   article_picked: () =>
     `Congrats! <b>Your post</b> got <span class="text-theme-color-cabbage">listed</span> on the daily.dev feed!`,
   article_new_comment: (ctx: NotificationCommenterContext) =>
@@ -98,9 +100,16 @@ export const notificationTitleMap: Record<
   ) =>
     `<b>${ctx.doneBy.name}</b> shared a new post on <b>${ctx.source.name}</b>`,
   squad_member_joined: (
-    ctx: NotificationSourceContext & NotificationDoneByContext,
-  ) =>
-    `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>! Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`,
+    ctx: NotificationPostContext &
+      NotificationSourceContext &
+      NotificationDoneByContext,
+  ) => {
+    const baseMessage = `Your squad <b>${ctx.source.name}</b> is <span class="text-theme-color-cabbage">growing</span>!`;
+    // Don't mention commenting when welcome post is deleted
+    return ctx.post.deleted
+      ? `${baseMessage} <b>${ctx.doneBy.name}</b> has joined the squad.`
+      : `${baseMessage} Welcome <b>${ctx.doneBy.name}</b> to the squad with a comment.`;
+  },
   squad_new_comment: (ctx: NotificationCommenterContext) =>
     `<b>${ctx.commenter.name}</b> <span class="text-theme-color-blueCheese">commented</span> on your post on <b>${ctx.source.name}</b>.`,
   squad_reply: (ctx: NotificationCommenterContext) =>
@@ -206,6 +215,27 @@ export const notificationTitleMap: Record<
     `<b>Your poll has ended!</b> Check the results for: <b>${ctx.post.title}</b>`,
   warm_intro: (ctx: NotificationWarmIntroContext) =>
     `We just sent an intro email to you and <b>${ctx.recruiter.name}</b> from <b>${ctx.organization.name}</b>!`,
+  parsed_cv_profile: (ctx: NotificationParsedCVProfileContext) => {
+    if (ctx.status === 'success') {
+      return `Great news — we parsed your CV successfully, and your experience has been added to <u>your public profile</u>! You can control the experience visibility in your profile settings.`;
+    }
+
+    return `We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.`;
+  },
+  recruiter_new_candidate: (ctx: NotificationRecruiterNewCandidateContext) =>
+    `<b>${ctx.candidate.name || ctx.candidate.username}</b> <span class="text-theme-color-cabbage">accepted</span> your job opportunity!`,
+  recruiter_opportunity_live: (
+    ctx: NotificationRecruiterOpportunityLiveContext,
+  ) =>
+    `Your job opportunity <b>${ctx.opportunityTitle}</b> is now <span class="text-theme-color-cabbage">live</span>!`,
+  experience_company_enriched: (
+    ctx: NotificationExperienceCompanyEnrichedContext,
+  ) =>
+    `Your ${ctx.experienceType} experience <b>${ctx.experienceTitle}</b> has been linked to <b>${ctx.companyName}</b>!`,
+  recruiter_external_payment: (
+    ctx: NotificationRecruiterExternalPaymentContext,
+  ) =>
+    `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
 };
 
 export const generateNotificationMap: Record<
@@ -248,12 +278,6 @@ export const generateNotificationMap: Record<
     builder
       .icon(NotificationIcon.CommunityPicks)
       .objectPost(ctx.post, ctx.source, ctx.sharedPost!),
-  community_picks_granted: (builder) =>
-    builder
-      .referenceSystem()
-      .icon(NotificationIcon.DailyDev)
-      .description(`<u>Submit your first post now!</u>`)
-      .targetUrl(scoutArticleLink),
   article_picked: (builder, ctx: NotificationPostContext) =>
     builder
       .icon(NotificationIcon.DailyDev)
@@ -357,14 +381,22 @@ export const generateNotificationMap: Record<
   squad_member_joined: (
     builder,
     ctx: NotificationPostContext & NotificationDoneByContext,
-  ) =>
-    builder
+  ) => {
+    const baseBuilder = builder
       .icon(NotificationIcon.Bell)
       .referenceSource(ctx.source)
-      .targetPost(ctx.post)
       .avatarSource(ctx.source)
       .avatarManyUsers([ctx.doneBy])
-      .uniqueKey(ctx.doneBy.id)
+      .uniqueKey(ctx.doneBy.id);
+
+    // If welcome post is deleted, link to squad page instead
+    if (ctx.post.deleted) {
+      return baseBuilder.targetSource(ctx.source);
+    }
+
+    // Otherwise, link to the post with comment suggestion
+    return baseBuilder
+      .targetPost(ctx.post)
       .setTargetUrlParameter(
         ctx.post.type === PostType.Welcome
           ? [
@@ -374,7 +406,8 @@ export const generateNotificationMap: Record<
               ],
             ]
           : [],
-      ),
+      );
+  },
   squad_new_comment: (builder, ctx: NotificationCommenterContext) =>
     builder
       .referenceComment(ctx.comment)
@@ -591,6 +624,64 @@ export const generateNotificationMap: Record<
       .avatarUser(ctx.recruiter)
       .description(
         `<span>We reached out to them and received a positive response. Our team will be here to assist you with anything you need. <a href="mailto:support@daily.dev" target="_blank" class="text-text-link">contact us</a></span>`,
+      );
+  },
+  parsed_cv_profile: (
+    builder: NotificationBuilder,
+    ctx: NotificationUserContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceUser(ctx.user)
+      .avatarUser(ctx.user)
+      .targetUser(ctx.user)
+      .uniqueKey(new Date().toISOString());
+  },
+  recruiter_new_candidate: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterNewCandidateContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .avatarUser(ctx.candidate)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/matches`,
+      )
+      .uniqueKey(ctx.candidate.id);
+  },
+  recruiter_opportunity_live: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterOpportunityLiveContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
+      );
+  },
+  experience_company_enriched: (
+    builder: NotificationBuilder,
+    ctx: NotificationExperienceCompanyEnrichedContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceUser({ id: ctx.userIds[0] } as User)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/settings/profile/experience/${ctx.experienceType}`,
+      )
+      .uniqueKey(ctx.experienceId);
+  },
+  recruiter_external_payment: (
+    builder: NotificationBuilder,
+    ctx: NotificationRecruiterExternalPaymentContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/prepare`,
       );
   },
 };

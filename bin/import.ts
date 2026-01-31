@@ -1,17 +1,6 @@
 import { readFileSync } from 'fs';
 import createOrGetConnection from '../src/db';
 import { DataSource } from 'typeorm';
-import { SourceTagView } from '../src/entity/SourceTagView';
-import { TagRecommendation } from '../src/entity/TagRecommendation';
-import { PopularPost } from '../src/entity/PopularPost';
-import { PopularSource } from '../src/entity/PopularSource';
-import { PopularTag } from '../src/entity/PopularTag';
-import { PopularVideoPost } from '../src/entity/PopularVideoPost';
-import { PopularVideoSource } from '../src/entity/PopularVideoSource';
-import { TrendingPost } from '../src/entity/TrendingPost';
-import { TrendingSource } from '../src/entity/TrendingSource';
-import { TrendingTag } from '../src/entity/TrendingTag';
-import { UserStats } from '../src/entity/user/UserStats';
 import z from 'zod';
 import { zodToParseArgs } from './common';
 
@@ -39,17 +28,17 @@ const importEntity = async (
 };
 
 const viewsToRefresh = [
-  TagRecommendation,
-  SourceTagView,
-  TrendingPost,
-  TrendingSource,
-  TrendingTag,
-  PopularPost,
-  PopularSource,
-  PopularTag,
-  PopularVideoPost,
-  PopularVideoSource,
-  UserStats,
+  'TagRecommendation',
+  'SourceTagView',
+  'TrendingPost',
+  'TrendingSource',
+  'TrendingTag',
+  'PopularPost',
+  'PopularSource',
+  'PopularTag',
+  'PopularVideoPost',
+  'PopularVideoSource',
+  'UserStats',
 ];
 
 const paramsSchema = z.object({
@@ -85,10 +74,32 @@ const start = async (): Promise<void> => {
   await importEntity(con, 'OpportunityJob');
   await importEntity(con, 'OpportunityKeyword');
   await importEntity(con, 'OpportunityUserRecruiter');
+  await importEntity(con, 'OpportunityMatch');
+  await importEntity(con, 'UserExperience');
+  await importEntity(con, 'UserExperienceSkill');
   // Manually have to reset these as insert has a issue with `type` columns
   await con.query(`update post set type = 'article' where type = 'Post'`);
   await con.query(`update source set type = 'machine' where type = 'Source'`);
   await con.query(`update source set type = 'squad' where id = 'publicsquad'`);
+  // Fix UserExperience type column (TypeORM table inheritance issue)
+  await con.query(
+    `update user_experience set type = 'work' where type = 'UserExperience' and "employmentType" is not null`,
+  );
+  await con.query(
+    `update user_experience set type = 'education' where type = 'UserExperience' and grade is not null`,
+  );
+  await con.query(
+    `update user_experience set type = 'project' where type = 'UserExperience' and url is not null and "externalReferenceId" is null`,
+  );
+  await con.query(
+    `update user_experience set type = 'certification' where type = 'UserExperience' and "externalReferenceId" is not null`,
+  );
+  await con.query(
+    `update user_experience set type = 'opensource' where type = 'UserExperience' and url is not null and "externalReferenceId" is null and "customCompanyName" is null`,
+  );
+  await con.query(
+    `update user_experience set type = 'volunteering' where type = 'UserExperience' and "employmentType" is null and grade is null and url is null and "externalReferenceId" is null`,
+  );
   await con.transaction(async (manager) => {
     for (const viewToRefresh of viewsToRefresh) {
       await manager.query(

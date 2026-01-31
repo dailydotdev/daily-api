@@ -170,10 +170,6 @@ export const workers: Worker[] = [
     subscription: 'api.community-picks-failed-notification',
   },
   {
-    topic: 'community-link-access',
-    subscription: 'api.community-picks-granted-notification',
-  },
-  {
     topic: 'post-commented',
     subscription: 'api.article-new-comment-notification.post-commented',
   },
@@ -431,11 +427,62 @@ export const workers: Worker[] = [
   },
   {
     topic: 'api.v1.candidate-accepted-opportunity',
-    subscription: 'api.candidate-accepted-opportunity-slack',
+    subscription: 'api.recruiter-new-candidate-notification',
+  },
+  {
+    topic: 'gondul.v1.candidate-application-scored',
+    subscription: 'api.candidate-review-opportunity-slack',
+  },
+  {
+    topic: 'api.v1.opportunity-went-live',
+    subscription: 'api.recruiter-opportunity-live-notification',
+  },
+  {
+    topic: 'api.v1.opportunity-external-payment',
+    subscription: 'api.recruiter-external-payment-notification',
+  },
+  {
+    topic: 'api.v1.opportunity-in-review',
+    subscription: 'api.opportunity-in-review-slack',
+  },
+  {
+    topic: 'api.v1.opportunity-flags-change',
+    subscription: 'sync-opportunity-reminders-cio',
   },
   {
     topic: 'api.v1.recruiter-rejected-candidate-match',
     subscription: 'api.recruiter-rejected-candidate-match-email',
+  },
+  {
+    topic: 'api.v1.candidate-preference-updated',
+    subscription: 'api.parse-cv-profile',
+    args: {
+      ackDeadlineSeconds: 180,
+    },
+  },
+  {
+    topic: 'gondul.v1.opportunity-preview-results',
+    subscription: 'api.opportunity-preview-result',
+  },
+  {
+    topic: 'api.v1.opportunity-feedback-submitted',
+    subscription: 'api.parse-opportunity-feedback',
+  },
+  {
+    topic: 'api.v1.experience-company-enriched',
+    subscription: 'api.experience-company-enriched-notification',
+  },
+  {
+    topic: 'api.v1.opportunity-parse',
+    subscription: 'api.opportunity-parse',
+  },
+  {
+    topic: 'api.v1.feedback-created',
+    subscription: 'api.feedback-classify',
+  },
+  {
+    topic: 'api.v1.feedback-updated',
+    subscription: 'api.feedback-updated-slack',
   },
 ];
 

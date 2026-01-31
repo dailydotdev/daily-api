@@ -20,3 +20,65 @@ export const createLocationFromMapbox = async (
     iso3: properties.context?.country?.country_code_alpha_3?.toUpperCase(),
   });
 };
+
+/**
+ * Find an existing location by externalId or create one from Mapbox.
+ */
+export const findOrCreateDatasetLocation = async (
+  con: DataSource,
+  externalLocationId: string | null | undefined,
+): Promise<DatasetLocation | null> => {
+  if (!externalLocationId) {
+    return null;
+  }
+
+  let location = await con.getRepository(DatasetLocation).findOne({
+    where: { externalId: externalLocationId },
+  });
+
+  if (!location) {
+    location = await createLocationFromMapbox(con, externalLocationId);
+  }
+
+  return location;
+};
+
+/**
+ * Find an existing location in the dataset_location table based on iso2 country code.
+ */
+export const findDatasetLocation = async (
+  con: DataSource,
+  locationData: Partial<
+    Pick<DatasetLocation, 'iso2' | 'city' | 'subdivision' | 'continent'>
+  >,
+): Promise<DatasetLocation | null> => {
+  const { iso2, continent } = locationData;
+
+  // match continent only locations
+  if (!iso2 && continent) {
+    const continentQuery = con.manager
+      .getRepository(DatasetLocation)
+      .createQueryBuilder()
+      .where('continent = :continentOnly', { continentOnly: continent })
+      .andWhere('country IS NULL');
+
+    const continentLocation = await continentQuery.getOne();
+
+    return continentLocation;
+  }
+
+  if (!iso2) {
+    return null;
+  }
+
+  const locationQuery = con.manager
+    .getRepository(DatasetLocation)
+    .createQueryBuilder()
+    .where('iso2 = :iso2Only', { iso2Only: iso2 })
+    .andWhere('city IS NULL')
+    .andWhere('subdivision IS NULL');
+
+  const location = await locationQuery.getOne();
+
+  return location;
+};

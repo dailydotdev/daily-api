@@ -29,7 +29,11 @@ import {
   UserStreakActionType,
   View,
 } from '../entity';
-import { UserNotificationFlags } from '../entity/user/User';
+import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
+import {
+  extractHandleFromUrl,
+  socialLinksInputSchema,
+} from '../common/schema/socials';
 import {
   AuthenticationError,
   ForbiddenError,
@@ -66,7 +70,6 @@ import {
   type GQLUserTopReader,
   mapCloudinaryUrl,
   parseBigInt,
-  playwrightUser,
   resubscribeUser,
   sendEmail,
   StreakRecoverQueryResult,
@@ -83,6 +86,8 @@ import {
   validateWorkEmailDomain,
   voteComment,
   votePost,
+  voteHotTake,
+  systemUserIds,
 } from '../common';
 import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
 import { ActiveView } from '../entity/ActiveView';
@@ -100,6 +105,7 @@ import {
   checkUserCoresAccess,
   deleteUser,
   getUserCoresRole,
+  hasUserProfileAnalyticsPermissions,
 } from '../common/user';
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
@@ -115,6 +121,7 @@ import {
 import { markdown } from '../common/markdown';
 import { deleteRedisKey, getRedisObject, RedisMagicValues } from '../redis';
 import {
+  fallbackImages,
   generateStorageKey,
   RESUME_BUCKET_NAME,
   StorageKey,
@@ -147,6 +154,7 @@ import { generateAppAccountToken } from '../common/storekit';
 import { UserAction, UserActionType } from '../entity/user/UserAction';
 import { insertOrIgnoreAction } from './actions';
 import { getGeo } from '../common/geo';
+import { validateVordrWords } from '../common/vordr';
 import {
   getBalance,
   throwUserTransactionError,
@@ -166,8 +174,7 @@ import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 
 export interface GQLUpdateUserInput {
   name: string;
@@ -198,12 +205,14 @@ export interface GQLUpdateUserInput {
   defaultFeedId?: string;
   flags: UserFlagsPublic;
   notificationFlags?: UserNotificationFlags;
+  socialLinks?: Array<{ url: string; platform?: string }>;
 }
 
 export interface GQLUpdateUserInfoInput extends GQLUpdateUserInput {
   externalLocationId?: string;
   cover?: string;
   readme?: string;
+  hideExperience?: boolean;
 }
 
 interface GQLUserParameters {
@@ -249,6 +258,7 @@ export interface GQLUser {
   coresRole: CoresRole;
   isPlus?: boolean;
   notificationFlags: UserNotificationFlags;
+  socialLinks: UserSocialLink[];
 }
 
 export interface GQLView {
@@ -307,6 +317,16 @@ export interface GQLUserPersonalizedDigest {
   flags: UserPersonalizedDigestFlagsPublic;
 }
 
+export interface GQLUserProfileAnalytics {
+  id: string;
+  uniqueVisitors: number;
+  updatedAt: Date;
+}
+
+export interface GQLUserProfileAnalyticsHistory extends GQLUserProfileAnalytics {
+  date: string;
+}
+
 export interface SendReportArgs {
   type: ReportEntity;
   id: string;
@@ -316,6 +336,34 @@ export interface SendReportArgs {
 }
 
 export const typeDefs = /* GraphQL */ `
+  """
+  Social media link for a user profile
+  """
+  type UserSocialLink {
+    """
+    Platform identifier (e.g., "twitter", "github", "linkedin")
+    """
+    platform: String!
+    """
+    Full URL to the social profile
+    """
+    url: String!
+  }
+
+  """
+  Input for creating/updating a social link
+  """
+  input UserSocialLinkInput {
+    """
+    Full URL to the social profile - platform will be auto-detected
+    """
+    url: String!
+    """
+    Optional platform override if auto-detection fails
+    """
+    platform: String
+  }
+
   type Company {
     id: String!
     name: String!
@@ -415,55 +463,55 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Portfolio URL of the user
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     Date when the user joined
     """
@@ -533,6 +581,14 @@ export const typeDefs = /* GraphQL */ `
     Where the user is located
     """
     location: DatasetLocation
+    """
+    Whether to hide user's experience
+    """
+    hideExperience: Boolean
+    """
+    Flexible social media links array (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLink!]!
   }
 
   """
@@ -600,51 +656,51 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Preferred timezone of the user that affects data
     """
@@ -664,7 +720,7 @@ export const typeDefs = /* GraphQL */ `
     """
     User website
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     If the user has accepted marketing
     """
@@ -689,6 +745,10 @@ export const typeDefs = /* GraphQL */ `
     Flags for the user
     """
     flags: UserFlagsPublic
+    """
+    Flexible social media links (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLinkInput!]
   }
 
   """
@@ -722,51 +782,51 @@ export const typeDefs = /* GraphQL */ `
     """
     Twitter handle of the user
     """
-    twitter: String
+    twitter: String @deprecated(reason: "Use socialLinks field")
     """
     Github handle of the user
     """
-    github: String
+    github: String @deprecated(reason: "Use socialLinks field")
     """
     Hashnode handle of the user
     """
-    hashnode: String
+    hashnode: String @deprecated(reason: "Use socialLinks field")
     """
     Bluesky profile of the user
     """
-    bluesky: String
+    bluesky: String @deprecated(reason: "Use socialLinks field")
     """
     Roadmap profile of the user
     """
-    roadmap: String
+    roadmap: String @deprecated(reason: "Use socialLinks field")
     """
     Threads profile of the user
     """
-    threads: String
+    threads: String @deprecated(reason: "Use socialLinks field")
     """
     Codepen profile of the user
     """
-    codepen: String
+    codepen: String @deprecated(reason: "Use socialLinks field")
     """
     Reddit profile of the user
     """
-    reddit: String
+    reddit: String @deprecated(reason: "Use socialLinks field")
     """
     Stackoverflow profile of the user
     """
-    stackoverflow: String
+    stackoverflow: String @deprecated(reason: "Use socialLinks field")
     """
     Youtube profile of the user
     """
-    youtube: String
+    youtube: String @deprecated(reason: "Use socialLinks field")
     """
     Linkedin profile of the user
     """
-    linkedin: String
+    linkedin: String @deprecated(reason: "Use socialLinks field")
     """
     Mastodon profile of the user
     """
-    mastodon: String
+    mastodon: String @deprecated(reason: "Use socialLinks field")
     """
     Preferred timezone of the user that affects data
     """
@@ -786,7 +846,7 @@ export const typeDefs = /* GraphQL */ `
     """
     User website
     """
-    portfolio: String
+    portfolio: String @deprecated(reason: "Use socialLinks field")
     """
     If the user has accepted marketing
     """
@@ -823,6 +883,14 @@ export const typeDefs = /* GraphQL */ `
     The user's readme
     """
     readme: String
+    """
+    Whether to hide user's experience
+    """
+    hideExperience: Boolean
+    """
+    Flexible social media links (replaces individual social fields)
+    """
+    socialLinks: [UserSocialLinkInput!]
   }
 
   type TagsReadingStatus {
@@ -1024,6 +1092,56 @@ export const typeDefs = /* GraphQL */ `
     coresRole: Int!
   }
 
+  """
+  User profile analytics with visitor data
+  """
+  type UserProfileAnalytics {
+    """
+    User ID
+    """
+    id: ID!
+    """
+    Total unique visitors to the profile
+    """
+    uniqueVisitors: Int!
+    """
+    Last update timestamp
+    """
+    updatedAt: DateTime!
+  }
+
+  """
+  Daily user profile analytics history entry
+  """
+  type UserProfileAnalyticsHistory {
+    """
+    User ID
+    """
+    id: ID!
+    """
+    Date of the analytics (YYYY-MM-DD)
+    """
+    date: DateTime!
+    """
+    Unique visitors on this day
+    """
+    uniqueVisitors: Int!
+    """
+    Last update timestamp
+    """
+    updatedAt: DateTime!
+  }
+
+  type UserProfileAnalyticsHistoryEdge {
+    node: UserProfileAnalyticsHistory!
+    cursor: String!
+  }
+
+  type UserProfileAnalyticsHistoryConnection {
+    pageInfo: PageInfo!
+    edges: [UserProfileAnalyticsHistoryEdge!]!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1215,6 +1333,21 @@ export const typeDefs = /* GraphQL */ `
     Get current user's notification preferences
     """
     notificationSettings: JSON @auth
+
+    """
+    Get user profile analytics for the specified user
+    """
+    userProfileAnalytics(userId: ID!): UserProfileAnalytics @auth
+
+    """
+    Get user profile analytics history (daily breakdown)
+    """
+    userProfileAnalyticsHistory(
+      userId: ID!
+      after: String
+      before: String
+      first: Int
+    ): UserProfileAnalyticsHistoryConnection @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -1567,7 +1700,7 @@ export const getMarketingCta = async (
     return null;
   }
 
-  if (userId === playwrightUser.id) {
+  if (systemUserIds.includes(userId)) {
     return null;
   }
 
@@ -1663,6 +1796,178 @@ export const clearImagePreset = async ({
       break;
   }
 };
+
+/**
+ * Platform URL templates for building URLs from handles
+ */
+const PLATFORM_URL_TEMPLATES: Record<string, (handle: string) => string> = {
+  twitter: (handle) => `https://x.com/${handle}`,
+  github: (handle) => `https://github.com/${handle}`,
+  linkedin: (handle) => `https://linkedin.com/in/${handle}`,
+  threads: (handle) => `https://threads.net/@${handle}`,
+  roadmap: (handle) => `https://roadmap.sh/u/${handle}`,
+  codepen: (handle) => `https://codepen.io/${handle}`,
+  reddit: (handle) => `https://reddit.com/u/${handle}`,
+  stackoverflow: (handle) => `https://stackoverflow.com/users/${handle}`,
+  youtube: (handle) => `https://youtube.com/@${handle}`,
+  bluesky: (handle) => `https://bsky.app/profile/${handle}`,
+  hashnode: (handle) => `https://hashnode.com/@${handle}`,
+  // These platforms store full URLs, not handles
+  mastodon: (url) => url,
+  portfolio: (url) => url,
+};
+
+/**
+ * Build URL from handle for a given platform
+ */
+function buildUrlFromHandle(
+  handle: string | null | undefined,
+  platform: string,
+): string | null {
+  if (!handle) return null;
+  const template = PLATFORM_URL_TEMPLATES[platform];
+  if (!template) return null;
+  return template(handle);
+}
+
+/**
+ * Build socialLinks array from legacy column values
+ * Used for reverse dual-write when legacy fields are updated
+ */
+function buildSocialLinksFromLegacyFields(
+  data: Partial<GQLUpdateUserInput>,
+  existingUser: User,
+): UserSocialLink[] {
+  const legacyPlatforms = [
+    'twitter',
+    'github',
+    'linkedin',
+    'threads',
+    'roadmap',
+    'codepen',
+    'reddit',
+    'stackoverflow',
+    'youtube',
+    'bluesky',
+    'mastodon',
+    'hashnode',
+    'portfolio',
+  ] as const;
+
+  const socialLinks: UserSocialLink[] = [];
+
+  for (const platform of legacyPlatforms) {
+    // Use the new value from data if provided, otherwise use existing user value
+    const handle =
+      platform in data
+        ? (data[platform as keyof GQLUpdateUserInput] as string | null)
+        : (existingUser[platform] as string | null);
+
+    if (handle) {
+      // Validate handle for blocked content
+      if (validateVordrWords(handle)) {
+        throw new ValidationError('Invalid URL');
+      }
+
+      const url = buildUrlFromHandle(handle, platform);
+      if (url) {
+        socialLinks.push({ platform, url });
+      }
+    }
+  }
+
+  return socialLinks;
+}
+
+/**
+ * Check if any legacy social fields are being updated
+ */
+function hasLegacySocialFieldsUpdate(
+  data: Partial<GQLUpdateUserInput>,
+): boolean {
+  const legacyPlatforms = [
+    'twitter',
+    'github',
+    'linkedin',
+    'threads',
+    'roadmap',
+    'codepen',
+    'reddit',
+    'stackoverflow',
+    'youtube',
+    'bluesky',
+    'mastodon',
+    'hashnode',
+    'portfolio',
+  ];
+  return legacyPlatforms.some((platform) => platform in data);
+}
+
+/**
+ * Process socialLinks input and return both the JSONB array and legacy column values
+ */
+function processSocialLinksForDualWrite(
+  socialLinksInput: Array<{ url: string; platform?: string }>,
+): {
+  socialLinks: UserSocialLink[];
+  legacyColumns: Partial<
+    Record<
+      | 'twitter'
+      | 'github'
+      | 'linkedin'
+      | 'threads'
+      | 'roadmap'
+      | 'codepen'
+      | 'reddit'
+      | 'stackoverflow'
+      | 'youtube'
+      | 'bluesky'
+      | 'mastodon'
+      | 'hashnode'
+      | 'portfolio',
+      string | null
+    >
+  >;
+} {
+  // Validate and transform using Zod schema
+  const validated = socialLinksInputSchema.parse(socialLinksInput);
+
+  // Check for blocked words in social link URLs
+  for (const { url } of validated) {
+    if (validateVordrWords(url)) {
+      throw new ValidationError('Invalid URL');
+    }
+  }
+
+  // Build legacy column values (first occurrence wins)
+  const legacyColumns: Record<string, string | null> = {};
+  const supportedPlatforms = [
+    'twitter',
+    'github',
+    'linkedin',
+    'threads',
+    'roadmap',
+    'codepen',
+    'reddit',
+    'stackoverflow',
+    'youtube',
+    'bluesky',
+    'mastodon',
+    'hashnode',
+    'portfolio',
+  ];
+
+  for (const { platform, url } of validated) {
+    if (supportedPlatforms.includes(platform) && !legacyColumns[platform]) {
+      legacyColumns[platform] = extractHandleFromUrl(url, platform);
+    }
+  }
+
+  return {
+    socialLinks: validated,
+    legacyColumns,
+  };
+}
 
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
@@ -1912,7 +2217,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const timeForRecoveryPassed = !!streak && streak.currentStreak > 1;
 
       if (!streak || !oldStreakLength || timeForRecoveryPassed) {
-        logger.info(
+        logger.debug(
           { streak, today: new Date(), oldStreakLength },
           `streak restore not possible`,
         );
@@ -2368,6 +2673,58 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ...user?.notificationFlags,
       };
     },
+    userProfileAnalytics: async (
+      _,
+      args: { userId: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserProfileAnalytics | null> => {
+      if (!hasUserProfileAnalyticsPermissions({ ctx, userId: args.userId })) {
+        return null;
+      }
+
+      return graphorm.queryOneOrFail<GQLUserProfileAnalytics>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.andWhere(
+            `"${builder.alias}".id = :userId`,
+            { userId: args.userId },
+          ),
+        }),
+        undefined,
+        true,
+      );
+    },
+    userProfileAnalyticsHistory: async (
+      _,
+      args: ConnectionArguments & { userId: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<Connection<GQLUserProfileAnalyticsHistory> | null> => {
+      if (!hasUserProfileAnalyticsPermissions({ ctx, userId: args.userId })) {
+        return null;
+      }
+
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'updatedAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder.andWhere(
+              `${builder.alias}.id = :userId`,
+              { userId: args.userId },
+            );
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
+        },
+      );
+    },
   },
   Mutation: {
     clearImage: async (
@@ -2414,7 +2771,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           : data.image || user.image;
 
       try {
-        const updatedUser = { ...user, ...data, image: avatar };
+        // Process socialLinks for dual-write
+        let socialLinksData: {
+          socialLinks?: UserSocialLink[];
+          legacyColumns?: Record<string, string | null>;
+        } = {};
+
+        if (data.socialLinks) {
+          // New format: socialLinks array provided -> write to both socialLinks and legacy columns
+          socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        } else if (hasLegacySocialFieldsUpdate(data)) {
+          // Legacy format: individual fields provided -> build socialLinks from merged values
+          socialLinksData.socialLinks = buildSocialLinksFromLegacyFields(
+            data,
+            user,
+          );
+        }
+
+        const updatedUser = {
+          ...user,
+          ...data,
+          image: avatar,
+          ...(socialLinksData.legacyColumns || {}),
+          socialLinks: socialLinksData.socialLinks ?? user.socialLinks,
+        };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
         const marketingFlag = updatedUser.acceptedMarketing
@@ -2500,24 +2880,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         delete data.infoConfirmed;
       }
       data = await validateUserUpdate(user, data, ctx.con);
-      let location: DatasetLocation | null = null;
-
-      if (data.externalLocationId) {
-        location = await ctx.con.getRepository(DatasetLocation).findOne({
-          where: { externalId: data.externalLocationId },
-        });
-
-        if (!location) {
-          location = await createLocationFromMapbox(
-            ctx.con,
-            data.externalLocationId,
-          );
-        }
-      }
+      const location = await findOrCreateDatasetLocation(
+        ctx.con,
+        data.externalLocationId,
+      );
 
       const filesToClear = [];
 
-      if ((!data.image || !!upload) && user.image) {
+      // Clear existing avatar when uploading new one or explicitly setting to null (not when undefined)
+      if ((!!upload || data.image === null) && user.image) {
         filesToClear.push(
           clearFile({ referenceId: user.id, preset: UploadPreset.Avatar }),
         );
@@ -2542,7 +2913,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             const file = await upload;
             return (await uploadAvatar(user.id, file.createReadStream())).url;
           }
-          return data.image || null;
+          // Preserve existing image if no new image is provided (undefined)
+          // Use fallback if explicitly set to null or user has no image
+          if (data.image === undefined) {
+            return user.image ?? fallbackImages.avatar;
+          }
+          return data.image || fallbackImages.avatar;
         })(),
         (async () => {
           if (coverUpload && cloudinaryUrl) {
@@ -2559,6 +2935,23 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       try {
         delete data.externalLocationId;
 
+        // Process socialLinks for dual-write
+        let socialLinksData: {
+          socialLinks?: UserSocialLink[];
+          legacyColumns?: Record<string, string | null>;
+        } = {};
+
+        if (data.socialLinks) {
+          // New format: socialLinks array provided -> write to both socialLinks and legacy columns
+          socialLinksData = processSocialLinksForDualWrite(data.socialLinks);
+        } else if (hasLegacySocialFieldsUpdate(data)) {
+          // Legacy format: individual fields provided -> build socialLinks from merged values
+          socialLinksData.socialLinks = buildSocialLinksFromLegacyFields(
+            data,
+            user,
+          );
+        }
+
         const updatedUser = {
           ...user,
           ...data,
@@ -2566,6 +2959,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           cover,
           readmeHtml,
           locationId: location?.id || null,
+          ...(socialLinksData.legacyColumns || {}),
+          socialLinks: socialLinksData.socialLinks ?? user.socialLinks,
         };
         updatedUser.email = updatedUser.email?.toLowerCase();
 
@@ -3074,6 +3469,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           return votePost({ ctx, id, vote });
         case UserVoteEntity.Comment:
           return voteComment({ ctx, id, vote });
+        case UserVoteEntity.HotTake:
+          return voteHotTake({ ctx, id, vote });
         default:
           throw new ValidationError('Unsupported vote entity');
       }

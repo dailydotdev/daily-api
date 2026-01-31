@@ -65,6 +65,7 @@ import { generateCampaignSquadEmail } from '../common/campaign/source';
 import { PollPost } from '../entity/posts/PollPost';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../entity/opportunities/user';
+import { Opportunity } from '../entity/opportunities/Opportunity';
 
 interface Data {
   notification: ChangeObject<NotificationV2>;
@@ -76,7 +77,6 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   source_post_rejected: '', // we won't send an email on rejected ones
   community_picks_failed: '28',
   community_picks_succeeded: '27',
-  community_picks_granted: '26',
   article_picked: '32',
   article_new_comment: '33',
   article_upvote_milestone: '22',
@@ -127,6 +127,11 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   poll_result: '84',
   poll_result_author: '84',
   warm_intro: '85',
+  parsed_cv_profile: '',
+  recruiter_new_candidate: '89',
+  recruiter_opportunity_live: '90',
+  experience_company_enriched: '',
+  recruiter_external_payment: '91',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -301,9 +306,6 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       ),
     };
   },
-  community_picks_granted: async () => {
-    return {};
-  },
   article_picked: async (con, user, notification, attachments) => {
     const att = attachments[0];
     return {
@@ -370,6 +372,10 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       post_views: post.views,
       post_upvotes: post.upvotes,
       post_comments: post.comments,
+      analytics_link: addNotificationEmailUtm(
+        `${process.env.COMMENTS_PREFIX}/posts/${post.id}/analytics`,
+        notification.type,
+      ),
       profile_link: addNotificationEmailUtm(user.permalink, notification.type),
       post_views_total: stats.numPostViews,
       post_upvotes_total: stats.numPostUpvotes,
@@ -1117,13 +1123,22 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   warm_intro: async (con, user, notif) => {
-    const match = await con.getRepository(OpportunityMatch).findOne({
-      select: ['applicationRank'],
-      where: {
+    const match = await con
+      .getRepository(OpportunityMatch)
+      .createQueryBuilder('match')
+      .leftJoinAndSelect('match.user', 'matchUser')
+      .select([
+        'match.applicationRank',
+        'matchUser.id',
+        'matchUser.name',
+        'matchUser.username',
+      ])
+      .where('match.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
-        userId: user.id,
-      },
-    });
+      })
+      .andWhere('match.userId = :userId', { userId: user.id })
+      .getOne();
+
     if (!match) {
       return null;
     }
@@ -1133,18 +1148,115 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       return null;
     }
 
-    const recruiterUser = await con
+    // Fetch recruiters with user relation in single query
+    const recruiterRecords = await con
       .getRepository(OpportunityUserRecruiter)
-      .findOneBy({
+      .createQueryBuilder('recruiter')
+      .leftJoinAndSelect('recruiter.user', 'recruiterUser')
+      .select([
+        'recruiter.opportunityId',
+        'recruiter.userId',
+        'recruiterUser.id',
+        'recruiterUser.name',
+        'recruiterUser.username',
+        'recruiterUser.email',
+      ])
+      .where('recruiter.opportunityId = :opportunityId', {
         opportunityId: notif.referenceId,
-      });
-    const recruiter = await recruiterUser?.user;
+      })
+      .getMany();
+
+    // User relations are loaded via leftJoinAndSelect (TypeORM maps to __relationName__)
+    const candidate = (match as unknown as { __user__: User }).__user__;
+    const candidateName = candidate?.name || candidate?.username || 'Candidate';
+
+    const recruiters = recruiterRecords
+      .map((r) => (r as unknown as { __user__: User }).__user__)
+      .filter(Boolean);
+
+    const firstRecruiter = recruiters[0];
+    const recruiterName =
+      firstRecruiter?.name || firstRecruiter?.username || 'Recruiter';
+
+    const recruiterEmails = recruiters
+      .map((r) => r.email)
+      .filter(Boolean)
+      .join(',');
 
     return {
-      title: `[Action Required] It's a match!`,
+      title: `[Action Required] Intro: ${candidateName} <> ${recruiterName}`,
       copy: warmIntro,
-      cc: recruiter?.email,
+      cc: recruiterEmails || undefined,
     };
+  },
+  parsed_cv_profile: async () => {
+    return null;
+  },
+  recruiter_new_candidate: async (
+    con,
+    user,
+    notification,
+    attachments,
+    avatars,
+  ) => {
+    const opportunityId = notification.referenceId;
+
+    if (!opportunityId) {
+      return null;
+    }
+
+    // Get candidate from avatar
+    const candidateAvatar = avatars[0];
+    const candidateId = candidateAvatar?.referenceId;
+
+    if (!candidateId || !candidateAvatar) {
+      return null;
+    }
+
+    // Fetch opportunity and match
+    const [opportunity, match] = await Promise.all([
+      con.getRepository(Opportunity).findOne({
+        where: { id: opportunityId },
+        select: ['id', 'title'],
+      }),
+      con.getRepository(OpportunityMatch).findOne({
+        where: { opportunityId, userId: candidateId },
+        select: ['applicationRank'],
+      }),
+    ]);
+
+    if (!opportunity) {
+      return null;
+    }
+
+    const candidateName = candidateAvatar.name;
+    const candidatePicture = candidateAvatar.image;
+    const matchScore = match?.applicationRank?.score
+      ? `${match.applicationRank.score.toFixed(1)}/10`
+      : 'N/A';
+    const matchingContent = match?.applicationRank?.description || '';
+
+    return {
+      candidate_name: candidateName,
+      profile_picture: candidatePicture,
+      job_title: opportunity.title || '',
+      score: matchScore,
+      matching_content: matchingContent,
+      candidate_link: `${process.env.COMMENTS_PREFIX}/recruiter/${opportunityId}/matches`,
+    };
+  },
+  recruiter_opportunity_live: async (_con, _user, notification) => {
+    return {
+      opportunity_link: notification.targetUrl,
+    };
+  },
+  recruiter_external_payment: async (_con, _user, notification) => {
+    return {
+      opportunity_link: notification.targetUrl,
+    };
+  },
+  experience_company_enriched: async () => {
+    return null;
   },
 };
 

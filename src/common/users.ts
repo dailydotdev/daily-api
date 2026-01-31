@@ -361,6 +361,39 @@ export const getUserReadingTags = (
   );
 };
 
+export const getUserTopReadingTags = (
+  con: DataSource,
+  {
+    userId,
+    limit = 5,
+    readLimit = 100,
+  }: { userId: string; limit?: number; readLimit?: number },
+): Promise<Array<{ tag: string; count: number }>> => {
+  return con.query(
+    `--sql
+      WITH recent_reads AS (
+        SELECT v."postId"
+        FROM "view" v
+        WHERE v."userId" = $1
+          AND v.hidden = false
+        ORDER BY v.timestamp DESC
+        LIMIT $3
+      )
+      SELECT
+        pk.keyword AS tag,
+        COUNT(*) AS count
+      FROM recent_reads rr
+      JOIN post_keyword pk ON rr."postId" = pk."postId"
+      WHERE pk.status = 'allow'
+        AND pk.keyword != 'general-programming'
+      GROUP BY pk.keyword
+      ORDER BY COUNT(*) DESC
+      LIMIT $2;
+    `,
+    [userId, limit, readLimit],
+  );
+};
+
 export const getUserReadingRank = async (
   con: DataSource,
   userId: string,
@@ -599,42 +632,6 @@ export const shouldAllowRestore = async (
     lastView: lastStreak,
   });
 };
-
-export const roadmapShSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?roadmap\.sh\/u\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const twitterSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?(?:twitter|x)\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const githubSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?github\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const threadsSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?threads\.net\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const codepenSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?codepen\.io\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const redditSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?reddit\.com\/(?:u|user)\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const stackoverflowSocialUrlMatch =
-  /^(?:https:\/\/)?(?:www\.)?stackoverflow\.com\/users\/(?<value>\d{2,}\/?[\w-]{2,}?)\/?$/;
-
-export const youtubeSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?youtube\.com\/)?@?(?<value>[\w-]{2,})\/?$/;
-
-export const linkedinSocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?linkedin\.com\/in\/)?(?<value>[\w-]{2,})\/?$/;
-
-export const mastodonSocialUrlMatch =
-  /^(?<value>https:\/\/(?:[a-z0-9-]+\.)*[a-z0-9-]+\.[a-z]{2,}\/@[\w-]{2,}\/?)$/;
-
-export const socialUrlMatch =
-  /^(?<value>https:\/\/(?:[a-z0-9-]{1,50}\.){0,5}[a-z0-9-]{1,50}\.[a-z]{2,24}\b([-a-zA-Z0-9@:%_+.~#?&\/=]*))$/;
-
-export const bskySocialUrlMatch =
-  /^(?:(?:https:\/\/)?(?:www\.)?bsky\.app\/profile\/)?(?<value>[\w.-]+)(?:\/.*)?$/;
 
 export const portfolioLimit = 500;
 

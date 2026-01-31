@@ -1,0 +1,240 @@
+[
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser",
+    "status": "pending",
+    "description": {
+      "reasoning": "Strong match based on React and TypeScript experience. The candidate has demonstrated expertise in building complex web applications with modern frontend technologies. Their portfolio shows a focus on performance optimization which aligns well with Linear's engineering culture.",
+      "reasoningShort": "React/TS expert with performance focus",
+      "matchScore": 8.5
+    },
+    "screening": [],
+    "feedback": [],
+    "applicationRank": {}
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser1",
+    "status": "candidate_accepted",
+    "description": {
+      "reasoning": "Excellent fit for the Senior Frontend Developer role. The candidate has 6+ years of experience with React and TypeScript, and has worked on similar product-led companies. Their background in design systems and component architecture is particularly relevant.",
+      "reasoningShort": "6+ years React/TS, design systems experience",
+      "matchScore": 9.2
+    },
+    "screening": [
+      {
+        "screening": "What is your favorite frontend framework and why?",
+        "answer": "React has been my go-to framework for the past 5 years. I love its component-based architecture and the ecosystem around it. The hooks API has made state management much cleaner, and with TypeScript, it's a powerful combination for building maintainable applications."
+      },
+      {
+        "screening": "Describe a challenging performance issue you solved",
+        "answer": "At my previous company, I identified and fixed a rendering bottleneck in our dashboard that was causing 2-3 second delays. I implemented React.memo strategically, virtualized long lists, and optimized our state management to reduce unnecessary re-renders. This brought the interaction time down to under 100ms."
+      }
+    ],
+    "feedback": [],
+    "applicationRank": {
+      "score": 9.2,
+      "description": "Exceptional candidate with strong technical background and excellent communication skills",
+      "warmIntro": "Hi! I noticed your impressive work on design systems at your current role. We're building something similar at Linear and would love to chat about how your experience could contribute to our frontend architecture."
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser2",
+    "status": "candidate_rejected",
+    "description": {
+      "reasoning": "The candidate has solid frontend skills but expressed interest in full-stack roles. While technically qualified, their career goals don't align with this frontend-focused position.",
+      "reasoningShort": "Qualified but prefers full-stack roles",
+      "matchScore": 7.5
+    },
+    "screening": [],
+    "feedback": [],
+    "applicationRank": {
+      "score": 7.5,
+      "description": "Good technical skills but role preference mismatch"
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser4",
+    "status": "recruiter_accepted",
+    "description": {
+      "reasoning": "Outstanding candidate with experience at top-tier companies. Has contributed to open-source React libraries and has deep knowledge of performance optimization. Cultural fit looks excellent based on their values alignment with Linear's principles.",
+      "reasoningShort": "Top-tier experience, open-source contributor",
+      "matchScore": 9.6
+    },
+    "screening": [
+      {
+        "screening": "What is your favorite frontend framework and why?",
+        "answer": "I'm passionate about React and have been using it since 2018. What I appreciate most is how it encourages thinking in terms of data flow and composition. Combined with TypeScript, it provides an excellent developer experience and catches many bugs at compile time."
+      },
+      {
+        "screening": "Describe a challenging performance issue you solved",
+        "answer": "I led a performance initiative that reduced our web app's bundle size by 40% and improved Time to Interactive by 60%. This involved implementing code splitting, optimizing our build pipeline, and introducing a performance budget system that prevented regressions."
+      },
+      {
+        "screening": "How do you approach component design and reusability?",
+        "answer": "I follow a compound component pattern for complex UI elements, ensuring flexibility without prop drilling. I believe in building primitives first, then composing them into more complex components. Documentation and Storybook are essential parts of my workflow to ensure components are discoverable and well-understood."
+      }
+    ],
+    "feedback": [
+      {
+        "screening": "How did you hear about this opportunity?",
+        "answer": "I discovered this role through daily.dev's job matching feature. The platform did a great job highlighting how my skills align with Linear's requirements."
+      },
+      {
+        "screening": "What excites you most about this role?",
+        "answer": "Linear's focus on craft and attention to detail really resonates with me. I've been a Linear user for years and always admired the product's polish. The opportunity to work on developer tools used by engineering teams I respect is incredibly motivating."
+      }
+    ],
+    "applicationRank": {
+      "score": 9.6,
+      "description": "Exceptional candidate - top priority for interview",
+      "warmIntro": "Your contributions to the React ecosystem haven't gone unnoticed! We'd love to discuss how your expertise in performance optimization could help us build the fastest issue tracking experience possible."
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser5",
+    "status": "recruiter_rejected",
+    "description": {
+      "reasoning": "The candidate has good technical skills but lacks experience with the scale and complexity required for this senior role. Would be a better fit for a mid-level position.",
+      "reasoningShort": "Good skills but needs more experience",
+      "matchScore": 6.5
+    },
+    "screening": [
+      {
+        "screening": "What is your favorite frontend framework and why?",
+        "answer": "I've worked with Vue.js mostly but I'm eager to learn React. I understand the concepts are similar and I'm a quick learner."
+      }
+    ],
+    "feedback": [],
+    "applicationRank": {
+      "score": 6.5,
+      "description": "Not enough experience for senior role - consider for mid-level openings"
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser6",
+    "status": "pending",
+    "description": {
+      "reasoning": "Promising candidate with startup experience and strong TypeScript skills. Has built several production applications with React and shows good understanding of modern frontend architecture patterns.",
+      "reasoningShort": "Startup experience, strong TS skills",
+      "matchScore": 8.2
+    },
+    "screening": [],
+    "feedback": [],
+    "applicationRank": {}
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser7",
+    "status": "candidate_accepted",
+    "description": {
+      "reasoning": "Great match for the role. Experience with GraphQL and modern build tools aligns perfectly with Linear's tech stack. Has demonstrated ability to work in async, remote-first environments.",
+      "reasoningShort": "GraphQL expert, remote-first experience",
+      "matchScore": 8.9
+    },
+    "screening": [
+      {
+        "screening": "What is your favorite frontend framework and why?",
+        "answer": "React combined with TypeScript is my preferred stack. I appreciate how React's functional approach with hooks makes code predictable and testable. The type safety from TypeScript has saved countless hours of debugging in my experience."
+      },
+      {
+        "screening": "Describe a challenging performance issue you solved",
+        "answer": "Our GraphQL queries were causing waterfall requests that slowed page loads significantly. I implemented query batching, added strategic caching with Apollo Client, and introduced data prefetching for predictable user flows. This reduced average page load time from 3s to under 800ms."
+      }
+    ],
+    "feedback": [],
+    "applicationRank": {
+      "score": 8.9,
+      "description": "Strong technical background with relevant stack experience",
+      "warmIntro": "Your experience with GraphQL optimization caught our attention. We'd love to discuss how you've approached caching strategies and how that might apply to Linear's architecture."
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser8",
+    "status": "candidate_rejected",
+    "description": {
+      "reasoning": "Technically capable candidate but salary expectations significantly exceed the range for this position. The candidate indicated they would not be flexible on compensation.",
+      "reasoningShort": "Salary expectations too high",
+      "matchScore": 8.0
+    },
+    "screening": [],
+    "feedback": [],
+    "applicationRank": {
+      "score": 8.0,
+      "description": "Good fit technically but compensation mismatch"
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser9",
+    "status": "recruiter_accepted",
+    "description": {
+      "reasoning": "Senior engineer with excellent track record at product-focused companies. Has shipped multiple successful features and shows strong product intuition alongside technical skills.",
+      "reasoningShort": "Product-minded senior engineer",
+      "matchScore": 9.1
+    },
+    "screening": [
+      {
+        "screening": "What is your favorite frontend framework and why?",
+        "answer": "React has been central to my work for the past 7 years. I've watched it evolve and have adapted my patterns accordingly. What I value most is the ecosystem maturity and the predictable way React handles state and side effects with hooks."
+      },
+      {
+        "screening": "Describe a challenging performance issue you solved",
+        "answer": "I tackled a complex virtualization challenge in a data-heavy dashboard. By implementing windowing for our tables and charts, lazy loading for off-screen content, and Web Workers for heavy computations, we achieved smooth 60fps scrolling even with millions of data points."
+      }
+    ],
+    "feedback": [
+      {
+        "screening": "How did you hear about this opportunity?",
+        "answer": "A colleague who works at Linear mentioned that daily.dev had a great job matching system. After trying it, I was impressed by how well it understood my preferences and matched me with relevant opportunities."
+      }
+    ],
+    "applicationRank": {
+      "score": 9.1,
+      "description": "Excellent candidate with proven track record",
+      "warmIntro": "Your experience building data-heavy interfaces is exactly what we need. Linear processes millions of issues and we're always looking for ways to make the experience faster. Let's chat!"
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser10",
+    "status": "candidate_time_out",
+    "description": {
+      "reasoning": "Good potential match with relevant experience in developer tools. Has worked on similar products and understands the target audience well.",
+      "reasoningShort": "Dev tools experience, knows target audience",
+      "matchScore": 8.4
+    },
+    "screening": [],
+    "feedback": [],
+    "applicationRank": {
+      "score": 8.4,
+      "description": "Promising candidate - follow up recommended"
+    }
+  },
+  {
+    "opportunityId": "89f3daff-d6bb-4652-8f9c-b9f7254c9af1",
+    "userId": "testuser11",
+    "status": "recruiter_rejected",
+    "description": {
+      "reasoning": "While the candidate has strong individual contributor skills, they expressed strong preference for management track which doesn't align with this IC-focused senior role.",
+      "reasoningShort": "Prefers management track",
+      "matchScore": 7.0
+    },
+    "screening": [
+      {
+        "screening": "What is your favorite frontend framework and why?",
+        "answer": "I've used React extensively but I'm more interested in leading teams than hands-on coding at this point in my career. I enjoy mentoring and project coordination."
+      }
+    ],
+    "feedback": [],
+    "applicationRank": {
+      "score": 7.0,
+      "description": "Career goals don't align with IC role"
+    }
+  }
+]

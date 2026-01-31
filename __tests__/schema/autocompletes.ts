@@ -14,6 +14,7 @@ import { usersFixture } from '../fixture/user';
 import { keywordsFixture } from '../fixture/keywords';
 import { Autocomplete, AutocompleteType } from '../../src/entity/Autocomplete';
 import { Company, CompanyType } from '../../src/entity/Company';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 import type { MapboxResponse } from '../../src/integrations/mapbox/types';
 import nock from 'nock';
 
@@ -439,7 +440,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'new york',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -506,7 +507,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'united states',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -611,7 +612,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'san',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -647,7 +648,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'test',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -676,7 +677,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'nonexistentlocation',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -698,7 +699,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'test',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -757,7 +758,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'berlin',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -794,7 +795,7 @@ describe('query autocompleteLocation', () => {
       .get('/search/geocode/v6/forward')
       .query({
         q: 'San Francisco, CA',
-        types: 'country,place',
+        types: 'country,region,place',
         limit: 5,
         access_token: process.env.MAPBOX_ACCESS_TOKEN,
       })
@@ -806,6 +807,329 @@ describe('query autocompleteLocation', () => {
 
     expect(res.errors).toBeFalsy();
     expect(res.data.autocompleteLocation).toEqual([]);
+  });
+
+  describe('internal dataset', () => {
+    const QUERY_WITH_DATASET = /* GraphQL */ `
+      query AutocompleteLocation(
+        $query: String!
+        $dataset: LocationDataset
+        $limit: Int
+      ) {
+        autocompleteLocation(query: $query, dataset: $dataset, limit: $limit) {
+          id
+          country
+          city
+          subdivision
+        }
+      }
+    `;
+
+    beforeEach(async () => {
+      await saveFixtures(con, DatasetLocation, [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          country: 'United States',
+          subdivision: 'California',
+          city: 'San Francisco',
+          iso2: 'US',
+          iso3: 'USA',
+          externalId: 'usa1',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440002',
+          country: 'United States',
+          subdivision: 'New York',
+          city: 'New York City',
+          iso2: 'US',
+          iso3: 'USA',
+          externalId: 'usa2',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440003',
+          country: 'Germany',
+          subdivision: 'Bavaria',
+          city: 'Munich',
+          iso2: 'DE',
+          iso3: 'DEU',
+          externalId: 'de1',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440004',
+          country: 'Germany',
+          subdivision: null,
+          city: 'Berlin',
+          iso2: 'DE',
+          iso3: 'DEU',
+          externalId: 'de2',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440005',
+          country: 'United Kingdom',
+          subdivision: null,
+          city: null,
+          iso2: 'GB',
+          iso3: 'GBR',
+          externalId: 'uk1',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440006',
+          country: 'United States',
+          subdivision: null,
+          city: null,
+          iso2: 'US',
+          iso3: 'USA',
+          externalId: 'usa-country',
+        },
+      ]);
+    });
+
+    it('should return locations from internal database when dataset is internal', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'san francisco', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'usa1',
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        },
+      ]);
+    });
+
+    it('should match by country name', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'germany', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toHaveLength(2);
+      // Note: ORDER BY subdivision ASC NULLS FIRST puts null values before non-null
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'de2',
+          country: 'Germany',
+          city: 'Berlin',
+          subdivision: null,
+        },
+        {
+          id: 'de1',
+          country: 'Germany',
+          city: 'Munich',
+          subdivision: 'Bavaria',
+        },
+      ]);
+    });
+
+    it('should match by subdivision name', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'california', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'usa1',
+          country: 'United States',
+          city: 'San Francisco',
+          subdivision: 'California',
+        },
+      ]);
+    });
+
+    it('should match by city name', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'munich', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'de1',
+          country: 'Germany',
+          city: 'Munich',
+          subdivision: 'Bavaria',
+        },
+      ]);
+    });
+
+    it('should be case insensitive', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'UNITED STATES', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toHaveLength(3);
+    });
+
+    it('should prioritize country-level entries over city-level entries', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'united states', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      // Country-level entry should appear first (null subdivision and city)
+      expect(res.data.autocompleteLocation[0]).toEqual({
+        id: 'usa-country',
+        country: 'United States',
+        city: null,
+        subdivision: null,
+      });
+      // Then city-level entries sorted alphabetically by subdivision
+      expect(res.data.autocompleteLocation[1].subdivision).toBe('California');
+      expect(res.data.autocompleteLocation[2].subdivision).toBe('New York');
+    });
+
+    it('should return empty array when no matches found', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'nonexistent', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([]);
+    });
+
+    it('should handle null subdivision and city', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'united kingdom', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'uk1',
+          country: 'United Kingdom',
+          city: null,
+          subdivision: null,
+        },
+      ]);
+    });
+
+    it('should respect limit parameter', async () => {
+      loggedUser = '1';
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'united', dataset: 'internal', limit: 1 },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toHaveLength(1);
+    });
+
+    it('should return Europe as a country', async () => {
+      loggedUser = '1';
+
+      await con.getRepository(DatasetLocation).save(
+        con.getRepository(DatasetLocation).create({
+          id: '550e8400-e29b-41d4-a716-446655440006',
+          continent: 'Europe',
+          country: null,
+          subdivision: null,
+          city: null,
+          iso2: null,
+          iso3: null,
+          externalId: 'eu1',
+        }),
+      );
+
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'europe', dataset: 'internal' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.autocompleteLocation).toEqual([
+        {
+          id: 'eu1',
+          country: 'Europe',
+          city: null,
+          subdivision: null,
+        },
+      ]);
+    });
+
+    it('should default to external (Mapbox) when dataset is not specified', async () => {
+      loggedUser = '1';
+
+      const mockMapboxResponse: MapboxResponse = {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: {
+              coordinates: [-122.4194, 37.7749],
+              type: 'Point',
+            },
+            properties: {
+              name: 'San Francisco',
+              mapbox_id: 'place.sf',
+              feature_type: 'place',
+              place_formatted: 'San Francisco, California, United States',
+              context: {
+                country: {
+                  id: 'country.us',
+                  name: 'United States',
+                  country_code: 'US',
+                  country_code_alpha_3: 'USA',
+                },
+                region: {
+                  id: 'region.ca',
+                  name: 'California',
+                  region_code: 'CA',
+                  region_code_full: 'US-CA',
+                },
+              },
+              coordinates: {
+                latitude: 37.7749,
+                longitude: -122.4194,
+              },
+              language: 'en',
+              maki: 'marker',
+              metadata: {},
+            },
+          },
+        ],
+        attribution: 'Mapbox',
+        response_id: 'test-response-id',
+      };
+
+      nock('https://api.mapbox.com')
+        .get('/search/geocode/v6/forward')
+        .query({
+          q: 'san francisco',
+          types: 'country,region,place',
+          limit: 5,
+          access_token: process.env.MAPBOX_ACCESS_TOKEN,
+        })
+        .reply(200, mockMapboxResponse);
+
+      // Query without specifying dataset - should use Mapbox
+      const res = await client.query(QUERY_WITH_DATASET, {
+        variables: { query: 'san francisco' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      // Should return Mapbox ID, not internal database ID
+      expect(res.data.autocompleteLocation[0].id).toBe('place.sf');
+    });
   });
 });
 
@@ -862,6 +1186,22 @@ describe('query autocompleteCompany', () => {
         type: CompanyType.Company,
       },
       {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        altName: '삼성전자',
+        image: 'https://example.com/samsung.png',
+        domains: ['samsung.com'],
+        type: CompanyType.Company,
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        altName: 'トヨタ自動車',
+        image: 'https://example.com/toyota.png',
+        domains: ['toyota.com'],
+        type: CompanyType.Company,
+      },
+      {
         id: 'mit',
         name: 'Massachusetts Institute of Technology',
         image: 'https://example.com/mit.png',
@@ -887,6 +1227,14 @@ describe('query autocompleteCompany', () => {
         name: 'University of California, Berkeley',
         image: 'https://example.com/berkeley.png',
         domains: ['berkeley.edu'],
+        type: CompanyType.School,
+      },
+      {
+        id: 'todai',
+        name: 'The University of Tokyo',
+        altName: '東京大学',
+        image: 'https://example.com/todai.png',
+        domains: ['u-tokyo.ac.jp'],
         type: CompanyType.School,
       },
     ]);
@@ -940,6 +1288,11 @@ describe('query autocompleteCompany', () => {
         image: 'https://example.com/stanford.png',
       },
       {
+        id: 'todai',
+        name: 'The University of Tokyo',
+        image: 'https://example.com/todai.png',
+      },
+      {
         id: 'berkeley',
         name: 'University of California, Berkeley',
         image: 'https://example.com/berkeley.png',
@@ -975,6 +1328,16 @@ describe('query autocompleteCompany', () => {
         id: 'microsoft',
         name: 'Microsoft Corporation',
         image: 'https://example.com/microsoft.png',
+      },
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        image: 'https://example.com/toyota.png',
       },
     ]);
   });
@@ -1051,9 +1414,19 @@ describe('query autocompleteCompany', () => {
         image: 'https://example.com/microsoft.png',
       },
       {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+      {
         id: 'stanford',
         name: 'Stanford University',
         image: 'https://example.com/stanford.png',
+      },
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        image: 'https://example.com/toyota.png',
       },
       {
         id: 'berkeley',
@@ -1186,5 +1559,311 @@ describe('query autocompleteCompany', () => {
         image: 'https://example.com/google.png',
       },
     ]);
+  });
+
+  it('should return results when searching by English name for company with altName', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'samsung' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+    ]);
+  });
+
+  it('should return results when searching by non-Latin characters (Korean)', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: '삼성' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'samsung',
+        name: 'Samsung Electronics',
+        image: 'https://example.com/samsung.png',
+      },
+    ]);
+  });
+
+  it('should return results when searching by non-Latin characters (Japanese)', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: 'トヨタ' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteCompany).toMatchObject([
+      {
+        id: 'toyota',
+        name: 'Toyota Motor Corporation',
+        image: 'https://example.com/toyota.png',
+      },
+    ]);
+  });
+
+  it('should not return unrelated companies when searching with non-Latin characters', async () => {
+    const res = await client.query(QUERY, {
+      variables: { query: '삼성' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    // Should only return Samsung, not other companies with non-Latin altNames
+    expect(res.data.autocompleteCompany.length).toBe(1);
+    expect(res.data.autocompleteCompany[0].id).toBe('samsung');
+  });
+});
+
+describe('query autocompleteGithubRepository', () => {
+  const QUERY = /* GraphQL */ `
+    query AutocompleteGithubRepository($query: String!, $limit: Int) {
+      autocompleteGithubRepository(query: $query, limit: $limit) {
+        id
+        fullName
+        url
+        image
+        description
+      }
+    }
+  `;
+
+  beforeEach(() => {
+    nock.cleanAll();
+  });
+
+  it('should return unauthenticated when not logged in', () =>
+    testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: { query: 'react' },
+      },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return GitHub repositories for a search query', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 2,
+      items: [
+        {
+          id: 10270250,
+          full_name: 'facebook/react',
+          html_url: 'https://github.com/facebook/react',
+          description: 'The library for web and native user interfaces.',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+        {
+          id: 75396575,
+          full_name: 'facebook/react-native',
+          html_url: 'https://github.com/facebook/react-native',
+          description:
+            'A framework for building native applications using React',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toMatchObject([
+      {
+        id: '10270250',
+        fullName: 'facebook/react',
+        url: 'https://github.com/facebook/react',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+        description: 'The library for web and native user interfaces.',
+      },
+      {
+        id: '75396575',
+        fullName: 'facebook/react-native',
+        url: 'https://github.com/facebook/react-native',
+        image: 'https://avatars.githubusercontent.com/u/69631?v=4',
+        description: 'A framework for building native applications using React',
+      },
+    ]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should respect the limit parameter', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 1,
+      items: [
+        {
+          id: 10270250,
+          full_name: 'facebook/react',
+          html_url: 'https://github.com/facebook/react',
+          description: 'The library for web and native user interfaces.',
+          owner: {
+            login: 'facebook',
+            avatar_url: 'https://avatars.githubusercontent.com/u/69631?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '5',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react', limit: 5 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository.length).toBe(1);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should return empty array when GitHub API returns no results', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 0,
+      items: [],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'nonexistent-repo-name-xyz',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'nonexistent-repo-name-xyz' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toEqual([]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should return empty array when GitHub API returns an error', async () => {
+    loggedUser = '1';
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'react',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(500, { message: 'Internal Server Error' });
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'react' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toEqual([]);
+  });
+
+  it('should handle repositories with null description', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 1,
+      items: [
+        {
+          id: 12345678,
+          full_name: 'user/repo-without-description',
+          html_url: 'https://github.com/user/repo-without-description',
+          description: null,
+          owner: {
+            login: 'user',
+            avatar_url: 'https://avatars.githubusercontent.com/u/123?v=4',
+          },
+        },
+      ],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'repo-without-description',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'repo-without-description' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.autocompleteGithubRepository).toMatchObject([
+      {
+        id: '12345678',
+        fullName: 'user/repo-without-description',
+        url: 'https://github.com/user/repo-without-description',
+        image: 'https://avatars.githubusercontent.com/u/123?v=4',
+        description: null,
+      },
+    ]);
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('should URL encode special characters in query', async () => {
+    loggedUser = '1';
+
+    const mockGitHubResponse = {
+      total_count: 0,
+      items: [],
+    };
+
+    nock('https://api.github.com')
+      .get('/search/repositories')
+      .query({
+        q: 'test repo',
+        per_page: '10',
+        sort: 'stars',
+        order: 'desc',
+      })
+      .reply(200, mockGitHubResponse);
+
+    const res = await client.query(QUERY, {
+      variables: { query: 'test repo' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(nock.isDone()).toBe(true);
   });
 });

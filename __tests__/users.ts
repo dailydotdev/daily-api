@@ -57,32 +57,36 @@ import {
   UserTopReader,
   View,
 } from '../src/entity';
+import { UserProfileAnalytics } from '../src/entity/user/UserProfileAnalytics';
+import { UserProfileAnalyticsHistory } from '../src/entity/user/UserProfileAnalyticsHistory';
 import { sourcesFixture } from './fixture/source';
 import {
-  bskySocialUrlMatch,
   CioTransactionalMessageTemplateId,
-  codepenSocialUrlMatch,
   DayOfWeek,
   encrypt,
   getTimezonedStartOfISOWeek,
   ghostUser,
-  githubSocialUrlMatch,
   type GQLUserTopReader,
-  linkedinSocialUrlMatch,
-  mastodonSocialUrlMatch,
   portfolioLimit,
-  redditSocialUrlMatch,
-  roadmapShSocialUrlMatch,
   sendEmail,
-  socialUrlMatch,
-  stackoverflowSocialUrlMatch,
   systemUser,
-  threadsSocialUrlMatch,
-  twitterSocialUrlMatch,
   updateFlagsStatement,
   updateSubscriptionFlags,
   UploadPreset,
 } from '../src/common';
+import {
+  blueskySchema,
+  codepenSchema,
+  githubSchema,
+  linkedinSchema,
+  mastodonSchema,
+  portfolioSchema,
+  redditSchema,
+  roadmapSchema,
+  stackoverflowSchema,
+  threadsSchema,
+  twitterSchema,
+} from '../src/common/schema/socials';
 import { DataSource, In, IsNull } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import request from 'supertest';
@@ -110,6 +114,8 @@ import {
 } from '../src/entity/UserIntegration';
 import { Company } from '../src/entity/Company';
 import { UserCompany } from '../src/entity/UserCompany';
+import { UserExperience } from '../src/entity/user/experiences/UserExperience';
+import { UserExperienceType } from '../src/entity/user/experiences/types';
 import { SourceReport } from '../src/entity/sources/SourceReport';
 import { SourceMemberRoles } from '../src/roles';
 import { rateLimiterName } from '../src/directive/rateLimit';
@@ -139,7 +145,17 @@ import { getGeo } from '../src/common/geo';
 import { SubscriptionProvider, SubscriptionStatus } from '../src/common/plus';
 import * as njordCommon from '../src/common/njord';
 import { createClient } from '@connectrpc/connect';
-import { Credits, EntityType } from '@dailydotdev/schema';
+import {
+  Credits,
+  EntityType,
+  OpportunityState,
+  OpportunityType,
+} from '@dailydotdev/schema';
+import { Organization } from '../src/entity';
+import { Opportunity } from '../src/entity/opportunities/Opportunity';
+import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
+import { OpportunityUser } from '../src/entity/opportunities/user';
+import { OpportunityUserType } from '../src/entity/opportunities/types';
 import * as googleCloud from '../src/common/googleCloud';
 import { fileTypeFromBuffer } from './setup';
 import { Bucket } from '@google-cloud/storage';
@@ -166,6 +182,7 @@ let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 let isPlus: boolean;
+let isTeamMember = false;
 const userTimezone = 'Pacific/Midway';
 
 jest.mock('../src/common/paddle/index.ts', () => ({
@@ -204,7 +221,7 @@ beforeAll(async () => {
         loggedUser,
         undefined,
         undefined,
-        undefined,
+        isTeamMember,
         isPlus,
         'US',
       ),
@@ -218,6 +235,7 @@ const now = new Date();
 beforeEach(async () => {
   loggedUser = null;
   isPlus = false;
+  isTeamMember = false;
   nock.cleanAll();
   jest.clearAllMocks();
 
@@ -243,17 +261,22 @@ beforeEach(async () => {
       image: 'https://daily.dev/lee.jpg',
       timezone: userTimezone,
       username: 'lee',
-      twitter: 'lee',
-      github: 'lee',
-      hashnode: 'lee',
-      roadmap: 'lee',
-      threads: 'lee',
-      codepen: 'lee',
-      reddit: 'lee',
-      stackoverflow: '999999/lee',
-      youtube: 'lee',
-      linkedin: 'lee',
-      mastodon: 'https://mastodon.social/@lee',
+      socialLinks: [
+        { platform: 'twitter', url: 'https://twitter.com/lee' },
+        { platform: 'github', url: 'https://github.com/lee' },
+        { platform: 'hashnode', url: 'https://hashnode.com/@lee' },
+        { platform: 'roadmap', url: 'https://roadmap.sh/u/lee' },
+        { platform: 'threads', url: 'https://threads.net/@lee' },
+        { platform: 'codepen', url: 'https://codepen.io/lee' },
+        { platform: 'reddit', url: 'https://reddit.com/u/lee' },
+        {
+          platform: 'stackoverflow',
+          url: 'https://stackoverflow.com/users/999999/lee',
+        },
+        { platform: 'youtube', url: 'https://youtube.com/@lee' },
+        { platform: 'linkedin', url: 'https://linkedin.com/in/lee' },
+        { platform: 'mastodon', url: 'https://mastodon.social/@lee' },
+      ],
     },
   ]);
   await saveFixtures(con, Source, sourcesFixture);
@@ -1859,6 +1882,78 @@ describe('query user', () => {
   });
 });
 
+describe('query user socialLinks', () => {
+  const QUERY = `query User($id: ID!) {
+    user(id: $id) {
+      id
+      socialLinks {
+        platform
+        url
+      }
+    }
+  }`;
+
+  it('should return empty socialLinks when user has none', async () => {
+    const requestUserId = '1';
+    const res = await client.query(QUERY, { variables: { id: requestUserId } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user.socialLinks).toEqual([]);
+  });
+
+  it('should return socialLinks when user has them', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        socialLinks: [
+          { platform: 'github', url: 'https://github.com/testuser' },
+          { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+        ],
+      },
+    );
+
+    const res = await client.query(QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user.socialLinks).toEqual([
+      { platform: 'github', url: 'https://github.com/testuser' },
+      { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+    ]);
+  });
+
+  it('should resolve legacy social fields from socialLinks for backwards compatibility', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        socialLinks: [
+          { platform: 'github', url: 'https://github.com/testuser' },
+          { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+          { platform: 'linkedin', url: 'https://linkedin.com/in/testprofile' },
+          { platform: 'mastodon', url: 'https://mastodon.social/@testuser' },
+          { platform: 'portfolio', url: 'https://example.com' },
+        ],
+      },
+    );
+
+    const LEGACY_QUERY = `query User($id: ID!) {
+      user(id: $id) {
+        id
+        github
+        twitter
+        linkedin
+        mastodon
+        portfolio
+      }
+    }`;
+
+    const res = await client.query(LEGACY_QUERY, { variables: { id: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.user.github).toBe('testuser');
+    expect(res.data.user.twitter).toBe('testhandle');
+    expect(res.data.user.linkedin).toBe('testprofile');
+    expect(res.data.user.mastodon).toBe('https://mastodon.social/@testuser');
+    expect(res.data.user.portfolio).toBe('https://example.com');
+  });
+});
+
 describe('query team members', () => {
   const QUERY = `query User($id: ID!) {
     user(id: $id) {
@@ -1952,6 +2047,33 @@ describe('user company', () => {
       },
       { userId: '1', verified: true, email: 'u1@com5.com', code: '123' },
     ]);
+    // Add current work experiences for verified companies
+    await con.getRepository(UserExperience).save([
+      {
+        userId: '1',
+        companyId: '1',
+        title: 'Engineer',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2023-01-01'),
+        endedAt: null, // Current position
+      },
+      {
+        userId: '1',
+        companyId: '2',
+        title: 'Developer',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2022-01-01'),
+        endedAt: null, // Current position
+      },
+      {
+        userId: '2',
+        companyId: '3',
+        title: 'Manager',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2021-01-01'),
+        endedAt: null, // Current position
+      },
+    ]);
   });
 
   describe('query user (companies)', () => {
@@ -2003,6 +2125,97 @@ describe('user company', () => {
       });
       expect(res.errors).toBeFalsy();
       expect(res.data.user.companies).toMatchObject([]);
+    });
+
+    it('should not return verified company with no work experiences', async () => {
+      // Company 1 is verified for user 1, but let's remove the work experience
+      await con
+        .getRepository(UserExperience)
+        .delete({ userId: '1', companyId: '1' });
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Should only return Company 2 now since Company 1 has no work experience
+      expect(res.data.user.companies).toMatchObject([
+        { id: '2', name: 'Company 2' },
+      ]);
+    });
+
+    it('should not return verified company with only ended work experiences', async () => {
+      // Update user 1's work experience at Company 1 to be ended
+      await con
+        .getRepository(UserExperience)
+        .update(
+          { userId: '1', companyId: '1' },
+          { endedAt: new Date('2023-12-31') },
+        );
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Should only return Company 2 now since Company 1 has no current work experience
+      expect(res.data.user.companies).toMatchObject([
+        { id: '2', name: 'Company 2' },
+      ]);
+    });
+
+    it('should return company if user has at least one current work experience (multiple experiences at same company)', async () => {
+      // Add an ended work experience for user 1 at Company 1 (in addition to current one)
+      await con.getRepository(UserExperience).save({
+        userId: '1',
+        companyId: '1',
+        title: 'Previous Role',
+        type: UserExperienceType.Work,
+        startedAt: new Date('2020-01-01'),
+        endedAt: new Date('2022-12-31'), // Ended
+      });
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Should still return both companies since Company 1 has at least one current experience
+      expect(res.data.user.companies.length).toBe(2);
+    });
+
+    it('should order companies by most recent startedAt (current positions)', async () => {
+      // Update Company 2's experience to have a more recent start date than Company 1
+      await con
+        .getRepository(UserExperience)
+        .update(
+          { userId: '1', companyId: '2' },
+          { startedAt: new Date('2024-06-01') },
+        );
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Company 2 should come first due to more recent start date
+      expect(res.data.user.companies[0].id).toBe('2');
+      expect(res.data.user.companies[1].id).toBe('1');
+    });
+
+    it('should ignore non-work experience types', async () => {
+      // Remove the work experience and add an education experience
+      await con
+        .getRepository(UserExperience)
+        .delete({ userId: '1', companyId: '1' });
+      await con.getRepository(UserExperience).save({
+        userId: '1',
+        companyId: '1',
+        title: 'CS Degree',
+        type: UserExperienceType.Education,
+        startedAt: new Date('2020-01-01'),
+        endedAt: null, // Current education
+      });
+      const res = await client.query(QUERY, {
+        variables: { id: '1' },
+      });
+      expect(res.errors).toBeFalsy();
+      // Company 1 should not be returned since education type doesn't count
+      expect(res.data.user.companies).toMatchObject([
+        { id: '2', name: 'Company 2' },
+      ]);
     });
   });
 
@@ -3361,6 +3574,50 @@ describe('query searchReadingHistorySuggestions', () => {
     const res = await client.query(QUERY('p1'));
     expect(res.data).toMatchSnapshot();
   });
+
+  it('should handle special characters in search (C++)', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).save({
+      id: 'cpp-post',
+      title: 'Learn C++ programming',
+      shortId: 'cpp',
+      url: 'http://cpp.com',
+      sourceId: 'a',
+      visible: true,
+    });
+    await con.getRepository(View).save({
+      userId: loggedUser,
+      timestamp: now,
+      postId: 'cpp-post',
+    });
+    const res = await client.query(QUERY('c++'));
+    expect(res.data.searchReadingHistorySuggestions.query).toBe('c++');
+    expect(
+      res.data.searchReadingHistorySuggestions.hits.length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('should handle special characters in search (C#)', async () => {
+    loggedUser = '1';
+    await con.getRepository(ArticlePost).save({
+      id: 'csharp-post',
+      title: 'Learn C# programming',
+      shortId: 'csharp',
+      url: 'http://csharp.com',
+      sourceId: 'a',
+      visible: true,
+    });
+    await con.getRepository(View).save({
+      userId: loggedUser,
+      timestamp: now,
+      postId: 'csharp-post',
+    });
+    const res = await client.query(QUERY('c#'));
+    expect(res.data.searchReadingHistorySuggestions.query).toBe('c#');
+    expect(
+      res.data.searchReadingHistorySuggestions.hits.length,
+    ).toBeGreaterThan(0);
+  });
 });
 
 describe('query search reading history', () => {
@@ -3449,118 +3706,12 @@ describe('mutation updateUserProfile', () => {
       'UNAUTHENTICATED',
     ));
 
-  it('should not allow duplicated github', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { github: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated twitter', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { twitter: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated hashnode', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { hashnode: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
   it('should not allow duplicated username', async () => {
     loggedUser = '1';
 
     await testMutationErrorCode(
       client,
       { mutation: MUTATION, variables: { data: { username: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated roadmap', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { roadmap: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated threads', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { threads: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated codepen', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { codepen: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated reddit', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { reddit: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated stackoverflow', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { data: { stackoverflow: '999999/lee' } },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated linkedin', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      { mutation: MUTATION, variables: { data: { linkedin: 'lee' } } },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-  });
-
-  it('should not allow duplicated mastodon', async () => {
-    loggedUser = '1';
-
-    await testMutationErrorCode(
-      client,
-      {
-        mutation: MUTATION,
-        variables: { data: { mastodon: 'https://mastodon.social/@lee' } },
-      },
       'GRAPHQL_VALIDATION_FAILED',
     );
   });
@@ -3863,12 +4014,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(githubSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(githubSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = githubSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(githubSocialUrlMatch.test(item)).toBe(false);
+      expect(githubSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3897,12 +4049,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(twitterSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(twitterSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = twitterSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(twitterSocialUrlMatch.test(item)).toBe(false);
+      expect(twitterSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3925,11 +4078,11 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(bskySocialUrlMatch.test(item)).toBe(true);
+      expect(blueskySchema.safeParse(item).success).toBe(true);
     });
 
     invalid.forEach((item) => {
-      expect(bskySocialUrlMatch.test(item)).toBe(false);
+      expect(blueskySchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3950,12 +4103,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(roadmapShSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(roadmapShSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = roadmapSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(roadmapShSocialUrlMatch.test(item)).toBe(false);
+      expect(roadmapSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -3980,12 +4134,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(threadsSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(threadsSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = threadsSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(threadsSocialUrlMatch.test(item)).toBe(false);
+      expect(threadsSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4006,12 +4161,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(codepenSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(codepenSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = codepenSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(codepenSocialUrlMatch.test(item)).toBe(false);
+      expect(codepenSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4035,12 +4191,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(redditSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(redditSocialUrlMatch)?.groups?.value).toBe('lee');
+      const result = redditSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('lee');
     });
 
     invalid.forEach((item) => {
-      expect(redditSocialUrlMatch.test(item)).toBe(false);
+      expect(redditSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4049,9 +4206,9 @@ describe('mutation updateUserProfile', () => {
       'stackoverflow.com/users/999999/lee',
       'https://stackoverflow.com/users/999999/lee',
       'https://stackoverflow.com/users/999999/lee/',
+      '999999/lee',
     ];
     const invalid = [
-      '99999/lee',
       'lee',
       'lee#',
       'http://stackoverflow.com/lee',
@@ -4064,23 +4221,28 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(stackoverflowSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(stackoverflowSocialUrlMatch)?.groups?.value).toBe(
-        '999999/lee',
-      );
+      const result = stackoverflowSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe('999999/lee');
     });
 
     invalid.forEach((item) => {
-      expect(stackoverflowSocialUrlMatch.test(item)).toBe(false);
+      expect(stackoverflowSchema.safeParse(item).success).toBe(false);
     });
   });
 
   it('should validate linkedin handle', () => {
-    const valid = [
-      'lee',
-      'linkedin.com/in/lee',
-      'https://linkedin.com/in/lee',
-      'https://linkedin.com/in/lee/',
+    const valid: Array<[string, string]> = [
+      ['lee', 'lee'],
+      ['linkedin.com/in/lee', 'lee'],
+      ['https://linkedin.com/in/lee', 'lee'],
+      ['https://linkedin.com/in/lee/', 'lee'],
+      // Unicode/accented characters (issue #1507)
+      ['ítalo-oliveira-800923162', 'ítalo-oliveira-800923162'],
+      [
+        'https://linkedin.com/in/ítalo-oliveira-800923162',
+        'ítalo-oliveira-800923162',
+      ],
     ];
     const invalid = [
       'lee#',
@@ -4091,13 +4253,14 @@ describe('mutation updateUserProfile', () => {
       'https://linkedin.com/in/lee?bla=1',
     ];
 
-    valid.forEach((item) => {
-      expect(linkedinSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(linkedinSocialUrlMatch)?.groups?.value).toBe('lee');
+    valid.forEach(([input, expected]) => {
+      const result = linkedinSchema.safeParse(input);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe(expected);
     });
 
     invalid.forEach((item) => {
-      expect(linkedinSocialUrlMatch.test(item)).toBe(false);
+      expect(linkedinSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4117,12 +4280,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(mastodonSocialUrlMatch.test(item)).toBe(true);
-      expect(item.match(mastodonSocialUrlMatch)?.groups?.value).toBe(item);
+      const result = mastodonSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe(item);
     });
 
     invalid.forEach((item) => {
-      expect(mastodonSocialUrlMatch.test(item)).toBe(false);
+      expect(mastodonSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4149,12 +4313,13 @@ describe('mutation updateUserProfile', () => {
     ];
 
     valid.forEach((item) => {
-      expect(socialUrlMatch.test(item)).toBe(true);
-      expect(item.match(socialUrlMatch)?.groups?.value).toBe(item);
+      const result = portfolioSchema.safeParse(item);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data).toBe(item);
     });
 
     invalid.forEach((item) => {
-      expect(socialUrlMatch.test(item)).toBe(false);
+      expect(portfolioSchema.safeParse(item).success).toBe(false);
     });
   });
 
@@ -4196,6 +4361,122 @@ describe('mutation updateUserProfile', () => {
     expect(updated?.flags.showPlusGift).toBe(false);
     expect(updated?.flags.vordr).toBe(true);
     expect(updated?.flags.trustScore).toBe(0.9);
+  });
+
+  it('should update socialLinks with auto-detected platforms', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [
+            { url: 'https://github.com/testuser' },
+            { url: 'https://twitter.com/testhandle' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual([
+      { platform: 'github', url: 'https://github.com/testuser' },
+      { platform: 'twitter', url: 'https://twitter.com/testhandle' },
+    ]);
+  });
+
+  it('should update socialLinks with explicit platform override', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [
+            { url: 'https://example.com/profile', platform: 'custom' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual([
+      { platform: 'custom', url: 'https://example.com/profile' },
+    ]);
+  });
+
+  it('should dual-write to legacy columns when updating socialLinks', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [
+            { url: 'https://github.com/myhandle' },
+            { url: 'https://linkedin.com/in/myprofile' },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.github).toBe('myhandle');
+    expect(updated?.linkedin).toBe('myprofile');
+  });
+
+  it('should clear socialLinks when empty array is provided', async () => {
+    loggedUser = '1';
+
+    // First set some social links
+    await con.getRepository(User).update(
+      { id: loggedUser },
+      {
+        socialLinks: [{ platform: 'github', url: 'https://github.com/test' }],
+      },
+    );
+
+    // Then clear them
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          socialLinks: [],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual([]);
+  });
+
+  it('should reverse dual-write: update socialLinks when legacy fields are provided', async () => {
+    loggedUser = '1';
+
+    // Use legacy format (individual fields)
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        data: {
+          github: 'myhandle',
+          linkedin: 'myprofile',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+
+    // Verify socialLinks JSONB is populated with full URLs
+    const updated = await con.getRepository(User).findOneBy({ id: loggedUser });
+    expect(updated?.socialLinks).toEqual(
+      expect.arrayContaining([
+        { platform: 'github', url: 'https://github.com/myhandle' },
+        { platform: 'linkedin', url: 'https://linkedin.com/in/myprofile' },
+      ]),
+    );
   });
 });
 
@@ -4502,6 +4783,63 @@ describe('mutation deleteUser', () => {
       // User should still be deleted
       const userOne = await con.getRepository(User).findOneBy({ id: '1' });
       expect(userOne).toEqual(null);
+    });
+  });
+
+  describe('opportunity and organization cleanup', () => {
+    const testUserId = 'opp-cleanup-user';
+    const testUserId2 = 'opp-cleanup-user-2';
+
+    beforeEach(async () => {
+      await saveFixtures(con, User, [
+        { id: testUserId, username: testUserId },
+        { id: testUserId2, username: testUserId2 },
+      ]);
+    });
+
+    it('should block deletion when organization has active subscription', async () => {
+      loggedUser = testUserId;
+      const oppId = randomUUID();
+      const orgId = randomUUID();
+
+      await con.getRepository(Organization).save({
+        id: orgId,
+        name: `Test Org ${orgId}`,
+        recruiterSubscriptionFlags: { status: SubscriptionStatus.Active },
+      });
+      await con.getRepository(OpportunityJob).save({
+        id: oppId,
+        type: OpportunityType.JOB,
+        state: OpportunityState.DRAFT,
+        title: 'Test Opportunity',
+        tldr: 'Test',
+        content: {},
+        meta: {},
+        flags: {},
+        organizationId: orgId,
+      });
+      await con.getRepository(OpportunityUser).save({
+        opportunityId: oppId,
+        userId: testUserId,
+        type: OpportunityUserType.Recruiter,
+      });
+
+      await testMutationErrorCode(
+        client,
+        { mutation: MUTATION },
+        'CONFLICT',
+        'Cannot delete your account because one of your organizations has an active recruiter subscription. Please cancel the subscription first.',
+      );
+
+      expect(
+        await con.getRepository(User).findOneBy({ id: testUserId }),
+      ).not.toBeNull();
+      expect(
+        await con.getRepository(Opportunity).findOneBy({ id: oppId }),
+      ).not.toBeNull();
+      expect(
+        await con.getRepository(Organization).findOneBy({ id: orgId }),
+      ).not.toBeNull();
     });
   });
 });
@@ -6907,7 +7245,7 @@ describe('add claimable items to user', () => {
       await con.getRepository(ClaimableItem).save({
         id: claimableItemUuid,
         type: ClaimableItemTypes.Plus,
-        email: 'john.doe@example.com',
+        identifier: 'john.doe@example.com',
         flags,
       });
 
@@ -7019,7 +7357,7 @@ describe('add claimable items to user', () => {
       await con.getRepository(ClaimableItem).save({
         id: claimableItemUuid,
         type: ClaimableItemTypes.Plus,
-        email: 'johnclaim@email.com',
+        identifier: 'johnclaim@email.com',
         flags,
       });
 
@@ -7440,5 +7778,188 @@ describe('mutation clearResume', () => {
         userId: loggedUser,
       }),
     ).toEqual(0);
+  });
+});
+
+describe('query userProfileAnalytics', () => {
+  const QUERY = `
+    query UserProfileAnalytics($userId: ID!) {
+      userProfileAnalytics(userId: $userId) {
+        id
+        uniqueVisitors
+        updatedAt
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return null when viewing another user analytics', async () => {
+    loggedUser = '2';
+
+    await con.getRepository(UserProfileAnalytics).save({
+      id: '1',
+      uniqueVisitors: 150,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalytics).toBeNull();
+  });
+
+  it('should return analytics for own profile', async () => {
+    loggedUser = '1';
+
+    const analytics = await con.getRepository(UserProfileAnalytics).save({
+      id: '1',
+      uniqueVisitors: 150,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalytics).toMatchObject({
+      id: '1',
+      uniqueVisitors: 150,
+      updatedAt: analytics.updatedAt.toISOString(),
+    });
+  });
+
+  it('should allow team member to view any user analytics', async () => {
+    loggedUser = '2';
+    isTeamMember = true;
+
+    const analytics = await con.getRepository(UserProfileAnalytics).save({
+      id: '1',
+      uniqueVisitors: 150,
+    });
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalytics).toMatchObject({
+      id: '1',
+      uniqueVisitors: 150,
+      updatedAt: analytics.updatedAt.toISOString(),
+    });
+  });
+
+  it('should return not found error when no analytics record exists', () => {
+    loggedUser = '1';
+
+    return testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'NOT_FOUND',
+    );
+  });
+});
+
+describe('query userProfileAnalyticsHistory', () => {
+  const QUERY = `
+    query UserProfileAnalyticsHistory($userId: ID!, $first: Int, $after: String) {
+      userProfileAnalyticsHistory(userId: $userId, first: $first, after: $after) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        edges {
+          node {
+            id
+            date
+            uniqueVisitors
+            updatedAt
+          }
+        }
+      }
+    }
+  `;
+
+  it('should not allow unauthenticated users', () =>
+    testQueryErrorCode(
+      client,
+      { query: QUERY, variables: { userId: '1' } },
+      'UNAUTHENTICATED',
+    ));
+
+  it('should return null when viewing another user history', async () => {
+    loggedUser = '2';
+
+    await con
+      .getRepository(UserProfileAnalyticsHistory)
+      .save([{ id: '1', date: '2026-01-15', uniqueVisitors: 10 }]);
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory).toBeNull();
+  });
+
+  it('should return history for own profile', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserProfileAnalyticsHistory).save([
+      { id: '1', date: '2026-01-15', uniqueVisitors: 10 },
+      { id: '1', date: '2026-01-14', uniqueVisitors: 25 },
+      { id: '1', date: '2026-01-13', uniqueVisitors: 15 },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(3);
+    expect(res.data.userProfileAnalyticsHistory.edges[0].node).toMatchObject({
+      id: '1',
+      date: '2026-01-15T00:00:00.000Z',
+      uniqueVisitors: 10,
+    });
+  });
+
+  it('should allow team member to view any user history', async () => {
+    loggedUser = '2';
+    isTeamMember = true;
+
+    await con
+      .getRepository(UserProfileAnalyticsHistory)
+      .save([{ id: '1', date: '2026-01-15', uniqueVisitors: 10 }]);
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(1);
+    expect(res.data.userProfileAnalyticsHistory.edges[0].node).toMatchObject({
+      id: '1',
+      date: '2026-01-15T00:00:00.000Z',
+      uniqueVisitors: 10,
+    });
+  });
+
+  it('should paginate with first parameter', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserProfileAnalyticsHistory).save([
+      { id: '1', date: '2026-01-15', uniqueVisitors: 10 },
+      { id: '1', date: '2026-01-14', uniqueVisitors: 25 },
+      { id: '1', date: '2026-01-13', uniqueVisitors: 15 },
+      { id: '1', date: '2026-01-12', uniqueVisitors: 20 },
+      { id: '1', date: '2026-01-11', uniqueVisitors: 30 },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { userId: '1', first: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(2);
+    expect(res.data.userProfileAnalyticsHistory.pageInfo.hasNextPage).toBe(
+      true,
+    );
+  });
+
+  it('should return empty edges when no history exists', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY, { variables: { userId: '1' } });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(0);
   });
 });

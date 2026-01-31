@@ -1,7 +1,6 @@
 import {
   generateNotificationV2,
   type NotificationAwardContext,
-  NotificationBaseContext,
   NotificationBookmarkContext,
   NotificationBundleV2,
   type NotificationCampaignContext,
@@ -10,9 +9,11 @@ import {
   NotificationDoneByContext,
   NotificationGiftPlusContext,
   type NotificationOpportunityMatchContext,
+  type NotificationParsedCVProfileContext,
   type NotificationPostAnalyticsContext,
   NotificationPostContext,
   NotificationPostModerationContext,
+  type NotificationRecruiterNewCandidateContext,
   NotificationSourceContext,
   NotificationSourceMemberRoleContext,
   NotificationSourceRequestContext,
@@ -56,7 +57,6 @@ import {
   createSquadWelcomePost,
   emptyImage,
   notificationsLink,
-  scoutArticleLink,
   squadsFeaturedPage,
 } from '../../src/common';
 import { usersFixture } from '../fixture/user';
@@ -210,21 +210,6 @@ describe('generateNotification', () => {
         type: 'post',
       },
     ]);
-  });
-
-  it('should generate community_picks_granted notification', () => {
-    const type = NotificationType.CommunityPicksGranted;
-    const ctx: NotificationBaseContext = { userIds: [userId] };
-    const actual = generateNotificationV2(type, ctx);
-
-    expect(actual.notification.type).toEqual(type);
-    expect(actual.userIds).toEqual([userId]);
-    expect(actual.notification.public).toEqual(true);
-    expect(actual.notification.referenceId).toEqual('system');
-    expect(actual.notification.referenceType).toEqual('system');
-    expect(actual.notification.targetUrl).toEqual(scoutArticleLink);
-    expect(actual.avatars.length).toEqual(0);
-    expect(actual.attachments.length).toEqual(0);
   });
 
   it('should generate article_picked notification', () => {
@@ -1059,6 +1044,69 @@ describe('generateNotification', () => {
     expect(actual.notification.uniqueKey).toEqual('2');
     expect(actual.notification.targetUrl).toEqual(
       'http://localhost:5002/posts/welcome1?comment=%40tsahidaily+welcome+to+A%21',
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: 'http://image.com/a',
+        name: 'A',
+
+        referenceId: 'a',
+        targetUrl: 'http://localhost:5002/squads/a',
+        type: 'source',
+      },
+      {
+        image: 'https://daily.dev/tsahi.jpg',
+        name: 'Tsahi',
+
+        referenceId: '2',
+        targetUrl: 'http://localhost:5002/tsahidaily',
+        type: 'user',
+      },
+    ]);
+    expect(actual.attachments.length).toEqual(0);
+  });
+
+  it('should generate squad_member_joined notification with squad link when welcome post is deleted', async () => {
+    const type = NotificationType.SquadMemberJoined;
+    await con.getRepository(Source).save(sourcesFixture[0]);
+    await con
+      .getRepository(Source)
+      .update({ id: 'a' }, { type: SourceType.Squad });
+    const source = await con.getRepository(Source).findOneBy({ id: 'a' });
+    await con.getRepository(User).save(usersFixture);
+    await con.getRepository(SourceMember).save({
+      sourceId: 'a',
+      userId: '1',
+      role: SourceMemberRoles.Admin,
+      referralToken: 'random',
+    });
+    const post = await createSquadWelcomePost(con, source as SquadSource, '1');
+    await con
+      .getRepository(WelcomePost)
+      .update({ id: post.id }, { id: 'welcome1', deleted: true });
+    post.id = 'welcome1';
+    post.deleted = true;
+    const ctx: NotificationPostContext & NotificationDoneByContext = {
+      userIds: [userId],
+      post,
+      source,
+      doneBy: usersFixture[1] as Reference<User>,
+    };
+    const actual = generateNotificationV2(type, ctx);
+
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual([userId]);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(source.id);
+    expect(actual.notification.referenceType).toEqual('source');
+    expect(actual.notification.uniqueKey).toEqual('2');
+    // When post is deleted, should link to squad page instead
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/squads/a',
+    );
+    // When post is deleted, title should not mention commenting
+    expect(actual.notification.title).toEqual(
+      'Your squad <b>A</b> is <span class="text-theme-color-cabbage">growing</span>! <b>Tsahi</b> has joined the squad.',
     );
     expect(actual.avatars).toEqual([
       {
@@ -2168,5 +2216,113 @@ describe('warm intro notifications', () => {
       },
     ]);
     expect(actual.attachments.length).toEqual(0);
+  });
+});
+
+describe('parsed_cv_profile notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should notify when parsed CV profile is ready', async () => {
+    const type = NotificationType.ParsedCVProfile;
+    const ctx: NotificationParsedCVProfileContext = {
+      userIds: ['1'],
+      user: usersFixture[0] as Reference<User>,
+      status: 'success',
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('1');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/idoshamun',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+    expect(actual.notification.title).toContain('Great news');
+  });
+
+  it('should notify when parsed CV profile failed', async () => {
+    const type = NotificationType.ParsedCVProfile;
+    const ctx: NotificationParsedCVProfileContext = {
+      userIds: ['1'],
+      user: usersFixture[0] as Reference<User>,
+      status: 'failed',
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual('1');
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/idoshamun',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: 'https://daily.dev/ido.jpg',
+        name: 'Ido',
+        referenceId: '1',
+        targetUrl: 'http://localhost:5002/idoshamun',
+        type: 'user',
+      },
+    ]);
+
+    expect(actual.notification.title).toBe(
+      "We couldn't parse your CV — sorry about that! The good news is you can still add your experience manually in <u>your profile</u>.",
+    );
+  });
+});
+
+describe('recruiter_new_candidate notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should generate recruiter_new_candidate notification with uniqueKey set to candidate id', async () => {
+    const type = NotificationType.RecruiterNewCandidate;
+    const opportunityId = '550e8400-e29b-41d4-a716-446655440001';
+    const candidate = usersFixture[0] as Reference<User>;
+
+    const ctx: NotificationRecruiterNewCandidateContext = {
+      userIds: ['recruiter1', 'recruiter2'],
+      opportunityId,
+      candidate,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['recruiter1', 'recruiter2']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(opportunityId);
+    expect(actual.notification.referenceType).toEqual('opportunity');
+    expect(actual.notification.icon).toEqual('Opportunity');
+    expect(actual.notification.uniqueKey).toEqual(candidate.id);
+    expect(actual.notification.targetUrl).toEqual(
+      `http://localhost:5002/opportunity/${opportunityId}/matches`,
+    );
+    expect(actual.avatars).toEqual([
+      {
+        image: candidate.image,
+        name: candidate.name,
+        referenceId: candidate.id,
+        targetUrl: `http://localhost:5002/${candidate.username}`,
+        type: 'user',
+      },
+    ]);
   });
 });

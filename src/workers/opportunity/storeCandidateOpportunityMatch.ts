@@ -5,7 +5,7 @@ import { opportunityMatchDescriptionSchema } from '../../common/schema/opportuni
 import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
 import { logger } from '../../logger';
-import { updateFlagsStatement } from '../../common';
+import { systemUserIds, updateFlagsStatement } from '../../common';
 
 export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -28,6 +28,10 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
         return;
       }
 
+      if (systemUserIds.includes(userId)) {
+        return;
+      }
+
       const description = opportunityMatchDescriptionSchema.parse({
         reasoning,
         reasoningShort,
@@ -35,6 +39,14 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
       });
 
       await con.transaction(async (manager) => {
+        // Check if match already exists to determine if this is a new insert
+        const existingMatch = await manager
+          .getRepository(OpportunityMatch)
+          .findOne({
+            where: { userId, opportunityId },
+            select: ['userId', 'opportunityId'],
+          });
+
         await manager.getRepository(OpportunityMatch).upsert(
           {
             userId,
@@ -46,13 +58,19 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
             skipUpdateIfNoValuesChanged: true,
           },
         );
-        await manager.getRepository(Alerts).update(
-          { userId, opportunityId: IsNull() },
-          {
-            opportunityId,
-            flags: updateFlagsStatement<Alerts>({ hasSeenOpportunity: false }),
-          },
-        );
+
+        // Only update alert if this is a new match (insert)
+        if (!existingMatch) {
+          await manager.getRepository(Alerts).update(
+            { userId, opportunityId: IsNull() },
+            {
+              opportunityId,
+              flags: updateFlagsStatement<Alerts>({
+                hasSeenOpportunity: false,
+              }),
+            },
+          );
+        }
       });
     },
     parseMessage: (message) => {

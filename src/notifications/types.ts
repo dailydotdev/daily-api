@@ -24,6 +24,7 @@ import { SourcePostModeration } from '../entity/SourcePostModeration';
 import type { UserTransaction } from '../entity/user/UserTransaction';
 import type { CampaignUpdateEvent } from '../common/campaign/common';
 import type { PostAnalytics } from '../entity/posts/PostAnalytics';
+import type { UserExperienceType } from '../entity/user/experiences/types';
 
 export type Reference<T> = ChangeObject<T> | T;
 
@@ -78,8 +79,7 @@ export type NotificationStreakContext = NotificationBaseContext & {
   streak: Reference<UserStreak>;
 };
 
-export interface NotificationStreakRestoreContext
-  extends NotificationStreakContext {
+export interface NotificationStreakRestoreContext extends NotificationStreakContext {
   restore: {
     expiry: number;
     amount: number;
@@ -153,8 +153,7 @@ export interface NotificationCampaignContext extends NotificationUserContext {
   event: CampaignUpdateEvent;
 }
 
-export interface NotificationCampaignSourceContext
-  extends NotificationCampaignContext {
+export interface NotificationCampaignSourceContext extends NotificationCampaignContext {
   source: Reference<Source>;
 }
 
@@ -169,6 +168,42 @@ export type NotificationWarmIntroContext = NotificationBaseContext & {
   recruiter: Reference<User>;
   organization: Reference<Organization>;
 };
+
+export type NotificationParsedCVProfileContext = NotificationUserContext & {
+  status: 'success' | 'failed';
+};
+
+export type NotificationRecruiterNewCandidateContext =
+  NotificationBaseContext & {
+    opportunityId: string;
+    candidate: Reference<User>;
+    opportunityTitle?: string;
+    matchScore?: number;
+    reasoning?: string;
+    reasoningShort?: string;
+    keywords?: string[];
+  };
+
+export type NotificationRecruiterOpportunityLiveContext =
+  NotificationBaseContext & {
+    opportunityId: string;
+    opportunityTitle: string;
+  };
+
+export type NotificationExperienceCompanyEnrichedContext =
+  NotificationBaseContext & {
+    experienceId: string;
+    experienceTitle: string;
+    experienceType: UserExperienceType;
+    companyId: string;
+    companyName: string;
+  };
+
+export type NotificationRecruiterExternalPaymentContext =
+  NotificationBaseContext & {
+    opportunityId: string;
+    opportunityTitle: string;
+  };
 
 declare module 'fs' {
   interface ReadStream {

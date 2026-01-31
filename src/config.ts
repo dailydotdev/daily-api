@@ -32,6 +32,7 @@ export const submissionAccessThreshold = parseInt(
 export const RESUME_BUCKET_NAME = process.env.RESUME_BUCKET_NAME;
 export const EMPLOYMENT_AGREEMENT_BUCKET_NAME =
   process.env.EMPLOYMENT_AGREEMENT_BUCKET_NAME;
+export const YEAR_IN_REVIEW_BUCKET_NAME = 'daily-dev-year-in-review';
 
 export enum StorageTopic {
   Boot = 'boot',
@@ -42,6 +43,7 @@ export enum StorageTopic {
   Paddle = 'paddle',
   RedisCounter = 'redis_counter',
   Cron = 'cron',
+  Log = 'log',
 }
 
 export enum StorageKey {
@@ -54,6 +56,7 @@ export enum StorageKey {
   PricingPreviewCores = 'pricing_preview_cores',
   OrganizationSubscriptionUpdatePreview = 'organization_subscription_update_preview',
   UserLastOnline = 'ulo',
+  LogData = 'log_data',
 }
 
 export const generateStorageKey = (

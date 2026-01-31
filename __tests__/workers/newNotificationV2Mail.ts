@@ -49,7 +49,6 @@ import { usersFixture } from '../fixture/user';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import {
-  NotificationBaseContext,
   NotificationCampaignContext,
   NotificationCollectionContext,
   NotificationCommentContext,
@@ -99,11 +98,17 @@ import { Opportunity } from '../../src/entity/opportunities/Opportunity';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
 import { OpportunityUserRecruiter } from '../../src/entity/opportunities/user';
 import { OpportunityUserType } from '../../src/entity/opportunities/types';
+import type {
+  NotificationRecruiterNewCandidateContext,
+  NotificationRecruiterOpportunityLiveContext,
+} from '../../src/notifications/types';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
   opportunityMatchesFixture,
   organizationsFixture,
 } from '../fixture/opportunity';
+import { DatasetLocation } from '../../src/entity/dataset/DatasetLocation';
 
 jest.mock('../../src/common/mailing', () => ({
   ...(jest.requireActual('../../src/common/mailing') as Record<
@@ -201,29 +206,6 @@ it('should set parameters for community_picks_succeeded email', async () => {
     submitted_at: 'Dec 12, 2022',
   });
   expect(args.transactional_message_id).toEqual('27');
-});
-
-it('should set parameters for community_picks_granted email', async () => {
-  const ctx: NotificationBaseContext = {
-    userIds: ['1'],
-  };
-
-  const notificationId = await saveNotificationV2Fixture(
-    con,
-    NotificationType.CommunityPicksGranted,
-    ctx,
-  );
-  await expectSuccessfulBackground(worker, {
-    notification: {
-      id: notificationId,
-      userId: '1',
-    },
-  });
-  expect(sendEmail).toHaveBeenCalledTimes(1);
-  const args = jest.mocked(sendEmail).mock
-    .calls[0][0] as SendEmailRequestWithTemplate;
-  expect(args.message_data).toEqual({});
-  expect(args.transactional_message_id).toEqual('26');
 });
 
 it('should set parameters for article_picked email', async () => {
@@ -406,6 +388,8 @@ it('should set parameters for article_analytics email', async () => {
   expect(args.message_data).toEqual({
     post_comments: '2',
     post_image: 'https://daily.dev/image.jpg',
+    analytics_link:
+      'http://localhost:5002/posts/p1/analytics?utm_source=notification&utm_medium=email&utm_campaign=article_analytics',
     post_title: 'P1',
     post_upvotes: '6',
     post_views: '11',
@@ -1872,6 +1856,7 @@ describe('user_post_added notification', () => {
 
 describe('new_opportunity_match notification', () => {
   it('should send email', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
@@ -2754,7 +2739,8 @@ describe('poll result notifications', () => {
 });
 
 describe('warm_intro notification', () => {
-  it('should send email to both candidate and recruiter', async () => {
+  it('should send email with candidate and recruiter names in title', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
@@ -2813,7 +2799,7 @@ describe('warm_intro notification', () => {
       .calls[0][0] as SendEmailRequestWithTemplate;
 
     expect(args.message_data).toEqual({
-      title: `[Action Required] It's a match!`,
+      title: '[Action Required] Intro: Ido <> John Recruiter',
       copy: '<p>Great match based on your experience!</p>',
       cc: 'recruiter@test.com',
     });
@@ -2821,5 +2807,227 @@ describe('warm_intro notification', () => {
     // Verify both emails are in the 'to' field
     expect(args.to).toEqual('ido@daily.dev,recruiter@test.com');
     expect(args.transactional_message_id).toEqual('85');
+  });
+
+  it('should CC all recruiters when multiple recruiters exist', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+    await saveFixtures(con, OpportunityMatch, opportunityMatchesFixture);
+
+    // Create first recruiter user
+    const recruiter1 = await con.getRepository(User).save({
+      id: 'recruiter1',
+      name: 'John Recruiter',
+      email: 'john@test.com',
+      username: 'johnrecruiter',
+    });
+
+    // Create second recruiter user
+    const recruiter2 = await con.getRepository(User).save({
+      id: 'recruiter2',
+      name: 'Jane Recruiter',
+      email: 'jane@test.com',
+      username: 'janerecruiter',
+    });
+
+    // Link both recruiters to opportunity
+    await con.getRepository(OpportunityUserRecruiter).save([
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: recruiter1.id,
+        type: OpportunityUserType.Recruiter,
+      },
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: recruiter2.id,
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+
+    // Update opportunity match with warmIntro
+    await con.getRepository(OpportunityMatch).update(
+      {
+        opportunityId: opportunitiesFixture[0].id,
+        userId: '1',
+      },
+      {
+        applicationRank: {
+          warmIntro: '<p>Great match based on your experience!</p>',
+        },
+      },
+    );
+
+    const ctx: NotificationWarmIntroContext = {
+      userIds: ['1'],
+      opportunityId: opportunitiesFixture[0].id,
+      description: 'Great match based on your experience!',
+      recruiter: recruiter1,
+      organization: organizationsFixture[0],
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.WarmIntro,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '1',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    // Title should use first recruiter's name
+    expect(args.message_data?.title).toEqual(
+      '[Action Required] Intro: Ido <> John Recruiter',
+    );
+    expect(args.message_data?.copy).toEqual(
+      '<p>Great match based on your experience!</p>',
+    );
+    // CC should contain all recruiter emails (comma-separated)
+    expect(args.message_data?.cc).toEqual('john@test.com,jane@test.com');
+    expect(args.transactional_message_id).toEqual('85');
+  });
+});
+
+describe('recruiter_new_candidate notification', () => {
+  it('should send email with matching tags between candidate and opportunity', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+
+    const candidate = await con.getRepository(User).findOneBy({ id: '1' });
+
+    // Create match with application rank score
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: candidate!.id,
+      applicationRank: {
+        score: 8.6799,
+        description: 'Strong JS skills',
+      },
+    });
+
+    const ctx: NotificationRecruiterNewCandidateContext = {
+      userIds: ['2'],
+      opportunityId: opportunitiesFixture[0].id,
+      candidate: candidate!,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.RecruiterNewCandidate,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      candidate_name: 'Ido',
+      profile_picture: 'https://daily.dev/ido.jpg',
+      job_title: 'Senior Full Stack Developer',
+      score: '8.7/10',
+      matching_content: 'Strong JS skills',
+      candidate_link: `http://localhost:5002/recruiter/${opportunitiesFixture[0].id}/matches`,
+    });
+  });
+
+  it('should show N/A label when no application score', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+
+    const candidate = await con.getRepository(User).findOneBy({ id: '1' });
+
+    // Create match with application rank score
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: opportunitiesFixture[0].id,
+      userId: candidate!.id,
+      applicationRank: {
+        description: 'Strong JS skills',
+      },
+    });
+
+    const ctx: NotificationRecruiterNewCandidateContext = {
+      userIds: ['2'],
+      opportunityId: opportunitiesFixture[0].id,
+      candidate: candidate!,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.RecruiterNewCandidate,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      candidate_name: 'Ido',
+      profile_picture: 'https://daily.dev/ido.jpg',
+      job_title: 'Senior Full Stack Developer',
+      score: 'N/A',
+      matching_content: 'Strong JS skills',
+      candidate_link: `http://localhost:5002/recruiter/${opportunitiesFixture[0].id}/matches`,
+    });
+  });
+});
+
+describe('recruiter_opportunity_live notification', () => {
+  it('should send email when opportunity goes live', async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
+
+    const ctx: NotificationRecruiterOpportunityLiveContext = {
+      userIds: ['2'],
+      opportunityId: opportunitiesFixture[0].id,
+      opportunityTitle: opportunitiesFixture[0].title,
+    };
+
+    const notificationId = await saveNotificationV2Fixture(
+      con,
+      NotificationType.RecruiterOpportunityLive,
+      ctx,
+    );
+
+    await expectSuccessfulBackground(worker, {
+      notification: {
+        id: notificationId,
+        userId: '2',
+      },
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    const args = jest.mocked(sendEmail).mock
+      .calls[0][0] as SendEmailRequestWithTemplate;
+
+    expect(args.message_data).toEqual({
+      opportunity_link: `http://localhost:5002/opportunity/${opportunitiesFixture[0].id}`,
+    });
   });
 });

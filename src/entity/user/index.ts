@@ -1,6 +1,5 @@
 export * from './User';
 export * from './UserPost';
-export * from './UserState';
 export * from './UserAction';
 export * from './UserStreak';
 export * from './UserStreakAction';
@@ -8,3 +7,10 @@ export * from './UserPersonalizedDigest';
 export * from './UserMarketingCta';
 export * from './UserStats';
 export * from './UserTopReader';
+export * from './UserProfileAnalytics';
+export * from './UserProfileAnalyticsHistory';
+export * from './UserStack';
+export * from './HotTake';
+export * from './UserHotTake';
+export * from './UserWorkspacePhoto';
+export * from './UserGear';

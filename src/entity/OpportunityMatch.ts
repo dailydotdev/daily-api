@@ -17,6 +17,7 @@ import {
   opportunityMatchDescriptionSchema,
 } from '../common/schema/opportunities';
 import type { Screening } from '@dailydotdev/schema';
+import type { OpportunityFeedback } from '../common/schema/opportunityMatch';
 
 @Entity()
 export class OpportunityMatch {
@@ -49,7 +50,7 @@ export class OpportunityMatch {
   screening: Array<Screening>;
 
   @Column({ type: 'jsonb', default: '[]' })
-  feedback: Array<Screening>;
+  feedback: Array<OpportunityFeedback>;
 
   @Column({ type: 'jsonb', default: '{}' })
   applicationRank: z.infer<typeof applicationScoreSchema>;

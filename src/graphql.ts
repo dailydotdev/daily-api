@@ -33,6 +33,12 @@ import * as campaigns from './schema/campaigns';
 import * as opportunity from './schema/opportunity';
 import * as autocompletes from './schema/autocompletes';
 import * as profile from './schema/profile';
+import * as userStack from './schema/userStack';
+import * as sourceStack from './schema/sourceStack';
+import * as userHotTake from './schema/userHotTake';
+import * as gear from './schema/gear';
+import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
+import * as feedback from './schema/feedback';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -82,6 +88,12 @@ export const schema = urlDirective.transformer(
               opportunity.typeDefs,
               autocompletes.typeDefs,
               profile.typeDefs,
+              userStack.typeDefs,
+              sourceStack.typeDefs,
+              userHotTake.typeDefs,
+              gear.typeDefs,
+              userWorkspacePhoto.typeDefs,
+              feedback.typeDefs,
             ],
             resolvers: merge(
               common.resolvers,
@@ -114,6 +126,12 @@ export const schema = urlDirective.transformer(
               opportunity.resolvers,
               autocompletes.resolvers,
               profile.resolvers,
+              userStack.resolvers,
+              sourceStack.resolvers,
+              userHotTake.resolvers,
+              gear.resolvers,
+              userWorkspacePhoto.resolvers,
+              feedback.resolvers,
             ),
           }),
         ),

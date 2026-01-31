@@ -15,7 +15,6 @@ import { SlackApiError, SlackApiErrorCode } from '../errors';
 import { counters } from '../telemetry/metrics';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { isNullOrUndefined } from '../common/object';
-import type { ChatPostMessageArguments } from '@slack/web-api';
 
 const sendQueueConcurrency = 10;
 
@@ -134,7 +133,7 @@ export const postAddedSlackChannelSendBriefWorker: TypedWorker<'api.v1.brief-rea
                 }
               }
 
-              const payload: ChatPostMessageArguments = {
+              const payload = {
                 channel: channelId,
                 text: messageText,
                 attachments: [attachment],

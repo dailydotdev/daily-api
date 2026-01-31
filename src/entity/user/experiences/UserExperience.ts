@@ -5,6 +5,7 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   TableInheritance,
   UpdateDateColumn,
@@ -14,6 +15,21 @@ import { UserExperienceType } from './types';
 import type { Company } from '../../Company';
 import { LocationType } from '@dailydotdev/schema';
 import type { DatasetLocation } from '../../dataset/DatasetLocation';
+import type { UserExperienceSkill } from './UserExperienceSkill';
+
+export type UserExperienceFlags = Partial<{
+  import: string;
+  customDomain: string;
+  customImage: string;
+  removedEnrichment: boolean;
+  repository: {
+    id: string | null;
+    owner: string | null;
+    name: string;
+    url: string;
+    image: string | null;
+  };
+}>;
 
 @Entity()
 @TableInheritance({ column: { type: 'text', name: 'type' } })
@@ -65,6 +81,13 @@ export class UserExperience {
   @Column({ type: 'text', default: null })
   locationId: string | null;
 
+  @Column({ type: 'jsonb', default: {} })
+  customLocation: Partial<{
+    city: string | null;
+    subdivision: string | null;
+    country: string | null;
+  }>;
+
   @ManyToOne('DatasetLocation', { lazy: true, onDelete: 'SET NULL' })
   @JoinColumn({
     name: 'locationId',
@@ -84,4 +107,14 @@ export class UserExperience {
 
   @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
+
+  @Column({ type: 'jsonb', default: {} })
+  flags: UserExperienceFlags;
+
+  @OneToMany(
+    'UserExperienceSkill',
+    (skill: UserExperienceSkill) => skill.experience,
+    { lazy: true },
+  )
+  skills: Promise<UserExperienceSkill[]>;
 }

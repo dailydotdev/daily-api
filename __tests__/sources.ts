@@ -26,7 +26,7 @@ import { SourceCategory } from '../src/entity/sources/SourceCategory';
 import { SourceTagView } from '../src/entity/SourceTagView';
 import { SourcePermissionErrorKeys } from '../src/errors';
 import { NotificationType } from '../src/notifications/common';
-import { SourceMemberRoles, sourceRoleRank } from '../src/roles';
+import { Roles, SourceMemberRoles, sourceRoleRank } from '../src/roles';
 import { SourcePermissions } from '../src/schema/sources';
 import { postKeywordsFixture, postsFixture } from './fixture/post';
 import { createSource, sourcesFixture } from './fixture/source';
@@ -60,11 +60,12 @@ let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
+let roles: Roles[] = [];
 
 beforeAll(async () => {
   con = await createOrGetConnection();
   state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser),
+    () => new MockContext(con, loggedUser, roles),
   );
   client = state.client;
 });
@@ -118,6 +119,7 @@ const getSourceCategories = () => [
 
 beforeEach(async () => {
   loggedUser = null;
+  roles = [];
   await saveFixtures(con, SourceCategory, getSourceCategories());
   await saveFixtures(con, Source, [
     sourcesFixture[0],
@@ -3236,6 +3238,43 @@ describe('mutation updateMemberRole', () => {
       .getRepository(ContentPreferenceSource)
       .findOneBy({ userId: '3', referenceId: 'a' });
     expect(contentPreference!.flags.role).toEqual(SourceMemberRoles.Blocked);
+  });
+
+  it('should allow system moderator to update squad member role without being a squad member', async () => {
+    // User 4 is a system moderator but NOT a member of squad 'a'
+    loggedUser = '4';
+    roles = [Roles.Moderator];
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'a',
+        memberId: '2',
+        role: SourceMemberRoles.Admin,
+      },
+    });
+    expect(res.errors).toBeFalsy();
+    const member = await con
+      .getRepository(SourceMember)
+      .findOneBy({ userId: '2', sourceId: 'a' });
+    expect(member.role).toEqual(SourceMemberRoles.Admin);
+  });
+
+  it('should fail when system moderator provides invalid role', async () => {
+    loggedUser = '4';
+    roles = [Roles.Moderator];
+    return testMutationError(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          sourceId: 'a',
+          memberId: '2',
+          role: 'invalid_role',
+        },
+      },
+      (errors) => {
+        expect(errors[0].message).toEqual('Role does not exist!');
+      },
+    );
   });
 });
 

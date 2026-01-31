@@ -1,4 +1,5 @@
 import assert from 'node:assert';
+import { randomUUID } from 'node:crypto';
 import { DataSource, In } from 'typeorm';
 
 import {
@@ -11,6 +12,15 @@ import {
   testQueryErrorCode,
 } from './helpers';
 import { Feed, Organization, User } from '../src/entity';
+import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
+import { OpportunityUser } from '../src/entity/opportunities/user';
+import { OpportunityUserType } from '../src/entity/opportunities/types';
+import {
+  OpportunityState,
+  CompanySize,
+  CompanyStage,
+} from '@dailydotdev/schema';
+import { DatasetLocation } from '../src/entity/dataset/DatasetLocation';
 
 import createOrGetConnection from '../src/db';
 
@@ -787,7 +797,7 @@ describe('mutation joinOrganization', () => {
   it('should return forbidden if organization do not match', async () => {
     loggedUser = '3';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -804,7 +814,7 @@ describe('mutation joinOrganization', () => {
   it('should return forbidden if token do not match', async () => {
     loggedUser = '3';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -821,7 +831,7 @@ describe('mutation joinOrganization', () => {
   it('should return forbidden if inviter does not have permission to invite', async () => {
     loggedUser = '3';
 
-    testMutationErrorCode(
+    await testMutationErrorCode(
       client,
       {
         mutation: MUTATION,
@@ -939,7 +949,7 @@ describe('query getOrganizationByIdAndInviteToken', () => {
   it('should return forbidden if token and organization do not match', async () => {
     loggedUser = '3';
 
-    testQueryErrorCode(
+    await testQueryErrorCode(
       client,
       {
         query: QUERY,
@@ -956,7 +966,7 @@ describe('query getOrganizationByIdAndInviteToken', () => {
   it('should return forbidden if inviter does not have permission to invite', async () => {
     loggedUser = '3';
 
-    testQueryErrorCode(
+    await testQueryErrorCode(
       client,
       {
         query: QUERY,
@@ -2156,6 +2166,449 @@ describe('mutation toggleOrganizationMemberSeat', () => {
           },
         }),
       ]),
+    );
+  });
+});
+
+describe('mutation updateRecruiterOrganization', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation UpdateRecruiterOrganization(
+      $id: ID!
+      $payload: RecruiterOrganizationEditInput!
+    ) {
+      updateRecruiterOrganization(id: $id, payload: $payload) {
+        id
+        name
+        website
+        description
+        perks
+        founded
+        location {
+          city
+          country
+        }
+        category
+        size
+        stage
+      }
+    }
+  `;
+
+  const oppId = '550e8400-e29b-41d4-a716-446655440001';
+  const locId = '660e8400-e29b-41d4-a716-446655440001';
+
+  beforeEach(async () => {
+    // Create a dataset location for tests
+    await saveFixtures(con, DatasetLocation, [
+      {
+        id: locId,
+        country: 'Norway',
+        city: null,
+        subdivision: null,
+        iso2: 'NO',
+        iso3: 'NOR',
+        externalId: 'norway-remote',
+      },
+    ]);
+
+    // Create an opportunity linked to org-1
+    await con.getRepository(OpportunityJob).save({
+      id: oppId,
+      state: OpportunityState.DRAFT,
+      title: 'Test Opportunity',
+      tldr: 'Test',
+      organizationId: 'org-1',
+    });
+
+    // Make user 1 a recruiter for opp-1
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: oppId,
+        userId: '1',
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'org-1',
+          payload: { name: 'New Name' },
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw error when user is not a recruiter for any opportunity linked to the organization', async () => {
+    loggedUser = '2'; // User 2 is not a recruiter
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'org-1',
+          payload: { name: 'Unauthorized Update' },
+        },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+  });
+
+  it('should update organization data when user is a recruiter', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'org-1',
+        payload: {
+          name: 'Updated Corp',
+          website: 'https://updated.dev',
+          description: 'Updated description',
+          perks: ['Remote work', 'Flexible hours'],
+          founded: 2021,
+          externalLocationId: 'norway-remote',
+          category: 'Technology',
+          size: CompanySize.COMPANY_SIZE_51_200,
+          stage: CompanyStage.SERIES_B,
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateRecruiterOrganization).toMatchObject({
+      name: 'Updated Corp',
+      website: 'https://updated.dev',
+      description: 'Updated description',
+      perks: ['Remote work', 'Flexible hours'],
+      founded: 2021,
+      location: {
+        city: null,
+        country: 'Norway',
+      },
+      category: 'Technology',
+      size: CompanySize.COMPANY_SIZE_51_200,
+      stage: CompanyStage.SERIES_B,
+    });
+
+    // Verify the organization was updated in database
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: 'org-1' });
+
+    expect(organization).toMatchObject({
+      name: 'Updated Corp',
+      website: 'https://updated.dev',
+      description: 'Updated description',
+      perks: ['Remote work', 'Flexible hours'],
+      founded: 2021,
+      category: 'Technology',
+      size: CompanySize.COMPANY_SIZE_51_200,
+      stage: CompanyStage.SERIES_B,
+    });
+  });
+
+  it('should not allow duplicate organization names', async () => {
+    loggedUser = '1';
+
+    // Try to rename org-1 to the same name as org-2
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'org-1',
+        payload: {
+          name: 'Organization 2', // Duplicate name
+        },
+      },
+    });
+
+    expect(res.errors).toBeTruthy();
+    expect(res.errors![0].extensions.code).toEqual('CONFLICT');
+    expect(res.errors![0].message).toEqual(
+      'Organization with this name already exists',
+    );
+  });
+
+  it('should allow partial updates', async () => {
+    loggedUser = '1';
+
+    // Set initial values
+    await con.getRepository(Organization).update(
+      { id: 'org-1' },
+      {
+        website: 'https://initial.dev',
+        description: 'Initial description',
+      },
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'org-1',
+        payload: {
+          website: 'https://updated.dev',
+          // description not provided - should remain unchanged
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.updateRecruiterOrganization.website).toBe(
+      'https://updated.dev',
+    );
+    expect(res.data.updateRecruiterOrganization.description).toBe(
+      'Initial description',
+    );
+  });
+});
+
+describe('mutation clearRecruiterOrganizationImage', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation ClearRecruiterOrganizationImage($id: ID!) {
+      clearRecruiterOrganizationImage(id: $id) {
+        _
+      }
+    }
+  `;
+
+  const oppId = '550e8400-e29b-41d4-a716-446655440002';
+
+  beforeEach(async () => {
+    // Create an opportunity linked to org-1
+    await con.getRepository(OpportunityJob).save({
+      id: oppId,
+      state: OpportunityState.DRAFT,
+      title: 'Test Opportunity',
+      tldr: 'Test',
+      organizationId: 'org-1',
+    });
+
+    // Make user 1 a recruiter for opp-1
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: oppId,
+        userId: '1',
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'org-1',
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should throw error when user is not a recruiter for any opportunity linked to organization', async () => {
+    loggedUser = '2'; // User 2 is not a recruiter
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: 'org-1',
+        },
+      },
+      'FORBIDDEN',
+      'Access denied!',
+    );
+  });
+
+  it('should throw error when organization does not exist', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          id: '660e8400-e29b-41d4-a716-446655440999',
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should clear organization image', async () => {
+    loggedUser = '1';
+
+    // First set an image on the organization
+    await con
+      .getRepository(Organization)
+      .update({ id: 'org-1' }, { image: 'https://example.com/old-image.png' });
+
+    // Verify image is set
+    let organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: 'org-1' });
+    expect(organization?.image).toBe('https://example.com/old-image.png');
+
+    // Clear the image using organization ID
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: 'org-1',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.clearRecruiterOrganizationImage).toEqual({ _: true });
+
+    // Verify image was cleared in database
+    organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: 'org-1' });
+    expect(organization?.image).toBeNull();
+  });
+});
+
+describe('mutation createOrganizationForOpportunity', () => {
+  const MUTATION = /* GraphQL */ `
+    mutation CreateOrganizationForOpportunity($opportunityId: ID!) {
+      createOrganizationForOpportunity(opportunityId: $opportunityId) {
+        id
+        name
+      }
+    }
+  `;
+
+  const oppWithOrgId = '550e8400-e29b-41d4-a716-446655440010';
+  const oppWithoutOrgId = '550e8400-e29b-41d4-a716-446655440011';
+
+  beforeEach(async () => {
+    // Create an opportunity with an organization
+    await con.getRepository(OpportunityJob).save({
+      id: oppWithOrgId,
+      state: OpportunityState.DRAFT,
+      title: 'Test Opportunity With Org',
+      tldr: 'Test',
+      organizationId: 'org-1',
+    });
+
+    // Create an opportunity without an organization
+    await con.getRepository(OpportunityJob).save({
+      id: oppWithoutOrgId,
+      state: OpportunityState.DRAFT,
+      title: 'Test Opportunity Without Org',
+      tldr: 'Test',
+      organizationId: null,
+    });
+
+    // Make user 1 a recruiter for both opportunities
+    await saveFixtures(con, OpportunityUser, [
+      {
+        opportunityId: oppWithOrgId,
+        userId: '1',
+        type: OpportunityUserType.Recruiter,
+      },
+      {
+        opportunityId: oppWithoutOrgId,
+        userId: '1',
+        type: OpportunityUserType.Recruiter,
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: oppWithOrgId,
+        },
+      },
+      'UNAUTHENTICATED',
+    );
+  });
+
+  it('should return forbidden for non-recruiters', async () => {
+    loggedUser = '3';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: oppWithOrgId,
+        },
+      },
+      'FORBIDDEN',
+    );
+  });
+
+  it('should return conflict if opportunity already has an organization', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: oppWithOrgId,
+        },
+      },
+      'CONFLICT',
+      'Opportunity already has an organization',
+    );
+  });
+
+  it('should create organization for opportunity without one', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        opportunityId: oppWithoutOrgId,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.createOrganizationForOpportunity).toBeDefined();
+    expect(res.data.createOrganizationForOpportunity.name).toMatch(
+      /^Company\d+$/,
+    );
+
+    // Verify organization was created in database
+    const organization = await con
+      .getRepository(Organization)
+      .findOneBy({ id: res.data.createOrganizationForOpportunity.id });
+
+    expect(organization).not.toBeNull();
+    expect(organization!.name).toMatch(/^Company\d+$/);
+
+    // Verify opportunity was assigned to the organization
+    const opportunityAfter = await con
+      .getRepository(OpportunityJob)
+      .findOneBy({ id: oppWithoutOrgId });
+
+    expect(opportunityAfter!.organizationId).toBe(
+      res.data.createOrganizationForOpportunity.id,
+    );
+  });
+
+  it('should return forbidden for non-existent opportunity', async () => {
+    loggedUser = '1';
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: MUTATION,
+        variables: {
+          opportunityId: randomUUID(),
+        },
+      },
+      'FORBIDDEN',
     );
   });
 });

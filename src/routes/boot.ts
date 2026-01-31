@@ -10,6 +10,7 @@ import { clearAuthentication, dispatchWhoami } from '../kratos';
 import { generateUUID } from '../ids';
 import { generateSessionId, setTrackingId } from '../tracking';
 import { GQLUser, getMarketingCta } from '../schema/users';
+import { extractHandleFromUrl } from '../common/schema/socials';
 import {
   Alerts,
   ALERTS_DEFAULT,
@@ -23,6 +24,8 @@ import {
   SquadSource,
   User,
 } from '../entity';
+import { UserExperience } from '../entity/user/experiences/UserExperience';
+import { UserExperienceType } from '../entity/user/experiences/types';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import {
   getPermissionsForMember,
@@ -45,6 +48,7 @@ import {
   StorageKey,
   StorageTopic,
 } from '../config';
+
 import {
   ONE_DAY_IN_SECONDS,
   base64,
@@ -148,6 +152,7 @@ export type LoggedInBoot = BaseBoot & {
     balance: GetBalanceResult;
     coresRole: CoresRole;
     location?: TLocation | null;
+    profileCompletion?: ProfileCompletion | null;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
@@ -437,11 +442,11 @@ const getExperimentation = async ({
   };
 };
 
-const getUser = (
+const getUser = async (
   con: DataSource | QueryRunner,
   userId: string,
-): Promise<User | null> =>
-  con.manager.getRepository(User).findOne({
+): Promise<User | null> => {
+  const user = await con.manager.getRepository(User).findOne({
     where: { id: userId },
     select: [
       'id',
@@ -454,19 +459,7 @@ const getUser = (
       'infoConfirmed',
       'reputation',
       'bio',
-      'twitter',
-      'bluesky',
-      'github',
-      'portfolio',
-      'hashnode',
-      'roadmap',
-      'threads',
-      'codepen',
-      'reddit',
-      'stackoverflow',
-      'youtube',
-      'linkedin',
-      'mastodon',
+      'socialLinks',
       'timezone',
       'createdAt',
       'cover',
@@ -479,8 +472,40 @@ const getUser = (
       'locationId',
       'readme',
       'language',
+      'hideExperience',
     ],
   });
+
+  if (!user) return null;
+
+  // Populate legacy social fields from socialLinks for backwards compatibility
+  const socialLinks = user.socialLinks || [];
+
+  // Helper to get handle for a platform (returns undefined for entity compatibility)
+  const getHandle = (platform: string): string | undefined => {
+    const link = socialLinks.find((l) => l.platform === platform);
+    return link
+      ? (extractHandleFromUrl(link.url, platform) ?? undefined)
+      : undefined;
+  };
+
+  // Populate legacy fields for backwards compatibility
+  user.twitter = getHandle('twitter');
+  user.github = getHandle('github');
+  user.linkedin = getHandle('linkedin');
+  user.threads = getHandle('threads');
+  user.roadmap = getHandle('roadmap');
+  user.codepen = getHandle('codepen');
+  user.reddit = getHandle('reddit');
+  user.stackoverflow = getHandle('stackoverflow');
+  user.youtube = getHandle('youtube');
+  user.bluesky = getHandle('bluesky');
+  user.mastodon = getHandle('mastodon');
+  user.hashnode = getHandle('hashnode');
+  user.portfolio = getHandle('portfolio');
+
+  return user;
+};
 
 const getBalanceBoot: typeof getBalance = async ({ userId }) => {
   try {
@@ -524,6 +549,80 @@ const getLocation = async (
   return location;
 };
 
+export type ProfileCompletion = {
+  percentage: number;
+  hasProfileImage: boolean;
+  hasHeadline: boolean;
+  hasExperienceLevel: boolean;
+  hasWork: boolean;
+  hasEducation: boolean;
+};
+
+type ProfileExperienceFlags = {
+  hasWork: boolean;
+  hasEducation: boolean;
+};
+
+const getProfileExperienceFlags = async (
+  con: DataSource | QueryRunner,
+  userId: string,
+): Promise<ProfileExperienceFlags> => {
+  const result = await con.manager
+    .createQueryBuilder(UserExperience, 'ue')
+    .select(`MAX(CASE WHEN ue.type = :workType THEN 1 ELSE 0 END)`, 'hasWork')
+    .addSelect(
+      `MAX(CASE WHEN ue.type = :educationType THEN 1 ELSE 0 END)`,
+      'hasEducation',
+    )
+    .where('ue.userId = :userId', { userId })
+    .andWhere('ue.type IN (:...types)', {
+      types: [UserExperienceType.Work, UserExperienceType.Education],
+    })
+    .setParameters({
+      workType: UserExperienceType.Work,
+      educationType: UserExperienceType.Education,
+    })
+    .getRawOne();
+
+  const hasWork = result?.hasWork == 1;
+  const hasEducation = result?.hasEducation == 1;
+
+  return { hasWork, hasEducation };
+};
+
+const calculateProfileCompletion = (
+  user: User | null,
+  experienceFlags: ProfileExperienceFlags | null,
+): ProfileCompletion | null => {
+  if (!user || !experienceFlags) {
+    return null;
+  }
+
+  // Calculate completion based on 5 items (each worth 20%)
+  const hasProfileImage = !!user.image && user.image !== '';
+  const hasHeadline = !!user.bio && user.bio.trim() !== '';
+  const hasExperienceLevel = !!user.experienceLevel;
+  const { hasWork, hasEducation } = experienceFlags;
+
+  const completedItems = [
+    hasProfileImage,
+    hasHeadline,
+    hasExperienceLevel,
+    hasWork,
+    hasEducation,
+  ].filter(Boolean).length;
+
+  const percentage = Math.round((completedItems / 5) * 100);
+  return {
+    percentage,
+    hasProfileImage,
+    hasHeadline,
+    hasExperienceLevel,
+    hasWork,
+    hasEducation,
+  };
+};
+
 const loggedInBoot = async ({
   con,
   req,
@@ -545,6 +644,7 @@ const loggedInBoot = async ({
     const geo = geoSection(req);
 
     const { log } = req;
+
     const [
       visit,
       roles,
@@ -558,9 +658,11 @@ const loggedInBoot = async ({
         feeds,
         unreadNotificationsCount,
         location,
+        experienceFlags,
       ],
       balance,
       clickbaitTries,
+      anonymousTheme,
     ] = await Promise.all([
       visitSection(req, res),
       getRoles(userId),
@@ -581,14 +683,25 @@ const loggedInBoot = async ({
           getFeeds({ con: queryRunner, userId }),
           getUnreadNotificationsCount(queryRunner, userId),
           getLocation(queryRunner, userId),
+          getProfileExperienceFlags(queryRunner, userId),
         ]);
       }),
       getBalanceBoot({ userId }),
       getClickbaitTries({ userId }),
+      getAnonymousTheme(userId),
     ]);
+
+    const profileCompletion = calculateProfileCompletion(user, experienceFlags);
+
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+
+    // Apply anonymous theme (e.g. recruiter light mode) if user has no saved settings
+    const finalSettings =
+      !settings.updatedAt && anonymousTheme
+        ? { ...settings, theme: anonymousTheme }
+        : settings;
 
     const hasLocationSet = !!user.flags?.location?.lastStored;
     const isTeamMember = exp?.a?.team === 1;
@@ -618,6 +731,20 @@ const loggedInBoot = async ({
           'locationId',
           'readmeHtml',
         ]),
+        // Legacy social fields with explicit null for JSON backwards compatibility
+        twitter: user.twitter ?? null,
+        github: user.github ?? null,
+        hashnode: user.hashnode ?? null,
+        linkedin: user.linkedin ?? null,
+        threads: user.threads ?? null,
+        roadmap: user.roadmap ?? null,
+        codepen: user.codepen ?? null,
+        reddit: user.reddit ?? null,
+        stackoverflow: user.stackoverflow ?? null,
+        youtube: user.youtube ?? null,
+        bluesky: user.bluesky ?? null,
+        mastodon: user.mastodon ?? null,
+        portfolio: user.portfolio ?? null,
         providers: [null],
         roles,
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
@@ -640,6 +767,7 @@ const loggedInBoot = async ({
         clickbaitTries,
         hasLocationSet,
         location,
+        profileCompletion,
       },
       visit,
       alerts: {
@@ -661,7 +789,7 @@ const loggedInBoot = async ({
           subDays(new Date(), FEED_SURVEY_INTERVAL) >
           alerts.lastFeedSettingsFeedback,
       },
-      settings: excludeProperties(settings, [
+      settings: excludeProperties(finalSettings, [
         'userId',
         'updatedAt',
         'bookmarkSlug',
@@ -674,7 +802,7 @@ const loggedInBoot = async ({
       feeds,
       geo,
       ...extra,
-    };
+    } as LoggedInBoot;
   });
 
 const getAnonymousFirstVisit = async (trackingId?: string) => {
@@ -689,6 +817,46 @@ const getAnonymousFirstVisit = async (trackingId?: string) => {
   return finalValue;
 };
 
+const ANONYMOUS_THEME_TTL = ONE_DAY_IN_SECONDS * 30; // 30 days, same as firstVisit
+
+const getThemeRedisKey = (id: string): string =>
+  generateStorageKey(StorageTopic.Boot, 'theme', id);
+
+/**
+ * Get stored theme preference from Redis for anonymous or authenticated users
+ */
+export const getAnonymousTheme = async (
+  id?: string,
+): Promise<string | null> => {
+  if (!id) return null;
+  return getRedisObject(getThemeRedisKey(id));
+};
+
+/**
+ * Store theme preference in Redis for anonymous or authenticated users
+ */
+export const setAnonymousTheme = async (
+  id: string,
+  theme: string,
+): Promise<void> => {
+  await setRedisObjectWithExpiry(
+    getThemeRedisKey(id),
+    theme,
+    ANONYMOUS_THEME_TTL,
+  );
+};
+
+/**
+ * Determine default theme based on referrer
+ * Recruiter-facing pages default to light mode
+ */
+const getDefaultThemeForReferrer = (referrer?: string): string => {
+  if (referrer === 'recruiter') {
+    return 'bright'; // light mode
+  }
+  return 'darcula'; // dark mode
+};
+
 // We released the firstVisit at July 10, 2023.
 // There should have been enough buffer time since we are releasing on July 13, 2023.
 export const onboardingV2Requirement = new Date(2023, 6, 13);
@@ -700,15 +868,23 @@ const anonymousBoot = async (
   middleware?: BootMiddleware,
   shouldVerify = false,
   email?: string,
+  referrer?: string,
 ): Promise<AnonymousBoot> => {
   const geo = geoSection(req);
 
-  const [visit, extra, firstVisit, exp] = await Promise.all([
+  const [visit, extra, firstVisit, exp, existingTheme] = await Promise.all([
     visitSection(req, res),
     middleware ? middleware(con, req, res) : {},
     getAnonymousFirstVisit(req.trackingId),
     getExperimentation({ userId: req.trackingId, con, ...geo }),
+    getAnonymousTheme(req.trackingId),
   ]);
+
+  // Determine theme: use existing preference or referrer-based default
+  const theme = existingTheme ?? getDefaultThemeForReferrer(referrer);
+  if (!existingTheme && req.trackingId) {
+    await setAnonymousTheme(req.trackingId, theme);
+  }
 
   return {
     user: {
@@ -724,7 +900,10 @@ const anonymousBoot = async (
       changelog: false,
       shouldShowFeedFeedback: false,
     },
-    settings: SETTINGS_DEFAULT,
+    settings: {
+      ...SETTINGS_DEFAULT,
+      ...(theme && { theme }),
+    },
     notifications: { unreadNotificationsCount: 0 },
     squads: [],
     exp,
@@ -739,6 +918,9 @@ export const getBootData = async (
   res: FastifyReply,
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
+  // Extract referrer from query params (e.g., ?referrer=recruiter)
+  const referrer = (req.query as { referrer?: string })?.referrer;
+
   if (
     req.userId &&
     req.accessToken?.expiresIn &&
@@ -760,9 +942,25 @@ export const getBootData = async (
       setRawCookie(res, whoami.cookie);
     }
     if (whoami.verified === false) {
-      return anonymousBoot(con, req, res, middleware, true, whoami?.email);
+      return anonymousBoot(
+        con,
+        req,
+        res,
+        middleware,
+        true,
+        whoami?.email,
+        referrer,
+      );
     }
     if (req.userId !== whoami.userId) {
+      // Migrate theme from anonymous trackingId to new userId before overwriting
+      const oldTrackingId = req.trackingId;
+      if (oldTrackingId && oldTrackingId !== whoami.userId) {
+        const anonymousTheme = await getAnonymousTheme(oldTrackingId);
+        if (anonymousTheme) {
+          await setAnonymousTheme(whoami.userId, anonymousTheme);
+        }
+      }
       req.userId = whoami.userId;
       req.trackingId = req.userId;
       setTrackingId(req, res, req.trackingId);
@@ -777,9 +975,9 @@ export const getBootData = async (
     });
   } else if (req.cookies[cookies.kratos.key]) {
     await clearAuthentication(req, res, 'invalid cookie');
-    return anonymousBoot(con, req, res, middleware);
+    return anonymousBoot(con, req, res, middleware, false, undefined, referrer);
   }
-  return anonymousBoot(con, req, res, middleware);
+  return anonymousBoot(con, req, res, middleware, false, undefined, referrer);
 };
 
 const COMPANION_QUERY = parse(`query Post($url: String) {
@@ -942,12 +1140,26 @@ const getFunnelLoggedInData = async (
           'readmeHtml',
           'readme',
         ]),
+        // Legacy social fields with explicit null for JSON backwards compatibility
+        twitter: user.twitter ?? null,
+        github: user.github ?? null,
+        hashnode: user.hashnode ?? null,
+        linkedin: user.linkedin ?? null,
+        threads: user.threads ?? null,
+        roadmap: user.roadmap ?? null,
+        codepen: user.codepen ?? null,
+        reddit: user.reddit ?? null,
+        stackoverflow: user.stackoverflow ?? null,
+        youtube: user.youtube ?? null,
+        bluesky: user.bluesky ?? null,
+        mastodon: user.mastodon ?? null,
+        portfolio: user.portfolio ?? null,
         providers: [null],
         permalink: `${process.env.COMMENTS_PREFIX}/${user.username || user.id}`,
         language: user.language || undefined,
         image: mapCloudinaryUrl(user.image),
         cover: mapCloudinaryUrl(user.cover),
-      };
+      } as FunnelLoggedInUser;
     }
   }
   return null;
@@ -1015,6 +1227,7 @@ const funnelBoots = {
 const funnelHandler: RouteHandler = async (req, res) => {
   const con = await createOrGetConnection();
   const { id = 'funnel' } = req.params as { id: keyof typeof funnelBoots };
+  const referrer = (req.query as { referrer?: string })?.referrer;
 
   if (id in funnelBoots) {
     const funnel = funnelBoots[id];
@@ -1023,6 +1236,9 @@ const funnelHandler: RouteHandler = async (req, res) => {
       req,
       res,
       generateFunnelBootMiddle(funnel),
+      false,
+      undefined,
+      referrer,
     )) as FunnelBoot;
     return res.send(data);
   }

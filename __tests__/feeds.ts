@@ -618,6 +618,50 @@ describe('query anonymousFeed by time', () => {
     const ids = res.data.anonymousFeed.edges.map((edge) => edge.node.id);
     expect(ids).toIncludeAllMembers(['yt2']);
   });
+
+  it('should return anonymous feed v2 with TIME ranking', async () => {
+    loggedUser = '1';
+
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        // Verify the request includes order_by: 'date' for TIME ranking
+        expect(body.order_by).toBe(FeedOrderBy.Date);
+        expect(body.feed_config_name).toBe('popular');
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    const ids = res.data.anonymousFeed.edges.map(
+      (edge: { node: { id: string } }) => edge.node.id,
+    );
+    expect(ids).toEqual(['p1', 'p4']);
+  });
+
+  it('should handle empty response from feed service with TIME ranking v2', async () => {
+    loggedUser = '1';
+
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.order_by).toBe(FeedOrderBy.Date);
+        return true;
+      })
+      .reply(200, {
+        data: [],
+      });
+
+    const res = await client.query(QUERY, {
+      variables: { ...variables, version: 2 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.anonymousFeed.edges).toEqual([]);
+  });
 });
 
 describe('query feed', () => {
@@ -1029,6 +1073,32 @@ describe('query feed', () => {
     expect(res.data.feed.edges.length).toEqual(1);
   });
 
+  it('should return feed v2 with TIME ranking', async () => {
+    loggedUser = '1';
+    nock('http://localhost:6002')
+      .post('/config')
+      .reply(200, {
+        user_id: '1',
+        config: {
+          providers: {},
+        },
+      });
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body.order_by).toBe(FeedOrderBy.Date);
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: 'b',
+      });
+    const res = await client.query(QUERY, {
+      variables: { ...variables, ranking: Ranking.TIME, version: 20 },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.feed.edges.length).toEqual(2);
+  });
+
   it('should return only article posts by default', async () => {
     loggedUser = '1';
     await saveFeedFixtures();
@@ -1102,8 +1172,8 @@ describe('query feedByConfig', () => {
 
 describe('query feedByIds', () => {
   const QUERY = `
-  query FeedByIds($first: Int, $postIds: [String!]!) {
-    feedByIds(first: $first, postIds: $postIds) {
+  query FeedByIds($first: Int, $postIds: [String!]!, $supportedTypes: [String!]) {
+    feedByIds(first: $first, postIds: $postIds, supportedTypes: $supportedTypes) {
       ${feedFields()}
     }
   }
@@ -1120,19 +1190,24 @@ describe('query feedByIds', () => {
     );
   });
 
-  it('should not authorize when no user is not team member', async () => {
+  it('should not authorize when no user is not team member and more then 10 post ids', async () => {
     loggedUser = '1';
     await testQueryErrorCode(
       client,
       {
         query: QUERY,
-        variables: { first: 10, postIds: ['p1', 'p2'] },
+        variables: {
+          first: 10,
+          postIds: Array(11)
+            .fill(undefined)
+            .map((_, index) => `p${index + 1}`),
+        },
       },
       'FORBIDDEN',
     );
   });
 
-  it('should return feed by ids for team member', async () => {
+  it('should return feed by ids', async () => {
     loggedUser = '1';
     state = await initializeGraphQLTesting(
       (req) => new MockContext(con, loggedUser, [], req, true),
@@ -1143,6 +1218,46 @@ describe('query feedByIds', () => {
     });
     const ids = res.data.feedByIds.edges.map(({ node }) => node.id);
     expect(ids).toEqual(['p3', 'p2', 'p1']);
+  });
+
+  it('should return user shared posts in feed by ids', async () => {
+    loggedUser = '1';
+    state = await initializeGraphQLTesting(
+      (req) => new MockContext(con, loggedUser, [], req, true),
+    );
+
+    // Create a user source (which doesn't have publicThreshold set)
+    await con.getRepository(Source).save({
+      id: 'userSource1',
+      name: 'User Source',
+      image: 'http://image.com/user',
+      handle: 'userSource1',
+      type: SourceType.User,
+      active: true,
+      private: false,
+    });
+
+    // Create a user shared post
+    await con.getRepository(SharePost).save({
+      id: 'userSharePost1',
+      shortId: 'usp1',
+      sourceId: 'userSource1',
+      title: 'User shared post',
+      type: PostType.Share,
+      sharedPostId: 'p1',
+      visible: true,
+    });
+
+    const res = await state.client.query(QUERY, {
+      variables: {
+        first: 10,
+        postIds: ['userSharePost1', 'p1'],
+        supportedTypes: ['article', 'share'],
+      },
+    });
+    const ids = res.data.feedByIds.edges.map(({ node }) => node.id);
+    expect(ids).toContain('userSharePost1');
+    expect(ids).toContain('p1');
   });
 });
 
@@ -2905,10 +3020,10 @@ describe('function feedToFilters', () => {
       },
     ]);
     const filters = await feedToFilters(con, '1', '1');
-    expect(filters.excludeSources).toEqual([
-      'excludedSource',
-      'settingsCombinationSource',
-    ]);
+    expect(filters.excludeSources).toEqual(
+      expect.arrayContaining(['excludedSource', 'settingsCombinationSource']),
+    );
+    expect(filters.excludeSources).toHaveLength(2);
   });
 
   it('should return filters having following sources based on content preference', async () => {

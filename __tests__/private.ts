@@ -26,6 +26,12 @@ import { SubscriptionCycles } from '../src/paddle';
 import { SubscriptionStatus } from '../src/common/plus';
 import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../src/entity/OpportunityKeyword';
+import { OpportunityState } from '@dailydotdev/schema';
+import { generateShortId } from '../src/ids';
+import { OpportunityUser } from '../src/entity/opportunities/user';
+import { OpportunityUserType } from '../src/entity/opportunities/types';
+import { QuestionFeedback } from '../src/entity/questions/QuestionFeedback';
+import { ClaimableItem, ClaimableItemTypes } from '../src/entity/ClaimableItem';
 
 jest.mock('../src/common/geo', () => ({
   ...(jest.requireActual('../src/common/geo') as Record<string, unknown>),
@@ -350,7 +356,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        github: usersFixture[0].github,
+        github: 'testgithub',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
@@ -360,13 +366,13 @@ describe('POST /p/newUser', () => {
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
     expect(users.length).toEqual(3);
     expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].github).toEqual(usersFixture[0].github);
+    expect(users[0].github).toEqual('testgithub');
   });
 
   it('should ignore GitHub handle if it already exists', async () => {
     await con
       .getRepository(User)
-      .save({ ...usersFixture[1], github: usersFixture[0].github });
+      .save({ ...usersFixture[1], github: 'testgithub' });
 
     const { body } = await request(app.server)
       .post('/p/newUser')
@@ -378,7 +384,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        github: usersFixture[0].github,
+        github: 'testgithub',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
@@ -402,7 +408,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        twitter: usersFixture[0].twitter,
+        twitter: 'testtwitter',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
@@ -411,13 +417,13 @@ describe('POST /p/newUser', () => {
 
     const users = await con.getRepository(User).find({ order: { id: 'ASC' } });
     expect(users[0].id).toEqual(usersFixture[0].id);
-    expect(users[0].twitter).toEqual(usersFixture[0].twitter);
+    expect(users[0].twitter).toEqual('testtwitter');
   });
 
   it('should ignore Twitter handle if it already exists', async () => {
     await con
       .getRepository(User)
-      .save({ ...usersFixture[1], twitter: usersFixture[0].twitter });
+      .save({ ...usersFixture[1], twitter: 'testtwitter' });
 
     const { body } = await request(app.server)
       .post('/p/newUser')
@@ -429,7 +435,7 @@ describe('POST /p/newUser', () => {
         image: usersFixture[0].image,
         username: usersFixture[0].username,
         email: usersFixture[0].email,
-        twitter: usersFixture[0].twitter,
+        twitter: 'testtwitter',
         experienceLevel: 'LESS_THAN_1_YEAR',
       })
       .expect(200);
@@ -778,6 +784,120 @@ describe('POST /p/newUser', () => {
 
     expect(body.status).toEqual('ok');
     expect(body.userId).not.toEqual(deletedUser.id);
+  });
+
+  it('should claim opportunities that user created as anonymous', async () => {
+    const anonUserId = await generateShortId();
+
+    const opportunity = await con.getRepository(OpportunityJob).save(
+      con.getRepository(OpportunityJob).create({
+        title: 'Test',
+        tldr: 'Test',
+        state: OpportunityState.DRAFT,
+      }),
+    );
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: anonUserId,
+      type: ClaimableItemTypes.Opportunity,
+      flags: {
+        opportunityId: opportunity.id,
+      },
+    });
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: anonUserId,
+        name: anonUserId,
+        image: usersFixture[0].image,
+        username: anonUserId,
+        email: `test+${anonUserId}@gmail.com`,
+        experienceLevel: 'LESS_THAN_1_YEAR',
+      })
+      .expect(200);
+
+    expect(body.status).toEqual('ok');
+    expect(body.userId).toEqual(anonUserId);
+
+    const updatedClaimableItem = await con
+      .getRepository(ClaimableItem)
+      .findOneBy({
+        identifier: anonUserId,
+        type: ClaimableItemTypes.Opportunity,
+      });
+    expect(updatedClaimableItem).not.toBeNull();
+    expect(updatedClaimableItem!.claimedAt).toBeInstanceOf(Date);
+    expect(updatedClaimableItem!.claimedById).toBe(anonUserId);
+
+    const opportunityUser = await con.getRepository(OpportunityUser).findOneBy({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+    });
+    expect(opportunityUser).toEqual({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+      type: OpportunityUserType.Recruiter,
+    });
+  });
+
+  it('should claim opportunities that user created with email', async () => {
+    const anonUserId = await generateShortId();
+
+    const opportunity = await con.getRepository(OpportunityJob).save(
+      con.getRepository(OpportunityJob).create({
+        title: 'Test',
+        tldr: 'Test',
+        state: OpportunityState.DRAFT,
+      }),
+    );
+
+    await con.getRepository(ClaimableItem).save({
+      identifier: `test+${anonUserId}@gmail.com`,
+      type: ClaimableItemTypes.Opportunity,
+      flags: {
+        opportunityId: opportunity.id,
+      },
+    });
+
+    const { body } = await request(app.server)
+      .post('/p/newUser')
+      .set('Content-type', 'application/json')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .send({
+        id: anonUserId,
+        name: anonUserId,
+        image: usersFixture[0].image,
+        username: anonUserId,
+        email: `test+${anonUserId}@gmail.com`,
+        experienceLevel: 'LESS_THAN_1_YEAR',
+      })
+      .expect(200);
+
+    expect(body.status).toEqual('ok');
+    expect(body.userId).toEqual(anonUserId);
+
+    const updatedClaimableItem = await con
+      .getRepository(ClaimableItem)
+      .findOneBy({
+        identifier: `test+${anonUserId}@gmail.com`,
+        type: ClaimableItemTypes.Opportunity,
+      });
+    expect(updatedClaimableItem).not.toBeNull();
+    expect(updatedClaimableItem!.claimedAt).toBeInstanceOf(Date);
+    expect(updatedClaimableItem!.claimedById).toBe(anonUserId);
+
+    const opportunityUser = await con.getRepository(OpportunityUser).findOneBy({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+    });
+    expect(opportunityUser).toEqual({
+      opportunityId: opportunity.id,
+      userId: anonUserId,
+      type: OpportunityUserType.Recruiter,
+    });
   });
 });
 
@@ -1197,6 +1317,17 @@ describe('POST /p/newOpportunity', () => {
     expect(['javascript', 'typescript', 'react']).toEqual(
       expect.arrayContaining(keywords.map((k) => k.keyword)),
     );
+
+    const questionsFeedback = await con.getRepository(QuestionFeedback).find({
+      where: { opportunityId: opportunity?.id },
+    });
+    expect(questionsFeedback).toHaveLength(1);
+
+    expect(questionsFeedback[0]).toMatchObject({
+      opportunityId: opportunity?.id,
+      title: 'Why did you reject this opportunity?',
+      placeholder: `E.g., Not interested in the tech stack, location doesn't work for me, compensation too low...`,
+    });
   });
 
   it('should create opportunity with keywords and render markdown content', async () => {

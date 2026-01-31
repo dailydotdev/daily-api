@@ -7,10 +7,12 @@ import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
 import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
 import { usersFixture } from '../../fixture';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
   organizationsFixture,
 } from '../../fixture/opportunity';
 import { ApplicationScored } from '@dailydotdev/schema';
+import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 
 let con: DataSource;
 
@@ -21,6 +23,7 @@ beforeAll(async () => {
 describe('storeCandidateApplicationScore worker', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, User, usersFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
@@ -57,7 +60,11 @@ describe('storeCandidateApplicationScore worker', () => {
     await con.getRepository(OpportunityMatch).save({
       userId: '1',
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      applicationRank: { score: 60, description: 'Previous score' },
+      applicationRank: {
+        score: 60,
+        description: 'Previous score',
+        selfApplied: true,
+      },
     });
 
     const updatedScoreData = new ApplicationScored({
@@ -83,6 +90,7 @@ describe('storeCandidateApplicationScore worker', () => {
     expect(match?.applicationRank).toEqual({
       score: 90,
       description: 'Updated score after review',
+      selfApplied: true,
     });
   });
 

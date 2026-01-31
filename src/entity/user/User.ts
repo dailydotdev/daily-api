@@ -44,6 +44,7 @@ export type UserFlags = Partial<{
     lng: number | null | undefined;
   };
   subdivision: string | null;
+  lastCVParseAt: Date | null;
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
@@ -65,6 +66,7 @@ export type UserSubscriptionFlags = Partial<{
   subscriptionId: string;
   cycle: SubscriptionCycles;
   createdAt: Date;
+  updatedAt: Date;
   provider: SubscriptionProvider;
   status: SubscriptionStatus;
 }> &
@@ -80,6 +82,11 @@ export type UserNotificationFlags = Partial<
     }
   >
 >;
+
+export interface UserSocialLink {
+  platform: string;
+  url: string;
+}
 
 @Entity()
 @Index('IDX_user_lowerusername_username', { synchronize: false })
@@ -320,6 +327,9 @@ export class User {
   @Column({ type: 'jsonb', default: {} })
   notificationFlags: UserNotificationFlags;
 
+  @Column({ type: 'jsonb', default: [] })
+  socialLinks: UserSocialLink[];
+
   @OneToOne(
     'UserCandidatePreference',
     (pref: UserCandidatePreference) => pref.user,
@@ -344,6 +354,10 @@ export class User {
   @Column({ type: 'text', default: null })
   locationId: string | null;
 
+  @Index('IDX_user_hideExperience')
+  @Column({ type: 'boolean', default: false })
+  hideExperience: boolean;
+
   @ManyToOne('DatasetLocation', { lazy: true })
   @JoinColumn({
     name: 'locationId',
@@ -351,4 +365,9 @@ export class User {
   })
   @Index('IDX_user_locationId')
   location: Promise<DatasetLocation>;
+
+  // used for diffing changes, eg. filters for cdc during updates
+  // due to user table having a lot of depenencies
+  @Column({ type: 'int', default: 0 })
+  inc: number;
 }

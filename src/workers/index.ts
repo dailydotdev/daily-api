@@ -70,9 +70,16 @@ import { postAuthorReputationEvent } from './postAnalytics/postAuthorReputationE
 import { postAuthorCoresEarned } from './postAnalytics/postAuthorCoresEarned';
 import { storeCandidateOpportunityMatch } from './opportunity/storeCandidateOpportunityMatch';
 import { storeCandidateApplicationScore } from './opportunity/storeCandidateApplicationScore';
+import { syncOpportunityRemindersCio } from './opportunity/syncOpportunityRemindersCio';
 import { extractCVMarkdown } from './extractCVMarkdown';
-import candidateAcceptedOpportunitySlack from './candidateAcceptedOpportunitySlack';
+import candidateReviewOpportunitySlack from './candidateReviewOpportunitySlack';
 import recruiterRejectedCandidateMatchEmail from './recruiterRejectedCandidateMatchEmail';
+import { opportunityPreviewResultWorker } from './opportunity/opportunityPreviewResult';
+import opportunityInReviewSlack from './opportunityInReviewSlack';
+import { parseOpportunityFeedbackWorker } from './opportunity/parseOpportunityFeedback';
+import { parseOpportunityWorker } from './opportunity/parseOpportunity';
+import feedbackClassify from './feedbackClassify';
+import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 
 export { Worker } from './worker';
 
@@ -146,9 +153,16 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   campaignUpdatedSlack,
   storeCandidateOpportunityMatch,
   storeCandidateApplicationScore,
+  syncOpportunityRemindersCio,
   extractCVMarkdown,
-  candidateAcceptedOpportunitySlack,
+  candidateReviewOpportunitySlack,
   recruiterRejectedCandidateMatchEmail,
+  opportunityPreviewResultWorker,
+  opportunityInReviewSlack,
+  parseOpportunityFeedbackWorker,
+  parseOpportunityWorker,
+  feedbackClassify,
+  feedbackUpdatedSlack,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

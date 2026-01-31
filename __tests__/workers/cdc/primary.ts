@@ -60,8 +60,6 @@ import {
   UserMarketingCta,
   UserNotification,
   UserPost,
-  UserState,
-  UserStateKey,
   UserStreak,
   UserStreakAction,
   UserStreakActionType,
@@ -103,7 +101,6 @@ import {
   notifySourcePrivacyUpdated,
   notifySourceReport,
   notifySquadFeaturedUpdated,
-  notifySubmissionGrantedAccess,
   notifySubmissionRejected,
   notifyUsernameChanged,
   notifyUserReadmeUpdated,
@@ -131,7 +128,6 @@ import {
 import { randomUUID } from 'crypto';
 import { DataSource, Not } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { TypeOrmError } from '../../../src/errors';
 import { SourceMemberRoles } from '../../../src/roles';
 import { CommentReport } from '../../../src/entity/CommentReport';
 import { badUsersFixture, usersFixture } from '../../fixture/user';
@@ -179,6 +175,7 @@ import {
 } from '../../../src/entity/opportunities/types';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import {
+  datasetLocationsFixture,
   opportunitiesFixture,
   organizationsFixture,
 } from '../../fixture/opportunity';
@@ -194,6 +191,7 @@ import { UserExperience } from '../../../src/entity/user/experiences/UserExperie
 import { UserExperienceWork } from '../../../src/entity/user/experiences/UserExperienceWork';
 import { UserExperienceType } from '../../../src/entity/user/experiences/types';
 import { Company } from '../../../src/entity/Company';
+import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 
 jest.mock('../../../src/common', () => ({
   ...(jest.requireActual('../../../src/common') as Record<string, unknown>),
@@ -214,7 +212,6 @@ jest.mock('../../../src/common', () => ({
   notifySourceFeedRemoved: jest.fn(),
   notifySettingsUpdated: jest.fn(),
   notifySubmissionRejected: jest.fn(),
-  notifySubmissionGrantedAccess: jest.fn(),
   notifyNewPostMention: jest.fn(),
   notifyNewCommentMention: jest.fn(),
   notifyNewNotification: jest.fn(),
@@ -841,52 +838,6 @@ describe('user', () => {
         table: 'user',
       }),
     );
-    const [state] = await con.getRepository(UserState).find();
-    expect(state?.key).toEqual(UserStateKey.CommunityLinkAccess);
-  });
-
-  it('should throw an error when creating user state and not related to duplicate entry', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      reputation: submissionAccessThreshold,
-    };
-    after.id = '1234567890123456789012345678901234567'; // 37 characters - exceeds limit
-    try {
-      await expectSuccessfulBackground(
-        worker,
-        mockChangeMessage<ObjectType>({
-          after,
-          before: base,
-          op: 'u',
-          table: 'user',
-        }),
-      );
-      expect(true).toBeFalsy(); // ensure the worker threw an error and not reach this code
-    } catch (ex) {
-      const state = await con.getRepository(UserState).find();
-      expect(state.length).toEqual(0);
-      expect(ex.code).not.toEqual(TypeOrmError.DUPLICATE_ENTRY);
-    }
-  });
-
-  it('should handle the thrown error when user state already exists', async () => {
-    const after: ChangeObject<ObjectType> = {
-      ...base,
-      reputation: submissionAccessThreshold,
-    };
-    const repo = con.getRepository(UserState);
-    await repo.save({ userId: '1', key: UserStateKey.CommunityLinkAccess });
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after,
-        before: base,
-        op: 'u',
-        table: 'user',
-      }),
-    );
-    const state = await con.getRepository(UserState).find();
-    expect(state.length).toEqual(1);
   });
 
   it('should call notifyReputationIncrease when the user reputation has increased', async () => {
@@ -1129,28 +1080,6 @@ describe('user', () => {
         await con.getRepository(SourceUser).countBy({ userId: '2' }),
       ).toEqual(0);
     });
-  });
-});
-
-describe('user_state', () => {
-  type ObjectType = UserState;
-  it('should notify on user state is created with the right key', async () => {
-    await expectSuccessfulBackground(
-      worker,
-      mockChangeMessage<ObjectType>({
-        after: {
-          userId: defaultUser.id,
-          key: UserStateKey.CommunityLinkAccess,
-          value: false,
-        },
-        op: 'c',
-        table: 'user_state',
-      }),
-    );
-    expect(notifySubmissionGrantedAccess).toHaveBeenCalledTimes(1);
-    expect(
-      jest.mocked(notifySubmissionGrantedAccess).mock.calls[0].slice(1),
-    ).toEqual(['1']);
   });
 });
 
@@ -3418,6 +3347,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3505,6 +3435,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3634,6 +3565,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3720,6 +3652,7 @@ describe('post content updated', () => {
         visible: true,
         yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
         deleted: false,
+        translation: {},
       },
     ]);
   });
@@ -3735,8 +3668,21 @@ describe('post content updated', () => {
       canonicalUrl: 'http://p4c.com',
       contentMeta:
         '{"cleaned":[{"provider":"test","resource_location":"gs://path.xml"}]}',
-      contentQuality:
-        '{"is_ai_probability":0.9}' as ArticlePost['contentQuality'],
+      contentQuality: '{"is_ai_probability":0.9}',
+      translation: JSON.stringify({
+        hr: {
+          title: 'translated title hr',
+          smartTitle: 'translated smart title hr',
+          titleHtml: '<p>translated title hr</p>',
+          summary: 'translated summary hr',
+        },
+        en: {
+          title: 'translated title',
+          smartTitle: 'translated smart title',
+          titleHtml: '<p>translated title</p>',
+          summary: 'translated summary',
+        },
+      }),
     };
     await expectSuccessfulBackground(
       worker,
@@ -3757,6 +3703,20 @@ describe('post content updated', () => {
           },
           contentQuality: {
             isAiProbability: 0.9,
+          },
+          translation: {
+            hr: {
+              title: 'translated title hr',
+              smartTitle: 'translated smart title hr',
+              titleHtml: '<p>translated title hr</p>',
+              summary: 'translated summary hr',
+            },
+            en: {
+              title: 'translated title',
+              smartTitle: 'translated smart title',
+              titleHtml: '<p>translated title</p>',
+              summary: 'translated summary',
+            },
           },
         },
       ],
@@ -3824,6 +3784,33 @@ describe('post content updated', () => {
         'api.v1.content-updated',
         {
           deleted: true,
+        },
+      ],
+    );
+  });
+
+  it('should notify on share post updated', async () => {
+    const after: ChangeObject<SharePost> = {
+      ...contentUpdatedPost,
+      type: PostType.Share,
+      sharedPostId: 'sp1',
+    };
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<SharePost>({
+        after,
+        before: after,
+        op: 'u',
+        table: 'post',
+      }),
+    );
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
+      [
+        'api.v1.content-updated',
+        {
+          sharedPostId: 'sp1',
+          type: PostType.Share,
         },
       ],
     );
@@ -5097,6 +5084,213 @@ describe('user company approved', () => {
       expect(experiences.every((exp) => exp.verified)).toBe(true);
     });
   });
+
+  describe('links experiences by customCompanyName', () => {
+    beforeEach(async () => {
+      await saveFixtures(con, User, usersFixture);
+      await con.getRepository(Company).save({
+        id: 'comp1',
+        name: 'Test Company',
+        altName: 'Test Alt Name',
+        image: 'https://example.com/image.png',
+        domains: ['testcompany.com'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    });
+
+    it('should link experience with matching customCompanyName (exact match)', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp1');
+    });
+
+    it('should link experience with matching customCompanyName (case insensitive)', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'TEST COMPANY',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp1');
+    });
+
+    it('should link experience with matching altName (case insensitive)', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'test alt name',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp1');
+    });
+
+    it('should not link experience with non-matching customCompanyName', async () => {
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'Some Other Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBeNull();
+    });
+
+    it('should not overwrite experience that already has a companyId', async () => {
+      await con.getRepository(Company).save({
+        id: 'comp2',
+        name: 'Other Company',
+        image: 'https://example.com/image2.png',
+        domains: ['othercompany.com'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      const experience = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: 'comp2',
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience.id });
+      expect(updatedExperience?.companyId).toBe('comp2');
+    });
+
+    it('should only link experiences for the same user', async () => {
+      const experience1 = await con.getRepository(UserExperienceWork).save({
+        userId: '1',
+        companyId: null,
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const experience2 = await con.getRepository(UserExperienceWork).save({
+        userId: '2',
+        companyId: null,
+        customCompanyName: 'Test Company',
+        title: 'Software Engineer',
+        startedAt: new Date('2020-01-01'),
+        verified: false,
+        type: UserExperienceType.Work,
+      });
+
+      const after: ChangeObject<ObjectType> = { ...base, companyId: 'comp1' };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before: null,
+          op: 'c',
+          table: 'user_company',
+        }),
+      );
+
+      const updatedExperience1 = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience1.id });
+      expect(updatedExperience1?.companyId).toBe('comp1');
+
+      const updatedExperience2 = await con
+        .getRepository(UserExperienceWork)
+        .findOneBy({ id: experience2.id });
+      expect(updatedExperience2?.companyId).toBeNull();
+    });
+  });
 });
 
 describe('bookmark change', () => {
@@ -5952,6 +6146,7 @@ describe('opportunity match', () => {
         bio: 'Here to break things',
       },
     );
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await con.getRepository(UserCandidatePreference).save({
@@ -6216,6 +6411,7 @@ describe('opportunity match', () => {
 describe('opportunity', () => {
   beforeEach(async () => {
     await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
     await con.getRepository(Feed).save([
@@ -6405,9 +6601,12 @@ describe('opportunity', () => {
       }),
     );
 
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'api.v1.opportunity-went-live',
     );
   });
 
@@ -6499,6 +6698,86 @@ describe('opportunity', () => {
         .getRepository(Alerts)
         .countBy({ opportunityId: '550e8400-e29b-41d4-a716-446655440001' }),
     ).toEqual(0);
+  });
+
+  it('should trigger event when opportunity moves to IN_REVIEW state', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.IN_REVIEW,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
+      'api.v1.opportunity-in-review',
+      {
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        organizationId: organizationsFixture[0].id,
+        title: 'Senior Backend Engineer',
+      },
+    ]);
+  });
+
+  it('should not trigger IN_REVIEW event when state was already IN_REVIEW', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.IN_REVIEW,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Updated Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.IN_REVIEW,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
 });
 
@@ -6782,7 +7061,7 @@ describe('user_candidate_preference', () => {
         min: 100000,
         currency: 'EUR',
       },
-      location: [
+      customLocation: [
         {
           type: 1, // LocationType.REMOTE
           country: 'Germany',
@@ -6841,6 +7120,7 @@ describe('user_candidate_preference', () => {
 
 describe('organization', () => {
   beforeEach(async () => {
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
     await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, Opportunity, opportunitiesFixture);
   });

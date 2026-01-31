@@ -15,7 +15,6 @@ import type { Connection } from 'graphql-relay';
 import { UserExperience } from '../entity/user/experiences/UserExperience';
 import { Company } from '../entity/Company';
 import type { GraphQLResolveInfo } from 'graphql';
-import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { UserExperienceWork } from '../entity/user/experiences/UserExperienceWork';
 import {
   AutocompleteType,
@@ -26,7 +25,10 @@ import {
   getNonExistingSkills,
   insertOrIgnoreUserExperienceSkills,
 } from '../entity/user/experiences/UserExperienceSkill';
-import { createLocationFromMapbox } from '../entity/dataset/utils';
+import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
+import { User } from '../entity/user/User';
+import { getGoogleFaviconUrl } from '../common/companyEnrichment';
+
 interface GQLUserExperience {
   id: string;
   type: UserExperienceType;
@@ -65,6 +67,14 @@ export const typeDefs = /* GraphQL */ `
     value: String!
   }
 
+  type UserExperienceRepository {
+    id: ID
+    owner: String
+    name: String!
+    url: String!
+    image: String
+  }
+
   type UserExperience {
     id: ID!
     type: UserExperienceType!
@@ -74,7 +84,13 @@ export const typeDefs = /* GraphQL */ `
     startedAt: DateTime
     endedAt: DateTime
     company: Company
+    verified: Boolean
     customCompanyName: String
+    customLocation: Location
+    isOwner: Boolean
+    image: String
+    customDomain: String
+    repository: UserExperienceRepository
 
     # custom props per child entity
     url: String
@@ -117,11 +133,21 @@ export const typeDefs = /* GraphQL */ `
     userExperienceById(id: ID!): UserExperience
   }
 
+  input RepositoryInput {
+    id: ID
+    owner: String
+    name: String!
+    url: String!
+    image: String
+  }
+
   input UserGeneralExperienceInput {
     ${baseExperienceInput}
     url: String
     grade: String
     externalReferenceId: String
+    customDomain: String
+    repository: RepositoryInput
   }
 
   input UserExperienceWorkInput {
@@ -130,6 +156,7 @@ export const typeDefs = /* GraphQL */ `
     locationType: ProtoEnumValue
     employmentType: ProtoEnumValue
     skills: [String]
+    customDomain: String
   }
 
   extend type Mutation {
@@ -157,6 +184,41 @@ interface ExperienceMutationArgs<T extends BaseInputSchema = BaseInputSchema> {
   id?: string;
 }
 
+interface ResolvedCompanyState {
+  companyId: string | null;
+  customCompanyName: string | null;
+}
+
+const resolveCompanyState = async (
+  ctx: AuthContext,
+  inputCompanyId: string | null | undefined,
+  inputCustomCompanyName: string | null | undefined,
+  skipAutoLinking: boolean,
+): Promise<ResolvedCompanyState> => {
+  if (inputCompanyId) {
+    await ctx.con.getRepository(Company).findOneOrFail({
+      where: { id: inputCompanyId },
+    });
+    return { companyId: inputCompanyId, customCompanyName: null };
+  }
+
+  if (inputCustomCompanyName && !skipAutoLinking) {
+    const existingCompany = await ctx.con
+      .getRepository(Company)
+      .createQueryBuilder('c')
+      .where('LOWER(c.name) = :name', {
+        name: inputCustomCompanyName.toLowerCase(),
+      })
+      .getOne();
+
+    if (existingCompany) {
+      return { companyId: existingCompany.id, customCompanyName: null };
+    }
+  }
+
+  return { companyId: null, customCompanyName: inputCustomCompanyName || null };
+};
+
 const generateExperienceToSave = async <
   T extends BaseInputSchema,
   R extends z.core.output<T>,
@@ -166,47 +228,86 @@ const generateExperienceToSave = async <
 ): Promise<{
   userExperience: Partial<UserExperience>;
   parsedInput: R;
+  removedCompanyId: boolean;
 }> => {
   const schema = getExperienceSchema(input.type);
   const parsed = schema.parse(input) as R;
-  const { customCompanyName, companyId, ...values } = parsed;
+  const { customCompanyName, companyId, customDomain, repository, ...values } =
+    parsed as R & {
+      customDomain?: string | null;
+      repository?: {
+        id: string | null;
+        owner: string | null;
+        name: string;
+        url: string;
+        image: string | null;
+      } | null;
+    };
 
-  const toUpdate = id
+  const toUpdate: Partial<UserExperience> = id
     ? await ctx.con
         .getRepository(UserExperience)
         .findOneOrFail({ where: { id, userId: ctx.userId } })
-    : await Promise.resolve({});
+    : {};
 
-  const toSave: Partial<UserExperience> = { ...values, companyId };
+  const hasRepository =
+    input.type === UserExperienceType.OpenSource && repository;
 
-  if (companyId) {
-    await ctx.con.getRepository(Company).findOneOrFail({
-      where: { id: companyId },
-    });
-    toSave.customCompanyName = null;
-  } else if (customCompanyName) {
-    const existingCompany = await ctx.con
-      .getRepository(Company)
-      .createQueryBuilder('c')
-      .where('LOWER(c.name) = :name', { name: customCompanyName.toLowerCase() })
-      .getOne();
+  const userRemovingCompany = !!toUpdate.companyId && !companyId;
+  const skipAutoLinking =
+    userRemovingCompany || !!toUpdate.flags?.removedEnrichment;
 
-    if (existingCompany) {
-      toSave.customCompanyName = null;
-      toSave.companyId = existingCompany.id;
-    } else {
-      toSave.customCompanyName = customCompanyName;
-      toSave.companyId = null;
-    }
+  const resolved = hasRepository
+    ? { companyId: null, customCompanyName: null }
+    : await resolveCompanyState(
+        ctx,
+        companyId,
+        customCompanyName,
+        skipAutoLinking,
+      );
+
+  const toSave: Partial<UserExperience> = {
+    ...values,
+    companyId: resolved.companyId,
+    customCompanyName: resolved.customCompanyName,
+  };
+
+  // Handle repository for OpenSource type
+  if (hasRepository) {
+    toSave.flags = {
+      ...toUpdate.flags,
+      repository,
+    };
+  } else if (customDomain) {
+    const customImage = resolved.companyId
+      ? null
+      : getGoogleFaviconUrl(customDomain);
+    toSave.flags = {
+      ...toUpdate.flags,
+      customDomain,
+      ...(customImage && { customImage }),
+    };
   }
 
-  return { userExperience: { ...toUpdate, ...toSave }, parsedInput: parsed };
+  if (userRemovingCompany && !hasRepository) {
+    toSave.flags = {
+      ...toSave.flags,
+      removedEnrichment: true,
+    };
+  }
+
+  return {
+    userExperience: { ...toUpdate, ...toSave },
+    parsedInput: parsed,
+    removedCompanyId: userRemovingCompany,
+  };
 };
 
 const getUserExperience = (
   ctx: AuthContext,
   info: GraphQLResolveInfo,
   id: string,
+  readReplica = true,
 ): Promise<GQLUserExperience> =>
   graphorm.queryOneOrFail(
     ctx,
@@ -217,7 +318,7 @@ const getUserExperience = (
       return builder;
     },
     undefined,
-    true,
+    readReplica,
   );
 
 export const resolvers = traceResolvers<unknown, AuthContext>({
@@ -235,18 +336,20 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         ctx,
         info,
         (nodeSize) =>
-          !!ctx.userId &&
           userExperiencesPageGenerator.hasPreviousPage(page, nodeSize),
-        (nodeSize) =>
-          !!ctx.userId &&
-          userExperiencesPageGenerator.hasNextPage(page, nodeSize),
+        (nodeSize) => userExperiencesPageGenerator.hasNextPage(page, nodeSize),
         (node, index) =>
           userExperiencesPageGenerator.nodeToCursor(page, args, node, index),
         (builder) => {
-          builder.queryBuilder.where(
-            `${builder.alias}."userId" = :userExperienceId`,
-            { userExperienceId: userId },
-          );
+          builder.queryBuilder
+            .innerJoin(User, 'owner', `owner.id = ${builder.alias}."userId"`)
+            .where(`${builder.alias}."userId" = :userExperienceId`, {
+              userExperienceId: userId,
+            })
+            .andWhere(
+              '(owner."hideExperience" = false OR owner.id = :requestingUserId)',
+              { requestingUserId: ctx.userId },
+            );
 
           if (type) {
             builder.queryBuilder.andWhere(
@@ -258,8 +361,8 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
           builder.queryBuilder
             .orderBy(`${builder.alias}."endedAt"`, 'DESC', 'NULLS FIRST')
             .addOrderBy(`${builder.alias}."startedAt"`, 'DESC')
-            .limit(!ctx.userId ? 1 : getLimit({ limit: page.limit }))
-            .offset(!ctx.userId ? 0 : page.offset);
+            .limit(getLimit({ limit: page.limit }))
+            .offset(page.offset);
 
           return builder;
         },
@@ -272,7 +375,23 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       { id }: { id: string },
       ctx,
       info,
-    ): Promise<GQLUserExperience> => getUserExperience(ctx, info, id),
+    ): Promise<GQLUserExperience | null> =>
+      graphorm.queryOne(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder
+            .innerJoin(User, 'owner', `owner.id = ${builder.alias}."userId"`)
+            .where(`${builder.alias}."id" = :id`, { id })
+            .andWhere(
+              '(owner."hideExperience" = false OR owner.id = :requestingUserId)',
+              { requestingUserId: ctx.userId },
+            );
+
+          return builder;
+        },
+        true,
+      ),
   },
   Mutation: {
     upsertUserGeneralExperience: async (
@@ -293,7 +412,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         });
       });
 
-      return getUserExperience(ctx, info, entity.id);
+      return getUserExperience(ctx, info, entity.id, false);
     },
     upsertUserWorkExperience: async (
       _,
@@ -301,29 +420,23 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       ctx,
       info,
     ): Promise<GQLUserExperience> => {
-      const result = await generateExperienceToSave(ctx, args);
+      const { userExperience, parsedInput, removedCompanyId } =
+        await generateExperienceToSave(ctx, args);
 
-      let location: DatasetLocation | null = null;
-      if (result.parsedInput.externalLocationId) {
-        location = await ctx.con.getRepository(DatasetLocation).findOne({
-          where: { externalId: result.parsedInput.externalLocationId },
-        });
-        if (!location) {
-          location = await createLocationFromMapbox(
-            ctx.con,
-            result.parsedInput.externalLocationId,
-          );
-        }
-      }
+      const location = await findOrCreateDatasetLocation(
+        ctx.con,
+        parsedInput.externalLocationId,
+      );
 
       const entity = await ctx.con.transaction(async (con) => {
         const repo = con.getRepository(UserExperienceWork);
-        const skills = result.parsedInput.skills;
+        const skills = parsedInput.skills;
         const saved = await repo.save({
-          ...result.userExperience,
+          ...userExperience,
           locationId: location?.id || null,
           type: args.input.type,
           userId: ctx.userId,
+          ...(removedCompanyId && { verified: false }),
         });
 
         await dropSkillsExcept(con, saved.id, skills);
@@ -335,7 +448,7 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
         return saved;
       });
 
-      return getUserExperience(ctx, info, entity.id);
+      return getUserExperience(ctx, info, entity.id, false);
     },
     removeUserExperience: async (_, { id }: { id: string }, ctx) => {
       await ctx.con

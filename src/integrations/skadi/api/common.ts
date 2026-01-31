@@ -11,8 +11,10 @@ export interface EstimatedReach {
   max_impressions: number;
 }
 
-export interface EstimatedReachResponse
-  extends Pick<EstimatedReach, 'impressions' | 'clicks' | 'users'> {
+export interface EstimatedReachResponse extends Pick<
+  EstimatedReach,
+  'impressions' | 'clicks' | 'users'
+> {
   minImpressions: number;
   maxImpressions: number;
 }

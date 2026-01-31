@@ -119,6 +119,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded
       sidebarBookmarksExpanded
       clickbaitShieldEnabled
+      defaultWriteTab
     }
   }
 }`;
@@ -154,6 +155,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      defaultWriteTab: null,
     });
   });
 
@@ -172,6 +174,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      defaultWriteTab: null,
     });
 
     const userSettings = await con.getRepository(Settings).findOneOrFail({
@@ -307,6 +310,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      defaultWriteTab: null,
     });
   });
 
@@ -341,6 +345,7 @@ describe('mutation updateUserSettings', () => {
       sidebarSquadExpanded: null,
       sidebarBookmarksExpanded: null,
       clickbaitShieldEnabled: null,
+      defaultWriteTab: null,
     });
   });
 

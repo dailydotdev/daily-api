@@ -261,8 +261,9 @@ export const updateClaimableItem = async (
 
   const existingEntries = await con.getRepository(ClaimableItem).find({
     where: {
-      email: customer.email,
+      identifier: customer.email,
       claimedAt: IsNull(),
+      type: ClaimableItemTypes.Plus,
     },
   });
 
@@ -272,7 +273,7 @@ export const updateClaimableItem = async (
 
   await con.getRepository(ClaimableItem).insert({
     type: ClaimableItemTypes.Plus,
-    email: customer.email,
+    identifier: customer.email,
     flags: {
       cycle: extractSubscriptionCycle(data.items),
       createdAt: data.startedAt,
@@ -296,7 +297,8 @@ export const dropClaimableItem = async (
   const customer = await paddleInstance.customers.get(data.customerId);
 
   await con.getRepository(ClaimableItem).delete({
-    email: customer.email,
+    identifier: customer.email,
+    type: ClaimableItemTypes.Plus,
     claimedAt: IsNull(),
     flags: JsonContains({
       subscriptionId: data.id,
@@ -406,6 +408,13 @@ export const planChanged = async ({ data }: SubscriptionUpdatedEvent) => {
   );
 };
 
+const getAnalyticsTargetType = (event: EventEntity): TargetType => {
+  if (isPurchaseType(PurchaseType.Cores, event)) return TargetType.Credits;
+  if (isPurchaseType(PurchaseType.Recruiter, event))
+    return TargetType.Recruiter;
+  return TargetType.Plus;
+};
+
 export const logPaddleAnalyticsEvent = async (
   event:
     | SubscriptionUpdatedEvent
@@ -443,9 +452,7 @@ export const logPaddleAnalyticsEvent = async (
       app_platform: 'api',
       user_id: analyticsId,
       extra: JSON.stringify(getAnalyticsExtra(event)),
-      target_type: isPurchaseType(PurchaseType.Cores, event)
-        ? TargetType.Credits
-        : TargetType.Plus,
+      target_type: getAnalyticsTargetType(event),
     },
   ]);
 };

@@ -1,18 +1,26 @@
 import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
 import { traceResolvers } from './trace';
-import { ILike, Raw } from 'typeorm';
+import { FindOptionsWhere, ILike, Raw } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
 import { queryReadReplica } from '../common/queryReadReplica';
 import {
-  autocompleteBaseSchema,
   autocompleteCompanySchema,
+  autocompleteGithubRepositorySchema,
   autocompleteKeywordsSchema,
+  autocompleteLocationSchema,
   autocompleteSchema,
+  autocompleteToolsSchema,
+  autocompleteGearSchema,
+  LocationDataset,
 } from '../common/schema/autocompletes';
+import { DatasetTool } from '../entity/dataset/DatasetTool';
+import { gitHubClient } from '../integrations/github/clients';
+import type { GQLGitHubRepository } from '../integrations/github/types';
 import type z from 'zod';
 import { Company, CompanyType } from '../entity/Company';
+import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import { mapboxClient } from '../integrations/mapbox/clients';
 
 interface AutocompleteData {
@@ -25,8 +33,8 @@ interface GQLKeywordAutocomplete {
 }
 
 interface GQLLocation {
-  id: string;
-  country: string;
+  id: string | null;
+  country: string | null;
   city: string | null;
   subdivision: string | null;
 }
@@ -34,6 +42,7 @@ interface GQLLocation {
 export const typeDefs = /* GraphQL */ `
   ${toGQLEnum(AutocompleteType, 'AutocompleteType')}
   ${toGQLEnum(CompanyType, 'CompanyType')}
+  ${toGQLEnum(LocationDataset, 'LocationDataset')}
 
   type AutocompleteData {
     result: [String]!
@@ -45,10 +54,31 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type Location {
-    id: ID!
-    country: String!
+    id: ID
+    country: String
     city: String
     subdivision: String
+  }
+
+  type DatasetTool {
+    id: ID!
+    title: String!
+    faviconUrl: String
+  }
+
+  type DatasetGear {
+    id: ID!
+    name: String!
+  }
+
+  type GitHubRepository {
+    id: ID!
+    owner: String!
+    name: String!
+    fullName: String!
+    url: String!
+    image: String!
+    description: String
   }
 
   extend type Query {
@@ -62,9 +92,11 @@ export const typeDefs = /* GraphQL */ `
     """
     Get autocomplete based on type
     """
-    autocompleteLocation(query: String!): [Location]!
-      @auth
-      @cacheControl(maxAge: 3600)
+    autocompleteLocation(
+      query: String!
+      dataset: LocationDataset
+      limit: Int = 5
+    ): [Location]! @auth @cacheControl(maxAge: 3600)
 
     autocompleteKeywords(
       query: String!
@@ -76,6 +108,19 @@ export const typeDefs = /* GraphQL */ `
       limit: Int
       type: CompanyType
     ): [Company]! @cacheControl(maxAge: 3600)
+
+    autocompleteTools(query: String!): [DatasetTool!]!
+      @cacheControl(maxAge: 3600)
+    autocompleteGithubRepository(
+      query: String!
+      limit: Int = 10
+    ): [GitHubRepository]! @auth @cacheControl(maxAge: 3600)
+
+    """
+    Autocomplete gear from dataset
+    """
+    autocompleteGear(query: String!): [DatasetGear!]!
+      @cacheControl(maxAge: 3600)
   }
 `;
 
@@ -103,13 +148,39 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
     },
     autocompleteLocation: async (
       _,
-      payload: z.infer<typeof autocompleteSchema>,
+      payload: z.infer<typeof autocompleteLocationSchema>,
+      ctx: AuthContext,
     ): Promise<GQLLocation[]> => {
-      const { query } = autocompleteBaseSchema.parse(payload);
+      const { query, dataset, limit } =
+        autocompleteLocationSchema.parse(payload);
 
       try {
+        if (dataset === LocationDataset.Internal) {
+          const results = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+            queryRunner.manager
+              .createQueryBuilder(DatasetLocation, 'dl')
+              .where('dl.country ILIKE :query', { query: `%${query}%` })
+              .orWhere('dl.city ILIKE :query', { query: `%${query}%` })
+              .orWhere('dl.subdivision ILIKE :query', { query: `%${query}%` })
+              .orWhere('dl.continent ILIKE :query', { query: `%${query}%` })
+              .orderBy('dl.country', 'ASC')
+              .addOrderBy('dl.subdivision', 'ASC', 'NULLS FIRST')
+              .addOrderBy('dl.city', 'ASC', 'NULLS FIRST')
+              .limit(limit)
+              .getMany(),
+          );
+
+          return results.map((location) => ({
+            // we map externalId to match mapbox IDs when in external dataset mode
+            id: location.externalId,
+            country: location.country || location.continent,
+            city: location.city,
+            subdivision: location.subdivision,
+          }));
+        }
+
         // Use the new Mapbox client with Garmr integration
-        const data = await mapboxClient.autocomplete(query);
+        const data = await mapboxClient.autocomplete(query, limit);
 
         return data.features.map((feature) => ({
           id: feature.properties.mapbox_id,
@@ -161,19 +232,125 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       ctx: AuthContext,
     ): Promise<GQLCompany[]> => {
       const { type, query, limit } = autocompleteCompanySchema.parse(payload);
-      const slugQuery = Raw((alias) => `slugify(${alias}) = :slug`, {
-        slug: textToSlug(query),
-      });
+      const slug = textToSlug(query);
+
+      const whereConditions: FindOptionsWhere<Company>[] = [
+        { type, name: ILike(`%${query}%`) },
+        { type, altName: ILike(`%${query}%`) },
+      ];
+
+      // Only add slug-based search if the slug is non-empty
+      // (non-Latin characters like Korean get stripped by slugify, causing false matches)
+      if (slug) {
+        const slugQuery = Raw((alias) => `slugify(${alias}) = :slug`, {
+          slug,
+        });
+        whereConditions.unshift(
+          { type, name: slugQuery },
+          { type, altName: slugQuery },
+        );
+      }
 
       return await queryReadReplica(ctx.con, ({ queryRunner }) =>
         queryRunner.manager.getRepository(Company).find({
           take: limit,
           order: { name: 'ASC' },
-          where: [
-            { type, name: slugQuery },
-            { type, name: ILike(`%${query}%`) },
-          ],
+          where: whereConditions,
         }),
+      );
+    },
+    autocompleteTools: async (
+      _,
+      args: { query: string },
+      ctx: AuthContext,
+    ): Promise<DatasetTool[]> => {
+      const result = autocompleteToolsSchema.safeParse(args);
+      if (!result.success) {
+        return [];
+      }
+
+      const normalizedQuery = result.data.query
+        .toLowerCase()
+        .replace(/\./g, 'dot')
+        .replace(/\+/g, 'plus')
+        .replace(/#/g, 'sharp')
+        .replace(/&/g, 'and')
+        .replace(/\s+/g, '');
+
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(DatasetTool)
+          .createQueryBuilder('dt')
+          .where('dt."titleNormalized" LIKE :query', {
+            query: `%${normalizedQuery}%`,
+          })
+          .andWhere('dt."faviconSource" != :none', { none: 'none' })
+          .setParameter('exactQuery', normalizedQuery)
+          // Prioritize: exact match first, then shorter titles, then alphabetically
+          .orderBy(
+            `CASE WHEN dt."titleNormalized" = :exactQuery THEN 0 ELSE 1 END`,
+            'ASC',
+          )
+          .addOrderBy('LENGTH(dt."title")', 'ASC')
+          .addOrderBy('dt."title"', 'ASC')
+          .limit(10)
+          .getMany(),
+      );
+    },
+    autocompleteGithubRepository: async (
+      _,
+      payload: z.infer<typeof autocompleteGithubRepositorySchema>,
+    ): Promise<GQLGitHubRepository[]> => {
+      const { query, limit } =
+        autocompleteGithubRepositorySchema.parse(payload);
+
+      try {
+        const data = await gitHubClient.searchRepositories(query, limit);
+
+        return data.items.map((repo) => ({
+          id: String(repo.id),
+          owner: repo.owner.login,
+          name: repo.name,
+          fullName: repo.full_name,
+          url: repo.html_url,
+          image: repo.owner.avatar_url,
+          description: repo.description,
+        }));
+      } catch {
+        return [];
+      }
+    },
+    autocompleteGear: async (_, args: { query: string }, ctx: AuthContext) => {
+      const result = autocompleteGearSchema.safeParse(args);
+      if (!result.success) {
+        return [];
+      }
+
+      const normalizedQuery = result.data.query
+        .replace(/\./g, 'dot')
+        .replace(/\+/g, 'plus')
+        .replace(/#/g, 'sharp')
+        .replace(/\s+/g, '');
+
+      const { DatasetGear } = await import('../entity/dataset/DatasetGear');
+
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(DatasetGear)
+          .createQueryBuilder('dg')
+          .where('dg."nameNormalized" LIKE :query', {
+            query: `%${normalizedQuery}%`,
+          })
+          .setParameter('exactQuery', normalizedQuery)
+          // Prioritize: exact match first, then shorter names, then alphabetically
+          .orderBy(
+            `CASE WHEN dg."nameNormalized" = :exactQuery THEN 0 ELSE 1 END`,
+            'ASC',
+          )
+          .addOrderBy('LENGTH(dg."name")', 'ASC')
+          .addOrderBy('dg."name"', 'ASC')
+          .limit(10)
+          .getMany(),
       );
     },
   },
