@@ -2,7 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 
 import { AuthContext, BaseContext } from '../Context';
 import { traceResolvers } from './trace';
-import { getShortUrl, isValidHttpUrl } from '../common';
+import { getShortUrl, isValidHttpUrl, isAllowedShortenerUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 
 export const typeDefs = /* GraphQL */ `
@@ -29,10 +29,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { url }: { url: string },
       ctx: AuthContext,
     ): Promise<string> => {
-      if (
-        !isValidHttpUrl(url) ||
-        !url.startsWith(process.env.COMMENTS_PREFIX)
-      ) {
+      if (!isValidHttpUrl(url) || !isAllowedShortenerUrl(url)) {
         throw new ValidationError('Invalid url');
       }
 
