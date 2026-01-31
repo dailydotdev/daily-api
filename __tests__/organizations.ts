@@ -2211,13 +2211,13 @@ describe('mutation updateRecruiterOrganization', () => {
       },
     ]);
 
-    // Create an opportunity linked to org-1
+    // Create an opportunity linked to 9a212368-3388-4040-9c59-540f44c7a862
     await con.getRepository(OpportunityJob).save({
       id: oppId,
       state: OpportunityState.DRAFT,
       title: 'Test Opportunity',
       tldr: 'Test',
-      organizationId: 'org-1',
+      organizationId: '9a212368-3388-4040-9c59-540f44c7a862',
     });
 
     // Make user 1 a recruiter for opp-1
@@ -2236,7 +2236,7 @@ describe('mutation updateRecruiterOrganization', () => {
       {
         mutation: MUTATION,
         variables: {
-          id: 'org-1',
+          id: '9a212368-3388-4040-9c59-540f44c7a862',
           payload: { name: 'New Name' },
         },
       },
@@ -2252,7 +2252,7 @@ describe('mutation updateRecruiterOrganization', () => {
       {
         mutation: MUTATION,
         variables: {
-          id: 'org-1',
+          id: '9a212368-3388-4040-9c59-540f44c7a862',
           payload: { name: 'Unauthorized Update' },
         },
       },
@@ -2266,7 +2266,7 @@ describe('mutation updateRecruiterOrganization', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        id: 'org-1',
+        id: '9a212368-3388-4040-9c59-540f44c7a862',
         payload: {
           name: 'Updated Corp',
           website: 'https://updated.dev',
@@ -2300,7 +2300,7 @@ describe('mutation updateRecruiterOrganization', () => {
     // Verify the organization was updated in database
     const organization = await con
       .getRepository(Organization)
-      .findOneBy({ id: 'org-1' });
+      .findOneBy({ id: '9a212368-3388-4040-9c59-540f44c7a862' });
 
     expect(organization).toMatchObject({
       name: 'Updated Corp',
@@ -2317,10 +2317,10 @@ describe('mutation updateRecruiterOrganization', () => {
   it('should not allow duplicate organization names', async () => {
     loggedUser = '1';
 
-    // Try to rename org-1 to the same name as org-2
+    // Try to rename 9a212368-3388-4040-9c59-540f44c7a862 to the same name as org-2
     const res = await client.mutate(MUTATION, {
       variables: {
-        id: 'org-1',
+        id: '9a212368-3388-4040-9c59-540f44c7a862',
         payload: {
           name: 'Organization 2', // Duplicate name
         },
@@ -2339,7 +2339,7 @@ describe('mutation updateRecruiterOrganization', () => {
 
     // Set initial values
     await con.getRepository(Organization).update(
-      { id: 'org-1' },
+      { id: '9a212368-3388-4040-9c59-540f44c7a862' },
       {
         website: 'https://initial.dev',
         description: 'Initial description',
@@ -2348,7 +2348,7 @@ describe('mutation updateRecruiterOrganization', () => {
 
     const res = await client.mutate(MUTATION, {
       variables: {
-        id: 'org-1',
+        id: '9a212368-3388-4040-9c59-540f44c7a862',
         payload: {
           website: 'https://updated.dev',
           // description not provided - should remain unchanged
@@ -2378,13 +2378,13 @@ describe('mutation clearRecruiterOrganizationImage', () => {
   const oppId = '550e8400-e29b-41d4-a716-446655440002';
 
   beforeEach(async () => {
-    // Create an opportunity linked to org-1
+    // Create an opportunity linked to 9a212368-3388-4040-9c59-540f44c7a862
     await con.getRepository(OpportunityJob).save({
       id: oppId,
       state: OpportunityState.DRAFT,
       title: 'Test Opportunity',
       tldr: 'Test',
-      organizationId: 'org-1',
+      organizationId: '9a212368-3388-4040-9c59-540f44c7a862',
     });
 
     // Make user 1 a recruiter for opp-1
@@ -2403,7 +2403,7 @@ describe('mutation clearRecruiterOrganizationImage', () => {
       {
         mutation: MUTATION,
         variables: {
-          id: 'org-1',
+          id: '9a212368-3388-4040-9c59-540f44c7a862',
         },
       },
       'UNAUTHENTICATED',
@@ -2418,7 +2418,7 @@ describe('mutation clearRecruiterOrganizationImage', () => {
       {
         mutation: MUTATION,
         variables: {
-          id: 'org-1',
+          id: '9a212368-3388-4040-9c59-540f44c7a862',
         },
       },
       'FORBIDDEN',
@@ -2447,18 +2447,21 @@ describe('mutation clearRecruiterOrganizationImage', () => {
     // First set an image on the organization
     await con
       .getRepository(Organization)
-      .update({ id: 'org-1' }, { image: 'https://example.com/old-image.png' });
+      .update(
+        { id: '9a212368-3388-4040-9c59-540f44c7a862' },
+        { image: 'https://example.com/old-image.png' },
+      );
 
     // Verify image is set
     let organization = await con
       .getRepository(Organization)
-      .findOneBy({ id: 'org-1' });
+      .findOneBy({ id: '9a212368-3388-4040-9c59-540f44c7a862' });
     expect(organization?.image).toBe('https://example.com/old-image.png');
 
     // Clear the image using organization ID
     const res = await client.mutate(MUTATION, {
       variables: {
-        id: 'org-1',
+        id: '9a212368-3388-4040-9c59-540f44c7a862',
       },
     });
 
@@ -2468,7 +2471,7 @@ describe('mutation clearRecruiterOrganizationImage', () => {
     // Verify image was cleared in database
     organization = await con
       .getRepository(Organization)
-      .findOneBy({ id: 'org-1' });
+      .findOneBy({ id: '9a212368-3388-4040-9c59-540f44c7a862' });
     expect(organization?.image).toBeNull();
   });
 });
@@ -2493,7 +2496,7 @@ describe('mutation createOrganizationForOpportunity', () => {
       state: OpportunityState.DRAFT,
       title: 'Test Opportunity With Org',
       tldr: 'Test',
-      organizationId: 'org-1',
+      organizationId: '9a212368-3388-4040-9c59-540f44c7a862',
     });
 
     // Create an opportunity without an organization
