@@ -150,6 +150,12 @@ export const getPostCommenterIds = async (
 export const DEFAULT_POST_TITLE = 'No title';
 
 export const postScraperOrigin = process.env.POST_SCRAPER_ORIGIN;
+export const yggdrasilOrigin = process.env.YGGDRASIL_ORIGIN;
+
+// Response from yggdrasil includes final_url for redirect handling
+interface YggdrasilPreviewResponse extends ExternalLinkPreview {
+  final_url?: string;
+}
 
 export const fetchLinkPreview = async (
   url: string,
@@ -158,12 +164,28 @@ export const fetchLinkPreview = async (
     throw new ValidationError('URL is not valid');
   }
 
+  // Use yggdrasil if configured, otherwise fall back to post-scraper
+  const previewOrigin = yggdrasilOrigin || postScraperOrigin;
+
   try {
-    return await retryFetchParse(`${postScraperOrigin}/preview`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url }),
-    });
+    const response = await retryFetchParse<YggdrasilPreviewResponse>(
+      `${previewOrigin}/preview`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      },
+    );
+
+    // Normalize response: yggdrasil returns final_url, post-scraper returns url as final
+    if (response.final_url) {
+      return {
+        ...response,
+        url: response.final_url,
+      };
+    }
+
+    return response;
   } catch (err) {
     if (err instanceof HttpError) {
       if (err.statusCode >= 400 && err.statusCode < 500) {
