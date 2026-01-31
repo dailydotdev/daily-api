@@ -107,9 +107,7 @@ describe('query getShortUrl', () => {
     });
 
     // Should not throw validation error
-    expect(
-      res.errors?.some((e) => e.message === 'Invalid url'),
-    ).toBeFalsy();
+    expect(res.errors?.some((e) => e.message === 'Invalid url')).toBeFalsy();
   });
 
   it('should accept valid daily.dev URLs with query parameters', async () => {
@@ -127,8 +125,6 @@ describe('query getShortUrl', () => {
     });
 
     // Should not throw validation error
-    expect(
-      res.errors?.some((e) => e.message === 'Invalid url'),
-    ).toBeFalsy();
+    expect(res.errors?.some((e) => e.message === 'Invalid url')).toBeFalsy();
   });
 });
