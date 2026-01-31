@@ -1,8 +1,12 @@
 import * as matchers from 'jest-extended';
 import '../src/config';
 import createOrGetConnection from '../src/db';
+import { testSchema } from '../src/data-source';
 import { remoteConfig } from '../src/remoteConfig';
 import { loadAuthKeys } from '../src/auth';
+
+// Set global timeout for all tests and hooks (more reliable than jest.config.js testTimeout)
+jest.setTimeout(30000);
 
 expect.extend(matchers);
 
@@ -59,6 +63,15 @@ jest.mock('../src/remoteConfig', () => ({
   },
 }));
 
+// Tables that contain seed/reference data that should not be deleted between tests
+// These are populated by migrations and tests don't modify them
+// NOTE: Most tables are NOT included because tests create their own test data
+// and expect tables to start empty (so auto-increment IDs start at 1)
+const SEED_DATA_TABLES = new Set([
+  'migrations', // Required by TypeORM to track applied migrations
+  'checkpoint', // System checkpoints, tests don't create/modify
+]);
+
 const cleanDatabase = async (): Promise<void> => {
   await remoteConfig.init();
 
@@ -66,14 +79,38 @@ const cleanDatabase = async (): Promise<void> => {
   for (const entity of con.entityMetadatas) {
     const repository = con.getRepository(entity.name);
     if (repository.metadata.tableType === 'view') continue;
-    await repository.query(`DELETE
-                            FROM "${entity.tableName}";`);
+
+    // Skip seed data tables - they're populated once and tests expect them to exist
+    if (SEED_DATA_TABLES.has(entity.tableName)) continue;
+
+    await repository.query(`DELETE FROM "${entity.tableName}";`);
 
     for (const column of entity.primaryColumns) {
       if (column.generationStrategy === 'increment') {
-        await repository.query(
-          `ALTER SEQUENCE ${entity.tableName}_${column.databaseName}_seq RESTART WITH 1`,
-        );
+        // Reset sequences/identity columns for auto-increment primary keys
+        // Must use schema-qualified table name for schema isolation to work
+        try {
+          // First try pg_get_serial_sequence (works for SERIAL columns)
+          // Schema-qualify the table name for proper resolution in worker schemas
+          const schemaQualifiedTable = `${testSchema}.${entity.tableName}`;
+          const seqResult = await repository.query(
+            `SELECT pg_get_serial_sequence($1, $2) as seq_name`,
+            [schemaQualifiedTable, column.databaseName],
+          );
+          if (seqResult[0]?.seq_name) {
+            await repository.query(
+              `ALTER SEQUENCE ${seqResult[0].seq_name} RESTART WITH 1`,
+            );
+          } else {
+            // If no sequence found, try resetting IDENTITY column directly
+            // This handles GENERATED AS IDENTITY columns
+            await repository.query(
+              `ALTER TABLE "${testSchema}"."${entity.tableName}" ALTER COLUMN "${column.databaseName}" RESTART WITH 1`,
+            );
+          }
+        } catch {
+          // Sequence/identity might not exist or not be resettable, ignore
+        }
       }
     }
   }
@@ -84,8 +121,14 @@ jest.mock('file-type', () => ({
   fileTypeFromBuffer: () => fileTypeFromBuffer(),
 }));
 
+beforeAll(async () => {
+  // Schema creation is now handled by globalSetup.ts
+  // This beforeAll just ensures the connection is ready
+  await createOrGetConnection();
+}, 30000);
+
 beforeEach(async () => {
   loadAuthKeys();
 
   await cleanDatabase();
-});
+}, 90000); // 90s - cleanDatabase iterates through many entities
