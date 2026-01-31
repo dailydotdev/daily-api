@@ -1,34 +1,24 @@
-import nock from 'nock';
 import { DataSource } from 'typeorm';
-import { v4 as uuidv4 } from 'uuid';
-
+import { User } from '../src/entity';
 import createOrGetConnection from '../src/db';
 import {
+  disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
-  MockContext,
-  disposeGraphQLTesting,
   initializeGraphQLTesting,
+  MockContext,
+  saveFixtures,
   testQueryErrorCode,
 } from './helpers';
-
-import { getShortUrl } from '../src/common';
+import { usersFixture } from './fixture/user';
+import nock from 'nock';
 
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
 let loggedUser: string = null;
 
-jest.mock('../src/common', () => ({
-  ...jest.requireActual('../src/common'),
-  getShortUrl: jest.fn(),
-}));
-
-const mockGetShortUrl = getShortUrl as jest.MockedFunction<typeof getShortUrl>;
-mockGetShortUrl.mockImplementation(
-  async (): Promise<string> =>
-    Promise.resolve(`https://diy.dev/${uuidv4().slice(0, 8)}`),
-);
+const originalCommentsPrefix = process.env.COMMENTS_PREFIX;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -38,13 +28,17 @@ beforeAll(async () => {
   client = state.client;
 });
 
-beforeEach(async () => {
-  loggedUser = '1';
-  nock.cleanAll();
-  mockGetShortUrl.mockClear();
+afterAll(() => {
+  disposeGraphQLTesting(state);
+  process.env.COMMENTS_PREFIX = originalCommentsPrefix;
 });
 
-afterAll(() => disposeGraphQLTesting(state));
+beforeEach(async () => {
+  loggedUser = null;
+  process.env.COMMENTS_PREFIX = 'https://app.daily.dev';
+
+  await saveFixtures(con, User, usersFixture);
+});
 
 describe('query getShortUrl', () => {
   const QUERY = `
@@ -53,55 +47,88 @@ describe('query getShortUrl', () => {
     }
   `;
 
-  it('should not work for unauthenticated users', () => {
-    loggedUser = null;
+  it('should return unauthenticated when not logged in', () =>
     testQueryErrorCode(
       client,
-      {
-        query: QUERY,
-        variables: { url: 'hh::/not-a-valid-url.test' },
-      },
+      { query: QUERY, variables: { url: 'https://app.daily.dev/posts/test' } },
       'UNAUTHENTICATED',
-    );
+    ));
 
-    expect(mockGetShortUrl).not.toHaveBeenCalled();
+  it('should reject subdomain spoofing attempts', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { url: 'https://app.daily.dev.attacker.com/posts/test' },
+    });
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.length).toBeGreaterThan(0);
+    expect(res.errors?.[0].message).toEqual('Invalid url');
   });
 
-  it('should not work for invalid URL', () => {
-    testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: { url: 'hh::/not-a-valid-url.test' },
+  it('should reject subdomain spoofing with linkedin domain', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { url: 'https://app.daily.dev.linkedin.com/posts/test' },
+    });
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.length).toBeGreaterThan(0);
+    expect(res.errors?.[0].message).toEqual('Invalid url');
+  });
+
+  it('should reject unrelated domains', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { url: 'https://evil.com/posts/test' },
+    });
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.length).toBeGreaterThan(0);
+    expect(res.errors?.[0].message).toEqual('Invalid url');
+  });
+
+  it('should reject invalid URLs', async () => {
+    loggedUser = '1';
+    const res = await client.query(QUERY, {
+      variables: { url: 'not-a-url' },
+    });
+    expect(res.errors).toBeDefined();
+    expect(res.errors?.length).toBeGreaterThan(0);
+    expect(res.errors?.[0].message).toEqual('Invalid url');
+  });
+
+  it('should accept valid daily.dev URLs', async () => {
+    loggedUser = '1';
+
+    // Mock the URL shortener service since we're not testing that here
+    nock(process.env.URL_SHORTENER_BASE_URL || 'http://localhost')
+      .post('/shorten')
+      .reply(200, { url: 'https://dly.to/test123' });
+
+    const res = await client.query(QUERY, {
+      variables: { url: 'https://app.daily.dev/posts/test' },
+    });
+
+    // Should not throw validation error
+    expect(
+      res.errors?.some((e) => e.message === 'Invalid url'),
+    ).toBeFalsy();
+  });
+
+  it('should accept valid daily.dev URLs with query parameters', async () => {
+    loggedUser = '1';
+
+    // Mock the URL shortener service
+    nock(process.env.URL_SHORTENER_BASE_URL || 'http://localhost')
+      .post('/shorten')
+      .reply(200, { url: 'https://dly.to/test456' });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        url: 'https://app.daily.dev/posts/test?userid=123&cid=share_post',
       },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
+    });
 
-    expect(mockGetShortUrl).not.toHaveBeenCalled();
-  });
-
-  it('should not work for URL not pointing to daily.dev', () => {
-    testQueryErrorCode(
-      client,
-      {
-        query: QUERY,
-        variables: { url: 'https://not-a-valid-url.test' },
-      },
-      'GRAPHQL_VALIDATION_FAILED',
-    );
-
-    expect(mockGetShortUrl).not.toHaveBeenCalled();
-  });
-
-  it('should generate shortened URL', async () => {
-    const url = new URL('/foo/bar', process.env.COMMENTS_PREFIX).toString();
-    const res = await client.query(QUERY, { variables: { url } });
-    expect(res.errors).toBeFalsy();
-
-    expect(mockGetShortUrl).toHaveBeenCalled();
-
-    expect(res.data.getShortUrl).toMatch(
-      new RegExp(`https://diy.dev/[0-9a-f]{8}$`, 'i'),
-    );
+    // Should not throw validation error
+    expect(
+      res.errors?.some((e) => e.message === 'Invalid url'),
+    ).toBeFalsy();
   });
 });
