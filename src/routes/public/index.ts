@@ -127,12 +127,12 @@ export default async function (
   fastify: FastifyInstance,
   con: DataSource,
 ): Promise<void> {
+  fastify.addHook('onRequest', perMinuteRateLimitHook);
+  fastify.addHook('onRequest', dailyLimitHook);
+
   fastify.addHook('onRequest', async (request, reply) => {
     await tokenAuthHook(request, reply, con);
   });
-
-  fastify.addHook('onRequest', perMinuteRateLimitHook);
-  fastify.addHook('onRequest', dailyLimitHook);
 
   await fastify.register(
     async (instance) => {
