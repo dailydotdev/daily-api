@@ -53,6 +53,7 @@ declare global {
       MAGNI_ORIGIN: string;
       ANALYTICS_URL: string;
       POST_SCRAPER_ORIGIN: string;
+      YGGDRASIL_ORIGIN?: string;
       SUBMIT_ARTICLE_THRESHOLD: string;
       SLACK_SIGNING_SECRET: string;
       API_CONFIG_FEATURE_KEY: string;
@@ -65,6 +66,7 @@ declare global {
       SLACK_VORDR_WEBHOOK: string;
       SLACK_TRANSACTIONS_WEBHOOK: string;
       SLACK_ADS_WEBHOOK: string;
+      SLACK_USER_FEEDBACK_WEBHOOK: string;
       NJORD_ORIGIN: string;
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;

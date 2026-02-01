@@ -44,6 +44,9 @@ export const webhooks = Object.freeze({
   recruiterReview: process.env.SLACK_RECRUITER_REVIEW_WEBHOOK
     ? new IncomingWebhook(process.env.SLACK_RECRUITER_REVIEW_WEBHOOK)
     : nullWebhook,
+  userFeedback: process.env.SLACK_USER_FEEDBACK_WEBHOOK
+    ? new IncomingWebhook(process.env.SLACK_USER_FEEDBACK_WEBHOOK)
+    : nullWebhook,
 });
 
 export class SlackClient {

@@ -59,11 +59,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     await addClaimableItemsToUser(con, body);
 
     if (body.id && operationResult.status === 'ok') {
-      const opportunities = await claimAnonOpportunities({
-        anonUserId: body.id,
-        userId: operationResult.userId,
-        con: con.manager,
-      });
+      const identifiers = [body.id, body.email].filter(Boolean);
+
+      const opportunityGroups = await Promise.all(
+        identifiers.map((identifier) => {
+          return claimAnonOpportunities({
+            anonUserId: identifier,
+            userId: operationResult.userId,
+            con: con.manager,
+          });
+        }),
+      );
+
+      const opportunities = opportunityGroups.flat(1);
 
       if (opportunities.length > 0) {
         logger.info(
