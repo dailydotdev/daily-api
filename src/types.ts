@@ -103,6 +103,10 @@ declare module 'fastify' {
 
     // Used for tracing
     span?: opentelemetry.Span;
+
+    // Used for public API authentication
+    apiUserId?: string;
+    apiTokenId?: string;
   }
 
   interface FastifyInstance {

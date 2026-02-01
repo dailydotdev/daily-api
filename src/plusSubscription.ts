@@ -1,5 +1,6 @@
 import { updateSubscriptionFlags } from './common';
 import { SubscriptionStatus } from './common/plus';
+import { revokeAllUserTokens } from './common/personalAccessToken';
 import createOrGetConnection from './db';
 import { User, type UserSubscriptionFlags } from './entity';
 
@@ -39,4 +40,9 @@ export const updateStoreKitUserSubscription = async ({
       subscriptionFlags: subscriptionFlags,
     },
   );
+
+  // Revoke all API tokens when subscription expires
+  if (status === SubscriptionStatus.Expired) {
+    await revokeAllUserTokens(con, userId);
+  }
 };

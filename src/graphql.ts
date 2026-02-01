@@ -38,6 +38,7 @@ import * as sourceStack from './schema/sourceStack';
 import * as userHotTake from './schema/userHotTake';
 import * as gear from './schema/gear';
 import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
+import * as personalAccessTokens from './schema/personalAccessTokens';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -92,6 +93,7 @@ export const schema = urlDirective.transformer(
               userHotTake.typeDefs,
               gear.typeDefs,
               userWorkspacePhoto.typeDefs,
+              personalAccessTokens.typeDefs,
             ],
             resolvers: merge(
               common.resolvers,
@@ -129,6 +131,7 @@ export const schema = urlDirective.transformer(
               userHotTake.resolvers,
               gear.resolvers,
               userWorkspacePhoto.resolvers,
+              personalAccessTokens.resolvers,
             ),
           }),
         ),
