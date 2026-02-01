@@ -40,7 +40,7 @@ const DEFAULT_LIMIT = 20;
 
 const transformPost = (
   post: ArticlePost,
-  source: Source,
+  source: Source | undefined,
   tags: string[],
   author: User | null,
 ): PostResponse => ({
@@ -51,9 +51,9 @@ const transformPost = (
   publishedAt: post.publishedAt?.toISOString() || null,
   createdAt: post.createdAt.toISOString(),
   source: {
-    id: source.id,
-    name: source.name,
-    image: source.image ?? null,
+    id: source?.id ?? post.sourceId,
+    name: source?.name ?? '',
+    image: source?.image ?? null,
   },
   tags,
   readTime: post.readTime ?? null,
@@ -94,7 +94,6 @@ export default async function (
       const qb = queryRunner.manager
         .getRepository(ArticlePost)
         .createQueryBuilder('post')
-        .leftJoinAndSelect('post.source', 'source')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.visible = true')
         .andWhere('post.deleted = false')
@@ -116,25 +115,38 @@ export default async function (
     const resultPosts = hasNextPage ? posts.slice(0, limit) : posts;
 
     const postIds = resultPosts.map((p) => p.id);
+    const sourceIds = [...new Set(resultPosts.map((p) => p.sourceId))];
     const tagsMap = new Map<string, string[]>();
+    const sourcesMap = new Map<string, Source>();
 
     if (postIds.length > 0) {
-      const keywords = await queryReadReplica(con, async ({ queryRunner }) =>
-        queryRunner.manager.getRepository(PostKeyword).find({
-          where: { postId: { $in: postIds } as unknown as string },
-          select: ['postId', 'keyword'],
-        }),
-      );
+      const [keywords, sources] = await Promise.all([
+        queryReadReplica(con, async ({ queryRunner }) =>
+          queryRunner.manager.getRepository(PostKeyword).find({
+            where: { postId: { $in: postIds } as unknown as string },
+            select: ['postId', 'keyword'],
+          }),
+        ),
+        queryReadReplica(con, async ({ queryRunner }) =>
+          queryRunner.manager.getRepository(Source).find({
+            where: { id: { $in: sourceIds } as unknown as string },
+          }),
+        ),
+      ]);
 
       for (const kw of keywords) {
         const existing = tagsMap.get(kw.postId) || [];
         existing.push(kw.keyword);
         tagsMap.set(kw.postId, existing);
       }
+
+      for (const source of sources) {
+        sourcesMap.set(source.id, source);
+      }
     }
 
     const data: PostResponse[] = resultPosts.map((post) => {
-      const source = post.source as unknown as Source;
+      const source = sourcesMap.get(post.sourceId);
       const author = post.author as unknown as User | null;
       const tags = tagsMap.get(post.id) || [];
       return transformPost(post as ArticlePost, source, tags, author);

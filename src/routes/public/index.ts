@@ -3,6 +3,7 @@ import type { DataSource } from 'typeorm';
 import { validatePersonalAccessToken } from '../../common/personalAccessToken';
 import { User } from '../../entity/user/User';
 import { ioRedisPool } from '../../redis';
+import { isPlusMember } from '../../paddle';
 import feedRoutes from './feed';
 import postsRoutes from './posts';
 
@@ -53,11 +54,7 @@ const tokenAuthHook = async (
     select: ['id', 'subscriptionFlags'],
   });
 
-  const isPlus =
-    user?.subscriptionFlags?.status === 'active' ||
-    user?.subscriptionFlags?.status === 'cancelled';
-
-  if (!isPlus) {
+  if (!isPlusMember(user?.subscriptionFlags?.cycle)) {
     return reply.status(403).send({
       error: 'plus_required',
       message: 'API access requires an active Plus subscription',

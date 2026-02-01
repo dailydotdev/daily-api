@@ -56,7 +56,6 @@ export default async function (
       queryRunner.manager
         .getRepository(ArticlePost)
         .createQueryBuilder('post')
-        .leftJoinAndSelect('post.source', 'source')
         .leftJoinAndSelect('post.author', 'author')
         .where('post.id = :id', { id })
         .andWhere('post.deleted = false')
@@ -70,7 +69,7 @@ export default async function (
       });
     }
 
-    const [keywords, userPost] = await Promise.all([
+    const [keywords, userPost, source] = await Promise.all([
       queryReadReplica(con, async ({ queryRunner }) =>
         queryRunner.manager.getRepository(PostKeyword).find({
           where: { postId: post.id },
@@ -83,9 +82,13 @@ export default async function (
           select: ['votedAt', 'vote'],
         }),
       ),
+      queryReadReplica(con, async ({ queryRunner }) =>
+        queryRunner.manager.getRepository(Source).findOneBy({
+          id: post.sourceId,
+        }),
+      ),
     ]);
 
-    const source = post.source as unknown as Source;
     const author = post.author as unknown as User | null;
     const tags = keywords.map((k) => k.keyword);
 
@@ -98,10 +101,10 @@ export default async function (
       publishedAt: post.publishedAt?.toISOString() || null,
       createdAt: post.createdAt.toISOString(),
       source: {
-        id: source.id,
-        name: source.name,
-        image: source.image ?? null,
-        url: source.handle
+        id: source?.id ?? post.sourceId,
+        name: source?.name ?? '',
+        image: source?.image ?? null,
+        url: source?.handle
           ? `https://app.daily.dev/sources/${source.handle}`
           : null,
       },

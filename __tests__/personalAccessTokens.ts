@@ -457,7 +457,7 @@ describe('personal access token GraphQL', () => {
       await testMutationErrorCode(
         client,
         { mutation: MUTATION('One Too Many') },
-        'BAD_USER_INPUT',
+        'GRAPHQL_VALIDATION_FAILED',
       );
     });
 
@@ -490,7 +490,7 @@ describe('personal access token GraphQL', () => {
       await testMutationErrorCode(
         client,
         { mutation: MUTATION('') },
-        'BAD_USER_INPUT',
+        'ZOD_VALIDATION_ERROR',
       );
     });
   });
@@ -555,7 +555,7 @@ describe('personal access token GraphQL', () => {
       await testMutationErrorCode(
         client,
         { mutation: MUTATION(tokenId) },
-        'BAD_USER_INPUT',
+        'GRAPHQL_VALIDATION_FAILED',
       );
 
       const token = await con
@@ -571,7 +571,7 @@ describe('personal access token GraphQL', () => {
       await testMutationErrorCode(
         client,
         { mutation: MUTATION(uuidv4()) },
-        'BAD_USER_INPUT',
+        'GRAPHQL_VALIDATION_FAILED',
       );
     });
 
@@ -594,7 +594,7 @@ describe('personal access token GraphQL', () => {
       await testMutationErrorCode(
         client,
         { mutation: MUTATION(tokenId) },
-        'BAD_USER_INPUT',
+        'GRAPHQL_VALIDATION_FAILED',
       );
     });
   });
