@@ -17,7 +17,6 @@ import { NotificationType } from '../../notifications/common';
 
 // Linear state name to FeedbackStatus mapping
 const linearStateToFeedbackStatus: Record<string, FeedbackStatus> = {
-  'In Progress': FeedbackStatus.Accepted,
   Done: FeedbackStatus.Completed,
   Canceled: FeedbackStatus.Cancelled,
 };

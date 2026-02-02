@@ -3,8 +3,17 @@ import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { User } from '../entity/user';
 import { webhooks } from '../common/slack';
 import { getCategoryDisplayName, getSentimentEmoji } from '../common/feedback';
+import { updateFlagsStatement } from '../common/utils';
 import type { Block, KnownBlock, MrkdwnElement } from '@slack/web-api';
 
+/**
+ * Worker that sends Slack notifications for accepted feedback.
+ * Listens to feedback-updated CDC events and sends notification when:
+ * - Status is Accepted
+ * - Slack notification hasn't been sent yet (slackNotifiedAt flag)
+ *
+ * The slackNotifiedAt flag provides idempotency for retries.
+ */
 const worker: TypedWorker<'api.v1.feedback-updated'> = {
   subscription: 'api.feedback-updated-slack',
   handler: async ({ data }, con, logger): Promise<void> => {
@@ -13,17 +22,25 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
     }
 
     const { feedbackId } = data;
+    const logDetails = { feedbackId };
 
     const feedback = await con.getRepository(Feedback).findOneBy({
       id: feedbackId,
     });
 
     if (!feedback) {
-      logger.warn({ feedbackId }, 'Feedback not found for slack notification');
+      logger.warn(logDetails, 'Feedback not found for slack notification');
       return;
     }
 
-    if (Number(feedback.status) !== FeedbackStatus.Completed) {
+    // Only send notification for Accepted status
+    if (feedback.status !== FeedbackStatus.Accepted) {
+      return;
+    }
+
+    // Check if notification was already sent (idempotency for retries)
+    if (feedback.flags?.slackNotifiedAt) {
+      logger.info(logDetails, 'Slack notification already sent, skipping');
       return;
     }
 
@@ -134,6 +151,15 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
     await webhooks.userFeedback.send({
       text: 'New user feedback processed',
       blocks,
+    });
+
+    // Update flag to mark notification as sent
+    await con.transaction(async (entityManager) => {
+      await entityManager.getRepository(Feedback).update(feedbackId, {
+        flags: updateFlagsStatement<Feedback>({
+          slackNotifiedAt: new Date().toISOString(),
+        }),
+      });
     });
   },
 };

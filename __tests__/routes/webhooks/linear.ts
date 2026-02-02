@@ -230,7 +230,7 @@ describe('POST /webhooks/linear', () => {
   });
 
   describe('status mapping', () => {
-    it('should update status to Accepted when state is "In Progress"', async () => {
+    it('should ignore "In Progress" state (no longer mapped)', async () => {
       await createFeedback();
       const payload = {
         action: 'update',
@@ -253,7 +253,8 @@ describe('POST /webhooks/linear', () => {
       const feedback = await con
         .getRepository(Feedback)
         .findOneBy({ linearIssueId: 'linear-issue-123' });
-      expect(feedback?.status).toEqual(FeedbackStatus.Accepted);
+      // Status should remain unchanged (Processing)
+      expect(feedback?.status).toEqual(FeedbackStatus.Processing);
     });
 
     it('should update status to Cancelled when state is "Canceled"', async () => {
@@ -353,13 +354,13 @@ describe('POST /webhooks/linear', () => {
 
   describe('idempotency', () => {
     it('should not update if status is already the same', async () => {
-      await createFeedback({ status: FeedbackStatus.Accepted });
+      await createFeedback({ status: FeedbackStatus.Completed });
       const payload = {
         action: 'update',
         type: 'Issue',
         data: {
           id: 'linear-issue-123',
-          state: { id: 's1', name: 'In Progress' },
+          state: { id: 's1', name: 'Done' },
         },
         updatedFrom: { stateId: 'old-state' },
       };
