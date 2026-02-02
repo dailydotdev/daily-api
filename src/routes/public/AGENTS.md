@@ -2,47 +2,31 @@
 
 This directory contains the public REST API for daily.dev, accessible via Personal Access Tokens.
 
-## AI Agent Documentation
-
-The API includes agent-friendly documentation:
-
-- **`skill.md`** - Concise API reference designed for AI agents (served at `/public/v1/skill.md`)
-- **OpenAPI spec** - Machine-readable API definition at `/public/v1/docs/json` and `/public/v1/docs/yaml`
-
-When updating endpoints, keep `skill.md` in sync. It should remain concise and focused on what agents need to know.
-
-### Versioning
-
-The `skill.md` file includes a version number at the top. Update it when making changes:
-
-- **Major** (1.x.x → 2.0.0): Breaking changes (removed endpoints, changed response structure)
-- **Minor** (1.0.x → 1.1.0): New endpoints or fields (backward compatible)
-- **Patch** (1.0.0 → 1.0.1): Documentation fixes, clarifications
-
 ## Architecture
 
 - **Base path:** `/public/v1`
 - **Authentication:** Bearer token (Personal Access Tokens)
-- **Rate limiting:** Two-layer system (see below)
-- **OpenAPI:** Auto-generated via `@fastify/swagger`
-- **GraphQL Injection:** Routes use `injectGraphql()` to leverage existing GraphQL resolvers
+- **Rate limiting:** Two-layer system (IP + user-based)
+- **OpenAPI:** Auto-generated at `/public/v1/docs/json` and `/public/v1/docs/yaml`
+- **GraphQL Injection:** Routes use `injectGraphql()` to leverage existing resolvers
+
+### AI Agent Documentation
+
+- **`skill.md`** - Concise API reference for AI agents (served at `/public/v1/skill.md`)
+- Update `skill.md` when changing endpoints. Version using semver:
+  - **Major**: Breaking changes
+  - **Minor**: New endpoints/fields (backward compatible)
+  - **Patch**: Documentation fixes
 
 ## Key Principles
 
-### 1. Rate Limiting is Already Configured
-**Do NOT implement custom rate limiting.** The two-layer rate limiting system in `index.ts` handles:
-- IP-based DoS protection (300/min) via `@fastify/rate-limit`
-- Per-user API quota (60/min) via Redis
+### 1. Don't Reimplement What's Already Done
 
-The order is critical: IP rate limiting → Auth → User rate limiting. This prevents DoS via token validation flooding while still enforcing per-user quotas.
+**Rate limiting and auth are handled in `index.ts`.** Don't add:
+- Custom rate limiting (two-layer system already configured)
+- Redundant auth checks (middleware sets `request.apiUserId`, `request.userId`, `request.isPlus`)
+- Plus subscription validation (tokens only exist for Plus users, auto-revoked on cancellation)
 
-### 2. Trust the Auth Middleware
-**Do NOT add redundant authentication checks in route handlers.** The auth middleware in `index.ts` already:
-- Validates the Personal Access Token
-- Sets `request.apiUserId`, `request.userId`, and `request.isPlus`
-- Returns 401 for invalid/expired/revoked tokens
-
-Route handlers can assume the user is authenticated. Do not add redundant checks like:
 ```typescript
 // BAD - redundant check
 if (!userId) {
@@ -50,15 +34,9 @@ if (!userId) {
 }
 ```
 
-### 3. Plus Subscription Validation
-**Do NOT check Plus subscription status in the auth hook.** Tokens are:
-- Only created for Plus users (enforced in `createPersonalAccessToken` mutation)
-- Automatically revoked when Plus is cancelled
+### 2. Simplify Response Transformations
 
-The token being valid is sufficient proof of Plus access.
-
-### 4. Simplify Response Transformations
-When the GraphQL response structure matches the REST API response, just return the node directly:
+When GraphQL response matches REST response, return the node directly:
 ```typescript
 // GOOD - simple passthrough
 (json) => ({
@@ -66,7 +44,7 @@ When the GraphQL response structure matches the REST API response, just return t
   pagination: { ... },
 })
 
-// BAD - unnecessary mapping when fields match
+// BAD - unnecessary field-by-field mapping
 (json) => ({
   data: feed.edges.map(({ node }) => ({
     id: node.id,
@@ -123,7 +101,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      // Auth middleware guarantees apiUserId is set - no need to check
       return injectGraphql(
         fastify,
         {
@@ -150,7 +127,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
 ### 2. Register Route
 
-In `src/routes/public/index.ts`, register your route module:
+In `src/routes/public/index.ts`:
 
 ```typescript
 import bookmarksRoutes from './bookmarks';
@@ -161,29 +138,16 @@ await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
 
 ### 3. Add Schemas (Optional)
 
-If your endpoint uses new data types, add them to `schemas.ts`.
+Add new data types to `schemas.ts` and reference with `{ $ref: 'SchemaName#' }`.
 
-**Important:** When updating schemas, also update `skill.md` to keep the example responses in sync. Bump the version number following semver (see Versioning section above).
+**Important:** Update `skill.md` when changing schemas.
 
-```typescript
-export const commonSchemas = {
-  // ... existing schemas
-  YourNewSchema: {
-    $id: 'YourNewSchema',
-    type: 'object',
-    properties: {
-      id: { type: 'string' },
-      // ... other properties
-    },
-  },
-};
-```
-
-Reference schemas in route definitions using `{ $ref: 'YourNewSchema#' }`.
+Available schemas:
+- `Source`, `Author`, `AuthorWithId` - Entity types
+- `FeedPost`, `PostDetail` - Post types
+- `Pagination`, `Error`, `RateLimitError` - Common types
 
 ## Response Format
-
-All endpoints must return consistent formats:
 
 ```typescript
 // Success (list)
@@ -196,126 +160,36 @@ All endpoints must return consistent formats:
 { error: 'error_code', message: 'Human readable' }
 ```
 
-## OpenAPI Documentation
+## How It Works
 
-OpenAPI spec is auto-generated from route schemas:
+### Authentication Flow
 
-- **JSON:** `GET /public/v1/docs/json`
-- **YAML:** `GET /public/v1/docs/yaml`
+1. Auth middleware validates PAT and sets `request.userId`, `request.isPlus`
+2. `injectGraphql()` passes user context to GraphQL via service-to-service auth:
+   - `Authorization: Service ${ACCESS_SECRET}`
+   - `user-id`, `logged-in: true`, `is-plus` headers
 
-These endpoints are publicly accessible (no auth required).
+### Rate Limiting
 
-### Schema References
+Two layers protect the API:
 
-Use `$ref` syntax to reference shared schemas:
+| Layer | Limit | Runs | Purpose |
+|-------|-------|------|---------|
+| IP-based | 300/min | Before auth | DoS protection |
+| User-based | 60/min | After auth | API quota |
 
-```typescript
-response: {
-  200: {
-    type: 'object',
-    properties: {
-      data: { $ref: 'PostDetail#' },  // References PostDetail schema
-    },
-  },
-  401: { $ref: 'Error#' },  // References Error schema
-}
-```
+IP limiting runs first to prevent token validation flooding. The generous IP limit (300/min) avoids blocking shared IPs (offices, VPNs).
 
-Available schemas defined in `schemas.ts`:
-- `Source` - Source info (id, name, handle, image)
-- `Author` - Basic author info (name, image)
-- `AuthorWithId` - Author with id and username
-- `FeedPost` - Post in feed list
-- `PostDetail` - Full post details with user state
-- `Pagination` - Pagination info (hasNextPage, cursor)
-- `Error` - Error response (error, message)
-- `RateLimitError` - Rate limit error with retryAfter
-
-## GraphQL Injection
-
-Routes use `injectGraphql()` from `src/compatibility/utils.ts` to:
-- Reuse existing GraphQL resolver logic
-- Benefit from GraphQL caching (mercurius-cache)
-- Ensure consistent authorization checks
-- Avoid duplicating business logic
-
-### How Authentication Works
-
-The public API auth hook validates the PAT and sets `request.userId` and `request.isPlus`.
-
-The `injectGraphql()` utility then uses the service-to-service authentication pattern to pass the authenticated user to the GraphQL endpoint. It sets:
-- `Authorization: Service ${ACCESS_SECRET}` - Service auth header
-- `user-id` header - The authenticated user's ID
-- `logged-in: true` header - Indicates a logged-in user
-- `is-plus` header - Whether the user has Plus
-
-This allows the GraphQL resolver to have full user context without needing to understand PATs.
-
-## Rate Limiting
-
-Rate limiting uses a two-layer approach for security:
-
-### Layer 1: IP-based (DoS Protection)
-- **Limit:** 300 requests/min per IP
-- **Runs:** BEFORE authentication
-- **Purpose:** Prevents DoS attacks via token validation flooding
-
-### Layer 2: User-based (API Quota)
-- **Limit:** 60 requests/min per user
-- **Runs:** AFTER authentication
-- **Purpose:** Enforces actual API usage quota per authenticated user
-
-### Why Two Layers?
-
-Rate limiting MUST run before auth to prevent attackers from flooding the database with invalid token validation requests. However, IP-based limits alone aren't sufficient because:
-- Multiple users may share an IP (offices, VPNs)
-- A single user could abuse the API from multiple IPs
-
-The IP limit is generous (300/min) to avoid blocking legitimate shared IPs, while the per-user limit (60/min) enforces the actual quota.
-
-### Headers Returned
-
-**IP-based limits:**
-- `X-RateLimit-Limit` - Maximum requests per minute (IP)
-- `X-RateLimit-Remaining` - Remaining requests this minute (IP)
-- `X-RateLimit-Reset` - Unix timestamp when the limit resets
-
-**User-based limits:**
-- `X-RateLimit-Limit-User` - Maximum requests per minute (user)
-- `X-RateLimit-Remaining-User` - Remaining requests this minute (user)
-
-**On 429 response:**
-- `Retry-After` - Seconds until rate limit resets
-
-## Authentication
-
-All routes (except `/docs/*`) require a valid Personal Access Token:
-
-```
-Authorization: Bearer dda_xxx...
-```
-
-The middleware validates the token and sets:
-- `request.apiUserId` - The user ID associated with the token
-- `request.apiTokenId` - The token ID for tracking
-- `request.userId` - Same as apiUserId (for GraphQL compatibility)
-- `request.isPlus` - Always true (Plus verified when token is created)
+**Response headers:**
+- `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (IP)
+- `X-RateLimit-Limit-User`, `X-RateLimit-Remaining-User` (user)
+- `Retry-After` (on 429)
 
 ## Testing
 
-Tests are in `__tests__/routes/public/`, organized by route group in separate files:
-
-- `helpers.ts` - Shared test setup and utilities
-- `auth.ts` - Authentication tests (Authorization header validation, Plus subscription access)
-- `rateLimit.ts` - Rate limiting tests
-- `feed.ts` - Feed endpoint tests (`GET /public/v1/feed`)
-- `posts.ts` - Posts endpoint tests (`GET /public/v1/posts/:id`)
-
-### Test Setup
-
-All test files use the shared `setupPublicApiTests()` helper from `helpers.ts` which handles app initialization, database connection, and fixture loading.
-
-Example test structure:
+Tests are in `__tests__/routes/public/`, organized by route group:
+- `helpers.ts` - Shared setup utilities
+- `auth.ts`, `rateLimit.ts`, `feed.ts`, `posts.ts` - Route-specific tests
 
 ```typescript
 import request from 'supertest';
@@ -325,7 +199,7 @@ const state = setupPublicApiTests();
 
 describe('GET /public/v1/your-endpoint', () => {
   it('should return data for authenticated user', async () => {
-    const token = await createTokenForUser(state.con, '5'); // Plus user
+    const token = await createTokenForUser(state.con, '5');
 
     const { body } = await request(state.app.server)
       .get('/public/v1/your-endpoint')
@@ -334,20 +208,5 @@ describe('GET /public/v1/your-endpoint', () => {
 
     expect(body.data).toBeDefined();
   });
-});
-```
-
-### Adding Tests for New Endpoints
-
-When adding a new endpoint, create a new test file (e.g., `bookmarks.ts`) and use the shared helpers:
-
-```typescript
-import request from 'supertest';
-import { setupPublicApiTests, createTokenForUser } from './helpers';
-
-const state = setupPublicApiTests();
-
-describe('GET /public/v1/bookmarks', () => {
-  // ... your tests
 });
 ```
