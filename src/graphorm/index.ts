@@ -819,31 +819,6 @@ const obj = new GraphORM({
           childColumn: 'postId',
         },
       },
-      isBoosted: {
-        select: (ctx, alias, qb) => {
-          const subQuery = qb
-            .subQuery()
-            .select('1')
-            .from('campaign_post', 'cp')
-            .where(`cp."postId" = "${alias}".id`)
-            .andWhere('cp.state = :activeCampaignState')
-            .getQuery();
-          qb.setParameter('activeCampaignState', 1); // CampaignState.Active
-          return `EXISTS${subQuery}`;
-        },
-        transform: (value: boolean, ctx, parent) => {
-          const post = parent as Post;
-          const isAuthor = post?.authorId && ctx.userId === post.authorId;
-          const isScout = post?.scoutId && ctx.userId === post.scoutId;
-
-          // Only show boost status to author/scout
-          if (isAuthor || isScout) {
-            return value;
-          }
-
-          return null;
-        },
-      },
       analytics: {
         relation: {
           isMany: false,
@@ -1700,6 +1675,11 @@ const obj = new GraphORM({
           return `
             GREATEST(${alias}.impressions + ${alias}."impressionsAds", 0)
           `;
+        },
+      },
+      reputation: {
+        transform: (value) => {
+          return Math.max(0, value);
         },
       },
     },

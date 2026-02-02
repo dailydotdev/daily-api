@@ -10874,3 +10874,97 @@ describe('mutate poll vote', () => {
     );
   });
 });
+
+describe('query userPostsWithAnalytics', () => {
+  const QUERY = /* GraphQL */ `
+    query UserPostsWithAnalytics($first: Int, $after: String) {
+      userPostsWithAnalytics(first: $first, after: $after) {
+        edges {
+          node {
+            id
+            title
+            analytics {
+              id
+              impressions
+              reputation
+              upvotes
+            }
+          }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(
+      con,
+      User,
+      usersFixture.map((item) => ({
+        ...item,
+        id: `${item.id}-upwa`,
+      })),
+    );
+
+    await saveFixtures(
+      con,
+      Post,
+      postsFixture.slice(0, 3).map((item) => ({
+        ...item,
+        id: `${item.id}-upwa`,
+        shortId: `${item.shortId}-upwa`,
+        url: `https://example.com/posts/${item.id}-upwa`,
+        canonicalUrl: `https://example.com/posts/${item.id}-upwa`,
+        yggdrasilId: randomUUID(),
+        authorId: '1-upwa',
+      })),
+    );
+
+    await saveFixtures(
+      con,
+      PostAnalytics,
+      postsFixture.slice(0, 3).map((item) =>
+        con.getRepository(PostAnalytics).create({
+          id: `${item.id}-upwa`,
+          impressions: 100,
+          impressionsAds: 50,
+          reputation: 25,
+          upvotes: 10,
+        }),
+      ),
+    );
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+  });
+
+  it('should return paginated posts with analytics for the user', async () => {
+    loggedUser = '1-upwa';
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userPostsWithAnalytics.edges).toHaveLength(3);
+    expect(res.data.userPostsWithAnalytics.edges[0].node).toMatchObject({
+      id: expect.stringContaining('-upwa'),
+      analytics: {
+        impressions: 150,
+        reputation: 25,
+        upvotes: 10,
+      },
+    });
+  });
+
+  it('should return empty for user with no posts', async () => {
+    loggedUser = '2-upwa';
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userPostsWithAnalytics.edges).toHaveLength(0);
+  });
+});

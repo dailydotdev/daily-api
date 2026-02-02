@@ -7963,3 +7963,101 @@ describe('query userProfileAnalyticsHistory', () => {
     expect(res.data.userProfileAnalyticsHistory.edges).toHaveLength(0);
   });
 });
+
+describe('query userPostsAnalytics', () => {
+  const QUERY = /* GraphQL */ `
+    query UserPostsAnalytics {
+      userPostsAnalytics {
+        id
+        impressions
+        upvotes
+        comments
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con.getRepository(UserPostsAnalytics).save({
+      id: '1',
+      impressions: 500,
+      upvotes: 50,
+      comments: 25,
+    });
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+  });
+
+  it('should return user posts analytics', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userPostsAnalytics).toMatchObject({
+      id: '1',
+      impressions: 500,
+      upvotes: 50,
+      comments: 25,
+    });
+  });
+});
+
+describe('query userPostsAnalyticsHistory', () => {
+  const QUERY = /* GraphQL */ `
+    query UserPostsAnalyticsHistory {
+      userPostsAnalyticsHistory {
+        date
+        impressions
+        impressionsAds
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'p1-upah',
+        shortId: 'sp1-upah',
+        title: 'Test Post',
+        url: 'https://example.com/p1-upah',
+        sourceId: 'a',
+        authorId: '1',
+      },
+    ]);
+
+    await con.getRepository(PostAnalyticsHistory).save([
+      {
+        id: 'p1-upah',
+        date: format(new Date(), 'yyyy-MM-dd'),
+        impressions: 100,
+        impressionsAds: 50,
+      },
+      {
+        id: 'p1-upah',
+        date: format(subDays(new Date(), 1), 'yyyy-MM-dd'),
+        impressions: 80,
+        impressionsAds: 40,
+      },
+    ]);
+  });
+
+  it('should require authentication', async () => {
+    await testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
+  });
+
+  it('should return aggregated daily impressions history', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userPostsAnalyticsHistory).toHaveLength(2);
+    expect(res.data.userPostsAnalyticsHistory[0]).toMatchObject({
+      date: expect.any(String),
+      impressions: 150,
+      impressionsAds: 50,
+    });
+  });
+});
