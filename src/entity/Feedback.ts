@@ -13,7 +13,7 @@ import { UserFeedbackCategory } from '@dailydotdev/schema';
 export enum FeedbackStatus {
   Pending = 0,
   Processing = 1,
-  Accepted = 2, // Classified by Bragi, Linear issue created, Slack notification sent
+  Accepted = 2, // Classified by Bragi, Linear issue created → triggers Slack notification via CDC
   Completed = 3, // Linear ticket moved to "Done" → triggers notification to user
   Cancelled = 4, // Linear ticket cancelled
   Failed = 5, // Classification failed

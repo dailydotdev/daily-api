@@ -5,7 +5,6 @@ import { User } from '../../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { typedWorkers } from '../../src/workers';
-import { webhooks } from '../../src/common/slack';
 
 const mockClassifyUserFeedback = jest.fn();
 const mockCreateFeedbackIssue = jest.fn();
@@ -25,8 +24,6 @@ jest.mock('../../src/integrations/bragi', () => ({
 jest.mock('../../src/integrations/linear', () => ({
   createFeedbackIssue: (...args: unknown[]) => mockCreateFeedbackIssue(...args),
 }));
-
-jest.spyOn(webhooks.userFeedback, 'send').mockResolvedValue(undefined);
 
 let con: DataSource;
 
@@ -103,49 +100,6 @@ describe('feedbackClassify worker', () => {
     expect(updated?.linearIssueUrl).toBe('https://linear.app/issue/123');
   });
 
-  it('should set slackNotifiedAt flag after processing', async () => {
-    const feedback = await con.getRepository(Feedback).save({
-      userId: '1',
-      category: 1,
-      description: 'Test feedback description',
-      status: FeedbackStatus.Pending,
-      flags: {},
-    });
-
-    await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-      feedbackId: feedback.id,
-    });
-
-    const updated = await con
-      .getRepository(Feedback)
-      .findOneBy({ id: feedback.id });
-    expect(updated?.flags?.slackNotifiedAt).toBeDefined();
-    expect(
-      new Date(updated!.flags!.slackNotifiedAt!).getTime(),
-    ).toBeGreaterThan(0);
-  });
-
-  it('should skip processing if slackNotifiedAt is already set (idempotency)', async () => {
-    const feedback = await con.getRepository(Feedback).save({
-      userId: '1',
-      category: 1,
-      description: 'Test feedback description',
-      status: FeedbackStatus.Pending,
-      flags: { slackNotifiedAt: new Date().toISOString() },
-    });
-
-    await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
-      feedbackId: feedback.id,
-    });
-
-    expect(mockClassifyUserFeedback).not.toHaveBeenCalled();
-    expect(mockCreateFeedbackIssue).not.toHaveBeenCalled();
-
-    const updated = await con
-      .getRepository(Feedback)
-      .findOneBy({ id: feedback.id });
-    expect(updated?.status).toBe(FeedbackStatus.Pending);
-  });
 
   it('should skip processing if feedback is already spam', async () => {
     const feedback = await con.getRepository(Feedback).save({
