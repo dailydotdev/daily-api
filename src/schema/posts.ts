@@ -819,6 +819,11 @@ export const typeDefs = /* GraphQL */ `
     numPollVotes: Int
 
     """
+    Whether the post is currently being boosted (only visible to author/scout)
+    """
+    isBoosted: Boolean
+
+    """
     Post analytics
     """
     analytics: PostAnalyticsPublic

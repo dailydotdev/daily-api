@@ -9,6 +9,7 @@ export * from './UserStats';
 export * from './UserTopReader';
 export * from './UserProfileAnalytics';
 export * from './UserProfileAnalyticsHistory';
+export * from './UserPostsAnalytics';
 export * from './UserStack';
 export * from './HotTake';
 export * from './UserHotTake';

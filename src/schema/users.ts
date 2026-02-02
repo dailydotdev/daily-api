@@ -110,6 +110,8 @@ import {
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { format, subDays } from 'date-fns';
 import {
   acceptedResumeFileTypes,
   ContentLanguage,
@@ -144,11 +146,11 @@ import {
 } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
+import { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 import { reportFunctionMap } from '../common/reporting';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { isGiftedPlus } from '../paddle';
-import { queryReadReplica } from '../common/queryReadReplica';
 import { logger } from '../logger';
 import { generateAppAccountToken } from '../common/storekit';
 import { UserAction, UserActionType } from '../entity/user/UserAction';
@@ -325,6 +327,30 @@ export interface GQLUserProfileAnalytics {
 
 export interface GQLUserProfileAnalyticsHistory extends GQLUserProfileAnalytics {
   date: string;
+}
+
+export interface GQLUserPostsAnalytics {
+  id: string;
+  impressions: number;
+  reach: number;
+  upvotes: number;
+  comments: number;
+  bookmarks: number;
+  awards: number;
+  profileViews: number;
+  followers: number;
+  reputation: number;
+  coresEarned: number;
+  shares: number;
+  clicks: number;
+  upvotesRatio: number;
+  updatedAt: Date;
+}
+
+export interface GQLUserPostsAnalyticsHistoryNode {
+  date: string;
+  impressions: number;
+  impressionsAds: number;
 }
 
 export interface SendReportArgs {
@@ -1142,6 +1168,86 @@ export const typeDefs = /* GraphQL */ `
     edges: [UserProfileAnalyticsHistoryEdge!]!
   }
 
+  """
+  Aggregated analytics across all posts authored by a user
+  """
+  type UserPostsAnalytics {
+    """
+    User ID
+    """
+    id: ID!
+    """
+    Total impressions across all posts
+    """
+    impressions: Int!
+    """
+    Total unique reach across all posts
+    """
+    reach: Int!
+    """
+    Total upvotes across all posts
+    """
+    upvotes: Int!
+    """
+    Total comments across all posts
+    """
+    comments: Int!
+    """
+    Total bookmarks across all posts
+    """
+    bookmarks: Int!
+    """
+    Total awards across all posts
+    """
+    awards: Int!
+    """
+    Total profile views driven by posts
+    """
+    profileViews: Int!
+    """
+    Total followers gained from posts
+    """
+    followers: Int!
+    """
+    Total reputation earned from posts
+    """
+    reputation: Int!
+    """
+    Total cores earned from posts
+    """
+    coresEarned: Int!
+    """
+    Total shares across all posts
+    """
+    shares: Int!
+    """
+    Total clicks across all posts
+    """
+    clicks: Int!
+    """
+    Upvote ratio percentage (0-100)
+    """
+    upvotesRatio: Int!
+  }
+
+  """
+  Daily impressions history entry for user posts analytics
+  """
+  type UserPostsAnalyticsHistoryNode {
+    """
+    Date of the analytics (YYYY-MM-DD)
+    """
+    date: DateTime!
+    """
+    Total impressions on this day
+    """
+    impressions: Int!
+    """
+    Impressions from ads/boosting on this day
+    """
+    impressionsAds: Int!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1348,6 +1454,16 @@ export const typeDefs = /* GraphQL */ `
       before: String
       first: Int
     ): UserProfileAnalyticsHistoryConnection @auth
+
+    """
+    Get aggregated analytics across all posts authored by the authenticated user
+    """
+    userPostsAnalytics: UserPostsAnalytics @auth
+
+    """
+    Get daily impressions history for all posts authored by the authenticated user (last 45 days)
+    """
+    userPostsAnalyticsHistory: [UserPostsAnalyticsHistoryNode!]! @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -2724,6 +2840,58 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           readReplica: true,
         },
       );
+    },
+    userPostsAnalytics: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserPostsAnalytics | null> => {
+      const { userId } = ctx;
+
+      return graphorm.queryOne<GQLUserPostsAnalytics>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.andWhere(
+            `"${builder.alias}".id = :userId`,
+            { userId },
+          ),
+        }),
+        true,
+      );
+    },
+    userPostsAnalyticsHistory: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLUserPostsAnalyticsHistoryNode[]> => {
+      const { userId, con } = ctx;
+
+      const fortyFiveDaysAgo = subDays(new Date(), 45);
+      const formattedDate = format(fortyFiveDaysAgo, 'yyyy-MM-dd');
+
+      const result = await queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(PostAnalyticsHistory)
+          .createQueryBuilder('pah')
+          .innerJoin('pah.post', 'p')
+          .select('pah.date', 'date')
+          .addSelect(
+            'SUM(pah.impressions + pah.impressionsAds)::int',
+            'impressions',
+          )
+          .addSelect('SUM(pah.impressionsAds)::int', 'impressionsAds')
+          .where('p.authorId = :userId', { userId })
+          .andWhere('p.deleted = false')
+          .andWhere('pah.date >= :formattedDate', { formattedDate })
+          .groupBy('pah.date')
+          .orderBy('pah.date', 'DESC')
+          .getRawMany(),
+      );
+
+      return result;
     },
   },
   Mutation: {

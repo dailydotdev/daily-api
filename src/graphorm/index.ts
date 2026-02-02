@@ -819,19 +819,43 @@ const obj = new GraphORM({
           childColumn: 'postId',
         },
       },
-      analytics: {
-        transform: (value: number, ctx, parent): number | null => {
+      isBoosted: {
+        select: (ctx, alias, qb) => {
+          const subQuery = qb
+            .subQuery()
+            .select('1')
+            .from('campaign_post', 'cp')
+            .where(`cp."postId" = "${alias}".id`)
+            .andWhere('cp.state = :activeCampaignState')
+            .getQuery();
+          qb.setParameter('activeCampaignState', 1); // CampaignState.Active
+          return `EXISTS${subQuery}`;
+        },
+        transform: (value: boolean, ctx, parent) => {
           const post = parent as Post;
-
           const isAuthor = post?.authorId && ctx.userId === post.authorId;
+          const isScout = post?.scoutId && ctx.userId === post.scoutId;
 
-          if (isAuthor) {
+          // Only show boost status to author/scout
+          if (isAuthor || isScout) {
             return value;
           }
 
+          return null;
+        },
+      },
+      analytics: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'id',
+        },
+        transform: (value, ctx, parent) => {
+          const post = parent as Post;
+          const isAuthor = post?.authorId && ctx.userId === post.authorId;
           const isScout = post?.scoutId && ctx.userId === post.scoutId;
 
-          if (isScout) {
+          if (isAuthor || isScout) {
             return value;
           }
 
@@ -1696,6 +1720,39 @@ const obj = new GraphORM({
       },
       updatedAt: {
         transform: transformDate,
+      },
+    },
+  },
+  UserPostsAnalytics: {
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+      upvotesRatio: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            CASE
+              WHEN (${alias}.upvotes + ${alias}.downvotes) > 0
+              THEN ROUND((${alias}.upvotes::numeric / (${alias}.upvotes + ${alias}.downvotes)) * 100, 0)
+              ELSE 0
+            END
+          `;
+        },
+      },
+      reach: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}."reachAll", ${alias}.reach, 0)
+          `;
+        },
+      },
+      reputation: {
+        transform: (value) => {
+          return Math.max(0, value);
+        },
       },
     },
   },
