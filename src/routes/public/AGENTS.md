@@ -23,17 +23,18 @@ The `skill.md` file includes a version number at the top. Update it when making 
 
 - **Base path:** `/public/v1`
 - **Authentication:** Bearer token (Personal Access Tokens)
-- **Rate limiting:** Using `@fastify/rate-limit` (60 requests/min per user)
+- **Rate limiting:** Two-layer system (see below)
 - **OpenAPI:** Auto-generated via `@fastify/swagger`
 - **GraphQL Injection:** Routes use `injectGraphql()` to leverage existing GraphQL resolvers
 
 ## Key Principles
 
-### 1. Use @fastify/rate-limit for Rate Limiting
-**Do NOT implement custom rate limiting.** Use the `@fastify/rate-limit` package which is already configured in `index.ts`. This provides:
-- Proper HTTP headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
-- Consistent error responses
-- Per-user rate limiting via `keyGenerator`
+### 1. Rate Limiting is Already Configured
+**Do NOT implement custom rate limiting.** The two-layer rate limiting system in `index.ts` handles:
+- IP-based DoS protection (300/min) via `@fastify/rate-limit`
+- Per-user API quota (60/min) via Redis
+
+The order is critical: IP rate limiting → Auth → User rate limiting. This prevents DoS via token validation flooding while still enforcing per-user quotas.
 
 ### 2. Trust the Auth Middleware
 **Do NOT add redundant authentication checks in route handlers.** The auth middleware in `index.ts` already:
@@ -261,14 +262,39 @@ This allows the GraphQL resolver to have full user context without needing to un
 
 ## Rate Limiting
 
-Rate limits are configured using `@fastify/rate-limit` in `index.ts`:
-- **Per-minute:** 60 requests per user
+Rate limiting uses a two-layer approach for security:
 
-Headers returned:
-- `X-RateLimit-Limit` - Maximum requests per minute
-- `X-RateLimit-Remaining` - Remaining requests this minute
+### Layer 1: IP-based (DoS Protection)
+- **Limit:** 300 requests/min per IP
+- **Runs:** BEFORE authentication
+- **Purpose:** Prevents DoS attacks via token validation flooding
+
+### Layer 2: User-based (API Quota)
+- **Limit:** 60 requests/min per user
+- **Runs:** AFTER authentication
+- **Purpose:** Enforces actual API usage quota per authenticated user
+
+### Why Two Layers?
+
+Rate limiting MUST run before auth to prevent attackers from flooding the database with invalid token validation requests. However, IP-based limits alone aren't sufficient because:
+- Multiple users may share an IP (offices, VPNs)
+- A single user could abuse the API from multiple IPs
+
+The IP limit is generous (300/min) to avoid blocking legitimate shared IPs, while the per-user limit (60/min) enforces the actual quota.
+
+### Headers Returned
+
+**IP-based limits:**
+- `X-RateLimit-Limit` - Maximum requests per minute (IP)
+- `X-RateLimit-Remaining` - Remaining requests this minute (IP)
 - `X-RateLimit-Reset` - Unix timestamp when the limit resets
-- `Retry-After` - Seconds until rate limit resets (only on 429)
+
+**User-based limits:**
+- `X-RateLimit-Limit-User` - Maximum requests per minute (user)
+- `X-RateLimit-Remaining-User` - Remaining requests this minute (user)
+
+**On 429 response:**
+- `Retry-After` - Seconds until rate limit resets
 
 ## Authentication
 
