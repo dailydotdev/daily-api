@@ -210,6 +210,13 @@ export type NotificationFeedbackResolvedContext = NotificationBaseContext & {
   feedbackDescription: string;
 };
 
+export type NotificationAchievementContext = NotificationBaseContext & {
+  achievementId: string;
+  achievementName: string;
+  achievementDescription: string;
+  achievementImage: string;
+};
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

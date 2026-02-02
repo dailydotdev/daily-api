@@ -30,6 +30,7 @@ import {
   SourceFeed,
   SourceMember,
   SourceRequest,
+  SourceType,
   SourceUser,
   SQUAD_IMAGE_PLACEHOLDER,
   SquadPublicRequest,
@@ -44,6 +45,8 @@ import {
   UserTopReader,
   Feedback,
 } from '../../entity';
+import { HotTake } from '../../entity/user/HotTake';
+import { UserExperienceSkill } from '../../entity/user/experiences/UserExperienceSkill';
 import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -165,6 +168,11 @@ import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 import { Company } from '../../entity/Company';
 import { OpportunityUser } from '../../entity/opportunities/user/OpportunityUser';
 import { OpportunityUserType } from '../../entity/opportunities/types';
+import { SourceMemberRoles } from '../../roles';
+import {
+  checkAchievementProgress,
+  AchievementEventType,
+} from '../../common/achievement';
 
 const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
   ...user,
@@ -339,6 +347,15 @@ const onPostVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
+      // Check achievement progress for post upvotes
+      if (data.payload.after!.vote === UserVote.Up) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          data.payload.after!.userId,
+          AchievementEventType.PostUpvote,
+        );
+      }
       break;
     case 'u':
       await handleVoteUpdated({
@@ -358,6 +375,18 @@ const onPostVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      // Check achievement progress when vote changes to upvote
+      if (
+        data.payload.after!.vote === UserVote.Up &&
+        data.payload.before!.vote !== UserVote.Up
+      ) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          data.payload.after!.userId,
+          AchievementEventType.PostUpvote,
+        );
+      }
       break;
     case 'd':
       await handleVoteDeleted({
@@ -393,6 +422,15 @@ const onCommentVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
+      // Check achievement progress for comment upvotes
+      if (data.payload.after!.vote === UserVote.Up) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          data.payload.after!.userId,
+          AchievementEventType.CommentUpvote,
+        );
+      }
       break;
     case 'u':
       await handleVoteUpdated({
@@ -412,6 +450,18 @@ const onCommentVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      // Check achievement progress when vote changes to upvote
+      if (
+        data.payload.after!.vote === UserVote.Up &&
+        data.payload.before!.vote !== UserVote.Up
+      ) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          data.payload.after!.userId,
+          AchievementEventType.CommentUpvote,
+        );
+      }
       break;
     case 'd':
       await handleVoteDeleted({
@@ -501,6 +551,14 @@ const onUserChange = async (
         data.payload.before!,
         data.payload.after!,
       );
+      // Check reputation-based achievements
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ReputationGain,
+        data.payload.after!.reputation,
+      );
     }
     if (
       data.payload.before!.infoConfirmed &&
@@ -515,6 +573,41 @@ const onUserChange = async (
     }
     if (data.payload.before!.readme !== data.payload.after!.readme) {
       await notifyUserReadmeUpdated(logger, data.payload.after!);
+    }
+
+    // Check profile update achievements
+    if (
+      isChanged(data.payload.before!, data.payload.after!, 'image') &&
+      data.payload.after!.image
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ProfileImageUpdate,
+      );
+    }
+    if (
+      isChanged(data.payload.before!, data.payload.after!, 'cover') &&
+      data.payload.after!.cover
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ProfileCoverUpdate,
+      );
+    }
+    if (
+      isChanged(data.payload.before!, data.payload.after!, 'locationId') &&
+      data.payload.after!.locationId
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ProfileLocationUpdate,
+      );
     }
 
     if (
@@ -571,6 +664,28 @@ const onPostChange = async (
       if (isFreeformPostLongEnough(freeform)) {
         await notifyFreeformContentRequested(logger, freeform);
       }
+      // Check freeform post achievement
+      if (data.payload.after!.authorId) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          data.payload.after!.authorId,
+          AchievementEventType.PostFreeform,
+        );
+      }
+    }
+    // Check share post achievement
+    if (
+      data.payload.after!.type === PostType.Share &&
+      data.payload.after!.authorId &&
+      data.payload.after!.visible
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.authorId,
+        AchievementEventType.PostShare,
+      );
     }
     if (data.payload.after!.type === PostType.Poll) {
       const poll = data as ChangeMessage<PollPost>;
@@ -976,6 +1091,36 @@ const onSourceMemberChange = async (
 ) => {
   if (data.payload.op === 'c') {
     await notifyMemberJoinedSource(logger, data.payload.after!);
+
+    // Check squad achievements when user joins a source
+    const sourceMember = data.payload.after!;
+
+    // Check if the source is a squad (not a regular source)
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: sourceMember.sourceId });
+
+    if (source && source.type === SourceType.Squad) {
+      // Squad join achievement (for members who join)
+      if (sourceMember.role === SourceMemberRoles.Member) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          sourceMember.userId,
+          AchievementEventType.SquadJoin,
+        );
+      }
+
+      // Squad create achievement (for admins who are the first member)
+      if (sourceMember.role === SourceMemberRoles.Admin) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          sourceMember.userId,
+          AchievementEventType.SquadCreate,
+        );
+      }
+    }
   }
   if (data.payload.op === 'u') {
     if (data.payload.before!.role !== data.payload.after!.role) {
@@ -1260,6 +1405,16 @@ const onBookmarkChange = async (
 
   if (data.payload.after?.remindAt) {
     runReminderWorkflow(getParams('after'));
+  }
+
+  // Check bookmark achievement on create
+  if (data.payload.op === 'c') {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.BookmarkPost,
+    );
   }
 };
 
@@ -1599,6 +1754,28 @@ const onUserExperienceChange = async (
 ) => {
   const experience = data.payload.after;
 
+  // Check experience achievements on create
+  if (data.payload.op === 'c' && experience) {
+    const eventTypeMap: Record<
+      UserExperienceType,
+      AchievementEventType | null
+    > = {
+      [UserExperienceType.Work]: AchievementEventType.ExperienceWork,
+      [UserExperienceType.Education]: AchievementEventType.ExperienceEducation,
+      [UserExperienceType.OpenSource]:
+        AchievementEventType.ExperienceOpenSource,
+      [UserExperienceType.Project]: AchievementEventType.ExperienceProject,
+      [UserExperienceType.Volunteering]:
+        AchievementEventType.ExperienceVolunteering,
+      [UserExperienceType.Certification]: null, // No achievement for certification
+    };
+
+    const eventType = eventTypeMap[experience.type];
+    if (eventType) {
+      await checkAchievementProgress(con, logger, experience.userId, eventType);
+    }
+  }
+
   if (
     !experience ||
     ![UserExperienceType.Work, UserExperienceType.Education].includes(
@@ -1743,6 +1920,46 @@ const onFeedbackChange = async (
   }
 };
 
+const onHotTakeChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<HotTake>,
+) => {
+  // Check hot take achievement on create
+  if (data.payload.op === 'c') {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.HotTakeCreate,
+    );
+  }
+};
+
+const onUserExperienceSkillChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserExperienceSkill>,
+) => {
+  // Check skill achievement on create
+  if (data.payload.op === 'c') {
+    // UserExperienceSkill doesn't have userId directly, we need to get it from the experience
+    const experienceId = data.payload.after!.experienceId;
+    const experience = await con
+      .getRepository(UserExperience)
+      .findOneBy({ id: experienceId });
+
+    if (experience) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        experience.userId,
+        AchievementEventType.ExperienceSkill,
+      );
+    }
+  }
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1879,6 +2096,12 @@ const worker: Worker = {
           break;
         case getTableName(con, Feedback):
           await onFeedbackChange(con, logger, data);
+          break;
+        case getTableName(con, HotTake):
+          await onHotTakeChange(con, logger, data);
+          break;
+        case getTableName(con, UserExperienceSkill):
+          await onUserExperienceSkillChange(con, logger, data);
           break;
       }
     } catch (err) {
