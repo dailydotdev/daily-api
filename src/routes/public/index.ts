@@ -7,40 +7,10 @@ import { validatePersonalAccessToken } from '../../common/personalAccessToken';
 import feedRoutes from './feed';
 import postsRoutes from './posts';
 import { commonSchemas } from './schemas';
-import { ioRedisPool } from '../../redis';
 
 export const PUBLIC_API_PREFIX = '/public/v1';
 const USER_RATE_LIMIT_PER_MINUTE = 60;
-
-const checkUserRateLimit = async (
-  request: FastifyRequest,
-  reply: FastifyReply,
-): Promise<void> => {
-  const userId = request.apiUserId;
-  if (!userId) return;
-
-  const key = `public_api:user_rate:${userId}`;
-  const count = await ioRedisPool.execute((client) =>
-    client.incr(key).then(async (val) => {
-      if (val === 1) {
-        await client.expire(key, 60);
-      }
-      return val;
-    }),
-  );
-
-  const remaining = Math.max(0, USER_RATE_LIMIT_PER_MINUTE - count);
-  reply.header('x-ratelimit-limit-user', USER_RATE_LIMIT_PER_MINUTE);
-  reply.header('x-ratelimit-remaining-user', remaining);
-
-  if (count > USER_RATE_LIMIT_PER_MINUTE) {
-    return reply.status(429).send({
-      error: 'rate_limit_exceeded',
-      message: 'User rate limit exceeded. Please slow down.',
-      retryAfter: 60,
-    });
-  }
-};
+const IP_RATE_LIMIT_PER_MINUTE = 300;
 const PUBLIC_API_BASE_URL = `https://api.daily.dev${PUBLIC_API_PREFIX}`;
 
 const skillMd = readFileSync(join(__dirname, 'skill.md'), 'utf-8');
@@ -124,16 +94,56 @@ export default async function (
     reply.type('text/markdown').send(skillMd);
   });
 
-  // Rate limiting MUST be registered before auth to prevent DoS via token validation flooding
+  // IP rate limiting MUST be registered before auth to prevent DoS via token validation flooding
   // This is intentionally generous - the real API limit is per-user after auth
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   await fastify.register(require('@fastify/rate-limit'), {
-    max: 300,
+    max: IP_RATE_LIMIT_PER_MINUTE,
     timeWindow: '1 minute',
     keyGenerator: (request: FastifyRequest) => request.ip,
     errorResponseBuilder: () => ({
       error: 'rate_limit_exceeded',
       message: 'Too many requests from this IP. Please slow down.',
+      retryAfter: 60,
+    }),
+    skipOnError: false,
+    addHeadersOnExceeding: {
+      'x-ratelimit-limit': false,
+      'x-ratelimit-remaining': false,
+      'x-ratelimit-reset': false,
+    },
+    addHeaders: {
+      'x-ratelimit-limit': false,
+      'x-ratelimit-remaining': false,
+      'x-ratelimit-reset': false,
+      'retry-after': true,
+    },
+  });
+
+  // Auth hook runs after IP rate limiting
+  fastify.addHook('onRequest', async (request, reply) => {
+    // Skip auth for documentation endpoints and skill.md
+    // request.url includes the full path with prefix
+    if (
+      request.url.startsWith(`${PUBLIC_API_PREFIX}/docs`) ||
+      request.url === `${PUBLIC_API_PREFIX}/skill.md`
+    ) {
+      return;
+    }
+    await tokenAuthHook(request, reply, con);
+  });
+
+  // Per-user rate limiting runs on preHandler (after auth sets apiUserId)
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  await fastify.register(require('@fastify/rate-limit'), {
+    max: USER_RATE_LIMIT_PER_MINUTE,
+    timeWindow: '1 minute',
+    hook: 'preHandler',
+    keyGenerator: (request: FastifyRequest) => request.apiUserId,
+    skip: (request: FastifyRequest) => !request.apiUserId,
+    errorResponseBuilder: () => ({
+      error: 'rate_limit_exceeded',
+      message: 'User rate limit exceeded. Please slow down.',
       retryAfter: 60,
     }),
     skipOnError: false,
@@ -148,26 +158,6 @@ export default async function (
       'x-ratelimit-reset': true,
       'retry-after': true,
     },
-  });
-
-  // Auth hook runs after rate limiting
-  fastify.addHook('onRequest', async (request, reply) => {
-    // Skip auth for documentation endpoints and skill.md
-    // request.url includes the full path with prefix
-    if (
-      request.url.startsWith(`${PUBLIC_API_PREFIX}/docs`) ||
-      request.url === `${PUBLIC_API_PREFIX}/skill.md`
-    ) {
-      return;
-    }
-    await tokenAuthHook(request, reply, con);
-  });
-
-  // Per-user rate limiting runs after auth (when apiUserId is available)
-  fastify.addHook('onRequest', async (request, reply) => {
-    if (request.apiUserId) {
-      await checkUserRateLimit(request, reply);
-    }
   });
 
   await fastify.register(feedRoutes, { prefix: '/feed' });

@@ -111,9 +111,13 @@ Returns full details for a specific post, including your interaction state.
 
 ## Rate Limits
 
-* **60 requests per minute**
+* **60 requests per minute** per user
 
-Check headers: `X-RateLimit-Remaining`, `X-RateLimit-Limit`
+Check response headers:
+- `X-RateLimit-Limit` - Maximum requests allowed per window
+- `X-RateLimit-Remaining` - Requests remaining in current window
+- `X-RateLimit-Reset` - Unix timestamp when the window resets
+- `Retry-After` - Seconds to wait (only when rate limited)
 
 ## Errors
 
