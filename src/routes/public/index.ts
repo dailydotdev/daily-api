@@ -1,10 +1,14 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { DataSource } from 'typeorm';
 import fastifySwagger from '@fastify/swagger';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { validatePersonalAccessToken } from '../../common/personalAccessToken';
 import feedRoutes from './feed';
 import postsRoutes from './posts';
 import { commonSchemas } from './schemas';
+
+const skillMd = readFileSync(join(__dirname, 'skill.md'), 'utf-8');
 
 const tokenAuthHook = async (
   request: FastifyRequest,
@@ -80,10 +84,15 @@ export default async function (
     reply.type('text/yaml').send(fastify.swagger({ yaml: true }));
   });
 
+  // AI agent skill documentation (no auth required)
+  fastify.get('/skill.md', { schema: { hide: true } }, async (_, reply) => {
+    reply.type('text/markdown').send(skillMd);
+  });
+
   // Auth hook must run first to set apiUserId
   fastify.addHook('onRequest', async (request, reply) => {
-    // Skip auth for documentation endpoints
-    if (request.url.startsWith('/docs')) {
+    // Skip auth for documentation endpoints and skill.md
+    if (request.url.startsWith('/docs') || request.url === '/skill.md') {
       return;
     }
     await tokenAuthHook(request, reply, con);
