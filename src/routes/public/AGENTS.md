@@ -6,9 +6,67 @@ This directory contains the public REST API for daily.dev, accessible via Person
 
 - **Base path:** `/public/v1`
 - **Authentication:** Bearer token (Personal Access Tokens)
-- **Rate limiting:** Custom Redis-based rate limiting (60/min, 1000/day)
+- **Rate limiting:** Using `@fastify/rate-limit` (60 requests/min per user)
 - **OpenAPI:** Auto-generated via `@fastify/swagger`
 - **GraphQL Injection:** Routes use `injectGraphql()` to leverage existing GraphQL resolvers
+
+## Key Principles
+
+### 1. Use @fastify/rate-limit for Rate Limiting
+**Do NOT implement custom rate limiting.** Use the `@fastify/rate-limit` package which is already configured in `index.ts`. This provides:
+- Proper HTTP headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
+- Consistent error responses
+- Per-user rate limiting via `keyGenerator`
+
+### 2. Trust the Auth Middleware
+**Do NOT add redundant authentication checks in route handlers.** The auth middleware in `index.ts` already:
+- Validates the Personal Access Token
+- Sets `request.apiUserId`, `request.userId`, and `request.isPlus`
+- Returns 401 for invalid/expired/revoked tokens
+
+Route handlers can assume the user is authenticated. Do not add redundant checks like:
+```typescript
+// BAD - redundant check
+if (!userId) {
+  return reply.status(401).send({ ... });
+}
+```
+
+### 3. Plus Subscription Validation
+**Do NOT check Plus subscription status in the auth hook.** Tokens are:
+- Only created for Plus users (enforced in `createPersonalAccessToken` mutation)
+- Automatically revoked when Plus is cancelled
+
+The token being valid is sufficient proof of Plus access.
+
+### 4. Use Personalized Feeds
+For authenticated users, use the personalized `feed` query (For You feed), not `anonymousFeed`:
+```graphql
+# GOOD - personalized feed for authenticated users
+feed(first: $first, after: $after, ranking: TIME, version: 1) { ... }
+
+# BAD - anonymous feed doesn't respect user preferences
+anonymousFeed(first: $first, after: $after, ...) { ... }
+```
+
+### 5. Simplify Response Transformations
+When the GraphQL response structure matches the REST API response, just return the node directly:
+```typescript
+// GOOD - simple passthrough
+(json) => ({
+  data: feed.edges.map(({ node }) => node),
+  pagination: { ... },
+})
+
+// BAD - unnecessary mapping when fields match
+(json) => ({
+  data: feed.edges.map(({ node }) => ({
+    id: node.id,
+    title: node.title,
+    // ... all the same fields
+  })),
+})
+```
 
 ## Adding New Endpoints
 
@@ -22,18 +80,9 @@ import { injectGraphql } from '../../compatibility/utils';
 
 const BOOKMARKS_QUERY = `
   query PublicApiBookmarks($first: Int, $after: String) {
-    bookmarks(first: $first, after: $after) {
-      edges {
-        node {
-          id
-          title
-          url
-        }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+    bookmarksFeed(first: $first, after: $after) {
+      edges { node { id title url } }
+      pageInfo { hasNextPage endCursor }
     }
   }
 `;
@@ -66,14 +115,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      const userId = request.apiUserId;
-      if (!userId) {
-        return reply.status(401).send({
-          error: 'unauthorized',
-          message: 'User not authenticated',
-        });
-      }
-
+      // Auth middleware guarantees apiUserId is set - no need to check
       return injectGraphql(
         fastify,
         {
@@ -84,10 +126,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
         },
         (json) => ({
-          data: json.data.bookmarks.edges.map((edge) => edge.node),
+          data: json.data.bookmarksFeed.edges.map((edge) => edge.node),
           pagination: {
-            hasNextPage: json.data.bookmarks.pageInfo.hasNextPage,
-            cursor: json.data.bookmarks.pageInfo.endCursor,
+            hasNextPage: json.data.bookmarksFeed.pageInfo.hasNextPage,
+            cursor: json.data.bookmarksFeed.pageInfo.endCursor,
           },
         }),
         request,
@@ -106,12 +148,7 @@ In `src/routes/public/index.ts`, register your route module:
 import bookmarksRoutes from './bookmarks';
 
 // Inside the default export function:
-await fastify.register(
-  async (instance) => {
-    await bookmarksRoutes(instance);
-  },
-  { prefix: '/bookmarks' },
-);
+await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
 ```
 
 ### 3. Add Schemas (Optional)
@@ -193,17 +230,27 @@ Routes use `injectGraphql()` from `src/compatibility/utils.ts` to:
 - Ensure consistent authorization checks
 - Avoid duplicating business logic
 
-The auth hook sets `request.userId` and `request.isPlus` for GraphQL compatibility.
+### How Authentication Works
+
+The public API auth hook validates the PAT and sets `request.userId` and `request.isPlus`.
+
+The `injectGraphql()` utility then uses the service-to-service authentication pattern to pass the authenticated user to the GraphQL endpoint. It sets:
+- `Authorization: Service ${ACCESS_SECRET}` - Service auth header
+- `user-id` header - The authenticated user's ID
+- `logged-in: true` header - Indicates a logged-in user
+- `is-plus` header - Whether the user has Plus
+
+This allows the GraphQL resolver to have full user context without needing to understand PATs.
 
 ## Rate Limiting
 
-Rate limits are configured in `src/routes/public/index.ts`:
-- **Per-minute:** 60 requests
-- **Per-day:** 1000 requests
+Rate limits are configured using `@fastify/rate-limit` in `index.ts`:
+- **Per-minute:** 60 requests per user
 
 Headers returned:
 - `X-RateLimit-Limit` - Maximum requests per minute
 - `X-RateLimit-Remaining` - Remaining requests this minute
+- `X-RateLimit-Reset` - Unix timestamp when the limit resets
 - `Retry-After` - Seconds until rate limit resets (only on 429)
 
 ## Authentication
@@ -218,15 +265,53 @@ The middleware validates the token and sets:
 - `request.apiUserId` - The user ID associated with the token
 - `request.apiTokenId` - The token ID for tracking
 - `request.userId` - Same as apiUserId (for GraphQL compatibility)
-- `request.isPlus` - Always true (Plus verified on auth)
-
-Plus subscription is verified on every request.
+- `request.isPlus` - Always true (Plus verified when token is created)
 
 ## Testing
 
-Add tests in `__tests__/routes/public/`:
+Tests are in `__tests__/routes/public/api.ts`, organized by route group using `describe` blocks.
+
+**IMPORTANT**: Keep all public API tests in a single file to avoid issues with app/connection sharing across multiple Jest test files.
+
+Example test structure:
 
 ```typescript
+import appFunc from '../../../src';
+import { FastifyInstance } from 'fastify';
+import { saveFixtures } from '../../helpers';
+import { User } from '../../../src/entity/user/User';
+import { PersonalAccessToken } from '../../../src/entity/PersonalAccessToken';
+// ... other imports
+
+let app: FastifyInstance;
+let con: DataSource;
+
+beforeAll(async () => {
+  con = await createOrGetConnection();
+  app = await appFunc();
+  return app.ready();
+});
+
+afterAll(() => app.close());
+
+beforeEach(async () => {
+  jest.resetAllMocks();
+  await ioRedisPool.execute((client) => client.flushall());
+  // ... save fixtures
+});
+
+const createTokenForUser = async (userId: string) => {
+  const { token, tokenHash, tokenPrefix } = generatePersonalAccessToken();
+  await con.getRepository(PersonalAccessToken).save({
+    id: uuidv4(),
+    userId,
+    name: 'Test Token',
+    tokenHash,
+    tokenPrefix,
+  });
+  return token;
+};
+
 describe('GET /public/v1/your-endpoint', () => {
   it('should return data for authenticated user', async () => {
     const token = await createTokenForUser('5'); // Plus user
@@ -240,8 +325,3 @@ describe('GET /public/v1/your-endpoint', () => {
   });
 });
 ```
-
-## AI Agent Documentation
-
-The `skill.md` file contains documentation for AI agents to connect to the API.
-This should be deployed to `https://daily.dev/skill.md` for agent discovery.

@@ -15,10 +15,20 @@ export const injectGraphql = async (
   req: FastifyRequest,
   res: FastifyReply,
 ): Promise<FastifyReply> => {
-  const reqHeaders = {
+  const reqHeaders: Record<string, string | string[] | undefined> = {
     ...req.headers,
   };
   delete reqHeaders['content-length'];
+
+  // Use service auth to pass authenticated user to GraphQL
+  // The public API auth hook sets req.userId and req.isPlus
+  if (req.userId) {
+    reqHeaders['authorization'] = `Service ${process.env.ACCESS_SECRET}`;
+    reqHeaders['user-id'] = req.userId;
+    reqHeaders['logged-in'] = 'true';
+    reqHeaders['is-plus'] = req.isPlus ? 'true' : 'false';
+  }
+
   const graphqlRes = await fastify.inject({
     method: 'POST',
     url: '/graphql',

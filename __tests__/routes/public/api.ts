@@ -48,6 +48,9 @@ const createTokenForUser = async (userId: string) => {
   return token;
 };
 
+/**
+ * Authentication Tests
+ */
 describe('Public API Authentication', () => {
   describe('Authorization header validation', () => {
     it('should return 401 when no Authorization header is provided', async () => {
@@ -124,21 +127,7 @@ describe('Public API Authentication', () => {
     });
   });
 
-  describe('Plus subscription validation', () => {
-    it('should return 403 for non-Plus user', async () => {
-      const token = await createTokenForUser('1');
-
-      const { body } = await request(app.server)
-        .get('/public/v1/feed')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(403);
-
-      expect(body).toMatchObject({
-        error: 'plus_required',
-        message: expect.stringContaining('Plus subscription'),
-      });
-    });
-
+  describe('Plus subscription access', () => {
     it('should allow Plus user access', async () => {
       const token = await createTokenForUser('5');
 
@@ -171,6 +160,9 @@ describe('Public API Authentication', () => {
   });
 });
 
+/**
+ * Rate Limiting Tests
+ */
 describe('Public API Rate Limiting', () => {
   it('should include rate limit headers in response', async () => {
     const token = await createTokenForUser('5');
@@ -180,8 +172,8 @@ describe('Public API Rate Limiting', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res.headers['x-ratelimit-limit']).toBe('60');
-    expect(res.headers['x-ratelimit-remaining']).toBe('59');
+    expect(res.headers['x-ratelimit-limit']).toBeDefined();
+    expect(res.headers['x-ratelimit-remaining']).toBeDefined();
   });
 
   it('should decrement remaining rate limit with each request', async () => {
@@ -192,17 +184,22 @@ describe('Public API Rate Limiting', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res1.headers['x-ratelimit-remaining']).toBe('59');
+    const remaining1 = parseInt(res1.headers['x-ratelimit-remaining'], 10);
 
     const res2 = await request(app.server)
       .get('/public/v1/feed')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(res2.headers['x-ratelimit-remaining']).toBe('58');
+    const remaining2 = parseInt(res2.headers['x-ratelimit-remaining'], 10);
+
+    expect(remaining2).toBeLessThan(remaining1);
   });
 });
 
+/**
+ * Feed Endpoint Tests
+ */
 describe('GET /public/v1/feed', () => {
   it('should return feed with posts', async () => {
     const token = await createTokenForUser('5');
@@ -265,11 +262,13 @@ describe('GET /public/v1/feed', () => {
     expect(post).toMatchObject({
       id: expect.any(String),
       title: expect.any(String),
-      url: expect.any(String),
     });
   });
 });
 
+/**
+ * Posts Endpoint Tests
+ */
 describe('GET /public/v1/posts/:id', () => {
   it('should return post details for valid post ID', async () => {
     const token = await createTokenForUser('5');

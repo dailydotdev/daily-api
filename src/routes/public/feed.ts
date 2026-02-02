@@ -9,9 +9,10 @@ interface FeedQuery {
 const MAX_LIMIT = 50;
 const DEFAULT_LIMIT = 20;
 
+// Using the personalized "For You" feed query for authenticated users
 const FEED_QUERY = `
   query PublicApiFeed($first: Int, $after: String) {
-    anonymousFeed(first: $first, after: $after, ranking: TIME, version: 1) {
+    feed(first: $first, after: $after, ranking: TIME, version: 1) {
       edges {
         node {
           id
@@ -43,34 +44,32 @@ const FEED_QUERY = `
   }
 `;
 
-interface FeedEdge {
-  node: {
+interface FeedNode {
+  id: string;
+  title: string;
+  url: string;
+  image: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  source: {
     id: string;
-    title: string;
-    url: string;
+    name: string;
     image: string | null;
-    publishedAt: string | null;
-    createdAt: string;
-    source: {
-      id: string;
-      name: string;
-      image: string | null;
-    };
-    tags: string[];
-    readTime: number | null;
-    numUpvotes: number;
-    numComments: number;
-    author: {
-      name: string;
-      image: string | null;
-    } | null;
   };
+  tags: string[];
+  readTime: number | null;
+  numUpvotes: number;
+  numComments: number;
+  author: {
+    name: string;
+    image: string | null;
+  } | null;
 }
 
 interface FeedResponse {
   data: {
-    anonymousFeed: {
-      edges: FeedEdge[];
+    feed: {
+      edges: { node: FeedNode }[];
       pageInfo: {
         hasNextPage: boolean;
         endCursor: string | null;
@@ -117,14 +116,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      const userId = request.apiUserId;
-      if (!userId) {
-        return reply.status(401).send({
-          error: 'unauthorized',
-          message: 'User not authenticated',
-        });
-      }
-
+      // Auth middleware already validates the user, apiUserId is guaranteed
       const parsedLimit =
         parseInt(request.query.limit || '', 10) || DEFAULT_LIMIT;
       const limit = Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
@@ -140,22 +132,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
         },
         (json) => {
-          const feed = (json as unknown as FeedResponse).data.anonymousFeed;
+          const feed = (json as unknown as FeedResponse).data.feed;
           return {
-            data: feed.edges.map(({ node }) => ({
-              id: node.id,
-              title: node.title,
-              url: node.url,
-              image: node.image,
-              publishedAt: node.publishedAt,
-              createdAt: node.createdAt,
-              source: node.source,
-              tags: node.tags || [],
-              readTime: node.readTime,
-              upvotes: node.numUpvotes,
-              comments: node.numComments,
-              author: node.author,
-            })),
+            data: feed.edges.map(({ node }) => node),
             pagination: {
               hasNextPage: feed.pageInfo.hasNextPage,
               cursor: feed.pageInfo.endCursor,

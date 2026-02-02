@@ -101,14 +101,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      const userId = request.apiUserId;
-      if (!userId) {
-        return reply.status(401).send({
-          error: 'unauthorized',
-          message: 'User not authenticated',
-        });
-      }
-
+      // Auth middleware already validates the user, apiUserId is guaranteed
       const { id } = request.params;
 
       return injectGraphql(
@@ -119,32 +112,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         },
         (json) => {
           const { post } = (json as unknown as PostQueryResponse).data;
-          const sourceUrl = post.source.handle
-            ? `https://app.daily.dev/sources/${post.source.handle}`
-            : null;
-
           return {
             data: {
-              id: post.id,
-              title: post.title,
-              url: post.url,
-              image: post.image,
-              summary: post.summary,
-              publishedAt: post.publishedAt,
-              createdAt: post.createdAt,
+              ...post,
               source: {
-                id: post.source.id,
-                name: post.source.name,
-                image: post.source.image,
-                url: sourceUrl,
+                ...post.source,
+                url: post.source.handle
+                  ? `https://app.daily.dev/sources/${post.source.handle}`
+                  : null,
               },
-              author: post.author,
-              tags: post.tags || [],
-              readTime: post.readTime,
-              upvotes: post.numUpvotes,
-              comments: post.numComments,
-              bookmarked: post.bookmarked,
-              userState: post.userState,
             },
           };
         },
