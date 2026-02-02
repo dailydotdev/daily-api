@@ -1,11 +1,9 @@
 import { z } from 'zod';
 
 // Linear webhook action types
-export const linearWebhookActionSchema = z.literal([
-  'create',
-  'update',
-  'remove',
-]);
+const linearWebhookActions = ['create', 'update', 'remove'] as const;
+
+export const linearWebhookActionSchema = z.literal(linearWebhookActions);
 
 // Linear issue state schema
 export const linearIssueStateSchema = z.object({
@@ -23,7 +21,7 @@ export const linearIssueSchema = z.object({
 
 // Linear webhook payload schema for Issue events
 export const linearWebhookPayloadSchema = z.object({
-  action: z.enum(['create', 'update', 'remove']),
+  action: z.enum(linearWebhookActions),
   type: z.string(),
   data: linearIssueSchema,
   updatedFrom: z

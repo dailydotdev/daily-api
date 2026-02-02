@@ -55,7 +55,7 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
       const webhookSecret = process.env.LINEAR_WEBHOOK_SECRET;
       if (!webhookSecret) {
         logger.warn('LINEAR_WEBHOOK_SECRET not configured');
-        return res.status(500).send({ error: 'Webhook not configured' });
+        return res.status(503).send({ error: 'Webhook not configured' });
       }
 
       if (!verifyLinearSignature(webhookSecret, req)) {
@@ -110,14 +110,14 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
         return res.status(200).send({ success: true });
       }
 
-      // Update feedback status
-      await con
-        .getRepository(Feedback)
-        .update({ id: feedback.id }, { status: newStatus });
+      // Update feedback status and generate notification in a transaction
+      await con.transaction(async (manager) => {
+        await manager
+          .getRepository(Feedback)
+          .update({ id: feedback.id }, { status: newStatus });
 
-      // Generate notification if status changed to Completed
-      if (newStatus === FeedbackStatus.Completed) {
-        await con.transaction(async (manager) => {
+        // Generate notification if status changed to Completed
+        if (newStatus === FeedbackStatus.Completed) {
           const ctx: NotificationFeedbackResolvedContext = {
             userIds: [feedback.userId],
             feedbackId: feedback.id,
@@ -128,8 +128,8 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
             ctx,
           );
           await storeNotificationBundleV2(manager, bundle);
-        });
-      }
+        }
+      });
 
       return res.status(200).send({ success: true });
     },

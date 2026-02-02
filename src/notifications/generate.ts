@@ -693,6 +693,7 @@ export const generateNotificationMap: Record<
   ) => {
     return builder
       .icon(NotificationIcon.Bell)
+      .title('Your feedback has been resolved')
       .referenceFeedback(ctx.feedbackId)
       .description(ctx.feedbackDescription, true)
       .targetUrl(process.env.COMMENTS_PREFIX)
