@@ -114,7 +114,10 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
           // Refetch opportunity with updated data after parsing
           const updatedOpportunity = await con
             .getRepository(OpportunityJob)
-            .findOneOrFail({ where: { id: opportunityId } });
+            .findOneOrFail({
+              where: { id: opportunityId },
+              relations: { keywords: true },
+            });
 
           const opportunityMessage = await buildOpportunityPreviewPayload({
             opportunity: updatedOpportunity,
