@@ -21,6 +21,7 @@ import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import integrations from './integrations';
 import gifs from './gifs';
 import log from './log';
+import publicApi, { PUBLIC_API_PREFIX } from './public';
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -42,6 +43,15 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });
   fastify.register(log, { prefix: '/log' });
+
+  // Public API v1
+  const con = await createOrGetConnection();
+  fastify.register(
+    async (instance) => {
+      await publicApi(instance, con);
+    },
+    { prefix: PUBLIC_API_PREFIX },
+  );
 
   fastify.get('/robots.txt', (req, res) => {
     return res.type('text/plain').send(`User-agent: *
