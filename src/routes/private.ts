@@ -312,7 +312,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
 
   fastify.post<{
     Body: z.infer<typeof privateCreateOpportunitySchema>;
-  }>('/opportunity', async (req, res) => {
+  }>('/opportunities', async (req, res) => {
     if (!req.service) {
       return res.status(404).send();
     }
@@ -392,7 +392,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   });
 
   fastify.get<{ Params: { id: string } }>(
-    '/opportunity/:id',
+    '/opportunities/:id',
     async (req, res) => {
       if (!req.service) {
         return res.status(404).send();

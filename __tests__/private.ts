@@ -1439,14 +1439,14 @@ describe('POST /p/newOpportunity', () => {
   });
 });
 
-describe('POST /p/opportunity', () => {
+describe('POST /p/opportunities', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
   it('should return 404 without service auth', async () => {
     const res = await request(app.server)
-      .post('/p/opportunity')
+      .post('/p/opportunities')
       .send({ url: 'https://example.com/job.pdf' });
 
     expect(res.statusCode).toBe(404);
@@ -1454,7 +1454,7 @@ describe('POST /p/opportunity', () => {
 
   it('should return 400 for invalid URL', async () => {
     const res = await request(app.server)
-      .post('/p/opportunity')
+      .post('/p/opportunities')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .set('content-type', 'application/json')
       .send({ url: 'not-a-url' });
@@ -1464,7 +1464,7 @@ describe('POST /p/opportunity', () => {
 
   it('should return 400 for invalid email', async () => {
     const res = await request(app.server)
-      .post('/p/opportunity')
+      .post('/p/opportunities')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .set('content-type', 'application/json')
       .send({ url: 'https://example.com/job.pdf', emails: ['not-an-email'] });
@@ -1486,7 +1486,7 @@ describe('POST /p/opportunity', () => {
     jest.mocked(triggerTypedEvent).mockResolvedValue(undefined);
 
     const res = await request(app.server)
-      .post('/p/opportunity')
+      .post('/p/opportunities')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .set('content-type', 'application/json')
       .send({ url: 'https://example.com/job.pdf' });
@@ -1524,7 +1524,7 @@ describe('POST /p/opportunity', () => {
 
     const emails = ['user1@example.com', 'user2@example.com'];
     const res = await request(app.server)
-      .post('/p/opportunity')
+      .post('/p/opportunities')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .set('content-type', 'application/json')
       .send({ url: 'https://example.com/job.pdf', emails });
@@ -1555,7 +1555,7 @@ describe('POST /p/opportunity', () => {
       .mockRejectedValue(new ValidationError('File type not supported'));
 
     const res = await request(app.server)
-      .post('/p/opportunity')
+      .post('/p/opportunities')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
       .set('content-type', 'application/json')
       .send({ url: 'https://example.com/job.pdf' });
@@ -1565,7 +1565,7 @@ describe('POST /p/opportunity', () => {
   });
 });
 
-describe('GET /p/opportunity/:id', () => {
+describe('GET /p/opportunities/:id', () => {
   let testOpportunity: OpportunityJob;
 
   beforeEach(async () => {
@@ -1586,7 +1586,7 @@ describe('GET /p/opportunity/:id', () => {
 
   it('should return 404 without service auth', async () => {
     const res = await request(app.server).get(
-      `/p/opportunity/${testOpportunity.id}`,
+      `/p/opportunities/${testOpportunity.id}`,
     );
 
     expect(res.statusCode).toBe(404);
@@ -1594,7 +1594,7 @@ describe('GET /p/opportunity/:id', () => {
 
   it('should return 400 for invalid UUID', async () => {
     const res = await request(app.server)
-      .get('/p/opportunity/not-a-uuid')
+      .get('/p/opportunities/not-a-uuid')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`);
 
     expect(res.statusCode).toBe(400);
@@ -1603,7 +1603,7 @@ describe('GET /p/opportunity/:id', () => {
 
   it('should return opportunity', async () => {
     const res = await request(app.server)
-      .get(`/p/opportunity/${testOpportunity.id}`)
+      .get(`/p/opportunities/${testOpportunity.id}`)
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`);
 
     expect(res.statusCode).toBe(200);
@@ -1614,7 +1614,7 @@ describe('GET /p/opportunity/:id', () => {
 
   it('should return 404 for non-existent opportunity', async () => {
     const res = await request(app.server)
-      .get('/p/opportunity/00000000-0000-0000-0000-000000000000')
+      .get('/p/opportunities/00000000-0000-0000-0000-000000000000')
       .set('authorization', `Service ${process.env.ACCESS_SECRET}`);
 
     expect(res.statusCode).toBe(404);
