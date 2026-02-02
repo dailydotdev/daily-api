@@ -94,6 +94,22 @@ describe('Public API Authentication', () => {
         .expect(200);
     });
 
+    it('should allow access even when ENABLE_PRIVATE_ROUTES is false', async () => {
+      const originalValue = process.env.ENABLE_PRIVATE_ROUTES;
+      process.env.ENABLE_PRIVATE_ROUTES = 'false';
+
+      try {
+        const token = await createTokenForUser(state.con, '5');
+
+        await request(state.app.server)
+          .get('/public/v1/feed')
+          .set('Authorization', `Bearer ${token}`)
+          .expect(200);
+      } finally {
+        process.env.ENABLE_PRIVATE_ROUTES = originalValue;
+      }
+    });
+
     it('should allow access for cancelled but still active Plus user', async () => {
       const cancelledPlusUserId = uuidv4();
       await state.con.getRepository(User).save({
