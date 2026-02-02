@@ -480,10 +480,6 @@ export const workers: Worker[] = [
     topic: 'api.v1.feedback-created',
     subscription: 'api.feedback-classify',
   },
-  {
-    topic: 'api.v1.feedback-updated',
-    subscription: 'api.feedback-updated-slack',
-  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

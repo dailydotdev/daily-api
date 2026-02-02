@@ -79,7 +79,6 @@ import opportunityInReviewSlack from './opportunityInReviewSlack';
 import { parseOpportunityFeedbackWorker } from './opportunity/parseOpportunityFeedback';
 import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
-import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 
 export { Worker } from './worker';
 
@@ -162,7 +161,6 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   parseOpportunityFeedbackWorker,
   parseOpportunityWorker,
   feedbackClassify,
-  feedbackUpdatedSlack,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

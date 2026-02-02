@@ -5,6 +5,7 @@ import { User } from '../../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { typedWorkers } from '../../src/workers';
+import { webhooks } from '../../src/common/slack';
 
 const mockClassifyUserFeedback = jest.fn();
 const mockCreateFeedbackIssue = jest.fn();
@@ -24,6 +25,8 @@ jest.mock('../../src/integrations/bragi', () => ({
 jest.mock('../../src/integrations/linear', () => ({
   createFeedbackIssue: (...args: unknown[]) => mockCreateFeedbackIssue(...args),
 }));
+
+jest.spyOn(webhooks.userFeedback, 'send').mockResolvedValue(undefined);
 
 let con: DataSource;
 
@@ -55,6 +58,7 @@ describe('feedbackClassify worker', () => {
       {
         id: '1',
         name: 'Ido',
+        username: 'ido',
         image: 'https://daily.dev/ido.jpg',
       },
     ]);
@@ -68,7 +72,7 @@ describe('feedbackClassify worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should process feedback and update status to completed', async () => {
+  it('should process feedback and update status to Accepted', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
       category: 1,
@@ -86,7 +90,7 @@ describe('feedbackClassify worker', () => {
     const updated = await con
       .getRepository(Feedback)
       .findOneBy({ id: feedback.id });
-    expect(updated?.status).toBe(FeedbackStatus.Completed);
+    expect(updated?.status).toBe(FeedbackStatus.Accepted);
     expect(updated?.classification).toEqual({
       sentiment: '1',
       urgency: '3',
@@ -97,6 +101,50 @@ describe('feedbackClassify worker', () => {
     });
     expect(updated?.linearIssueId).toBe('linear-issue-123');
     expect(updated?.linearIssueUrl).toBe('https://linear.app/issue/123');
+  });
+
+  it('should set slackNotifiedAt flag after processing', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Test feedback description',
+      status: FeedbackStatus.Pending,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
+    expect(updated?.flags?.slackNotifiedAt).toBeDefined();
+    expect(
+      new Date(updated!.flags!.slackNotifiedAt!).getTime(),
+    ).toBeGreaterThan(0);
+  });
+
+  it('should skip processing if slackNotifiedAt is already set (idempotency)', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Test feedback description',
+      status: FeedbackStatus.Pending,
+      flags: { slackNotifiedAt: new Date().toISOString() },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(mockClassifyUserFeedback).not.toHaveBeenCalled();
+    expect(mockCreateFeedbackIssue).not.toHaveBeenCalled();
+
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
+    expect(updated?.status).toBe(FeedbackStatus.Pending);
   });
 
   it('should skip processing if feedback is already spam', async () => {
@@ -123,7 +171,7 @@ describe('feedbackClassify worker', () => {
       userId: '1',
       category: 3,
       description: 'Already processed',
-      status: FeedbackStatus.Completed,
+      status: FeedbackStatus.Accepted,
       flags: {},
     });
 
@@ -134,7 +182,7 @@ describe('feedbackClassify worker', () => {
     const updated = await con
       .getRepository(Feedback)
       .findOneBy({ id: feedback.id });
-    expect(updated?.status).toBe(FeedbackStatus.Completed);
+    expect(updated?.status).toBe(FeedbackStatus.Accepted);
   });
 
   it('should throw error if Linear client is not configured', async () => {
