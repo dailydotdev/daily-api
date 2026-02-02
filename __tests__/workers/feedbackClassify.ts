@@ -100,7 +100,6 @@ describe('feedbackClassify worker', () => {
     expect(updated?.linearIssueUrl).toBe('https://linear.app/issue/123');
   });
 
-
   it('should skip processing if feedback is already spam', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
