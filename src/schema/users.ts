@@ -90,7 +90,12 @@ import {
   voteHotTake,
   systemUserIds,
 } from '../common';
-import { getSearchQuery, GQLEmptyResponse, processSearchQuery } from './common';
+import {
+  getSearchQuery,
+  GQLEmptyResponse,
+  offsetPageGenerator,
+  processSearchQuery,
+} from './common';
 import { ActiveView } from '../entity/ActiveView';
 import graphorm from '../graphorm';
 import { GraphQLResolveInfo } from 'graphql';
@@ -111,10 +116,8 @@ import {
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
-import { PostAnalytics } from '../entity/posts/PostAnalytics';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { format, subDays } from 'date-fns';
-import { CampaignPost, CampaignState } from '../entity/campaign';
 import {
   acceptedResumeFileTypes,
   ContentLanguage,
@@ -2971,69 +2974,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       _,
       args: ConnectionArguments,
       ctx: AuthContext,
+      info: GraphQLResolveInfo,
     ): Promise<Connection<GQLUserPostWithAnalytics>> => {
-      const { userId, con } = ctx;
+      const { userId } = ctx;
 
-      const first = args.first ?? 20;
-      const after = args.after ? parseInt(args.after, 10) : 0;
+      const pageGenerator = offsetPageGenerator<GQLUserPostWithAnalytics>(
+        20,
+        100,
+      );
+      const page = pageGenerator.connArgsToPage(args);
 
-      const posts = await queryReadReplica(con, async ({ queryRunner }) => {
-        const postsQuery = queryRunner.manager
-          .getRepository(Post)
-          .createQueryBuilder('p')
-          .leftJoin(PostAnalytics, 'pa', 'pa.id = p.id')
-          .leftJoin(
-            CampaignPost,
-            'cp',
-            `cp."postId" = p.id AND cp.state = :campaignState`,
-            { campaignState: CampaignState.Active },
-          )
-          .select([
-            'p.id as id',
-            'p.title as title',
-            'p.image as image',
-            'p."createdAt" as "createdAt"',
-            'COALESCE(pa.impressions + pa."impressionsAds", 0)::int as impressions',
-            'COALESCE(pa.upvotes, 0)::int as upvotes',
-            'COALESCE(pa.reputation, 0)::int as reputation',
-            'CASE WHEN cp.id IS NOT NULL THEN true ELSE false END as "isBoosted"',
-            `'${process.env.COMMENTS_PREFIX || 'https://app.daily.dev'}/posts/' || p.id as "commentsPermalink"`,
-          ])
-          .where('p."authorId" = :userId', { userId })
-          .andWhere('p.deleted = false')
-          .andWhere('p.visible = true')
-          .orderBy('p."createdAt"', 'DESC')
-          .offset(after)
-          .limit(first + 1);
-
-        return postsQuery.getRawMany();
-      });
-
-      const hasNextPage = posts.length > first;
-      const edges = posts.slice(0, first).map((post, index) => ({
-        node: {
-          id: post.id,
-          title: post.title,
-          image: post.image,
-          createdAt: post.createdAt,
-          impressions: post.impressions,
-          upvotes: post.upvotes,
-          reputation: Math.max(0, post.reputation),
-          isBoosted: post.isBoosted,
-          commentsPermalink: post.commentsPermalink,
+      return graphorm.queryPaginated(
+        ctx,
+        info,
+        (nodeSize) => pageGenerator.hasPreviousPage(page, nodeSize),
+        (nodeSize) => pageGenerator.hasNextPage(page, nodeSize),
+        (node, index) => pageGenerator.nodeToCursor(page, args, node, index),
+        (builder) => {
+          builder.queryBuilder
+            .where(`${builder.alias}."authorId" = :userId`, { userId })
+            .orderBy(`${builder.alias}."createdAt"`, 'DESC')
+            .limit(page.limit)
+            .offset(page.offset);
+          return builder;
         },
-        cursor: String(after + index),
-      }));
-
-      return {
-        edges,
-        pageInfo: {
-          hasNextPage,
-          hasPreviousPage: after > 0,
-          startCursor: edges.length > 0 ? edges[0].cursor : null,
-          endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
-        },
-      };
+        undefined,
+        true,
+      );
     },
   },
   Mutation: {

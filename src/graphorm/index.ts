@@ -1732,6 +1732,54 @@ const obj = new GraphORM({
       },
     },
   },
+  UserPostWithAnalytics: {
+    from: 'post',
+    requiredColumns: ['id', 'title', 'image', 'createdAt'],
+    additionalQuery: (ctx, alias, qb) =>
+      qb
+        .andWhere(`"${alias}"."deleted" = false`)
+        .andWhere(`"${alias}"."visible" = true`),
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      impressions: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `COALESCE((SELECT pa.impressions + pa."impressionsAds" FROM post_analytics pa WHERE pa.id = "${alias}".id), 0)`,
+      },
+      upvotes: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `COALESCE((SELECT pa.upvotes FROM post_analytics pa WHERE pa.id = "${alias}".id), 0)`,
+      },
+      reputation: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `COALESCE((SELECT pa.reputation FROM post_analytics pa WHERE pa.id = "${alias}".id), 0)`,
+        transform: (value: number) => Math.max(0, value),
+      },
+      isBoosted: {
+        rawSelect: true,
+        select: (ctx, alias, qb) => {
+          const subQuery = qb
+            .subQuery()
+            .select('1')
+            .from('campaign_post', 'cp')
+            .where(`cp."postId" = "${alias}".id`)
+            .andWhere('cp.state = :activeCampaignState')
+            .getQuery();
+          qb.setParameter('activeCampaignState', 1); // CampaignState.Active
+          return `EXISTS${subQuery}`;
+        },
+      },
+      commentsPermalink: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `'${process.env.COMMENTS_PREFIX || 'https://app.daily.dev'}/posts/' || "${alias}".id`,
+      },
+    },
+  },
   Opportunity: {
     requiredColumns: ['id', 'createdAt'],
     fields: {
