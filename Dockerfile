@@ -27,6 +27,6 @@ RUN --mount=type=cache,id=pnpm,target=/home/node/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
 COPY --chown=node:node build .
-COPY --chown=node:node src/routes/public/skill.md routes/public/
+COPY --chown=node:node src/routes/public/skill.md src/routes/public/
 
 CMD ["dumb-init", "node", "bin/cli", "api"]
