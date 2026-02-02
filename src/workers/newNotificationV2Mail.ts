@@ -132,6 +132,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   recruiter_opportunity_live: '90',
   experience_company_enriched: '',
   recruiter_external_payment: '91',
+  feedback_resolved: '',
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1256,6 +1257,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     };
   },
   experience_company_enriched: async () => {
+    return null;
+  },
+  feedback_resolved: async () => {
     return null;
   },
 };

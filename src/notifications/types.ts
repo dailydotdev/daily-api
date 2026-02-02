@@ -205,6 +205,11 @@ export type NotificationRecruiterExternalPaymentContext =
     opportunityTitle: string;
   };
 
+export type NotificationFeedbackResolvedContext = NotificationBaseContext & {
+  feedbackId: string;
+  feedbackDescription: string;
+};
+
 declare module 'fs' {
   interface ReadStream {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

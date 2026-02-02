@@ -13,9 +13,11 @@ import { UserFeedbackCategory } from '@dailydotdev/schema';
 export enum FeedbackStatus {
   Pending = 0,
   Processing = 1,
-  Completed = 2,
-  Failed = 3,
-  Spam = 4,
+  Accepted = 2, // Linear ticket moved to "In Progress"
+  Completed = 3, // Linear ticket moved to "Done" → triggers notification
+  Cancelled = 4, // Linear ticket cancelled
+  Failed = 5, // Classification failed
+  Spam = 6, // Marked as spam
 }
 
 export type FeedbackClassification = {

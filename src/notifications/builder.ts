@@ -226,6 +226,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceFeedback(feedbackId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: feedbackId,
+      referenceType: 'feedback',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
