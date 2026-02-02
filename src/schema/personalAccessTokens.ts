@@ -15,6 +15,7 @@ import { generatePersonalAccessToken } from '../common/personalAccessToken';
 import { v4 as uuidv4 } from 'uuid';
 import { IsNull } from 'typeorm';
 import { ONE_DAY_IN_SECONDS } from '../common/constants';
+import graphorm from '../graphorm';
 
 interface GQLPersonalAccessToken {
   id: string;
@@ -85,28 +86,21 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    personalAccessTokens: async (
+    personalAccessTokens: (
       _,
       __,
       ctx: AuthContext,
-    ): Promise<GQLPersonalAccessToken[]> => {
-      const tokens = await ctx.con.getRepository(PersonalAccessToken).find({
-        where: {
-          userId: ctx.userId,
-          revokedAt: IsNull(),
-        },
-        order: { createdAt: 'DESC' },
-      });
-
-      return tokens.map((token) => ({
-        id: token.id,
-        name: token.name,
-        tokenPrefix: token.tokenPrefix,
-        createdAt: token.createdAt,
-        expiresAt: token.expiresAt,
-        lastUsedAt: token.lastUsedAt,
-      }));
-    },
+      info,
+    ): Promise<GQLPersonalAccessToken[]> =>
+      graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder = builder.queryBuilder
+          .andWhere(`"${builder.alias}"."userId" = :userId`, {
+            userId: ctx.userId,
+          })
+          .andWhere(`"${builder.alias}"."revokedAt" IS NULL`)
+          .orderBy(`"${builder.alias}"."createdAt"`, 'DESC');
+        return builder;
+      }),
   },
 
   Mutation: {

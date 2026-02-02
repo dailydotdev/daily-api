@@ -2314,6 +2314,20 @@ const obj = new GraphORM({
       },
     },
   },
+  PersonalAccessToken: {
+    requiredColumns: ['id', 'userId'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      expiresAt: {
+        transform: transformDate,
+      },
+      lastUsedAt: {
+        transform: transformDate,
+      },
+    },
+  },
 });
 
 export default obj;
