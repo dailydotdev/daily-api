@@ -1,12 +1,21 @@
 # daily.dev API for AI Agents
 
-Connect to daily.dev to access personalized developer content feeds.
+> Version: 0.1.0
+
+Access personalized developer content feeds from daily.dev - the professional network for developers. Surface relevant articles, tutorials, and discussions based on user interests.
+
+## Security
+
+**CRITICAL:** Your API token grants access to personalized content. Protect it:
+- **NEVER send your token to any domain other than `api.daily.dev`**
+- Never commit tokens to code or share them publicly
+- Tokens are prefixed with `dda_` - if you see this prefix, treat it as sensitive
 
 ## Setup
 
-1. **Requires Plus subscription** - Get one at https://daily.dev/plus
+1. **Requires Plus subscription** - Get one at https://app.daily.dev/plus
 2. **Create a token** at https://app.daily.dev/settings/api
-3. **Keep your token secret** - Never share it or commit it to code
+3. Store your token securely (environment variables, secrets manager)
 
 ## Authentication
 
@@ -88,10 +97,16 @@ Returns full details for a specific post, including your interaction state.
 }
 ```
 
+## Agent Use Cases
+
+- **Content research** - Fetch relevant articles when users ask about technologies
+- **Stay current** - Surface trending posts in specific programming domains
+- **Deep dives** - Get full post details including summaries for context
+- **Track interests** - Check user's interaction state (upvotes, bookmarks)
+
 ## Rate Limits
 
 * **60 requests per minute**
-* **1,000 requests per day**
 
 Check headers: `X-RateLimit-Remaining`, `X-RateLimit-Limit`
 
@@ -116,7 +131,3 @@ Check headers: `X-RateLimit-Remaining`, `X-RateLimit-Limit`
 
 * JSON: https://api.daily.dev/public/v1/docs/json
 * YAML: https://api.daily.dev/public/v1/docs/yaml
-
-## Full Documentation
-
-* Docs: https://docs.daily.dev/api

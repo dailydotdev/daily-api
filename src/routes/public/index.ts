@@ -8,6 +8,9 @@ import feedRoutes from './feed';
 import postsRoutes from './posts';
 import { commonSchemas } from './schemas';
 
+export const PUBLIC_API_PREFIX = '/public/v1';
+const PUBLIC_API_BASE_URL = `https://api.daily.dev${PUBLIC_API_PREFIX}`;
+
 const skillMd = readFileSync(join(__dirname, 'skill.md'), 'utf-8');
 
 const tokenAuthHook = async (
@@ -56,7 +59,7 @@ export default async function (
           'API for AI agents and automation to access daily.dev data. Requires a Plus subscription.',
         version: '1.0.0',
       },
-      servers: [{ url: 'https://api.daily.dev/public/v1' }],
+      servers: [{ url: PUBLIC_API_BASE_URL }],
       components: {
         securitySchemes: {
           bearerAuth: {
@@ -92,7 +95,11 @@ export default async function (
   // Auth hook must run first to set apiUserId
   fastify.addHook('onRequest', async (request, reply) => {
     // Skip auth for documentation endpoints and skill.md
-    if (request.url.startsWith('/docs') || request.url === '/skill.md') {
+    // request.url includes the full path with prefix
+    if (
+      request.url.startsWith(`${PUBLIC_API_PREFIX}/docs`) ||
+      request.url === `${PUBLIC_API_PREFIX}/skill.md`
+    ) {
       return;
     }
     await tokenAuthHook(request, reply, con);

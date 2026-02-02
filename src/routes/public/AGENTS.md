@@ -2,6 +2,23 @@
 
 This directory contains the public REST API for daily.dev, accessible via Personal Access Tokens.
 
+## AI Agent Documentation
+
+The API includes agent-friendly documentation:
+
+- **`skill.md`** - Concise API reference designed for AI agents (served at `/public/v1/skill.md`)
+- **OpenAPI spec** - Machine-readable API definition at `/public/v1/docs/json` and `/public/v1/docs/yaml`
+
+When updating endpoints, keep `skill.md` in sync. It should remain concise and focused on what agents need to know.
+
+### Versioning
+
+The `skill.md` file includes a version number at the top. Update it when making changes:
+
+- **Major** (1.x.x → 2.0.0): Breaking changes (removed endpoints, changed response structure)
+- **Minor** (1.0.x → 1.1.0): New endpoints or fields (backward compatible)
+- **Patch** (1.0.0 → 1.0.1): Documentation fixes, clarifications
+
 ## Architecture
 
 - **Base path:** `/public/v1`
@@ -269,59 +286,51 @@ The middleware validates the token and sets:
 
 ## Testing
 
-Tests are in `__tests__/routes/public/api.ts`, organized by route group using `describe` blocks.
+Tests are in `__tests__/routes/public/`, organized by route group in separate files:
 
-**IMPORTANT**: Keep all public API tests in a single file to avoid issues with app/connection sharing across multiple Jest test files.
+- `helpers.ts` - Shared test setup and utilities
+- `auth.ts` - Authentication tests (Authorization header validation, Plus subscription access)
+- `rateLimit.ts` - Rate limiting tests
+- `feed.ts` - Feed endpoint tests (`GET /public/v1/feed`)
+- `posts.ts` - Posts endpoint tests (`GET /public/v1/posts/:id`)
+
+### Test Setup
+
+All test files use the shared `setupPublicApiTests()` helper from `helpers.ts` which handles app initialization, database connection, and fixture loading.
 
 Example test structure:
 
 ```typescript
-import appFunc from '../../../src';
-import { FastifyInstance } from 'fastify';
-import { saveFixtures } from '../../helpers';
-import { User } from '../../../src/entity/user/User';
-import { PersonalAccessToken } from '../../../src/entity/PersonalAccessToken';
-// ... other imports
+import request from 'supertest';
+import { setupPublicApiTests, createTokenForUser } from './helpers';
 
-let app: FastifyInstance;
-let con: DataSource;
-
-beforeAll(async () => {
-  con = await createOrGetConnection();
-  app = await appFunc();
-  return app.ready();
-});
-
-afterAll(() => app.close());
-
-beforeEach(async () => {
-  jest.resetAllMocks();
-  await ioRedisPool.execute((client) => client.flushall());
-  // ... save fixtures
-});
-
-const createTokenForUser = async (userId: string) => {
-  const { token, tokenHash, tokenPrefix } = generatePersonalAccessToken();
-  await con.getRepository(PersonalAccessToken).save({
-    id: uuidv4(),
-    userId,
-    name: 'Test Token',
-    tokenHash,
-    tokenPrefix,
-  });
-  return token;
-};
+const state = setupPublicApiTests();
 
 describe('GET /public/v1/your-endpoint', () => {
   it('should return data for authenticated user', async () => {
-    const token = await createTokenForUser('5'); // Plus user
+    const token = await createTokenForUser(state.con, '5'); // Plus user
 
-    const { body } = await request(app.server)
+    const { body } = await request(state.app.server)
       .get('/public/v1/your-endpoint')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     expect(body.data).toBeDefined();
   });
+});
+```
+
+### Adding Tests for New Endpoints
+
+When adding a new endpoint, create a new test file (e.g., `bookmarks.ts`) and use the shared helpers:
+
+```typescript
+import request from 'supertest';
+import { setupPublicApiTests, createTokenForUser } from './helpers';
+
+const state = setupPublicApiTests();
+
+describe('GET /public/v1/bookmarks', () => {
+  // ... your tests
 });
 ```
