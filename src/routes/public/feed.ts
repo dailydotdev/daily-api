@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { injectGraphql } from '../../compatibility/utils';
+import { executeGraphql } from './graphqlExecutor';
 
 interface FeedQuery {
   limit?: string;
@@ -130,8 +130,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const limit = Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
       const { cursor } = request.query;
 
-      return injectGraphql(
-        fastify,
+      return executeGraphql(
+        fastify.con!,
         {
           query: FEED_QUERY,
           variables: {
@@ -140,7 +140,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
         },
         (json) => {
-          const feed = (json as unknown as FeedResponse).data.feed;
+          const feed = (json as FeedResponse['data']).feed;
           return {
             data: feed.edges.map(({ node }) => node),
             pagination: {

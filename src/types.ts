@@ -114,6 +114,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     // Used for tracing
     tracer?: opentelemetry.Tracer;
+    // Used for public API routes to access database
+    con?: import('typeorm').DataSource;
   }
 }
 
