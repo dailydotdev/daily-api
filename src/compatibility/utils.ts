@@ -1,5 +1,14 @@
+import { createHmac } from 'crypto';
 import { GraphQLError } from 'graphql';
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+
+const generateInternalAuth = (secret: string): string => {
+  const timestamp = Date.now().toString();
+  const signature = createHmac('sha256', secret)
+    .update(`public-api:${timestamp}`)
+    .digest('hex');
+  return `${timestamp}:${signature}`;
+};
 
 export interface GraphqlPayload {
   query: string;
@@ -20,10 +29,12 @@ export const injectGraphql = async (
   };
   delete reqHeaders['content-length'];
 
-  // Use service auth to pass authenticated user to GraphQL
+  // Use internal service auth to pass authenticated user to GraphQL
   // The public API auth hook sets req.userId and req.isPlus
   if (req.userId) {
-    reqHeaders['authorization'] = `Service ${process.env.ACCESS_SECRET}`;
+    const secret = process.env.ACCESS_SECRET!;
+    reqHeaders['authorization'] =
+      `InternalService ${generateInternalAuth(secret)}`;
     reqHeaders['user-id'] = req.userId;
     reqHeaders['logged-in'] = 'true';
     reqHeaders['is-plus'] = req.isPlus ? 'true' : 'false';

@@ -7,8 +7,9 @@ import { validatePersonalAccessToken } from '../../common/personalAccessToken';
 import feedRoutes from './feed';
 import postsRoutes from './posts';
 import { commonSchemas } from './schemas';
+import { PUBLIC_API_PREFIX } from '../../common/constants';
 
-export const PUBLIC_API_PREFIX = '/public/v1';
+export { PUBLIC_API_PREFIX };
 const USER_RATE_LIMIT_PER_MINUTE = 60;
 const IP_RATE_LIMIT_PER_MINUTE = 300;
 const PUBLIC_API_BASE_URL = `https://api.daily.dev${PUBLIC_API_PREFIX}`;
