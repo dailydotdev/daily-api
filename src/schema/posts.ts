@@ -819,11 +819,6 @@ export const typeDefs = /* GraphQL */ `
     numPollVotes: Int
 
     """
-    Whether the post is currently being boosted (only visible to author/scout)
-    """
-    isBoosted: Boolean
-
-    """
     Post analytics
     """
     analytics: PostAnalyticsPublic
@@ -1054,6 +1049,8 @@ export const typeDefs = /* GraphQL */ `
   type PostAnalyticsPublic {
     id: ID!
     impressions: Int!
+    reputation: Int!
+    upvotes: Int!
   }
 
   type PostAnalyticsHistory {
@@ -1280,6 +1277,20 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): PostAnalyticsHistoryConnection! @auth
+
+    """
+    Get paginated list of posts authored by the authenticated user with analytics
+    """
+    userPostsWithAnalytics(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -2382,6 +2393,33 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 postId: args.id,
               },
             );
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
+        },
+      );
+    },
+    userPostsWithAnalytics: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.authorId = :userId`, {
+                userId: ctx.userId,
+              })
+              .andWhere(`${builder.alias}.deleted = false`)
+              .andWhere(`${builder.alias}.visible = true`);
 
             return builder;
           },
