@@ -10,6 +10,9 @@ import { updateFlagsStatement } from '../../common';
 import { deleteBlobFromGCS } from '../../common/googleCloud';
 import z from 'zod';
 import { performance } from 'perf_hooks';
+import { buildOpportunityPreviewPayload } from '../../common/opportunity/preview';
+import { getGondulOpportunityServiceClient } from '../../common/gondul';
+import { OpportunityPreviewStatus } from '../../common/opportunity/types';
 
 export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
   subscription: 'api.opportunity-parse',
@@ -104,6 +107,54 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
         { opportunityId, durationMs: performance.now() - startMs },
         'parseOpportunity worker: completed',
       );
+
+      // Auto-trigger preview for machine-sourced opportunities
+      if (opportunity.flags?.source === 'machine') {
+        try {
+          // Refetch opportunity with updated data after parsing
+          const updatedOpportunity = await con
+            .getRepository(OpportunityJob)
+            .findOneOrFail({ where: { id: opportunityId } });
+
+          const opportunityMessage = await buildOpportunityPreviewPayload({
+            opportunity: updatedOpportunity,
+            con,
+          });
+
+          const gondulClient = getGondulOpportunityServiceClient();
+          await gondulClient.garmr.execute(() => {
+            return gondulClient.instance.preview(opportunityMessage);
+          });
+
+          await con.getRepository(OpportunityJob).update(
+            { id: opportunityId },
+            {
+              flags: updateFlagsStatement<OpportunityJob>({
+                preview: {
+                  userIds: [],
+                  totalCount: 0,
+                  status: OpportunityPreviewStatus.PENDING,
+                },
+              }),
+            },
+          );
+
+          logger.info(
+            { opportunityId, durationMs: performance.now() - startMs },
+            'parseOpportunity worker: auto-preview triggered',
+          );
+        } catch (previewError) {
+          // Log but don't fail the worker if preview fails
+          logger.error(
+            {
+              opportunityId,
+              previewError,
+              durationMs: performance.now() - startMs,
+            },
+            'parseOpportunity worker: auto-preview failed',
+          );
+        }
+      }
     } catch (error) {
       hasError = true;
 
