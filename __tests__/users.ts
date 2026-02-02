@@ -7,6 +7,7 @@ import {
   addHours,
   addSeconds,
   addYears,
+  format,
   startOfDay,
   startOfISOWeek,
   subDays,
@@ -59,6 +60,7 @@ import {
 } from '../src/entity';
 import { UserProfileAnalytics } from '../src/entity/user/UserProfileAnalytics';
 import { UserProfileAnalyticsHistory } from '../src/entity/user/UserProfileAnalyticsHistory';
+import { PostAnalyticsHistory } from '../src/entity/posts/PostAnalyticsHistory';
 import { sourcesFixture } from './fixture/source';
 import {
   CioTransactionalMessageTemplateId,
@@ -7976,31 +7978,17 @@ describe('query userPostsAnalytics', () => {
     }
   `;
 
-  beforeEach(async () => {
-    await con.getRepository(UserPostsAnalytics).save({
-      id: '1',
-      impressions: 500,
-      upvotes: 50,
-      comments: 25,
-    });
-  });
-
   it('should require authentication', async () => {
     await testQueryErrorCode(client, { query: QUERY }, 'UNAUTHENTICATED');
   });
 
-  it('should return user posts analytics', async () => {
+  it('should return null when no analytics exist', async () => {
     loggedUser = '1';
 
     const res = await client.query(QUERY);
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.userPostsAnalytics).toMatchObject({
-      id: '1',
-      impressions: 500,
-      upvotes: 50,
-      comments: 25,
-    });
+    expect(res.data.userPostsAnalytics).toBeNull();
   });
 });
 
