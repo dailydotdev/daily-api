@@ -407,9 +407,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const con = await createOrGetConnection();
 
       try {
-        const opportunity = await con.getRepository(OpportunityJob).findOne({
-          where: { id },
-          relations: ['keywords', 'locations'],
+        const opportunity = await queryReadReplica(con, ({ queryRunner }) => {
+          return queryRunner.manager.getRepository(OpportunityJob).findOne({
+            where: { id },
+            relations: ['keywords', 'locations', 'organization'],
+          });
         });
 
         if (!opportunity) {
