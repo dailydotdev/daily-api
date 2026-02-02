@@ -29,6 +29,7 @@ import type { UserCandidatePreference } from './UserCandidatePreference';
 import type { UserCandidateKeyword } from './UserCandidateKeyword';
 import type { UserCandidateAnswer } from './UserCandidateAnswer';
 import type { DatasetLocation } from '../dataset/DatasetLocation';
+import type { Decoration } from '../Decoration';
 
 export type UserFlags = Partial<{
   vordr: boolean;
@@ -370,4 +371,11 @@ export class User {
   // due to user table having a lot of depenencies
   @Column({ type: 'int', default: 0 })
   inc: number;
+
+  @Column({ type: 'text', nullable: true })
+  activeDecorationId: string | null;
+
+  @ManyToOne('Decoration', { lazy: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'activeDecorationId' })
+  activeDecoration: Promise<Decoration>;
 }

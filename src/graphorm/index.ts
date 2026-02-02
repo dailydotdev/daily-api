@@ -445,6 +445,13 @@ const obj = new GraphORM({
           return link ? extractHandleFromUrl(link.url, 'portfolio') : null;
         },
       },
+      activeDecoration: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'activeDecorationId',
+        },
+      },
     },
   },
   UserCompany: {
@@ -2311,6 +2318,14 @@ const obj = new GraphORM({
           childColumn: 'id',
           parentColumn: 'userId',
         },
+      },
+    },
+  },
+  Decoration: {
+    requiredColumns: ['id', 'name', 'media'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
       },
     },
   },

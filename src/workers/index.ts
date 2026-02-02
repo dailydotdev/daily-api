@@ -54,6 +54,7 @@ import { postAddedSlackChannelSendWorker } from './postAddedSlackChannelSend';
 import userCompanyApprovedCio from './userCompanyApprovedCio';
 import userUpdatedPlusSubscriptionSquad from './userUpdatedPlusSubscriptionSquad';
 import userUpdatedPlusSubscriptionCustomFeed from './userUpdatedPlusSubscriptionCustomFeed';
+import userUpdatedPlusSubscriptionDecoration from './userUpdatedPlusSubscriptionDecoration';
 import { postTranslated } from './postTranslated';
 import postDeletedSharedPostCleanup from './postDeletedSharedPostCleanup';
 import { transactionBalanceLogWorker } from './transactionBalanceLog';
@@ -136,6 +137,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   userCompanyApprovedCio,
   userUpdatedPlusSubscriptionSquad,
   userUpdatedPlusSubscriptionCustomFeed,
+  userUpdatedPlusSubscriptionDecoration,
   postTranslated,
   transactionBalanceLogWorker,
   userBoughtCores,

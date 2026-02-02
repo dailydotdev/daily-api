@@ -14,3 +14,4 @@ export * from './HotTake';
 export * from './UserHotTake';
 export * from './UserWorkspacePhoto';
 export * from './UserGear';
+export * from './UserDecoration';

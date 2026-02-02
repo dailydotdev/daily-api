@@ -87,6 +87,7 @@ import { logger } from '../logger';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 import { isUserPartOfOrganization } from '../common/plus';
 import { remoteConfig, RemoteConfigValue } from '../remoteConfig';
+import { Decoration } from '../entity/Decoration';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -153,6 +154,7 @@ export type LoggedInBoot = BaseBoot & {
     coresRole: CoresRole;
     location?: TLocation | null;
     profileCompletion?: ProfileCompletion | null;
+    activeDecoration?: Pick<Decoration, 'id' | 'name' | 'media'> | null;
   };
   accessToken?: AccessToken;
   marketingCta: MarketingCta | null;
@@ -473,6 +475,7 @@ const getUser = async (
       'readme',
       'language',
       'hideExperience',
+      'activeDecorationId',
     ],
   });
 
@@ -520,6 +523,20 @@ const getBalanceBoot: typeof getBalance = async ({ userId }) => {
       amount: 0,
     };
   }
+};
+
+const getActiveDecoration = async (
+  con: DataSource | QueryRunner,
+  decorationId: string | null,
+): Promise<Pick<Decoration, 'id' | 'name' | 'media'> | null> => {
+  if (!decorationId) {
+    return null;
+  }
+
+  return con.manager.getRepository(Decoration).findOne({
+    where: { id: decorationId },
+    select: ['id', 'name', 'media'],
+  });
 };
 
 const getLocation = async (
@@ -691,11 +708,18 @@ const loggedInBoot = async ({
       getAnonymousTheme(userId),
     ]);
 
-    const profileCompletion = calculateProfileCompletion(user, experienceFlags);
-
     if (!user) {
       return handleNonExistentUser(con, req, res, middleware);
     }
+
+    const [profileCompletion, activeDecoration] = await Promise.all([
+      Promise.resolve(calculateProfileCompletion(user, experienceFlags)),
+      user.activeDecorationId
+        ? queryReadReplica(con, ({ queryRunner }) =>
+            getActiveDecoration(queryRunner, user.activeDecorationId),
+          )
+        : Promise.resolve(null),
+    ]);
 
     // Apply anonymous theme (e.g. recruiter light mode) if user has no saved settings
     const finalSettings =
@@ -730,6 +754,7 @@ const loggedInBoot = async ({
           'flags',
           'locationId',
           'readmeHtml',
+          'activeDecorationId',
         ]),
         // Legacy social fields with explicit null for JSON backwards compatibility
         twitter: user.twitter ?? null,
@@ -768,6 +793,7 @@ const loggedInBoot = async ({
         hasLocationSet,
         location,
         profileCompletion,
+        activeDecoration,
       },
       visit,
       alerts: {
