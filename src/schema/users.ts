@@ -110,6 +110,10 @@ import {
 import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
+import { PostAnalytics } from '../entity/posts/PostAnalytics';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { format, subDays } from 'date-fns';
+import { CampaignPost, CampaignState } from '../entity/campaign';
 import {
   acceptedResumeFileTypes,
   ContentLanguage,
@@ -148,7 +152,6 @@ import { reportFunctionMap } from '../common/reporting';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
 import { isGiftedPlus } from '../paddle';
-import { queryReadReplica } from '../common/queryReadReplica';
 import { logger } from '../logger';
 import { generateAppAccountToken } from '../common/storekit';
 import { UserAction, UserActionType } from '../entity/user/UserAction';
@@ -325,6 +328,42 @@ export interface GQLUserProfileAnalytics {
 
 export interface GQLUserProfileAnalyticsHistory extends GQLUserProfileAnalytics {
   date: string;
+}
+
+export interface GQLUserPostsAnalytics {
+  id: string;
+  impressions: number;
+  reach: number;
+  upvotes: number;
+  comments: number;
+  bookmarks: number;
+  awards: number;
+  profileViews: number;
+  followers: number;
+  reputation: number;
+  coresEarned: number;
+  shares: number;
+  clicks: number;
+  upvotesRatio: number;
+  updatedAt: Date;
+}
+
+export interface GQLUserPostsAnalyticsHistoryNode {
+  date: string;
+  impressions: number;
+  impressionsAds: number;
+}
+
+export interface GQLUserPostWithAnalytics {
+  id: string;
+  title: string | null;
+  image: string | null;
+  createdAt: Date;
+  impressions: number;
+  upvotes: number;
+  reputation: number;
+  isBoosted: boolean;
+  commentsPermalink: string;
 }
 
 export interface SendReportArgs {
@@ -1142,6 +1181,138 @@ export const typeDefs = /* GraphQL */ `
     edges: [UserProfileAnalyticsHistoryEdge!]!
   }
 
+  """
+  Aggregated analytics across all posts authored by a user
+  """
+  type UserPostsAnalytics {
+    """
+    User ID
+    """
+    id: ID!
+    """
+    Total impressions across all posts
+    """
+    impressions: Int!
+    """
+    Total unique reach across all posts
+    """
+    reach: Int!
+    """
+    Total upvotes across all posts
+    """
+    upvotes: Int!
+    """
+    Total comments across all posts
+    """
+    comments: Int!
+    """
+    Total bookmarks across all posts
+    """
+    bookmarks: Int!
+    """
+    Total awards across all posts
+    """
+    awards: Int!
+    """
+    Total profile views driven by posts
+    """
+    profileViews: Int!
+    """
+    Total followers gained from posts
+    """
+    followers: Int!
+    """
+    Total reputation earned from posts
+    """
+    reputation: Int!
+    """
+    Total cores earned from posts
+    """
+    coresEarned: Int!
+    """
+    Total shares across all posts
+    """
+    shares: Int!
+    """
+    Total clicks across all posts
+    """
+    clicks: Int!
+    """
+    Upvote ratio percentage (0-100)
+    """
+    upvotesRatio: Int!
+  }
+
+  """
+  Daily impressions history entry for user posts analytics
+  """
+  type UserPostsAnalyticsHistoryNode {
+    """
+    Date of the analytics (YYYY-MM-DD)
+    """
+    date: DateTime!
+    """
+    Total impressions on this day
+    """
+    impressions: Int!
+    """
+    Impressions from ads/boosting on this day
+    """
+    impressionsAds: Int!
+  }
+
+  """
+  A user's post with its analytics data
+  """
+  type UserPostWithAnalytics {
+    """
+    Post ID
+    """
+    id: ID!
+    """
+    Post title
+    """
+    title: String
+    """
+    Post image URL
+    """
+    image: String
+    """
+    When the post was created
+    """
+    createdAt: DateTime!
+    """
+    Total impressions for this post
+    """
+    impressions: Int!
+    """
+    Total upvotes for this post
+    """
+    upvotes: Int!
+    """
+    Reputation earned from this post
+    """
+    reputation: Int!
+    """
+    Whether the post is currently being boosted
+    """
+    isBoosted: Boolean!
+    """
+    Permalink to the post's comments
+    """
+    commentsPermalink: String!
+  }
+
+  type UserPostWithAnalyticsEdge {
+    node: UserPostWithAnalytics!
+    cursor: String!
+  }
+
+  type UserPostWithAnalyticsConnection {
+    pageInfo: PageInfo!
+    edges: [UserPostWithAnalyticsEdge!]!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1348,6 +1519,24 @@ export const typeDefs = /* GraphQL */ `
       before: String
       first: Int
     ): UserProfileAnalyticsHistoryConnection @auth
+
+    """
+    Get aggregated analytics across all posts authored by the authenticated user
+    """
+    userPostsAnalytics: UserPostsAnalytics @auth
+
+    """
+    Get daily impressions history for all posts authored by the authenticated user (last 45 days)
+    """
+    userPostsAnalyticsHistory: [UserPostsAnalyticsHistoryNode!]! @auth
+
+    """
+    Get a paginated list of the authenticated user's posts with their analytics
+    """
+    userPostsWithAnalytics(
+      after: String
+      first: Int
+    ): UserPostWithAnalyticsConnection! @auth
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -2724,6 +2913,135 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           readReplica: true,
         },
       );
+    },
+    userPostsAnalytics: async (
+      _,
+      __,
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLUserPostsAnalytics | null> => {
+      const { userId } = ctx;
+      if (!userId) {
+        throw new ForbiddenError('Auth is required');
+      }
+
+      return graphorm.queryOne<GQLUserPostsAnalytics>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.andWhere(
+            `"${builder.alias}".id = :userId`,
+            { userId },
+          ),
+        }),
+        true,
+      );
+    },
+    userPostsAnalyticsHistory: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLUserPostsAnalyticsHistoryNode[]> => {
+      const { userId, con } = ctx;
+      if (!userId) {
+        throw new ForbiddenError('Auth is required');
+      }
+
+      const fortyFiveDaysAgo = subDays(new Date(), 45);
+      const formattedDate = format(fortyFiveDaysAgo, 'yyyy-MM-dd');
+
+      const result = await queryReadReplica(con, ({ queryRunner }) =>
+        queryRunner.query(
+          `
+          SELECT
+            pah.date,
+            SUM(pah.impressions + pah."impressionsAds")::int as impressions,
+            SUM(pah."impressionsAds")::int as "impressionsAds"
+          FROM post_analytics_history pah
+          INNER JOIN post p ON pah.id = p.id
+          WHERE p."authorId" = $1
+            AND p.deleted = false
+            AND pah.date >= $2
+          GROUP BY pah.date
+          ORDER BY pah.date DESC
+          `,
+          [userId, formattedDate],
+        ),
+      );
+
+      return result;
+    },
+    userPostsWithAnalytics: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+    ): Promise<Connection<GQLUserPostWithAnalytics>> => {
+      const { userId, con } = ctx;
+      if (!userId) {
+        throw new ForbiddenError('Auth is required');
+      }
+
+      const first = args.first ?? 20;
+      const after = args.after ? parseInt(args.after, 10) : 0;
+
+      const posts = await queryReadReplica(con, async ({ queryRunner }) => {
+        const postsQuery = queryRunner.manager
+          .getRepository(Post)
+          .createQueryBuilder('p')
+          .leftJoin(PostAnalytics, 'pa', 'pa.id = p.id')
+          .leftJoin(
+            CampaignPost,
+            'cp',
+            `cp."postId" = p.id AND cp.state = :campaignState`,
+            { campaignState: CampaignState.Active },
+          )
+          .select([
+            'p.id as id',
+            'p.title as title',
+            'p.image as image',
+            'p."createdAt" as "createdAt"',
+            'COALESCE(pa.impressions + pa."impressionsAds", 0)::int as impressions',
+            'COALESCE(pa.upvotes, 0)::int as upvotes',
+            'COALESCE(pa.reputation, 0)::int as reputation',
+            'CASE WHEN cp.id IS NOT NULL THEN true ELSE false END as "isBoosted"',
+            `'${process.env.COMMENTS_PREFIX || 'https://app.daily.dev'}/posts/' || p.id as "commentsPermalink"`,
+          ])
+          .where('p."authorId" = :userId', { userId })
+          .andWhere('p.deleted = false')
+          .andWhere('p.visible = true')
+          .orderBy('p."createdAt"', 'DESC')
+          .offset(after)
+          .limit(first + 1);
+
+        return postsQuery.getRawMany();
+      });
+
+      const hasNextPage = posts.length > first;
+      const edges = posts.slice(0, first).map((post, index) => ({
+        node: {
+          id: post.id,
+          title: post.title,
+          image: post.image,
+          createdAt: post.createdAt,
+          impressions: post.impressions,
+          upvotes: post.upvotes,
+          reputation: Math.max(0, post.reputation),
+          isBoosted: post.isBoosted,
+          commentsPermalink: post.commentsPermalink,
+        },
+        cursor: String(after + index),
+      }));
+
+      return {
+        edges,
+        pageInfo: {
+          hasNextPage,
+          hasPreviousPage: after > 0,
+          startCursor: edges.length > 0 ? edges[0].cursor : null,
+          endCursor: edges.length > 0 ? edges[edges.length - 1].cursor : null,
+        },
+      };
     },
   },
   Mutation: {
