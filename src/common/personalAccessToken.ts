@@ -5,6 +5,7 @@ import {
   PERSONAL_ACCESS_TOKEN_PREFIX,
 } from '../entity/PersonalAccessToken';
 import { IsNull } from 'typeorm';
+import { queryReadReplica } from './queryReadReplica';
 
 const TOKEN_BYTE_LENGTH = 32;
 
@@ -35,17 +36,21 @@ export interface ValidateTokenResult {
 }
 
 export const validatePersonalAccessToken = async (
-  con: DataSource | EntityManager,
+  con: DataSource,
   token: string,
 ): Promise<ValidateTokenResult> => {
   const hash = hashPersonalAccessToken(token);
 
-  const pat = await con.getRepository(PersonalAccessToken).findOne({
-    where: {
-      tokenHash: hash,
-      revokedAt: IsNull(),
-    },
-  });
+  // Use read replica since token validation happens frequently and
+  // doesn't require immediate consistency
+  const pat = await queryReadReplica(con, ({ queryRunner }) =>
+    queryRunner.manager.getRepository(PersonalAccessToken).findOne({
+      where: {
+        tokenHash: hash,
+        revokedAt: IsNull(),
+      },
+    }),
+  );
 
   if (!pat) {
     return { valid: false };
@@ -55,7 +60,7 @@ export const validatePersonalAccessToken = async (
     return { valid: false };
   }
 
-  // Update last used timestamp (fire and forget, don't block request)
+  // Update last used timestamp on primary (fire and forget, don't block request)
   con
     .getRepository(PersonalAccessToken)
     .update({ id: pat.id }, { lastUsedAt: new Date() })
