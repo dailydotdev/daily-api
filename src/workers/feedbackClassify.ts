@@ -9,7 +9,8 @@ import { createFeedbackIssue } from '../integrations/linear';
  * 2. Creates Linear issue with classification metadata
  * 3. Updates feedback record with classification and Linear issue info
  *
- * If any step fails, the entire process fails and will be retried.
+ * Status is set to Accepted, which triggers a CDC event that the
+ * feedbackUpdatedSlack worker listens to for sending Slack notifications.
  */
 const worker: TypedWorker<'api.v1.feedback-created'> = {
   subscription: 'api.feedback-classify',
@@ -82,10 +83,11 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
         throw new Error('Linear client not configured');
       }
 
-      // Only wrap the write in transaction
+      // Update feedback with classification and Linear issue info
+      // Status change to Accepted triggers CDC event for Slack notification
       await con.transaction(async (entityManager) => {
         await entityManager.getRepository(Feedback).update(feedbackId, {
-          status: FeedbackStatus.Completed,
+          status: FeedbackStatus.Accepted,
           classification,
           linearIssueId: issue.id,
           linearIssueUrl: issue.url,

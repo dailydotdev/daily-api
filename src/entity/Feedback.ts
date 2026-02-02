@@ -13,8 +13,8 @@ import { UserFeedbackCategory } from '@dailydotdev/schema';
 export enum FeedbackStatus {
   Pending = 0,
   Processing = 1,
-  Accepted = 2, // Linear ticket moved to "In Progress"
-  Completed = 3, // Linear ticket moved to "Done" → triggers notification
+  Accepted = 2, // Classified by Bragi, Linear issue created → triggers Slack notification via CDC
+  Completed = 3, // Linear ticket moved to "Done" → triggers notification to user
   Cancelled = 4, // Linear ticket cancelled
   Failed = 5, // Classification failed
   Spam = 6, // Marked as spam
@@ -31,6 +31,7 @@ export type FeedbackClassification = {
 
 export type FeedbackFlags = Partial<{
   vordr: boolean;
+  slackNotifiedAt: string; // ISO timestamp
 }>;
 
 @Entity()

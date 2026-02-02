@@ -35,13 +35,13 @@ describe('feedbackUpdatedSlack worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should send slack message for completed feedback', async () => {
+  it('should send slack message for accepted feedback', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
       category: 1,
       description: 'Test feedback description',
       pageUrl: 'https://example.com/page',
-      status: FeedbackStatus.Completed,
+      status: FeedbackStatus.Accepted,
       classification: {
         sentiment: '1',
         urgency: '2',
@@ -57,9 +57,14 @@ describe('feedbackUpdatedSlack worker', () => {
     });
 
     expect(webhooks.userFeedback.send).toHaveBeenCalledTimes(1);
+
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
+    expect(updated?.flags?.slackNotifiedAt).toBeDefined();
   });
 
-  it('should skip non-completed feedback', async () => {
+  it('should skip non-accepted feedback', async () => {
     const feedback = await con.getRepository(Feedback).save({
       userId: '1',
       category: 1,
@@ -78,6 +83,29 @@ describe('feedbackUpdatedSlack worker', () => {
   it('should skip when feedback not found', async () => {
     await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
       feedbackId: '00000000-0000-0000-0000-000000000000',
+    });
+
+    expect(webhooks.userFeedback.send).not.toHaveBeenCalled();
+  });
+
+  it('should skip if slackNotifiedAt is already set (idempotency)', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Test feedback',
+      status: FeedbackStatus.Accepted,
+      classification: {
+        sentiment: '1',
+        urgency: '2',
+        tags: ['ui'],
+        summary: 'Summary',
+      },
+      linearIssueUrl: 'https://linear.app/issue/123',
+      flags: { slackNotifiedAt: new Date().toISOString() },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
     });
 
     expect(webhooks.userFeedback.send).not.toHaveBeenCalled();
