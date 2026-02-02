@@ -38,6 +38,7 @@ import * as sourceStack from './schema/sourceStack';
 import * as userHotTake from './schema/userHotTake';
 import * as gear from './schema/gear';
 import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
+import * as personalAccessTokens from './schema/personalAccessTokens';
 import * as feedback from './schema/feedback';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
@@ -93,6 +94,7 @@ export const schema = urlDirective.transformer(
               userHotTake.typeDefs,
               gear.typeDefs,
               userWorkspacePhoto.typeDefs,
+              personalAccessTokens.typeDefs,
               feedback.typeDefs,
             ],
             resolvers: merge(
@@ -131,6 +133,7 @@ export const schema = urlDirective.transformer(
               userHotTake.resolvers,
               gear.resolvers,
               userWorkspacePhoto.resolvers,
+              personalAccessTokens.resolvers,
               feedback.resolvers,
             ),
           }),

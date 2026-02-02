@@ -15,10 +15,20 @@ export const injectGraphql = async (
   req: FastifyRequest,
   res: FastifyReply,
 ): Promise<FastifyReply> => {
-  const reqHeaders = {
+  const reqHeaders: Record<string, string | string[] | undefined> = {
     ...req.headers,
   };
   delete reqHeaders['content-length'];
+
+  // Use service auth to pass authenticated user to GraphQL
+  // The public API auth hook sets req.userId and req.isPlus
+  if (req.userId) {
+    reqHeaders['authorization'] = `Service ${process.env.ACCESS_SECRET}`;
+    reqHeaders['user-id'] = req.userId;
+    reqHeaders['logged-in'] = 'true';
+    reqHeaders['is-plus'] = req.isPlus ? 'true' : 'false';
+  }
+
   const graphqlRes = await fastify.inject({
     method: 'POST',
     url: '/graphql',
@@ -38,16 +48,28 @@ export const injectGraphql = async (
   const errors = json['errors'] as GraphQLError[];
   const code = errors?.[0]?.extensions?.code;
   if (code === 'UNAUTHENTICATED') {
-    return res.status(401).send();
+    return res.status(401).send({
+      error: 'unauthorized',
+      message: 'Authentication required',
+    });
   }
   if (code === 'FORBIDDEN') {
-    return res.status(403).send();
+    return res.status(403).send({
+      error: 'forbidden',
+      message: 'Access denied',
+    });
   }
   if (code === 'VALIDATION_ERROR' || code === 'GRAPHQL_VALIDATION_FAILED') {
-    return res.status(400).send();
+    return res.status(400).send({
+      error: 'validation_error',
+      message: errors?.[0]?.message || 'Invalid request',
+    });
   }
   if (code === 'NOT_FOUND') {
-    return res.status(404).send();
+    return res.status(404).send({
+      error: 'not_found',
+      message: errors?.[0]?.message || 'Resource not found',
+    });
   }
   if (code || errors?.length) {
     req.log.warn(
