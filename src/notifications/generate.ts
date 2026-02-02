@@ -37,6 +37,7 @@ import {
   type NotificationRecruiterOpportunityLiveContext,
   type NotificationExperienceCompanyEnrichedContext,
   type NotificationRecruiterExternalPaymentContext,
+  type NotificationFeedbackResolvedContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -236,6 +237,8 @@ export const notificationTitleMap: Record<
     ctx: NotificationRecruiterExternalPaymentContext,
   ) =>
     `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
+  feedback_resolved: () =>
+    `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>. Thank you for helping us improve!`,
 };
 
 export const generateNotificationMap: Record<
@@ -683,5 +686,16 @@ export const generateNotificationMap: Record<
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/prepare`,
       );
+  },
+  feedback_resolved: (
+    builder: NotificationBuilder,
+    ctx: NotificationFeedbackResolvedContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .referenceFeedback(ctx.feedbackId)
+      .description(ctx.feedbackDescription, true)
+      .targetUrl(process.env.COMMENTS_PREFIX)
+      .uniqueKey(ctx.feedbackId);
   },
 };
