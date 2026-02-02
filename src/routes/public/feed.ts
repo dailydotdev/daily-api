@@ -19,11 +19,15 @@ const FEED_QUERY = `
           title
           url
           image
+          summary
+          type
           publishedAt
           createdAt
+          commentsPermalink
           source {
             id
             name
+            handle
             image
           }
           tags
@@ -49,11 +53,15 @@ interface FeedNode {
   title: string;
   url: string;
   image: string | null;
+  summary: string | null;
+  type: string;
   publishedAt: string | null;
   createdAt: string;
+  commentsPermalink: string;
   source: {
     id: string;
     name: string;
+    handle: string;
     image: string | null;
   };
   tags: string[];

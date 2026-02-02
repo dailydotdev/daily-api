@@ -13,8 +13,10 @@ const POST_QUERY = `
       url
       image
       summary
+      type
       publishedAt
       createdAt
+      commentsPermalink
       source {
         id
         name
@@ -47,8 +49,10 @@ interface PostQueryResponse {
       url: string | null;
       image: string | null;
       summary: string | null;
+      type: string;
       publishedAt: string | null;
       createdAt: string;
+      commentsPermalink: string;
       source: {
         id: string;
         name: string;
@@ -112,17 +116,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         },
         (json) => {
           const { post } = (json as unknown as PostQueryResponse).data;
-          return {
-            data: {
-              ...post,
-              source: {
-                ...post.source,
-                url: post.source.handle
-                  ? `https://app.daily.dev/sources/${post.source.handle}`
-                  : null,
-              },
-            },
-          };
+          return { data: post };
         },
         request,
         reply,

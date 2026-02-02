@@ -171,7 +171,9 @@ await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
 
 ### 3. Add Schemas (Optional)
 
-If your endpoint uses new data types, add them to `schemas.ts`:
+If your endpoint uses new data types, add them to `schemas.ts`.
+
+**Important:** When updating schemas, also update `skill.md` to keep the example responses in sync. Bump the version number following semver (see Versioning section above).
 
 ```typescript
 export const commonSchemas = {
@@ -230,8 +232,7 @@ response: {
 ```
 
 Available schemas defined in `schemas.ts`:
-- `Source` - Basic source info (id, name, image)
-- `SourceWithUrl` - Source with URL
+- `Source` - Source info (id, name, handle, image)
 - `Author` - Basic author info (name, image)
 - `AuthorWithId` - Author with id and username
 - `FeedPost` - Post in feed list
