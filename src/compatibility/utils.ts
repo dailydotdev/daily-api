@@ -38,16 +38,28 @@ export const injectGraphql = async (
   const errors = json['errors'] as GraphQLError[];
   const code = errors?.[0]?.extensions?.code;
   if (code === 'UNAUTHENTICATED') {
-    return res.status(401).send();
+    return res.status(401).send({
+      error: 'unauthorized',
+      message: 'Authentication required',
+    });
   }
   if (code === 'FORBIDDEN') {
-    return res.status(403).send();
+    return res.status(403).send({
+      error: 'forbidden',
+      message: 'Access denied',
+    });
   }
   if (code === 'VALIDATION_ERROR' || code === 'GRAPHQL_VALIDATION_FAILED') {
-    return res.status(400).send();
+    return res.status(400).send({
+      error: 'validation_error',
+      message: errors?.[0]?.message || 'Invalid request',
+    });
   }
   if (code === 'NOT_FOUND') {
-    return res.status(404).send();
+    return res.status(404).send({
+      error: 'not_found',
+      message: errors?.[0]?.message || 'Resource not found',
+    });
   }
   if (code || errors?.length) {
     req.log.warn(

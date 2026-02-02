@@ -1,12 +1,10 @@
 import appFunc from '../../../src';
 import { FastifyInstance } from 'fastify';
 import { saveFixtures } from '../../helpers';
-import {
-  User,
-  PersonalAccessToken,
-  ArticlePost,
-  Source,
-} from '../../../src/entity';
+import { User } from '../../../src/entity/user/User';
+import { PersonalAccessToken } from '../../../src/entity/PersonalAccessToken';
+import { ArticlePost } from '../../../src/entity/posts/ArticlePost';
+import { Source } from '../../../src/entity/Source';
 import { usersFixture, plusUsersFixture } from '../../fixture/user';
 import { sourcesFixture } from '../../fixture/source';
 import { postsFixture } from '../../fixture/post';
@@ -67,7 +65,12 @@ describe('Public API Authentication', () => {
         .set('Authorization', 'Basic some-token')
         .expect(401);
 
-      expect(body.error).toBe('unauthorized');
+      expect(body).toMatchObject({
+        error: 'unauthorized',
+        message: expect.stringContaining(
+          'Missing or invalid Authorization header',
+        ),
+      });
     });
 
     it('should return 401 for invalid token', async () => {
@@ -76,8 +79,10 @@ describe('Public API Authentication', () => {
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
 
-      expect(body.error).toBe('invalid_token');
-      expect(body.message).toContain('invalid, expired, or revoked');
+      expect(body).toMatchObject({
+        error: 'invalid_token',
+        message: expect.stringContaining('invalid, expired, or revoked'),
+      });
     });
 
     it('should return 401 for revoked token', async () => {
@@ -128,8 +133,10 @@ describe('Public API Authentication', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(403);
 
-      expect(body.error).toBe('plus_required');
-      expect(body.message).toContain('Plus subscription');
+      expect(body).toMatchObject({
+        error: 'plus_required',
+        message: expect.stringContaining('Plus subscription'),
+      });
     });
 
     it('should allow Plus user access', async () => {
@@ -205,10 +212,11 @@ describe('GET /public/v1/feed', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.data).toBeDefined();
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.length).toBeGreaterThan(0);
-    expect(body.pagination).toBeDefined();
+    expect(body.pagination).toMatchObject({
+      hasNextPage: expect.any(Boolean),
+    });
   });
 
   it('should support pagination with limit parameter', async () => {
@@ -254,9 +262,11 @@ describe('GET /public/v1/feed', () => {
       .expect(200);
 
     const post = body.data[0];
-    expect(post).toHaveProperty('id');
-    expect(post).toHaveProperty('title');
-    expect(post).toHaveProperty('url');
+    expect(post).toMatchObject({
+      id: expect.any(String),
+      title: expect.any(String),
+      url: expect.any(String),
+    });
   });
 });
 
@@ -269,9 +279,10 @@ describe('GET /public/v1/posts/:id', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.post).toBeDefined();
-    expect(body.post.id).toBe('p1');
-    expect(body.post.title).toBe('P1');
+    expect(body.data).toMatchObject({
+      id: 'p1',
+      title: 'P1',
+    });
   });
 
   it('should return 404 for non-existent post', async () => {
@@ -293,7 +304,19 @@ describe('GET /public/v1/posts/:id', () => {
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
-    expect(body.post.source).toBeDefined();
-    expect(body.post.source.id).toBe('a');
+    expect(body.data.source).toMatchObject({ id: 'a' });
+  });
+
+  it('should include bookmarked field in response', async () => {
+    const token = await createTokenForUser('5');
+
+    const { body } = await request(app.server)
+      .get('/public/v1/posts/p1')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data).toMatchObject({
+      bookmarked: expect.any(Boolean),
+    });
   });
 });
