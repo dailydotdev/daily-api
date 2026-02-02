@@ -58,7 +58,6 @@ import {
   CioTransactionalMessageTemplateId,
   clearFile,
   DayOfWeek,
-  FORTY_FIVE_DAYS,
   getBufferFromStream,
   getInviteLink,
   getShortUrl,
@@ -147,6 +146,7 @@ import {
 } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
+import { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 import { reportFunctionMap } from '../common/reporting';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
@@ -2869,26 +2869,26 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLUserPostsAnalyticsHistoryNode[]> => {
       const { userId, con } = ctx;
 
-      const fortyFiveDaysAgo = subDays(new Date(), FORTY_FIVE_DAYS);
+      const fortyFiveDaysAgo = subDays(new Date(), 45);
       const formattedDate = format(fortyFiveDaysAgo, 'yyyy-MM-dd');
 
       const result = await queryReadReplica(con, ({ queryRunner }) =>
-        queryRunner.query(
-          `
-          SELECT
-            pah.date,
-            SUM(pah.impressions + pah."impressionsAds")::int as impressions,
-            SUM(pah."impressionsAds")::int as "impressionsAds"
-          FROM post_analytics_history pah
-          INNER JOIN post p ON pah.id = p.id
-          WHERE p."authorId" = $1
-            AND p.deleted = false
-            AND pah.date >= $2
-          GROUP BY pah.date
-          ORDER BY pah.date DESC
-          `,
-          [userId, formattedDate],
-        ),
+        queryRunner.manager
+          .getRepository(PostAnalyticsHistory)
+          .createQueryBuilder('pah')
+          .innerJoin('pah.post', 'p')
+          .select('pah.date', 'date')
+          .addSelect(
+            'SUM(pah.impressions + pah.impressionsAds)::int',
+            'impressions',
+          )
+          .addSelect('SUM(pah.impressionsAds)::int', 'impressionsAds')
+          .where('p.authorId = :userId', { userId })
+          .andWhere('p.deleted = false')
+          .andWhere('pah.date >= :formattedDate', { formattedDate })
+          .groupBy('pah.date')
+          .orderBy('pah.date', 'DESC')
+          .getRawMany(),
       );
 
       return result;

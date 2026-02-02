@@ -824,9 +824,9 @@ export const typeDefs = /* GraphQL */ `
     isBoosted: Boolean
 
     """
-    Post analytics (only visible to author/scout)
+    Post analytics
     """
-    analytics: PostAnalytics
+    analytics: PostAnalyticsPublic
   }
 
   type PostConnection {
