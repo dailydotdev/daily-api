@@ -8,6 +8,8 @@ export const ONE_YEAR_IN_SECONDS = ONE_DAY_IN_SECONDS * 365;
 export const ONE_HOUR_IN_MINUTES = 60;
 export const ONE_DAY_IN_MINUTES = ONE_HOUR_IN_MINUTES * 24;
 
+export const FORTY_FIVE_DAYS = 45;
+
 export const THREE_MONTHS_IN_SECONDS = ONE_MONTH_IN_SECONDS * 3;
 
 export const MAX_FOLLOWERS_LIMIT = 5_000;

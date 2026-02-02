@@ -58,6 +58,7 @@ import {
   CioTransactionalMessageTemplateId,
   clearFile,
   DayOfWeek,
+  FORTY_FIVE_DAYS,
   getBufferFromStream,
   getInviteLink,
   getShortUrl,
@@ -2921,9 +2922,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       info: GraphQLResolveInfo,
     ): Promise<GQLUserPostsAnalytics | null> => {
       const { userId } = ctx;
-      if (!userId) {
-        throw new ForbiddenError('Auth is required');
-      }
 
       return graphorm.queryOne<GQLUserPostsAnalytics>(
         ctx,
@@ -2944,11 +2942,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<GQLUserPostsAnalyticsHistoryNode[]> => {
       const { userId, con } = ctx;
-      if (!userId) {
-        throw new ForbiddenError('Auth is required');
-      }
 
-      const fortyFiveDaysAgo = subDays(new Date(), 45);
+      const fortyFiveDaysAgo = subDays(new Date(), FORTY_FIVE_DAYS);
       const formattedDate = format(fortyFiveDaysAgo, 'yyyy-MM-dd');
 
       const result = await queryReadReplica(con, ({ queryRunner }) =>
@@ -2978,9 +2973,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
     ): Promise<Connection<GQLUserPostWithAnalytics>> => {
       const { userId, con } = ctx;
-      if (!userId) {
-        throw new ForbiddenError('Auth is required');
-      }
 
       const first = args.first ?? 20;
       const after = args.after ? parseInt(args.after, 10) : 0;
