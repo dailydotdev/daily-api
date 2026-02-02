@@ -57,17 +57,7 @@ if (!userId) {
 
 The token being valid is sufficient proof of Plus access.
 
-### 4. Use Personalized Feeds
-For authenticated users, use the personalized `feed` query (For You feed), not `anonymousFeed`:
-```graphql
-# GOOD - personalized feed for authenticated users
-feed(first: $first, after: $after, ranking: TIME, version: 1) { ... }
-
-# BAD - anonymous feed doesn't respect user preferences
-anonymousFeed(first: $first, after: $after, ...) { ... }
-```
-
-### 5. Simplify Response Transformations
+### 4. Simplify Response Transformations
 When the GraphQL response structure matches the REST API response, just return the node directly:
 ```typescript
 // GOOD - simple passthrough
