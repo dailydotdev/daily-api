@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { candidateOpportunityMatchNotification as worker } from '../../../src/workers/notifications/candidateOpportunityMatchNotification';
+import { reMatchedOpportunityNotification as worker } from '../../../src/workers/notifications/reMatchedOpportunityNotification';
 import createOrGetConnection from '../../../src/db';
 import { User, Organization } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
@@ -20,7 +20,7 @@ import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 
 let con: DataSource;
 
-describe('candidateOpportunityMatchNotification worker', () => {
+describe('reMatchedOpportunityNotification worker', () => {
   beforeAll(async () => {
     con = await createOrGetConnection();
   });
@@ -41,7 +41,45 @@ describe('candidateOpportunityMatchNotification worker', () => {
     expect(registeredWorker).toBeDefined();
   });
 
-  it('should send notification with all required fields', async () => {
+  it('should send notification for re-match (candidate_rejected status)', async () => {
+    await con.getRepository(OpportunityMatch).save({
+      userId: '1',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      status: OpportunityMatchStatus.CandidateRejected,
+      description: {
+        matchScore: 75,
+        reasoning: 'Initial',
+        reasoningShort: 'Initial',
+      },
+      feedback: [{ screening: 'test', answer: 'rejected' }],
+      history: [],
+    });
+
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          matchScore: 90,
+          reasoning: 'Re-match reasoning',
+          reasoningShort: 'Re-match short',
+        }),
+      );
+
+    expect(result!.length).toEqual(1);
+    expect(result![0].type).toEqual(NotificationType.ReMatchedOpportunity);
+
+    const context = result![0].ctx as NotificationOpportunityMatchContext;
+
+    expect(context.userIds).toEqual(['1']);
+    expect(context.opportunityId).toEqual(
+      '550e8400-e29b-41d4-a716-446655440001',
+    );
+    expect(context.reasoningShort).toEqual('Re-match short');
+  });
+
+  it('should not send notification when no existing match', async () => {
     const result =
       await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
         worker,
@@ -49,75 +87,16 @@ describe('candidateOpportunityMatchNotification worker', () => {
           userId: '1',
           opportunityId: '550e8400-e29b-41d4-a716-446655440001',
           matchScore: 85,
-          reasoning: 'Based on your React and TypeScript skills and experience',
-          reasoningShort: 'Based on your React and TypeScript skills',
+          reasoning: 'New match',
+          reasoningShort: 'New match',
         }),
       );
 
-    expect(result!.length).toEqual(1);
-    expect(result![0].type).toEqual(NotificationType.NewOpportunityMatch);
-
-    const context = result![0].ctx as NotificationOpportunityMatchContext;
-
-    expect(context.userIds).toEqual(['1']);
-    expect(context.opportunityId).toEqual(
-      '550e8400-e29b-41d4-a716-446655440001',
-    );
-    expect(context.reasoningShort).toEqual(
-      'Based on your React and TypeScript skills',
-    );
-  });
-
-  it('should send notification without optional fields', async () => {
-    const result =
-      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
-        worker,
-        new MatchedCandidate({
-          userId: '1',
-          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-        }),
-      );
-
-    expect(result!.length).toEqual(1);
-    expect(result![0].type).toEqual(NotificationType.NewOpportunityMatch);
-
-    const context = result![0].ctx as NotificationOpportunityMatchContext;
-
-    expect(context.userIds).toEqual(['1']);
-    expect(context.opportunityId).toEqual(
-      '550e8400-e29b-41d4-a716-446655440001',
-    );
-    expect(context.reasoningShort).toEqual('');
-  });
-
-  it('should not send notification when userId is missing', async () => {
-    const result =
-      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
-        worker,
-        new MatchedCandidate({
-          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-          reasoning: 'Test reasoning',
-        }),
-      );
-
+    // Should skip - new matches are handled by candidateOpportunityMatchNotification
     expect(result).toBeUndefined();
   });
 
-  it('should not send notification when opportunityId is missing', async () => {
-    const result =
-      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
-        worker,
-        new MatchedCandidate({
-          userId: '1',
-          reasoning: 'Test reasoning',
-        }),
-      );
-
-    expect(result).toBeUndefined();
-  });
-
-  it('should not send notification when match already exists', async () => {
-    // Create existing match
+  it('should not send notification when existing match is not candidate_rejected', async () => {
     await con.getRepository(OpportunityMatch).save({
       userId: '1',
       opportunityId: '550e8400-e29b-41d4-a716-446655440001',
@@ -143,37 +122,33 @@ describe('candidateOpportunityMatchNotification worker', () => {
         }),
       );
 
-    // Should skip because match already exists
+    // Should skip - not a re-match (status is not candidate_rejected)
     expect(result).toBeUndefined();
   });
 
-  it('should not send notification for re-match (candidate_rejected)', async () => {
-    await con.getRepository(OpportunityMatch).save({
-      userId: '1',
-      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-      status: OpportunityMatchStatus.CandidateRejected,
-      description: {
-        matchScore: 75,
-        reasoning: 'Initial',
-        reasoningShort: 'Initial',
-      },
-      feedback: [{ screening: 'test', answer: 'rejected' }],
-      history: [],
-    });
+  it('should not send notification when userId is missing', async () => {
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          reasoning: 'Test reasoning',
+        }),
+      );
 
+    expect(result).toBeUndefined();
+  });
+
+  it('should not send notification when opportunityId is missing', async () => {
     const result =
       await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
         worker,
         new MatchedCandidate({
           userId: '1',
-          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
-          matchScore: 90,
-          reasoning: 'Re-match',
-          reasoningShort: 'Re-match',
+          reasoning: 'Test reasoning',
         }),
       );
 
-    // Should skip - re-matches are handled by reMatchedOpportunityNotification
     expect(result).toBeUndefined();
   });
 });

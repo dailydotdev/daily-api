@@ -88,7 +88,7 @@ The migration generator compares entities against the local database schema. Ens
 - `src/cron/` - Scheduled cron jobs for maintenance and periodic tasks. One file per cron, registered in `index.ts`, deployed via `.infra/crons.ts` Pulumi config. Each cron exports a `Cron` object with `name` and `handler(DataSource, logger, pubsub)`. Run locally with `pnpm run cli cron <name>`. See `src/cron/AGENTS.md` for more.
 
 **Type Safety & Validation:**
-- We favor type safety throughout the codebase. Use TypeScript interfaces and types for compile-time type checking.
+- We favor type safety throughout the codebase. **Prefer `type` over `interface`** for type declarations.
 - **Zod schemas** are preferred for runtime validation, especially for input validation, API boundaries, and data parsing. Zod provides both type inference and runtime validation, making it ideal for verifying user input, API payloads, and external data sources.
 - **This project uses Zod 4.x** (currently 4.3.5). Be aware of API differences from Zod 3.x:
   - **Primitive types are now top-level**: Use `z.email()` instead of `z.string().email()`, `z.uuid()` instead of `z.string().uuid()`, `z.url()` instead of `z.string().url()`
@@ -154,6 +154,11 @@ The migration generator compares entities against the local database schema. Ens
 - Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
 - Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
 
+**Comments:**
+- **Do not add unnecessary comments** - code should be self-documenting through clear naming
+- If you feel a comment is needed, ask first before adding it
+- Avoid comments that simply restate what the code does (e.g., `// Check if user exists` before `if (!user)`)
+
 **Function style:**
 - Prefer const arrow functions over function declarations: `const foo = () => {}` instead of `function foo() {}`
 - Prefer single props-style argument over multiple arguments: `const foo = ({ a, b }) => {}` instead of `const foo = (a, b) => {}`
@@ -172,6 +177,7 @@ The migration generator compares entities against the local database schema. Ens
 - Add new constants to `src/common/constants.ts` if needed (they are re-exported from `src/common/index.ts`)
 
 **Type declarations:**
+- **Prefer `type` over `interface`** - Use `type` for all type declarations unless you specifically need interface features (declaration merging, extends)
 - Only create separate exported types if they are used in multiple places
 - For single-use types, define them inline within the parent type
 - Example: Instead of `export type FileData = {...}; type Flags = { file: FileData }`, use `type Flags = { file: { ... } }`
@@ -183,16 +189,16 @@ The migration generator compares entities against the local database schema. Ens
 - **Never use inline type imports** - Always use regular `import type` statements at the top of the file instead of `import('module').Type` syntax.
   ```typescript
   // BAD: Inline type import
-  interface FastifyInstance {
+  type FastifyInstance = {
     con?: import('typeorm').DataSource;
-  }
+  };
 
   // GOOD: Import type at top of file
   import type { DataSource } from 'typeorm';
 
-  interface FastifyInstance {
+  type FastifyInstance = {
     con?: DataSource;
-  }
+  };
   ```
 
 **Avoid non-null assertion operator (`!`):**
@@ -326,6 +332,22 @@ The migration generator compares entities against the local database schema. Ens
   });
   ```
 - The utilities generate SQL like `flags || '{"newField": "value"}'` which atomically merges without needing to read first (unless you need to reference existing values).
+- **For nested JSONB values** (arrays, objects with special characters), use query builder with `setParameter` to properly escape:
+  ```typescript
+  // BAD: Inline JSON string - can have escape issues with nested data
+  await repo.update(id, {
+    history: () => `history || '${JSON.stringify(entry)}'`,
+  });
+
+  // GOOD: Use query builder with setParameter
+  await repo
+    .createQueryBuilder()
+    .update()
+    .set({ history: () => `history || :historyJson` })
+    .where({ id })
+    .setParameter('historyJson', JSON.stringify(entry))
+    .execute();
+  ```
 
 **Using Transactions for Multiple Sequential Updates:**
 - **Wrap multiple sequential database updates in a transaction** to ensure atomicity - if any operation fails, all changes are rolled back.

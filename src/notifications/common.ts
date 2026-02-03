@@ -74,6 +74,7 @@ export enum NotificationType {
   CampaignPostFirstMilestone = 'campaign_post_first_milestone',
   CampaignSquadFirstMilestone = 'campaign_squad_first_milestone',
   NewOpportunityMatch = 'new_opportunity_match',
+  ReMatchedOpportunity = 'rematched_opportunity',
   PostAnalytics = 'post_analytics',
   PollResult = 'poll_result',
   PollResultAuthor = 'poll_result_author',
