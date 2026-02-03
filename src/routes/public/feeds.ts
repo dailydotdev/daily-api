@@ -15,7 +15,7 @@ const DEFAULT_LIMIT = 20;
 // GraphQL query for the "For You" personalized feed
 const FORYOU_FEED_QUERY = `
   query PublicApiFeed($first: Int, $after: String, $version: Int) {
-    feed(first: $first, after: $after, ranking: TIME, version: $version) {
+    feed(first: $first, after: $after, ranking: POPULARITY, version: $version) {
       edges {
         node {
           id
