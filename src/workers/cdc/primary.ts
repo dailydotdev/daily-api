@@ -46,7 +46,7 @@ import {
   Feedback,
 } from '../../entity';
 import { HotTake } from '../../entity/user/HotTake';
-import { UserExperienceSkill } from '../../entity/user/experiences/UserExperienceSkill';
+import { UserStack } from '../../entity/user/UserStack';
 import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -347,14 +347,22 @@ const onPostVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
-      // Check achievement progress for post upvotes
+      // Check achievement progress for post upvotes (exclude self-upvotes)
       if (data.payload.after!.vote === UserVote.Up) {
-        await checkAchievementProgress(
-          con,
-          logger,
-          data.payload.after!.userId,
-          AchievementEventType.PostUpvote,
-        );
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.after!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.PostUpvote,
+          );
+        }
       }
       break;
     case 'u':
@@ -375,17 +383,25 @@ const onPostVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
-      // Check achievement progress when vote changes to upvote
+      // Check achievement progress when vote changes to upvote (exclude self-upvotes)
       if (
         data.payload.after!.vote === UserVote.Up &&
         data.payload.before!.vote !== UserVote.Up
       ) {
-        await checkAchievementProgress(
-          con,
-          logger,
-          data.payload.after!.userId,
-          AchievementEventType.PostUpvote,
-        );
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.after!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.PostUpvote,
+          );
+        }
       }
       break;
     case 'd':
@@ -422,14 +438,22 @@ const onCommentVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
-      // Check achievement progress for comment upvotes
+      // Check achievement progress for comment upvotes (exclude self-upvotes)
       if (data.payload.after!.vote === UserVote.Up) {
-        await checkAchievementProgress(
-          con,
-          logger,
-          data.payload.after!.userId,
-          AchievementEventType.CommentUpvote,
-        );
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.after!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.CommentUpvote,
+          );
+        }
       }
       break;
     case 'u':
@@ -450,17 +474,25 @@ const onCommentVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
-      // Check achievement progress when vote changes to upvote
+      // Check achievement progress when vote changes to upvote (exclude self-upvotes)
       if (
         data.payload.after!.vote === UserVote.Up &&
         data.payload.before!.vote !== UserVote.Up
       ) {
-        await checkAchievementProgress(
-          con,
-          logger,
-          data.payload.after!.userId,
-          AchievementEventType.CommentUpvote,
-        );
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.after!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.CommentUpvote,
+          );
+        }
       }
       break;
     case 'd':
@@ -1925,7 +1957,6 @@ const onHotTakeChange = async (
   logger: FastifyBaseLogger,
   data: ChangeMessage<HotTake>,
 ) => {
-  // Check hot take achievement on create
   if (data.payload.op === 'c') {
     await checkAchievementProgress(
       con,
@@ -1936,27 +1967,18 @@ const onHotTakeChange = async (
   }
 };
 
-const onUserExperienceSkillChange = async (
+const onUserStackChange = async (
   con: DataSource,
   logger: FastifyBaseLogger,
-  data: ChangeMessage<UserExperienceSkill>,
+  data: ChangeMessage<UserStack>,
 ) => {
-  // Check skill achievement on create
   if (data.payload.op === 'c') {
-    // UserExperienceSkill doesn't have userId directly, we need to get it from the experience
-    const experienceId = data.payload.after!.experienceId;
-    const experience = await con
-      .getRepository(UserExperience)
-      .findOneBy({ id: experienceId });
-
-    if (experience) {
-      await checkAchievementProgress(
-        con,
-        logger,
-        experience.userId,
-        AchievementEventType.ExperienceSkill,
-      );
-    }
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.ExperienceSkill,
+    );
   }
 };
 
@@ -2100,8 +2122,8 @@ const worker: Worker = {
         case getTableName(con, HotTake):
           await onHotTakeChange(con, logger, data);
           break;
-        case getTableName(con, UserExperienceSkill):
-          await onUserExperienceSkillChange(con, logger, data);
+        case getTableName(con, UserStack):
+          await onUserStackChange(con, logger, data);
           break;
       }
     } catch (err) {

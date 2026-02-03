@@ -4,41 +4,6 @@ export class AchievementSystem1770072115384 implements MigrationInterface {
   name = 'AchievementSystem1770072115384';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Create achievement_type enum
-    await queryRunner.query(`
-      CREATE TYPE "achievement_type_enum" AS ENUM (
-        'instant',
-        'streak',
-        'milestone',
-        'multipart'
-      )
-    `);
-
-    // Create achievement_event_type enum
-    await queryRunner.query(`
-      CREATE TYPE "achievement_event_type_enum" AS ENUM (
-        'post_upvote',
-        'comment_upvote',
-        'bookmark_post',
-        'profile_image_update',
-        'profile_cover_update',
-        'profile_location_update',
-        'experience_work',
-        'experience_education',
-        'experience_opensource',
-        'experience_project',
-        'experience_volunteering',
-        'experience_skill',
-        'hot_take_create',
-        'post_share',
-        'post_freeform',
-        'squad_join',
-        'squad_create',
-        'brief_read',
-        'reputation_gain'
-      )
-    `);
-
     // Create achievement table
     await queryRunner.query(`
       CREATE TABLE "achievement" (
