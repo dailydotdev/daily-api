@@ -28,6 +28,7 @@ import {
   UserStreakAction,
   UserStreakActionType,
   View,
+  PostType,
 } from '../entity';
 import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
 import {
@@ -2886,6 +2887,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .addSelect('SUM(pah.impressionsAds)::int', 'impressionsAds')
           .where('p.authorId = :userId', { userId })
           .andWhere('p.deleted = false')
+          .andWhere('p.type != :briefType', { briefType: PostType.Brief })
           .andWhere('pah.date >= :formattedDate', { formattedDate })
           .groupBy('pah.date')
           .orderBy('pah.date', 'DESC')
