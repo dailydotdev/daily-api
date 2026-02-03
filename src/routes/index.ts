@@ -20,7 +20,6 @@ import { notifyGeneratePersonalizedDigest } from '../common';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import integrations from './integrations';
 import gifs from './gifs';
-import log from './log';
 import publicApi, { PUBLIC_API_PREFIX } from './public';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -46,7 +45,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(sitemaps, { prefix: '/sitemaps' });
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });
-  fastify.register(log, { prefix: '/log' });
 
   // Public API v1
   const con = await createOrGetConnection();
