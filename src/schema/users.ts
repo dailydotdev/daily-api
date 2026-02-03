@@ -112,6 +112,7 @@ import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { format, subDays } from 'date-fns';
+import { transformDate } from '../common/date';
 import {
   acceptedResumeFileTypes,
   ContentLanguage,
@@ -2891,7 +2892,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRawMany(),
       );
 
-      return result;
+      return result.map((row) => ({
+        ...row,
+        date: transformDate(row.date),
+      }));
     },
   },
   Mutation: {
