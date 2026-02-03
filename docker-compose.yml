@@ -6,7 +6,7 @@ volumes:
 services:
 
   db:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     environment:
       - POSTGRES_MULTIPLE_DATABASES=api,api_test
       - POSTGRES_USER=postgres

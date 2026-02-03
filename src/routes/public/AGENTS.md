@@ -8,7 +8,7 @@ This directory contains the public REST API for daily.dev, accessible via Person
 - **Authentication:** Bearer token (Personal Access Tokens)
 - **Rate limiting:** Two-layer system (IP + user-based)
 - **OpenAPI:** Auto-generated at `/public/v1/docs/json` and `/public/v1/docs/yaml`
-- **GraphQL Injection:** Routes use `injectGraphql()` to leverage existing resolvers
+- **GraphQL Execution:** Routes use `executeGraphql()` to leverage existing resolvers directly
 
 ### AI Agent Documentation
 
@@ -62,7 +62,8 @@ Create a new file in `src/routes/public/` (e.g., `bookmarks.ts`):
 
 ```typescript
 import type { FastifyInstance } from 'fastify';
-import { injectGraphql } from '../../compatibility/utils';
+import type { DataSource } from 'typeorm';
+import { executeGraphql } from './graphqlExecutor';
 
 const BOOKMARKS_QUERY = `
   query PublicApiBookmarks($first: Int, $after: String) {
@@ -73,7 +74,7 @@ const BOOKMARKS_QUERY = `
   }
 `;
 
-export default async function (fastify: FastifyInstance): Promise<void> {
+export default async function (fastify: FastifyInstance, con: DataSource): Promise<void> {
   fastify.get(
     '/',
     {
@@ -101,8 +102,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      return injectGraphql(
-        fastify,
+      return executeGraphql(
+        con,
         {
           query: BOOKMARKS_QUERY,
           variables: {
@@ -111,10 +112,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
         },
         (json) => ({
-          data: json.data.bookmarksFeed.edges.map((edge) => edge.node),
+          data: json.bookmarksFeed.edges.map((edge) => edge.node),
           pagination: {
-            hasNextPage: json.data.bookmarksFeed.pageInfo.hasNextPage,
-            cursor: json.data.bookmarksFeed.pageInfo.endCursor,
+            hasNextPage: json.bookmarksFeed.pageInfo.hasNextPage,
+            cursor: json.bookmarksFeed.pageInfo.endCursor,
           },
         }),
         request,
@@ -165,9 +166,7 @@ Available schemas:
 ### Authentication Flow
 
 1. Auth middleware validates PAT and sets `request.userId`, `request.isPlus`
-2. `injectGraphql()` passes user context to GraphQL via service-to-service auth:
-   - `Authorization: Service ${ACCESS_SECRET}`
-   - `user-id`, `logged-in: true`, `is-plus` headers
+2. `executeGraphql()` creates a GraphQL context directly from the request (no HTTP round-trip)
 
 ### Rate Limiting
 

@@ -1,7 +1,34 @@
 import { FastifyInstance } from 'fastify';
-import { injectGraphql } from '../compatibility/utils';
+import type { DataSource } from 'typeorm';
+import { executeGraphql } from './public/graphqlExecutor';
 
-export default async function (fastify: FastifyInstance): Promise<void> {
+interface UserAlerts {
+  filter: boolean;
+  rankLastSeen: string;
+  myFeed: string;
+  companionHelper: boolean;
+  lastChangelog: string;
+  lastBanner: string;
+  squadTour: boolean;
+  showGenericReferral: boolean;
+  showStreakMilestone: boolean;
+  showRecoverStreak: boolean;
+  lastBootPopup: string;
+  lastFeedSettingsFeedback: string;
+  showTopReader: boolean;
+  showSuperAgentTrialUpgrade: boolean;
+  briefBannerLastSeen: string;
+  opportunityId: string;
+}
+
+interface UserAlertsResponse {
+  userAlerts: UserAlerts;
+}
+
+export default async function (
+  fastify: FastifyInstance,
+  con: DataSource,
+): Promise<void> {
   fastify.get('/', async (req, res) => {
     const query = `{
       userAlerts {
@@ -24,11 +51,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       }
     }`;
 
-    return injectGraphql(
-      fastify,
+    return executeGraphql<UserAlerts>(
+      con,
       { query },
-      // @ts-expect-error - legacy code
-      (obj) => obj['data']['userAlerts'],
+      (obj) => (obj as unknown as UserAlertsResponse).userAlerts,
       req,
       res,
     );
