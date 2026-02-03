@@ -113,6 +113,9 @@ export class Settings {
   @Column({ type: 'text', default: ChecklistViewState.Hidden })
   onboardingChecklistView: ChecklistViewState;
 
+  @Column({ default: true })
+  showFeedbackButton: boolean;
+
   @UpdateDateColumn()
   updatedAt: Date | null;
 
@@ -144,6 +147,7 @@ export const SETTINGS_DEFAULT = {
   sortCommentsBy: SortCommentsBy.OldestFirst,
   campaignCtaPlacement: CampaignCtaPlacement.Header,
   onboardingChecklistView: ChecklistViewState.Hidden,
+  showFeedbackButton: true,
   flags: {
     sidebarSquadExpanded: true,
     sidebarCustomFeedsExpanded: true,
