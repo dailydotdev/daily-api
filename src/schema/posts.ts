@@ -2419,7 +2419,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
                 userId: ctx.userId,
               })
               .andWhere(`${builder.alias}.deleted = false`)
-              .andWhere(`${builder.alias}.visible = true`);
+              .andWhere(`${builder.alias}.visible = true`)
+              .andWhere(`${builder.alias}.type != :briefType`, {
+                briefType: PostType.Brief,
+              });
 
             return builder;
           },

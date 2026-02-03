@@ -57,6 +57,7 @@ import {
   UserStreakActionType,
   UserTopReader,
   View,
+  PostType,
 } from '../src/entity';
 import { UserProfileAnalytics } from '../src/entity/user/UserProfileAnalytics';
 import { UserProfileAnalyticsHistory } from '../src/entity/user/UserProfileAnalyticsHistory';
@@ -8036,6 +8037,41 @@ describe('query userPostsAnalyticsHistory', () => {
   });
 
   it('should return aggregated daily impressions history', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.userPostsAnalyticsHistory).toHaveLength(2);
+    expect(res.data.userPostsAnalyticsHistory[0]).toMatchObject({
+      date: expect.any(String),
+      impressions: 150,
+      impressionsAds: 50,
+    });
+  });
+
+  it('should exclude brief posts from analytics history', async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'brief-upah',
+        shortId: 'sbrf-upah',
+        title: 'Brief Post',
+        url: 'https://example.com/brief-upah',
+        sourceId: 'a',
+        authorId: '1',
+        type: PostType.Brief,
+      },
+    ]);
+
+    await con.getRepository(PostAnalyticsHistory).save([
+      {
+        id: 'brief-upah',
+        date: format(new Date(), 'yyyy-MM-dd'),
+        impressions: 200,
+        impressionsAds: 100,
+      },
+    ]);
+
     loggedUser = '1';
 
     const res = await client.query(QUERY);
