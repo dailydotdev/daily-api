@@ -54,6 +54,7 @@ export const executeGraphql = async <T>(
   if (result.errors?.length) {
     const errors = result.errors as GraphQLError[];
     const code = errors[0]?.extensions?.code;
+    const originalErrorName = errors[0]?.originalError?.name;
 
     if (code === 'UNAUTHENTICATED') {
       return res.status(401).send({
@@ -73,7 +74,7 @@ export const executeGraphql = async <T>(
         message: errors[0]?.message || 'Invalid request',
       });
     }
-    if (code === 'NOT_FOUND') {
+    if (code === 'NOT_FOUND' || originalErrorName === 'EntityNotFoundError') {
       return res.status(404).send({
         error: 'not_found',
         message: errors[0]?.message || 'Resource not found',

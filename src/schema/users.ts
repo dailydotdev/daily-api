@@ -348,7 +348,7 @@ export interface GQLUserPostsAnalytics {
 }
 
 export interface GQLUserPostsAnalyticsHistoryNode {
-  date: string;
+  date: Date;
   impressions: number;
   impressionsAds: number;
 }
@@ -2891,7 +2891,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .getRawMany(),
       );
 
-      return result;
+      return result.map((row) => ({
+        ...row,
+        date: new Date(row.date),
+      }));
     },
   },
   Mutation: {
