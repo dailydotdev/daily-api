@@ -12,7 +12,7 @@ describe('Public API Authentication', () => {
   describe('Authorization header validation', () => {
     it('should return 401 when no Authorization header is provided', async () => {
       const { body } = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .expect(401);
 
       expect(body.error).toBe('unauthorized');
@@ -21,7 +21,7 @@ describe('Public API Authentication', () => {
 
     it('should return 401 when Authorization header is not Bearer type', async () => {
       const { body } = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', 'Basic some-token')
         .expect(401);
 
@@ -35,7 +35,7 @@ describe('Public API Authentication', () => {
 
     it('should return 401 for invalid token', async () => {
       const { body } = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
 
@@ -57,7 +57,7 @@ describe('Public API Authentication', () => {
       });
 
       const { body } = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(401);
 
@@ -76,7 +76,7 @@ describe('Public API Authentication', () => {
       });
 
       const { body } = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(401);
 
@@ -89,7 +89,7 @@ describe('Public API Authentication', () => {
       const token = await createTokenForUser(state.con, '5');
 
       await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
     });
@@ -102,7 +102,7 @@ describe('Public API Authentication', () => {
         const token = await createTokenForUser(state.con, '5');
 
         await request(state.app.server)
-          .get('/public/v1/feed')
+          .get('/public/v1/feeds/foryou')
           .set('Authorization', `Bearer ${token}`)
           .expect(200);
       } finally {
@@ -126,7 +126,7 @@ describe('Public API Authentication', () => {
       const token = await createTokenForUser(state.con, cancelledPlusUserId);
 
       await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
     });
