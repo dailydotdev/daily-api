@@ -22,6 +22,10 @@ import integrations from './integrations';
 import gifs from './gifs';
 import log from './log';
 import publicApi, { PUBLIC_API_PREFIX } from './public';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const llmTxt = readFileSync(join(__dirname, 'llm.txt'), 'utf-8');
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -59,6 +63,10 @@ Allow: /devcards/
 Allow: /graphql
 Allow: /boot
 Disallow: /`);
+  });
+
+  fastify.get('/llm.txt', (req, res) => {
+    return res.type('text/plain').send(llmTxt);
   });
 
   fastify.get('/v1/auth/authorize', async (req, res) => {

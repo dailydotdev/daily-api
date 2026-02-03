@@ -3,12 +3,12 @@ import { setupPublicApiTests, createTokenForUser } from './helpers';
 
 const state = setupPublicApiTests();
 
-describe('GET /public/v1/feed', () => {
+describe('GET /public/v1/feeds/foryou', () => {
   it('should return feed with posts', async () => {
     const token = await createTokenForUser(state.con, '5');
 
     const { body } = await request(state.app.server)
-      .get('/public/v1/feed')
+      .get('/public/v1/feeds/foryou')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
@@ -23,7 +23,7 @@ describe('GET /public/v1/feed', () => {
     const token = await createTokenForUser(state.con, '5');
 
     const { body } = await request(state.app.server)
-      .get('/public/v1/feed')
+      .get('/public/v1/feeds/foryou')
       .query({ limit: 2 })
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
@@ -35,14 +35,14 @@ describe('GET /public/v1/feed', () => {
     const token = await createTokenForUser(state.con, '5');
 
     const { body: body1 } = await request(state.app.server)
-      .get('/public/v1/feed')
+      .get('/public/v1/feeds/foryou')
       .query({ limit: 2 })
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 
     if (body1.pagination.cursor) {
       const { body: body2 } = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .query({ limit: 2, cursor: body1.pagination.cursor })
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
@@ -57,7 +57,7 @@ describe('GET /public/v1/feed', () => {
     const token = await createTokenForUser(state.con, '5');
 
     const { body } = await request(state.app.server)
-      .get('/public/v1/feed')
+      .get('/public/v1/feeds/foryou')
       .set('Authorization', `Bearer ${token}`)
       .expect(200);
 

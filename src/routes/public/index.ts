@@ -4,7 +4,7 @@ import fastifySwagger from '@fastify/swagger';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { validatePersonalAccessToken } from '../../common/personalAccessToken';
-import feedRoutes from './feed';
+import feedsRoutes from './feeds';
 import postsRoutes from './posts';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
@@ -164,6 +164,6 @@ export default async function (
     },
   });
 
-  await fastify.register(feedRoutes, { prefix: '/feed' });
+  await fastify.register(feedsRoutes, { prefix: '/feeds' });
   await fastify.register(postsRoutes, { prefix: '/posts' });
 }

@@ -12,8 +12,8 @@ interface FeedQuery {
 const MAX_LIMIT = 50;
 const DEFAULT_LIMIT = 20;
 
-// Using the personalized "For You" feed query for authenticated users
-const FEED_QUERY = `
+// GraphQL query for the "For You" personalized feed
+const FORYOU_FEED_QUERY = `
   query PublicApiFeed($first: Int, $after: String, $version: Int) {
     feed(first: $first, after: $after, ranking: TIME, version: $version) {
       edges {
@@ -90,12 +90,13 @@ interface FeedResponse {
 }
 
 export default async function (fastify: FastifyInstance): Promise<void> {
+  // Get personalized "For You" feed
   fastify.get<{ Querystring: FeedQuery }>(
-    '/',
+    '/foryou',
     {
       schema: {
-        description: 'Get personalized feed of posts',
-        tags: ['feed'],
+        description: 'Get personalized "For You" feed',
+        tags: ['feeds'],
         querystring: {
           type: 'object',
           properties: {
@@ -127,7 +128,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      // Auth middleware already validates the user, apiUserId is guaranteed
       const parsedLimit =
         parseInt(request.query.limit || '', 10) || DEFAULT_LIMIT;
       const limit = Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
@@ -147,7 +147,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return executeGraphql(
         fastify.con,
         {
-          query: FEED_QUERY,
+          query: FORYOU_FEED_QUERY,
           variables: {
             first: limit,
             after: cursor || null,

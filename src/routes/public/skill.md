@@ -1,6 +1,6 @@
 # daily.dev API for AI Agents
 
-> Version: 0.1.0
+> Version: 0.2.0
 
 Access personalized developer content feeds from daily.dev - the professional network for developers. Surface relevant articles, tutorials, and discussions based on user interests.
 
@@ -34,7 +34,7 @@ https://api.daily.dev/public/v1
 ### Get Your Feed
 
 ```
-GET /feed?limit=20&cursor=<optional>
+GET /feeds/foryou?limit=20&cursor=<optional>
 ```
 
 Returns your personalized feed of developer content.
