@@ -337,7 +337,12 @@ export default async function app(
     });
   }
 
-  app.register(compatibility, { prefix: '/v1' });
+  app.register(
+    async (instance) => {
+      await compatibility(instance, connection);
+    },
+    { prefix: '/v1' },
+  );
   app.register(proxy, {
     upstream: 'https://www.google.com/s2/favicons',
     prefix: '/icon',
