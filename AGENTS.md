@@ -180,6 +180,35 @@ The migration generator compares entities against the local database schema. Ens
 - **Avoid barrel file imports** (index.ts re-exports). Import directly from the specific file instead.
 - Example: Use `import { User } from './entity/user/User'` instead of `import { User } from './entity'`
 - This improves build times, makes dependencies clearer, and avoids circular dependency issues
+- **Never use inline type imports** - Always use regular `import type` statements at the top of the file instead of `import('module').Type` syntax.
+  ```typescript
+  // BAD: Inline type import
+  interface FastifyInstance {
+    con?: import('typeorm').DataSource;
+  }
+
+  // GOOD: Import type at top of file
+  import type { DataSource } from 'typeorm';
+
+  interface FastifyInstance {
+    con?: DataSource;
+  }
+  ```
+
+**Avoid non-null assertion operator (`!`):**
+- **Never use the `!` operator** to assert that a value is not null/undefined. Instead, explicitly check and throw an error if the value is missing.
+- This provides better runtime safety and clearer error messages when something goes wrong.
+- **Example pattern**:
+  ```typescript
+  // BAD: Using non-null assertion
+  const result = await executeGraphql(fastify.con!, query);
+
+  // GOOD: Explicit check with thrown error
+  if (!fastify.con) {
+    throw new Error('Database connection not initialized');
+  }
+  const result = await executeGraphql(fastify.con, query);
+  ```
 
 **Zod patterns:**
 - Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise

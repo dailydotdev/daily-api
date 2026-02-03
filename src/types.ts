@@ -4,6 +4,8 @@ import type { opentelemetry } from './telemetry';
 import type { GarmrService } from './integrations/garmr';
 import { type Client } from '@connectrpc/connect';
 import type { ServiceType } from '@bufbuild/protobuf';
+// eslint-disable-next-line unused-imports/no-unused-imports
+import type { DataSource } from 'typeorm';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -114,6 +116,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     // Used for tracing
     tracer?: opentelemetry.Tracer;
+    // Used for public API routes to access database
+    con?: DataSource;
   }
 }
 

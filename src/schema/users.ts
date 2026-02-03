@@ -349,7 +349,7 @@ export interface GQLUserPostsAnalytics {
 }
 
 export interface GQLUserPostsAnalyticsHistoryNode {
-  date: string;
+  date: Date;
   impressions: number;
   impressionsAds: number;
 }
