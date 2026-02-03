@@ -28,6 +28,6 @@ RUN --mount=type=cache,id=pnpm,target=/home/node/.local/share/pnpm/store \
 
 COPY --chown=node:node build .
 COPY --chown=node:node src/routes/public/skill.md src/routes/public/
-COPY --chown=node:node src/routes/llm.txt src/routes/
+COPY --chown=node:node src/routes/llms.txt src/routes/
 
 CMD ["dumb-init", "node", "bin/cli", "api"]

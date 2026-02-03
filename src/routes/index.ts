@@ -25,7 +25,7 @@ import publicApi, { PUBLIC_API_PREFIX } from './public';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-const llmTxt = readFileSync(join(__dirname, 'llm.txt'), 'utf-8');
+const llmTxt = readFileSync(join(__dirname, 'llms.txt'), 'utf-8');
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(rss, { prefix: '/rss' });
@@ -65,7 +65,7 @@ Allow: /boot
 Disallow: /`);
   });
 
-  fastify.get('/llm.txt', (req, res) => {
+  fastify.get('/llms.txt', (req, res) => {
     return res.type('text/plain').send(llmTxt);
   });
 
