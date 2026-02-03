@@ -123,7 +123,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   campaign_post_first_milestone: '80',
   campaign_squad_first_milestone: '82',
   new_opportunity_match: '87',
-  rematched_opportunity: '', // TODO opportunity-rematch
+  rematched_opportunity: '92',
   post_analytics: '',
   poll_result: '84',
   poll_result_author: '84',
