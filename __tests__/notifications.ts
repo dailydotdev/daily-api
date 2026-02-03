@@ -83,10 +83,9 @@ beforeEach(async () => {
 afterAll(() => disposeGraphQLTesting(state));
 
 describe('notifications route', () => {
-  it('should return not found when not authorized', async () => {
-    await authorizeRequest(request(app.server).get('/notifications')).expect(
-      401,
-    );
+  it('should return 401 when not authorized', async () => {
+    // Make request without auth headers to test unauthorized access
+    await request(app.server).get('/notifications').expect(401);
   });
 
   it('should return 0 notifications by default', async () => {
