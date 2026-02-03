@@ -30,7 +30,9 @@ const reMatchedOpportunityNotification: TypedNotificationWorker<'gondul.v1.candi
         return;
       }
 
-      const user = await con.getRepository(User).findOneBy({ id: userId });
+      const user: Pick<User, 'id'> | null = await con
+        .getRepository(User)
+        .findOne({ select: ['id'], where: { id: userId } });
 
       if (!user) {
         return;
@@ -40,7 +42,7 @@ const reMatchedOpportunityNotification: TypedNotificationWorker<'gondul.v1.candi
         {
           type: NotificationType.ReMatchedOpportunity,
           ctx: {
-            userIds: [userId],
+            userIds: [user.id],
             opportunityId,
             reasoningShort,
           },
