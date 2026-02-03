@@ -1,5 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { executeGraphql } from './graphqlExecutor';
+import { getUserGrowthBookInstance } from '../../growthbook';
+
+const DEFAULT_FEED_VERSION = 1;
 
 interface FeedQuery {
   limit?: string;
@@ -11,8 +14,8 @@ const DEFAULT_LIMIT = 20;
 
 // Using the personalized "For You" feed query for authenticated users
 const FEED_QUERY = `
-  query PublicApiFeed($first: Int, $after: String) {
-    feed(first: $first, after: $after, ranking: TIME, version: 1) {
+  query PublicApiFeed($first: Int, $after: String, $version: Int) {
+    feed(first: $first, after: $after, ranking: TIME, version: $version) {
       edges {
         node {
           id
@@ -130,6 +133,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const limit = Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
       const { cursor } = request.query;
 
+      // Get feed version from GrowthBook for the authenticated user
+      const gb = getUserGrowthBookInstance(request.userId!);
+      const feedVersion = gb.getFeatureValue(
+        'feed_version',
+        DEFAULT_FEED_VERSION,
+      );
+
       return executeGraphql(
         fastify.con!,
         {
@@ -137,6 +147,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           variables: {
             first: limit,
             after: cursor || null,
+            version: feedVersion,
           },
         },
         (json) => {
