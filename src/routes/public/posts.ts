@@ -108,8 +108,12 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       // Auth middleware already validates the user, apiUserId is guaranteed
       const { id } = request.params;
 
+      if (!fastify.con) {
+        throw new Error('Database connection not initialized');
+      }
+
       return executeGraphql(
-        fastify.con!,
+        fastify.con,
         {
           query: POST_QUERY,
           variables: { id },

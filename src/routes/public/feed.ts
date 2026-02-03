@@ -133,6 +133,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const limit = Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
       const { cursor } = request.query;
 
+      if (!fastify.con) {
+        throw new Error('Database connection not initialized');
+      }
+
       // Get feed version from GrowthBook for the authenticated user
       const gb = getUserGrowthBookInstance(request.userId!);
       const feedVersion = gb.getFeatureValue(
@@ -141,7 +145,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       );
 
       return executeGraphql(
-        fastify.con!,
+        fastify.con,
         {
           query: FEED_QUERY,
           variables: {
