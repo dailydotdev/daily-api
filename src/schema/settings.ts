@@ -30,6 +30,7 @@ interface GQLSettings {
   autoDismissNotifications: boolean;
   updatedAt: Date;
   optOutReadingStreak: boolean;
+  showFeedbackButton: boolean;
   flags?: SettingsFlagsPublic;
 }
 
@@ -53,6 +54,7 @@ interface GQLUpdateSettingsInput extends Partial<GQLSettings> {
   campaignCtaPlacement?: CampaignCtaPlacement;
   customLinks?: string[];
   optOutReadingStreak?: boolean;
+  showFeedbackButton?: boolean;
   defaultWriteTab?: DefaultWriteTab;
 }
 
@@ -190,6 +192,11 @@ export const typeDefs = /* GraphQL */ `
     sortCommentsBy: SortCommentsBy
 
     """
+    Whether to show the floating feedback button
+    """
+    showFeedbackButton: Boolean!
+
+    """
     Time of last update
     """
     updatedAt: DateTime!
@@ -301,6 +308,11 @@ export const typeDefs = /* GraphQL */ `
     Selected algorithm by the user for comments section
     """
     sortCommentsBy: SortCommentsBy
+
+    """
+    Whether to show the floating feedback button
+    """
+    showFeedbackButton: Boolean
 
     """
     Flags for the settings
