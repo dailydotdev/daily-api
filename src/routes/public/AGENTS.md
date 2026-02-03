@@ -8,7 +8,7 @@ This directory contains the public REST API for daily.dev, accessible via Person
 - **Authentication:** Bearer token (Personal Access Tokens)
 - **Rate limiting:** Two-layer system (IP + user-based)
 - **OpenAPI:** Auto-generated at `/public/v1/docs/json` and `/public/v1/docs/yaml`
-- **GraphQL Injection:** Routes use `injectGraphql()` to leverage existing resolvers
+- **GraphQL Execution:** Routes use `executeGraphql()` to directly execute GraphQL queries
 
 ### AI Agent Documentation
 
@@ -54,6 +54,19 @@ When GraphQL response matches REST response, return the node directly:
 })
 ```
 
+### 3. Use Shared Utilities
+
+Import shared constants and utilities from `./common.ts`:
+```typescript
+import { parseLimit, ensureDbConnection } from './common';
+
+// Use parseLimit for query parameter parsing
+const limit = parseLimit(request.query.limit);
+
+// Use ensureDbConnection to validate connection
+const con = ensureDbConnection(fastify.con);
+```
+
 ## Adding New Endpoints
 
 ### 1. Create Route File
@@ -62,7 +75,8 @@ Create a new file in `src/routes/public/` (e.g., `bookmarks.ts`):
 
 ```typescript
 import type { FastifyInstance } from 'fastify';
-import { injectGraphql } from '../../compatibility/utils';
+import { executeGraphql } from './graphqlExecutor';
+import { parseLimit, ensureDbConnection } from './common';
 
 const BOOKMARKS_QUERY = `
   query PublicApiBookmarks($first: Int, $after: String) {
@@ -74,7 +88,7 @@ const BOOKMARKS_QUERY = `
 `;
 
 export default async function (fastify: FastifyInstance): Promise<void> {
-  fastify.get(
+  fastify.get<{ Querystring: { limit?: string; cursor?: string } }>(
     '/',
     {
       schema: {
@@ -101,22 +115,29 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      return injectGraphql(
-        fastify,
+      const limit = parseLimit(request.query.limit);
+      const { cursor } = request.query;
+      const con = ensureDbConnection(fastify.con);
+
+      return executeGraphql(
+        con,
         {
           query: BOOKMARKS_QUERY,
           variables: {
-            first: request.query.limit || 20,
-            after: request.query.cursor || null,
+            first: limit,
+            after: cursor ?? null,
           },
         },
-        (json) => ({
-          data: json.data.bookmarksFeed.edges.map((edge) => edge.node),
-          pagination: {
-            hasNextPage: json.data.bookmarksFeed.pageInfo.hasNextPage,
-            cursor: json.data.bookmarksFeed.pageInfo.endCursor,
-          },
-        }),
+        (json) => {
+          const result = json as { bookmarksFeed: { edges: { node: unknown }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } };
+          return {
+            data: result.bookmarksFeed.edges.map(({ node }) => node),
+            pagination: {
+              hasNextPage: result.bookmarksFeed.pageInfo.hasNextPage,
+              cursor: result.bookmarksFeed.pageInfo.endCursor,
+            },
+          };
+        },
         request,
         reply,
       );
@@ -165,9 +186,25 @@ Available schemas:
 ### Authentication Flow
 
 1. Auth middleware validates PAT and sets `request.userId`, `request.isPlus`
-2. `injectGraphql()` passes user context to GraphQL via service-to-service auth:
-   - `Authorization: Service ${ACCESS_SECRET}`
-   - `user-id`, `logged-in: true`, `is-plus` headers
+2. `executeGraphql()` creates a GraphQL Context from the authenticated request
+3. GraphQL resolvers receive the user context and execute queries/mutations
+
+### Direct GraphQL Execution
+
+The `executeGraphql()` function in `graphqlExecutor.ts`:
+- Creates a GraphQL Context directly from the authenticated Fastify request
+- Executes GraphQL queries using the schema's `execute()` function
+- Maps GraphQL errors to appropriate HTTP status codes (401, 403, 404, etc.)
+- Caches parsed queries for performance
+
+```typescript
+// executeGraphql handles all the complexity:
+// - Context creation from authenticated request
+// - Query execution
+// - Error mapping to HTTP status codes
+// - Response transformation
+return executeGraphql(con, { query, variables }, transformFn, request, reply);
+```
 
 ### Rate Limiting
 

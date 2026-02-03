@@ -53,3 +53,31 @@ describe('GET /public/v1/posts/:id', () => {
     });
   });
 });
+
+describe('GET /public/v1/posts/:id/comments', () => {
+  it('should return empty comments array for post without comments', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/posts/p1/comments')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({
+      hasNextPage: expect.any(Boolean),
+    });
+  });
+
+  it('should support limit and sort parameters', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/posts/p1/comments')
+      .query({ limit: 10, sort: 'newest' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+});

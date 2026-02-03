@@ -68,3 +68,170 @@ describe('GET /public/v1/feeds/foryou', () => {
     });
   });
 });
+
+describe('GET /public/v1/feeds/popular', () => {
+  it('should return popular posts', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/popular')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({
+      hasNextPage: expect.any(Boolean),
+    });
+  });
+
+  it('should support limit parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/popular')
+      .query({ limit: 2 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data.length).toBeLessThanOrEqual(2);
+  });
+
+  it('should support tags filter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/popular')
+      .query({ tags: 'javascript,webdev' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+});
+
+describe('GET /public/v1/feeds/discussed', () => {
+  it('should return most discussed posts', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/discussed')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({
+      hasNextPage: expect.any(Boolean),
+    });
+  });
+
+  it('should support period parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/discussed')
+      .query({ period: 7 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  it('should support tag filter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/discussed')
+      .query({ tag: 'javascript' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+
+  it('should support source filter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/discussed')
+      .query({ source: 'a' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+});
+
+describe('GET /public/v1/feeds/tag/:tag', () => {
+  it('should return posts for a tag', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/tag/javascript')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({
+      hasNextPage: expect.any(Boolean),
+    });
+  });
+
+  it('should support limit parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/tag/javascript')
+      .query({ limit: 2 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data.length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('GET /public/v1/feeds/source/:source', () => {
+  it('should return posts for a source', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/source/a')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({
+      hasNextPage: expect.any(Boolean),
+    });
+  });
+
+  it('should support limit parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/source/a')
+      .query({ limit: 2 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data.length).toBeLessThanOrEqual(2);
+  });
+
+  it('should include post metadata in response', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/source/a')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    if (body.data.length > 0) {
+      expect(body.data[0]).toMatchObject({
+        id: expect.any(String),
+        title: expect.any(String),
+        source: expect.objectContaining({
+          id: 'a',
+        }),
+      });
+    }
+  });
+});
