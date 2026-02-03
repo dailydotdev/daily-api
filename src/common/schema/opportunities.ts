@@ -416,3 +416,12 @@ export const addOpportunitySeatsSchema = z.object({
       error: 'You can add up to 10 different price options at a time',
     }),
 });
+
+export const privateCreateOpportunitySchema = z.object({
+  url: z.url(),
+  emails: z.array(z.email()).optional(),
+});
+
+export const privateGetOpportunityParamsSchema = z.object({
+  id: z.uuid(),
+});
