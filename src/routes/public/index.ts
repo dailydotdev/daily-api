@@ -1,8 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { DataSource } from 'typeorm';
 import fastifySwagger from '@fastify/swagger';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { validatePersonalAccessToken } from '../../common/personalAccessToken';
 import feedsRoutes from './feeds';
 import postsRoutes from './posts';
@@ -14,7 +12,8 @@ const USER_RATE_LIMIT_PER_MINUTE = 60;
 const IP_RATE_LIMIT_PER_MINUTE = 300;
 const PUBLIC_API_BASE_URL = `https://api.daily.dev${PUBLIC_API_PREFIX}`;
 
-const skillMd = readFileSync(join(__dirname, 'skill.md'), 'utf-8');
+const SKILL_MD_URL =
+  'https://raw.githubusercontent.com/dailydotdev/daily/master/.claude-plugin/plugins/daily.dev/skills/daily.dev/SKILL.md';
 
 const tokenAuthHook = async (
   request: FastifyRequest,
@@ -93,9 +92,20 @@ export default async function (
     reply.type('text/yaml').send(fastify.swagger({ yaml: true }));
   });
 
-  // AI agent skill documentation (no auth required)
+  // AI agent skill documentation (no auth required) - proxied from GitHub
   fastify.get('/skill.md', { schema: { hide: true } }, async (_, reply) => {
-    reply.type('text/markdown').send(skillMd);
+    const response = await fetch(SKILL_MD_URL);
+
+    if (!response.ok) {
+      return reply.status(504).send('Failed to fetch skill.md');
+    }
+
+    const content = await response.text();
+
+    reply
+      .type('text/markdown')
+      .header('cache-control', 'public, max-age=600, s-maxage=600')
+      .send(content);
   });
 
   // IP rate limiting MUST be registered before auth to prevent DoS via token validation flooding
