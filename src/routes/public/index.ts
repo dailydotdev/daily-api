@@ -53,6 +53,9 @@ export default async function (
   fastify: FastifyInstance,
   con: DataSource,
 ): Promise<void> {
+  // Decorate fastify with the database connection for route handlers
+  fastify.decorate('con', con);
+
   // Register Swagger for OpenAPI documentation
   await fastify.register(fastifySwagger, {
     openapi: {

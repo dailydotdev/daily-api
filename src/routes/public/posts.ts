@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { injectGraphql } from '../../compatibility/utils';
+import { executeGraphql } from './graphqlExecutor';
 
 interface PostParams {
   id: string;
@@ -108,14 +108,18 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       // Auth middleware already validates the user, apiUserId is guaranteed
       const { id } = request.params;
 
-      return injectGraphql(
-        fastify,
+      if (!fastify.con) {
+        throw new Error('Database connection not initialized');
+      }
+
+      return executeGraphql(
+        fastify.con,
         {
           query: POST_QUERY,
           variables: { id },
         },
         (json) => {
-          const { post } = (json as unknown as PostQueryResponse).data;
+          const { post } = json as PostQueryResponse['data'];
           return { data: post };
         },
         request,
