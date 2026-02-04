@@ -133,7 +133,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             orderBy: {
               type: 'string',
               enum: ['DATE', 'UPVOTES', 'DOWNVOTES', 'COMMENTS', 'CLICKS'],
-              description: 'Sort order for the feed (defaults to algorithmic ranking if not provided)',
+              description:
+                'Sort order for the feed (defaults to algorithmic ranking if not provided)',
             },
             minDayRange: {
               type: 'integer',
@@ -146,7 +147,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             minViews: { type: 'integer', description: 'Minimum views filter' },
             disableEngagementFilter: {
               type: 'boolean',
-              description: 'Disable engagement filter (when true, shows posts the user already clicked or saw in the feed)',
+              description:
+                'Disable engagement filter (when true, shows posts the user already clicked or saw in the feed)',
             },
           },
         },
@@ -422,7 +424,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             orderBy: {
               type: 'string',
               enum: ['DATE', 'UPVOTES', 'DOWNVOTES', 'COMMENTS', 'CLICKS'],
-              description: 'Sort order for the feed (defaults to algorithmic ranking if not provided)',
+              description:
+                'Sort order for the feed (defaults to algorithmic ranking if not provided)',
             },
             minDayRange: {
               type: 'integer',
@@ -435,7 +438,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             minViews: { type: 'integer', description: 'Minimum views filter' },
             disableEngagementFilter: {
               type: 'boolean',
-              description: 'Disable engagement filter (when true, shows posts the user already clicked or saw in the feed)',
+              description:
+                'Disable engagement filter (when true, shows posts the user already clicked or saw in the feed)',
             },
           },
         },

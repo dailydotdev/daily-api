@@ -73,6 +73,7 @@ describe('GET /public/v1/feeds/custom', () => {
 
 describe('GET /public/v1/feeds/custom/:feedId', () => {
   it('should get custom feed posts', async () => {
+    const nock = await import('nock');
     const token = await createTokenForUser(state.con, '5');
 
     // Create a feed first
@@ -81,6 +82,15 @@ describe('GET /public/v1/feeds/custom/:feedId', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ name: 'Posts Test Feed' })
       .expect(200);
+
+    // Mock the feed service
+    nock
+      .default('http://localhost:6000')
+      .post('/feed.json')
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p2' }],
+        cursor: null,
+      });
 
     const { body } = await request(state.app.server)
       .get(`/public/v1/feeds/custom/${createBody.id}`)
@@ -91,6 +101,8 @@ describe('GET /public/v1/feeds/custom/:feedId', () => {
     expect(body.pagination).toMatchObject({
       hasNextPage: expect.any(Boolean),
     });
+
+    nock.default.cleanAll();
   });
 });
 
