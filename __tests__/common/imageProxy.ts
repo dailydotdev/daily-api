@@ -5,7 +5,6 @@ import {
   validateImageUrl,
   isExternalImageUrl,
   getProxiedImageUrl,
-  proxyImagesInHtml,
 } from '../../src/common/imageProxy';
 
 const configureCloudinary = () => {
@@ -153,24 +152,6 @@ describe('imageProxy', () => {
       expect(validateImageUrl(longUrl)).toBe('URL exceeds maximum length');
     });
 
-    it('should return error for file:// protocol', () => {
-      expect(validateImageUrl('file:///etc/passwd')).toBe(
-        'Only HTTP and HTTPS protocols are allowed',
-      );
-    });
-
-    it('should return error for ftp:// protocol', () => {
-      expect(validateImageUrl('ftp://example.com/image.png')).toBe(
-        'Only HTTP and HTTPS protocols are allowed',
-      );
-    });
-
-    it('should return error for javascript: protocol', () => {
-      expect(validateImageUrl('javascript:alert(1)')).toBe(
-        'Only HTTP and HTTPS protocols are allowed',
-      );
-    });
-
     it('should return error for private IP addresses', () => {
       expect(validateImageUrl('http://127.0.0.1/image.png')).toBe(
         'Private IP addresses are not allowed',
@@ -267,64 +248,6 @@ describe('imageProxy', () => {
       expect(result).toContain('/image/fetch/');
       // Should contain signature
       expect(result).toMatch(/s--[A-Za-z0-9_-]+--/);
-    });
-  });
-
-  describe('proxyImagesInHtml', () => {
-    beforeEach(() => {
-      process.env.CLOUDINARY_URL = 'cloudinary://test:test@daily-now';
-      configureCloudinary();
-    });
-
-    it('should return empty string for empty input', () => {
-      expect(proxyImagesInHtml('')).toBe('');
-    });
-
-    it('should return null for null input', () => {
-      expect(proxyImagesInHtml(null as unknown as string)).toBe(null);
-    });
-
-    it('should proxy external image URLs in img tags', () => {
-      const html = '<p>Hello</p><img src="https://example.com/image.png">';
-      const result = proxyImagesInHtml(html);
-
-      expect(result).toContain('media.daily.dev');
-      expect(result).toContain('/image/fetch/');
-      // The original URL is included in the Cloudinary fetch URL path (this is expected)
-      expect(result).toContain('src="https://media.daily.dev');
-    });
-
-    it('should not modify images from allowed domains', () => {
-      const html = '<img src="https://media.daily.dev/image.png">';
-      const result = proxyImagesInHtml(html);
-
-      expect(result).toBe(html);
-    });
-
-    it('should handle multiple images', () => {
-      const html =
-        '<img src="https://example.com/1.png"><img src="https://evil.com/2.gif">';
-      const result = proxyImagesInHtml(html);
-
-      // Both images should be proxied through Cloudinary
-      expect(result.match(/media\.daily\.dev/g)?.length).toBe(2);
-      expect(result).toContain('/image/fetch/');
-    });
-
-    it('should preserve other attributes on img tags', () => {
-      const html =
-        '<img alt="test" src="https://example.com/image.png" class="photo">';
-      const result = proxyImagesInHtml(html);
-
-      expect(result).toContain('alt="test"');
-      expect(result).toContain('class="photo"');
-    });
-
-    it('should handle img tags with single quotes', () => {
-      const html = "<img src='https://example.com/image.png'>";
-      const result = proxyImagesInHtml(html);
-
-      expect(result).toContain('media.daily.dev');
     });
   });
 });

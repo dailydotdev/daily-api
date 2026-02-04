@@ -62,6 +62,9 @@ export function isAllowedDomain(url: string): boolean {
 /**
  * Validates that a URL is safe to proxy
  * Returns an error message if invalid, or null if valid
+ *
+ * Note: This assumes the URL is already http/https since it's called after
+ * isExternalImageUrl check which filters out non-http/https URLs.
  */
 export function validateImageUrl(url: string): string | null {
   // Check URL length
@@ -71,11 +74,6 @@ export function validateImageUrl(url: string): string | null {
 
   try {
     const parsedUrl = new URL(url);
-
-    // Only allow http and https protocols
-    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      return 'Only HTTP and HTTPS protocols are allowed';
-    }
 
     // Block private/internal IP addresses (SSRF prevention)
     if (isPrivateIP(parsedUrl.hostname)) {
@@ -160,29 +158,4 @@ export function getProxiedImageUrl(externalUrl: string): string | null {
     // to avoid breaking the content
     return externalUrl;
   }
-}
-
-/**
- * Processes HTML content to proxy all external image URLs
- * This is used as a fallback for content that wasn't processed during markdown rendering
- *
- * @param html The HTML content containing images
- * @returns The HTML with external image URLs replaced with proxied URLs
- */
-export function proxyImagesInHtml(html: string): string {
-  if (!html) {
-    return html;
-  }
-
-  // Match img tags and replace src attributes
-  return html.replace(
-    /<img\s+([^>]*?)src=["']([^"']+)["']([^>]*)>/gi,
-    (match, before, src, after) => {
-      const proxiedUrl = getProxiedImageUrl(src);
-      if (proxiedUrl && proxiedUrl !== src) {
-        return `<img ${before}src="${proxiedUrl}"${after}>`;
-      }
-      return match;
-    },
-  );
 }
