@@ -395,6 +395,37 @@ The migration generator compares entities against the local database schema. Ens
   ```
 - **Hard-code keys for removal** instead of using `Object.keys()` dynamically - it's clearer and safer.
 
+**Boolean Coercion Bug with `||` Operator:**
+- **Never use `||` to provide default values for boolean parameters** - it incorrectly converts `false` to the default value.
+- Use nullish coalescing (`??`) or explicit conditionals instead.
+- **Example pattern**:
+  ```typescript
+  // BAD: false || null = null (loses the false value!)
+  const variables = {
+    unreadOnly: unreadOnly || null,  // When unreadOnly is false, this becomes null
+  };
+
+  // GOOD: Explicit conditional preserves boolean semantics
+  const variables = {
+    unreadOnly: unreadOnly ? true : null,  // Only send true when explicitly true
+  };
+
+  // GOOD: Use ?? for optional string/number parameters
+  const variables = {
+    cursor: cursor ?? null,  // Empty string is preserved, only undefined/null becomes null
+    listId: listId ?? null,
+  };
+  ```
+- **Rule of thumb**: Use `??` for optional parameters where empty string or `0` are valid values. Use explicit conditionals for boolean flags where you only want to send `true`.
+
+**Public API Development:**
+- The public REST API (`src/routes/public/`) has its own development patterns documented in `src/routes/public/AGENTS.md`.
+- Key patterns include:
+  - Use `executeGraphql()` from `./graphqlExecutor` for direct GraphQL execution
+  - Import shared constants and utilities from `./common.ts` (`parseLimit`, `ensureDbConnection`, `MAX_LIMIT`, `DEFAULT_LIMIT`)
+  - Update `skill.md` when adding/changing endpoints (versioned with semver)
+  - Fastify route type parameters should be defined inline for single-use types
+
 ## Pull Requests
 
 Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.

@@ -222,11 +222,72 @@ IP limiting runs first to prevent token validation flooding. The generous IP lim
 - `X-RateLimit-Limit-User`, `X-RateLimit-Remaining-User` (user)
 - `Retry-After` (on 429)
 
+## Common Pitfalls
+
+### Boolean Parameter Handling
+
+**Never use `||` to provide null defaults for boolean parameters** - it incorrectly converts `false` to `null`:
+
+```typescript
+// BAD: false || null = null (loses the boolean value!)
+const variables = {
+  unreadOnly: unreadOnly || null,
+};
+
+// GOOD: Only send true when explicitly true, otherwise null
+const variables = {
+  unreadOnly: unreadOnly ? true : null,
+};
+```
+
+### Nullish Coalescing for Optional Parameters
+
+Use `??` instead of `||` for optional string parameters where empty string is a valid (but unlikely) value:
+
+```typescript
+// GOOD: Use ?? for optional parameters
+const variables = {
+  cursor: cursor ?? null,
+  listId: listId ?? null,
+};
+```
+
+### Inline Type Parameters
+
+Define route type parameters inline instead of creating separate interfaces for single-use types:
+
+```typescript
+// GOOD: Inline type parameters
+fastify.get<{ Querystring: { limit?: string; cursor?: string } }>(
+  '/',
+  { schema: { ... } },
+  async (request, reply) => { ... }
+);
+
+// AVOID: Separate interface for single-use type
+interface BookmarksQuery {
+  limit?: string;
+  cursor?: string;
+}
+fastify.get<{ Querystring: BookmarksQuery }>(...)
+```
+
+### Shared Utilities in `common.ts`
+
+Always use the shared utilities instead of duplicating code:
+
+| Utility | Purpose |
+|---------|---------|
+| `parseLimit(limit?)` | Parse and validate limit parameter (1-50, default 20) |
+| `ensureDbConnection(con)` | Validate database connection, throw if undefined |
+| `MAX_LIMIT` | Maximum allowed limit (50) |
+| `DEFAULT_LIMIT` | Default limit value (20) |
+
 ## Testing
 
 Tests are in `__tests__/routes/public/`, organized by route group:
 - `helpers.ts` - Shared setup utilities
-- `auth.ts`, `rateLimit.ts`, `feed.ts`, `posts.ts` - Route-specific tests
+- `auth.ts`, `rateLimit.ts`, `feeds.ts`, `posts.ts` - Route-specific tests
 
 ```typescript
 import request from 'supertest';
