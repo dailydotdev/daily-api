@@ -70,7 +70,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       bio?: string;
       timezone?: string;
       weekStart?: number;
-      acceptedMarketing?: boolean;
       experienceLevel?: string;
       socialLinks?: Array<{ url: string; platform?: string }>;
     };
@@ -91,10 +90,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
               minimum: 0,
               maximum: 6,
               description: 'Day of week to start (0=Sunday)',
-            },
-            acceptedMarketing: {
-              type: 'boolean',
-              description: 'Accept marketing emails',
             },
             experienceLevel: {
               type: 'string',
@@ -133,15 +128,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const con = ensureDbConnection(fastify.con);
-      const {
-        name,
-        bio,
-        timezone,
-        weekStart,
-        acceptedMarketing,
-        experienceLevel,
-        socialLinks,
-      } = request.body;
+      const { name, bio, timezone, weekStart, experienceLevel, socialLinks } =
+        request.body;
 
       // Build the data object, only including defined values
       const data: Record<string, unknown> = {};
@@ -149,8 +137,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       if (bio !== undefined) data.bio = bio;
       if (timezone !== undefined) data.timezone = timezone;
       if (weekStart !== undefined) data.weekStart = weekStart;
-      if (acceptedMarketing !== undefined)
-        data.acceptedMarketing = acceptedMarketing;
       if (experienceLevel !== undefined) data.experienceLevel = experienceLevel;
       if (socialLinks !== undefined) data.socialLinks = socialLinks;
 

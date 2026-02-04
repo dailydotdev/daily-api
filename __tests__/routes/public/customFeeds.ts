@@ -1,3 +1,4 @@
+import nock from 'nock';
 import request from 'supertest';
 import { setupPublicApiTests, createTokenForUser } from './helpers';
 import { Feed } from '../../../src/entity/Feed';
@@ -73,7 +74,6 @@ describe('GET /public/v1/feeds/custom', () => {
 
 describe('GET /public/v1/feeds/custom/:feedId', () => {
   it('should get custom feed posts', async () => {
-    const nock = await import('nock');
     const token = await createTokenForUser(state.con, '5');
 
     // Create a feed first
@@ -84,8 +84,7 @@ describe('GET /public/v1/feeds/custom/:feedId', () => {
       .expect(200);
 
     // Mock the feed service
-    nock
-      .default('http://localhost:6000')
+    nock('http://localhost:6000')
       .post('/feed.json')
       .reply(200, {
         data: [{ post_id: 'p1' }, { post_id: 'p2' }],
@@ -102,7 +101,7 @@ describe('GET /public/v1/feeds/custom/:feedId', () => {
       hasNextPage: expect.any(Boolean),
     });
 
-    nock.default.cleanAll();
+    nock.cleanAll();
   });
 });
 
