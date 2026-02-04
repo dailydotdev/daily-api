@@ -6,6 +6,12 @@ import bookmarksRoutes from './bookmarks';
 import feedsRoutes from './feeds';
 import postsRoutes from './posts';
 import searchRoutes from './search';
+import customFeedsRoutes from './customFeeds';
+import feedFiltersRoutes from './feedFilters';
+import notificationsRoutes from './notifications';
+import profileRoutes from './profile';
+import stackRoutes from './stack';
+import toolsRoutes from './tools';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
 
@@ -180,4 +186,10 @@ export default async function (
   await fastify.register(postsRoutes, { prefix: '/posts' });
   await fastify.register(searchRoutes, { prefix: '/search' });
   await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
+  await fastify.register(customFeedsRoutes, { prefix: '/feeds/custom' });
+  await fastify.register(feedFiltersRoutes, { prefix: '/feeds/filters' });
+  await fastify.register(notificationsRoutes, { prefix: '/notifications' });
+  await fastify.register(profileRoutes, { prefix: '/profile' });
+  await fastify.register(stackRoutes, { prefix: '/profile/stack' });
+  await fastify.register(toolsRoutes, { prefix: '/tools' });
 }
