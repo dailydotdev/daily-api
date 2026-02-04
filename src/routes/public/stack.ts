@@ -5,11 +5,21 @@ import {
   ensureDbConnection,
   STACK_ITEM_FIELDS,
   PAGE_INFO_FIELDS,
+  TOOL_FIELDS,
   StackItemType,
   StackConnection,
+  ToolType,
 } from './common';
 
 // GraphQL queries
+const AUTOCOMPLETE_TOOLS_QUERY = `
+  query PublicApiAutocompleteTools($query: String!) {
+    autocompleteTools(query: $query) {
+      ${TOOL_FIELDS}
+    }
+  }
+`;
+
 const USER_STACK_QUERY = `
   query PublicApiUserStack($userId: ID!, $first: Int, $after: String) {
     userStack(userId: $userId, first: $first, after: $after) {
@@ -57,6 +67,10 @@ const REORDER_USER_STACK_MUTATION = `
 `;
 
 // Response types
+interface AutocompleteToolsResponse {
+  autocompleteTools: ToolType[];
+}
+
 interface UserStackResponse {
   userStack: StackConnection;
 }
@@ -74,6 +88,64 @@ interface ReorderUserStackResponse {
 }
 
 export default async function (fastify: FastifyInstance): Promise<void> {
+  // Search for tools/technologies
+  fastify.get<{ Querystring: { query: string } }>(
+    '/search',
+    {
+      schema: {
+        description: 'Search for tools/technologies by name',
+        tags: ['stack'],
+        querystring: {
+          type: 'object',
+          required: ['query'],
+          properties: {
+            query: {
+              type: 'string',
+              minLength: 1,
+              description: 'Search query (minimum 1 character)',
+            },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              data: { type: 'array', items: { $ref: 'Tool#' } },
+            },
+          },
+          400: { $ref: 'Error#' },
+          401: { $ref: 'Error#' },
+          429: { $ref: 'RateLimitError#' },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { query } = request.query;
+      const con = ensureDbConnection(fastify.con);
+
+      if (!query || query.length < 1) {
+        return reply.status(400).send({
+          error: 'validation_error',
+          message: 'Query must be at least 1 character',
+        });
+      }
+
+      return executeGraphql(
+        con,
+        {
+          query: AUTOCOMPLETE_TOOLS_QUERY,
+          variables: { query },
+        },
+        (json) => {
+          const result = json as unknown as AutocompleteToolsResponse;
+          return { data: result.autocompleteTools };
+        },
+        request,
+        reply,
+      );
+    },
+  );
+
   // Get user's tech stack
   fastify.get<{ Querystring: { limit?: string; cursor?: string } }>(
     '/',

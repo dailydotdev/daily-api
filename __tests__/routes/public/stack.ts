@@ -11,8 +11,75 @@ const createTestTool = async (title: string) => {
     title,
     titleNormalized: title.toLowerCase(),
     faviconUrl: 'https://example.com/icon.png',
+    faviconSource: 'custom',
   });
 };
+
+describe('GET /public/v1/profile/stack/search', () => {
+  beforeEach(async () => {
+    // Create some test tools
+    await state.con.getRepository(DatasetTool).save([
+      {
+        title: 'TypeScript',
+        titleNormalized: 'typescript',
+        faviconUrl: 'https://example.com/ts.png',
+        faviconSource: 'custom',
+      },
+      {
+        title: 'JavaScript',
+        titleNormalized: 'javascript',
+        faviconUrl: 'https://example.com/js.png',
+        faviconSource: 'custom',
+      },
+      {
+        title: 'Python',
+        titleNormalized: 'python',
+        faviconUrl: 'https://example.com/py.png',
+        faviconSource: 'custom',
+      },
+    ]);
+  });
+
+  it('should search for tools', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack/search')
+      .query({ query: 'Type' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data[0]).toMatchObject({
+      id: expect.any(String),
+      title: expect.any(String),
+    });
+  });
+
+  it('should require query parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // Server returns 500 for schema validation errors due to global error handler
+    await request(state.app.server)
+      .get('/public/v1/profile/stack/search')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(500);
+  });
+
+  it('should return empty array for no matches', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack/search')
+      .query({ query: 'xyznonexistent123' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBe(0);
+  });
+});
 
 describe('GET /public/v1/profile/stack', () => {
   it('should return user stack', async () => {

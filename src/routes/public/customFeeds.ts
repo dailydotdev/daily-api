@@ -133,7 +133,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             orderBy: {
               type: 'string',
               enum: ['DATE', 'UPVOTES', 'DOWNVOTES', 'COMMENTS', 'CLICKS'],
-              description: 'Sort order for the feed',
+              description: 'Sort order for the feed (defaults to algorithmic ranking if not provided)',
             },
             minDayRange: {
               type: 'integer',
@@ -146,7 +146,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             minViews: { type: 'integer', description: 'Minimum views filter' },
             disableEngagementFilter: {
               type: 'boolean',
-              description: 'Disable engagement filter',
+              description: 'Disable engagement filter (when true, shows posts the user already clicked or saw in the feed)',
             },
           },
         },
@@ -262,7 +262,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   // Get a specific custom feed's posts
   fastify.get<{
     Params: { feedId: string };
-    Querystring: { limit?: string; cursor?: string; ranking?: string };
+    Querystring: { limit?: string; cursor?: string };
   }>(
     '/:feedId',
     {
@@ -290,11 +290,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
               type: 'string',
               description: 'Pagination cursor from previous response',
             },
-            ranking: {
-              type: 'string',
-              enum: ['POPULARITY', 'TIME'],
-              description: 'Ranking method',
-            },
           },
         },
         response: {
@@ -313,7 +308,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const limit = parseLimit(request.query.limit);
-      const { cursor, ranking } = request.query;
+      const { cursor } = request.query;
       const { feedId } = request.params;
       const con = ensureDbConnection(fastify.con);
 
@@ -325,7 +320,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             feedId,
             first: limit,
             after: cursor ?? null,
-            ranking: ranking ?? 'POPULARITY',
+            ranking: 'POPULARITY',
             version: 1,
           },
         },
@@ -427,7 +422,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             orderBy: {
               type: 'string',
               enum: ['DATE', 'UPVOTES', 'DOWNVOTES', 'COMMENTS', 'CLICKS'],
-              description: 'Sort order for the feed',
+              description: 'Sort order for the feed (defaults to algorithmic ranking if not provided)',
             },
             minDayRange: {
               type: 'integer',
@@ -440,7 +435,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             minViews: { type: 'integer', description: 'Minimum views filter' },
             disableEngagementFilter: {
               type: 'boolean',
-              description: 'Disable engagement filter',
+              description: 'Disable engagement filter (when true, shows posts the user already clicked or saw in the feed)',
             },
           },
         },

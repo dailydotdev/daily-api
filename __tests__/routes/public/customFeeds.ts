@@ -72,8 +72,7 @@ describe('GET /public/v1/feeds/custom', () => {
 });
 
 describe('GET /public/v1/feeds/custom/:feedId', () => {
-  // This test requires external feed service on port 6000 which isn't available in tests
-  it.skip('should get custom feed posts', async () => {
+  it('should get custom feed posts', async () => {
     const token = await createTokenForUser(state.con, '5');
 
     // Create a feed first

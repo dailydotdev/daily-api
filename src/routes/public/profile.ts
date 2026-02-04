@@ -68,9 +68,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     Body: {
       name?: string;
       bio?: string;
-      readme?: string;
-      company?: string;
-      title?: string;
       timezone?: string;
       weekStart?: number;
       acceptedMarketing?: boolean;
@@ -88,12 +85,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           properties: {
             name: { type: 'string', description: 'Full name' },
             bio: { type: 'string', description: 'Short bio' },
-            readme: {
-              type: 'string',
-              description: 'Profile readme (markdown)',
-            },
-            company: { type: 'string', description: 'Current company' },
-            title: { type: 'string', description: 'Job title' },
             timezone: { type: 'string', description: 'Preferred timezone' },
             weekStart: {
               type: 'integer',
@@ -145,9 +136,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const {
         name,
         bio,
-        readme,
-        company,
-        title,
         timezone,
         weekStart,
         acceptedMarketing,
@@ -159,9 +147,6 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const data: Record<string, unknown> = {};
       if (name !== undefined) data.name = name;
       if (bio !== undefined) data.bio = bio;
-      if (readme !== undefined) data.readme = readme;
-      if (company !== undefined) data.company = company;
-      if (title !== undefined) data.title = title;
       if (timezone !== undefined) data.timezone = timezone;
       if (weekStart !== undefined) data.weekStart = weekStart;
       if (acceptedMarketing !== undefined)
