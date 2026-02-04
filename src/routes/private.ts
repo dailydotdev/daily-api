@@ -341,6 +341,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         },
         sourceUrl: url,
         source: 'machine',
+        // mark as public draft for machine sources so they
+        // can be viewed before claim by new customers
+        public_draft: !!emails?.length,
       };
 
       const con = await createOrGetConnection();

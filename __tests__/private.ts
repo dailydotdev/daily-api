@@ -1543,6 +1543,12 @@ describe('POST /p/opportunities', () => {
 
     expect(relatedItems).toHaveLength(2);
     expect(relatedItems.map((i) => i.identifier).sort()).toEqual(emails.sort());
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: { id: res.body.opportunityId },
+    });
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.flags.public_draft).toBe(true);
   });
 
   it('should return 400 for validation error', async () => {
