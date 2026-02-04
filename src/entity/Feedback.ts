@@ -84,9 +84,6 @@ export class Feedback {
   @Column({ type: 'text', nullable: true })
   screenshotId: string | null;
 
-  @Column({ type: 'text', nullable: true })
-  consoleLogs: string | null;
-
   @CreateDateColumn()
   @Index('IDX_feedback_created_at')
   createdAt: Date;

@@ -78,7 +78,6 @@ const worker: TypedWorker<'api.v1.feedback-created'> = {
         pageUrl: feedback.pageUrl,
         classification,
         screenshotUrl: feedback.screenshotUrl,
-        consoleLogs: feedback.consoleLogs,
       });
 
       if (!issue) {

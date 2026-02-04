@@ -18,7 +18,6 @@ interface GQLFeedbackInput {
   pageUrl?: string;
   userAgent?: string;
   screenshot?: Promise<FileUpload>;
-  consoleLogs?: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -50,11 +49,6 @@ export const typeDefs = /* GraphQL */ `
     Optional screenshot image upload
     """
     screenshot: Upload
-
-    """
-    Optional console logs as JSON string (max 50KB)
-    """
-    consoleLogs: String
   }
 
   """
@@ -147,7 +141,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         userAgent: input.userAgent || null,
         screenshotUrl,
         screenshotId,
-        consoleLogs: input.consoleLogs || null,
         status: FeedbackStatus.Pending,
         flags: {},
       });

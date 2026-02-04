@@ -32,19 +32,17 @@ const cron: Cron = {
     const existingIds = existingFeedbackIds.map((f) => f.id);
 
     // Get terminal feedback IDs
-    const terminalFeedbackIds = await con
-      .getRepository(Feedback)
-      .find({
-        select: ['id'],
-        where: {
-          status: In([
-            FeedbackStatus.Completed,
-            FeedbackStatus.Cancelled,
-            FeedbackStatus.Spam,
-          ]),
-          updatedAt: LessThan(timeThreshold),
-        },
-      });
+    const terminalFeedbackIds = await con.getRepository(Feedback).find({
+      select: ['id'],
+      where: {
+        status: In([
+          FeedbackStatus.Completed,
+          FeedbackStatus.Cancelled,
+          FeedbackStatus.Spam,
+        ]),
+        updatedAt: LessThan(timeThreshold),
+      },
+    });
     const terminalIds = terminalFeedbackIds.map((f) => f.id);
 
     // Delete orphaned images (feedback no longer exists)
@@ -61,7 +59,7 @@ const cron: Cron = {
     if (orphanedImages.length > 0) {
       const { affected: orphanCount } = await con
         .getRepository(ContentImage)
-        .delete(orphanedImages.map((img) => img.id));
+        .delete(orphanedImages.map((img) => img.url));
       feedbackOrphanAffected += orphanCount ?? 0;
     }
 

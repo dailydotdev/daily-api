@@ -12,8 +12,4 @@ export const feedbackInputSchema = z.object({
     .max(2000),
   pageUrl: z.string().nullish(),
   userAgent: z.string().nullish(),
-  consoleLogs: z
-    .string()
-    .max(51200, 'Console logs exceed 50KB limit')
-    .nullish(),
 });
