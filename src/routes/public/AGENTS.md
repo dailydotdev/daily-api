@@ -330,6 +330,186 @@ IP limiting runs first to prevent token validation flooding. The generous IP lim
 
 ## Common Pitfalls
 
+### Test Coverage
+
+**Never skip tests without clear justification.** When the comment says "requires external service", verify this is actually true:
+
+```typescript
+// BAD: Skipping test without investigation
+it.skip('should get custom feed posts', async () => {
+  // This test requires external feed service on port 6000 which isn't available in tests
+  ...
+});
+
+// GOOD: Test runs because executeGraphql doesn't need external services
+it('should get custom feed posts', async () => {
+  const token = await createTokenForUser(state.con, '5');
+
+  const { body: createBody } = await request(state.app.server)
+    .post('/public/v1/feeds/custom')
+    .set('Authorization', `Bearer ${token}`)
+    .send({ name: 'Posts Test Feed' })
+    .expect(200);
+
+  const { body } = await request(state.app.server)
+    .get(`/public/v1/feeds/custom/${createBody.id}`)
+    .set('Authorization', `Bearer ${token}`)
+    .expect(200);
+
+  expect(Array.isArray(body.data)).toBe(true);
+});
+```
+
+**Most public API endpoints use `executeGraphql()`** which runs queries directly against the GraphQL schema - no external services needed. Check similar tests to confirm your endpoint works the same way before skipping.
+
+### API Documentation Clarity
+
+**Clarify technical terms and defaults in field descriptions.** API users may not understand domain-specific jargon:
+
+```typescript
+// BAD: Unclear what happens by default
+orderBy: {
+  type: 'string',
+  enum: ['DATE', 'UPVOTES', 'DOWNVOTES', 'COMMENTS', 'CLICKS'],
+  description: 'Sort order for the feed',
+}
+
+// GOOD: Clear default behavior
+orderBy: {
+  type: 'string',
+  enum: ['DATE', 'UPVOTES', 'DOWNVOTES', 'COMMENTS', 'CLICKS'],
+  description: 'Sort order for the feed (defaults to algorithmic ranking if not provided)',
+}
+
+// BAD: Technical term without explanation
+disableEngagementFilter: {
+  type: 'boolean',
+  description: 'Disable engagement filter',
+}
+
+// GOOD: Explains what the feature does
+disableEngagementFilter: {
+  type: 'boolean',
+  description: 'Disable engagement filter (when true, shows posts the user already clicked or saw in the feed)',
+}
+```
+
+### Redundant Query Parameters
+
+**Remove parameters that are controlled by other settings.** If a feed's ranking is stored in its configuration, don't expose it as a query parameter:
+
+```typescript
+// BAD: Ranking is controlled by feed settings, shouldn't be a parameter
+fastify.get<{
+  Params: { feedId: string };
+  Querystring: { limit?: string; cursor?: string; ranking?: string };
+}>(
+  '/:feedId',
+  {
+    querystring: {
+      properties: {
+        ranking: {
+          type: 'string',
+          enum: ['POPULARITY', 'TIME'],
+          description: 'Ranking method',  // Feed already has this setting!
+        },
+      },
+    },
+  },
+  async (request, reply) => {
+    const { ranking } = request.query;
+    // Uses user-provided ranking instead of feed's setting
+  }
+);
+
+// GOOD: Use the feed's own settings
+fastify.get<{
+  Params: { feedId: string };
+  Querystring: { limit?: string; cursor?: string };
+}>(
+  '/:feedId',
+  {
+    querystring: {
+      properties: {
+        limit: { ... },
+        cursor: { ... },
+        // No ranking parameter - feed controls its own ranking
+      },
+    },
+  },
+  async (request, reply) => {
+    // Feed's orderBy setting controls ranking
+  }
+);
+```
+
+### Endpoint Organization
+
+**Group related endpoints logically.** Tools/technologies used for stack management belong in the stack routes, not separate:
+
+```typescript
+// BAD: Separate tools endpoint when it's only used for stack
+// src/routes/public/tools.ts
+export default async function (fastify: FastifyInstance): Promise<void> {
+  fastify.get('/search', ...); // Search tools for adding to stack
+}
+
+// src/routes/public/index.ts
+await fastify.register(toolsRoutes, { prefix: '/tools' });
+await fastify.register(stackRoutes, { prefix: '/profile/stack' });
+// Results in: /public/v1/tools/search and /public/v1/profile/stack
+
+// GOOD: Tools search is part of stack routes
+// src/routes/public/stack.ts
+export default async function (fastify: FastifyInstance): Promise<void> {
+  fastify.get('/search', ...); // Search tools for stack
+  fastify.get('/', ...);        // List stack items
+  fastify.post('/', ...);       // Add to stack
+  // ... other stack operations
+}
+
+// src/routes/public/index.ts
+await fastify.register(stackRoutes, { prefix: '/profile/stack' });
+// Results in: /public/v1/profile/stack/search and /public/v1/profile/stack
+```
+
+This keeps related functionality together and makes the API more intuitive.
+
+### Profile Field Exposure
+
+**Only expose fields that make sense for the public API.** Some fields are better managed through the main app UI:
+
+```typescript
+// BAD: Exposing fields that shouldn't be in public API
+fastify.patch<{
+  Body: {
+    name?: string;
+    bio?: string;
+    readme?: string;     // Complex markdown field - better in UI
+    company?: string;    // Better managed in main app
+    title?: string;      // Better managed in main app
+    timezone?: string;
+    // ...
+  };
+}>(...)
+
+// GOOD: Only fields appropriate for API automation
+fastify.patch<{
+  Body: {
+    name?: string;
+    bio?: string;
+    timezone?: string;
+    weekStart?: number;
+    acceptedMarketing?: boolean;
+    experienceLevel?: string;
+    socialLinks?: Array<{ url: string; platform?: string }>;
+    // No readme, company, title - use main app for those
+  };
+}>(...)
+```
+
+**Consider the use case**: The public API is for automation and AI agents. Complex or UI-heavy fields should stay in the web app where users can interact with rich editors and previews.
+
 ### Boolean Parameter Handling
 
 **Never use `||` to provide null defaults for boolean parameters** - it incorrectly converts `false` to `null`:
