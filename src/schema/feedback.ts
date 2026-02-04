@@ -94,13 +94,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLEmptyResponse> => {
       // Validate input with Zod
       try {
-        feedbackInputSchema.parse({
-          category: input.category,
-          description: input.description,
-          pageUrl: input.pageUrl,
-          userAgent: input.userAgent,
-          consoleLogs: input.consoleLogs,
-        });
+        feedbackInputSchema.parse(input);
       } catch (err) {
         if (err instanceof ZodError) {
           throw new ValidationError(

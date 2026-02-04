@@ -153,17 +153,6 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
       });
     }
 
-    // Add console logs indicator if present
-    if (feedback.consoleLogs) {
-      blocks.push({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: '*Console Logs:* Attached (see Linear issue)',
-        },
-      });
-    }
-
     blocks.push({
       type: 'divider',
     });
