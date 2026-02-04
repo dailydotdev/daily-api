@@ -12,8 +12,8 @@ This directory contains the public REST API for daily.dev, accessible via Person
 
 ### AI Agent Documentation
 
-- **`skill.md`** - Concise API reference for AI agents (served at `/public/v1/skill.md`)
-- Update `skill.md` when changing endpoints. Version using semver:
+- **`SKILL.md`** - Concise API reference for AI agents (served at `/public/v1/skill.md`)
+- Update https://github.com/dailydotdev/daily/blob/master/.claude-plugin/plugins/daily.dev/skills/daily.dev/SKILL.md when changing endpoints, it is in our "daily" repository. Version using semver:
   - **Major**: Breaking changes
   - **Minor**: New endpoints/fields (backward compatible)
   - **Patch**: Documentation fixes
@@ -265,8 +265,6 @@ await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
 Add new data types to `schemas.ts` and reference with `{ $ref: 'SchemaName#' }`.
 
 **IMPORTANT:** Before creating new schemas, check `schemas.ts` for existing ones that might fit your needs.
-
-**Important:** Update `skill.md` when changing schemas.
 
 Available schemas:
 - `Source`, `Author`, `AuthorWithId`, `CommentAuthor` - Entity types

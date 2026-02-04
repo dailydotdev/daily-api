@@ -1,12 +1,26 @@
 import { FastifyInstance } from 'fastify';
-import { injectGraphql } from '../compatibility/utils';
+import type { DataSource } from 'typeorm';
+import { executeGraphql } from './public/graphqlExecutor';
 
-export default async function (fastify: FastifyInstance): Promise<void> {
+interface UnreadNotificationsResponse {
+  unreadNotificationsCount: number;
+}
+
+export default async function (
+  fastify: FastifyInstance,
+  con: DataSource,
+): Promise<void> {
   fastify.get('/', async (req, res) => {
     const query = `{
       unreadNotificationsCount
     }`;
 
-    return injectGraphql(fastify, { query }, (obj) => obj['data'], req, res);
+    return executeGraphql<UnreadNotificationsResponse>(
+      con,
+      { query },
+      (obj) => obj as unknown as UnreadNotificationsResponse,
+      req,
+      res,
+    );
   });
 }
