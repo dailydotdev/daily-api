@@ -90,6 +90,11 @@ export function validateImageUrl(url: string): string | null {
 
 /**
  * Checks if a URL is an external image URL that needs proxying
+ * Returns true for external http/https URLs, false for everything else
+ * (data URIs, relative URLs, and allowed domains)
+ *
+ * Note: Invalid protocols like file:// are NOT considered external URLs.
+ * They are handled by validateImageUrl which rejects them.
  */
 export function isExternalImageUrl(url: string): boolean {
   // Skip data URIs
@@ -97,7 +102,7 @@ export function isExternalImageUrl(url: string): boolean {
     return false;
   }
 
-  // Skip relative URLs
+  // Only consider http/https URLs as external (relative URLs and other protocols are skipped)
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     return false;
   }

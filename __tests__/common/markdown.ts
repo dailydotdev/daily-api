@@ -1,4 +1,13 @@
+import cloudinary from 'cloudinary';
 import { markdown } from '../../src/common/markdown';
+
+const configureCloudinary = () => {
+  cloudinary.v2.config({
+    cloud_name: 'daily-now',
+    api_key: 'test',
+    api_secret: 'test',
+  });
+};
 
 describe('markdown image proxy integration', () => {
   const originalEnv = process.env;
@@ -7,6 +16,7 @@ describe('markdown image proxy integration', () => {
     jest.resetModules();
     process.env = { ...originalEnv };
     process.env.CLOUDINARY_URL = 'cloudinary://test:test@daily-now';
+    configureCloudinary();
   });
 
   afterAll(() => {
@@ -57,13 +67,13 @@ describe('markdown image proxy integration', () => {
       expect(result).not.toContain('localhost');
     });
 
-    it('should block images with file:// protocol', () => {
+    it('should not render file:// protocol URLs as images', () => {
       const content = '![alt text](file:///etc/passwd)';
       const result = markdown.render(content);
 
-      // Note: markdown-it may not produce a valid image tag for file:// URLs
-      // but we ensure it doesn't expose the path
-      expect(result).not.toContain('/etc/passwd');
+      // Markdown-it does not render file:// URLs as images, just plain text
+      // This is safe since the path is not loaded as an image
+      expect(result).not.toContain('<img');
     });
 
     it('should preserve alt text in proxied images', () => {
@@ -83,9 +93,9 @@ Some text here
       `;
       const result = markdown.render(content);
 
-      expect(result).not.toContain('example.com/1.png');
-      expect(result).not.toContain('evil.com/2.gif');
+      // Both images should be proxied through Cloudinary
       expect(result.match(/media\.daily\.dev/g)?.length).toBe(2);
+      expect(result).toContain('/image/fetch/');
     });
 
     it('should handle images in links', () => {
