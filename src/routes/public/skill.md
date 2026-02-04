@@ -1,6 +1,6 @@
 # daily.dev API for AI Agents
 
-> Version: 0.3.0
+> Version: 0.4.0
 
 Access personalized developer content feeds from daily.dev - the professional network for developers. Surface relevant articles, tutorials, and discussions based on user interests.
 
@@ -186,7 +186,9 @@ Returns comments for a specific post.
       "lastUpdatedAt": null,
       "permalink": "https://app.daily.dev/posts/abc123#c1",
       "numUpvotes": 5,
-      "author": {"id": "u2", "name": "John Smith", "username": "johnsmith", "image": "..."},
+      "numAwards": 2,
+      "author": {"id": "u2", "name": "John Smith", "username": "johnsmith", "image": "...", "permalink": "https://app.daily.dev/johnsmith"},
+      "userState": {"vote": 1},
       "children": [
         {
           "id": "c2",
@@ -195,7 +197,9 @@ Returns comments for a specific post.
           "createdAt": "2024-01-15T12:30:00Z",
           "permalink": "https://app.daily.dev/posts/abc123#c2",
           "numUpvotes": 2,
-          "author": {"id": "u1", "name": "Jane Doe", "username": "janedoe", "image": "..."}
+          "numAwards": 0,
+          "author": {"id": "u1", "name": "Jane Doe", "username": "janedoe", "image": "...", "permalink": "https://app.daily.dev/janedoe"},
+          "userState": null
         }
       ]
     }

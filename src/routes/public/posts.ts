@@ -15,11 +15,16 @@ const POST_COMMENTS_QUERY = `
           lastUpdatedAt
           permalink
           numUpvotes
+          numAwards
           author {
             id
             name
             username
             image
+            permalink
+          }
+          userState {
+            vote
           }
           children {
             edges {
@@ -30,11 +35,16 @@ const POST_COMMENTS_QUERY = `
                 createdAt
                 permalink
                 numUpvotes
+                numAwards
                 author {
                   id
                   name
                   username
                   image
+                  permalink
+                }
+                userState {
+                  vote
                 }
               }
             }
@@ -126,6 +136,11 @@ interface CommentAuthor {
   name: string;
   username: string | null;
   image: string | null;
+  permalink: string;
+}
+
+interface CommentUserState {
+  vote: number;
 }
 
 interface CommentNode {
@@ -136,7 +151,9 @@ interface CommentNode {
   lastUpdatedAt?: string | null;
   permalink: string;
   numUpvotes: number;
+  numAwards: number;
   author: CommentAuthor;
+  userState: CommentUserState | null;
   children?: {
     edges: { node: Omit<CommentNode, 'children' | 'lastUpdatedAt'> }[];
   };

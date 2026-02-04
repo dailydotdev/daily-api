@@ -162,6 +162,18 @@ export const commonSchemas = {
       name: { type: 'string' },
       username: { type: 'string', nullable: true },
       image: { type: 'string', format: 'uri', nullable: true },
+      permalink: { type: 'string', format: 'uri' },
+    },
+  },
+  CommentUserState: {
+    $id: 'CommentUserState',
+    type: 'object',
+    nullable: true,
+    properties: {
+      vote: {
+        type: 'integer',
+        description: "User's vote on the comment (-1, 0, or 1)",
+      },
     },
   },
   Comment: {
@@ -175,7 +187,12 @@ export const commonSchemas = {
       lastUpdatedAt: { type: 'string', format: 'date-time', nullable: true },
       permalink: { type: 'string', format: 'uri' },
       numUpvotes: { type: 'integer' },
+      numAwards: {
+        type: 'integer',
+        description: 'Total number of awards on this comment',
+      },
       author: { $ref: 'CommentAuthor#' },
+      userState: { $ref: 'CommentUserState#' },
       children: {
         type: 'array',
         items: { $ref: 'Comment#' },
