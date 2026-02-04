@@ -54,11 +54,18 @@ When GraphQL response matches REST response, return the node directly:
 })
 ```
 
-### 3. Use Shared Utilities
+### 3. Use Shared Utilities and Types
 
-Import shared constants and utilities from `./common.ts`:
+Import shared constants, utilities, and types from `./common.ts`:
 ```typescript
-import { parseLimit, ensureDbConnection } from './common';
+import type { FeedConnection, PostNode, BookmarkedPostNode } from './common';
+import {
+  parseLimit,
+  ensureDbConnection,
+  POST_NODE_FIELDS,
+  BOOKMARKED_POST_EXTRA_FIELDS,
+  PAGE_INFO_FIELDS,
+} from './common';
 
 // Use parseLimit for query parameter parsing
 const limit = parseLimit(request.query.limit);
@@ -66,6 +73,102 @@ const limit = parseLimit(request.query.limit);
 // Use ensureDbConnection to validate connection
 const con = ensureDbConnection(fastify.con);
 ```
+
+### 4. Reuse GraphQL Field Strings
+
+**CRITICAL: Never duplicate GraphQL fields.** Use the shared field strings from `common.ts`:
+
+```typescript
+// GOOD: Use shared field strings
+const MY_FEED_QUERY = `
+  query MyFeed($first: Int) {
+    myFeed(first: $first) {
+      edges {
+        node {
+          ${POST_NODE_FIELDS}
+        }
+      }
+      ${PAGE_INFO_FIELDS}
+    }
+  }
+`;
+
+// For bookmark feeds, add the extra bookmark fields:
+const BOOKMARKS_QUERY = `
+  query Bookmarks($first: Int) {
+    bookmarksFeed(first: $first) {
+      edges {
+        node {
+          ${POST_NODE_FIELDS}
+          ${BOOKMARKED_POST_EXTRA_FIELDS}
+        }
+      }
+      ${PAGE_INFO_FIELDS}
+    }
+  }
+`;
+
+// BAD: Duplicating fields inline (DO NOT DO THIS)
+const MY_FEED_QUERY = `
+  query MyFeed($first: Int) {
+    myFeed(first: $first) {
+      edges {
+        node {
+          id
+          title
+          url
+          image
+          summary
+          ...  // Don't duplicate - use POST_NODE_FIELDS
+        }
+      }
+    }
+  }
+`;
+```
+
+### 5. Reuse TypeScript Types
+
+**CRITICAL: Never define duplicate interfaces.** Use the shared types from `common.ts`:
+
+```typescript
+// GOOD: Use shared types
+import type { FeedConnection, PostNode, BookmarkedPostNode, PageInfo } from './common';
+
+interface MyFeedResponse {
+  myFeed: FeedConnection<PostNode>;
+}
+
+interface BookmarksFeedResponse {
+  bookmarksFeed: FeedConnection<BookmarkedPostNode>;
+}
+
+// BAD: Defining duplicate interfaces (DO NOT DO THIS)
+interface MyPostNode {
+  id: string;
+  title: string;
+  // ... same fields as PostNode - DON'T DUPLICATE!
+}
+```
+
+**Available shared types:**
+
+| Type | Description |
+|------|-------------|
+| `PostNode` | Standard post fields (id, title, url, source, author, etc.) |
+| `BookmarkedPostNode` | PostNode + bookmarkedAt timestamp |
+| `SourceInfo` | Source/publisher info (id, name, handle, image) |
+| `AuthorInfo` | Author info (name, image) |
+| `PageInfo` | Pagination info (hasNextPage, endCursor) |
+| `FeedConnection<T>` | Generic connection wrapper (edges, pageInfo) |
+
+**Available GraphQL field strings:**
+
+| Constant | Description |
+|----------|-------------|
+| `POST_NODE_FIELDS` | All standard post fields |
+| `BOOKMARKED_POST_EXTRA_FIELDS` | Extra fields for bookmarked posts (bookmarkedAt) |
+| `PAGE_INFO_FIELDS` | Pagination fields (pageInfo { hasNextPage, endCursor }) |
 
 ## Adding New Endpoints
 
@@ -161,11 +264,16 @@ await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
 
 Add new data types to `schemas.ts` and reference with `{ $ref: 'SchemaName#' }`.
 
+**IMPORTANT:** Before creating new schemas, check `schemas.ts` for existing ones that might fit your needs.
+
 **Important:** Update `skill.md` when changing schemas.
 
 Available schemas:
-- `Source`, `Author`, `AuthorWithId` - Entity types
-- `FeedPost`, `PostDetail` - Post types
+- `Source`, `Author`, `AuthorWithId`, `CommentAuthor` - Entity types
+- `FeedPost`, `PostDetail`, `BookmarkedPost` - Post types
+- `BookmarkList` - Bookmark list type
+- `Comment` - Comment type with nested children
+- `Tag`, `SourceSummary` - Search result types
 - `Pagination`, `Error`, `RateLimitError` - Common types
 
 ## Response Format
@@ -274,7 +382,9 @@ fastify.get<{ Querystring: BookmarksQuery }>(...)
 
 ### Shared Utilities in `common.ts`
 
-Always use the shared utilities instead of duplicating code:
+Always use the shared utilities, types, and GraphQL field strings instead of duplicating code:
+
+**Utilities:**
 
 | Utility | Purpose |
 |---------|---------|
@@ -282,6 +392,25 @@ Always use the shared utilities instead of duplicating code:
 | `ensureDbConnection(con)` | Validate database connection, throw if undefined |
 | `MAX_LIMIT` | Maximum allowed limit (50) |
 | `DEFAULT_LIMIT` | Default limit value (20) |
+
+**GraphQL Field Strings:**
+
+| Constant | Purpose |
+|----------|---------|
+| `POST_NODE_FIELDS` | All standard post fields for feed queries |
+| `BOOKMARKED_POST_EXTRA_FIELDS` | Extra fields for bookmarked posts (bookmarkedAt) |
+| `PAGE_INFO_FIELDS` | Pagination fields (pageInfo { hasNextPage, endCursor }) |
+
+**TypeScript Types:**
+
+| Type | Purpose |
+|------|---------|
+| `PostNode` | Standard post interface (use instead of defining local post types) |
+| `BookmarkedPostNode` | PostNode extended with bookmarkedAt |
+| `SourceInfo` | Source/publisher info interface |
+| `AuthorInfo` | Author info interface |
+| `PageInfo` | Pagination info interface |
+| `FeedConnection<T>` | Generic feed connection (edges + pageInfo) |
 
 ## Testing
 

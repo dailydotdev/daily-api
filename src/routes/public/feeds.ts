@@ -1,7 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { executeGraphql } from './graphqlExecutor';
 import { getUserGrowthBookInstance } from '../../growthbook';
-import { parseLimit, ensureDbConnection } from './common';
+import {
+  parseLimit,
+  ensureDbConnection,
+  POST_NODE_FIELDS,
+  PAGE_INFO_FIELDS,
+  FeedConnection,
+  PostNode,
+} from './common';
 
 const DEFAULT_FEED_VERSION = 1;
 
@@ -11,35 +18,10 @@ const FORYOU_FEED_QUERY = `
     feed(first: $first, after: $after, ranking: POPULARITY, version: $version) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
+          ${POST_NODE_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
@@ -50,35 +32,10 @@ const POPULAR_FEED_QUERY = `
     anonymousFeed(first: $first, after: $after, ranking: POPULARITY, filters: $filters) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
+          ${POST_NODE_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
@@ -89,35 +46,10 @@ const MOST_DISCUSSED_FEED_QUERY = `
     mostDiscussedFeed(first: $first, after: $after, period: $period, tag: $tag, source: $source) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
+          ${POST_NODE_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
@@ -128,35 +60,10 @@ const TAG_FEED_QUERY = `
     tagFeed(tag: $tag, first: $first, after: $after, ranking: POPULARITY) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
+          ${POST_NODE_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
@@ -167,115 +74,34 @@ const SOURCE_FEED_QUERY = `
     sourceFeed(source: $source, first: $first, after: $after, ranking: POPULARITY) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
+          ${POST_NODE_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
 
-interface FeedNode {
-  id: string;
-  title: string;
-  url: string;
-  image: string | null;
-  summary: string | null;
-  type: string;
-  publishedAt: string | null;
-  createdAt: string;
-  commentsPermalink: string;
-  source: {
-    id: string;
-    name: string;
-    handle: string;
-    image: string | null;
-  };
-  tags: string[];
-  readTime: number | null;
-  numUpvotes: number;
-  numComments: number;
-  author: {
-    name: string;
-    image: string | null;
-  } | null;
-}
-
 interface FeedResponse {
   data: {
-    feed: {
-      edges: { node: FeedNode }[];
-      pageInfo: {
-        hasNextPage: boolean;
-        endCursor: string | null;
-      };
-    };
+    feed: FeedConnection<PostNode>;
   };
 }
 
 interface AnonymousFeedResponse {
-  anonymousFeed: {
-    edges: { node: FeedNode }[];
-    pageInfo: {
-      hasNextPage: boolean;
-      endCursor: string | null;
-    };
-  };
+  anonymousFeed: FeedConnection<PostNode>;
 }
 
 interface MostDiscussedFeedResponse {
-  mostDiscussedFeed: {
-    edges: { node: FeedNode }[];
-    pageInfo: {
-      hasNextPage: boolean;
-      endCursor: string | null;
-    };
-  };
+  mostDiscussedFeed: FeedConnection<PostNode>;
 }
 
 interface TagFeedResponse {
-  tagFeed: {
-    edges: { node: FeedNode }[];
-    pageInfo: {
-      hasNextPage: boolean;
-      endCursor: string | null;
-    };
-  };
+  tagFeed: FeedConnection<PostNode>;
 }
 
 interface SourceFeedResponse {
-  sourceFeed: {
-    edges: { node: FeedNode }[];
-    pageInfo: {
-      hasNextPage: boolean;
-      endCursor: string | null;
-    };
-  };
+  sourceFeed: FeedConnection<PostNode>;
 }
 
 export default async function (fastify: FastifyInstance): Promise<void> {

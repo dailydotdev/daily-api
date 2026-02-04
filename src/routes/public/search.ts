@@ -1,6 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { executeGraphql } from './graphqlExecutor';
-import { parseLimit, ensureDbConnection } from './common';
+import type { FeedConnection, PostNode } from './common';
+import {
+  parseLimit,
+  ensureDbConnection,
+  POST_NODE_FIELDS,
+  PAGE_INFO_FIELDS,
+} from './common';
 
 // GraphQL query for searching posts
 const SEARCH_POSTS_QUERY = `
@@ -8,35 +14,10 @@ const SEARCH_POSTS_QUERY = `
     searchPosts(query: $query, first: $first, after: $after, time: $time) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
+          ${POST_NODE_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
@@ -66,40 +47,8 @@ const SEARCH_SOURCES_QUERY = `
   }
 `;
 
-interface SearchPostNode {
-  id: string;
-  title: string;
-  url: string;
-  image: string | null;
-  summary: string | null;
-  type: string;
-  publishedAt: string | null;
-  createdAt: string;
-  commentsPermalink: string;
-  source: {
-    id: string;
-    name: string;
-    handle: string;
-    image: string | null;
-  };
-  tags: string[];
-  readTime: number | null;
-  numUpvotes: number;
-  numComments: number;
-  author: {
-    name: string;
-    image: string | null;
-  } | null;
-}
-
 interface SearchPostsResponse {
-  searchPosts: {
-    edges: { node: SearchPostNode }[];
-    pageInfo: {
-      hasNextPage: boolean;
-      endCursor: string | null;
-    };
-  };
+  searchPosts: FeedConnection<PostNode>;
 }
 
 interface SearchTagsResponse {

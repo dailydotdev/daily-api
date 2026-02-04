@@ -1,6 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { executeGraphql } from './graphqlExecutor';
-import { parseLimit, ensureDbConnection } from './common';
+import {
+  parseLimit,
+  ensureDbConnection,
+  POST_NODE_FIELDS,
+  BOOKMARKED_POST_EXTRA_FIELDS,
+  PAGE_INFO_FIELDS,
+  FeedConnection,
+  BookmarkedPostNode,
+} from './common';
 
 // GraphQL query for bookmarks feed
 const BOOKMARKS_FEED_QUERY = `
@@ -8,36 +16,11 @@ const BOOKMARKS_FEED_QUERY = `
     bookmarksFeed(first: $first, after: $after, unreadOnly: $unreadOnly, listId: $listId) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
-          bookmarkedAt
+          ${POST_NODE_FIELDS}
+          ${BOOKMARKED_POST_EXTRA_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
@@ -48,36 +31,11 @@ const SEARCH_BOOKMARKS_QUERY = `
     searchBookmarks(query: $query, first: $first, after: $after, unreadOnly: $unreadOnly, listId: $listId) {
       edges {
         node {
-          id
-          title
-          url
-          image
-          summary
-          type
-          publishedAt
-          createdAt
-          commentsPermalink
-          source {
-            id
-            name
-            handle
-            image
-          }
-          tags
-          readTime
-          numUpvotes
-          numComments
-          author {
-            name
-            image
-          }
-          bookmarkedAt
+          ${POST_NODE_FIELDS}
+          ${BOOKMARKED_POST_EXTRA_FIELDS}
         }
       }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
+      ${PAGE_INFO_FIELDS}
     }
   }
 `;
@@ -134,51 +92,12 @@ const REMOVE_BOOKMARK_MUTATION = `
   }
 `;
 
-interface BookmarkedPostNode {
-  id: string;
-  title: string;
-  url: string;
-  image: string | null;
-  summary: string | null;
-  type: string;
-  publishedAt: string | null;
-  createdAt: string;
-  commentsPermalink: string;
-  source: {
-    id: string;
-    name: string;
-    handle: string;
-    image: string | null;
-  };
-  tags: string[];
-  readTime: number | null;
-  numUpvotes: number;
-  numComments: number;
-  author: {
-    name: string;
-    image: string | null;
-  } | null;
-  bookmarkedAt: string;
-}
-
 interface BookmarksFeedResponse {
-  bookmarksFeed: {
-    edges: { node: BookmarkedPostNode }[];
-    pageInfo: {
-      hasNextPage: boolean;
-      endCursor: string | null;
-    };
-  };
+  bookmarksFeed: FeedConnection<BookmarkedPostNode>;
 }
 
 interface SearchBookmarksResponse {
-  searchBookmarks: {
-    edges: { node: BookmarkedPostNode }[];
-    pageInfo: {
-      hasNextPage: boolean;
-      endCursor: string | null;
-    };
-  };
+  searchBookmarks: FeedConnection<BookmarkedPostNode>;
 }
 
 interface BookmarkList {
