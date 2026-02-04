@@ -191,3 +191,27 @@ describe('DELETE /public/v1/feeds/custom/:feedId', () => {
     expect(feed).toBeNull();
   });
 });
+
+describe('GET /public/v1/feeds/custom/advanced-settings', () => {
+  it('should return available advanced settings', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/feeds/custom/advanced-settings')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body).toHaveProperty('data');
+    expect(Array.isArray(body.data)).toBe(true);
+    // Each setting should have the expected structure
+    if (body.data.length > 0) {
+      expect(body.data[0]).toMatchObject({
+        id: expect.any(Number),
+        title: expect.any(String),
+        description: expect.any(String),
+        defaultEnabledState: expect.any(Boolean),
+        group: expect.any(String),
+      });
+    }
+  });
+});

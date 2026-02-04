@@ -200,6 +200,17 @@ export const FEED_SETTINGS_FIELDS = `
   }
 `;
 
+/**
+ * Advanced settings fields for available settings list.
+ */
+export const ADVANCED_SETTINGS_FIELDS = `
+  id
+  title
+  description
+  defaultEnabledState
+  group
+`;
+
 // ============================================================================
 // Notification GraphQL Fields
 // ============================================================================
@@ -348,6 +359,17 @@ export interface CustomFeedConnection {
 export interface FeedAdvancedSettings {
   id: number;
   enabled: boolean;
+}
+
+/**
+ * Available advanced setting definition.
+ */
+export interface AdvancedSettingsType {
+  id: number;
+  title: string;
+  description: string;
+  defaultEnabledState: boolean;
+  group: string;
 }
 
 /**

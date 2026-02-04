@@ -6,6 +6,7 @@ import {
   CUSTOM_FEED_FIELDS,
   POST_NODE_FIELDS,
   PAGE_INFO_FIELDS,
+  ADVANCED_SETTINGS_FIELDS,
   CustomFeed,
   CustomFeedConnection,
   FeedConnection,
@@ -13,6 +14,14 @@ import {
 } from './common';
 
 // GraphQL queries
+const ADVANCED_SETTINGS_QUERY = `
+  query PublicApiAdvancedSettings {
+    advancedSettings {
+      ${ADVANCED_SETTINGS_FIELDS}
+    }
+  }
+`;
+
 const FEED_LIST_QUERY = `
   query PublicApiFeedList($first: Int, $after: String) {
     feedList(first: $first, after: $after) {
@@ -106,7 +115,76 @@ interface UpdateFeedAdvancedSettingsResponse {
   updateFeedAdvancedSettings: { id: number; enabled: boolean }[];
 }
 
+interface AdvancedSettingsResponse {
+  advancedSettings: {
+    id: number;
+    title: string;
+    description: string;
+    defaultEnabledState: boolean;
+    group: string;
+  }[];
+}
+
 export default async function (fastify: FastifyInstance): Promise<void> {
+  // Get available advanced settings
+  fastify.get(
+    '/advanced-settings',
+    {
+      schema: {
+        description:
+          'Get all available advanced settings that can be configured for custom feeds',
+        tags: ['custom-feeds'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              data: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: {
+                      type: 'integer',
+                      description: 'Setting ID to use when updating feed',
+                    },
+                    title: { type: 'string', description: 'Setting title' },
+                    description: {
+                      type: 'string',
+                      description: 'What this setting controls',
+                    },
+                    defaultEnabledState: {
+                      type: 'boolean',
+                      description: 'Default enabled state',
+                    },
+                    group: { type: 'string', description: 'Settings group' },
+                  },
+                },
+              },
+            },
+          },
+          401: { $ref: 'Error#' },
+          429: { $ref: 'RateLimitError#' },
+        },
+      },
+    },
+    async (request, reply) => {
+      const con = ensureDbConnection(fastify.con);
+
+      return executeGraphql(
+        con,
+        {
+          query: ADVANCED_SETTINGS_QUERY,
+          variables: {},
+        },
+        (json) => {
+          const result = json as unknown as AdvancedSettingsResponse;
+          return { data: result.advancedSettings };
+        },
+        request,
+        reply,
+      );
+    },
+  );
   // Create a new custom feed
   fastify.post<{
     Body: {
@@ -536,7 +614,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/:feedId/advanced',
     {
       schema: {
-        description: 'Update custom feed advanced settings',
+        description:
+          'Update custom feed advanced settings. Use GET /feeds/custom/advanced-settings to see available settings.',
         tags: ['custom-feeds'],
         params: {
           type: 'object',
@@ -555,7 +634,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
                 type: 'object',
                 required: ['id', 'enabled'],
                 properties: {
-                  id: { type: 'integer', description: 'Setting ID' },
+                  id: {
+                    type: 'integer',
+                    description:
+                      'Setting ID (see GET /feeds/custom/advanced-settings for available IDs)',
+                  },
                   enabled: { type: 'boolean', description: 'Enabled state' },
                 },
               },
