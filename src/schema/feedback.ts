@@ -7,17 +7,13 @@ import { ValidationError } from 'apollo-server-errors';
 import { feedbackInputSchema } from '../common/schema/feedback';
 import { ZodError } from 'zod/v4';
 import { GQLEmptyResponse } from './common';
-import { uploadPostFile, UploadPreset } from '../common/cloudinary';
-import { generateUUID } from '../ids';
-// @ts-expect-error - no types
-import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
 interface GQLFeedbackInput {
   category: number;
   description: string;
   pageUrl?: string;
   userAgent?: string;
-  screenshot?: Promise<FileUpload>;
+  screenshotUrl?: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -46,9 +42,9 @@ export const typeDefs = /* GraphQL */ `
     userAgent: String
 
     """
-    Optional screenshot image upload
+    Optional screenshot URL (client uploads to Cloudinary)
     """
-    screenshot: Upload
+    screenshotUrl: String
   }
 
   """
@@ -98,37 +94,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw err;
       }
 
-      let screenshotUrl: string | null = null;
-      let screenshotId: string | null = null;
-
-      // Handle screenshot upload
-      if (input.screenshot && process.env.CLOUDINARY_URL) {
-        const upload = await input.screenshot;
-        const extension = upload.filename?.split('.').pop()?.toLowerCase();
-
-        // Validate image type
-        const allowedExtensions = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
-        if (!extension || !allowedExtensions.includes(extension)) {
-          throw new ValidationError(
-            'Invalid screenshot format. Allowed: png, jpg, jpeg, webp, gif',
-          );
-        }
-
-        const id = generateUUID();
-        const filename = `feedback_${id}`;
-        const preset =
-          extension === 'gif'
-            ? UploadPreset.FreeformGif
-            : UploadPreset.FreeformImage;
-
-        const uploadResult = await uploadPostFile(
-          filename,
-          upload.createReadStream(),
-          preset,
-        );
-        screenshotUrl = uploadResult.url;
-        screenshotId = uploadResult.id;
-      }
+      const screenshotUrl = input.screenshotUrl || null;
 
       // Create feedback record
       // CDC will pick this up and handle classification via PubSub
@@ -140,16 +106,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         pageUrl: input.pageUrl || null,
         userAgent: input.userAgent || null,
         screenshotUrl,
-        screenshotId,
         status: FeedbackStatus.Pending,
         flags: {},
       });
 
       // Create ContentImage record to link screenshot to feedback
-      if (screenshotUrl && screenshotId) {
+      if (screenshotUrl) {
         await ctx.con.getRepository(ContentImage).save({
           url: screenshotUrl,
-          serviceId: screenshotId,
+          serviceId: screenshotUrl,
           usedByType: ContentImageUsedByType.Feedback,
           usedById: feedback.id,
         });

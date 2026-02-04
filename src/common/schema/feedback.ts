@@ -12,4 +12,5 @@ export const feedbackInputSchema = z.object({
     .max(2000),
   pageUrl: z.string().nullish(),
   userAgent: z.string().nullish(),
+  screenshotUrl: z.url().nullish(),
 });
