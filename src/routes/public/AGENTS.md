@@ -8,7 +8,7 @@ This directory contains the public REST API for daily.dev, accessible via Person
 - **Authentication:** Bearer token (Personal Access Tokens)
 - **Rate limiting:** Two-layer system (IP + user-based)
 - **OpenAPI:** Auto-generated at `/public/v1/docs/json` and `/public/v1/docs/yaml`
-- **GraphQL Execution:** Routes use `executeGraphql()` to leverage existing resolvers directly
+- **GraphQL Execution:** Routes use `executeGraphql()` to directly execute GraphQL queries
 
 ### AI Agent Documentation
 
@@ -54,6 +54,122 @@ When GraphQL response matches REST response, return the node directly:
 })
 ```
 
+### 3. Use Shared Utilities and Types
+
+Import shared constants, utilities, and types from `./common.ts`:
+```typescript
+import type { FeedConnection, PostNode, BookmarkedPostNode } from './common';
+import {
+  parseLimit,
+  ensureDbConnection,
+  POST_NODE_FIELDS,
+  BOOKMARKED_POST_EXTRA_FIELDS,
+  PAGE_INFO_FIELDS,
+} from './common';
+
+// Use parseLimit for query parameter parsing
+const limit = parseLimit(request.query.limit);
+
+// Use ensureDbConnection to validate connection
+const con = ensureDbConnection(fastify.con);
+```
+
+### 4. Reuse GraphQL Field Strings
+
+**CRITICAL: Never duplicate GraphQL fields.** Use the shared field strings from `common.ts`:
+
+```typescript
+// GOOD: Use shared field strings
+const MY_FEED_QUERY = `
+  query MyFeed($first: Int) {
+    myFeed(first: $first) {
+      edges {
+        node {
+          ${POST_NODE_FIELDS}
+        }
+      }
+      ${PAGE_INFO_FIELDS}
+    }
+  }
+`;
+
+// For bookmark feeds, add the extra bookmark fields:
+const BOOKMARKS_QUERY = `
+  query Bookmarks($first: Int) {
+    bookmarksFeed(first: $first) {
+      edges {
+        node {
+          ${POST_NODE_FIELDS}
+          ${BOOKMARKED_POST_EXTRA_FIELDS}
+        }
+      }
+      ${PAGE_INFO_FIELDS}
+    }
+  }
+`;
+
+// BAD: Duplicating fields inline (DO NOT DO THIS)
+const MY_FEED_QUERY = `
+  query MyFeed($first: Int) {
+    myFeed(first: $first) {
+      edges {
+        node {
+          id
+          title
+          url
+          image
+          summary
+          ...  // Don't duplicate - use POST_NODE_FIELDS
+        }
+      }
+    }
+  }
+`;
+```
+
+### 5. Reuse TypeScript Types
+
+**CRITICAL: Never define duplicate interfaces.** Use the shared types from `common.ts`:
+
+```typescript
+// GOOD: Use shared types
+import type { FeedConnection, PostNode, BookmarkedPostNode, PageInfo } from './common';
+
+interface MyFeedResponse {
+  myFeed: FeedConnection<PostNode>;
+}
+
+interface BookmarksFeedResponse {
+  bookmarksFeed: FeedConnection<BookmarkedPostNode>;
+}
+
+// BAD: Defining duplicate interfaces (DO NOT DO THIS)
+interface MyPostNode {
+  id: string;
+  title: string;
+  // ... same fields as PostNode - DON'T DUPLICATE!
+}
+```
+
+**Available shared types:**
+
+| Type | Description |
+|------|-------------|
+| `PostNode` | Standard post fields (id, title, url, source, author, etc.) |
+| `BookmarkedPostNode` | PostNode + bookmarkedAt timestamp |
+| `SourceInfo` | Source/publisher info (id, name, handle, image) |
+| `AuthorInfo` | Author info (name, image) |
+| `PageInfo` | Pagination info (hasNextPage, endCursor) |
+| `FeedConnection<T>` | Generic connection wrapper (edges, pageInfo) |
+
+**Available GraphQL field strings:**
+
+| Constant | Description |
+|----------|-------------|
+| `POST_NODE_FIELDS` | All standard post fields |
+| `BOOKMARKED_POST_EXTRA_FIELDS` | Extra fields for bookmarked posts (bookmarkedAt) |
+| `PAGE_INFO_FIELDS` | Pagination fields (pageInfo { hasNextPage, endCursor }) |
+
 ## Adding New Endpoints
 
 ### 1. Create Route File
@@ -62,8 +178,8 @@ Create a new file in `src/routes/public/` (e.g., `bookmarks.ts`):
 
 ```typescript
 import type { FastifyInstance } from 'fastify';
-import type { DataSource } from 'typeorm';
 import { executeGraphql } from './graphqlExecutor';
+import { parseLimit, ensureDbConnection } from './common';
 
 const BOOKMARKS_QUERY = `
   query PublicApiBookmarks($first: Int, $after: String) {
@@ -74,8 +190,8 @@ const BOOKMARKS_QUERY = `
   }
 `;
 
-export default async function (fastify: FastifyInstance, con: DataSource): Promise<void> {
-  fastify.get(
+export default async function (fastify: FastifyInstance): Promise<void> {
+  fastify.get<{ Querystring: { limit?: string; cursor?: string } }>(
     '/',
     {
       schema: {
@@ -102,22 +218,29 @@ export default async function (fastify: FastifyInstance, con: DataSource): Promi
       },
     },
     async (request, reply) => {
+      const limit = parseLimit(request.query.limit);
+      const { cursor } = request.query;
+      const con = ensureDbConnection(fastify.con);
+
       return executeGraphql(
         con,
         {
           query: BOOKMARKS_QUERY,
           variables: {
-            first: request.query.limit || 20,
-            after: request.query.cursor || null,
+            first: limit,
+            after: cursor ?? null,
           },
         },
-        (json) => ({
-          data: json.bookmarksFeed.edges.map((edge) => edge.node),
-          pagination: {
-            hasNextPage: json.bookmarksFeed.pageInfo.hasNextPage,
-            cursor: json.bookmarksFeed.pageInfo.endCursor,
-          },
-        }),
+        (json) => {
+          const result = json as { bookmarksFeed: { edges: { node: unknown }[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } };
+          return {
+            data: result.bookmarksFeed.edges.map(({ node }) => node),
+            pagination: {
+              hasNextPage: result.bookmarksFeed.pageInfo.hasNextPage,
+              cursor: result.bookmarksFeed.pageInfo.endCursor,
+            },
+          };
+        },
         request,
         reply,
       );
@@ -141,11 +264,14 @@ await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
 
 Add new data types to `schemas.ts` and reference with `{ $ref: 'SchemaName#' }`.
 
-**Important:** Update https://github.com/dailydotdev/daily/blob/master/.claude-plugin/plugins/daily.dev/skills/daily.dev/SKILL.md when changing endpoints, it is in our "daily" repository
+**IMPORTANT:** Before creating new schemas, check `schemas.ts` for existing ones that might fit your needs.
 
 Available schemas:
-- `Source`, `Author`, `AuthorWithId` - Entity types
-- `FeedPost`, `PostDetail` - Post types
+- `Source`, `Author`, `AuthorWithId`, `CommentAuthor` - Entity types
+- `FeedPost`, `PostDetail`, `BookmarkedPost` - Post types
+- `BookmarkList` - Bookmark list type
+- `Comment` - Comment type with nested children
+- `Tag`, `SourceSummary` - Search result types
 - `Pagination`, `Error`, `RateLimitError` - Common types
 
 ## Response Format
@@ -166,7 +292,25 @@ Available schemas:
 ### Authentication Flow
 
 1. Auth middleware validates PAT and sets `request.userId`, `request.isPlus`
-2. `executeGraphql()` creates a GraphQL context directly from the request (no HTTP round-trip)
+2. `executeGraphql()` creates a GraphQL Context from the authenticated request
+3. GraphQL resolvers receive the user context and execute queries/mutations
+
+### Direct GraphQL Execution
+
+The `executeGraphql()` function in `graphqlExecutor.ts`:
+- Creates a GraphQL Context directly from the authenticated Fastify request
+- Executes GraphQL queries using the schema's `execute()` function
+- Maps GraphQL errors to appropriate HTTP status codes (401, 403, 404, etc.)
+- Caches parsed queries for performance
+
+```typescript
+// executeGraphql handles all the complexity:
+// - Context creation from authenticated request
+// - Query execution
+// - Error mapping to HTTP status codes
+// - Response transformation
+return executeGraphql(con, { query, variables }, transformFn, request, reply);
+```
 
 ### Rate Limiting
 
@@ -184,11 +328,93 @@ IP limiting runs first to prevent token validation flooding. The generous IP lim
 - `X-RateLimit-Limit-User`, `X-RateLimit-Remaining-User` (user)
 - `Retry-After` (on 429)
 
+## Common Pitfalls
+
+### Boolean Parameter Handling
+
+**Never use `||` to provide null defaults for boolean parameters** - it incorrectly converts `false` to `null`:
+
+```typescript
+// BAD: false || null = null (loses the boolean value!)
+const variables = {
+  unreadOnly: unreadOnly || null,
+};
+
+// GOOD: Only send true when explicitly true, otherwise null
+const variables = {
+  unreadOnly: unreadOnly ? true : null,
+};
+```
+
+### Nullish Coalescing for Optional Parameters
+
+Use `??` instead of `||` for optional string parameters where empty string is a valid (but unlikely) value:
+
+```typescript
+// GOOD: Use ?? for optional parameters
+const variables = {
+  cursor: cursor ?? null,
+  listId: listId ?? null,
+};
+```
+
+### Inline Type Parameters
+
+Define route type parameters inline instead of creating separate interfaces for single-use types:
+
+```typescript
+// GOOD: Inline type parameters
+fastify.get<{ Querystring: { limit?: string; cursor?: string } }>(
+  '/',
+  { schema: { ... } },
+  async (request, reply) => { ... }
+);
+
+// AVOID: Separate interface for single-use type
+interface BookmarksQuery {
+  limit?: string;
+  cursor?: string;
+}
+fastify.get<{ Querystring: BookmarksQuery }>(...)
+```
+
+### Shared Utilities in `common.ts`
+
+Always use the shared utilities, types, and GraphQL field strings instead of duplicating code:
+
+**Utilities:**
+
+| Utility | Purpose |
+|---------|---------|
+| `parseLimit(limit?)` | Parse and validate limit parameter (1-50, default 20) |
+| `ensureDbConnection(con)` | Validate database connection, throw if undefined |
+| `MAX_LIMIT` | Maximum allowed limit (50) |
+| `DEFAULT_LIMIT` | Default limit value (20) |
+
+**GraphQL Field Strings:**
+
+| Constant | Purpose |
+|----------|---------|
+| `POST_NODE_FIELDS` | All standard post fields for feed queries |
+| `BOOKMARKED_POST_EXTRA_FIELDS` | Extra fields for bookmarked posts (bookmarkedAt) |
+| `PAGE_INFO_FIELDS` | Pagination fields (pageInfo { hasNextPage, endCursor }) |
+
+**TypeScript Types:**
+
+| Type | Purpose |
+|------|---------|
+| `PostNode` | Standard post interface (use instead of defining local post types) |
+| `BookmarkedPostNode` | PostNode extended with bookmarkedAt |
+| `SourceInfo` | Source/publisher info interface |
+| `AuthorInfo` | Author info interface |
+| `PageInfo` | Pagination info interface |
+| `FeedConnection<T>` | Generic feed connection (edges + pageInfo) |
+
 ## Testing
 
 Tests are in `__tests__/routes/public/`, organized by route group:
 - `helpers.ts` - Shared setup utilities
-- `auth.ts`, `rateLimit.ts`, `feed.ts`, `posts.ts` - Route-specific tests
+- `auth.ts`, `rateLimit.ts`, `feeds.ts`, `posts.ts` - Route-specific tests
 
 ```typescript
 import request from 'supertest';

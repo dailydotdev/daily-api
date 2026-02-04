@@ -2,8 +2,10 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { DataSource } from 'typeorm';
 import fastifySwagger from '@fastify/swagger';
 import { validatePersonalAccessToken } from '../../common/personalAccessToken';
+import bookmarksRoutes from './bookmarks';
 import feedsRoutes from './feeds';
 import postsRoutes from './posts';
+import searchRoutes from './search';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
 
@@ -176,4 +178,6 @@ export default async function (
 
   await fastify.register(feedsRoutes, { prefix: '/feeds' });
   await fastify.register(postsRoutes, { prefix: '/posts' });
+  await fastify.register(searchRoutes, { prefix: '/search' });
+  await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
 }
