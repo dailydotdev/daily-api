@@ -5,6 +5,7 @@ export enum ContentImageUsedByType {
   Comment = 'comment',
   User = 'user',
   WorkspacePhoto = 'workspace_photo',
+  Feedback = 'feedback',
 }
 
 @Entity()

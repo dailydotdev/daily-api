@@ -78,6 +78,12 @@ export class Feedback {
   @Column({ type: 'jsonb', default: {} })
   flags: FeedbackFlags;
 
+  @Column({ type: 'text', nullable: true })
+  screenshotUrl: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  screenshotId: string | null;
+
   @CreateDateColumn()
   @Index('IDX_feedback_created_at')
   createdAt: Date;
