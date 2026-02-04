@@ -187,7 +187,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/popular',
     {
       schema: {
-        description: 'Get popular feed (most upvoted posts)',
+        description: 'Get feed with trending and popular posts',
         tags: ['feeds'],
         querystring: {
           type: 'object',
@@ -267,7 +267,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     '/discussed',
     {
       schema: {
-        description: 'Get most discussed feed (posts with most comments)',
+        description: 'Get feed of posts with discussions',
         tags: ['feeds'],
         querystring: {
           type: 'object',
