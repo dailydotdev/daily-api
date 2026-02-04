@@ -1,5 +1,5 @@
 import { Storage } from '@google-cloud/storage';
-import { OpportunityState } from '@dailydotdev/schema';
+import { OpportunityState, PreviewType } from '@dailydotdev/schema';
 import type { TypedWorker } from '../worker';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import {
@@ -122,6 +122,8 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
           const opportunityMessage = await buildOpportunityPreviewPayload({
             opportunity: updatedOpportunity,
             con,
+            // for machine sources (usually created by team) we want detailed analysis previews
+            previewType: PreviewType.ANALYSIS,
           });
 
           const gondulClient = getGondulOpportunityServiceClient();
