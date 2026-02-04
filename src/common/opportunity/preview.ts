@@ -3,6 +3,7 @@ import {
   OpportunityContent,
   Opportunity as OpportunityMessage,
   Location as LocationMessage,
+  PreviewType,
 } from '@dailydotdev/schema';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
 import { OpportunityLocation } from '../../entity/opportunities/OpportunityLocation';
@@ -12,9 +13,11 @@ import { getSecondsTimestamp } from '../date';
 export const buildOpportunityPreviewPayload = async ({
   opportunity,
   con,
+  previewType,
 }: {
   opportunity: OpportunityJob;
   con: DataSource;
+  previewType?: PreviewType;
 }): Promise<OpportunityMessage> => {
   const keywords = await opportunity.keywords;
 
@@ -86,5 +89,6 @@ export const buildOpportunityPreviewPayload = async ({
     location: locations,
     keywords: keywords.map((k) => k.keyword),
     flags: opportunity.flags,
+    previewType,
   });
 };
