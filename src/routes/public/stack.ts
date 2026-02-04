@@ -194,17 +194,20 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       const con = ensureDbConnection(fastify.con);
       const { title, section, startedAt } = request.body;
 
+      // Only include startedAt if provided (Zod schema expects undefined, not null)
+      const input: { title: string; section: string; startedAt?: string } = {
+        title,
+        section,
+      };
+      if (startedAt) {
+        input.startedAt = startedAt;
+      }
+
       return executeGraphql(
         con,
         {
           query: ADD_USER_STACK_MUTATION,
-          variables: {
-            input: {
-              title,
-              section,
-              startedAt: startedAt ?? null,
-            },
-          },
+          variables: { input },
         },
         (json) => {
           const result = json as unknown as AddUserStackResponse;
