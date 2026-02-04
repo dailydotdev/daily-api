@@ -144,6 +144,26 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
       });
     }
 
+    // Add screenshot image block if present
+    if (feedback.screenshotUrl) {
+      blocks.push({
+        type: 'image',
+        image_url: feedback.screenshotUrl,
+        alt_text: 'User feedback screenshot',
+      });
+    }
+
+    // Add console logs indicator if present
+    if (feedback.consoleLogs) {
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '*Console Logs:* Attached (see Linear issue)',
+        },
+      });
+    }
+
     blocks.push({
       type: 'divider',
     });
