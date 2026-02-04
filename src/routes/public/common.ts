@@ -150,3 +150,354 @@ export const ensureDbConnection = <T>(con: T | undefined): T => {
   }
   return con;
 };
+
+// ============================================================================
+// Custom Feed GraphQL Fields
+// ============================================================================
+
+/**
+ * Custom feed fields for feed list and CRUD operations.
+ */
+export const CUSTOM_FEED_FIELDS = `
+  id
+  userId
+  slug
+  createdAt
+  flags {
+    name
+    icon
+    orderBy
+    minDayRange
+    minUpvotes
+    minViews
+    disableEngagementFilter
+  }
+`;
+
+/**
+ * Feed settings fields.
+ */
+export const FEED_SETTINGS_FIELDS = `
+  id
+  userId
+  includeTags
+  blockedTags
+  includeSources {
+    id
+    name
+    handle
+    image
+  }
+  excludeSources {
+    id
+    name
+    handle
+    image
+  }
+  advancedSettings {
+    id
+    enabled
+  }
+`;
+
+/**
+ * Advanced settings fields for available settings list.
+ */
+export const ADVANCED_SETTINGS_FIELDS = `
+  id
+  title
+  description
+  defaultEnabledState
+  group
+`;
+
+// ============================================================================
+// Notification GraphQL Fields
+// ============================================================================
+
+/**
+ * Notification avatar fields.
+ */
+export const NOTIFICATION_AVATAR_FIELDS = `
+  referenceId
+  type
+  image
+  name
+  targetUrl
+`;
+
+/**
+ * Notification attachment fields.
+ */
+export const NOTIFICATION_ATTACHMENT_FIELDS = `
+  type
+  image
+  title
+`;
+
+/**
+ * Notification fields for notification list.
+ */
+export const NOTIFICATION_FIELDS = `
+  id
+  createdAt
+  readAt
+  icon
+  title
+  type
+  description
+  referenceId
+  targetUrl
+  numTotalAvatars
+  avatars {
+    ${NOTIFICATION_AVATAR_FIELDS}
+  }
+  attachments {
+    ${NOTIFICATION_ATTACHMENT_FIELDS}
+  }
+`;
+
+// ============================================================================
+// Profile GraphQL Fields
+// ============================================================================
+
+/**
+ * Profile fields for user profile endpoints.
+ */
+export const PROFILE_FIELDS = `
+  id
+  name
+  username
+  bio
+  readme
+  readmeHtml
+  image
+  cover
+  createdAt
+  reputation
+  permalink
+  isPlus
+  experienceLevel
+  socialLinks {
+    platform
+    url
+  }
+`;
+
+// ============================================================================
+// User Stack GraphQL Fields
+// ============================================================================
+
+/**
+ * Tool fields for stack and search.
+ */
+export const TOOL_FIELDS = `
+  id
+  title
+  faviconUrl
+`;
+
+/**
+ * User stack item fields.
+ */
+export const STACK_ITEM_FIELDS = `
+  id
+  section
+  position
+  startedAt
+  icon
+  title
+  createdAt
+  tool {
+    ${TOOL_FIELDS}
+  }
+`;
+
+// ============================================================================
+// Custom Feed Types
+// ============================================================================
+
+/**
+ * Custom feed flags.
+ */
+export interface CustomFeedFlags {
+  name?: string | null;
+  icon?: string | null;
+  orderBy?: string | null;
+  minDayRange?: number | null;
+  minUpvotes?: number | null;
+  minViews?: number | null;
+  disableEngagementFilter?: boolean | null;
+}
+
+/**
+ * Custom feed.
+ */
+export interface CustomFeed {
+  id: string;
+  userId?: string | null;
+  slug?: string | null;
+  createdAt?: string | null;
+  flags?: CustomFeedFlags | null;
+}
+
+/**
+ * Feed connection for custom feeds.
+ */
+export interface CustomFeedConnection {
+  edges: { node: CustomFeed }[];
+  pageInfo: PageInfo;
+}
+
+// ============================================================================
+// Feed Settings Types
+// ============================================================================
+
+/**
+ * Feed advanced settings.
+ */
+export interface FeedAdvancedSettings {
+  id: number;
+  enabled: boolean;
+}
+
+/**
+ * Available advanced setting definition.
+ */
+export interface AdvancedSettingsType {
+  id: number;
+  title: string;
+  description: string;
+  defaultEnabledState: boolean;
+  group: string;
+}
+
+/**
+ * Feed settings.
+ */
+export interface FeedSettingsType {
+  id?: string | null;
+  userId?: string | null;
+  includeTags?: string[] | null;
+  blockedTags?: string[] | null;
+  includeSources?: SourceInfo[] | null;
+  excludeSources?: SourceInfo[] | null;
+  advancedSettings?: FeedAdvancedSettings[] | null;
+}
+
+// ============================================================================
+// Notification Types
+// ============================================================================
+
+/**
+ * Notification avatar.
+ */
+export interface NotificationAvatar {
+  referenceId: string;
+  type: string;
+  image?: string | null;
+  name: string;
+  targetUrl: string;
+}
+
+/**
+ * Notification attachment.
+ */
+export interface NotificationAttachment {
+  type: string;
+  image?: string | null;
+  title: string;
+}
+
+/**
+ * Notification.
+ */
+export interface NotificationType {
+  id: string;
+  createdAt: string;
+  readAt?: string | null;
+  icon: string;
+  title: string;
+  type: string;
+  description?: string | null;
+  referenceId: string;
+  targetUrl: string;
+  numTotalAvatars?: number | null;
+  avatars?: NotificationAvatar[] | null;
+  attachments?: NotificationAttachment[] | null;
+}
+
+/**
+ * Notification connection.
+ */
+export interface NotificationConnection {
+  edges: { node: NotificationType }[];
+  pageInfo: PageInfo;
+}
+
+// ============================================================================
+// Profile Types
+// ============================================================================
+
+/**
+ * Social link.
+ */
+export interface SocialLink {
+  platform: string;
+  url: string;
+}
+
+/**
+ * User profile.
+ */
+export interface ProfileType {
+  id: string;
+  name?: string | null;
+  username?: string | null;
+  bio?: string | null;
+  readme?: string | null;
+  readmeHtml?: string | null;
+  image?: string | null;
+  cover?: string | null;
+  createdAt: string;
+  reputation: number;
+  permalink: string;
+  isPlus?: boolean | null;
+  experienceLevel?: string | null;
+  socialLinks: SocialLink[];
+}
+
+// ============================================================================
+// User Stack Types
+// ============================================================================
+
+/**
+ * Tool (DatasetTool).
+ */
+export interface ToolType {
+  id: string;
+  title: string;
+  faviconUrl?: string | null;
+}
+
+/**
+ * User stack item.
+ */
+export interface StackItemType {
+  id: string;
+  section: string;
+  position: number;
+  startedAt?: string | null;
+  icon?: string | null;
+  title?: string | null;
+  createdAt: string;
+  tool: ToolType;
+}
+
+/**
+ * User stack connection.
+ */
+export interface StackConnection {
+  edges: { node: StackItemType }[];
+  pageInfo: PageInfo;
+}

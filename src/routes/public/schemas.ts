@@ -9,6 +9,207 @@ export const commonSchemas = {
       image: { type: 'string', format: 'uri', nullable: true },
     },
   },
+  // Custom Feed schemas
+  CustomFeedFlags: {
+    $id: 'CustomFeedFlags',
+    type: 'object',
+    nullable: true,
+    properties: {
+      name: { type: 'string', nullable: true },
+      icon: { type: 'string', nullable: true },
+      orderBy: {
+        type: 'string',
+        enum: ['DATE', 'UPVOTES', 'DOWNVOTES', 'COMMENTS', 'CLICKS'],
+        nullable: true,
+      },
+      minDayRange: { type: 'integer', nullable: true },
+      minUpvotes: { type: 'integer', nullable: true },
+      minViews: { type: 'integer', nullable: true },
+      disableEngagementFilter: { type: 'boolean', nullable: true },
+    },
+  },
+  CustomFeed: {
+    $id: 'CustomFeed',
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      userId: { type: 'string', nullable: true },
+      slug: { type: 'string', nullable: true },
+      createdAt: { type: 'string', format: 'date-time', nullable: true },
+      flags: { $ref: 'CustomFeedFlags#' },
+    },
+  },
+  // Feed Settings schemas
+  FeedAdvancedSettings: {
+    $id: 'FeedAdvancedSettings',
+    type: 'object',
+    nullable: true,
+    properties: {
+      id: { type: 'integer' },
+      enabled: { type: 'boolean' },
+    },
+  },
+  FeedSettings: {
+    $id: 'FeedSettings',
+    type: 'object',
+    properties: {
+      id: { type: 'string', nullable: true },
+      userId: { type: 'string', nullable: true },
+      includeTags: {
+        type: 'array',
+        items: { type: 'string' },
+        nullable: true,
+      },
+      blockedTags: {
+        type: 'array',
+        items: { type: 'string' },
+        nullable: true,
+      },
+      includeSources: {
+        type: 'array',
+        items: { $ref: 'Source#' },
+        nullable: true,
+      },
+      excludeSources: {
+        type: 'array',
+        items: { $ref: 'Source#' },
+        nullable: true,
+      },
+      advancedSettings: {
+        type: 'array',
+        items: { $ref: 'FeedAdvancedSettings#' },
+        nullable: true,
+      },
+    },
+  },
+  // Notification schemas
+  NotificationAvatar: {
+    $id: 'NotificationAvatar',
+    type: 'object',
+    properties: {
+      referenceId: { type: 'string' },
+      type: { type: 'string' },
+      image: { type: 'string', nullable: true },
+      name: { type: 'string' },
+      targetUrl: { type: 'string', format: 'uri' },
+    },
+  },
+  NotificationAttachment: {
+    $id: 'NotificationAttachment',
+    type: 'object',
+    properties: {
+      type: { type: 'string' },
+      image: { type: 'string', nullable: true },
+      title: { type: 'string' },
+    },
+  },
+  Notification: {
+    $id: 'Notification',
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      createdAt: { type: 'string', format: 'date-time' },
+      readAt: { type: 'string', format: 'date-time', nullable: true },
+      icon: { type: 'string' },
+      title: { type: 'string' },
+      type: { type: 'string' },
+      description: { type: 'string', nullable: true },
+      referenceId: { type: 'string' },
+      targetUrl: { type: 'string', format: 'uri' },
+      numTotalAvatars: { type: 'integer', nullable: true },
+      avatars: {
+        type: 'array',
+        items: { $ref: 'NotificationAvatar#' },
+        nullable: true,
+      },
+      attachments: {
+        type: 'array',
+        items: { $ref: 'NotificationAttachment#' },
+        nullable: true,
+      },
+    },
+  },
+  UnreadCount: {
+    $id: 'UnreadCount',
+    type: 'object',
+    properties: {
+      count: { type: 'integer' },
+    },
+  },
+  // Profile schemas
+  SocialLink: {
+    $id: 'SocialLink',
+    type: 'object',
+    properties: {
+      platform: { type: 'string' },
+      url: { type: 'string', format: 'uri' },
+    },
+  },
+  UserLocation: {
+    $id: 'UserLocation',
+    type: 'object',
+    nullable: true,
+    properties: {
+      city: { type: 'string', nullable: true },
+      country: { type: 'string', nullable: true },
+    },
+  },
+  Profile: {
+    $id: 'Profile',
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      name: { type: 'string', nullable: true },
+      username: { type: 'string', nullable: true },
+      bio: { type: 'string', nullable: true },
+      readme: { type: 'string', nullable: true },
+      readmeHtml: { type: 'string', nullable: true },
+      image: { type: 'string', format: 'uri', nullable: true },
+      cover: { type: 'string', format: 'uri', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      reputation: { type: 'integer' },
+      permalink: { type: 'string', format: 'uri' },
+      isPlus: { type: 'boolean', nullable: true },
+      experienceLevel: { type: 'string', nullable: true },
+      socialLinks: {
+        type: 'array',
+        items: { $ref: 'SocialLink#' },
+      },
+      location: { $ref: 'UserLocation#' },
+    },
+  },
+  // Stack schemas
+  Tool: {
+    $id: 'Tool',
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      title: { type: 'string' },
+      faviconUrl: { type: 'string', format: 'uri', nullable: true },
+    },
+  },
+  StackItem: {
+    $id: 'StackItem',
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      section: { type: 'string' },
+      position: { type: 'integer' },
+      startedAt: { type: 'string', format: 'date-time', nullable: true },
+      icon: { type: 'string', nullable: true },
+      title: { type: 'string', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      tool: { $ref: 'Tool#' },
+    },
+  },
+  // Simple success response
+  SuccessResponse: {
+    $id: 'SuccessResponse',
+    type: 'object',
+    properties: {
+      success: { type: 'boolean' },
+    },
+  },
   Author: {
     $id: 'Author',
     type: 'object',
