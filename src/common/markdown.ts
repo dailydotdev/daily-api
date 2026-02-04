@@ -7,6 +7,7 @@ import { MentionedUser } from '../schema/comments';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import { ghostUser } from './utils';
 import { isValidHttpUrl } from './links';
+import { getProxiedImageUrl } from './imageProxy';
 
 /**
  * Sanitizes HTML content, allowing only safe tags for rich text content.
@@ -209,6 +210,40 @@ markdown.renderer.rules.link_open = function (tokens, idx, options, env, self) {
   tokens[idx] = setTokenAttribute(tokens[idx], 'target', '_blank');
   tokens[idx] = setTokenAttribute(tokens[idx], 'rel', 'noopener nofollow');
   return defaultRender(tokens, idx, options, env, self);
+};
+
+/**
+ * Store the default image renderer for markdown-it
+ */
+const defaultImageRender =
+  markdown.renderer.rules.image ||
+  function (tokens, idx, options, env, self) {
+    return self.renderToken(tokens, idx, options);
+  };
+
+/**
+ * Custom image renderer that proxies external images through Cloudinary
+ * to prevent IP address exposure when users view markdown content with
+ * external images.
+ */
+markdown.renderer.rules.image = function (tokens, idx, options, env, self) {
+  const token = tokens[idx];
+  const srcIndex = token.attrIndex('src');
+
+  if (srcIndex >= 0 && token.attrs) {
+    const originalSrc = token.attrs[srcIndex][1];
+    const proxiedSrc = getProxiedImageUrl(originalSrc);
+
+    if (proxiedSrc) {
+      token.attrs[srcIndex][1] = proxiedSrc;
+    } else {
+      // If the URL is invalid/blocked, remove the src to prevent the image from loading
+      // This is a security measure to prevent SSRF and other attacks
+      token.attrs[srcIndex][1] = '';
+    }
+  }
+
+  return defaultImageRender(tokens, idx, options, env, self);
 };
 
 export const saveMentions = (
