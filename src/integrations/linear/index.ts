@@ -52,6 +52,7 @@ interface CreateFeedbackIssueInput {
   description: string;
   pageUrl?: string | null;
   classification: FeedbackClassification | null;
+  screenshotUrl?: string | null;
 }
 
 interface CreateFeedbackIssueResult {
@@ -154,6 +155,11 @@ const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
     ? `> ⚠️ **Warning**: Potential prompt injection detected in this feedback\n\n`
     : '';
 
+  // Build screenshot section if present
+  const screenshotSection = input.screenshotUrl
+    ? `\n### Screenshot\n\n![Screenshot](${input.screenshotUrl})\n`
+    : '';
+
   return `${warningSection}## User Feedback ${sentimentEmoji}
 
 | Field | Value |
@@ -170,7 +176,7 @@ const buildIssueDescription = (input: CreateFeedbackIssueInput): string => {
 \`\`\`
 ${sanitizedDescription}
 \`\`\`
-
+${screenshotSection}
 ### Metadata
 
 - **Feedback ID**: \`${input.feedbackId}\`

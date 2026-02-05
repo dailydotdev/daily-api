@@ -8,7 +8,7 @@ export const opportunityPreviewResultWorker: TypedWorker<'gondul.v1.opportunity-
   {
     subscription: 'api.opportunity-preview-result',
     handler: async ({ data }, con): Promise<void> => {
-      const { opportunityId, userIds, totalCount } = data;
+      const { opportunityId, userIds, totalCount, previewType } = data;
 
       if (!opportunityId) {
         throw new Error('Missing opportunityId in opportunity preview result');
@@ -24,6 +24,7 @@ export const opportunityPreviewResultWorker: TypedWorker<'gondul.v1.opportunity-
               userIds: userIds.slice(0, 20),
               totalCount,
               status: OpportunityPreviewStatus.READY,
+              type: previewType,
             },
           }),
         },

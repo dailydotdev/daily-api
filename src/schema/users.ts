@@ -28,6 +28,7 @@ import {
   UserStreakAction,
   UserStreakActionType,
   View,
+  PostType,
 } from '../entity';
 import { UserNotificationFlags, UserSocialLink } from '../entity/user/User';
 import {
@@ -112,6 +113,7 @@ import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { format, subDays } from 'date-fns';
+import { transformDate } from '../common/date';
 import {
   acceptedResumeFileTypes,
   ContentLanguage,
@@ -348,7 +350,7 @@ export interface GQLUserPostsAnalytics {
 }
 
 export interface GQLUserPostsAnalyticsHistoryNode {
-  date: string;
+  date: Date;
   impressions: number;
   impressionsAds: number;
 }
@@ -2885,13 +2887,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .addSelect('SUM(pah.impressionsAds)::int', 'impressionsAds')
           .where('p.authorId = :userId', { userId })
           .andWhere('p.deleted = false')
+          .andWhere('p.type != :briefType', { briefType: PostType.Brief })
           .andWhere('pah.date >= :formattedDate', { formattedDate })
           .groupBy('pah.date')
           .orderBy('pah.date', 'DESC')
           .getRawMany(),
       );
 
-      return result;
+      return result.map((row) => ({
+        ...row,
+        date: transformDate(row.date),
+      }));
     },
   },
   Mutation: {

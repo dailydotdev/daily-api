@@ -1,9 +1,21 @@
 import { FastifyInstance } from 'fastify';
-import { injectGraphql } from './utils';
+import type { DataSource } from 'typeorm';
+import { executeGraphql } from '../routes/public/graphqlExecutor';
 import { SourceRequest } from '../entity';
-import { toLegacySourceRequest } from './entity';
+import { toLegacySourceRequest, LegacySourceRequest } from './entity';
 
-export default async function (fastify: FastifyInstance): Promise<void> {
+interface PendingSourceRequestsResponse {
+  pendingSourceRequests: {
+    edges: Array<{
+      node: SourceRequest;
+    }>;
+  };
+}
+
+export default async function (
+  fastify: FastifyInstance,
+  con: DataSource,
+): Promise<void> {
   fastify.get('/requests/open', async (req, res) => {
     const query = `{
   pendingSourceRequests(first: 100) {
@@ -26,14 +38,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     }
   }
 }`;
-    return injectGraphql(
-      fastify,
+    return executeGraphql<LegacySourceRequest[]>(
+      con,
       { query },
       (obj) =>
-        // @ts-expect-error - legacy code
-        obj['data']['pendingSourceRequests']['edges'].map((e) =>
-          toLegacySourceRequest(e['node'] as SourceRequest),
-        ),
+        (
+          obj as unknown as PendingSourceRequestsResponse
+        ).pendingSourceRequests.edges.map((e) => toLegacySourceRequest(e.node)),
       req,
       res,
     );
@@ -57,8 +68,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   }
 }`;
 
-    return injectGraphql(
-      fastify,
+    return executeGraphql<undefined>(
+      con,
       {
         query,
         variables: {
@@ -88,8 +99,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   }
 }`;
 
-      return injectGraphql(
-        fastify,
+      return executeGraphql<undefined>(
+        con,
         {
           query,
           variables: {
@@ -113,8 +124,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   }
 }`;
 
-      return injectGraphql(
-        fastify,
+      return executeGraphql<undefined>(
+        con,
         {
           query,
         },
@@ -135,8 +146,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   }
 }`;
 
-      return injectGraphql(
-        fastify,
+      return executeGraphql<undefined>(
+        con,
         {
           query,
         },

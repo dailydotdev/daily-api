@@ -1,11 +1,17 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { DataSource } from 'typeorm';
 import fastifySwagger from '@fastify/swagger';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { validatePersonalAccessToken } from '../../common/personalAccessToken';
-import feedRoutes from './feed';
+import bookmarksRoutes from './bookmarks';
+import feedsRoutes from './feeds';
 import postsRoutes from './posts';
+import searchRoutes from './search';
+import customFeedsRoutes from './customFeeds';
+import feedFiltersRoutes from './feedFilters';
+import notificationsRoutes from './notifications';
+import profileRoutes from './profile';
+import stackRoutes from './stack';
+import experiencesRoutes from './experiences';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
 
@@ -14,7 +20,8 @@ const USER_RATE_LIMIT_PER_MINUTE = 60;
 const IP_RATE_LIMIT_PER_MINUTE = 300;
 const PUBLIC_API_BASE_URL = `https://api.daily.dev${PUBLIC_API_PREFIX}`;
 
-const skillMd = readFileSync(join(__dirname, 'skill.md'), 'utf-8');
+const SKILL_MD_URL =
+  'https://raw.githubusercontent.com/dailydotdev/daily/master/.claude-plugin/plugins/daily.dev/skills/daily.dev/SKILL.md';
 
 const tokenAuthHook = async (
   request: FastifyRequest,
@@ -53,6 +60,9 @@ export default async function (
   fastify: FastifyInstance,
   con: DataSource,
 ): Promise<void> {
+  // Decorate fastify with the database connection for route handlers
+  fastify.decorate('con', con);
+
   // Register Swagger for OpenAPI documentation
   await fastify.register(fastifySwagger, {
     openapi: {
@@ -90,9 +100,20 @@ export default async function (
     reply.type('text/yaml').send(fastify.swagger({ yaml: true }));
   });
 
-  // AI agent skill documentation (no auth required)
+  // AI agent skill documentation (no auth required) - proxied from GitHub
   fastify.get('/skill.md', { schema: { hide: true } }, async (_, reply) => {
-    reply.type('text/markdown').send(skillMd);
+    const response = await fetch(SKILL_MD_URL);
+
+    if (!response.ok) {
+      return reply.status(504).send('Failed to fetch skill.md');
+    }
+
+    const content = await response.text();
+
+    reply
+      .type('text/markdown')
+      .header('cache-control', 'public, max-age=600, s-maxage=600')
+      .send(content);
   });
 
   // IP rate limiting MUST be registered before auth to prevent DoS via token validation flooding
@@ -161,6 +182,14 @@ export default async function (
     },
   });
 
-  await fastify.register(feedRoutes, { prefix: '/feed' });
+  await fastify.register(feedsRoutes, { prefix: '/feeds' });
   await fastify.register(postsRoutes, { prefix: '/posts' });
+  await fastify.register(searchRoutes, { prefix: '/search' });
+  await fastify.register(bookmarksRoutes, { prefix: '/bookmarks' });
+  await fastify.register(customFeedsRoutes, { prefix: '/feeds/custom' });
+  await fastify.register(feedFiltersRoutes, { prefix: '/feeds/filters' });
+  await fastify.register(notificationsRoutes, { prefix: '/notifications' });
+  await fastify.register(profileRoutes, { prefix: '/profile' });
+  await fastify.register(stackRoutes, { prefix: '/profile/stack' });
+  await fastify.register(experiencesRoutes, { prefix: '/profile/experiences' });
 }

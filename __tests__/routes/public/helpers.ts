@@ -5,9 +5,11 @@ import { User } from '../../../src/entity/user/User';
 import { PersonalAccessToken } from '../../../src/entity/PersonalAccessToken';
 import { ArticlePost } from '../../../src/entity/posts/ArticlePost';
 import { Source } from '../../../src/entity/Source';
+import { Keyword } from '../../../src/entity/Keyword';
 import { usersFixture, plusUsersFixture } from '../../fixture/user';
 import { sourcesFixture } from '../../fixture/source';
 import { postsFixture } from '../../fixture/post';
+import { keywordsFixture } from '../../fixture/keywords';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { generatePersonalAccessToken } from '../../../src/common/personalAccessToken';
@@ -37,6 +39,7 @@ export const setupPublicApiTests = (): TestState => {
     await saveFixtures(state.con, User, plusUsersFixture);
     await saveFixtures(state.con, Source, sourcesFixture);
     await saveFixtures(state.con, ArticlePost, postsFixture);
+    await saveFixtures(state.con, Keyword, keywordsFixture);
   });
 
   return state;

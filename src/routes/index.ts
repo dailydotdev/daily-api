@@ -20,19 +20,39 @@ import { notifyGeneratePersonalizedDigest } from '../common';
 import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import integrations from './integrations';
 import gifs from './gifs';
-import log from './log';
 import publicApi, { PUBLIC_API_PREFIX } from './public';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const llmTxt = readFileSync(join(__dirname, 'llms.txt'), 'utf-8');
 
 export default async function (fastify: FastifyInstance): Promise<void> {
+  const con = await createOrGetConnection();
+
   fastify.register(rss, { prefix: '/rss' });
-  fastify.register(alerts, { prefix: '/alerts' });
-  fastify.register(notifications, { prefix: '/notifications' });
+  fastify.register(
+    async (instance) => {
+      await alerts(instance, con);
+    },
+    { prefix: '/alerts' },
+  );
+  fastify.register(
+    async (instance) => {
+      await notifications(instance, con);
+    },
+    { prefix: '/notifications' },
+  );
   fastify.register(redirector, { prefix: '/r' });
   fastify.register(devcards, { prefix: '/devcards' });
   if (process.env.ENABLE_PRIVATE_ROUTES === 'true') {
     fastify.register(privateRoutes, { prefix: '/p' });
   }
-  fastify.register(whoami, { prefix: '/whoami' });
+  fastify.register(
+    async (instance) => {
+      await whoami(instance, con);
+    },
+    { prefix: '/whoami' },
+  );
   fastify.register(boot, { prefix: '/boot' });
   fastify.register(boot, { prefix: '/new_boot' });
   fastify.register(users, { prefix: '/v1/users' });
@@ -42,10 +62,8 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(sitemaps, { prefix: '/sitemaps' });
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });
-  fastify.register(log, { prefix: '/log' });
 
   // Public API v1
-  const con = await createOrGetConnection();
   fastify.register(
     async (instance) => {
       await publicApi(instance, con);
@@ -59,6 +77,10 @@ Allow: /devcards/
 Allow: /graphql
 Allow: /boot
 Disallow: /`);
+  });
+
+  fastify.get('/llms.txt', (req, res) => {
+    return res.type('text/plain').send(llmTxt);
   });
 
   fastify.get('/v1/auth/authorize', async (req, res) => {

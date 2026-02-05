@@ -139,6 +139,10 @@ export const crons: Cron[] = [
     schedule: '15 */1 * * *',
   },
   {
+    name: 'user-posts-analytics-refresh',
+    schedule: '10 */1 * * *',
+  },
+  {
     name: 'clean-zombie-opportunities',
     schedule: '30 6 * * *',
   },

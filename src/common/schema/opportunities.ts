@@ -1,4 +1,4 @@
-import { OpportunityState } from '@dailydotdev/schema';
+import { OpportunityState, PreviewType } from '@dailydotdev/schema';
 import z from 'zod';
 import { fileUploadSchema, urlParseSchema } from './common';
 import { parseBigInt } from '../utils';
@@ -415,4 +415,14 @@ export const addOpportunitySeatsSchema = z.object({
     .max(10, {
       error: 'You can add up to 10 different price options at a time',
     }),
+});
+
+export const privateCreateOpportunitySchema = z.object({
+  url: z.url(),
+  emails: z.array(z.email()).optional(),
+  previewType: z.enum(PreviewType).optional(),
+});
+
+export const privateGetOpportunityParamsSchema = z.object({
+  id: z.uuid(),
 });

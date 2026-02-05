@@ -11,7 +11,7 @@ describe('Public API Rate Limiting', () => {
       const token = await createTokenForUser(state.con, '5');
 
       const res = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -26,7 +26,7 @@ describe('Public API Rate Limiting', () => {
       const token = await createTokenForUser(state.con, '5');
 
       const res = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
@@ -38,14 +38,14 @@ describe('Public API Rate Limiting', () => {
       const token = await createTokenForUser(state.con, '5');
 
       const res1 = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
       const remaining1 = parseInt(res1.headers['x-ratelimit-remaining'], 10);
 
       const res2 = await request(state.app.server)
-        .get('/public/v1/feed')
+        .get('/public/v1/feeds/foryou')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 

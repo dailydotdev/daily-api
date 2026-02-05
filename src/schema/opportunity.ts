@@ -10,12 +10,9 @@ import {
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
-  Opportunity as OpportunityMessage,
-  Location as LocationMessage,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
-  getSecondsTimestamp,
   toGQLEnum,
   uniqueifyObjectArray,
   updateFlagsStatement,
@@ -101,6 +98,7 @@ import { SubscriptionStatus } from '../common/plus';
 import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
+import { buildOpportunityPreviewPayload } from '../common/opportunity/preview';
 import {
   getOpportunityFileBuffer,
   validateOpportunityFileType,
@@ -1712,8 +1710,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ConflictError('Opportunity is not ready for preview yet');
       }
 
-      const keywords = await opportunity.keywords;
-
       let opportunityPreview: OpportunityJob['flags']['preview'] = {
         userIds: [],
         totalCount: 0,
@@ -1736,69 +1732,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             : OpportunityPreviewStatus.READY;
         }
       } else {
-        const opportunityContent: Record<string, unknown> = {};
-
-        // since this is json endpoint we need to make sure all keys are present
-        // even if empty, remove this when we move to protobuf service call
-        Object.keys(new OpportunityContent()).forEach((key) => {
-          const opportunityKey = key as keyof OpportunityContent;
-
-          opportunityContent[opportunityKey] =
-            opportunity.content[opportunityKey] || {};
-        });
-
-        // Fetch locations from OpportunityLocation table
-        const opportunityLocations = await ctx.con
-          .getRepository(OpportunityLocation)
-          .find({
-            where: { opportunityId: opportunity.id },
-            relations: ['location'],
-          });
-
-        const locations = await Promise.all(
-          opportunityLocations.map(async (ol) => {
-            const datasetLocation = await ol.location;
-
-            if (!datasetLocation.country && datasetLocation.continent) {
-              return new LocationMessage({
-                type: ol.type,
-                continent: datasetLocation.continent,
-              });
-            }
-
-            return new LocationMessage({
-              ...datasetLocation,
-              type: ol.type,
-              city: datasetLocation.city || undefined,
-              subdivision: datasetLocation.subdivision || undefined,
-              country: datasetLocation.country || undefined,
-            });
-          }),
-        );
-
-        // Default to US location if no locations are specified
-        if (locations.length === 0) {
-          locations.push(
-            new LocationMessage({
-              iso2: 'US',
-              country: 'United States',
-            }),
-          );
-        }
-
-        const opportunityMessage = new OpportunityMessage({
-          id: opportunity.id,
-          createdAt: getSecondsTimestamp(opportunity.createdAt),
-          updatedAt: getSecondsTimestamp(opportunity.updatedAt),
-          type: opportunity.type,
-          state: opportunity.state,
-          title: opportunity.title,
-          tldr: opportunity.tldr,
-          content: opportunityContent,
-          meta: opportunity.meta,
-          location: locations,
-          keywords: keywords.map((k) => k.keyword),
-          flags: opportunity.flags,
+        const opportunityMessage = await buildOpportunityPreviewPayload({
+          opportunity,
+          con: ctx.con,
         });
 
         const gondulOpportunityServiceClient =
