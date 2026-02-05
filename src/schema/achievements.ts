@@ -19,6 +19,7 @@ export type GQLAchievement = {
   criteria: {
     targetCount?: number;
   };
+  points: number;
   createdAt: Date;
 };
 
@@ -97,6 +98,10 @@ export const typeDefs = /* GraphQL */ `
     Criteria required to unlock this achievement
     """
     criteria: AchievementCriteria!
+    """
+    Points awarded for unlocking this achievement
+    """
+    points: Int!
     """
     When the achievement was created
     """
@@ -238,6 +243,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             type: achievement.type,
             eventType: achievement.eventType,
             criteria: achievement.criteria,
+            points: achievement.points,
             createdAt: achievement.createdAt,
           },
           progress: userAchievement?.progress ?? 0,
