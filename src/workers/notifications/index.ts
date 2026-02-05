@@ -42,6 +42,7 @@ import { recruiterNewCandidateNotification } from './recruiterNewCandidateNotifi
 import { recruiterOpportunityLiveNotification } from './recruiterOpportunityLiveNotification';
 import { experienceCompanyEnrichedNotification } from './experienceCompanyEnrichedNotification';
 import { recruiterExternalPaymentNotification } from './recruiterExternalPaymentNotification';
+import { reMatchedOpportunityNotification } from './reMatchedOpportunityNotification';
 
 export function notificationWorkerToWorker(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,6 +131,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   recruiterOpportunityLiveNotification,
   experienceCompanyEnrichedNotification,
   recruiterExternalPaymentNotification,
+  reMatchedOpportunityNotification,
 ];
 
 export const workers = [...notificationWorkers.map(notificationWorkerToWorker)];

@@ -3,6 +3,7 @@ import { TypedNotificationWorker } from '../worker';
 import { TypeORMQueryFailedError } from '../../errors';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { User } from '../../entity';
+import { OpportunityMatch } from '../../entity/OpportunityMatch';
 
 const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.candidate-opportunity-match'> =
   {
@@ -15,6 +16,17 @@ const candidateOpportunityMatchNotification: TypedNotificationWorker<'gondul.v1.
             { data },
             'Missing userId or opportunityId in candidate opportunity match notification',
           );
+          return;
+        }
+
+        const existingMatch = await con
+          .getRepository(OpportunityMatch)
+          .findOne({
+            where: { userId, opportunityId },
+            select: ['userId', 'opportunityId'],
+          });
+
+        if (existingMatch) {
           return;
         }
 

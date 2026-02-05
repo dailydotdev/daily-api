@@ -1276,7 +1276,7 @@ describe('generateNotification', () => {
       '<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> Based on your React and TypeScript skills</span>',
     );
     expect(actual.notification.targetUrl).toEqual(
-      `${process.env.COMMENTS_PREFIX}/opportunity/opp123`,
+      `${process.env.COMMENTS_PREFIX}/jobs/opp123`,
     );
     expect(actual.avatars.length).toEqual(0);
     expect(actual.attachments.length).toEqual(0);

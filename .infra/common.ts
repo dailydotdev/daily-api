@@ -402,6 +402,10 @@ export const workers: Worker[] = [
     subscription: 'api.candidate-opportunity-match-notification',
   },
   {
+    topic: 'gondul.v1.candidate-opportunity-match',
+    subscription: 'api.rematched-opportunity-notification',
+  },
+  {
     topic: 'api.v1.delayed-notification-reminder',
     subscription: 'api.campaign-post-analytics-notification',
   },
