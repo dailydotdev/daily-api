@@ -26,7 +26,7 @@ import { SubscriptionCycles } from '../src/paddle';
 import { SubscriptionStatus } from '../src/common/plus';
 import { OpportunityJob } from '../src/entity/opportunities/OpportunityJob';
 import { OpportunityKeyword } from '../src/entity/OpportunityKeyword';
-import { OpportunityState } from '@dailydotdev/schema';
+import { OpportunityState, PreviewType } from '@dailydotdev/schema';
 import { generateShortId } from '../src/ids';
 import { OpportunityUser } from '../src/entity/opportunities/user';
 import { OpportunityUserType } from '../src/entity/opportunities/types';
@@ -1568,6 +1568,38 @@ describe('POST /p/opportunities', () => {
 
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe('File type not supported');
+  });
+
+  it('should set previewType for opportunity', async () => {
+    jest.mocked(getOpportunityFileBuffer).mockResolvedValue({
+      buffer: Buffer.from('test'),
+      extension: 'pdf',
+    });
+    jest
+      .mocked(validateOpportunityFileType)
+      .mockResolvedValue({ mime: 'application/pdf' });
+    jest
+      .mocked(uploadResumeFromBuffer)
+      .mockResolvedValue('https://storage.example.com/file');
+    jest.mocked(triggerTypedEvent).mockResolvedValue(undefined);
+
+    const res = await request(app.server)
+      .post('/p/opportunities')
+      .set('authorization', `Service ${process.env.ACCESS_SECRET}`)
+      .set('content-type', 'application/json')
+      .send({
+        url: 'https://example.com/job.pdf',
+        previewType: PreviewType.ANALYSIS,
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.opportunityId).toBeDefined();
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: { id: res.body.opportunityId },
+    });
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.flags.preview?.type).toBe(PreviewType.ANALYSIS);
   });
 });
 

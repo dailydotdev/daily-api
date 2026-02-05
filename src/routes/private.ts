@@ -47,6 +47,7 @@ import { triggerTypedEvent } from '../common/typedPubsub';
 import { ClaimableItem, ClaimableItemTypes } from '../entity/ClaimableItem';
 import { DeepPartial } from 'typeorm';
 import z from 'zod';
+import { OpportunityPreviewStatus } from '../common/opportunity/types';
 
 interface SearchUsername {
   search: string;
@@ -322,7 +323,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       return res.status(400).send({ error: parsed.error.message });
     }
 
-    const { url, emails } = parsed.data;
+    const { url, emails, previewType } = parsed.data;
 
     try {
       const { buffer, extension } = await getOpportunityFileBuffer({ url });
@@ -344,6 +345,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         // mark as public draft for machine sources so they
         // can be viewed before claim by new customers
         public_draft: !!emails?.length,
+        preview: previewType
+          ? {
+              totalCount: 0,
+              status: OpportunityPreviewStatus.UNSPECIFIED,
+              userIds: [],
+              type: previewType,
+            }
+          : undefined,
       };
 
       const con = await createOrGetConnection();

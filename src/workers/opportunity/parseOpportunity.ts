@@ -123,7 +123,8 @@ export const parseOpportunityWorker: TypedWorker<'api.v1.opportunity-parse'> = {
             opportunity: updatedOpportunity,
             con,
             // for machine sources (usually created by team) we want detailed analysis previews
-            previewType: PreviewType.ANALYSIS,
+            previewType:
+              updatedOpportunity.flags.preview?.type ?? PreviewType.ANALYSIS,
           });
 
           const gondulClient = getGondulOpportunityServiceClient();
