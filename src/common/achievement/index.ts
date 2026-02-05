@@ -195,14 +195,14 @@ async function evaluateMilestoneAchievement(
 }
 
 /**
- * Evaluates reputation-based achievements (absolute value comparison)
+ * Evaluates achievements using absolute value comparison (reputation, streaks, etc.)
  */
-async function evaluateReputationAchievement(
+async function evaluateAbsoluteValueAchievement(
   con: DataSource,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
-  currentReputation: number,
+  currentValue: number,
 ): Promise<void> {
   for (const achievement of achievements) {
     const targetCount = achievement.criteria.targetCount ?? 1;
@@ -211,7 +211,7 @@ async function evaluateReputationAchievement(
       logger,
       userId,
       achievement.id,
-      currentReputation,
+      currentValue,
       targetCount,
     );
 
@@ -273,9 +273,12 @@ export async function checkAchievementProgress(
       return;
     }
 
-    // Special handling for reputation achievements (use absolute value)
-    if (eventType === AchievementEventType.ReputationGain) {
-      await evaluateReputationAchievement(
+    const absoluteValueEventTypes: AchievementEventType[] = [
+      AchievementEventType.ReputationGain,
+    ];
+
+    if (absoluteValueEventTypes.includes(eventType)) {
+      await evaluateAbsoluteValueAchievement(
         con,
         logger,
         userId,

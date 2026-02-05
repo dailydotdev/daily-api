@@ -16,6 +16,7 @@ export class AchievementSystem1770072115384 implements MigrationInterface {
         "type"        text NOT NULL,
         "eventType"   text NOT NULL,
         "criteria"    jsonb NOT NULL DEFAULT '{}',
+        "points"      smallint NOT NULL DEFAULT 5,
         CONSTRAINT "PK_achievement_id" PRIMARY KEY ("id"),
         CONSTRAINT "UQ_achievement_name" UNIQUE ("name")
       )
