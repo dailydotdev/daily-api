@@ -118,6 +118,12 @@ The migration generator compares entities against the local database schema. Ens
 - **Prefer integration tests over unit tests** - Integration tests provide more value by testing the full stack (GraphQL/API endpoints, validation, database interactions)
 - **Unit tests should be rare** - Only create unit tests for complex utility functions with significant business logic. Simple validation or formatting functions are better tested through integration tests
 - **Avoid test duplication** - Don't create both unit and integration tests for the same functionality. If integration tests cover the behavior, unit tests are redundant
+- **CRITICAL: Avoid redundant unit tests that test the same logic multiple times**:
+  - When multiple functions use the same underlying logic, don't test that logic separately for each function
+  - Example: If `functionA()`, `functionB()`, and `functionC()` all call the same `isAllowedDomain()` helper, test the domain matching logic ONCE in the `isAllowedDomain` test, then just verify each function correctly uses it (one simple test per function)
+  - **Don't test the same input variations across multiple functions** - if you've already verified that domain matching supports subdomains in one function, you don't need to test subdomain support again in other functions that use the same logic
+  - Each test should verify ONE distinct behavior. If two tests exercise the exact same code path with the same logic, one is redundant
+  - Testing costs money and processing time - minimize test count while maintaining confidence
 - Jest with supertest for integration testing
 - Database reset before each test run via pretest hook
 - Fixtures in `__tests__/fixture/` for test data

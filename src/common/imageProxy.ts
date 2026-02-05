@@ -8,6 +8,9 @@ const ALLOWED_DOMAINS = [
   'media.daily.dev',
   'res.cloudinary.com',
   'daily-now-res.cloudinary.com',
+  // GIF providers - excluded to reduce CDN costs
+  'tenor.com',
+  'giphy.com',
 ];
 
 /**
