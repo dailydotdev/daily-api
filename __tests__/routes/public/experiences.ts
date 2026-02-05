@@ -78,9 +78,7 @@ describe('GET /public/v1/profile/experiences', () => {
     await state.con.getRepository(UserExperience).save(userExperiencesFixture);
   });
 
-  // TODO: This test is currently failing due to GraphQL query issues
-  // The list endpoint needs investigation with proper error logging
-  it.skip('should return user experiences', async () => {
+  it('should return user experiences', async () => {
     const token = await createTokenForUser(state.con, '5');
 
     const { body } = await request(state.app.server)
@@ -95,9 +93,7 @@ describe('GET /public/v1/profile/experiences', () => {
     });
   });
 
-  // TODO: These tests are currently failing due to GraphQL query issue
-  // The filter by type and pagination tests need investigation
-  it.skip('should filter by type', async () => {
+  it('should filter by type', async () => {
     const token = await createTokenForUser(state.con, '5');
 
     const { body } = await request(state.app.server)
@@ -111,7 +107,7 @@ describe('GET /public/v1/profile/experiences', () => {
     expect(body.data[0].title).toBe('Computer Science');
   });
 
-  it.skip('should support pagination', async () => {
+  it('should support pagination', async () => {
     const token = await createTokenForUser(state.con, '5');
 
     const { body } = await request(state.app.server)

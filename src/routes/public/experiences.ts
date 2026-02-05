@@ -145,16 +145,19 @@ export default async function (fastify: FastifyInstance): Promise<void> {
         });
       }
 
+      // Note: Use undefined (omit) instead of null for optional params - Zod schema expects string | undefined
+      const variables: Record<string, unknown> = {
+        userId,
+        first: limit,
+      };
+      if (type) variables.type = type;
+      if (cursor) variables.after = cursor;
+
       return executeGraphql(
         con,
         {
           query: USER_EXPERIENCES_QUERY,
-          variables: {
-            userId,
-            type: type || null,
-            first: limit,
-            after: cursor ?? null,
-          },
+          variables,
         },
         (json) => {
           const result = json as unknown as UserExperiencesResponse;
