@@ -501,3 +501,137 @@ export interface StackConnection {
   edges: { node: StackItemType }[];
   pageInfo: PageInfo;
 }
+
+// ============================================================================
+// User Experience GraphQL Fields
+// ============================================================================
+
+/**
+ * User experience fields for experience list and CRUD operations.
+ * Matches the USER_EXPERIENCE_FRAGMENT from apps repo.
+ */
+export const USER_EXPERIENCE_FIELDS = `
+  id
+  type
+  title
+  subtitle
+  grade
+  description
+  createdAt
+  startedAt
+  endedAt
+  customCompanyName
+  customDomain
+  image
+  employmentType {
+    value
+  }
+  locationType {
+    value
+  }
+  verified
+  url
+  isOwner
+  skills {
+    value
+  }
+  company {
+    id
+    name
+    image
+  }
+  customLocation {
+    city
+    subdivision
+    country
+  }
+  repository {
+    id
+    owner
+    name
+    url
+    image
+  }
+`;
+
+// ============================================================================
+// User Experience Types
+// ============================================================================
+
+/**
+ * Company info embedded in experiences.
+ */
+export interface UserExperienceCompany {
+  id: string;
+  name: string;
+  image?: string | null;
+}
+
+/**
+ * Custom location info.
+ */
+export interface UserExperienceCustomLocation {
+  city?: string | null;
+  subdivision?: string | null;
+  country?: string | null;
+}
+
+/**
+ * Skill info.
+ */
+export interface UserExperienceSkill {
+  value: string;
+}
+
+/**
+ * Repository info for open source experiences.
+ */
+export interface UserExperienceRepository {
+  id?: string | null;
+  owner?: string | null;
+  name: string;
+  url: string;
+  image?: string | null;
+}
+
+/**
+ * Proto enum value wrapper.
+ */
+export interface ProtoEnumValue {
+  value: string;
+}
+
+/**
+ * User experience.
+ */
+export interface UserExperienceType {
+  id: string;
+  type: string;
+  title: string;
+  subtitle?: string | null;
+  grade?: string | null;
+  description?: string | null;
+  createdAt: string;
+  startedAt?: string | null;
+  endedAt?: string | null;
+  customCompanyName?: string | null;
+  customDomain?: string | null;
+  image?: string | null;
+  employmentType?: ProtoEnumValue | null;
+  locationType?: ProtoEnumValue | null;
+  verified?: boolean | null;
+  url?: string | null;
+  isOwner?: boolean | null;
+  skills?: UserExperienceSkill[] | null;
+  company?: UserExperienceCompany | null;
+  customLocation?: UserExperienceCustomLocation | null;
+  repository?: UserExperienceRepository | null;
+}
+
+/**
+ * User experience connection.
+ */
+export interface UserExperienceConnection {
+  edges: { node: UserExperienceType }[];
+  pageInfo: PageInfo;
+}

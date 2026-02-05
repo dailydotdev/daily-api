@@ -31,7 +31,7 @@ const parseQuery = (query: string): DocumentNode => {
 export const executeGraphql = async <T>(
   con: DataSource,
   payload: GraphqlPayload,
-  extractResponse: (obj: Record<string, unknown>) => T,
+  extractResponse: (obj: Record<string, unknown>) => T | Promise<T>,
   req: FastifyRequest,
   res: FastifyReply,
 ): Promise<FastifyReply> => {
@@ -89,6 +89,10 @@ export const executeGraphql = async <T>(
     return res.status(500).send();
   }
 
-  const resBody = extractResponse(result.data as Record<string, unknown>);
+  const resBody = await extractResponse(result.data as Record<string, unknown>);
+  // If extractResponse already sent a response (e.g., 404), don't send again
+  if (res.sent) {
+    return res;
+  }
   return res.status(resBody ? 200 : 204).send(resBody);
 };
