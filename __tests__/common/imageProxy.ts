@@ -22,27 +22,13 @@ describe('imageProxy', () => {
       ).toBe(true);
     });
 
-    it('should return true for tenor.com', () => {
+    it('should return true for tenor.com and its subdomains', () => {
       expect(isAllowedDomain('https://tenor.com/image.gif')).toBe(true);
-    });
-
-    it('should return true for media.tenor.com subdomain', () => {
       expect(isAllowedDomain('https://media.tenor.com/image.gif')).toBe(true);
     });
 
-    it('should return true for c.tenor.com subdomain', () => {
-      expect(isAllowedDomain('https://c.tenor.com/image.gif')).toBe(true);
-    });
-
-    it('should return true for giphy.com', () => {
+    it('should return true for giphy.com and its subdomains', () => {
       expect(isAllowedDomain('https://giphy.com/image.gif')).toBe(true);
-    });
-
-    it('should return true for media.giphy.com subdomain', () => {
-      expect(isAllowedDomain('https://media.giphy.com/image.gif')).toBe(true);
-    });
-
-    it('should return true for i.giphy.com subdomain', () => {
       expect(isAllowedDomain('https://i.giphy.com/image.gif')).toBe(true);
     });
 
@@ -56,28 +42,16 @@ describe('imageProxy', () => {
   });
 
   describe('isExternalImageUrl', () => {
-    it('should return false for tenor.com URLs', () => {
+    it('should return false for tenor.com and subdomains', () => {
       expect(isExternalImageUrl('https://tenor.com/image.gif')).toBe(false);
-    });
-
-    it('should return false for media.tenor.com URLs', () => {
       expect(isExternalImageUrl('https://media.tenor.com/image.gif')).toBe(
         false,
       );
     });
 
-    it('should return false for giphy.com URLs', () => {
+    it('should return false for giphy.com and subdomains', () => {
       expect(isExternalImageUrl('https://giphy.com/image.gif')).toBe(false);
-    });
-
-    it('should return false for i.giphy.com URLs', () => {
       expect(isExternalImageUrl('https://i.giphy.com/image.gif')).toBe(false);
-    });
-
-    it('should return false for media.giphy.com URLs', () => {
-      expect(isExternalImageUrl('https://media.giphy.com/image.gif')).toBe(
-        false,
-      );
     });
 
     it('should return true for external URLs', () => {
@@ -94,29 +68,22 @@ describe('imageProxy', () => {
   });
 
   describe('getProxiedImageUrl', () => {
-    it('should return original URL unchanged for tenor.com', () => {
-      const url = 'https://tenor.com/image.gif';
-      expect(getProxiedImageUrl(url)).toBe(url);
+    it('should return original URL unchanged for tenor.com and subdomains', () => {
+      expect(getProxiedImageUrl('https://tenor.com/image.gif')).toBe(
+        'https://tenor.com/image.gif',
+      );
+      expect(getProxiedImageUrl('https://media.tenor.com/image.gif')).toBe(
+        'https://media.tenor.com/image.gif',
+      );
     });
 
-    it('should return original URL unchanged for media.tenor.com', () => {
-      const url = 'https://media.tenor.com/image.gif';
-      expect(getProxiedImageUrl(url)).toBe(url);
-    });
-
-    it('should return original URL unchanged for giphy.com', () => {
-      const url = 'https://giphy.com/image.gif';
-      expect(getProxiedImageUrl(url)).toBe(url);
-    });
-
-    it('should return original URL unchanged for i.giphy.com', () => {
-      const url = 'https://i.giphy.com/image.gif';
-      expect(getProxiedImageUrl(url)).toBe(url);
-    });
-
-    it('should return original URL unchanged for media.giphy.com', () => {
-      const url = 'https://media.giphy.com/image.gif';
-      expect(getProxiedImageUrl(url)).toBe(url);
+    it('should return original URL unchanged for giphy.com and subdomains', () => {
+      expect(getProxiedImageUrl('https://giphy.com/image.gif')).toBe(
+        'https://giphy.com/image.gif',
+      );
+      expect(getProxiedImageUrl('https://i.giphy.com/image.gif')).toBe(
+        'https://i.giphy.com/image.gif',
+      );
     });
 
     it('should return original URL unchanged for media.daily.dev', () => {

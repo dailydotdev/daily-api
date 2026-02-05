@@ -125,6 +125,7 @@ The migration generator compares entities against the local database schema. Ens
 - Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
 - When evaluating response objects (GraphQL, API), prefer `toEqual` and `toMatchObject` over multiple `expect().toBe()` lines
 - Avoid redundant test assertions - if an assertion already verifies the value, don't add negative checks that are logically implied (e.g., if `expect(result).toBe('a')` passes, don't also check `expect(result).not.toBe('b')`)
+- **Avoid redundant subdomain tests** - When testing functions that handle domain matching with subdomain support (e.g., `domain.endsWith('.example.com')`), don't create separate tests for each subdomain. Instead, combine related cases into a single test that verifies both the main domain and one representative subdomain to confirm the logic works correctly. Testing every possible subdomain is redundant and adds maintenance burden without additional value
 - **Typed worker tests**: Always use the generic type parameter with `expectSuccessfulTypedBackground<'topic-name'>()` for type safety. Use `toChangeObject()` to convert entities to the expected message payload format:
   ```typescript
   await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
