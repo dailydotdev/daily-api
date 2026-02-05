@@ -300,6 +300,112 @@ describe('mutation addBookmarks', () => {
       expect(actual?.listId).toEqual(list1.id);
     });
   });
+
+  describe('plus user with explicit listId', () => {
+    it('should add bookmark to specific list when listId is provided', async () => {
+      loggedUser = '5';
+      isPlus = true;
+
+      const list = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'specific-list',
+      });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { data: { postIds: ['p1'], listId: list.id } },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.addBookmarks).toHaveLength(1);
+      expect(res.data.addBookmarks[0].list.id).toEqual(list.id);
+
+      const actual = await con
+        .getRepository(Bookmark)
+        .findOneBy({ postId: 'p1', userId: loggedUser });
+      expect(actual?.listId).toEqual(list.id);
+    });
+
+    it('should return error for invalid listId', async () => {
+      loggedUser = '5';
+      isPlus = true;
+
+      const res = await client.mutate(MUTATION, {
+        variables: { data: { postIds: ['p1'], listId: randomUUID() } },
+      });
+      expect(res.errors).toBeTruthy();
+      expect(res.errors[0].extensions?.code).toEqual('NOT_FOUND');
+    });
+
+    it('should return error for listId belonging to another user', async () => {
+      loggedUser = '5';
+      isPlus = true;
+
+      const otherUserList = await con.getRepository(BookmarkList).save({
+        userId: '1', // different user
+        name: 'other-user-list',
+      });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { data: { postIds: ['p1'], listId: otherUserList.id } },
+      });
+      expect(res.errors).toBeTruthy();
+      expect(res.errors[0].extensions?.code).toEqual('NOT_FOUND');
+    });
+
+    it('should override last used list behavior when listId is explicitly provided', async () => {
+      loggedUser = '5';
+      isPlus = true;
+
+      const list1 = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'list1',
+      });
+      const list2 = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'list2',
+      });
+
+      // Create existing bookmark in list1 (making it the "last used" list)
+      await con.getRepository(Bookmark).save({
+        userId: loggedUser,
+        postId: 'p1',
+        listId: list1.id,
+      });
+
+      // Add new bookmark explicitly to list2
+      const res = await client.mutate(MUTATION, {
+        variables: { data: { postIds: ['p2'], listId: list2.id } },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.addBookmarks[0].list.id).toEqual(list2.id);
+
+      const actual = await con
+        .getRepository(Bookmark)
+        .findOneBy({ postId: 'p2', userId: loggedUser });
+      expect(actual?.listId).toEqual(list2.id);
+    });
+
+    it('should ignore listId for non-plus user', async () => {
+      loggedUser = '1';
+      isPlus = false;
+
+      const list = await con.getRepository(BookmarkList).save({
+        userId: loggedUser,
+        name: 'my-list',
+      });
+
+      const res = await client.mutate(MUTATION, {
+        variables: { data: { postIds: ['p1'], listId: list.id } },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.addBookmarks).toHaveLength(1);
+      expect(res.data.addBookmarks[0].list).toBeFalsy();
+
+      const actual = await con
+        .getRepository(Bookmark)
+        .findOneBy({ postId: 'p1', userId: loggedUser });
+      expect(actual?.listId).toBeNull();
+    });
+  });
 });
 
 describe('mutation removeBookmark', () => {

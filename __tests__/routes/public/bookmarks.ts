@@ -229,3 +229,127 @@ describe('DELETE /public/v1/bookmarks/:id', () => {
     expect(bookmark).toBeNull();
   });
 });
+
+describe('POST /public/v1/bookmarks with listId', () => {
+  const listIdForCreate = uuidv4();
+
+  beforeEach(async () => {
+    await state.con.getRepository(BookmarkList).save({
+      id: listIdForCreate,
+      userId: '5',
+      name: 'Test List',
+    });
+  });
+
+  it('should add bookmark to specific list when listId is provided', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .post('/public/v1/bookmarks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ postIds: ['p1'], listId: listIdForCreate })
+      .expect(200);
+
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].postId).toBe('p1');
+    expect(body.data[0].listId).toBe(listIdForCreate);
+
+    // Verify in database
+    const bookmark = await state.con
+      .getRepository(Bookmark)
+      .findOneBy({ userId: '5', postId: 'p1' });
+    expect(bookmark?.listId).toBe(listIdForCreate);
+  });
+
+  it('should return listId in response', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .post('/public/v1/bookmarks')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ postIds: ['p1'], listId: listIdForCreate })
+      .expect(200);
+
+    expect(body.data[0]).toMatchObject({
+      postId: 'p1',
+      createdAt: expect.any(String),
+      listId: listIdForCreate,
+    });
+  });
+});
+
+describe('PATCH /public/v1/bookmarks/:id', () => {
+  const listIdForMove = uuidv4();
+
+  beforeEach(async () => {
+    await state.con.getRepository(BookmarkList).save({
+      id: listIdForMove,
+      userId: '5',
+      name: 'Move Target List',
+    });
+    await state.con.getRepository(Bookmark).save({
+      userId: '5',
+      postId: 'p1',
+    });
+  });
+
+  it('should move bookmark to a list', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    await request(state.app.server)
+      .patch('/public/v1/bookmarks/p1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ listId: listIdForMove })
+      .expect(204);
+
+    // Verify the bookmark was moved
+    const bookmark = await state.con
+      .getRepository(Bookmark)
+      .findOneBy({ userId: '5', postId: 'p1' });
+    expect(bookmark?.listId).toBe(listIdForMove);
+  });
+
+  it('should move bookmark out of a list when listId is null', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // First move to a list
+    await state.con
+      .getRepository(Bookmark)
+      .update({ userId: '5', postId: 'p1' }, { listId: listIdForMove });
+
+    // Then move out of list
+    await request(state.app.server)
+      .patch('/public/v1/bookmarks/p1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ listId: null })
+      .expect(204);
+
+    // Verify the bookmark was moved out
+    const bookmark = await state.con
+      .getRepository(Bookmark)
+      .findOneBy({ userId: '5', postId: 'p1' });
+    expect(bookmark?.listId).toBeNull();
+  });
+
+  it('should move bookmark out of a list when listId is omitted', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // First move to a list
+    await state.con
+      .getRepository(Bookmark)
+      .update({ userId: '5', postId: 'p1' }, { listId: listIdForMove });
+
+    // Then move out of list by omitting listId
+    await request(state.app.server)
+      .patch('/public/v1/bookmarks/p1')
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(204);
+
+    // Verify the bookmark was moved out
+    const bookmark = await state.con
+      .getRepository(Bookmark)
+      .findOneBy({ userId: '5', postId: 'p1' });
+    expect(bookmark?.listId).toBeNull();
+  });
+});
