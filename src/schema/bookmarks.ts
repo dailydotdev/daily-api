@@ -30,6 +30,7 @@ import { BookmarkErrorMessage } from '../errors';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
+  listId?: string;
 }
 
 export interface GQLBookmark {
@@ -100,6 +101,10 @@ export const typeDefs = /* GraphQL */ `
     Post ids to bookmark
     """
     postIds: [ID]!
+    """
+    Optional bookmark list ID to add bookmarks to (Plus feature)
+    """
+    listId: ID
   }
 
   type Mutation {
@@ -340,8 +345,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLBookmark[]> => {
-      let lastUsedListId = null;
-      if (ctx.isPlus) {
+      let targetListId: string | null = null;
+
+      if (data.listId) {
+        // If listId is provided, validate user is Plus and owns the list
+        if (!ctx.isPlus) {
+          throw new ForbiddenError(BookmarkErrorMessage.USER_NOT_PLUS);
+        }
+        await ctx.con
+          .getRepository(BookmarkList)
+          .findOneByOrFail({ userId: ctx.userId, id: data.listId });
+        targetListId = data.listId;
+      } else if (ctx.isPlus) {
+        // Default to last used list for Plus users when no listId specified
         const lastAddedBookmark = await ctx.con
           .getRepository(Bookmark)
           .findOne({
@@ -349,7 +365,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             order: { updatedAt: 'DESC' },
             select: ['listId'],
           });
-        lastUsedListId = lastAddedBookmark?.listId ?? null;
+        targetListId = lastAddedBookmark?.listId ?? null;
       }
 
       if (data.postIds.length > maxBookmarksPerMutation) {
@@ -365,7 +381,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           posts.map((post) => ({
             postId: post.id,
             userId: ctx.userId,
-            listId: lastUsedListId,
+            listId: targetListId,
           })),
           ['postId', 'userId'],
         );

@@ -79,6 +79,10 @@ const ADD_BOOKMARKS_MUTATION = `
     addBookmarks(data: $data) {
       postId
       createdAt
+      list {
+        id
+        name
+      }
     }
   }
 `;
@@ -116,7 +120,11 @@ interface CreateBookmarkListResponse {
 }
 
 interface AddBookmarksResponse {
-  addBookmarks: { postId: string; createdAt: string }[];
+  addBookmarks: {
+    postId: string;
+    createdAt: string;
+    list: { id: string; name: string } | null;
+  }[];
 }
 
 export default async function (fastify: FastifyInstance): Promise<void> {
@@ -442,7 +450,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   );
 
   // Add bookmarks
-  fastify.post<{ Body: { postIds: string[] } }>(
+  fastify.post<{ Body: { postIds: string[]; listId?: string } }>(
     '/',
     {
       schema: {
@@ -459,6 +467,11 @@ export default async function (fastify: FastifyInstance): Promise<void> {
               maxItems: 100,
               description: 'Array of post IDs to bookmark (1-100)',
             },
+            listId: {
+              type: 'string',
+              description:
+                'Optional bookmark list ID to add bookmarks to (Plus feature)',
+            },
           },
         },
         response: {
@@ -472,6 +485,14 @@ export default async function (fastify: FastifyInstance): Promise<void> {
                   properties: {
                     postId: { type: 'string' },
                     createdAt: { type: 'string', format: 'date-time' },
+                    list: {
+                      type: 'object',
+                      nullable: true,
+                      properties: {
+                        id: { type: 'string' },
+                        name: { type: 'string' },
+                      },
+                    },
                   },
                 },
               },
@@ -479,19 +500,20 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           },
           400: { $ref: 'Error#' },
           401: { $ref: 'Error#' },
+          403: { $ref: 'Error#' },
           429: { $ref: 'RateLimitError#' },
         },
       },
     },
     async (request, reply) => {
-      const { postIds } = request.body;
+      const { postIds, listId } = request.body;
       const con = ensureDbConnection(fastify.con);
 
       return executeGraphql(
         con,
         {
           query: ADD_BOOKMARKS_MUTATION,
-          variables: { data: { postIds } },
+          variables: { data: { postIds, listId: listId ?? null } },
         },
         (json) => {
           const result = json as unknown as AddBookmarksResponse;
