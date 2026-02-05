@@ -13,8 +13,12 @@ describe('imageProxy', () => {
 
       // Test other allowed domains (main domain only - subdomain logic already verified above)
       expect(isAllowedDomain('https://media.daily.dev/image.jpg')).toBe(true);
-      expect(isAllowedDomain('https://res.cloudinary.com/image.jpg')).toBe(true);
-      expect(isAllowedDomain('https://daily-now-res.cloudinary.com/image.jpg')).toBe(true);
+      expect(isAllowedDomain('https://res.cloudinary.com/image.jpg')).toBe(
+        true,
+      );
+      expect(
+        isAllowedDomain('https://daily-now-res.cloudinary.com/image.jpg'),
+      ).toBe(true);
       expect(isAllowedDomain('https://giphy.com/image.gif')).toBe(true);
     });
 
