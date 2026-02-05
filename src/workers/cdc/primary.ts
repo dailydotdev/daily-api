@@ -1619,6 +1619,22 @@ const onUserTransactionChange = async (
         AchievementEventType.AwardReceived,
       );
     }
+
+    // Check award given achievement (sender gave an award)
+    // Awards are Post or Comment types where receiver is different from sender
+    if (
+      (transaction.referenceType === UserTransactionType.Post ||
+        transaction.referenceType === UserTransactionType.Comment) &&
+      transaction.senderId &&
+      transaction.receiverId !== transaction.senderId
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        transaction.senderId,
+        AchievementEventType.AwardGiven,
+      );
+    }
   }
 };
 

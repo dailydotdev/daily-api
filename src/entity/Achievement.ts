@@ -41,6 +41,7 @@ export enum AchievementEventType {
   PostBoost = 'post_boost',
   UpvoteReceived = 'upvote_received',
   AwardReceived = 'award_received',
+  AwardGiven = 'award_given',
   UserFollow = 'user_follow',
   FollowerGain = 'follower_gain',
   PlusSubscribe = 'plus_subscribe',
