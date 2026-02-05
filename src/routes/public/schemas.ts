@@ -401,4 +401,93 @@ export const commonSchemas = {
       },
     },
   },
+  // User Experience schemas
+  UserExperienceCompany: {
+    $id: 'UserExperienceCompany',
+    type: 'object',
+    nullable: true,
+    properties: {
+      id: { type: 'string' },
+      name: { type: 'string' },
+      image: { type: 'string', format: 'uri', nullable: true },
+    },
+  },
+  UserExperienceCustomLocation: {
+    $id: 'UserExperienceCustomLocation',
+    type: 'object',
+    nullable: true,
+    properties: {
+      city: { type: 'string', nullable: true },
+      subdivision: { type: 'string', nullable: true },
+      country: { type: 'string', nullable: true },
+    },
+  },
+  UserExperienceSkill: {
+    $id: 'UserExperienceSkill',
+    type: 'object',
+    properties: {
+      value: { type: 'string' },
+    },
+  },
+  UserExperienceRepository: {
+    $id: 'UserExperienceRepository',
+    type: 'object',
+    nullable: true,
+    properties: {
+      id: { type: 'string', nullable: true },
+      owner: { type: 'string', nullable: true },
+      name: { type: 'string' },
+      url: { type: 'string', format: 'uri' },
+      image: { type: 'string', format: 'uri', nullable: true },
+    },
+  },
+  ProtoEnumValue: {
+    $id: 'ProtoEnumValue',
+    type: 'object',
+    nullable: true,
+    properties: {
+      value: { type: 'string' },
+    },
+  },
+  UserExperience: {
+    $id: 'UserExperience',
+    type: 'object',
+    properties: {
+      id: { type: 'string' },
+      type: {
+        type: 'string',
+        enum: [
+          'work',
+          'education',
+          'project',
+          'certification',
+          'volunteering',
+          'opensource',
+        ],
+      },
+      title: { type: 'string' },
+      subtitle: { type: 'string', nullable: true },
+      grade: { type: 'string', nullable: true },
+      description: { type: 'string', nullable: true },
+      createdAt: { type: 'string', format: 'date-time' },
+      startedAt: { type: 'string', format: 'date-time', nullable: true },
+      endedAt: { type: 'string', format: 'date-time', nullable: true },
+      customCompanyName: { type: 'string', nullable: true },
+      customDomain: { type: 'string', nullable: true },
+      image: { type: 'string', format: 'uri', nullable: true },
+      employmentType: { $ref: 'ProtoEnumValue#' },
+      locationType: { $ref: 'ProtoEnumValue#' },
+      verified: { type: 'boolean', nullable: true },
+      url: { type: 'string', format: 'uri', nullable: true },
+      isOwner: { type: 'boolean', nullable: true },
+      skills: {
+        type: 'array',
+        items: { $ref: 'UserExperienceSkill#' },
+        nullable: true,
+      },
+      company: { $ref: 'UserExperienceCompany#' },
+      customLocation: { $ref: 'UserExperienceCustomLocation#' },
+      repository: { $ref: 'UserExperienceRepository#' },
+    },
+  },
 };
