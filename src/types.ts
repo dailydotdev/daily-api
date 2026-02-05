@@ -19,6 +19,7 @@ declare global {
       TYPEORM_DATABASE: string;
       HEIMDALL_ORIGIN: string;
       ENABLE_PRIVATE_ROUTES: string;
+      WEBSOCKET_ONLY_MODE?: string;
       ACCESS_SECRET: string;
       ALLOCATION_QUEUE_CONCURRENCY: string;
       QUEUE_CONCURRENCY: string;

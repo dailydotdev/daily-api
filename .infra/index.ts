@@ -370,6 +370,7 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
+        { name: 'WEBSOCKET_ONLY_MODE', value: 'true' },
         ...commonEnv,
         ...jwtEnv,
         {
