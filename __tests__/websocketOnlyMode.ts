@@ -2,13 +2,11 @@ import { FastifyInstance } from 'fastify';
 import request from 'supertest';
 import appFunc from '../src/index';
 import createOrGetConnection from '../src/db';
-import { DataSource } from 'typeorm';
 
 let app: FastifyInstance;
-let con: DataSource;
 
 beforeAll(async () => {
-  con = await createOrGetConnection();
+  await createOrGetConnection();
 });
 
 afterEach(async () => {
@@ -57,9 +55,7 @@ describe('websocket only mode', () => {
     await request(app.server).get('/v1/users/me').expect(404);
 
     // Icon proxy should NOT be available
-    await request(app.server)
-      .get('/icon?url=example.com&size=64')
-      .expect(404);
+    await request(app.server).get('/icon?url=example.com&size=64').expect(404);
 
     // Routes should NOT be available
     await request(app.server).get('/rss/f/popular').expect(404);
