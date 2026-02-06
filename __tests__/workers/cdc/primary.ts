@@ -6601,12 +6601,15 @@ describe('opportunity', () => {
       }),
     );
 
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(3);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
     );
     expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
       'api.v1.opportunity-went-live',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[2][1]).toEqual(
+      'api.v1.opportunity-updated',
     );
   });
 
@@ -6770,6 +6773,124 @@ describe('opportunity', () => {
           content: [],
           meta: {},
           state: OpportunityState.IN_REVIEW,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
+
+  it('should trigger opportunity-updated when LIVE opportunity is updated (state remains LIVE)', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Updated Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    // Should trigger opportunity-added twice (existing logic for after.state=LIVE and before.state=LIVE) and opportunity-updated
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(3);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[2][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+    expect(
+      jest.mocked(triggerTypedEvent).mock.calls[2][2].excludedUserIds,
+    ).toEqual(['1', '2', '4']);
+  });
+
+  it('should NOT trigger opportunity-updated on create (only opportunity-added)', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+    // Verify opportunity-updated was NOT called
+    const calls = jest.mocked(triggerTypedEvent).mock.calls;
+    const opportunityUpdatedCalls = calls.filter(
+      (call) => call[1] === 'api.v1.opportunity-updated',
+    );
+    expect(opportunityUpdatedCalls).toHaveLength(0);
+  });
+
+  it('should NOT trigger opportunity-updated when state is not LIVE', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Updated Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
           organizationId: organizationsFixture[0].id,
         },
         op: 'u',
