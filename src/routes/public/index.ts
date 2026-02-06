@@ -12,6 +12,7 @@ import notificationsRoutes from './notifications';
 import profileRoutes from './profile';
 import stackRoutes from './stack';
 import experiencesRoutes from './experiences';
+import agentStatusRoutes from './agentStatus';
 import { commonSchemas } from './schemas';
 import { PUBLIC_API_PREFIX } from '../../common/constants';
 
@@ -192,4 +193,5 @@ export default async function (
   await fastify.register(profileRoutes, { prefix: '/profile' });
   await fastify.register(stackRoutes, { prefix: '/profile/stack' });
   await fastify.register(experiencesRoutes, { prefix: '/profile/experiences' });
+  await fastify.register(agentStatusRoutes, { prefix: '/agent-status' });
 }
