@@ -64,6 +64,7 @@ export default async function app(
 ): Promise<FastifyInstance> {
   let isTerminating = false;
   const isProd = process.env.NODE_ENV === 'production';
+  const isWebsocketOnly = process.env.WEBSOCKET_ONLY_MODE === 'true';
   const connection = await runInRootSpan(
     'createOrGetConnection',
     createOrGetConnection,
@@ -337,86 +338,89 @@ export default async function app(
     });
   }
 
-  app.register(
-    async (instance) => {
-      await compatibility(instance, connection);
-    },
-    { prefix: '/v1' },
-  );
-  app.register(proxy, {
-    upstream: 'https://www.google.com/s2/favicons',
-    prefix: '/icon',
-    logLevel: 'warn',
-    replyOptions: {
-      queryString: (search, reqUrl, req) => {
-        const reqSearchParams = new URLSearchParams(
-          req.query as { url: string; size: string },
-        );
-        const proxySearchParams = new URLSearchParams();
-
-        proxySearchParams.set('domain', reqSearchParams.get('url') ?? '');
-        proxySearchParams.set('sz', reqSearchParams.get('size') ?? '');
-        return proxySearchParams.toString();
+  // Skip all REST routes when in websocket-only mode
+  if (!isWebsocketOnly) {
+    app.register(
+      async (instance) => {
+        await compatibility(instance, connection);
       },
-    },
-    preValidation: async (req: FastifyRequest, res) => {
-      const { url, size } = req.query as { url: string; size: string };
-      if (!url || !size) {
-        res.status(400).send({ error: 'url and size are required' });
-      }
-    },
-    preHandler: async (req, res) => {
-      res.helmet({
-        crossOriginResourcePolicy: {
-          policy: 'cross-origin',
+      { prefix: '/v1' },
+    );
+    app.register(proxy, {
+      upstream: 'https://www.google.com/s2/favicons',
+      prefix: '/icon',
+      logLevel: 'warn',
+      replyOptions: {
+        queryString: (search, reqUrl, req) => {
+          const reqSearchParams = new URLSearchParams(
+            req.query as { url: string; size: string },
+          );
+          const proxySearchParams = new URLSearchParams();
+
+          proxySearchParams.set('domain', reqSearchParams.get('url') ?? '');
+          proxySearchParams.set('sz', reqSearchParams.get('size') ?? '');
+          return proxySearchParams.toString();
         },
-      });
-    },
-  });
+      },
+      preValidation: async (req: FastifyRequest, res) => {
+        const { url, size } = req.query as { url: string; size: string };
+        if (!url || !size) {
+          res.status(400).send({ error: 'url and size are required' });
+        }
+      },
+      preHandler: async (req, res) => {
+        res.helmet({
+          crossOriginResourcePolicy: {
+            policy: 'cross-origin',
+          },
+        });
+      },
+    });
 
-  const letterProxy: FastifyRegisterOptions<FastifyHttpProxyOptions> = {
-    upstream:
-      'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
-    preHandler: async (req: FastifyRequest, res: FastifyReply) => {
-      res.helmet({
-        crossOriginResourcePolicy: {
-          policy: 'cross-origin',
-        },
-      });
-    },
-    logLevel: 'warn',
-  };
+    const letterProxy: FastifyRegisterOptions<FastifyHttpProxyOptions> = {
+      upstream:
+        'https://media.daily.dev/image/upload/s--zchx8x3n--/f_auto,q_auto/v1731056371/webapp/shortcut-placeholder',
+      preHandler: async (req: FastifyRequest, res: FastifyReply) => {
+        res.helmet({
+          crossOriginResourcePolicy: {
+            policy: 'cross-origin',
+          },
+        });
+      },
+      logLevel: 'warn',
+    };
 
-  app.register(proxy, {
-    prefix: 'lettericons',
-    ...letterProxy,
-  });
-  app.register(proxy, {
-    prefix: '/lettericons/:word',
-    ...letterProxy,
-  });
+    app.register(proxy, {
+      prefix: 'lettericons',
+      ...letterProxy,
+    });
+    app.register(proxy, {
+      prefix: '/lettericons/:word',
+      ...letterProxy,
+    });
 
-  app.register(proxy, {
-    prefix: '/freyja',
-    httpMethods: ['POST'],
-    upstream: `${process.env.FREYJA_ORIGIN}/api`,
-    preHandler: async (req: FastifyRequest, res: FastifyReply) => {
-      res.helmet({
-        crossOriginResourcePolicy: {
-          policy: 'cross-origin',
-        },
-      });
+    app.register(proxy, {
+      prefix: '/freyja',
+      httpMethods: ['POST'],
+      upstream: `${process.env.FREYJA_ORIGIN}/api`,
+      preHandler: async (req: FastifyRequest, res: FastifyReply) => {
+        res.helmet({
+          crossOriginResourcePolicy: {
+            policy: 'cross-origin',
+          },
+        });
 
-      const regex = new RegExp('^/freyja/sessions/[^/]+/transition$');
-      if (!regex.test(req.url)) {
-        res.status(404).send();
-        return;
-      }
-    },
-    logLevel: 'warn',
-  });
+        const regex = new RegExp('^/freyja/sessions/[^/]+/transition$');
+        if (!regex.test(req.url)) {
+          res.status(404).send();
+          return;
+        }
+      },
+      logLevel: 'warn',
+    });
 
-  app.register(routes, { prefix: '/' });
+    app.register(routes, { prefix: '/' });
+  }
 
   return app;
 }
