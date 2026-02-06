@@ -1,7 +1,10 @@
 import { TypedWorker } from '../worker';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
-import { opportunityMatchDescriptionSchema } from '../../common/schema/opportunities';
+import {
+  opportunityMatchDescriptionSchema,
+  validateGondulOpportunityMessage,
+} from '../../common/schema/opportunities';
 import { Alerts, User } from '../../entity';
 import { IsNull } from 'typeorm';
 import { logger } from '../../logger';
@@ -17,6 +20,10 @@ export const storeCandidateOpportunityMatch: TypedWorker<'gondul.v1.candidate-op
         throw new Error(
           'Missing userId or opportunityId in candidate opportunity match',
         );
+      }
+
+      if (!validateGondulOpportunityMessage(data)) {
+        return;
       }
 
       const user = await con.getRepository(User).findOneBy({ id: userId });
