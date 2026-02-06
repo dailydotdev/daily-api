@@ -40,6 +40,7 @@ import * as gear from './schema/gear';
 import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
 import * as personalAccessTokens from './schema/personalAccessTokens';
 import * as feedback from './schema/feedback';
+import * as agentStatus from './schema/agentStatus';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
   rateLimitTypeDefs,
@@ -96,6 +97,7 @@ export const schema = urlDirective.transformer(
               userWorkspacePhoto.typeDefs,
               personalAccessTokens.typeDefs,
               feedback.typeDefs,
+              agentStatus.typeDefs,
             ],
             resolvers: merge(
               common.resolvers,
@@ -135,6 +137,7 @@ export const schema = urlDirective.transformer(
               userWorkspacePhoto.resolvers,
               personalAccessTokens.resolvers,
               feedback.resolvers,
+              agentStatus.resolvers,
             ),
           }),
         ),
