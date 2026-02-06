@@ -897,7 +897,7 @@ describe('logged in boot', () => {
     it('should set last activity in redis if user is part of organization', async () => {
       await saveFixtures(con, Organization, [
         {
-          id: 'org-1',
+          id: 'bcc87627-7b19-40b6-a8f4-72dc94e764d5',
           seats: 1,
           name: 'Organization 1',
           subscriptionFlags: {
@@ -917,8 +917,8 @@ describe('logged in boot', () => {
       await saveFixtures(con, ContentPreferenceOrganization, [
         {
           userId: '1',
-          referenceId: 'org-1',
-          organizationId: 'org-1',
+          referenceId: 'bcc87627-7b19-40b6-a8f4-72dc94e764d5',
+          organizationId: 'bcc87627-7b19-40b6-a8f4-72dc94e764d5',
           feedId: '1',
           status: ContentPreferenceOrganizationStatus.Plus,
           flags: {
