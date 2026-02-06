@@ -74,6 +74,22 @@ describe('candidateOpportunityMatchNotification worker', () => {
     expect(context.reasoningShort).toEqual('');
   });
 
+  it('should not send notification when opportunityId is not a valid UUID', async () => {
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          userId: '1',
+          opportunityId: 'not-a-uuid',
+          matchScore: 85,
+          reasoning: 'Test reasoning',
+          reasoningShort: 'Test reasoning',
+        }),
+      );
+
+    expect(result).toBeUndefined();
+  });
+
   it('should not send notification when userId is missing', async () => {
     const result =
       await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
