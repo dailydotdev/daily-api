@@ -61,6 +61,22 @@ describe('candidateReviewOpportunitySlack worker', () => {
     expect(actions.elements[1].action_id).toBe('candidate_review_reject');
   });
 
+  it('should skip without error when opportunityId is not a valid UUID', async () => {
+    const data = new ApplicationScored({
+      opportunityId: 'not-a-uuid',
+      userId: '1',
+      score: 85,
+      description: 'Strong candidate',
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+      worker,
+      data,
+    );
+
+    expect(webhooks.recruiterReview.send).not.toHaveBeenCalled();
+  });
+
   it('should parse binary message correctly', () => {
     const testData = new ApplicationScored({
       userId: '1',

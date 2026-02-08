@@ -56,6 +56,27 @@ describe('opportunityPreviewResult worker', () => {
     });
   });
 
+  it('should skip without error when opportunityId is not a valid UUID', async () => {
+    const data = new OpportunityPreviewResult({
+      opportunityId: 'not-a-uuid',
+      userIds: ['1', '2', '3'],
+      totalCount: 3,
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.opportunity-preview-results'>(
+      worker,
+      data,
+    );
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(opportunity?.flags.preview).toBeUndefined();
+  });
+
   it('should throw error if opportunityId is missing', async () => {
     const applicationScoreData = new OpportunityPreviewResult({
       userIds: ['1', '2', '3'],

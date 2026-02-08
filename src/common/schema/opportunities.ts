@@ -6,6 +6,18 @@ import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { SubscriptionCycles } from '../../paddle';
 import { SubscriptionProvider, SubscriptionStatus } from '../plus/subscription';
 
+const gondulOpportunityIdSchema = z.object({
+  opportunityId: z.uuid(),
+});
+
+export const validateGondulOpportunityMessage = (data: {
+  opportunityId?: string;
+}): data is { opportunityId: string } => {
+  const result = gondulOpportunityIdSchema.safeParse(data);
+
+  return result.success;
+};
+
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
   reasoningShort: z.string(),

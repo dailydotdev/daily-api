@@ -1,5 +1,6 @@
 import { ApplicationScored } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
+import { validateGondulOpportunityMessage } from '../common/schema/opportunities';
 import { ONE_DAY_IN_MINUTES, webhooks } from '../common';
 import { generateResumeSignedUrl } from '../common/googleCloud';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
@@ -12,6 +13,10 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
   parseMessage: (message) => ApplicationScored.fromBinary(message.data),
   handler: async ({ data }, con): Promise<void> => {
     if (process.env.NODE_ENV === 'development') return;
+
+    if (!validateGondulOpportunityMessage(data)) {
+      return;
+    }
 
     const {
       opportunityId,
