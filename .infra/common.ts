@@ -484,6 +484,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.feedback-updated',
     subscription: 'api.feedback-updated-slack',
   },
+  {
+    topic: 'api.v1.achievement-unlocked',
+    subscription: 'api.achievement-unlocked-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [

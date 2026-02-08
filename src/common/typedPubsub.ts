@@ -268,6 +268,10 @@ export type PubSubSchema = {
   'api.v1.feedback-updated': {
     feedbackId: string;
   };
+  'api.v1.achievement-unlocked': {
+    achievementId: string;
+    userId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(
