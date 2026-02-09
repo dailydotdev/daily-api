@@ -56,6 +56,22 @@ export const getBragiClient = (
             suggestedTeam: UserFeedbackTeam.PRODUCT,
           },
         }),
+        findJobVacancies: async () => ({
+          id: 'mock-id',
+          vacancies: [],
+        }),
+        findCompanyNews: async () => ({
+          id: 'mock-id',
+          newsItems: [],
+        }),
+        findContactActivity: async () => ({
+          id: 'mock-id',
+          activities: [],
+        }),
+        generateRecruiterEmail: async () => ({
+          id: 'mock-id',
+          emailBody: '',
+        }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
       garmr: new GarmrNoopService(),
     };
