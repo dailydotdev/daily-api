@@ -45,6 +45,7 @@ export type VectorSimilarityProvider = FeedProvider & {
 export type FeedConfig = {
   user_id?: string;
   feed_config_name?: FeedConfigName;
+  channel?: string;
   page_size: number;
   offset?: number;
   total_pages: number;
@@ -84,6 +85,14 @@ export interface FeedConfigGenerator {
     opts: DynamicConfig,
   ): Promise<FeedConfigGeneratorResult>;
 }
+
+export type ChannelFeedOptions = {
+  channel: string;
+  contentCuration?: string;
+  pageSize: number;
+  cursor?: string;
+  allowedPostTypes?: string[];
+};
 
 /**
  * An interface for a feed service client
