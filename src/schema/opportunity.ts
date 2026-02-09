@@ -253,6 +253,7 @@ export const typeDefs = /* GraphQL */ `
 
   type OpportunityLocation {
     id: ID!
+    locationId: ID!
     location: Location!
     type: ProtoEnumValue!
   }
@@ -781,6 +782,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   input LocationInput {
+    locationId: ID
     city: String
     country: String
     subdivision: String
@@ -1213,6 +1215,7 @@ async function renderOpportunityContent(
 }
 
 type LocationInput = {
+  locationId?: string | null;
   externalLocationId?: string | null;
   type?: number | null;
   city?: string | null;
@@ -1222,7 +1225,9 @@ type LocationInput = {
 
 /**
  * Handles opportunity location updates
- * Creates or updates locations based on externalLocationId from each location input
+ * Creates or updates locations based on locationId or externalLocationId from each location input.
+ * When locationId is provided, re-uses the existing DatasetLocation directly.
+ * When externalLocationId is provided, resolves via findOrCreateDatasetLocation.
  */
 async function handleOpportunityLocationUpdate(
   entityManager: EntityManager,
@@ -1239,7 +1244,6 @@ async function handleOpportunityLocationUpdate(
     opportunityId,
   });
 
-  // Process each location with an externalLocationId
   const locationsToInsert: Array<{
     opportunityId: string;
     locationId: string;
@@ -1247,19 +1251,22 @@ async function handleOpportunityLocationUpdate(
   }> = [];
 
   for (const locationInput of locations) {
-    if (!locationInput.externalLocationId) {
-      continue;
+    let resolvedLocationId: string | null = null;
+
+    if (locationInput.locationId) {
+      resolvedLocationId = locationInput.locationId;
+    } else if (locationInput.externalLocationId) {
+      const location = await findOrCreateDatasetLocation(
+        ctx.con,
+        locationInput.externalLocationId,
+      );
+      resolvedLocationId = location?.id ?? null;
     }
 
-    const location = await findOrCreateDatasetLocation(
-      ctx.con,
-      locationInput.externalLocationId,
-    );
-
-    if (location) {
+    if (resolvedLocationId) {
       locationsToInsert.push({
         opportunityId,
-        locationId: location.id,
+        locationId: resolvedLocationId,
         type: locationInput.type || 1,
       });
     }

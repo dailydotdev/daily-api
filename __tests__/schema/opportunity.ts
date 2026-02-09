@@ -4696,6 +4696,84 @@ describe('mutation editOpportunity', () => {
     });
   });
 
+  it('should edit opportunity with locationId to re-use existing dataset location', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              locationId: datasetLocationsFixture[2].id,
+              type: LocationType.OFFICE,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toEqual([
+      {
+        type: LocationType.OFFICE,
+        location: {
+          city: 'San Francisco',
+          country: 'USA',
+        },
+      },
+    ]);
+
+    const dbLocations = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(dbLocations).toHaveLength(1);
+    expect(dbLocations[0].locationId).toBe(datasetLocationsFixture[2].id);
+  });
+
+  it('should edit opportunity with mixed locationId and externalLocationId', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              locationId: datasetLocationsFixture[0].id,
+              type: LocationType.REMOTE,
+            },
+            {
+              externalLocationId: 'usa-sf-ca',
+              type: LocationType.OFFICE,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toHaveLength(2);
+    expect(res.data.editOpportunity.locations).toEqual(
+      expect.arrayContaining([
+        {
+          type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'Norway',
+          },
+        },
+        {
+          type: LocationType.OFFICE,
+          location: {
+            city: 'San Francisco',
+            country: 'USA',
+          },
+        },
+      ]),
+    );
+  });
+
   it('should edit opportunity keywords', async () => {
     loggedUser = '1';
 

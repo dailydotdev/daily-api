@@ -187,6 +187,7 @@ export const opportunityEditSchema = z
     location: z
       .array(
         z.object({
+          locationId: z.string().nullish(),
           externalLocationId: z.string().nullish(),
           type: z.coerce.number().min(1).nullish(),
           city: z.string().nullish(),
