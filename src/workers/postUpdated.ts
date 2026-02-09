@@ -89,6 +89,7 @@ interface Data {
       translations?: I18nRecord;
     };
     stored_code_snippets?: string;
+    channels?: string[];
   };
   content_quality?: PostContentQuality;
 }
