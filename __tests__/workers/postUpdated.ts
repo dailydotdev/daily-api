@@ -39,8 +39,7 @@ import {
 } from '../../src/types';
 import { insertCodeSnippetsFromUrl } from '../../src/common/post';
 import { generateShortId } from '../../src/ids';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import contentPublishedChannelsFixture from '../fixture/contentPublishedChannels.json';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -148,11 +147,6 @@ const createSharedPost = async (id = 'sp1') => {
     type: PostType.Share,
     visible: false,
   });
-};
-
-const loadFixture = <T>(name: string): T => {
-  const filePath = join(__dirname, '../fixture', name);
-  return JSON.parse(readFileSync(filePath, 'utf8')) as T;
 };
 
 it('should not update if the database updated date is newer', async () => {
@@ -1218,7 +1212,7 @@ describe('on post update', () => {
   });
 
   it('should consume content published fixture with channels', async () => {
-    const payload = loadFixture<Data>('contentPublishedChannels.json');
+    const payload = contentPublishedChannelsFixture;
 
     await expectSuccessfulBackground(worker, payload);
 
