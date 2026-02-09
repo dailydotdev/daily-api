@@ -1,0 +1,11 @@
+{
+  "id": "f1c2e61e-9bf3-4ed2-a7a1-0fd0b1347e7e",
+  "post_id": "p1",
+  "updated_at": "2024-01-05T12:00:00.000Z",
+  "meta": {
+    "channels": ["devops", "tools"]
+  },
+  "extra": {
+    "content_curation": ["news"]
+  }
+}
