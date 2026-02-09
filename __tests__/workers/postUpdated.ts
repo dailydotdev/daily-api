@@ -1918,11 +1918,7 @@ describe('on youtube post', () => {
       yggdrasilId: '7c8cbf2d-2c2a-4b32-9b1e-0f5b6cd02f9b',
     });
 
-    expect(post?.contentCuration).toEqual([
-      'drama',
-      'endorsement',
-      'hot_take',
-    ]);
+    expect(post?.contentCuration).toEqual(['drama', 'endorsement', 'hot_take']);
   });
 
   it('should create a new video post with minimum 1m duration', async () => {
