@@ -183,6 +183,7 @@ The migration generator compares entities against the local database schema. Ens
 - Example: Instead of `export type FileData = {...}; type Flags = { file: FileData }`, use `type Flags = { file: { ... } }`
 
 **Imports:**
+- **Never use `require()`** - Always use `import` statements at the top of the file. If you believe a lazy/dynamic import or `require()` is truly necessary, explicitly ask for permission before using it.
 - **Avoid barrel file imports** (index.ts re-exports). Import directly from the specific file instead.
 - Example: Use `import { User } from './entity/user/User'` instead of `import { User } from './entity'`
 - This improves build times, makes dependencies clearer, and avoids circular dependency issues
