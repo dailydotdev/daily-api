@@ -611,7 +611,7 @@ describe('reading streaks', () => {
 });
 
 describe('brief read achievement', () => {
-  const briefAchievementId = 'debriefed-achievement-id';
+  const briefAchievementId = '00000000-0000-0000-0000-000000000001';
 
   beforeEach(async () => {
     // Seed the brief read achievement
