@@ -87,14 +87,6 @@ export interface FeedConfigGenerator {
   ): Promise<FeedConfigGeneratorResult>;
 }
 
-export type ChannelFeedOptions = {
-  channel: string;
-  contentCuration?: string;
-  pageSize: number;
-  cursor?: string;
-  allowedPostTypes?: string[];
-};
-
 /**
  * An interface for a feed service client
  */
