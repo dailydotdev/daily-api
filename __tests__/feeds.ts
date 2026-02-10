@@ -2020,7 +2020,6 @@ describe('query channelFeed', () => {
         expect(body).toMatchObject({
           feed_config_name: FeedConfigName.Channel,
           channel: 'devops',
-          order_by: FeedOrderBy.Date,
           page_size: 2,
           cursor,
           allowed_content_curations: ['news'],
