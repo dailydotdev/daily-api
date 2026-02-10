@@ -60,8 +60,6 @@ export interface AchievementCriteria {
 }
 
 @Entity()
-@Index('IDX_achievement_eventType')
-@Index('IDX_achievement_type')
 export class Achievement {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_achievement_id',

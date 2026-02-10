@@ -20,10 +20,12 @@ export async function getAchievementsByEventType(
   con: DataSource,
   eventType: AchievementEventType,
 ): Promise<Achievement[]> {
-  return con.getRepository(Achievement).find({
-    where: { eventType },
-    order: { criteria: { targetCount: 'ASC' } },
-  });
+  return con
+    .getRepository(Achievement)
+    .createQueryBuilder('a')
+    .where('a.eventType = :eventType', { eventType })
+    .orderBy("a.criteria->>'targetCount'", 'ASC')
+    .getMany();
 }
 
 /**

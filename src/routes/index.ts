@@ -21,6 +21,7 @@ import { PersonalizedDigestFeatureConfig } from '../growthbook';
 import integrations from './integrations';
 import gifs from './gifs';
 import publicApi, { PUBLIC_API_PREFIX } from './public';
+import outbound from './outbound';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
@@ -62,6 +63,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(sitemaps, { prefix: '/sitemaps' });
   fastify.register(integrations, { prefix: '/integrations' });
   fastify.register(gifs, { prefix: '/gifs' });
+  fastify.register(outbound, { prefix: '/outbound' });
 
   // Public API v1
   fastify.register(

@@ -7,11 +7,16 @@ import { WarmIntro } from '@dailydotdev/schema';
 import { User } from '../../entity';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { markdown } from '../../common/markdown';
+import { validateGondulOpportunityMessage } from '../../common/schema/opportunities';
 
 export const warmIntroNotification: TypedNotificationWorker<'gondul.v1.warm-intro-generated'> =
   {
     subscription: 'api.recruiter-warm-intro-notification',
     handler: async ({ userId, opportunityId, description }, con) => {
+      if (!validateGondulOpportunityMessage({ opportunityId })) {
+        return;
+      }
+
       const opportunity = await con.getRepository(OpportunityJob).findOne({
         where: {
           id: opportunityId,

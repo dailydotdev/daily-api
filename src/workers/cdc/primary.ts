@@ -153,8 +153,10 @@ import type { ContentPreferenceUser } from '../../entity/contentPreference/Conte
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import {
+  buildOpportunityMessage,
   notifyCandidateOpportunityMatchRejected,
   notifyCandidatePreferenceChange,
+  notifyJobOpportunity,
   notifyOpportunityMatchAccepted,
   notifyOpportunityMatchCandidateReview,
   notifyRecruiterCandidateMatchAccepted,
@@ -162,7 +164,6 @@ import {
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
-import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { PollPost } from '../../entity/posts/PollPost';
 import { UserExperienceWork } from '../../entity/user/experiences/UserExperienceWork';
@@ -1879,6 +1880,23 @@ const onOpportunityChange = async (
       opportunityId: data.payload.after!.id,
       title: data.payload.after!.title,
     });
+  }
+
+  // Publish opportunity-updated for updates to LIVE opportunities
+  if (
+    data.payload.op === 'u' &&
+    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.state === OpportunityState.LIVE
+  ) {
+    const message = await buildOpportunityMessage({
+      con,
+      logger,
+      opportunityId: data.payload.after!.id,
+    });
+
+    if (message) {
+      await triggerTypedEvent(logger, 'api.v1.opportunity-updated', message);
+    }
   }
 
   // Trigger event when opportunity moves to IN_REVIEW

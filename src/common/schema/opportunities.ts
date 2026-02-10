@@ -6,6 +6,18 @@ import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import { SubscriptionCycles } from '../../paddle';
 import { SubscriptionProvider, SubscriptionStatus } from '../plus/subscription';
 
+const gondulOpportunityIdSchema = z.object({
+  opportunityId: z.uuid(),
+});
+
+export const validateGondulOpportunityMessage = (data: {
+  opportunityId?: string;
+}): data is { opportunityId: string } => {
+  const result = gondulOpportunityIdSchema.safeParse(data);
+
+  return result.success;
+};
+
 export const opportunityMatchDescriptionSchema = z.object({
   reasoning: z.string(),
   reasoningShort: z.string(),
@@ -172,11 +184,18 @@ export const opportunityEditSchema = z
       )
       .min(1)
       .max(100),
-    externalLocationId: z.preprocess(
-      (val) => (val === '' ? null : val),
-      z.string().nullish().default(null),
-    ),
-    locationType: z.coerce.number().nullish().default(null),
+    location: z
+      .array(
+        z.object({
+          locationId: z.string().nullish(),
+          externalLocationId: z.string().nullish(),
+          type: z.coerce.number().min(1).nullish(),
+          city: z.string().nullish(),
+          country: z.string().nullish(),
+          subdivision: z.string().nullish(),
+        }),
+      )
+      .optional(),
     meta: z.object({
       employmentType: z.coerce.number().min(1),
       teamSize: z.number().int().nonnegative().min(1).max(1_000_000),

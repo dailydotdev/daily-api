@@ -86,6 +86,7 @@ declare global {
       GONDUL_ORIGIN: string;
       GONDUL_OPPORTUNITY_SERVER_ORIGIN: string;
       BROKKR_ORIGIN: string;
+      OUTBOUND_SERVICE_SECRET: string;
     }
   }
 }

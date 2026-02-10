@@ -4487,6 +4487,293 @@ describe('mutation editOpportunity', () => {
     });
   });
 
+  it('should edit opportunity with a single location using externalLocationId', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              externalLocationId: 'usa-hybrid',
+              type: LocationType.HYBRID,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toEqual([
+      {
+        type: LocationType.HYBRID,
+        location: {
+          city: null,
+          country: 'USA',
+        },
+      },
+    ]);
+
+    const dbLocations = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(dbLocations).toHaveLength(1);
+    expect(dbLocations[0].type).toBe(LocationType.HYBRID);
+  });
+
+  it('should edit opportunity with multiple locations', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              externalLocationId: 'norway-remote',
+              type: LocationType.REMOTE,
+            },
+            {
+              externalLocationId: 'usa-sf-ca',
+              type: LocationType.OFFICE,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toEqual(
+      expect.arrayContaining([
+        {
+          type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'Norway',
+          },
+        },
+        {
+          type: LocationType.OFFICE,
+          location: {
+            city: 'San Francisco',
+            country: 'USA',
+          },
+        },
+      ]),
+    );
+
+    const dbLocations = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(dbLocations).toHaveLength(2);
+  });
+
+  it('should replace existing locations when editing with new location array', async () => {
+    loggedUser = '1';
+
+    // Verify the opportunity starts with 1 location (from fixtures)
+    const before = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(before).toHaveLength(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              externalLocationId: 'usa-hybrid',
+              type: LocationType.HYBRID,
+            },
+            {
+              externalLocationId: 'usa-sf-ca',
+              type: LocationType.OFFICE,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toHaveLength(2);
+
+    // Verify old location was removed
+    const after = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(after).toHaveLength(2);
+    expect(
+      after.every((l) => l.locationId !== datasetLocationsFixture[0].id),
+    ).toBe(true);
+  });
+
+  it('should default location type to 1 when not provided', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              externalLocationId: 'usa-hybrid',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toEqual([
+      {
+        type: 1,
+        location: {
+          city: null,
+          country: 'USA',
+        },
+      },
+    ]);
+  });
+
+  it('should preserve existing locations when location is not provided in payload', async () => {
+    loggedUser = '1';
+
+    const before = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(before).toHaveLength(1);
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          title: 'Updated title without touching locations',
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toHaveLength(1);
+
+    const after = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(after).toHaveLength(1);
+    expect(after[0].locationId).toBe(before[0].locationId);
+  });
+
+  it('should skip locations without externalLocationId', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              city: 'Oslo',
+              country: 'Norway',
+            },
+            {
+              externalLocationId: 'usa-hybrid',
+              type: LocationType.HYBRID,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    // Only the location with externalLocationId should be saved
+    expect(res.data.editOpportunity.locations).toHaveLength(1);
+    expect(res.data.editOpportunity.locations[0]).toMatchObject({
+      type: LocationType.HYBRID,
+      location: {
+        country: 'USA',
+      },
+    });
+  });
+
+  it('should edit opportunity with locationId to re-use existing dataset location', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              locationId: datasetLocationsFixture[2].id,
+              type: LocationType.OFFICE,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toEqual([
+      {
+        type: LocationType.OFFICE,
+        location: {
+          city: 'San Francisco',
+          country: 'USA',
+        },
+      },
+    ]);
+
+    const dbLocations = await con
+      .getRepository(OpportunityLocation)
+      .findBy({ opportunityId: opportunitiesFixture[0].id });
+    expect(dbLocations).toHaveLength(1);
+    expect(dbLocations[0].locationId).toBe(datasetLocationsFixture[2].id);
+  });
+
+  it('should edit opportunity with mixed locationId and externalLocationId', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        id: opportunitiesFixture[0].id,
+        payload: {
+          location: [
+            {
+              locationId: datasetLocationsFixture[0].id,
+              type: LocationType.REMOTE,
+            },
+            {
+              externalLocationId: 'usa-sf-ca',
+              type: LocationType.OFFICE,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.editOpportunity.locations).toHaveLength(2);
+    expect(res.data.editOpportunity.locations).toEqual(
+      expect.arrayContaining([
+        {
+          type: LocationType.REMOTE,
+          location: {
+            city: null,
+            country: 'Norway',
+          },
+        },
+        {
+          type: LocationType.OFFICE,
+          location: {
+            city: 'San Francisco',
+            country: 'USA',
+          },
+        },
+      ]),
+    );
+  });
+
   it('should edit opportunity keywords', async () => {
     loggedUser = '1';
 

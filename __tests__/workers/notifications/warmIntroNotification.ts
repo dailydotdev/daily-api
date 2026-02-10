@@ -157,6 +157,20 @@ describe('warmIntroNotification worker', () => {
     );
   });
 
+  it('should skip without error when opportunityId is not a valid UUID', async () => {
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.warm-intro-generated'>(
+        worker,
+        new WarmIntro({
+          userId: '1',
+          opportunityId: 'not-a-uuid',
+          description: 'This should be skipped',
+        }),
+      );
+
+    expect(result).toBeUndefined();
+  });
+
   it('should return undefined when opportunity not found', async () => {
     const result =
       await invokeTypedNotificationWorker<'gondul.v1.warm-intro-generated'>(
