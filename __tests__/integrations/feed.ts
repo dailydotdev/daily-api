@@ -107,6 +107,48 @@ describe('FeedClient', () => {
     expect(feed).toEqual(feedResponse);
   });
 
+  it('should fetch channel feed via generic feed endpoint', async () => {
+    nock(url)
+      .post('', {
+        feed_config_name: FeedConfigName.Channel,
+        channel: 'javascript',
+        order_by: 'date',
+        page_size: 10,
+      })
+      .reply(200, rawFeedResponse);
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchChannelFeed(ctx, {
+      channel: 'javascript',
+      pageSize: 10,
+    });
+
+    expect(feed).toEqual(feedResponse);
+  });
+
+  it('should include channel feed optional filters', async () => {
+    nock(url)
+      .post('', {
+        feed_config_name: FeedConfigName.Channel,
+        channel: 'typescript',
+        order_by: 'date',
+        page_size: 20,
+        cursor: 'next-cursor',
+        allowed_content_curations: ['news'],
+        allowed_post_types: [PostType.Article],
+      })
+      .reply(200, rawFeedResponse);
+
+    const feedClient = new FeedClient(url);
+    await feedClient.fetchChannelFeed(ctx, {
+      channel: 'typescript',
+      contentCuration: 'news',
+      pageSize: 20,
+      cursor: 'next-cursor',
+      allowedPostTypes: [PostType.Article],
+    });
+  });
+
   it('should merge tyr metadata with feed metadata', async () => {
     nock(url)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

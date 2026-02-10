@@ -11,6 +11,7 @@ export enum FeedConfigName {
   Personalise = 'personalise',
   Vector = 'vector',
   Onboarding = 'onboarding',
+  Channel = 'channel',
   PersonaliseV27 = 'personalise_v27',
   VectorV26 = 'vector_v26',
   VectorV27 = 'vector_v27',
