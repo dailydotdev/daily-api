@@ -105,7 +105,7 @@ config:
     personalizedDigestSecret:
       secure: AAABAN1TYaqznVMVbKDZtYEnLGB0VIzXDrpcmB6rBsImneobrDOS12T4XwbVvnexdZt1NBCnZRBwH4AL7OgpZkj/2UgT8Lzj0o7TdVSBeIeVDzKa/V6jlvJ4AskEC9rg
     postScraperOrigin: http://post-scraper-one-ai-server.content.svc.cluster.local
-    yggdrasilOrigin: http://yggdrasil-link-preview.yggdrasil.svc.cluster.local  # Optional: use yggdrasil for link previews instead of post-scraper
+    yggdrasilOrigin: http://yggdrasil-link-preview.yggdrasil.svc.cluster.local # Optional: use yggdrasil for link previews instead of post-scraper
     roasterUrl:
       secure: AAABAG345FgrKQUdnHkiyTstCqLN33wENnz6dIoBkxqaUAbJPS2h+kPwSH/W0i8+TWHmE4npH37runeN8qm/fyoZxz425ATWQsyrTVJU4KMAApeHwGUI4pgtAvDB11x96eWDX5SBLW2t4UemyaHXw1kYagdwWkd9LP4e3j8E7oKXJE7YwHRaIT4LI09JoTQWTuMLwYfZY1vWzAy5BOHqouf1v1+hGWWSF+NTdFHHkw==
     scraperUrl: http://scraper
@@ -217,6 +217,8 @@ config:
       secure: AAABAOdXRr1kkATusYHaoqsfa0Xi+xvqFZEHt1vUxKXvwl20h/7LkIhd65gFyjLvr3+jMG5iBUs8SIQy43QFjAgnpLsH9mq+987c+AJXCsXumIuBiP2pKeOKQJlVpIpwvr354kKr0l2TJsFEz9Bl7/w=
     linearWebhookSecret:
       secure: AAABAOcnI1KjC12NLNtt8v+7aMgD8YSrr+NVjcq/W2TnhalcCNgxIC9RZoockpN+2cmDiMHOd7YO+1YEznsosf6KXOvpIgmWjXD0/S3nguqbkIk=
+    outboundServiceSecret:
+      secure: AAABALeVUcWiTAIPqO9Ut85Q8eX5bIh/cUy/NDjOi4lSMQ/D04V92IxQCpXjzITm1CKybCpcIp+nMQiNvimDdmvGy/gLisyMyqEERKbrFw3nHV8Dsm6TadNoUSACPfNB9sDgOtQjn+VaPHVp6AtLhDnndUhVYUVja2rFUf3Acqjs8qt8alwoPMJscNRmvu3AgcB4zBY6m2M4vJ8J/2Cj5Q==
   api:k8s:
     host: subs.daily.dev
     namespace: daily
