@@ -113,7 +113,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ) => {
-      const pageSize = args.first ?? 20;
+      const pageSize = Math.min(args.first ?? 20, 50);
 
       return graphorm.query(ctx, info, (builder) => {
         builder.queryBuilder
