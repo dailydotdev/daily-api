@@ -1406,6 +1406,15 @@ type ChannelFeedArgs = ConnectionArguments & {
   supportedTypes?: string[];
 };
 
+const channelFeedGenerator = new FeedGenerator(
+  feedClient,
+  new SimpleFeedConfigGenerator({
+    feed_config_name: FeedConfigName.Channel,
+    total_pages: 1,
+  }),
+  'channel',
+);
+
 const channelFeedResolver = feedResolver<
   unknown,
   ChannelFeedArgs,
@@ -1423,12 +1432,15 @@ const channelFeedResolver = feedResolver<
   (ctx, args, page, builder) => builder,
   {
     fetchQueryParams: (ctx, args, page) =>
-      feedClient.fetchChannelFeed(ctx, {
+      channelFeedGenerator.generate(ctx, {
+        page_size: page.limit,
+        offset: 0,
         channel: args.channel,
-        contentCuration: args.contentCuration,
-        pageSize: page.limit,
         cursor: page.cursor,
-        allowedPostTypes: args.supportedTypes,
+        allowed_content_curations: args.contentCuration
+          ? [args.contentCuration]
+          : undefined,
+        allowed_post_types: args.supportedTypes,
       }),
     warnOnPartialFirstPage: true,
     removeNonPublicThresholdSquads: false,

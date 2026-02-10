@@ -2016,10 +2016,10 @@ describe('query channelFeed', () => {
     const cursor = base64('10');
 
     nock('http://localhost:6000')
-      .post('/api/channel-feed', (body) => {
+      .post('/feed.json', (body) => {
         expect(body).toMatchObject({
+          feed_config_name: FeedConfigName.Channel,
           channel: 'devops',
-          order_by: FeedOrderBy.Date,
           page_size: 2,
           cursor,
           allowed_content_curations: ['news'],

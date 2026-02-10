@@ -9,6 +9,7 @@ export type FeedResponse = {
 
 export enum FeedConfigName {
   Personalise = 'personalise',
+  Channel = 'channel',
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseV27 = 'personalise_v27',
@@ -85,14 +86,6 @@ export interface FeedConfigGenerator {
     opts: DynamicConfig,
   ): Promise<FeedConfigGeneratorResult>;
 }
-
-export type ChannelFeedOptions = {
-  channel: string;
-  contentCuration?: string;
-  pageSize: number;
-  cursor?: string;
-  allowedPostTypes?: string[];
-};
 
 /**
  * An interface for a feed service client

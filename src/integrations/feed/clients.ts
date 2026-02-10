@@ -1,10 +1,4 @@
-import {
-  ChannelFeedOptions,
-  FeedConfig,
-  FeedResponse,
-  IFeedClient,
-  BriefingModel,
-} from './types';
+import { FeedConfig, FeedResponse, IFeedClient, BriefingModel } from './types';
 import { RequestInit } from 'node-fetch';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
@@ -78,47 +72,6 @@ export class FeedClient implements IFeedClient, IGarmrClient {
             null,
         ];
       }),
-      cursor: res.cursor,
-    };
-  }
-
-  async fetchChannelFeed(
-    ctx: unknown,
-    options: ChannelFeedOptions,
-  ): Promise<FeedResponse> {
-    const url = new URL('/api/channel-feed', this.url);
-    const body: Record<string, unknown> = {
-      channel: options.channel,
-      order_by: 'date',
-      page_size: options.pageSize,
-      cursor: options.cursor,
-    };
-
-    if (options.contentCuration) {
-      body.allowed_content_curations = [options.contentCuration];
-    }
-
-    if (options.allowedPostTypes?.length) {
-      body.allowed_post_types = options.allowedPostTypes;
-    }
-
-    const res = await this.garmr.execute(() => {
-      return fetchParse<RawFeedServiceResponse>(url.toString(), {
-        ...this.fetchOptions,
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-    });
-
-    if (!res?.data?.length) {
-      return { data: [] };
-    }
-
-    return {
-      data: res.data.map(({ post_id, metadata }) => [
-        post_id,
-        (metadata && JSON.stringify(metadata)) || null,
-      ]),
       cursor: res.cursor,
     };
   }
