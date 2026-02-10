@@ -85,9 +85,3 @@ export const twitterSocialPayloadSchema = z
 
 export type TwitterSocialPayload = z.infer<typeof twitterSocialPayloadSchema>;
 export type TwitterSocialMedia = z.infer<typeof twitterSocialMediaSchema>;
-export type TwitterSocialThreadTweet = z.infer<
-  typeof twitterSocialThreadTweetSchema
->;
-export type TwitterSocialReference = z.infer<
-  typeof twitterSocialReferenceSchema
->;
