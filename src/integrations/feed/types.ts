@@ -9,6 +9,7 @@ export type FeedResponse = {
 
 export enum FeedConfigName {
   Personalise = 'personalise',
+  Channel = 'channel',
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseV27 = 'personalise_v27',
@@ -45,6 +46,7 @@ export type VectorSimilarityProvider = FeedProvider & {
 export type FeedConfig = {
   user_id?: string;
   feed_config_name?: FeedConfigName;
+  channel?: string;
   page_size: number;
   offset?: number;
   total_pages: number;
