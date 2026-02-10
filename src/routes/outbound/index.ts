@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import fastifyRateLimit from '@fastify/rate-limit';
 import { fastifyConnectPlugin } from '@connectrpc/connect-fastify';
 import { createContextValues } from '@connectrpc/connect';
 import { ValidationError } from 'apollo-server-errors';
@@ -47,7 +48,32 @@ const verifyOutboundSecret = (req: FastifyRequest): boolean => {
   return timingSafeEqual(Buffer.from(auth), Buffer.from(expected));
 };
 
+const RATE_LIMIT_PER_MINUTE = 180;
+
 export default async (fastify: FastifyInstance): Promise<void> => {
+  await fastify.register(fastifyRateLimit, {
+    max: RATE_LIMIT_PER_MINUTE,
+    timeWindow: '1 minute',
+    keyGenerator: (request: FastifyRequest) => request.ip,
+    errorResponseBuilder: () => ({
+      error: 'rate_limit_exceeded',
+      message: 'Too many requests. Please slow down.',
+      retryAfter: 60,
+    }),
+    skipOnError: false,
+    addHeadersOnExceeding: {
+      'x-ratelimit-limit': false,
+      'x-ratelimit-remaining': false,
+      'x-ratelimit-reset': false,
+    },
+    addHeaders: {
+      'x-ratelimit-limit': false,
+      'x-ratelimit-remaining': false,
+      'x-ratelimit-reset': false,
+      'retry-after': true,
+    },
+  });
+
   fastify.post<{
     Body: z.infer<typeof privateCreateOpportunitySchema>;
   }>('/opportunities', async (req, res) => {
