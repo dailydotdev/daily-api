@@ -157,7 +157,10 @@ describe('FeedClient', () => {
     });
 
     expect(feed).toEqual({
-      data: [['1', '{"p":"a"}'], ['2', null]],
+      data: [
+        ['1', '{"p":"a"}'],
+        ['2', null],
+      ],
       cursor: 'cursor-2',
     });
   });
