@@ -6,6 +6,7 @@ import {
   addRelatedPosts,
   ArticlePost,
   bannedAuthors,
+  COMMUNITY_PICKS_SOURCE,
   CollectionPost,
   findAuthor,
   FreeformPost,
@@ -22,7 +23,9 @@ import {
   relatePosts,
   removeKeywords,
   SharePost,
+  SocialTwitterPost,
   Source,
+  SourceType,
   Submission,
   SubmissionStatus,
   Toc,
@@ -41,6 +44,12 @@ import { FastifyBaseLogger } from 'fastify';
 import { EntityManager, QueryFailedError } from 'typeorm';
 import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
+import {
+  isTwitterSocialType,
+  mapTwitterSocialPayload,
+  type TwitterReferencePost,
+  upsertTwitterReferencedPost,
+} from '../common/twitterSocial';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
 import { insertCodeSnippetsFromUrl } from '../common/post';
@@ -78,7 +87,7 @@ interface Data {
     toc?: Toc;
     content_curation?: string[];
     origin_entries?: string[];
-    content: string;
+    content?: string;
     video_id?: string;
     duration?: number;
   };
@@ -291,6 +300,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.VideoYouTube]: YouTubePost,
   [PostType.Brief]: BriefPost,
   [PostType.Poll]: PollPost,
+  [PostType.SocialTwitter]: SocialTwitterPost,
 };
 
 type UpdatePostProps = {
@@ -493,25 +503,40 @@ const getSourcePrivacy = async ({
   data,
 }: GetSourcePrivacyProps): Promise<boolean | undefined> => {
   try {
-    let query = entityManager
-      .getRepository(Source)
-      .createQueryBuilder('source')
-      .select(['source.private']);
+    const sourceRepo = entityManager.getRepository(Source);
 
-    // If we don't have a source id, we need to find the source id from the post
-    if (!data?.source_id || data?.source_id === UNKNOWN_SOURCE) {
-      query = query.innerJoinAndSelect(
-        'source.posts',
-        'posts',
-        'posts.id = :id',
-        { id: data?.post_id },
-      );
-    } else {
-      query = query.where('source.id = :id', { id: data?.source_id });
+    const resolveById = async (id: string): Promise<Source> =>
+      sourceRepo
+        .createQueryBuilder('source')
+        .select(['source.private'])
+        .where('source.id = :id', { id })
+        .getOneOrFail();
+
+    const resolveFromPost = async (postId: string): Promise<Source> =>
+      sourceRepo
+        .createQueryBuilder('source')
+        .select(['source.private'])
+        .innerJoinAndSelect('source.posts', 'posts', 'posts.id = :id', {
+          id: postId,
+        })
+        .getOneOrFail();
+
+    if (!data?.source_id) {
+      const source = await resolveFromPost(data?.post_id);
+      return source.private;
     }
 
-    const source = await query.getOneOrFail();
+    if (data?.source_id === UNKNOWN_SOURCE && data?.post_id) {
+      try {
+        const source = await resolveFromPost(data.post_id);
+        return source.private;
+      } catch {
+        const source = await resolveById(UNKNOWN_SOURCE);
+        return source.private;
+      }
+    }
 
+    const source = await resolveById(data.source_id);
     return source.private;
   } catch (err) {
     const sourcePostError = new Error('failed to find source for post');
@@ -533,9 +558,64 @@ type FixData = {
   content_type: PostType;
   fixedData: Partial<ArticlePost> &
     Partial<CollectionPost> &
-    Partial<YouTubePost>;
+    Partial<YouTubePost> &
+    Partial<SocialTwitterPost> &
+    Partial<Post>;
   smartTitle?: string;
+  twitterReference?: TwitterReferencePost;
 };
+
+const resolveTwitterSourceId = async ({
+  entityManager,
+  authorUsername,
+}: {
+  entityManager: EntityManager;
+  authorUsername?: string;
+}): Promise<string | undefined> => {
+  if (!authorUsername) {
+    return undefined;
+  }
+
+  const matchedSource = await entityManager
+    .getRepository(Source)
+    .createQueryBuilder('source')
+    .select(['source.id'])
+    .where('source.type = :type', { type: SourceType.Machine })
+    .andWhere('LOWER(source.twitter) = :twitter', {
+      twitter: authorUsername,
+    })
+    .getOne();
+
+  return matchedSource?.id;
+};
+
+const resolveTwitterIngestionSourceId = ({
+  sourceId,
+  resolvedTwitterSourceId,
+  origin,
+}: {
+  sourceId?: string;
+  resolvedTwitterSourceId?: string;
+  origin?: string;
+}): string => {
+  const explicitSourceId =
+    sourceId && sourceId !== UNKNOWN_SOURCE ? sourceId : undefined;
+
+  if (explicitSourceId) {
+    return explicitSourceId;
+  }
+
+  if (resolvedTwitterSourceId) {
+    return resolvedTwitterSourceId;
+  }
+
+  if (origin === PostOrigin.UserGenerated) {
+    return COMMUNITY_PICKS_SOURCE;
+  }
+
+  return UNKNOWN_SOURCE;
+};
+
 const fixData = async ({
   logger,
   entityManager,
@@ -546,11 +626,33 @@ const fixData = async ({
       ? null
       : data?.extra?.creator_twitter;
 
+  const twitterMapping = isTwitterSocialType(data?.content_type)
+    ? mapTwitterSocialPayload({ data })
+    : undefined;
+  const resolvedTwitterSourceId =
+    isTwitterSocialType(data?.content_type) &&
+    (!data?.source_id || data?.source_id === UNKNOWN_SOURCE)
+      ? await resolveTwitterSourceId({
+          entityManager,
+          authorUsername: twitterMapping?.authorUsername,
+        })
+      : undefined;
+  const sourceId = isTwitterSocialType(data?.content_type)
+    ? resolveTwitterIngestionSourceId({
+        sourceId: data?.source_id,
+        resolvedTwitterSourceId,
+        origin: data?.origin,
+      })
+    : data?.source_id;
+
   const authorId = await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
     logger,
     entityManager,
-    data,
+    data: {
+      ...data,
+      source_id: sourceId,
+    },
   });
 
   let keywords = data?.extra?.keywords;
@@ -577,12 +679,18 @@ const fixData = async ({
     ? data?.extra?.duration / 60
     : undefined;
 
+  const contentType =
+    (isTwitterSocialType(data?.content_type)
+      ? PostType.SocialTwitter
+      : (data?.content_type as PostType)) || PostType.Article;
+
   // Try and fix generic data here
   return {
     mergedKeywords,
     questions: data?.extra?.questions || [],
-    content_type: data?.content_type as PostType,
+    content_type: contentType,
     smartTitle: data?.alt_title,
+    twitterReference: twitterMapping?.reference,
     fixedData: {
       origin: data?.origin as PostOrigin,
       authorId,
@@ -590,7 +698,7 @@ const fixData = async ({
       url: data?.url,
       canonicalUrl: data?.extra?.canonical_url || data?.url,
       image: data?.image,
-      sourceId: data?.source_id,
+      sourceId,
       title: data?.title && he.decode(data?.title),
       readTime: parseReadTime(data?.extra?.read_time || duration),
       publishedAt: parseDate(data?.published_at),
@@ -610,15 +718,17 @@ const fixData = async ({
         sentAnalyticsReport: privacy || !authorId,
       },
       yggdrasilId: data?.id,
-      type: data?.content_type as PostType,
+      type: contentType,
       content: data?.extra?.content,
       contentHtml: data?.extra?.content
         ? markdown.render(data.extra.content)
         : undefined,
       videoId: data?.extra?.video_id,
       language: data?.language,
+      subType: null,
       contentMeta: data?.meta || {},
       contentQuality: data?.content_quality || {},
+      ...(twitterMapping?.fields || {}),
     },
   };
 };
@@ -667,6 +777,7 @@ const worker: Worker = {
           content_type,
           smartTitle,
           fixedData,
+          twitterReference,
         } = await fixData({
           logger,
           entityManager,
@@ -676,6 +787,16 @@ const worker: Worker = {
             post_id: postId || data.post_id,
           },
         });
+
+        if (content_type === PostType.SocialTwitter && twitterReference) {
+          fixedData.sharedPostId = await upsertTwitterReferencedPost({
+            entityManager,
+            reference: twitterReference,
+            sourceId: fixedData.sourceId,
+            language: fixedData.language,
+            isPrivate: fixedData.private,
+          });
+        }
 
         // See if post id is not available
         if (!postId) {

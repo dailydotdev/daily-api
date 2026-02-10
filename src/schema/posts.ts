@@ -171,6 +171,7 @@ export interface GQLPollOption {
 export interface GQLPost {
   id: string;
   type: PostType;
+  subType?: string;
   shortId: string;
   publishedAt?: Date;
   pinnedAt?: Date;
@@ -550,6 +551,11 @@ export const typeDefs = /* GraphQL */ `
     Post type
     """
     type: String
+
+    """
+    Post sub type (for platform specific variants)
+    """
+    subType: String
 
     """
     Unique URL friendly short identifier
