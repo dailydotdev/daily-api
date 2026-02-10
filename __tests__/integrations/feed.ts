@@ -128,6 +128,39 @@ describe('FeedClient', () => {
       ],
     });
   });
+
+  it('should fetch channel feed from generic feed endpoint', async () => {
+    const cursor = 'cursor-1';
+
+    nock(url)
+      .post('', {
+        feed_config_name: FeedConfigName.Channel,
+        channel: 'devops',
+        order_by: 'date',
+        page_size: 2,
+        cursor,
+        allowed_content_curations: ['news'],
+        allowed_post_types: ['article'],
+      })
+      .reply(200, {
+        data: [{ post_id: '1', metadata: { p: 'a' } }, { post_id: '2' }],
+        cursor: 'cursor-2',
+      });
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchChannelFeed(ctx, {
+      channel: 'devops',
+      contentCuration: 'news',
+      pageSize: 2,
+      cursor,
+      allowedPostTypes: ['article'],
+    });
+
+    expect(feed).toEqual({
+      data: [['1', '{"p":"a"}'], ['2', null]],
+      cursor: 'cursor-2',
+    });
+  });
 });
 
 describe('FeedPreferencesConfigGenerator', () => {

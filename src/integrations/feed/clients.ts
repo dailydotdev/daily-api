@@ -1,6 +1,7 @@
 import {
   ChannelFeedOptions,
   FeedConfig,
+  FeedConfigName,
   FeedResponse,
   IFeedClient,
   BriefingModel,
@@ -86,8 +87,8 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     ctx: unknown,
     options: ChannelFeedOptions,
   ): Promise<FeedResponse> {
-    const url = new URL('/api/channel-feed', this.url);
     const body: Record<string, unknown> = {
+      feed_config_name: FeedConfigName.Channel,
       channel: options.channel,
       order_by: 'date',
       page_size: options.pageSize,
@@ -103,7 +104,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     }
 
     const res = await this.garmr.execute(() => {
-      return fetchParse<RawFeedServiceResponse>(url.toString(), {
+      return fetchParse<RawFeedServiceResponse>(this.url, {
         ...this.fetchOptions,
         method: 'POST',
         body: JSON.stringify(body),
