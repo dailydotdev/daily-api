@@ -1411,7 +1411,6 @@ const channelFeedGenerator = new FeedGenerator(
   new SimpleFeedConfigGenerator({
     feed_config_name: FeedConfigName.Channel,
     total_pages: 1,
-    order_by: FeedOrderBy.Date,
   }),
   'channel',
 );
