@@ -1,5 +1,8 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
-import { parseOpportunityFeedbackWorker as worker } from '../../../src/workers/opportunity/parseOpportunityFeedback';
+import {
+  parseOpportunityFeedbackWorker as worker,
+  parseRejectedOpportunityFeedbackWorker as rejectedWorker,
+} from '../../../src/workers/opportunity/parseOpportunityFeedback';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
@@ -13,6 +16,7 @@ import {
   FeedbackUrgency,
   OpportunityState,
   OpportunityType,
+  CandidateRejectedOpportunityMessage,
 } from '@dailydotdev/schema';
 
 const mockParseFeedback = jest.fn();
@@ -222,6 +226,58 @@ describe('parseOpportunityFeedback worker', () => {
         },
       ],
       summary: 'Candidate declined due to salary and location',
+    });
+  });
+
+  it('should classify feedback from candidate-rejected-opportunity events', async () => {
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: testOpportunityId,
+      userId: '1',
+      status: OpportunityMatchStatus.CandidateRejected,
+      description: { reasoning: 'Test match' },
+      feedback: [{ screening: 'Why decline?', answer: 'Offer too low' }],
+    });
+
+    mockParseFeedback.mockResolvedValue({
+      classification: {
+        platform: FeedbackPlatform.RECRUITER,
+        category: FeedbackCategory.FEATURE_REQUEST,
+        sentiment: FeedbackSentiment.NEGATIVE,
+        urgency: FeedbackUrgency.MEDIUM,
+      },
+    });
+
+    mockClassifyRejectionFeedback.mockResolvedValue({
+      id: 'test-id',
+      classification: {
+        reasons: [
+          {
+            reason: 3,
+            confidence: 0.95,
+            explanation: 'Salary expectations not met',
+            preference: { case: 'freeTextPreference', value: 'Offer too low' },
+          },
+        ],
+        summary: 'Candidate declined due to compensation',
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.candidate-rejected-opportunity'>(
+      rejectedWorker,
+      new CandidateRejectedOpportunityMessage({
+        opportunityId: testOpportunityId,
+        userId: '1',
+      }),
+    );
+
+    expect(mockClassifyRejectionFeedback).toHaveBeenCalled();
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+      where: { opportunityId: testOpportunityId, userId: '1' },
+    });
+
+    expect(updatedMatch?.rejectionClassification).toMatchObject({
+      summary: 'Candidate declined due to compensation',
     });
   });
 

@@ -76,7 +76,10 @@ import candidateReviewOpportunitySlack from './candidateReviewOpportunitySlack';
 import recruiterRejectedCandidateMatchEmail from './recruiterRejectedCandidateMatchEmail';
 import { opportunityPreviewResultWorker } from './opportunity/opportunityPreviewResult';
 import opportunityInReviewSlack from './opportunityInReviewSlack';
-import { parseOpportunityFeedbackWorker } from './opportunity/parseOpportunityFeedback';
+import {
+  parseOpportunityFeedbackWorker,
+  parseRejectedOpportunityFeedbackWorker,
+} from './opportunity/parseOpportunityFeedback';
 import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
@@ -160,6 +163,7 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   opportunityPreviewResultWorker,
   opportunityInReviewSlack,
   parseOpportunityFeedbackWorker,
+  parseRejectedOpportunityFeedbackWorker,
   parseOpportunityWorker,
   feedbackClassify,
   feedbackUpdatedSlack,

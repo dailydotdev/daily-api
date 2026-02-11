@@ -8,7 +8,7 @@ export class AddRejectionClassificationToOpportunityMatch1770812936388
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
       `ALTER TABLE "opportunity_match"
-       ADD "rejectionClassification" jsonb DEFAULT null`,
+       ADD "rejectionClassification" jsonb`,
     );
   }
 
