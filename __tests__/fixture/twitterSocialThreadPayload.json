@@ -1,0 +1,111 @@
+{
+  "id": "5fb79b5a-ae3b-56db-9b32-b3daca63a50a",
+  "post_id": "HE8VrsskQ",
+  "content_type": "social:twitter",
+  "source_id": "unknown",
+  "origin": "squads",
+  "order": 0,
+  "url": "https://x.com/AlexFinn/status/1965438865789071438",
+  "image": "https://pbs.twimg.com/media/G0aidOKbgAIb29j.jpg",
+  "title": "Elon just revealed exactly how the X algorithm works\n\nI spent the last 14 hours straight reading...",
+  "published_at": "2025-09-09T15:35:16Z",
+  "updated_at": "2026-02-06T11:46:49.736724Z",
+  "language": "en",
+  "meta": {
+    "language": {
+      "provider": "google_translate"
+    }
+  },
+  "extra": {
+    "author_avatar": "https://pbs.twimg.com/profile_images/1745232634278461440/7gQcr_R__normal.jpg",
+    "author_name": "Alex Finn",
+    "author_username": "AlexFinn",
+    "author_verified": true,
+    "content": "Elon just revealed exactly how the X algorithm works\n\nI spent the last 14 hours straight reading all 400,000 lines of code of the brand new X algorithm\n\nWhat I read blew me away\n\nHere's everything you need to know about how to go viral and if you can still get shadowbanned: thread https://t.co/OLsWH6zkNJ",
+    "content_html": "<p>Elon just revealed exactly how the X algorithm works\n\nI spent the last 14 hours straight reading all 400,000 lines of code of the brand new X algorithm\n\nWhat I read blew me away\n\nHere's everything you need to know about how to go viral and if you can still get shadowbanned: thread https://t.co/OLsWH6zkNJ</p>",
+    "created_at": "2025-09-09T15:35:16Z",
+    "is_thread": true,
+    "like_count": 5125,
+    "media": [
+      {
+        "thumbnail": "",
+        "type": "image",
+        "url": "https://pbs.twimg.com/media/G0aidOKbgAIb29j.jpg"
+      }
+    ],
+    "quote_count": 643,
+    "reply_count": 605,
+    "retweet_count": 1033,
+    "thread_size": 14,
+    "thread_tweets": [
+      {
+        "author_avatar": "https://pbs.twimg.com/profile_images/1745232634278461440/7gQcr_R__normal.jpg",
+        "author_name": "Alex Finn",
+        "author_username": "AlexFinn",
+        "author_verified": true,
+        "content": "Let's start with the most controversial part of the X algorithm from 2 years ago: tweepcred\n\nMany have been asking me for years if it's still a thing\n\nNow we have a definitive answer: yes\n\nTweepcred is still everywhere in the code\n\nWhat is Tweepcred and how does it work? https://t.co/2EKnLk6jBg",
+        "content_html": "<p>Let's start with the most controversial part of the X algorithm from 2 years ago: tweepcred\n\nMany have been asking me for years if it's still a thing\n\nNow we have a definitive answer: yes\n\nTweepcred is still everywhere in the code\n\nWhat is Tweepcred and how does it work? https://t.co/2EKnLk6jBg</p>",
+        "created_at": "2025-09-09T15:35:16Z",
+        "like_count": 359,
+        "media": [
+          {
+            "thumbnail": "",
+            "type": "image",
+            "url": "https://pbs.twimg.com/media/G0airJ2aMAArbyQ.png"
+          }
+        ],
+        "quote_count": 4,
+        "reply_count": 8,
+        "retweet_count": 30,
+        "tweet_id": "1965438868246900813",
+        "view_count": 83102
+      },
+      {
+        "author_avatar": "https://pbs.twimg.com/profile_images/1745232634278461440/7gQcr_R__normal.jpg",
+        "author_name": "Alex Finn",
+        "author_username": "AlexFinn",
+        "author_verified": true,
+        "content": "Tweepcred is X's reputation system\n\nBased on your behavior, you get a tweepcred score\n\nIt determines your reach\n\nBreak the algo rules, your score goes down and your reach disappears\n\nWhat are the rules of the X algo though? Glad you asked... https://t.co/T1QplSyYlv",
+        "content_html": "<p>Tweepcred is X's reputation system\n\nBased on your behavior, you get a tweepcred score\n\nIt determines your reach\n\nBreak the algo rules, your score goes down and your reach disappears\n\nWhat are the rules of the X algo though? Glad you asked... https://t.co/T1QplSyYlv</p>",
+        "created_at": "2025-09-09T15:35:17Z",
+        "like_count": 455,
+        "media": [
+          {
+            "thumbnail": "",
+            "type": "image",
+            "url": "https://pbs.twimg.com/media/G0akC_0bgAcfWH4.jpg"
+          }
+        ],
+        "quote_count": 21,
+        "reply_count": 8,
+        "retweet_count": 39,
+        "tweet_id": "1965438870138638830",
+        "view_count": 75411
+      },
+      {
+        "author_avatar": "https://pbs.twimg.com/profile_images/1745232634278461440/7gQcr_R__normal.jpg",
+        "author_name": "Alex Finn",
+        "author_username": "AlexFinn",
+        "author_verified": true,
+        "content": "Post offensive text? 80% reach reduction\n\nOffensive username? 80% reach reduction\n\nAll caps tweet? That's seen as shouting. Major penalization.\n\nInclude links? Yup, penalized https://t.co/8RafZA8lbT",
+        "content_html": "<p>Post offensive text? 80% reach reduction\n\nOffensive username? 80% reach reduction\n\nAll caps tweet? That's seen as shouting. Major penalization.\n\nInclude links? Yup, penalized https://t.co/8RafZA8lbT</p>",
+        "created_at": "2025-09-09T15:35:17Z",
+        "like_count": 754,
+        "media": [
+          {
+            "thumbnail": "",
+            "type": "image",
+            "url": "https://pbs.twimg.com/media/G0ai2zAagAAFtsy.jpg"
+          }
+        ],
+        "quote_count": 118,
+        "reply_count": 46,
+        "retweet_count": 90,
+        "tweet_id": "1965438872030187716",
+        "view_count": 193620
+      }
+    ],
+    "tweet_id": "1965438865789071438",
+    "view_count": 1180163
+  }
+}

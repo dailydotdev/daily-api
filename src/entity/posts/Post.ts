@@ -24,6 +24,7 @@ export enum PostType {
   VideoYouTube = 'video:youtube',
   Brief = 'brief',
   Poll = 'poll',
+  SocialTwitter = 'social:twitter',
 }
 
 export const postTypes: string[] = Object.values(PostType);
@@ -134,6 +135,10 @@ export class Post {
 
   @Column({ default: PostType.Article })
   type: PostType;
+
+  @Column({ type: 'text', nullable: true })
+  @Index('IDX_post_subType')
+  subType?: string | null;
 
   @Column({ type: 'text', nullable: true })
   title?: string | null;
