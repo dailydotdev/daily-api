@@ -457,6 +457,36 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection! @auth
 
     """
+    Get a channel feed
+    """
+    channelFeed(
+      """
+      Channel name
+      """
+      channel: String!
+
+      """
+      Optional content curation filter
+      """
+      contentCuration: String
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
+
+    """
     Get an adhoc feed using a provided config
     """
     feedByConfig(
@@ -1370,6 +1400,53 @@ const feedResolverCursor = feedResolver<
   },
 );
 
+type ChannelFeedArgs = ConnectionArguments & {
+  channel: string;
+  contentCuration?: string;
+  supportedTypes?: string[];
+};
+
+const channelFeedGenerator = new FeedGenerator(
+  feedClient,
+  new SimpleFeedConfigGenerator({
+    feed_config_name: FeedConfigName.Channel,
+    total_pages: 1,
+  }),
+  'channel',
+);
+
+const channelFeedResolver = feedResolver<
+  unknown,
+  ChannelFeedArgs,
+  CursorPage,
+  FeedResponse
+>(
+  (ctx, args, builder, alias, queryParams) =>
+    fixedIdsFeedBuilder(
+      ctx,
+      queryParams!.data.map(([postId]) => postId as string),
+      builder,
+      alias,
+    ),
+  feedCursorPageGenerator(30, 50),
+  (ctx, args, page, builder) => builder,
+  {
+    fetchQueryParams: (ctx, args, page) =>
+      channelFeedGenerator.generate(ctx, {
+        page_size: page.limit,
+        offset: 0,
+        channel: args.channel,
+        cursor: page.cursor,
+        allowed_content_curations: args.contentCuration
+          ? [args.contentCuration]
+          : undefined,
+        allowed_post_types: args.supportedTypes,
+      }),
+    warnOnPartialFirstPage: true,
+    removeNonPublicThresholdSquads: false,
+  },
+);
+
 const legacySimilarPostsResolver = randomPostsResolver(
   (
     ctx,
@@ -1495,6 +1572,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         info,
       );
     },
+    channelFeed: (source, args: ChannelFeedArgs, ctx: Context, info) =>
+      channelFeedResolver(source, args, ctx, info),
     customFeed: async (
       source,
       args: ConfiguredFeedArgs & {

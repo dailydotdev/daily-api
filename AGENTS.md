@@ -118,6 +118,12 @@ The migration generator compares entities against the local database schema. Ens
 - **Prefer integration tests over unit tests** - Integration tests provide more value by testing the full stack (GraphQL/API endpoints, validation, database interactions)
 - **Unit tests should be rare** - Only create unit tests for complex utility functions with significant business logic. Simple validation or formatting functions are better tested through integration tests
 - **Avoid test duplication** - Don't create both unit and integration tests for the same functionality. If integration tests cover the behavior, unit tests are redundant
+- **CRITICAL: Avoid redundant unit tests that test the same logic multiple times**:
+  - When multiple functions use the same underlying logic, don't test that logic separately for each function
+  - Example: If `functionA()`, `functionB()`, and `functionC()` all call the same `isAllowedDomain()` helper, test the domain matching logic ONCE in the `isAllowedDomain` test, then just verify each function correctly uses it (one simple test per function)
+  - **Don't test the same input variations across multiple functions** - if you've already verified that domain matching supports subdomains in one function, you don't need to test subdomain support again in other functions that use the same logic
+  - Each test should verify ONE distinct behavior. If two tests exercise the exact same code path with the same logic, one is redundant
+  - Testing costs money and processing time - minimize test count while maintaining confidence
 - Jest with supertest for integration testing
 - Database reset before each test run via pretest hook
 - Fixtures in `__tests__/fixture/` for test data
@@ -183,6 +189,7 @@ The migration generator compares entities against the local database schema. Ens
 - Example: Instead of `export type FileData = {...}; type Flags = { file: FileData }`, use `type Flags = { file: { ... } }`
 
 **Imports:**
+- **Never use `require()`** - Always use `import` statements at the top of the file. If you believe a lazy/dynamic import or `require()` is truly necessary, explicitly ask for permission before using it.
 - **Avoid barrel file imports** (index.ts re-exports). Import directly from the specific file instead.
 - Example: Use `import { User } from './entity/user/User'` instead of `import { User } from './entity'`
 - This improves build times, makes dependencies clearer, and avoids circular dependency issues
@@ -416,6 +423,37 @@ The migration generator compares entities against the local database schema. Ens
   const flags = { ...existingFlags, keyToRemove: null };
   ```
 - **Hard-code keys for removal** instead of using `Object.keys()` dynamically - it's clearer and safer.
+
+**Boolean Coercion Bug with `||` Operator:**
+- **Never use `||` to provide default values for boolean parameters** - it incorrectly converts `false` to the default value.
+- Use nullish coalescing (`??`) or explicit conditionals instead.
+- **Example pattern**:
+  ```typescript
+  // BAD: false || null = null (loses the false value!)
+  const variables = {
+    unreadOnly: unreadOnly || null,  // When unreadOnly is false, this becomes null
+  };
+
+  // GOOD: Explicit conditional preserves boolean semantics
+  const variables = {
+    unreadOnly: unreadOnly ? true : null,  // Only send true when explicitly true
+  };
+
+  // GOOD: Use ?? for optional string/number parameters
+  const variables = {
+    cursor: cursor ?? null,  // Empty string is preserved, only undefined/null becomes null
+    listId: listId ?? null,
+  };
+  ```
+- **Rule of thumb**: Use `??` for optional parameters where empty string or `0` are valid values. Use explicit conditionals for boolean flags where you only want to send `true`.
+
+**Public API Development:**
+- The public REST API (`src/routes/public/`) has its own development patterns documented in `src/routes/public/AGENTS.md`.
+- Key patterns include:
+  - Use `executeGraphql()` from `./graphqlExecutor` for direct GraphQL execution
+  - Import shared constants and utilities from `./common.ts` (`parseLimit`, `ensureDbConnection`, `MAX_LIMIT`, `DEFAULT_LIMIT`)
+  - Update `skill.md` when adding/changing endpoints (versioned with semver)
+  - Fastify route type parameters should be defined inline for single-use types
 
 ## Pull Requests
 

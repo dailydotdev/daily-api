@@ -144,6 +144,15 @@ const worker: TypedWorker<'api.v1.feedback-updated'> = {
       });
     }
 
+    // Add screenshot image block if present
+    if (feedback.screenshotUrl) {
+      blocks.push({
+        type: 'image',
+        image_url: feedback.screenshotUrl,
+        alt_text: 'User feedback screenshot',
+      });
+    }
+
     blocks.push({
       type: 'divider',
     });

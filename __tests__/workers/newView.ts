@@ -6,8 +6,13 @@ import {
 } from '../helpers';
 import { postsFixture } from '../fixture/post';
 import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
   Alerts,
   ArticlePost,
+  BRIEFING_SOURCE,
+  PostType,
   Source,
   User,
   UserStreak,
@@ -15,6 +20,8 @@ import {
   UserStreakActionType,
   View,
 } from '../../src/entity';
+import { BriefPost } from '../../src/entity/posts/BriefPost';
+import { UserAchievement } from '../../src/entity/user/UserAchievement';
 import { sourcesFixture } from '../fixture/source';
 import { usersFixture } from '../fixture/user';
 import { DataSource, IsNull, Not } from 'typeorm';
@@ -600,5 +607,104 @@ describe('reading streaks', () => {
 
       expect(updated?.currentStreak).toBe(6);
     });
+  });
+});
+
+describe('brief read achievement', () => {
+  const briefAchievementId = '00000000-0000-0000-0000-000000000001';
+
+  beforeEach(async () => {
+    await con.getRepository(Achievement).save({
+      id: briefAchievementId,
+      name: 'Debriefed',
+      description: 'Read 5 briefs',
+      image: 'https://example.com/achievement.png',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.BriefRead,
+      criteria: { targetCount: 5 },
+      points: 15,
+    });
+
+    await con.getRepository(Source).save({
+      id: BRIEFING_SOURCE,
+      name: 'Briefing',
+      handle: 'briefing',
+      private: true,
+    });
+
+    await con.getRepository(BriefPost).save({
+      id: 'brief-1',
+      shortId: 'brief1',
+      sourceId: BRIEFING_SOURCE,
+      authorId: 'u1',
+      title: 'Test Brief',
+      type: PostType.Brief,
+      private: true,
+      visible: true,
+    });
+  });
+
+  it('should increment BriefRead achievement progress when viewing a BriefPost', async () => {
+    await expectSuccessfulBackground(worker, {
+      postId: 'brief-1',
+      userId: 'u2',
+      referer: 'referer',
+      timestamp: new Date().toISOString(),
+    });
+
+    const userAchievement = await con.getRepository(UserAchievement).findOne({
+      where: { userId: 'u2', achievementId: briefAchievementId },
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement?.progress).toBe(1);
+    expect(userAchievement?.unlockedAt).toBeNull();
+  });
+
+  it('should unlock BriefRead achievement after reading 5 briefs', async () => {
+    for (let i = 2; i <= 5; i++) {
+      await con.getRepository(BriefPost).save({
+        id: `brief-${i}`,
+        shortId: `brief${i}`,
+        sourceId: BRIEFING_SOURCE,
+        authorId: 'u1',
+        title: `Test Brief ${i}`,
+        type: PostType.Brief,
+        private: true,
+        visible: true,
+      });
+    }
+
+    for (let i = 1; i <= 5; i++) {
+      await expectSuccessfulBackground(worker, {
+        postId: `brief-${i}`,
+        userId: 'u2',
+        referer: 'referer',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const userAchievement = await con.getRepository(UserAchievement).findOne({
+      where: { userId: 'u2', achievementId: briefAchievementId },
+    });
+
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement?.progress).toBe(5);
+    expect(userAchievement?.unlockedAt).not.toBeNull();
+  });
+
+  it('should NOT trigger BriefRead achievement when viewing an article post', async () => {
+    await expectSuccessfulBackground(worker, {
+      postId: 'p1',
+      userId: 'u1',
+      referer: 'referer',
+      timestamp: new Date().toISOString(),
+    });
+
+    const userAchievement = await con.getRepository(UserAchievement).findOne({
+      where: { userId: 'u1', achievementId: briefAchievementId },
+    });
+
+    expect(userAchievement).toBeNull();
   });
 });

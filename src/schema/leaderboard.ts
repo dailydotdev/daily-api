@@ -3,6 +3,8 @@ import { BaseContext, type AuthContext } from '../Context';
 import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserCompany, UserStats, UserStreak } from '../entity';
+import { UserAchievement } from '../entity/user/UserAchievement';
+import { Achievement } from '../entity/Achievement';
 import { DataSource, In, Not } from 'typeorm';
 import { getLimit, ghostUser, GQLCompany, systemUser } from '../common';
 import { MODERATORS } from '../config';
@@ -122,6 +124,16 @@ export const typeDefs = /* GraphQL */ `
       """
       limit: Int
     ): [PopularHotTake] @cacheControl(maxAge: 600)
+
+    """
+    Get the users with the most achievement points
+    """
+    mostAchievementPoints(
+      """
+      Limit the number of users returned
+      """
+      limit: Int
+    ): [Leaderboard] @cacheControl(maxAge: 600)
   }
 `;
 
@@ -278,5 +290,38 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
         true,
       ),
+    mostAchievementPoints: async (
+      _,
+      args,
+      ctx,
+    ): Promise<GQLUserLeaderboard[]> => {
+      const limit = getLimit(args);
+      const users = await ctx.con
+        .createQueryBuilder()
+        .from(UserAchievement, 'ua')
+        .innerJoin(Achievement, 'a', 'a.id = ua."achievementId"')
+        .innerJoin(User, 'u', 'u.id = ua."userId"')
+        .select('u.*')
+        .addSelect('SUM(a.points)', 'score')
+        .addSelect('MAX(ua."unlockedAt")', 'lastUnlockedAt')
+        .where('ua."unlockedAt" IS NOT NULL')
+        .andWhere('ua."userId" NOT IN (:...excludedUsers)', { excludedUsers })
+        .groupBy('u.id')
+        .orderBy('score', 'DESC')
+        .addOrderBy('"lastUnlockedAt"', 'ASC')
+        .addOrderBy('u.id', 'ASC')
+        .limit(limit)
+        .getRawMany();
+
+      return (
+        users
+          .filter((user) => !!user.id)
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          .map(({ score, lastUnlockedAt, ...user }) => ({
+            score: Number(score),
+            user,
+          }))
+      );
+    },
   },
 });

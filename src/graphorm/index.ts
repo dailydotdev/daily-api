@@ -526,6 +526,7 @@ const obj = new GraphORM({
       'scoutId',
       'private',
       'type',
+      'subType',
       'slug',
       'translation',
       {

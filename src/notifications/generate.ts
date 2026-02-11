@@ -38,6 +38,7 @@ import {
   type NotificationExperienceCompanyEnrichedContext,
   type NotificationRecruiterExternalPaymentContext,
   type NotificationFeedbackResolvedContext,
+  type NotificationAchievementContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -241,6 +242,8 @@ export const notificationTitleMap: Record<
     `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
   feedback_resolved: () =>
     `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>. Thank you for helping us improve!`,
+  achievement_unlocked: (ctx: NotificationAchievementContext) =>
+    `<span class="text-theme-color-cabbage">Achievement unlocked!</span> ${ctx.achievementName}`,
 };
 
 export const generateNotificationMap: Record<
@@ -709,5 +712,18 @@ export const generateNotificationMap: Record<
       .description(ctx.feedbackDescription, true)
       .targetUrl(process.env.COMMENTS_PREFIX)
       .uniqueKey(ctx.feedbackId);
+  },
+  achievement_unlocked: (
+    builder: NotificationBuilder,
+    ctx: NotificationAchievementContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .description(ctx.achievementDescription)
+      .referenceAchievement(ctx.achievementId)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/achievements`,
+      )
+      .uniqueKey(ctx.achievementId);
   },
 };

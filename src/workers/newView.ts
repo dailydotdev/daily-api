@@ -1,11 +1,45 @@
-import { DeepPartial, EntityManager } from 'typeorm';
-import { Alerts, User, UserStreak, View } from '../entity';
+import { DataSource, DeepPartial, EntityManager } from 'typeorm';
+import { Alerts, Post, PostType, User, UserStreak, View } from '../entity';
 import { messageToJson, Worker } from './worker';
 import { TypeORMQueryFailedError, TypeOrmError } from '../errors';
 import { isFibonacci } from '../common/fibonacci';
 import { generateStorageKey, StorageKey, StorageTopic } from '../config';
 import { deleteRedisKey } from '../redis';
 import { logger } from '../logger';
+import {
+  AchievementEventType,
+  checkAchievementProgress,
+} from '../common/achievement';
+import { FastifyBaseLogger } from 'fastify';
+
+const checkBriefReadAchievement = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  postId: string,
+  userId: string,
+): Promise<void> => {
+  try {
+    const post = await con.getRepository(Post).findOne({
+      where: { id: postId },
+      select: ['id', 'type'],
+    });
+
+    if (post?.type === PostType.Brief) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        userId,
+        AchievementEventType.BriefRead,
+      );
+    }
+  } catch (err) {
+    logger.error(
+      { postId, userId, err },
+      'failed to check brief read achievement',
+    );
+    // Don't throw - achievement failures shouldn't block the main operation
+  }
+};
 
 interface ShouldIncrement {
   currentStreak: number;
@@ -204,6 +238,11 @@ const worker: Worker = {
         throw err;
       }
     });
+
+    // Check BriefRead achievement outside the transaction
+    if (didSave && data.userId && data.postId) {
+      await checkBriefReadAchievement(con, logger, data.postId, data.userId);
+    }
   },
 };
 

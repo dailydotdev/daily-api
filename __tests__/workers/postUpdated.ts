@@ -39,6 +39,8 @@ import {
 } from '../../src/types';
 import { insertCodeSnippetsFromUrl } from '../../src/common/post';
 import { generateShortId } from '../../src/ids';
+import contentPublishedChannelsFixture from '../fixture/contentPublishedChannels.json';
+import twitterSocialThreadPayloadFixture from '../fixture/twitterSocialThreadPayload.json';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -483,6 +485,364 @@ it('should save a new post with with non-default language', async () => {
     showOnFeed: true,
     language: 'nb',
   });
+});
+
+it('should map social twitter thread payload to existing post fields', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/1001',
+    source_id: 'a',
+    extra: {
+      sub_type: 'thread',
+      content: 'Root tweet',
+      content_html: '<p>Root tweet</p>',
+      thread_tweets: [
+        {
+          content: 'Thread tweet 2',
+          content_html: '<p>Thread tweet 2</p>',
+        },
+      ],
+      media: [
+        { type: 'image', url: 'https://pbs.twimg.com/media/abc.jpg' },
+        { type: 'video', url: 'https://video.twimg.com/ext/video1.mp4' },
+      ],
+    },
+  });
+
+  const post = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId,
+  })) as Post & {
+    content?: string;
+    contentHtml?: string;
+    image?: string;
+    videoId?: string;
+  };
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.subType).toEqual('thread');
+  expect(post.title).toEqual('@dailydotdev: Root tweet');
+  expect(post.content).toContain('Root tweet');
+  expect(post.content).toContain('Thread tweet 2');
+  expect(post.contentHtml).toContain('<p>Root tweet</p>');
+  expect(post.contentHtml).toContain('<p>Thread tweet 2</p>');
+  expect(post.image).toEqual('https://pbs.twimg.com/media/abc.jpg');
+  expect(post.videoId).toEqual('https://video.twimg.com/ext/video1.mp4');
+});
+
+it('should ingest provided yggdrasil twitter thread payload and store mapped fields', async () => {
+  const fixturePayload = {
+    ...twitterSocialThreadPayloadFixture,
+    post_id: '',
+  };
+
+  await expectSuccessfulBackground(worker, fixturePayload);
+
+  const post = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId: fixturePayload.id,
+  })) as Post & {
+    content?: string;
+    contentHtml?: string;
+    image?: string;
+    videoId?: string;
+  };
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.subType).toEqual('thread');
+  expect(post.sourceId).toEqual(UNKNOWN_SOURCE);
+  expect(post.title).toEqual(
+    `@${fixturePayload.extra.author_username}: ${fixturePayload.extra.content}`,
+  );
+  expect(post.content).toContain(
+    'Elon just revealed exactly how the X algorithm works',
+  );
+  expect(post.content).toContain(
+    "Let's start with the most controversial part of the X algorithm",
+  );
+  expect(post.content).toContain("Tweepcred is X's reputation");
+  expect(post.contentHtml).toContain(
+    '<p>Elon just revealed exactly how the X algorithm works',
+  );
+  expect(post.image).toEqual('https://pbs.twimg.com/media/G0aidOKbgAIb29j.jpg');
+  expect(post.videoId).toBeNull();
+  expect(post.language).toEqual('en');
+});
+
+it('should resolve social twitter source by machine source twitter handle', async () => {
+  await con.getRepository(Source).update({ id: 'a' }, { twitter: 'alexfinn' });
+
+  const fixturePayload = {
+    ...twitterSocialThreadPayloadFixture,
+    post_id: '',
+    source_id: UNKNOWN_SOURCE,
+  };
+
+  await expectSuccessfulBackground(worker, fixturePayload);
+
+  const post = await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId: fixturePayload.id,
+  });
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.sourceId).toEqual('a');
+});
+
+it('should keep provided source for social twitter when source is set', async () => {
+  await con.getRepository(Source).update({ id: 'a' }, { twitter: 'alexfinn' });
+
+  const fixturePayload = {
+    ...twitterSocialThreadPayloadFixture,
+    post_id: '',
+    source_id: 'b',
+  };
+
+  await expectSuccessfulBackground(worker, fixturePayload);
+
+  const post = await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId: fixturePayload.id,
+  });
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.sourceId).toEqual('b');
+});
+
+it('should fallback to community source for user generated social twitter posts', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    origin: PostOrigin.UserGenerated,
+    url: 'https://x.com/dailydotdev/status/1006',
+    extra: {
+      subtype: 'tweet',
+      content: 'A user generated tweet',
+    },
+  });
+
+  const post = await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId,
+  });
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.sourceId).toEqual(COMMUNITY_PICKS_SOURCE);
+});
+
+it('should create referenced social post for quote and set sharedPostId', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/1002',
+    source_id: 'a',
+    extra: {
+      subtype: 'quote',
+      content: 'Main quote tweet',
+      quoted_tweet: {
+        tweet_id: '2002',
+        content: 'Referenced quoted tweet',
+        media: [{ type: 'image', url: 'https://pbs.twimg.com/media/ref.jpg' }],
+      },
+    },
+  });
+
+  const post = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId,
+  })) as Post & {
+    sharedPostId?: string;
+  };
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.subType).toEqual('quote');
+  expect(post.sharedPostId).toBeTruthy();
+
+  const referencedPost = await con.getRepository(Post).findOneByOrFail({
+    id: post.sharedPostId,
+  });
+  expect(referencedPost.type).toEqual(PostType.SocialTwitter);
+  expect(referencedPost.subType).toEqual('tweet');
+  expect(referencedPost.title).toEqual('Referenced quoted tweet');
+});
+
+it('should reuse existing referenced social post for quote when status id already exists', async () => {
+  const firstYggdrasilId = randomUUID();
+  const secondYggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: firstYggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/10021',
+    source_id: 'a',
+    extra: {
+      subtype: 'quote',
+      content: 'Main quote tweet #1',
+      quoted_tweet_url: 'https://x.com/devrelweekly/status/2002',
+      quoted_tweet: {
+        content: 'Referenced quoted tweet',
+      },
+    },
+  });
+
+  await expectSuccessfulBackground(worker, {
+    id: secondYggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/10022',
+    source_id: 'a',
+    extra: {
+      subtype: 'quote',
+      content: 'Main quote tweet #2',
+      quoted_tweet: {
+        tweet_id: '2002',
+        content: 'Referenced quoted tweet',
+      },
+    },
+  });
+
+  const firstPost = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId: firstYggdrasilId,
+  })) as Post & {
+    sharedPostId?: string;
+  };
+  const secondPost = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId: secondYggdrasilId,
+  })) as Post & {
+    sharedPostId?: string;
+  };
+
+  expect(firstPost.sharedPostId).toBeTruthy();
+  expect(secondPost.sharedPostId).toEqual(firstPost.sharedPostId);
+
+  const referencedPosts = await con
+    .getRepository(Post)
+    .createQueryBuilder('post')
+    .where('post.type = :type', { type: PostType.SocialTwitter })
+    .andWhere('post.url LIKE :statusPath', { statusPath: '%/status/2002%' })
+    .getMany();
+
+  expect(referencedPosts).toHaveLength(1);
+});
+
+it('should create referenced social post for repost and set sharedPostId', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/1004',
+    source_id: 'a',
+    extra: {
+      subtype: 'repost',
+      content: 'Main repost tweet',
+      reposted_tweet: {
+        tweet_id: '3004',
+        content: 'Referenced repost tweet',
+      },
+    },
+  });
+
+  const post = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId,
+  })) as Post & {
+    sharedPostId?: string;
+  };
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.subType).toEqual('repost');
+  expect(post.sharedPostId).toBeTruthy();
+
+  const referencedPost = await con.getRepository(Post).findOneByOrFail({
+    id: post.sharedPostId,
+  });
+  expect(referencedPost.type).toEqual(PostType.SocialTwitter);
+  expect(referencedPost.subType).toEqual('tweet');
+  expect(referencedPost.title).toEqual('Referenced repost tweet');
+});
+
+it('should map social twitter tweet subtype as plain tweet', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/1005',
+    source_id: 'a',
+    extra: {
+      subtype: 'tweet',
+      content: 'A plain tweet',
+      media: [{ type: 'image', url: 'https://pbs.twimg.com/media/tweet.jpg' }],
+    },
+  });
+
+  const post = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId,
+  })) as Post & {
+    content?: string;
+  };
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.subType).toEqual('tweet');
+  expect(post.title).toEqual('@dailydotdev: A plain tweet');
+  expect(post.content).toBeNull();
+  expect(post.image).toEqual('https://pbs.twimg.com/media/tweet.jpg');
+});
+
+it('should map repost without body to fallback title', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/1007',
+    source_id: 'a',
+    extra: {
+      subtype: 'repost',
+      reposted_tweet: {
+        tweet_id: '3005',
+      },
+    },
+  });
+
+  const post = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId,
+  })) as Post & {
+    content?: string;
+  };
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.subType).toEqual('repost');
+  expect(post.title).toEqual('@dailydotdev: reposted');
+  expect(post.content).toBeNull();
+});
+
+it('should map retweet subtype to repost fallback title', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/1008',
+    source_id: 'a',
+    extra: {
+      subtype: 'retweet',
+      retweeted_tweet: {
+        tweet_id: '3006',
+      },
+    },
+  });
+
+  const post = (await con.getRepository(Post).findOneByOrFail({
+    yggdrasilId,
+  })) as Post & {
+    content?: string;
+  };
+
+  expect(post.type).toEqual(PostType.SocialTwitter);
+  expect(post.subType).toEqual('repost');
+  expect(post.title).toEqual('@dailydotdev: reposted');
+  expect(post.content).toBeNull();
 });
 
 it('should set show on feed to true when order is missing', async () => {
@@ -1185,6 +1545,45 @@ describe('on post update', () => {
     });
   });
 
+  it('should persist channels in content meta', async () => {
+    const postId = 'p1';
+
+    await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    });
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      meta: {
+        channels: ['devops', 'tools'],
+      },
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+
+    expect(updatedPost?.contentMeta).toMatchObject({
+      channels: ['devops', 'tools'],
+    });
+  });
+
+  it('should consume content published fixture with channels', async () => {
+    const payload = contentPublishedChannelsFixture;
+
+    await expectSuccessfulBackground(worker, payload);
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: payload.post_id,
+    });
+
+    expect(updatedPost?.contentMeta).toMatchObject({
+      channels: ['devops', 'tools'],
+    });
+  });
+
   it('should not update empty content meta when meta is empty', async () => {
     const postId = 'p1';
 
@@ -1854,6 +2253,31 @@ describe('on youtube post', () => {
       description: 'A description of a video',
       summary: 'A short summary of a video',
     });
+  });
+
+  it('should accept extended content curation values', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '7c8cbf2d-2c2a-4b32-9b1e-0f5b6cd02f9b',
+      post_id: undefined,
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'a',
+      title: 'test',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      extra: {
+        content_curation: ['drama', 'endorsement', 'hot_take'],
+        duration: 300,
+        keywords: ['mongodb', 'alpinejs'],
+        description: 'A description of a video',
+        summary: 'A short summary of a video',
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: '7c8cbf2d-2c2a-4b32-9b1e-0f5b6cd02f9b',
+    });
+
+    expect(post?.contentCuration).toEqual(['drama', 'endorsement', 'hot_take']);
   });
 
   it('should create a new video post with minimum 1m duration', async () => {

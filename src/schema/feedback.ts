@@ -2,6 +2,7 @@ import { IResolvers } from '@graphql-tools/utils';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
+import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
 import { ValidationError } from 'apollo-server-errors';
 import { feedbackInputSchema } from '../common/schema/feedback';
 import { ZodError } from 'zod/v4';
@@ -12,6 +13,7 @@ interface GQLFeedbackInput {
   description: string;
   pageUrl?: string;
   userAgent?: string;
+  screenshotUrl?: string;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -38,6 +40,11 @@ export const typeDefs = /* GraphQL */ `
     Browser user agent for debugging context
     """
     userAgent: String
+
+    """
+    Optional screenshot URL (client uploads to Cloudinary)
+    """
+    screenshotUrl: String
   }
 
   """
@@ -87,17 +94,31 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw err;
       }
 
+      const screenshotUrl = input.screenshotUrl || null;
+
       // Create feedback record
       // CDC will pick this up and handle classification via PubSub
-      await ctx.con.getRepository(Feedback).save({
+      const feedbackRepo = ctx.con.getRepository(Feedback);
+      const feedback = await feedbackRepo.save({
         userId: ctx.userId,
         category: input.category,
         description: input.description.trim(),
         pageUrl: input.pageUrl || null,
         userAgent: input.userAgent || null,
+        screenshotUrl,
         status: FeedbackStatus.Pending,
         flags: {},
       });
+
+      // Create ContentImage record to link screenshot to feedback
+      if (screenshotUrl) {
+        await ctx.con.getRepository(ContentImage).save({
+          url: screenshotUrl,
+          serviceId: screenshotUrl,
+          usedByType: ContentImageUsedByType.Feedback,
+          usedById: feedback.id,
+        });
+      }
 
       return {
         _: true,

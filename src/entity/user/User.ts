@@ -34,6 +34,7 @@ export type UserFlags = Partial<{
   vordr: boolean;
   trustScore: number;
   showPlusGift: boolean;
+  syncedAchievements: boolean;
   country: string | null;
   city: string | null;
   continent: string | null;

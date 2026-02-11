@@ -2005,6 +2005,48 @@ describe('query randomTrendingPosts', () => {
   });
 });
 
+describe('query channelFeed', () => {
+  const QUERY = `query ChannelFeed($channel: String!, $contentCuration: String, $first: Int, $after: String, $supportedTypes: [String!]) {
+    channelFeed(channel: $channel, contentCuration: $contentCuration, first: $first, after: $after, supportedTypes: $supportedTypes) {
+      ${feedFields()}
+    }
+  }`;
+
+  it('should proxy channel feed to feed service', async () => {
+    const cursor = base64('10');
+
+    nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        expect(body).toMatchObject({
+          feed_config_name: FeedConfigName.Channel,
+          channel: 'devops',
+          page_size: 2,
+          cursor,
+          allowed_content_curations: ['news'],
+          allowed_post_types: ['article'],
+        });
+        return true;
+      })
+      .reply(200, {
+        data: [{ post_id: 'p1' }, { post_id: 'p4' }],
+        cursor: base64('12'),
+      });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        channel: 'devops',
+        contentCuration: 'news',
+        first: 2,
+        after: cursor,
+        supportedTypes: ['article'],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.channelFeed.edges).toHaveLength(2);
+  });
+});
+
 describe('query similarPostsFeed', () => {
   const QUERY = `query SimilarPostsFeed($postId: ID!, $first: Int) {
     similarPostsFeed(post_id: $postId, first: $first) {

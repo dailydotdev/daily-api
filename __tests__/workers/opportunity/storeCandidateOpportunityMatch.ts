@@ -109,6 +109,24 @@ describe('storeCandidateOpportunityMatch worker', () => {
     expect(matches).toHaveLength(0);
   });
 
+  it('should skip without error when opportunityId is not a valid UUID', async () => {
+    const matchData = new MatchedCandidate({
+      userId: '1',
+      opportunityId: 'not-a-uuid',
+      matchScore: 85,
+      reasoning: 'Strong technical background',
+      reasoningShort: 'Strong technical background',
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
+
+    const matches = await con.getRepository(OpportunityMatch).find();
+    expect(matches).toHaveLength(0);
+  });
+
   it('should parse binary message correctly', () => {
     const testData = new MatchedCandidate({
       userId: '1',
