@@ -39,6 +39,7 @@ import {
 } from '../../src/types';
 import { insertCodeSnippetsFromUrl } from '../../src/common/post';
 import { generateShortId } from '../../src/ids';
+import contentPublishedChannelsFixture from '../fixture/contentPublishedChannels.json';
 
 jest.mock('../../src/common/googleCloud', () => ({
   ...(jest.requireActual('../../src/common/googleCloud') as Record<
@@ -1185,6 +1186,45 @@ describe('on post update', () => {
     });
   });
 
+  it('should persist channels in content meta', async () => {
+    const postId = 'p1';
+
+    await con.getRepository(ArticlePost).save({
+      id: postId,
+      yggdrasilId: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+    });
+
+    await expectSuccessfulBackground(worker, {
+      id: 'f99a445f-e2fb-48e8-959c-e02a17f5e816',
+      post_id: postId,
+      meta: {
+        channels: ['devops', 'tools'],
+      },
+    });
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: postId,
+    });
+
+    expect(updatedPost?.contentMeta).toMatchObject({
+      channels: ['devops', 'tools'],
+    });
+  });
+
+  it('should consume content published fixture with channels', async () => {
+    const payload = contentPublishedChannelsFixture;
+
+    await expectSuccessfulBackground(worker, payload);
+
+    const updatedPost = await con.getRepository(ArticlePost).findOneBy({
+      id: payload.post_id,
+    });
+
+    expect(updatedPost?.contentMeta).toMatchObject({
+      channels: ['devops', 'tools'],
+    });
+  });
+
   it('should not update empty content meta when meta is empty', async () => {
     const postId = 'p1';
 
@@ -1854,6 +1894,31 @@ describe('on youtube post', () => {
       description: 'A description of a video',
       summary: 'A short summary of a video',
     });
+  });
+
+  it('should accept extended content curation values', async () => {
+    await expectSuccessfulBackground(worker, {
+      id: '7c8cbf2d-2c2a-4b32-9b1e-0f5b6cd02f9b',
+      post_id: undefined,
+      updated_at: new Date('01-05-2023 12:00:00'),
+      source_id: 'a',
+      title: 'test',
+      url: 'https://youtu.be/FftMDvlYDIg',
+      extra: {
+        content_curation: ['drama', 'endorsement', 'hot_take'],
+        duration: 300,
+        keywords: ['mongodb', 'alpinejs'],
+        description: 'A description of a video',
+        summary: 'A short summary of a video',
+      },
+      content_type: PostType.VideoYouTube,
+    });
+
+    const post = await con.getRepository(YouTubePost).findOneBy({
+      yggdrasilId: '7c8cbf2d-2c2a-4b32-9b1e-0f5b6cd02f9b',
+    });
+
+    expect(post?.contentCuration).toEqual(['drama', 'endorsement', 'hot_take']);
   });
 
   it('should create a new video post with minimum 1m duration', async () => {

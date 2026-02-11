@@ -153,8 +153,10 @@ import type { ContentPreferenceUser } from '../../entity/contentPreference/Conte
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { OpportunityMatchStatus } from '../../entity/opportunities/types';
 import {
+  buildOpportunityMessage,
   notifyCandidateOpportunityMatchRejected,
   notifyCandidatePreferenceChange,
+  notifyJobOpportunity,
   notifyOpportunityMatchAccepted,
   notifyOpportunityMatchCandidateReview,
   notifyRecruiterCandidateMatchAccepted,
@@ -162,7 +164,6 @@ import {
 } from '../../common/opportunity/pubsub';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { OpportunityJob } from '../../entity/opportunities/OpportunityJob';
-import { notifyJobOpportunity } from '../../common/opportunity/pubsub';
 import { UserCandidatePreference } from '../../entity/user/UserCandidatePreference';
 import { PollPost } from '../../entity/posts/PollPost';
 import { UserExperienceWork } from '../../entity/user/experiences/UserExperienceWork';
@@ -203,9 +204,6 @@ const isFreeformPostChangeLongEnough = (
       (freeform.payload.after!.content?.length || 0),
   ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
 
-/**
- * Check if user has completed their profile (5 criteria) and award achievement
- */
 const checkProfileCompletionAchievement = async (
   con: DataSource,
   logger: FastifyBaseLogger,
@@ -221,12 +219,10 @@ const checkProfileCompletionAchievement = async (
   const hasHeadline = !!user.bio && String(user.bio).trim() !== '';
   const hasExperienceLevel = !!user.experienceLevel;
 
-  // Only proceed if basic profile fields are complete
   if (!hasProfileImage || !hasHeadline || !hasExperienceLevel) {
     return;
   }
 
-  // Check for work and education experiences
   const experienceResult = await con
     .getRepository(UserExperience)
     .createQueryBuilder('ue')
@@ -244,7 +240,6 @@ const checkProfileCompletionAchievement = async (
   const hasWork = experienceResult?.hasWork == 1;
   const hasEducation = experienceResult?.hasEducation == 1;
 
-  // All 5 criteria must be met
   if (hasWork && hasEducation) {
     await checkAchievementProgress(
       con,
@@ -404,7 +399,6 @@ const onPostVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
-      // Check achievement progress for post upvotes (exclude self-upvotes)
       if (data.payload.after!.vote === UserVote.Up) {
         const post = await con.getRepository(Post).findOne({
           where: { id: data.payload.after!.postId },
@@ -413,14 +407,12 @@ const onPostVoteChange = async (
 
         const voterId = data.payload.after!.userId;
         if (post && post.authorId !== voterId && post.scoutId !== voterId) {
-          // Achievement for the voter (giving upvote)
           await checkAchievementProgress(
             con,
             logger,
             voterId,
             AchievementEventType.PostUpvote,
           );
-          // Achievement for the post author (receiving upvote)
           if (post.authorId) {
             await checkAchievementProgress(
               con,
@@ -450,7 +442,6 @@ const onPostVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
-      // Check achievement progress when vote changes to upvote (exclude self-upvotes)
       if (
         data.payload.after!.vote === UserVote.Up &&
         data.payload.before!.vote !== UserVote.Up
@@ -462,14 +453,12 @@ const onPostVoteChange = async (
 
         const voterId = data.payload.after!.userId;
         if (post && post.authorId !== voterId && post.scoutId !== voterId) {
-          // Achievement for the voter (giving upvote)
           await checkAchievementProgress(
             con,
             logger,
             voterId,
             AchievementEventType.PostUpvote,
           );
-          // Achievement for the post author (receiving upvote)
           if (post.authorId) {
             await checkAchievementProgress(
               con,
@@ -515,7 +504,6 @@ const onCommentVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
-      // Check achievement progress for comment upvotes (exclude self-upvotes)
       if (data.payload.after!.vote === UserVote.Up) {
         const comment = await con.getRepository(Comment).findOne({
           where: { id: data.payload.after!.commentId },
@@ -524,14 +512,12 @@ const onCommentVoteChange = async (
 
         const voterId = data.payload.after!.userId;
         if (comment && comment.userId !== voterId) {
-          // Achievement for the voter (giving upvote)
           await checkAchievementProgress(
             con,
             logger,
             voterId,
             AchievementEventType.CommentUpvote,
           );
-          // Achievement for the comment author (receiving upvote)
           await checkAchievementProgress(
             con,
             logger,
@@ -559,7 +545,6 @@ const onCommentVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
-      // Check achievement progress when vote changes to upvote (exclude self-upvotes)
       if (
         data.payload.after!.vote === UserVote.Up &&
         data.payload.before!.vote !== UserVote.Up
@@ -571,14 +556,12 @@ const onCommentVoteChange = async (
 
         const voterId = data.payload.after!.userId;
         if (comment && comment.userId !== voterId) {
-          // Achievement for the voter (giving upvote)
           await checkAchievementProgress(
             con,
             logger,
             voterId,
             AchievementEventType.CommentUpvote,
           );
-          // Achievement for the comment author (receiving upvote)
           await checkAchievementProgress(
             con,
             logger,
@@ -647,7 +630,6 @@ const onCommentChange = async (
         data.payload.after!.contentHtml,
       );
     }
-    // Check comment creation achievement
     await checkAchievementProgress(
       con,
       logger,
@@ -683,7 +665,6 @@ const onUserChange = async (
         data.payload.before!,
         data.payload.after!,
       );
-      // Check reputation-based achievements
       await checkAchievementProgress(
         con,
         logger,
@@ -707,7 +688,6 @@ const onUserChange = async (
       await notifyUserReadmeUpdated(logger, data.payload.after!);
     }
 
-    // Check profile update achievements
     if (
       isChanged(data.payload.before!, data.payload.after!, 'image') &&
       data.payload.after!.image
@@ -759,7 +739,6 @@ const onUserChange = async (
       );
     }
 
-    // Check Plus subscription achievement
     const beforeFlags = JSON.parse(
       (data.payload.before!.subscriptionFlags as unknown as string) || '{}',
     );
@@ -776,7 +755,6 @@ const onUserChange = async (
       );
     }
 
-    // Check subscription anniversary achievement
     if (plusStatus.isPlus && afterFlags.createdAt) {
       const createdAt = new Date(afterFlags.createdAt);
       const monthsSubscribed = differenceInMonths(new Date(), createdAt);
@@ -791,7 +769,6 @@ const onUserChange = async (
       }
     }
 
-    // Check profile completion achievement
     await checkProfileCompletionAchievement(con, logger, data.payload.after!);
   }
   if (data.payload.op === 'd') {
@@ -831,7 +808,6 @@ const onPostChange = async (
       if (isFreeformPostLongEnough(freeform)) {
         await notifyFreeformContentRequested(logger, freeform);
       }
-      // Check freeform post achievement
       if (data.payload.after!.authorId) {
         await checkAchievementProgress(
           con,
@@ -841,7 +817,6 @@ const onPostChange = async (
         );
       }
     }
-    // Check share post achievement
     if (
       data.payload.after!.type === PostType.Share &&
       data.payload.after!.authorId &&
@@ -1199,7 +1174,7 @@ const onFeedChange = async (
   if (data.payload.op === 'c') {
     await updateAlerts(con, data.payload.after!.userId, { myFeed: 'created' });
 
-    // Check custom feed achievement - feed id differs from userId means custom feed
+    // feed id differs from userId means custom feed
     const feed = data.payload.after!;
     if (feed.id !== feed.userId) {
       await checkAchievementProgress(
@@ -1270,16 +1245,12 @@ const onSourceMemberChange = async (
   if (data.payload.op === 'c') {
     await notifyMemberJoinedSource(logger, data.payload.after!);
 
-    // Check squad achievements when user joins a source
     const sourceMember = data.payload.after!;
-
-    // Check if the source is a squad (not a regular source)
     const source = await con
       .getRepository(Source)
       .findOneBy({ id: sourceMember.sourceId });
 
     if (source && source.type === SourceType.Squad) {
-      // Squad join achievement (for members who join)
       if (sourceMember.role === SourceMemberRoles.Member) {
         await checkAchievementProgress(
           con,
@@ -1289,7 +1260,6 @@ const onSourceMemberChange = async (
         );
       }
 
-      // Squad create achievement (for admins who are the first member)
       if (sourceMember.role === SourceMemberRoles.Admin) {
         await checkAchievementProgress(
           con,
@@ -1485,7 +1455,6 @@ const onUserStreakChange = async (
       streak: data.payload.after!,
     });
 
-    // Check reading streak achievements when streak increases
     const currentStreak = data.payload.after!.currentStreak;
     if (currentStreak > (data.payload.before?.currentStreak ?? 0)) {
       await checkAchievementProgress(
@@ -1558,7 +1527,6 @@ const onUserTopReaderChange = async (
     userTopReader: data.payload.after!,
   });
 
-  // Check top reader badge achievement - count total badges
   const userId = data.payload.after!.userId;
   const badgeCount = await con
     .getRepository(UserTopReader)
@@ -1591,7 +1559,6 @@ const onUserTransactionChange = async (
 
     const transaction = data.payload.after!;
 
-    // Check post boost achievement (sender boosted a post)
     if (
       transaction.referenceType === UserTransactionType.PostBoost &&
       transaction.senderId
@@ -1604,8 +1571,6 @@ const onUserTransactionChange = async (
       );
     }
 
-    // Check award received achievement (receiver got an award)
-    // Awards are Post or Comment types where receiver is different from sender
     if (
       (transaction.referenceType === UserTransactionType.Post ||
         transaction.referenceType === UserTransactionType.Comment) &&
@@ -1620,8 +1585,6 @@ const onUserTransactionChange = async (
       );
     }
 
-    // Check award given achievement (sender gave an award)
-    // Awards are Post or Comment types where receiver is different from sender
     if (
       (transaction.referenceType === UserTransactionType.Post ||
         transaction.referenceType === UserTransactionType.Comment) &&
@@ -1657,7 +1620,6 @@ const onBookmarkChange = async (
     runReminderWorkflow(getParams('after'));
   }
 
-  // Check bookmark achievement on create
   if (data.payload.op === 'c') {
     await checkAchievementProgress(
       con,
@@ -1689,7 +1651,6 @@ const onContentPreferenceChange = async (
             payload: contentPreferenceUser,
           });
 
-          // Achievement for the follower (user who follows)
           await checkAchievementProgress(
             con,
             logger,
@@ -1697,8 +1658,6 @@ const onContentPreferenceChange = async (
             AchievementEventType.UserFollow,
           );
 
-          // Achievement for the followed user (gaining a follower)
-          // Count total followers to pass as absolute value
           const followerCount = await con
             .getRepository(ContentPreference)
             .count({
@@ -1812,7 +1771,7 @@ const onUserCandidatePreferenceChange = async (
     userId: data.payload.after!.userId,
   });
 
-  // Check CV upload achievement - cv field has a url when uploaded
+  // cv field has a url when uploaded
   const cv = data.payload.after!.cv as { url?: string } | undefined;
   const previousCv = data.payload.before?.cv as { url?: string } | undefined;
   const hasCvUrl = cv?.url;
@@ -1879,6 +1838,23 @@ const onOpportunityChange = async (
       opportunityId: data.payload.after!.id,
       title: data.payload.after!.title,
     });
+  }
+
+  // Publish opportunity-updated for updates to LIVE opportunities
+  if (
+    data.payload.op === 'u' &&
+    data.payload.after?.type === OpportunityType.JOB &&
+    data.payload.after?.state === OpportunityState.LIVE
+  ) {
+    const message = await buildOpportunityMessage({
+      con,
+      logger,
+      opportunityId: data.payload.after!.id,
+    });
+
+    if (message) {
+      await triggerTypedEvent(logger, 'api.v1.opportunity-updated', message);
+    }
   }
 
   // Trigger event when opportunity moves to IN_REVIEW
@@ -2046,7 +2022,6 @@ const onUserExperienceChange = async (
 ) => {
   const experience = data.payload.after;
 
-  // Check experience achievements on create
   if (data.payload.op === 'c' && experience) {
     const eventTypeMap: Record<UserExperienceType, AchievementEventType> = {
       [UserExperienceType.Work]: AchievementEventType.ExperienceWork,
@@ -2063,7 +2038,6 @@ const onUserExperienceChange = async (
     const eventType = eventTypeMap[experience.type];
     await checkAchievementProgress(con, logger, experience.userId, eventType);
 
-    // Check profile completion when work/education is added
     if (
       experience.type === UserExperienceType.Work ||
       experience.type === UserExperienceType.Education
@@ -2280,12 +2254,10 @@ const onPostAnalyticsChange = async (
   const clicks = data.payload.after!.clicks;
   const prevClicks = data.payload.before?.clicks ?? 0;
 
-  // Skip if clicks haven't increased
   if (clicks <= prevClicks) {
     return;
   }
 
-  // Check if this is a SharePost
   const sharePost = await con.getRepository(SharePost).findOne({
     where: { id: postId },
     select: ['id', 'authorId'],
@@ -2295,7 +2267,6 @@ const onPostAnalyticsChange = async (
     return;
   }
 
-  // First click achievement (when clicks goes from 0 to 1+)
   if (prevClicks === 0 && clicks > 0) {
     await checkAchievementProgress(
       con,
@@ -2305,7 +2276,6 @@ const onPostAnalyticsChange = async (
     );
   }
 
-  // Milestone achievement (100 clicks on single share)
   await checkAchievementProgress(
     con,
     logger,
@@ -2314,7 +2284,6 @@ const onPostAnalyticsChange = async (
     clicks,
   );
 
-  // Count unique share posts with clicks > 0 for Curator achievement
   const postsWithClicks = await con
     .getRepository(SharePost)
     .createQueryBuilder('sp')

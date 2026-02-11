@@ -253,6 +253,7 @@ export const typeDefs = /* GraphQL */ `
 
   type OpportunityLocation {
     id: ID!
+    locationId: ID!
     location: Location!
     type: ProtoEnumValue!
   }
@@ -781,11 +782,13 @@ export const typeDefs = /* GraphQL */ `
   }
 
   input LocationInput {
+    locationId: ID
     city: String
     country: String
     subdivision: String
     continent: String
     type: ProtoEnumValue
+    externalLocationId: String
   }
 
   input OpportunityScreeningAnswerInput {
@@ -840,8 +843,6 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     meta: OpportunityMetaInput
     location: [LocationInput]
-    externalLocationId: String
-    locationType: ProtoEnumValue
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
@@ -1213,41 +1214,68 @@ async function renderOpportunityContent(
   return new OpportunityContent(renderedContent);
 }
 
+type LocationInput = {
+  locationId?: string | null;
+  externalLocationId?: string | null;
+  type?: number | null;
+  city?: string | null;
+  country?: string | null;
+  subdivision?: string | null;
+};
+
 /**
  * Handles opportunity location updates
- * Creates or updates locations based on externalLocationId and locationType
+ * Creates or updates locations based on locationId or externalLocationId from each location input.
+ * When locationId is provided, re-uses the existing DatasetLocation directly.
+ * When externalLocationId is provided, resolves via findOrCreateDatasetLocation.
  */
 async function handleOpportunityLocationUpdate(
   entityManager: EntityManager,
   opportunityId: string,
-  externalLocationId: string | null | undefined,
-  locationType: number | undefined | null,
+  locations: LocationInput[] | undefined | null,
   ctx: AuthContext,
 ): Promise<void> {
-  if (externalLocationId) {
-    // If externalLocationId is provided, replace all locations with the new one
-    await entityManager.getRepository(OpportunityLocation).delete({
-      opportunityId,
-    });
+  if (!locations || locations.length === 0) {
+    return;
+  }
 
-    const location = await findOrCreateDatasetLocation(
-      ctx.con,
-      externalLocationId,
-    );
+  // Delete all existing locations for this opportunity
+  await entityManager.getRepository(OpportunityLocation).delete({
+    opportunityId,
+  });
 
-    // Create new OpportunityLocation relationship
-    if (location) {
-      await entityManager.getRepository(OpportunityLocation).insert({
+  const locationsToInsert: Array<{
+    opportunityId: string;
+    locationId: string;
+    type: number;
+  }> = [];
+
+  for (const locationInput of locations) {
+    let resolvedLocationId: string | null = null;
+
+    if (locationInput.locationId) {
+      resolvedLocationId = locationInput.locationId;
+    } else if (locationInput.externalLocationId) {
+      const location = await findOrCreateDatasetLocation(
+        ctx.con,
+        locationInput.externalLocationId,
+      );
+      resolvedLocationId = location?.id ?? null;
+    }
+
+    if (resolvedLocationId) {
+      locationsToInsert.push({
         opportunityId,
-        locationId: location.id,
-        type: locationType || 1,
+        locationId: resolvedLocationId,
+        type: locationInput.type || 1,
       });
     }
-  } else if (locationType !== undefined && locationType !== null) {
-    // If only locationType is provided (no externalLocationId), update existing locations
+  }
+
+  if (locationsToInsert.length > 0) {
     await entityManager
       .getRepository(OpportunityLocation)
-      .update({ opportunityId }, { type: locationType });
+      .insert(locationsToInsert);
   }
 }
 
@@ -2427,8 +2455,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           content,
           questions,
           recruiter,
-          externalLocationId,
-          locationType,
+          location,
           ...opportunityUpdate
         } = opportunity;
 
@@ -2447,13 +2474,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
 
-        await handleOpportunityLocationUpdate(
-          entityManager,
-          id,
-          externalLocationId,
-          locationType,
-          ctx,
-        );
+        await handleOpportunityLocationUpdate(entityManager, id, location, ctx);
 
         await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 

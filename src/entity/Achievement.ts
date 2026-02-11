@@ -7,10 +7,10 @@ import {
 } from 'typeorm';
 
 export enum AchievementType {
-  Instant = 'instant', // One-time action (e.g., update profile picture)
-  Streak = 'streak', // Consecutive actions (future use)
-  Milestone = 'milestone', // Cumulative count (e.g., upvote 10 posts)
-  Multipart = 'multipart', // Multiple criteria (future use)
+  Instant = 'instant',
+  Streak = 'streak',
+  Milestone = 'milestone',
+  Multipart = 'multipart',
 }
 
 export enum AchievementEventType {
@@ -55,13 +55,11 @@ export enum AchievementEventType {
 }
 
 export interface AchievementCriteria {
-  targetCount?: number; // For milestone achievements
-  metadata?: Record<string, unknown>; // Additional criteria data
+  targetCount?: number;
+  metadata?: Record<string, unknown>;
 }
 
 @Entity()
-@Index('IDX_achievement_eventType')
-@Index('IDX_achievement_type')
 export class Achievement {
   @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_achievement_id',

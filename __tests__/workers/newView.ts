@@ -611,10 +611,9 @@ describe('reading streaks', () => {
 });
 
 describe('brief read achievement', () => {
-  const briefAchievementId = 'debriefed-achievement-id';
+  const briefAchievementId = '00000000-0000-0000-0000-000000000001';
 
   beforeEach(async () => {
-    // Seed the brief read achievement
     await con.getRepository(Achievement).save({
       id: briefAchievementId,
       name: 'Debriefed',
@@ -626,7 +625,6 @@ describe('brief read achievement', () => {
       points: 15,
     });
 
-    // Create the briefing source if it doesn't exist
     await con.getRepository(Source).save({
       id: BRIEFING_SOURCE,
       name: 'Briefing',
@@ -634,7 +632,6 @@ describe('brief read achievement', () => {
       private: true,
     });
 
-    // Create a brief post
     await con.getRepository(BriefPost).save({
       id: 'brief-1',
       shortId: 'brief1',
@@ -665,7 +662,6 @@ describe('brief read achievement', () => {
   });
 
   it('should unlock BriefRead achievement after reading 5 briefs', async () => {
-    // Create 5 brief posts
     for (let i = 2; i <= 5; i++) {
       await con.getRepository(BriefPost).save({
         id: `brief-${i}`,
@@ -679,7 +675,6 @@ describe('brief read achievement', () => {
       });
     }
 
-    // View all 5 briefs
     for (let i = 1; i <= 5; i++) {
       await expectSuccessfulBackground(worker, {
         postId: `brief-${i}`,
