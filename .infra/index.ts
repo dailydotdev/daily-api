@@ -550,7 +550,7 @@ const [apps] = deployApplicationSuite(
       ],
       requests: {
         cpu: '50m',
-        memory: '450Mi'
+        memory: '450Mi',
       },
       limits: {
         memory: '900Mi',

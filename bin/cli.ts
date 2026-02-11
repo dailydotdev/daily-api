@@ -1,5 +1,4 @@
-import { tracer } from '../src/telemetry/opentelemetry';
-import { startMetrics } from '../src/telemetry/metrics';
+import { startTelemetry } from '../src/telemetry/opentelemetry';
 import { parseArgs } from 'node:util';
 import api from '../src';
 import background from '../src/background';
@@ -14,8 +13,7 @@ async function run(positionals: string[]) {
 
   switch (positionals[0]) {
     case 'api':
-      tracer('api').start();
-      await startMetrics('api');
+      startTelemetry('api');
 
       await initGeoReader();
 
@@ -33,24 +31,20 @@ async function run(positionals: string[]) {
       });
       break;
     case 'background':
-      tracer('background').start();
-      await startMetrics('background');
+      startTelemetry('background');
       await background();
       break;
     case 'temporal':
-      tracer('temporal').start();
-      await startMetrics('temporal');
+      startTelemetry('temporal');
       await temporal();
       break;
     case 'cron':
-      tracer('cron').start();
-      await startMetrics('cron');
+      startTelemetry('cron');
       await cron(positionals[1]);
       process.exit();
       break;
     case 'personalized-digest':
-      tracer('personalized-digest').start();
-      await startMetrics('personalized-digest');
+      startTelemetry('personalized-digest');
       await personalizedDigest();
       break;
     default:

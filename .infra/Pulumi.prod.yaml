@@ -86,15 +86,15 @@ config:
       secure: AAABAEueTZvzwG4iG4mZtiCnTO/NJafye14NBJQUaOWcRSs5+kymF+LMYk/Muqragwku/+7ZMuohDZ2lFQZD4sES6HiNVfBVTIkqjFh53lk=
     meiliToken:
       secure: AAABAN/cQugzSBtcAHFfg35FxZzqFrNeG6tPFsL25z9V7INK30AgzkDjs4bKI09pFvC9igTjl2luVvcT5E+amW+Wmw2a3lyhqxANPIfnG4xEVADeRELbf8pfLpMb8ZqU
-    metricsEnabled: true
     nodeEnv: production
+    otelMetricsExporter: prometheus
     ogUrl: https://og.daily.dev
     onesignalApiKey:
       secure: AAABAI/bDI+xz5PMlMZseI2kW5oanHk3z1KcAOZJb+/G8arhgSP1EMdqdOTk0kku1t6KTWtl9+oSSDKWYNH1CG5D+Ac1ZPFAWc/ldmEb/iU=
     onesignalAppId:
       secure: AAABALTizkxZkCfsq6/fx2v7nXxsVP7psWBfSUct0zeyrX0ABxPpD30zIsyx5r5wqt1UJIIXDIVOnhM7W3vzrzaatrE=
     otelEnabled: true
-    otelExporterOtlpEndpoint: http://opentelemetry-collector.opentelemetry.svc.cluster.local:4318/v1/traces
+    otelExporterOtlpEndpoint: http://opentelemetry-collector.opentelemetry.svc.cluster.local:4317
     otelTracesSampler: parentbased_always_on
     paddleApiKey:
       secure: AAABAGr18L3064taf8MyYateCjX7TzBXY+mCBNoerpTSC3lF+aEyQusx93fbTon+SsYvI/EziEzyoPWcujb7sJe4TDrGaVkWCP6yqQ8w7D3ojg==
