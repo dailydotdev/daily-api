@@ -64,7 +64,7 @@ export const addPubsubSpanLabels = (
 
 const ignorePaths = ['/health', '/liveness', '/metrics'];
 
-export const instrumentations = [
+export const getInstrumentations = () => [
   new HttpInstrumentation({
     // Ignore specific endpoints like health checks or internal metrics
     ignoreIncomingRequestHook: (request) =>

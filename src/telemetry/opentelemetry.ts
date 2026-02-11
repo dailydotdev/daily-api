@@ -35,7 +35,7 @@ import {
 } from './metrics';
 import {
   createSpanProcessor,
-  instrumentations,
+  getInstrumentations,
   subscribeTracingHooks,
 } from './tracing';
 import { logger } from '../logger';
@@ -97,7 +97,7 @@ export const startTelemetry = (): void => {
   api.metrics.setGlobalMeterProvider(meterProvider);
 
   // Register instrumentations
-  registerInstrumentations({ instrumentations });
+  registerInstrumentations({ instrumentations: getInstrumentations() });
 
   initCounters(service.name as ServiceName);
   subscribeTracingHooks(service.name);
