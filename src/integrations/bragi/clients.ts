@@ -72,6 +72,20 @@ export const getBragiClient = (
           id: 'mock-id',
           emailBody: '',
         }),
+        classifyRejectionFeedback: async () => ({
+          id: 'mock-id',
+          classification: {
+            reasons: [
+              {
+                reason: 3, // REJECTION_REASON_SALARY
+                confidence: 0.9,
+                explanation: 'Mock rejection reason',
+                preference: { case: 'freeTextPreference', value: 'Too low' },
+              },
+            ],
+            summary: 'Mock rejection summary',
+          },
+        }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
       garmr: new GarmrNoopService(),
     };

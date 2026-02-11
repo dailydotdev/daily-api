@@ -17,7 +17,10 @@ import {
   opportunityMatchDescriptionSchema,
 } from '../common/schema/opportunities';
 import type { Screening } from '@dailydotdev/schema';
-import type { OpportunityFeedback } from '../common/schema/opportunityMatch';
+import type {
+  OpportunityFeedback,
+  RejectionFeedbackClassification,
+} from '../common/schema/opportunityMatch';
 
 export type OpportunityMatchHistoryEntry = Partial<{
   status: OpportunityMatchStatus;
@@ -58,6 +61,9 @@ export class OpportunityMatch {
 
   @Column({ type: 'jsonb', default: '[]' })
   feedback: Array<OpportunityFeedback>;
+
+  @Column({ type: 'jsonb', nullable: true, default: null })
+  rejectionClassification: RejectionFeedbackClassification | null;
 
   @Column({ type: 'jsonb', default: '{}' })
   applicationRank: z.infer<typeof applicationScoreSchema>;

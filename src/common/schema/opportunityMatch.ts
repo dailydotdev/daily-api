@@ -18,6 +18,26 @@ export type FeedbackClassification = z.infer<
   typeof feedbackClassificationSchema
 >;
 
+export const rejectionReasonDetailSchema = z.object({
+  reason: z.number(),
+  confidence: z.number(),
+  explanation: z.string(),
+  locationTypePreference: z.number().optional(),
+  seniorityPreference: z.number().optional(),
+  employmentTypePreference: z.number().optional(),
+  freeTextPreference: z.string().optional(),
+});
+
+export const rejectionFeedbackClassificationSchema = z.object({
+  reasons: z.array(rejectionReasonDetailSchema),
+  summary: z.string(),
+});
+
+export type RejectionReasonDetail = z.infer<typeof rejectionReasonDetailSchema>;
+export type RejectionFeedbackClassification = z.infer<
+  typeof rejectionFeedbackClassificationSchema
+>;
+
 export const anonymousUserContextSchema = z.object({
   seniority: z.string().nullable().optional(),
   locationCountry: z.string().nullable().optional(),
