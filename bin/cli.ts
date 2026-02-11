@@ -23,6 +23,7 @@ async function run(positionals: string[]) {
       });
       break;
     case 'websocket':
+      startTelemetry();
       const websocketApp = await api();
       await websocketApp.listen({
         port: parseInt(process.env.PORT) || 3000,

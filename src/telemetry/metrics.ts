@@ -2,16 +2,19 @@ import type { FastifyInstance } from 'fastify';
 
 import dc from 'node:diagnostics_channel';
 
-import { api, metrics } from '@opentelemetry/sdk-node';
+import { metrics, type Counter, ValueType } from '@opentelemetry/api';
+import {
+  PeriodicExportingMetricReader,
+  type IMetricReader,
+} from '@opentelemetry/sdk-metrics';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import {
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_RESPONSE_STATUS_CODE,
   ATTR_HTTP_ROUTE,
+  METRIC_HTTP_SERVER_REQUEST_DURATION,
 } from '@opentelemetry/semantic-conventions';
-import { ValueType } from '@opentelemetry/api';
-import { METRIC_HTTP_SERVER_REQUEST_DURATION } from '@opentelemetry/semantic-conventions';
 
 import { logger } from '../logger';
 import {
@@ -125,11 +128,11 @@ export type ServiceName = keyof typeof counterMap;
 
 export const counters: Partial<{
   [meterKey in keyof typeof counterMap]: Partial<{
-    [counterKey in keyof (typeof counterMap)[meterKey]]?: api.Counter;
+    [counterKey in keyof (typeof counterMap)[meterKey]]?: Counter;
   }>;
 }> = {};
 
-export const createMetricReader = (): metrics.IMetricReader => {
+export const createMetricReader = (): IMetricReader => {
   const exporterType = process.env.OTEL_METRICS_EXPORTER ?? 'otlp';
 
   if (exporterType === 'prometheus') {
@@ -138,7 +141,7 @@ export const createMetricReader = (): metrics.IMetricReader => {
   }
 
   logger.info('Using OTLP metrics exporter');
-  return new metrics.PeriodicExportingMetricReader({
+  return new PeriodicExportingMetricReader({
     exporter: new OTLPMetricExporter({
       url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
     }),
@@ -149,7 +152,7 @@ export const initCounters = (serviceName: ServiceName): void => {
   const currentCounter = counterMap[serviceName];
 
   if (currentCounter) {
-    const meter = api.metrics.getMeter(serviceName);
+    const meter = metrics.getMeter(serviceName);
     if (!counters[serviceName]) {
       counters[serviceName] = {};
     }
@@ -157,7 +160,7 @@ export const initCounters = (serviceName: ServiceName): void => {
     for (const [counterKey, counterOptions] of Object.entries<CounterOptions>(
       currentCounter,
     )) {
-      const counter: api.Counter = meter.createCounter(
+      const counter: Counter = meter.createCounter(
         counterOptions.name,
         counterOptions,
       );
@@ -174,7 +177,7 @@ export const initCounters = (serviceName: ServiceName): void => {
 const requestDurationIncludePaths = ['/boot'];
 
 export const subscribeMetricsHooks = (serviceName: string): void => {
-  const requestDuration = api.metrics
+  const requestDuration = metrics
     .getMeter(serviceName)
     .createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
       description: 'The duration of HTTP request',
