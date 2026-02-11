@@ -19,6 +19,13 @@ import {
 import type { Screening } from '@dailydotdev/schema';
 import type { OpportunityFeedback } from '../common/schema/opportunityMatch';
 
+export type OpportunityMatchHistoryEntry = Partial<{
+  status: OpportunityMatchStatus;
+  feedback: Array<OpportunityFeedback>;
+  archivedAt: string;
+  description: z.infer<typeof opportunityMatchDescriptionSchema>;
+}>;
+
 @Entity()
 export class OpportunityMatch {
   @PrimaryColumn({
@@ -54,6 +61,9 @@ export class OpportunityMatch {
 
   @Column({ type: 'jsonb', default: '{}' })
   applicationRank: z.infer<typeof applicationScoreSchema>;
+
+  @Column({ type: 'jsonb', default: '[]' })
+  history: Array<OpportunityMatchHistoryEntry>;
 
   @ManyToOne('Opportunity', { lazy: true, onDelete: 'CASCADE' })
   @JoinColumn({

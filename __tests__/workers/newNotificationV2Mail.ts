@@ -1881,7 +1881,7 @@ describe('new_opportunity_match notification', () => {
     const args = jest.mocked(sendEmail).mock
       .calls[0][0] as SendEmailRequestWithTemplate;
     expect(args.message_data).toEqual({
-      opportunity_link: `http://localhost:5002/opportunity/${opportunitiesFixture[0].id}`,
+      opportunity_link: `http://localhost:5002/jobs/${opportunitiesFixture[0].id}`,
     });
     expect(args.transactional_message_id).toEqual('87');
   });
