@@ -62,7 +62,7 @@ export class OpportunityMatch {
   @Column({ type: 'jsonb', default: '[]' })
   feedback: Array<OpportunityFeedback>;
 
-  @Column({ type: 'jsonb', nullable: true, default: null })
+  @Column({ type: 'jsonb', nullable: true, default: '{}' })
   rejectionClassification: RejectionFeedbackClassification | null;
 
   @Column({ type: 'jsonb', default: '{}' })
