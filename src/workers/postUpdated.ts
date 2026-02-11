@@ -728,7 +728,16 @@ const fixData = async ({
       subType: null,
       contentMeta: data?.meta || {},
       contentQuality: data?.content_quality || {},
-      ...(twitterMapping?.fields || {}),
+      ...(twitterMapping?.fields
+        ? {
+            ...twitterMapping.fields,
+            title: twitterMapping.fields.title ?? undefined,
+            content: twitterMapping.fields.content ?? undefined,
+            contentHtml: twitterMapping.fields.contentHtml ?? undefined,
+            image: twitterMapping.fields.image ?? undefined,
+            videoId: twitterMapping.fields.videoId ?? undefined,
+          }
+        : {}),
     },
   };
 };

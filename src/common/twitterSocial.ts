@@ -142,7 +142,7 @@ const isVideoMedia = (media: TwitterSocialMedia): boolean => {
 
 const pickPrimaryImage = (
   media: TwitterSocialMedia[] = [],
-  fallbackImage?: string,
+  fallbackImage?: string | null,
 ): string | undefined => {
   const imageMedia = media.find((item) => isImageMedia(item) && item.url);
 
@@ -173,7 +173,11 @@ const buildThreadContent = ({
 }: {
   rootContent?: string | null;
   rootContentHtml?: string | null;
-  threadTweets: TwitterSocialPayload['extra']['thread_tweets'];
+  threadTweets?: Array<{
+    tweet_id?: string | null;
+    content?: string | null;
+    content_html?: string | null;
+  } | null> | null;
 }): Pick<TwitterMappedPostFields, 'content' | 'contentHtml'> => {
   const textParts = [getStringOrUndefined(rootContent)];
   const htmlParts = [getStringOrUndefined(rootContentHtml)];
@@ -347,7 +351,7 @@ export const mapTwitterSocialPayload = ({
       }) ?? null,
     content: null,
     contentHtml: null,
-    image: pickPrimaryImage(media, payload.image) ?? null,
+    image: pickPrimaryImage(media, payload.image ?? undefined) ?? null,
     videoId: pickPrimaryVideoId(media, payload.extra?.video_id) ?? null,
   };
 
