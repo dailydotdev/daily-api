@@ -1,3 +1,5 @@
+import { env } from 'node:process';
+
 import { NodeSDK, logs, api, resources } from '@opentelemetry/sdk-node';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
@@ -28,10 +30,12 @@ const resourceDetectors = [
 
 api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
 
-export const startTelemetry = (serviceName: ServiceName): void => {
+export const startTelemetry = (): void => {
   if (!enableOpenTelemetry) {
     return;
   }
+
+  const serviceName = env.OTEL_SERVICE_NAME;
 
   const spanProcessor = createSpanProcessor();
   const metricReader = createMetricReader();
@@ -49,7 +53,7 @@ export const startTelemetry = (serviceName: ServiceName): void => {
 
   sdk.start();
 
-  initCounters(serviceName);
+  initCounters(serviceName as ServiceName);
   subscribeTracingHooks(serviceName);
   subscribeMetricsHooks(serviceName);
 

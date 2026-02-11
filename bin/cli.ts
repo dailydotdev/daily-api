@@ -13,8 +13,7 @@ async function run(positionals: string[]) {
 
   switch (positionals[0]) {
     case 'api':
-      startTelemetry('api');
-
+      startTelemetry();
       await initGeoReader();
 
       const app = await api();
@@ -31,20 +30,20 @@ async function run(positionals: string[]) {
       });
       break;
     case 'background':
-      startTelemetry('background');
+      startTelemetry();
       await background();
       break;
     case 'temporal':
-      startTelemetry('temporal');
+      startTelemetry();
       await temporal();
       break;
     case 'cron':
-      startTelemetry('cron');
+      startTelemetry();
       await cron(positionals[1]);
       process.exit();
       break;
     case 'personalized-digest':
-      startTelemetry('personalized-digest');
+      startTelemetry();
       await personalizedDigest();
       break;
     default:

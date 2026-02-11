@@ -173,7 +173,7 @@ export const initCounters = (serviceName: ServiceName): void => {
 
 const requestDurationIncludePaths = ['/boot'];
 
-export const subscribeMetricsHooks = (serviceName: ServiceName): void => {
+export const subscribeMetricsHooks = (serviceName: string): void => {
   const requestDuration = api.metrics
     .getMeter(serviceName)
     .createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
