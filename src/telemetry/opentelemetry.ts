@@ -113,5 +113,3 @@ export const startTelemetry = (): void => {
     await Promise.all([tracerProvider.shutdown(), meterProvider.shutdown()]);
   });
 };
-
-export { api as opentelemetry };

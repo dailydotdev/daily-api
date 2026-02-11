@@ -3,7 +3,7 @@ import type { Message } from '@google-cloud/pubsub';
 
 import FastifyOtelInstrumentation from '@fastify/otel';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
-import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
+import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { GraphQLInstrumentation } from '@opentelemetry/instrumentation-graphql';
 import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
@@ -72,6 +72,7 @@ export const instrumentations = [
   }),
   new FastifyOtelInstrumentation({
     registerOnInitialization: true,
+    recordExceptions: true,
     ignorePaths: ({ url }) => ignorePaths.some((path) => url?.includes(path)),
     requestHook: (span, req) => {
       addApiSpanLabels(span, req as AppVersionRequest);
@@ -81,9 +82,7 @@ export const instrumentations = [
     mergeItems: true,
     ignoreTrivialResolveSpans: true,
   }),
-  // Did not really get anything from IORedis
-  new IORedisInstrumentation(),
-  // TODO: remove this once pubsub has implemented the new tracing methods
+  new PinoInstrumentation(),
   new GrpcInstrumentation({
     ignoreGrpcMethods: ['ModifyAckDeadline'],
   }),
@@ -127,33 +126,37 @@ export const runInSpan = async <T>(
   func: (span: Span) => Promise<T>,
   options?: SpanOptions,
 ): Promise<T> =>
-  trace.getTracer('runInSpan').startActiveSpan(name, options!, async (span) => {
-    try {
-      return await func(span);
-    } catch (originalError) {
-      const err = originalError as Error;
+  trace
+    .getTracer('runInSpan')
+    .startActiveSpan(name, options ?? {}, async (span) => {
+      try {
+        return await func(span);
+      } catch (originalError) {
+        const err = originalError as Error;
 
-      span.setStatus({
-        code: SpanStatusCode.ERROR,
-        message: err?.message,
-      });
-      throw err;
-    } finally {
-      span.end();
-    }
-  }) as T;
+        span.recordException(err);
+        span.setStatus({
+          code: SpanStatusCode.ERROR,
+          message: err?.message,
+        });
+        throw err;
+      } finally {
+        span.end();
+      }
+    }) as T;
 
 export const runInSpanSync = <T>(
   name: string,
   func: (span: Span) => T,
   options?: SpanOptions,
 ): T =>
-  trace.getTracer('runInSpan').startActiveSpan(name, options!, (span) => {
+  trace.getTracer('runInSpan').startActiveSpan(name, options ?? {}, (span) => {
     try {
       return func(span);
     } catch (originalError) {
       const err = originalError as Error;
 
+      span.recordException(err);
       span.setStatus({
         code: SpanStatusCode.ERROR,
         message: err?.message,
