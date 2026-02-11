@@ -4,6 +4,7 @@ import { NodeSDK, logs, api, resources } from '@opentelemetry/sdk-node';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
+import closeWithGrace from 'close-with-grace';
 
 import { enableOpenTelemetry } from './common';
 import {
@@ -17,6 +18,7 @@ import {
   instrumentations,
   subscribeTracingHooks,
 } from './tracing';
+import { logger } from '../logger';
 
 const resourceDetectors = [
   resources.envDetector,
@@ -57,8 +59,14 @@ export const startTelemetry = (): void => {
   subscribeTracingHooks(serviceName);
   subscribeMetricsHooks(serviceName);
 
-  ['SIGINT', 'SIGTERM'].forEach((signal) => {
-    process.on(signal, () => sdk.shutdown().catch(console.error));
+  closeWithGrace(async ({ signal, err }) => {
+    if (err) {
+      logger.error({ err, signal }, 'Tracing shutting down with error');
+    } else {
+      logger.info({ signal }, 'Tracing shutting down gracefully');
+    }
+
+    await sdk.shutdown();
   });
 };
 
