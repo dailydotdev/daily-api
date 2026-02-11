@@ -1,10 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import type { Message } from '@google-cloud/pubsub';
 
+import FastifyOtelInstrumentation from '@fastify/otel';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { IORedisInstrumentation } from '@opentelemetry/instrumentation-ioredis';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
-import { FastifyInstrumentation } from '@opentelemetry/instrumentation-fastify';
 import { GraphQLInstrumentation } from '@opentelemetry/instrumentation-graphql';
 import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
@@ -55,17 +55,19 @@ export const addPubsubSpanLabels = (
   });
 };
 
+const ignorePaths = ['/health', '/liveness', '/metrics'];
+
 export const instrumentations = [
   new HttpInstrumentation({
     // Ignore specific endpoints like health checks or internal metrics
-    ignoreIncomingRequestHook: (request) => {
-      const ignorePaths = ['/health', '/liveness', '/metrics'];
-      return ignorePaths.some((path) => request.url?.includes(path));
-    },
+    ignoreIncomingRequestHook: (request) =>
+      ignorePaths.some((path) => request.url?.includes(path)),
   }),
-  new FastifyInstrumentation({
-    requestHook: (span, info) => {
-      addApiSpanLabels(span, info.request);
+  new FastifyOtelInstrumentation({
+    registerOnInitialization: true,
+    ignorePaths: ({ url }) => ignorePaths.some((path) => url?.includes(path)),
+    requestHook: (span, req) => {
+      addApiSpanLabels(span, req as AppVersionRequest);
     },
   }),
   new GraphQLInstrumentation({
