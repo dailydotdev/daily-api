@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import {
   Achievement,
@@ -13,11 +13,13 @@ export {
   AchievementType,
 } from '../../entity/Achievement';
 
+type AchievementConnection = DataSource | EntityManager;
+
 /**
  * Get achievements by eventType - fast indexed lookup
  */
 export async function getAchievementsByEventType(
-  con: DataSource,
+  con: AchievementConnection,
   eventType: AchievementEventType,
 ): Promise<Achievement[]> {
   return con
@@ -32,7 +34,7 @@ export async function getAchievementsByEventType(
  * Get or create a user achievement record
  */
 export async function getOrCreateUserAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   userId: string,
   achievementId: string,
 ): Promise<UserAchievement> {
@@ -60,7 +62,7 @@ export async function getOrCreateUserAchievement(
  * Returns true if the achievement was newly unlocked
  */
 export async function updateUserAchievementProgress(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
@@ -100,7 +102,7 @@ export async function updateUserAchievementProgress(
  * Returns true if the achievement was newly unlocked
  */
 export async function incrementUserAchievementProgress(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
@@ -133,7 +135,7 @@ export async function incrementUserAchievementProgress(
  * Evaluates and updates achievements for instant type (one-time actions)
  */
 async function evaluateInstantAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -166,7 +168,7 @@ async function evaluateInstantAchievement(
  * Evaluates and updates achievements for milestone type (counting actions)
  */
 async function evaluateMilestoneAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -200,7 +202,7 @@ async function evaluateMilestoneAchievement(
  * Evaluates achievements using absolute value comparison (reputation, streaks, etc.)
  */
 async function evaluateAbsoluteValueAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -234,7 +236,7 @@ async function evaluateAbsoluteValueAchievement(
  * Evaluator type for achievement progress checking
  */
 type AchievementEvaluator = (
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -261,7 +263,7 @@ function getEvaluator(type: AchievementType): AchievementEvaluator {
  * Uses eventType to efficiently find relevant achievements
  */
 export async function checkAchievementProgress(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   eventType: AchievementEventType,
