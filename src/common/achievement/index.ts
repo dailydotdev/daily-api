@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import {
   Achievement,
@@ -13,11 +13,10 @@ export {
   AchievementType,
 } from '../../entity/Achievement';
 
-/**
- * Get achievements by eventType - fast indexed lookup
- */
+type AchievementConnection = DataSource | EntityManager;
+
 export async function getAchievementsByEventType(
-  con: DataSource,
+  con: AchievementConnection,
   eventType: AchievementEventType,
 ): Promise<Achievement[]> {
   return con
@@ -28,11 +27,8 @@ export async function getAchievementsByEventType(
     .getMany();
 }
 
-/**
- * Get or create a user achievement record
- */
 export async function getOrCreateUserAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   userId: string,
   achievementId: string,
 ): Promise<UserAchievement> {
@@ -55,12 +51,8 @@ export async function getOrCreateUserAchievement(
   return userAchievement;
 }
 
-/**
- * Update user achievement progress and check if it should be unlocked
- * Returns true if the achievement was newly unlocked
- */
 export async function updateUserAchievementProgress(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
@@ -95,12 +87,8 @@ export async function updateUserAchievementProgress(
   return shouldUnlock;
 }
 
-/**
- * Increment user achievement progress by a given amount
- * Returns true if the achievement was newly unlocked
- */
 export async function incrementUserAchievementProgress(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
@@ -129,11 +117,8 @@ export async function incrementUserAchievementProgress(
   );
 }
 
-/**
- * Evaluates and updates achievements for instant type (one-time actions)
- */
 async function evaluateInstantAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -162,11 +147,8 @@ async function evaluateInstantAchievement(
   }
 }
 
-/**
- * Evaluates and updates achievements for milestone type (counting actions)
- */
 async function evaluateMilestoneAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -196,11 +178,8 @@ async function evaluateMilestoneAchievement(
   }
 }
 
-/**
- * Evaluates achievements using absolute value comparison (reputation, streaks, etc.)
- */
 async function evaluateAbsoluteValueAchievement(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -230,20 +209,14 @@ async function evaluateAbsoluteValueAchievement(
   }
 }
 
-/**
- * Evaluator type for achievement progress checking
- */
 type AchievementEvaluator = (
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
   currentValue?: number,
 ) => Promise<void>;
 
-/**
- * Get the appropriate evaluator based on achievement type
- */
 function getEvaluator(type: AchievementType): AchievementEvaluator {
   switch (type) {
     case AchievementType.Instant:
@@ -256,19 +229,14 @@ function getEvaluator(type: AchievementType): AchievementEvaluator {
   }
 }
 
-/**
- * Core function to check and update achievement progress
- * Uses eventType to efficiently find relevant achievements
- */
 export async function checkAchievementProgress(
-  con: DataSource,
+  con: AchievementConnection,
   logger: FastifyBaseLogger,
   userId: string,
   eventType: AchievementEventType,
   currentValue?: number,
 ): Promise<void> {
   try {
-    // Get all achievements for this event type
     const achievements = await getAchievementsByEventType(con, eventType);
 
     if (achievements.length === 0) {
@@ -290,7 +258,6 @@ export async function checkAchievementProgress(
       return;
     }
 
-    // Group achievements by type for proper evaluation
     const achievementsByType = achievements.reduce(
       (acc, achievement) => {
         const type = achievement.type as AchievementType;
@@ -303,7 +270,6 @@ export async function checkAchievementProgress(
       {} as Record<AchievementType, Achievement[]>,
     );
 
-    // Evaluate each group with the appropriate evaluator
     for (const [type, typeAchievements] of Object.entries(achievementsByType)) {
       const evaluator = getEvaluator(type as AchievementType);
       await evaluator(con, logger, userId, typeAchievements, currentValue);
