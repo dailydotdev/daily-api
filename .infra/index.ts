@@ -303,7 +303,7 @@ if (isAdhocEnv) {
       env: [
         {
           name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
+          value: `${envVars.otelServiceName as string}-bg`,
         },
         ...commonEnv,
         ...jwtEnv,
@@ -374,7 +374,7 @@ if (isAdhocEnv) {
         ...jwtEnv,
         {
           name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.serviceName as string}-ws`,
+          value: `${envVars.otelServiceName as string}-ws`,
         },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
@@ -397,7 +397,7 @@ if (isAdhocEnv) {
         ...jwtEnv,
         {
           name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
+          value: `${envVars.otelServiceName as string}-bg`,
         },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
@@ -443,7 +443,7 @@ if (isAdhocEnv) {
         ...jwtEnv,
         {
           name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.serviceName as string}-private`,
+          value: `${envVars.otelServiceName as string}-private`,
         },
       ],
       minReplicas: 1,
@@ -474,7 +474,7 @@ if (isAdhocEnv) {
         ...jwtEnv,
         {
           name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.serviceName as string}-personalized-digest`,
+          value: `${envVars.otelServiceName as string}-personalized-digest`,
         },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
