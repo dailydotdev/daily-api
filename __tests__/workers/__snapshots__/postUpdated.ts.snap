@@ -41,6 +41,7 @@ Object {
   "slug": Any<String>,
   "sourceId": "a",
   "statsUpdatedAt": Any<Date>,
+  "subType": null,
   "summary": null,
   "tagsStr": null,
   "title": "Title",
