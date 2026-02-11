@@ -233,6 +233,13 @@ export class NotificationBuilder {
     });
   }
 
+  referenceAchievement(achievementId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: achievementId,
+      referenceType: 'achievement',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
