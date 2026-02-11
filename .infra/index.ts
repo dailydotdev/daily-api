@@ -240,7 +240,7 @@ const jwtEnv = [
   { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
 ];
 
-const commonEnv = [{ name: 'SERVICE_VERSION', value: imageTag }];
+const commonEnv = [{ name: 'OTEL_SERVICE_VERSION', value: imageTag }];
 
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
@@ -302,7 +302,7 @@ if (isAdhocEnv) {
       podAnnotations: podAnnotations,
       env: [
         {
-          name: 'SERVICE_NAME',
+          name: 'OTEL_SERVICE_NAME',
           value: `${envVars.serviceName as string}-bg`,
         },
         ...commonEnv,
@@ -373,7 +373,7 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
+          name: 'OTEL_SERVICE_NAME',
           value: `${envVars.serviceName as string}-ws`,
         },
       ],
@@ -396,7 +396,7 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
+          name: 'OTEL_SERVICE_NAME',
           value: `${envVars.serviceName as string}-bg`,
         },
       ],
@@ -442,7 +442,7 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
+          name: 'OTEL_SERVICE_NAME',
           value: `${envVars.serviceName as string}-private`,
         },
       ],
@@ -473,7 +473,7 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
+          name: 'OTEL_SERVICE_NAME',
           value: `${envVars.serviceName as string}-personalized-digest`,
         },
       ],

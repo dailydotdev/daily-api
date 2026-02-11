@@ -95,6 +95,7 @@ config:
       secure: AAABALTizkxZkCfsq6/fx2v7nXxsVP7psWBfSUct0zeyrX0ABxPpD30zIsyx5r5wqt1UJIIXDIVOnhM7W3vzrzaatrE=
     otelEnabled: true
     otelExporterOtlpEndpoint: http://opentelemetry-collector.opentelemetry.svc.cluster.local:4317
+    otelServiceName: api
     otelTracesSampler: parentbased_always_on
     paddleApiKey:
       secure: AAABAGr18L3064taf8MyYateCjX7TzBXY+mCBNoerpTSC3lF+aEyQusx93fbTon+SsYvI/EziEzyoPWcujb7sJe4TDrGaVkWCP6yqQ8w7D3ojg==
@@ -111,7 +112,6 @@ config:
     scraperUrl: http://scraper
     sendgridWebhookAnalyticsKey:
       secure: AAABAN93rTdOaHRB0LdcCsxtW0iEDhqNeUQaldjnx44gUVu2xjn0lR9bW1MgPZ8v6KBfAG8k8Uf2tqg2zWKiP9Dk1eDH7TR5v2XmKnvnP/rzCwhz0eZ0Yd3qoSJ8NUBhxcB/somueTshRZI2xfjtQf2aKyZ9KKIoPPs1U8D1fiyQPeQm2e7in0CouLbEGkS/FUpyHVLS6l2mUlq4
-    serviceName: api
     slackClientId:
       secure: AAABAMjNwZ4rF4TE1pfqO7HZxzT7v5SYQ7p+cuQqkrzjI3Gw2FfIUqSQQwdYBxJ+02HLuQQFT3MePKM=
     slackClientSecret:

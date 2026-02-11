@@ -73,6 +73,7 @@ config:
     ogUrl: http://localhost:3000
     otelEnabled: false
     otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4317
+    otelServiceName: api
     otelTracesSampler: always_on
     paddleApiKey: topsecret
     paddleEnvironment: sandbox
@@ -84,7 +85,6 @@ config:
     redisHost: redis
     redisPort: 6379
     scraperUrl: http://host.docker.internal:5001
-    serviceName: api
     submitArticleThreshold: 250
     typeormDatabase: api
     typeormHost: postgres
