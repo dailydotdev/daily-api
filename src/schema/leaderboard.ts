@@ -309,6 +309,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         .groupBy('u.id')
         .orderBy('score', 'DESC')
         .addOrderBy('"lastUnlockedAt"', 'ASC')
+        .addOrderBy('u.id', 'ASC')
         .limit(limit)
         .getRawMany();
 
