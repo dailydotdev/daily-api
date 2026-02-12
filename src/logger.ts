@@ -12,8 +12,8 @@ export const loggerConfig: LoggerOptions =
     ? createGcpLoggingPinoConfig(
         {
           serviceContext: {
-            service: env.SERVICE_NAME || 'service',
-            version: env.SERVICE_VERSION || 'latest',
+            service: env.OTEL_SERVICE_NAME || 'service',
+            version: env.OTEL_SERVICE_VERSION || 'latest',
           },
         },
         pinoLoggerOptions,

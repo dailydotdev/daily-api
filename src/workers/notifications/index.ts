@@ -42,6 +42,7 @@ import { recruiterNewCandidateNotification } from './recruiterNewCandidateNotifi
 import { recruiterOpportunityLiveNotification } from './recruiterOpportunityLiveNotification';
 import { experienceCompanyEnrichedNotification } from './experienceCompanyEnrichedNotification';
 import { recruiterExternalPaymentNotification } from './recruiterExternalPaymentNotification';
+import { reMatchedOpportunityNotification } from './reMatchedOpportunityNotification';
 import { achievementUnlockedNotification } from './achievementUnlockedNotification';
 
 export function notificationWorkerToWorker(
@@ -131,6 +132,7 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   recruiterOpportunityLiveNotification,
   experienceCompanyEnrichedNotification,
   recruiterExternalPaymentNotification,
+  reMatchedOpportunityNotification,
   achievementUnlockedNotification,
 ];
 
