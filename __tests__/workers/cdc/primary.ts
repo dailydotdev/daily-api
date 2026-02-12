@@ -6908,13 +6908,14 @@ describe('user_candidate_preference', () => {
   });
 
   it('should trigger candidate preference change event on creation', async () => {
+    const cv = {
+      blob: 'https://example.com/cv.pdf',
+      lastModified: new Date('2023-01-01'),
+    };
     const candidatePreferenceData = {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
-      cv: {
-        blob: 'https://example.com/cv.pdf',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       cvParsed: {},
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
@@ -6943,7 +6944,7 @@ describe('user_candidate_preference', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        after: candidatePreferenceData,
+        after: { ...candidatePreferenceData, cv: JSON.stringify(cv) },
         op: 'c',
         table: 'user_candidate_preference',
       }),
@@ -6956,14 +6957,15 @@ describe('user_candidate_preference', () => {
   });
 
   it('should trigger candidate preference change event on update', async () => {
+    const cv = {
+      blob: 'https://example.com/cv.pdf',
+      lastModified: new Date('2023-01-01'),
+    };
     const originalData = {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
-        blob: 'https://example.com/cv.pdf',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
       employmentType: [0], // EmploymentType.FULL_TIME
@@ -6996,11 +6998,12 @@ describe('user_candidate_preference', () => {
     // Create the UserCandidatePreference record
     await con.getRepository(UserCandidatePreference).save(updatedData);
 
+    const cvStr = JSON.stringify(cv);
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        before: originalData,
-        after: updatedData,
+        before: { ...originalData, cv: cvStr },
+        after: { ...updatedData, cv: cvStr },
         op: 'u',
         table: 'user_candidate_preference',
       }),
@@ -7017,10 +7020,10 @@ describe('user_candidate_preference', () => {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
+      cv: JSON.stringify({
         blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
-      },
+      }),
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
       employmentType: [0], // EmploymentType.FULL_TIME
@@ -7057,10 +7060,10 @@ describe('user_candidate_preference', () => {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
+      cv: JSON.stringify({
         blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
-      },
+      }),
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
       employmentType: [0], // EmploymentType.FULL_TIME
@@ -7093,13 +7096,14 @@ describe('user_candidate_preference', () => {
   });
 
   it('should handle disabled candidate status', async () => {
+    const cv = {
+      blob: '',
+      lastModified: new Date('2023-01-01'),
+    };
     const candidatePreferenceData = {
       userId: '2',
       status: CandidateStatus.DISABLED,
-      cv: {
-        blob: '',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       role: '',
       roleType: 0.5,
       employmentType: [],
@@ -7119,7 +7123,7 @@ describe('user_candidate_preference', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        after: candidatePreferenceData,
+        after: { ...candidatePreferenceData, cv: JSON.stringify(cv) },
         op: 'c',
         table: 'user_candidate_preference',
       }),
@@ -7140,10 +7144,10 @@ describe('user_candidate_preference', () => {
           userId: 'non-existent-user',
           status: CandidateStatus.OPEN_TO_OFFERS,
           cvParsed: {},
-          cv: {
+          cv: JSON.stringify({
             blob: 'https://example.com/cv.pdf',
             lastModified: new Date('2023-01-01'),
-          },
+          }),
           role: 'Senior Developer',
           roleType: 0.8,
           employmentType: [0],
@@ -7167,14 +7171,15 @@ describe('user_candidate_preference', () => {
   });
 
   it('should handle complex employment types and locations', async () => {
+    const cv = {
+      blob: 'https://example.com/cv.pdf',
+      lastModified: new Date('2023-01-01'),
+    };
     const candidatePreferenceData = {
       userId: '3',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
-        blob: 'https://example.com/cv.pdf',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       role: 'Full Stack Engineer',
       roleType: 0.9,
       employmentType: [0, 1, 2], // Multiple employment types
@@ -7207,7 +7212,7 @@ describe('user_candidate_preference', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        after: candidatePreferenceData,
+        after: { ...candidatePreferenceData, cv: JSON.stringify(cv) },
         op: 'u',
         table: 'user_candidate_preference',
       }),
