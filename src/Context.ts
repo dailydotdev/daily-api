@@ -1,4 +1,4 @@
-import { opentelemetry } from './telemetry';
+import type { Span } from '@opentelemetry/api';
 import {
   DataSource,
   EntitySchema,
@@ -60,7 +60,7 @@ export class Context {
     return this.req.log;
   }
 
-  get span(): opentelemetry.Span | undefined {
+  get span(): Span | undefined {
     return this.req.span;
   }
 

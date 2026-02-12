@@ -68,11 +68,12 @@ config:
     meiliIndex: dailydev
     meiliOrigin: 'http://localhost:7700/' # your local inet address, you can update it in .env file, can be sorted by adding meilisearch to local pulumi stack
     meiliToken: topsecret
-    metricsEnabled: false
+    otelMetricsExporter: prometheus
     nodeEnv: development
     ogUrl: http://localhost:3000
     otelEnabled: false
-    otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4318/v1/traces
+    otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4317
+    otelServiceName: api
     otelTracesSampler: always_on
     paddleApiKey: topsecret
     paddleEnvironment: sandbox
@@ -84,7 +85,6 @@ config:
     redisHost: redis
     redisPort: 6379
     scraperUrl: http://host.docker.internal:5001
-    serviceName: api
     submitArticleThreshold: 250
     typeormDatabase: api
     typeormHost: postgres

@@ -2,9 +2,8 @@ import retry, { OperationOptions } from 'retry';
 import isNetworkError from './networkError';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
 import { runInSpan } from '../telemetry';
+import { trace } from '@opentelemetry/api';
 import {
-  ATTR_EXCEPTION_MESSAGE,
-  ATTR_EXCEPTION_TYPE,
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_RESPONSE_STATUS_CODE,
   ATTR_URL_FULL,
@@ -61,6 +60,11 @@ export async function asyncRetry<T>(
     });
 
     operation.attempt(async (attempt) => {
+      if (attempt > 1) {
+        trace.getActiveSpan()?.addEvent('retry_attempt', {
+          'retry.attempt': attempt,
+        });
+      }
       try {
         const result = await fn(attempt);
         resolve(result);
@@ -109,10 +113,7 @@ export function retryFetch(
       }
       const err = new HttpError(url.toString(), res.status, await res.text());
       if (res.status < 500) {
-        span.setAttributes({
-          [ATTR_EXCEPTION_TYPE]: err.name,
-          [ATTR_EXCEPTION_MESSAGE]: err.message,
-        });
+        span.recordException(err);
         throw new AbortError(err);
       }
       throw err;
@@ -133,8 +134,15 @@ export async function fetchParse<T>(
   url: RequestInfo,
   fetchOpts: RequestInit,
 ): Promise<T> {
-  const res = await fetch(url, fetchOpts);
-  return res.json() as T;
+  return runInSpan('fetchParse', async (span) => {
+    span.setAttributes({
+      [ATTR_URL_FULL]: url.toString(),
+      [ATTR_HTTP_REQUEST_METHOD]: fetchOpts.method,
+    });
+    const res = await fetch(url, fetchOpts);
+    span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, res.status);
+    return res.json() as T;
+  });
 }
 
 export async function fetchParseBinary<T extends Message<T>>(
@@ -142,12 +150,19 @@ export async function fetchParseBinary<T extends Message<T>>(
   fetchOpts: RequestInit,
   parser: T,
 ): Promise<T> {
-  const res = await fetch(url, fetchOpts);
-  if (isTest) {
-    // Jest only support mocks of JSON
-    return parser.fromJson(await res.json());
-  }
+  return runInSpan('fetchParseBinary', async (span) => {
+    span.setAttributes({
+      [ATTR_URL_FULL]: url.toString(),
+      [ATTR_HTTP_REQUEST_METHOD]: fetchOpts.method,
+    });
+    const res = await fetch(url, fetchOpts);
+    span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, res.status);
+    if (isTest) {
+      // Jest only support mocks of JSON
+      return parser.fromJson(await res.json());
+    }
 
-  const binaryResult = new Uint8Array(await res.arrayBuffer());
-  return parser.fromBinary(binaryResult);
+    const binaryResult = new Uint8Array(await res.arrayBuffer());
+    return parser.fromBinary(binaryResult);
+  });
 }
