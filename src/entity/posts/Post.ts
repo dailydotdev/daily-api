@@ -333,4 +333,13 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_awards')
   awards: number;
+
+  @Column({ type: 'text', nullable: true })
+  summary?: string;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Column({ nullable: true })
+  readTime?: number;
 }

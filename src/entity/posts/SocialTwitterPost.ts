@@ -22,16 +22,16 @@ export class SocialTwitterPost extends Post {
   contentHtml?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  description?: string;
+  siteTwitter?: string;
 
   @Column({ type: 'text', nullable: true })
-  summary?: string;
+  creatorTwitter?: string;
 
   @Column({ type: 'text', nullable: true })
   videoId?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  sharedPostId?: string | null;
+  sharedPostId?: string;
 
   @ManyToOne(() => Post, { lazy: true, onDelete: 'SET NULL' })
   sharedPost?: Promise<Post>;
