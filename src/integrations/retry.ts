@@ -1,6 +1,6 @@
 import retry, { OperationOptions } from 'retry';
 import isNetworkError from './networkError';
-import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
+import { fetch, type RequestInit, type Response } from 'undici';
 import { runInSpan } from '../telemetry';
 import { trace } from '@opentelemetry/api';
 import {
@@ -8,7 +8,7 @@ import {
   ATTR_HTTP_RESPONSE_STATUS_CODE,
   ATTR_URL_FULL,
 } from '@opentelemetry/semantic-conventions';
-import { Message } from '@bufbuild/protobuf';
+import { Message, type JsonValue } from '@bufbuild/protobuf';
 import { isTest } from '../common';
 
 export class AbortError extends Error {
@@ -96,7 +96,7 @@ export async function asyncRetry<T>(
 }
 
 export function retryFetch(
-  url: RequestInfo,
+  url: string | URL,
   fetchOpts: RequestInit,
   retryOpts?: RetryOptions,
 ): Promise<Response> {
@@ -122,16 +122,16 @@ export function retryFetch(
 }
 
 export async function retryFetchParse<T>(
-  url: RequestInfo,
+  url: string | URL,
   fetchOpts: RequestInit,
   retryOpts?: RetryOptions,
 ): Promise<T> {
   const res = await retryFetch(url, fetchOpts, retryOpts);
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 export async function fetchParse<T>(
-  url: RequestInfo,
+  url: string | URL,
   fetchOpts: RequestInit,
 ): Promise<T> {
   return runInSpan('fetchParse', async (span) => {
@@ -146,7 +146,7 @@ export async function fetchParse<T>(
 }
 
 export async function fetchParseBinary<T extends Message<T>>(
-  url: RequestInfo,
+  url: string | URL,
   fetchOpts: RequestInit,
   parser: T,
 ): Promise<T> {
@@ -159,7 +159,7 @@ export async function fetchParseBinary<T extends Message<T>>(
     span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, res.status);
     if (isTest) {
       // Jest only support mocks of JSON
-      return parser.fromJson(await res.json());
+      return parser.fromJson((await res.json()) as JsonValue);
     }
 
     const binaryResult = new Uint8Array(await res.arrayBuffer());

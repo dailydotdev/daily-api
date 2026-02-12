@@ -1,4 +1,4 @@
-import { Headers, RequestInit } from 'node-fetch';
+import type { RequestInit } from 'undici';
 import { addDays } from 'date-fns';
 import { fetchOptions } from './http';
 import { FastifyReply, FastifyRequest } from 'fastify';

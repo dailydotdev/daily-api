@@ -59,6 +59,9 @@ export const userTopReaderAdded: TypedNotificationWorker<'api.v1.user-top-reader
         { id, userId },
         'userTopReaderAdded: Uploading screenshot to cloudinary',
       );
+      if (!response.body) {
+        throw new Error('Empty response body from screenshot service');
+      }
       const uploadedImage = await uploadFile(
         id,
         UploadPreset.TopReaderBadge,

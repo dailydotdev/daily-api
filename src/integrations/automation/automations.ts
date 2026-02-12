@@ -8,6 +8,6 @@ export const automations: Record<
 > = {
   roaster: new RetoolAutomationService(process.env.ROASTER_URL, {
     ...globalFetchOptions,
-    timeout: 1000 * 60,
+    signal: AbortSignal.timeout(1000 * 60),
   }),
 };

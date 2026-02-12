@@ -331,9 +331,6 @@ importers:
       nanoid:
         specifier: ^3.3.4
         version: 3.3.11
-      node-fetch:
-        specifier: ^2.7.0
-        version: 2.7.0
       node-html-parser:
         specifier: ^7.0.1
         version: 7.0.1
@@ -376,6 +373,9 @@ importers:
       ua-parser-js:
         specifier: ^2.0.7
         version: 2.0.7
+      undici:
+        specifier: ^7.8.0
+        version: 7.16.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -416,9 +416,6 @@ importers:
       '@types/node':
         specifier: 22.15.x
         version: 22.15.32
-      '@types/node-fetch':
-        specifier: ^2.6.13
-        version: 2.6.13
       '@types/retry':
         specifier: ^0.12.5
         version: 0.12.5

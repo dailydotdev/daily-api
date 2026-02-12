@@ -14,7 +14,7 @@ import {
   SlackEventType,
   verifySlackSignature,
 } from '../../common';
-import fetch from 'node-fetch';
+
 import {
   AnalyticsEventName,
   sendAnalyticsEvent,

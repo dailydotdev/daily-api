@@ -237,7 +237,7 @@ const personalizedDigestFeedClient = new FeedClient(
   process.env.PERSONALIZED_DIGEST_FEED,
   {
     fetchOptions: {
-      timeout: 10 * 1000,
+      signal: AbortSignal.timeout(10 * 1000),
     },
     garmr: new GarmrService({
       service: 'feed-client-digest',

@@ -3,7 +3,7 @@ import {
   LofnFeedConfigPayload,
   LofnFeedConfigResponse,
 } from './types';
-import { RequestInit } from 'node-fetch';
+import type { RequestInit } from 'undici';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { fetchParse } from '../retry';
 import { GarmrNoopService, IGarmrClient, IGarmrService } from '../garmr';

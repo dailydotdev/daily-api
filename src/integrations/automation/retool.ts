@@ -1,5 +1,5 @@
 import { IAutomationService } from './types';
-import { RequestInit } from 'node-fetch';
+import type { RequestInit } from 'undici';
 import { fetchOptions as globalFetchOptions } from '../../http';
 import { retryFetchParse } from '../retry';
 

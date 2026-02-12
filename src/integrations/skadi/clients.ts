@@ -1,4 +1,4 @@
-import { RequestInit } from 'node-fetch';
+import type { RequestInit } from 'undici';
 import { ISkadiClient, SkadiResponse } from './types';
 import { GarmrNoopService, IGarmrService, GarmrService } from '../garmr';
 import { fetchOptions as globalFetchOptions } from '../../http';

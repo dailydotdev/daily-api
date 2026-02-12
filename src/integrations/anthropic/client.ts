@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { GarmrService, IGarmrService, GarmrNoopService } from '../garmr';
 import { IAnthropicClient, AnthropicRequest, AnthropicResponse } from './types';
 

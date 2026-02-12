@@ -1,4 +1,4 @@
-import fetch, { RequestInit } from 'node-fetch';
+import { fetch, type RequestInit } from 'undici';
 import {
   type EstimatedDailyReachParams,
   TargetingType,

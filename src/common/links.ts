@@ -1,6 +1,5 @@
 import { Source, SourceType } from '../entity';
 import type { Invite, User } from '../entity';
-import { Headers } from 'node-fetch';
 import { FastifyBaseLogger } from 'fastify';
 import { retryFetchParse } from '../integrations/retry';
 

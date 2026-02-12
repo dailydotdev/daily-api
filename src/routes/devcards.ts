@@ -47,7 +47,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             .header('cross-origin-opener-policy', 'cross-origin')
             .header('cross-origin-resource-policy', 'cross-origin')
             .header('cache-control', 'public, max-age=3600, s-maxage=3600')
-            .send(await response.buffer());
+            .send(Buffer.from(await response.arrayBuffer()));
         }
         return res
           .type('image/svg+xml')
@@ -131,7 +131,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
           .header('cross-origin-opener-policy', 'cross-origin')
           .header('cross-origin-resource-policy', 'cross-origin')
           .header('cache-control', 'public, max-age=3600, s-maxage=3600')
-          .send(await response.buffer());
+          .send(Buffer.from(await response.arrayBuffer()));
       } catch (originalError) {
         const err = originalError as TypeORMQueryFailedError;
 

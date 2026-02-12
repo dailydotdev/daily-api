@@ -1,4 +1,3 @@
-import fetch from 'node-fetch';
 import { DataSource } from 'typeorm';
 import { anthropicClient } from '../integrations/anthropic';
 import { generateShortId } from '../ids';
@@ -35,7 +34,7 @@ async function tryFetchDomain(
 ): Promise<boolean> {
   const response = await fetch(`https://${testDomain}`, {
     method: 'GET',
-    timeout: DOMAIN_CHECK_TIMEOUT,
+    signal: AbortSignal.timeout(DOMAIN_CHECK_TIMEOUT),
     redirect: 'follow',
   });
 
