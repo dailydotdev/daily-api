@@ -22,6 +22,14 @@ export function traceResolver<
     context: TContext,
     info: GraphQLResolveInfo,
   ): Promise<TReturn> => {
+    if (context?.span && context?.span?.isRecording()) {
+      context.span.setAttributes({
+        ['graphql.operation.name']: info.operation?.name?.value,
+        ['graphql.operation.type']: info.operation.operation,
+        ['graphql.variableValues']: JSON.stringify(info.variableValues),
+      });
+    }
+
     counters?.api?.graphqlOperations?.add(1, {
       ['graphql.field.name']: info.fieldName,
       ['graphql.operation.name']: info.operation?.name?.value,
