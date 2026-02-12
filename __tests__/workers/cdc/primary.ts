@@ -3267,8 +3267,10 @@ describe('post content updated', () => {
       {
         banned: false,
         canonicalUrl: 'http://p4c.com',
+        content: undefined,
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          channels: [],
           cleaned: [
             {
               provider: 'test',
@@ -3323,6 +3325,7 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
           color: 'avocado',
@@ -3373,10 +3376,17 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
+        canonicalUrl: undefined,
         content: 'Freeform content',
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          aigcDetect: undefined,
+          channels: [],
           cleaned: [],
+          embedding: undefined,
+          enriched: undefined,
+          language: undefined,
+          scraped: undefined,
           storedCodeSnippets: '',
         },
         contentQuality: {
@@ -3411,6 +3421,7 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
           color: 'avocado',
@@ -3508,10 +3519,17 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
+        canonicalUrl: undefined,
         content: 'Collection content',
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          aigcDetect: undefined,
+          channels: [],
           cleaned: [],
+          embedding: undefined,
+          enriched: undefined,
+          language: undefined,
+          scraped: undefined,
           storedCodeSnippets: '',
         },
         contentQuality: {
@@ -3546,6 +3564,7 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
           createdAt: expect.any(Number),
@@ -3591,9 +3610,17 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
+        canonicalUrl: undefined,
+        content: undefined,
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          aigcDetect: undefined,
+          channels: [],
           cleaned: [],
+          embedding: undefined,
+          enriched: undefined,
+          language: undefined,
+          scraped: undefined,
           storedCodeSnippets: '',
         },
         contentQuality: {
@@ -3628,6 +3655,7 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
           color: 'avocado',

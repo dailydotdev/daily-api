@@ -94,6 +94,14 @@ const parseOpportunityFeedback = async ({
     'Successfully parsed opportunity feedback',
   );
 
+  if (match.rejectionClassification) {
+    logger.debug(
+      { opportunityId, userId },
+      'Rejection feedback already classified',
+    );
+    return;
+  }
+
   try {
     const feedback = match.feedback
       .map((item) => `Q: ${item.screening}\nA: ${item.answer}`)
