@@ -215,6 +215,72 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields.title).toBe('@DailyDev: Single tweet content');
   });
 
+  it('should strip leading @mentions from title content', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/bcherny/status/123',
+        extra: {
+          subtype: 'tweet',
+          content:
+            '@mikegiannulis I use both Cowork and Claude Code personally',
+        },
+      },
+    });
+
+    expect(payload.fields.title).toBe(
+      '@bcherny: I use both Cowork and Claude Code personally',
+    );
+  });
+
+  it('should strip multiple leading @mentions from title content', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/user/status/123',
+        extra: {
+          subtype: 'tweet',
+          content: '@foo @bar @baz actual content here',
+        },
+      },
+    });
+
+    expect(payload.fields.title).toBe('@user: actual content here');
+  });
+
+  it('should exclude twitter profile images as post image', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/user/status/9',
+        image:
+          'https://pbs.twimg.com/profile_images/1902044548936953856/J2jeik0t_normal.jpg',
+        extra: {
+          subtype: 'tweet',
+          content: 'Some content',
+        },
+      },
+    });
+
+    expect(payload.fields.image).toBeNull();
+  });
+
+  it('should allow non-profile twitter images as post image', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/user/status/10',
+        image: 'https://pbs.twimg.com/media/abc123.jpg',
+        extra: {
+          subtype: 'tweet',
+          content: 'Some content',
+        },
+      },
+    });
+
+    expect(payload.fields.image).toBe('https://pbs.twimg.com/media/abc123.jpg');
+  });
+
   it('should throw validation error for invalid payload', () => {
     expect(() =>
       mapTwitterSocialPayload({
