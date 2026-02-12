@@ -240,7 +240,7 @@ const jwtEnv = [
   { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
 ];
 
-const commonEnv = [{ name: 'SERVICE_VERSION', value: imageTag }];
+const commonEnv = [{ name: 'OTEL_SERVICE_VERSION', value: imageTag }];
 
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
@@ -302,8 +302,8 @@ if (isAdhocEnv) {
       podAnnotations: podAnnotations,
       env: [
         {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
+          name: 'OTEL_SERVICE_NAME',
+          value: `${envVars.otelServiceName as string}-bg`,
         },
         ...commonEnv,
         ...jwtEnv,
@@ -373,8 +373,8 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-ws`,
+          name: 'OTEL_SERVICE_NAME',
+          value: `${envVars.otelServiceName as string}-ws`,
         },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
@@ -396,8 +396,8 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
+          name: 'OTEL_SERVICE_NAME',
+          value: `${envVars.otelServiceName as string}-bg`,
         },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
@@ -442,8 +442,8 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-private`,
+          name: 'OTEL_SERVICE_NAME',
+          value: `${envVars.otelServiceName as string}-private`,
         },
       ],
       minReplicas: 1,
@@ -473,8 +473,8 @@ if (isAdhocEnv) {
         ...commonEnv,
         ...jwtEnv,
         {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-personalized-digest`,
+          name: 'OTEL_SERVICE_NAME',
+          value: `${envVars.otelServiceName as string}-personalized-digest`,
         },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
@@ -550,7 +550,7 @@ const [apps] = deployApplicationSuite(
       ],
       requests: {
         cpu: '50m',
-        memory: '450Mi'
+        memory: '450Mi',
       },
       limits: {
         memory: '900Mi',
