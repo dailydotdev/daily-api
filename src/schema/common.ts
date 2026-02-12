@@ -344,7 +344,8 @@ export function connectionFromNodes<
   total?: number,
   queryParams?: TParams,
 ): Connection<TReturn> & TExtra {
-  const transformedNodes = pageGenerator.transformNodes?.(page, nodes) ?? nodes;
+  const transformedNodes =
+    pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes;
   // Extract staleCursor from queryParams if it's a FeedResponse
   const staleCursor =
     queryParams &&
