@@ -78,6 +78,11 @@ export const typeDefs = /* GraphQL */ `
     hasPreviousPage: Boolean!
     startCursor: String
     endCursor: String
+    """
+    Indicates that the feed cache was regenerated and the cursor became stale.
+    Client should reset and refetch from cursor=0 to avoid duplicate posts.
+    """
+    staleCursor: Boolean
   }
 
   """
