@@ -348,8 +348,8 @@ describe('parseOpportunityFeedback worker', () => {
       where: { opportunityId: testOpportunityId, userId: '1' },
     });
 
-    // Rejection classification should be null (error was handled gracefully)
-    expect(updatedMatch?.rejectionClassification).toBeNull();
+    // Rejection classification should remain empty JSON (error was handled gracefully)
+    expect(updatedMatch?.rejectionClassification).toEqual({});
     // But per-item feedback classification should still be stored
     expect(updatedMatch?.feedback?.[0]?.classification).toBeDefined();
   });

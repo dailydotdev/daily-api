@@ -10,6 +10,10 @@ export class AddRejectionClassificationToOpportunityMatch1770812936388
       `ALTER TABLE "opportunity_match"
        ADD COLUMN IF NOT EXISTS "rejectionClassification" jsonb`,
     );
+    await queryRunner.query(
+      `ALTER TABLE "opportunity_match"
+       ALTER COLUMN "rejectionClassification" SET DEFAULT '{}'::jsonb`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

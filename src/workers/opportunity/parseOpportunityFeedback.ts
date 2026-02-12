@@ -93,7 +93,12 @@ const parseOpportunityFeedback = async ({
     'Successfully parsed opportunity feedback',
   );
 
-  if (match.rejectionClassification) {
+  const hasRejectionClassification =
+    !!match.rejectionClassification &&
+    Array.isArray(match.rejectionClassification.reasons) &&
+    typeof match.rejectionClassification.summary === 'string';
+
+  if (hasRejectionClassification) {
     logger.debug(
       { opportunityId, userId },
       'Rejection feedback already classified',
