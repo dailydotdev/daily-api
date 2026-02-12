@@ -1,4 +1,3 @@
-import { ConnectError } from '@connectrpc/connect';
 import { CandidateRejectedOpportunityMessage } from '@dailydotdev/schema';
 import type { FastifyLoggerInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
@@ -34,7 +33,7 @@ const parseOpportunityFeedback = async ({
   });
 
   if (!match) {
-    logger.warn({ opportunityId, userId }, 'No match found for feedback');
+    logger.debug({ opportunityId, userId }, 'No match found for feedback');
     return;
   }
 
@@ -58,7 +57,7 @@ const parseOpportunityFeedback = async ({
         const classification = result.classification;
 
         if (!classification) {
-          logger.warn(
+          logger.debug(
             { opportunityId, userId, answer: item.answer },
             'No classification returned from Bragi',
           );
@@ -77,14 +76,11 @@ const parseOpportunityFeedback = async ({
           classification: feedbackClassification,
         };
       } catch (err) {
-        if (err instanceof ConnectError) {
-          logger.error(
-            { err, opportunityId, userId, answer: item.answer },
-            'ConnectError when parsing feedback',
-          );
-          return item;
-        }
-        throw err;
+        logger.debug(
+          { err, opportunityId, userId, answer: item.answer },
+          'Error when parsing feedback',
+        );
+        return item;
       }
     }),
   );
@@ -97,11 +93,6 @@ const parseOpportunityFeedback = async ({
     { opportunityId, userId },
     'Successfully parsed opportunity feedback',
   );
-
-  // Skip rejection classification if already set (idempotent)
-  if (match.rejectionClassification) {
-    return;
-  }
 
   try {
     const feedback = match.feedback
@@ -125,7 +116,7 @@ const parseOpportunityFeedback = async ({
     );
 
     if (!result?.classification) {
-      logger.warn(
+      logger.debug(
         { opportunityId, userId },
         'No rejection classification returned from Bragi',
       );
@@ -164,14 +155,10 @@ const parseOpportunityFeedback = async ({
       'Successfully classified rejection feedback',
     );
   } catch (err) {
-    if (err instanceof ConnectError) {
-      logger.error(
-        { err, opportunityId, userId },
-        'ConnectError when classifying rejection feedback',
-      );
-      return;
-    }
-    throw err;
+    logger.debug(
+      { err, opportunityId, userId },
+      'Error when classifying rejection feedback',
+    );
   }
 };
 
