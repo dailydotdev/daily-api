@@ -1,8 +1,5 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../../helpers';
-import {
-  parseOpportunityFeedbackWorker as worker,
-  parseRejectedOpportunityFeedbackWorker as rejectedWorker,
-} from '../../../src/workers/opportunity/parseOpportunityFeedback';
+import { parseOpportunityFeedbackWorker as worker } from '../../../src/workers/opportunity/parseOpportunityFeedback';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
@@ -16,7 +13,6 @@ import {
   FeedbackUrgency,
   OpportunityState,
   OpportunityType,
-  CandidateRejectedOpportunityMessage,
 } from '@dailydotdev/schema';
 
 const mockParseFeedback = jest.fn();
@@ -229,7 +225,7 @@ describe('parseOpportunityFeedback worker', () => {
     });
   });
 
-  it('should classify feedback from candidate-rejected-opportunity events', async () => {
+  it('should classify feedback for candidate rejected matches from submitted events', async () => {
     await con.getRepository(OpportunityMatch).save({
       opportunityId: testOpportunityId,
       userId: '1',
@@ -262,12 +258,12 @@ describe('parseOpportunityFeedback worker', () => {
       },
     });
 
-    await expectSuccessfulTypedBackground<'api.v1.candidate-rejected-opportunity'>(
-      rejectedWorker,
-      new CandidateRejectedOpportunityMessage({
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-feedback-submitted'>(
+      worker,
+      {
         opportunityId: testOpportunityId,
         userId: '1',
-      }),
+      },
     );
 
     expect(mockClassifyRejectionFeedback).toHaveBeenCalled();

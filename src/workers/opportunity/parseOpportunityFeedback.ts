@@ -1,4 +1,3 @@
-import { CandidateRejectedOpportunityMessage } from '@dailydotdev/schema';
 import type { FastifyLoggerInstance } from 'fastify';
 import type { DataSource } from 'typeorm';
 import type { TypedWorker } from '../worker';
@@ -176,21 +175,4 @@ export const parseOpportunityFeedbackWorker: TypedWorker<'api.v1.opportunity-fee
     handler: async ({ data }, con, logger) => {
       await parseOpportunityFeedback({ data, con, logger });
     },
-  };
-
-export const parseRejectedOpportunityFeedbackWorker: TypedWorker<'api.v1.candidate-rejected-opportunity'> =
-  {
-    subscription: 'api.parse-rejected-opportunity-feedback',
-    handler: async ({ data }, con, logger) => {
-      await parseOpportunityFeedback({
-        data: {
-          opportunityId: data.opportunityId,
-          userId: data.userId,
-        },
-        con,
-        logger,
-      });
-    },
-    parseMessage: (message) =>
-      CandidateRejectedOpportunityMessage.fromBinary(message.data),
   };
