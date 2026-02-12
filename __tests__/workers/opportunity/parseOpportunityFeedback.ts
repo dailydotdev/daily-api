@@ -277,7 +277,7 @@ describe('parseOpportunityFeedback worker', () => {
     });
   });
 
-  it('should skip classifyRejectionFeedback when already classified', async () => {
+  it('should reclassify when already classified', async () => {
     await con.getRepository(OpportunityMatch).save({
       opportunityId: testOpportunityId,
       userId: '1',
@@ -299,6 +299,20 @@ describe('parseOpportunityFeedback worker', () => {
       },
     });
 
+    mockClassifyRejectionFeedback.mockResolvedValue({
+      id: 'test-id',
+      classification: {
+        reasons: [
+          {
+            reason: 5,
+            confidence: 0.91,
+            explanation: 'Candidate prefers another area',
+          },
+        ],
+        summary: 'Updated classification',
+      },
+    });
+
     await expectSuccessfulTypedBackground<'api.v1.opportunity-feedback-submitted'>(
       worker,
       {
@@ -307,7 +321,22 @@ describe('parseOpportunityFeedback worker', () => {
       },
     );
 
-    expect(mockClassifyRejectionFeedback).not.toHaveBeenCalled();
+    expect(mockClassifyRejectionFeedback).toHaveBeenCalled();
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+      where: { opportunityId: testOpportunityId, userId: '1' },
+    });
+
+    expect(updatedMatch?.rejectionClassification).toEqual({
+      reasons: [
+        {
+          reason: 5,
+          confidence: 0.91,
+          explanation: 'Candidate prefers another area',
+        },
+      ],
+      summary: 'Updated classification',
+    });
   });
 
   it('should handle ConnectError from classifyRejectionFeedback gracefully', async () => {
