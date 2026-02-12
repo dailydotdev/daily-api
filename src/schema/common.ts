@@ -378,8 +378,18 @@ export function connectionFromNodes<
     pageInfo: {
       startCursor: edges[0].cursor,
       endCursor: edges[edges.length - 1].cursor,
-      hasNextPage: pageGenerator.hasNextPage(page, nodes.length, total),
-      hasPreviousPage: pageGenerator.hasPreviousPage(page, nodes.length, total),
+      hasNextPage: pageGenerator.hasNextPage(
+        page,
+        nodes.length,
+        total,
+        queryParams,
+      ),
+      hasPreviousPage: pageGenerator.hasPreviousPage(
+        page,
+        nodes.length,
+        total,
+        queryParams,
+      ),
       staleCursor,
     },
     edges,
