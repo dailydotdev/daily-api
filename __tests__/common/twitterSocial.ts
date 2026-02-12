@@ -215,6 +215,39 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields.title).toBe('@DailyDev: Single tweet content');
   });
 
+  it('should exclude twitter profile images as post image', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/user/status/9',
+        image:
+          'https://pbs.twimg.com/profile_images/1902044548936953856/J2jeik0t_normal.jpg',
+        extra: {
+          subtype: 'tweet',
+          content: 'Some content',
+        },
+      },
+    });
+
+    expect(payload.fields.image).toBeNull();
+  });
+
+  it('should allow non-profile twitter images as post image', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/user/status/10',
+        image: 'https://pbs.twimg.com/media/abc123.jpg',
+        extra: {
+          subtype: 'tweet',
+          content: 'Some content',
+        },
+      },
+    });
+
+    expect(payload.fields.image).toBe('https://pbs.twimg.com/media/abc123.jpg');
+  });
+
   it('should throw validation error for invalid payload', () => {
     expect(() =>
       mapTwitterSocialPayload({

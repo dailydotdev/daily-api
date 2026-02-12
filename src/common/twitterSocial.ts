@@ -140,6 +140,9 @@ const isVideoMedia = (media: TwitterSocialMedia): boolean => {
   return type === 'video' || type === 'gif' || type === 'animated_gif';
 };
 
+const isTwitterProfileImage = (url?: string | null): boolean =>
+  !!url && /pbs\.twimg\.com\/profile_images\//i.test(url);
+
 const pickPrimaryImage = (
   media: TwitterSocialMedia[] = [],
   fallbackImage?: string | null,
@@ -150,7 +153,13 @@ const pickPrimaryImage = (
     return imageMedia.url;
   }
 
-  return getStringOrUndefined(fallbackImage);
+  const fallback = getStringOrUndefined(fallbackImage);
+
+  if (isTwitterProfileImage(fallback)) {
+    return undefined;
+  }
+
+  return fallback;
 };
 
 const pickPrimaryVideoId = (
