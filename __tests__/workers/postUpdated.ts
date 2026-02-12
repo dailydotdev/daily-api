@@ -15,6 +15,7 @@ import {
   PostRelation,
   PostType,
   SharePost,
+  SocialTwitterPost,
   Source,
   Submission,
   SubmissionStatus,
@@ -843,6 +844,92 @@ it('should map retweet subtype to repost fallback title', async () => {
   expect(post.subType).toEqual('repost');
   expect(post.title).toEqual('@dailydotdev: reposted');
   expect(post.content).toBeNull();
+});
+
+it('should store enrichment fields for social twitter post on create', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/2001',
+    source_id: 'a',
+    extra: {
+      subtype: 'tweet',
+      content: 'Enriched tweet',
+      summary: 'A brief summary of the tweet',
+      description: 'A longer description of the tweet',
+      read_time: 3,
+      site_twitter: '@dailydev',
+      creator_twitter: '@johndoe',
+    },
+  });
+
+  const post = await con
+    .getRepository(SocialTwitterPost)
+    .findOneByOrFail({ yggdrasilId });
+
+  expect(post).toMatchObject({
+    type: PostType.SocialTwitter,
+    summary: 'A brief summary of the tweet',
+    description: 'A longer description of the tweet',
+    readTime: 3,
+    siteTwitter: '@dailydev',
+    creatorTwitter: '@johndoe',
+  });
+});
+
+it('should store enrichment fields for social twitter post on update', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/2002',
+    source_id: 'a',
+    extra: {
+      subtype: 'tweet',
+      content: 'Original tweet',
+    },
+  });
+
+  const created = await con
+    .getRepository(SocialTwitterPost)
+    .findOneByOrFail({ yggdrasilId });
+
+  expect(created.summary).toBeNull();
+  expect(created.readTime).toBeNull();
+  expect(created.siteTwitter).toBeNull();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    post_id: created.id,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/2002',
+    source_id: 'a',
+    updated_at: new Date('2030-01-01'),
+    extra: {
+      subtype: 'tweet',
+      content: 'Original tweet',
+      summary: 'Updated summary',
+      description: 'Updated description',
+      read_time: 5,
+      site_twitter: '@dailydev',
+      creator_twitter: '@janedoe',
+    },
+  });
+
+  const updated = await con
+    .getRepository(SocialTwitterPost)
+    .findOneByOrFail({ yggdrasilId });
+
+  expect(updated).toMatchObject({
+    summary: 'Updated summary',
+    description: 'Updated description',
+    readTime: 5,
+    siteTwitter: '@dailydev',
+    creatorTwitter: '@janedoe',
+  });
 });
 
 it('should set show on feed to true when order is missing', async () => {

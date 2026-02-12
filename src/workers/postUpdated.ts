@@ -289,6 +289,36 @@ const allowedFieldsMapping: Partial<Record<PostType, string[]>> = {
     'tagsStr',
     'contentMeta',
   ],
+  [PostType.SocialTwitter]: [
+    'canonicalUrl',
+    'content',
+    'contentCuration',
+    'contentHtml',
+    'contentMeta',
+    'contentQuality',
+    'creatorTwitter',
+    'description',
+    'image',
+    'language',
+    'metadataChangedAt',
+    'origin',
+    'private',
+    'publishedAt',
+    'readTime',
+    'sentAnalyticsReport',
+    'sharedPostId',
+    'showOnFeed',
+    'siteTwitter',
+    'sourceId',
+    'subType',
+    'summary',
+    'tagsStr',
+    'title',
+    'translation',
+    'type',
+    'url',
+    'videoId',
+  ],
 };
 
 const contentTypeFromPostType: Record<PostType, typeof Post> = {
@@ -623,7 +653,7 @@ const fixData = async ({
 }: FixDataProps): Promise<FixData> => {
   const creatorTwitter =
     data?.extra?.creator_twitter === '' || data?.extra?.creator_twitter === '@'
-      ? null
+      ? undefined
       : data?.extra?.creator_twitter;
 
   const twitterMapping = isTwitterSocialType(data?.content_type)

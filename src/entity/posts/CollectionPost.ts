@@ -12,15 +12,6 @@ export class CollectionPost extends Post {
   @Column({ type: 'text', nullable: true })
   contentHtml: string;
 
-  @Column({ nullable: true })
-  readTime?: number;
-
-  @Column({ type: 'text', nullable: true })
-  description?: string;
-
-  @Column({ type: 'text', nullable: true })
-  summary?: string;
-
   @Column({ type: 'text', array: true, default: [] })
   collectionSources: string[];
 }
