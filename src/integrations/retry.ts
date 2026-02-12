@@ -127,7 +127,7 @@ export async function retryFetchParse<T>(
   retryOpts?: RetryOptions,
 ): Promise<T> {
   const res = await retryFetch(url, fetchOpts, retryOpts);
-  return res.json() as Promise<T>;
+  return (await res.json()) as T;
 }
 
 export async function fetchParse<T>(
@@ -141,7 +141,7 @@ export async function fetchParse<T>(
     });
     const res = await fetch(url, fetchOpts);
     span.setAttribute(ATTR_HTTP_RESPONSE_STATUS_CODE, res.status);
-    return res.json() as T;
+    return (await res.json()) as T;
   });
 }
 
