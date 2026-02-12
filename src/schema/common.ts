@@ -350,7 +350,7 @@ export function connectionFromNodes<
     queryParams &&
     typeof queryParams === 'object' &&
     'staleCursor' in queryParams
-      ? (queryParams as FeedResponse).staleCursor
+      ? (queryParams as { staleCursor?: boolean }).staleCursor
       : undefined;
 
   if (!transformedNodes.length) {
