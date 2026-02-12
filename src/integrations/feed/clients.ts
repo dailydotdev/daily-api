@@ -10,6 +10,7 @@ import type { JsonValue } from '@bufbuild/protobuf';
 type RawFeedServiceResponse = {
   data: { post_id: string; metadata: Record<string, string> }[];
   cursor?: string;
+  stale_cursor?: boolean;
 };
 
 type FeedFetchOptions = RequestInit & {
@@ -73,6 +74,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
         ];
       }),
       cursor: res.cursor,
+      staleCursor: res.stale_cursor,
     };
   }
 

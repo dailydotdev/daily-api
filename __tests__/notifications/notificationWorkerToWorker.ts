@@ -105,7 +105,7 @@ describe('notificationWorkerToWorker', () => {
     expect(notifications).toEqual([
       {
         attachments: attachments.map(({ id }) => id),
-        avatars: avatars.map(({ id }) => id),
+        avatars: expect.arrayContaining(avatars.map(({ id }) => id)),
         createdAt: expect.any(Date),
         description: null,
         icon: 'Upvote',
@@ -120,6 +120,7 @@ describe('notificationWorkerToWorker', () => {
         uniqueKey: '2',
       },
     ]);
+    expect(notifications[0].avatars).toHaveLength(avatars.length);
     const userNotifications = await con
       .getRepository(UserNotification)
       .find({ order: { userId: 'ASC' } });

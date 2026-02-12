@@ -6,6 +6,10 @@ import {
   FeedPreferencesConfigGenerator,
   FeedResponse,
 } from '../../src/integrations/feed';
+import {
+  connectionFromNodes,
+  feedCursorPageGenerator,
+} from '../../src/schema/common';
 import { MockContext, saveFixtures } from '../helpers';
 import { deleteKeysByPattern } from '../../src/redis';
 import createOrGetConnection from '../../src/db';
@@ -127,6 +131,112 @@ describe('FeedClient', () => {
         ['6', '{"mab":{"test":"da"}}'],
       ],
     });
+  });
+
+  it('should parse staleCursor from feed service response', async () => {
+    const responseWithStaleCursor = {
+      ...rawFeedResponse,
+      cursor: 'abc123',
+      stale_cursor: true,
+    };
+
+    nock(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .post('', config as any)
+      .reply(200, responseWithStaleCursor);
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    expect(feed).toMatchObject({
+      cursor: 'abc123',
+      staleCursor: true,
+    });
+  });
+
+  it('should not include staleCursor when not present in response', async () => {
+    nock(url)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .post('', config as any)
+      .reply(200, rawFeedResponse);
+
+    const feedClient = new FeedClient(url);
+    const feed = await feedClient.fetchFeed(ctx, 'id', config);
+    expect(feed.staleCursor).toBeUndefined();
+  });
+});
+
+describe('connectionFromNodes with staleCursor', () => {
+  const pageGenerator = feedCursorPageGenerator<{ id: string }>(30, 50);
+
+  it('should include staleCursor in pageInfo when present in queryParams', () => {
+    const nodes = [{ id: '1' }, { id: '2' }];
+    const page = { limit: 30 };
+    const queryParams: FeedResponse = {
+      data: [
+        ['1', null],
+        ['2', null],
+      ],
+      cursor: 'next-cursor',
+      staleCursor: true,
+    };
+
+    const result = connectionFromNodes(
+      {},
+      nodes,
+      undefined,
+      page,
+      pageGenerator,
+      undefined,
+      queryParams,
+    );
+
+    expect(result.pageInfo.staleCursor).toBe(true);
+  });
+
+  it('should have undefined staleCursor in pageInfo when not present in queryParams', () => {
+    const nodes = [{ id: '1' }, { id: '2' }];
+    const page = { limit: 30 };
+    const queryParams: FeedResponse = {
+      data: [
+        ['1', null],
+        ['2', null],
+      ],
+      cursor: 'next-cursor',
+    };
+
+    const result = connectionFromNodes(
+      {},
+      nodes,
+      undefined,
+      page,
+      pageGenerator,
+      undefined,
+      queryParams,
+    );
+
+    expect(result.pageInfo.staleCursor).toBeUndefined();
+  });
+
+  it('should include staleCursor in pageInfo even when nodes are empty', () => {
+    const nodes: { id: string }[] = [];
+    const page = { limit: 30 };
+    const queryParams: FeedResponse = {
+      data: [],
+      staleCursor: true,
+    };
+
+    const result = connectionFromNodes(
+      {},
+      nodes,
+      undefined,
+      page,
+      pageGenerator,
+      undefined,
+      queryParams,
+    );
+
+    expect(result.pageInfo.staleCursor).toBe(true);
+    expect(result.edges).toHaveLength(0);
   });
 });
 

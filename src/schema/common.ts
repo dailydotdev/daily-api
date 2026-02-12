@@ -78,6 +78,11 @@ export const typeDefs = /* GraphQL */ `
     hasPreviousPage: Boolean!
     startCursor: String
     endCursor: String
+    """
+    Indicates that the feed cache was regenerated and the cursor became stale.
+    Client should reset and refetch from cursor=0 to avoid duplicate posts.
+    """
+    staleCursor: Boolean
   }
 
   """
@@ -339,7 +344,16 @@ export function connectionFromNodes<
   total?: number,
   queryParams?: TParams,
 ): Connection<TReturn> & TExtra {
-  const transformedNodes = pageGenerator.transformNodes?.(page, nodes) ?? nodes;
+  const transformedNodes =
+    pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes;
+  // Extract staleCursor from queryParams if it's a FeedResponse
+  const staleCursor =
+    queryParams &&
+    typeof queryParams === 'object' &&
+    'staleCursor' in queryParams
+      ? (queryParams as { staleCursor?: boolean }).staleCursor
+      : undefined;
+
   if (!transformedNodes.length) {
     return {
       pageInfo: {
@@ -347,6 +361,7 @@ export function connectionFromNodes<
         endCursor: null,
         hasNextPage: false,
         hasPreviousPage: false,
+        staleCursor,
       },
       edges: [],
       ...extra,
@@ -363,8 +378,19 @@ export function connectionFromNodes<
     pageInfo: {
       startCursor: edges[0].cursor,
       endCursor: edges[edges.length - 1].cursor,
-      hasNextPage: pageGenerator.hasNextPage(page, nodes.length, total),
-      hasPreviousPage: pageGenerator.hasPreviousPage(page, nodes.length, total),
+      hasNextPage: pageGenerator.hasNextPage(
+        page,
+        nodes.length,
+        total,
+        queryParams,
+      ),
+      hasPreviousPage: pageGenerator.hasPreviousPage(
+        page,
+        nodes.length,
+        total,
+        queryParams,
+      ),
+      staleCursor,
     },
     edges,
     ...extra,
