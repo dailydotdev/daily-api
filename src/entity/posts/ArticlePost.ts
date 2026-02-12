@@ -24,7 +24,7 @@ export class ArticlePost extends Post {
   siteTwitter?: string;
 
   @Column({ type: 'text', nullable: true })
-  creatorTwitter?: string | null;
+  creatorTwitter?: string;
 
   @Column({ type: 'jsonb', nullable: true })
   toc?: Toc;

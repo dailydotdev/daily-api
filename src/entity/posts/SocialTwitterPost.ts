@@ -13,13 +13,13 @@ export class SocialTwitterPost extends Post {
   canonicalUrl?: string;
 
   @Column({ type: 'text', nullable: true })
-  image?: string | null;
+  image?: string;
 
   @Column({ type: 'text', nullable: true })
-  content?: string | null;
+  content?: string;
 
   @Column({ type: 'text', nullable: true })
-  contentHtml?: string | null;
+  contentHtml?: string;
 
   @Column({ type: 'text', nullable: true })
   siteTwitter?: string;
@@ -28,7 +28,7 @@ export class SocialTwitterPost extends Post {
   creatorTwitter?: string;
 
   @Column({ type: 'text', nullable: true })
-  videoId?: string | null;
+  videoId?: string;
 
   @Column({ type: 'text', nullable: true })
   sharedPostId?: string;

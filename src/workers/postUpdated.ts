@@ -653,7 +653,7 @@ const fixData = async ({
 }: FixDataProps): Promise<FixData> => {
   const creatorTwitter =
     data?.extra?.creator_twitter === '' || data?.extra?.creator_twitter === '@'
-      ? null
+      ? undefined
       : data?.extra?.creator_twitter;
 
   const twitterMapping = isTwitterSocialType(data?.content_type)
