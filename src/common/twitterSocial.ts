@@ -104,9 +104,6 @@ const extractTwitterHandleFromUrl = (
   return normalizeTwitterHandleForTitle(match?.[1]);
 };
 
-const stripLeadingMentions = (text: string): string =>
-  text.replace(/^(?:@\w+\s*)+/, '').trim();
-
 const formatTwitterTitle = ({
   handle,
   content,
@@ -117,23 +114,20 @@ const formatTwitterTitle = ({
   subType?: TwitterSocialSubType;
 }): string | undefined => {
   const parsedContent = getStringOrUndefined(content);
-  const cleanContent = parsedContent
-    ? getStringOrUndefined(stripLeadingMentions(parsedContent))
-    : undefined;
 
-  if (!cleanContent && subType === 'repost' && handle) {
+  if (!parsedContent && subType === 'repost' && handle) {
     return `@${handle}: reposted`;
   }
 
-  if (!cleanContent) {
+  if (!parsedContent) {
     return undefined;
   }
 
   if (!handle) {
-    return cleanContent;
+    return parsedContent;
   }
 
-  return `@${handle}: ${cleanContent}`;
+  return `@${handle}: ${parsedContent}`;
 };
 
 const isImageMedia = (media: TwitterSocialMedia): boolean => {
