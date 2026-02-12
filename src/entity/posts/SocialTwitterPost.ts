@@ -22,6 +22,12 @@ export class SocialTwitterPost extends Post {
   contentHtml?: string | null;
 
   @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Column({ type: 'text', nullable: true })
+  summary?: string;
+
+  @Column({ type: 'text', nullable: true })
   videoId?: string | null;
 
   @Column({ type: 'text', nullable: true })
