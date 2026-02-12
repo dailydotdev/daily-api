@@ -345,6 +345,14 @@ export function connectionFromNodes<
   queryParams?: TParams,
 ): Connection<TReturn> & TExtra {
   const transformedNodes = pageGenerator.transformNodes?.(page, nodes) ?? nodes;
+  // Extract staleCursor from queryParams if it's a FeedResponse
+  const staleCursor =
+    queryParams &&
+    typeof queryParams === 'object' &&
+    'staleCursor' in queryParams
+      ? (queryParams as FeedResponse).staleCursor
+      : undefined;
+
   if (!transformedNodes.length) {
     return {
       pageInfo: {
@@ -352,6 +360,7 @@ export function connectionFromNodes<
         endCursor: null,
         hasNextPage: false,
         hasPreviousPage: false,
+        staleCursor,
       },
       edges: [],
       ...extra,
@@ -370,6 +379,7 @@ export function connectionFromNodes<
       endCursor: edges[edges.length - 1].cursor,
       hasNextPage: pageGenerator.hasNextPage(page, nodes.length, total),
       hasPreviousPage: pageGenerator.hasPreviousPage(page, nodes.length, total),
+      staleCursor,
     },
     edges,
     ...extra,
