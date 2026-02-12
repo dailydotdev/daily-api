@@ -1771,13 +1771,13 @@ const onUserCandidatePreferenceChange = async (
     userId: data.payload.after!.userId,
   });
 
-  // cv field has a url when uploaded
-  const cv = data.payload.after!.cv as { url?: string } | undefined;
-  const previousCv = data.payload.before?.cv as { url?: string } | undefined;
-  const hasCvUrl = cv?.url;
-  const hadPreviousCvUrl = previousCv?.url;
+  // cv field has a blob when uploaded
+  const cv = data.payload.after!.cv as { blob?: string } | undefined;
+  const previousCv = data.payload.before?.cv as { blob?: string } | undefined;
+  const hasCvBlob = cv?.blob;
+  const hadPreviousCvBlob = previousCv?.blob;
 
-  if (hasCvUrl && !hadPreviousCvUrl) {
+  if (hasCvBlob && !hadPreviousCvBlob) {
     await checkAchievementProgress(
       con,
       logger,

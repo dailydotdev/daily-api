@@ -146,7 +146,7 @@ const handlePlusSubscribe: RetroactiveHandler = async (con, userIds) => {
 
 const handleCVUpload: RetroactiveHandler = async (con, userIds) => {
   const rows = await con.query(
-    `SELECT "userId" FROM user_candidate_preference WHERE "userId" = ANY($1) AND cv->>'url' IS NOT NULL`,
+    `SELECT "userId" FROM user_candidate_preference WHERE "userId" = ANY($1) AND cv->>'blob' IS NOT NULL`,
     [userIds],
   );
 

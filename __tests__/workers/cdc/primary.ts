@@ -6912,7 +6912,7 @@ describe('user_candidate_preference', () => {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cv: {
-        url: 'https://example.com/cv.pdf',
+        blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
       },
       cvParsed: {},
@@ -6961,7 +6961,7 @@ describe('user_candidate_preference', () => {
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
       cv: {
-        url: 'https://example.com/cv.pdf',
+        blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
       },
       role: 'Senior Full Stack Developer',
@@ -7018,7 +7018,7 @@ describe('user_candidate_preference', () => {
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
       cv: {
-        url: 'https://example.com/cv.pdf',
+        blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
       },
       role: 'Senior Full Stack Developer',
@@ -7058,7 +7058,7 @@ describe('user_candidate_preference', () => {
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
       cv: {
-        url: 'https://example.com/cv.pdf',
+        blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
       },
       role: 'Senior Full Stack Developer',
@@ -7097,7 +7097,7 @@ describe('user_candidate_preference', () => {
       userId: '2',
       status: CandidateStatus.DISABLED,
       cv: {
-        url: '',
+        blob: '',
         lastModified: new Date('2023-01-01'),
       },
       role: '',
@@ -7141,7 +7141,7 @@ describe('user_candidate_preference', () => {
           status: CandidateStatus.OPEN_TO_OFFERS,
           cvParsed: {},
           cv: {
-            url: 'https://example.com/cv.pdf',
+            blob: 'https://example.com/cv.pdf',
             lastModified: new Date('2023-01-01'),
           },
           role: 'Senior Developer',
@@ -7172,7 +7172,7 @@ describe('user_candidate_preference', () => {
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
       cv: {
-        url: 'https://example.com/cv.pdf',
+        blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
       },
       role: 'Full Stack Engineer',
