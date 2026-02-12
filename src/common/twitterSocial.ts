@@ -195,8 +195,8 @@ const buildThreadContent = ({
   const contentHtml = htmlParts.filter(Boolean).join('\n');
 
   return {
-    content: content?.trim() || undefined,
-    contentHtml: contentHtml?.trim() || undefined,
+    content: content.trim() || undefined,
+    contentHtml: contentHtml.trim() || undefined,
   };
 };
 
