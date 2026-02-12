@@ -1772,8 +1772,12 @@ const onUserCandidatePreferenceChange = async (
   });
 
   // cv field has a blob when uploaded
-  const cv = data.payload.after!.cv as { blob?: string } | undefined;
-  const previousCv = data.payload.before?.cv as { blob?: string } | undefined;
+  const cv = JSON.parse(
+    (data.payload.after!.cv as unknown as string) || '{}',
+  ) as { blob?: string };
+  const previousCv = JSON.parse(
+    (data.payload.before?.cv as unknown as string) || '{}',
+  ) as { blob?: string };
   const hasCvBlob = cv?.blob;
   const hadPreviousCvBlob = previousCv?.blob;
 
