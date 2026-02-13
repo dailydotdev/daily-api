@@ -15,6 +15,7 @@ import { DatasetTool } from '../src/entity/dataset/DatasetTool';
 import { Source, SourceMember } from '../src/entity';
 import { SourceMemberRoles } from '../src/roles';
 import { sourcesFixture } from './fixture/source';
+import { MAX_STACK_ITEMS } from '../src/common/constants';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -241,6 +242,44 @@ describe('mutation addSourceStack', () => {
     });
 
     expect(res.errors?.[0]?.message).toBe('Stack can only be added to Squads');
+  });
+
+  it('should prevent adding more than maximum stack items to squad', async () => {
+    loggedUser = '1';
+    await con.getRepository(SourceMember).save({
+      userId: '1',
+      sourceId: 'squad',
+      role: SourceMemberRoles.Admin,
+      referralToken: 'token1',
+    });
+
+    const tools = await con.getRepository(DatasetTool).save(
+      Array.from({ length: MAX_STACK_ITEMS }, (_, index) => ({
+        title: `Squad Tool ${index}`,
+        titleNormalized: `squadtool${index}`,
+        faviconSource: 'none',
+      })),
+    );
+
+    await con.getRepository(SourceStack).save(
+      tools.map((tool, index) => ({
+        sourceId: 'squad',
+        toolId: tool.id,
+        position: index,
+        createdById: '1',
+      })),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: {
+        sourceId: 'squad',
+        input: { title: 'Node.js' },
+      },
+    });
+
+    expect(res.errors?.[0]?.message).toBe(
+      `Squads can have a maximum of ${MAX_STACK_ITEMS} items in their stack`,
+    );
   });
 });
 

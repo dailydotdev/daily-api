@@ -14,7 +14,7 @@ import {
   type ReorderSourceStackInput,
 } from '../common/schema/sourceStack';
 import { findOrCreateDatasetTool } from '../common/datasetTool';
-import { NEW_ITEM_POSITION } from '../common/constants';
+import { MAX_STACK_ITEMS, NEW_ITEM_POSITION } from '../common/constants';
 import { ensureSourcePermissions, SourcePermissions } from './sources';
 import { Source, SourceType } from '../entity/Source';
 
@@ -183,6 +183,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (existing) {
         throw new ValidationError('Stack item already exists in this Squad');
+      }
+
+      const count = await ctx.con.getRepository(SourceStack).count({
+        where: { sourceId: source.id },
+      });
+      if (count >= MAX_STACK_ITEMS) {
+        throw new ValidationError(
+          `Squads can have a maximum of ${MAX_STACK_ITEMS} items in their stack`,
+        );
       }
 
       const sourceStack = ctx.con.getRepository(SourceStack).create({
