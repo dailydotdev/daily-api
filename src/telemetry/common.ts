@@ -1,6 +1,6 @@
 import { FastifyRequest } from 'fastify';
 import type { MetricOptions } from '@opentelemetry/api';
-import { unwrapArray } from '../common';
+import { unwrapArray } from '../common/array';
 
 export const enableOpenTelemetry = process.env.OTEL_ENABLED === 'true';
 export const channelName = 'fastify.initialization';
