@@ -92,11 +92,6 @@ const parseOpportunityFeedback = async ({
     .getRepository(OpportunityMatch)
     .update({ opportunityId, userId }, { feedback: updatedFeedback });
 
-  logger.info(
-    { opportunityId, userId },
-    'Successfully parsed opportunity feedback',
-  );
-
   const feedback = match.feedback
     .map((item) => `Q: ${item.screening}\nA: ${item.answer}`)
     .join('\n\n');
@@ -153,11 +148,6 @@ const parseOpportunityFeedback = async ({
   await con
     .getRepository(OpportunityMatch)
     .update({ opportunityId, userId }, { rejectionClassification });
-
-  logger.info(
-    { opportunityId, userId },
-    'Successfully classified rejection feedback',
-  );
 };
 
 export const parseOpportunityFeedbackWorker: TypedWorker<'api.v1.opportunity-feedback-submitted'> =
