@@ -240,8 +240,6 @@ const jwtEnv = [
   { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
 ];
 
-const commonEnv = [{ name: 'OTEL_SERVICE_VERSION', value: imageTag }];
-
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
   podAnnotations['prometheus.io/scrape'] = 'true';
@@ -261,7 +259,6 @@ if (isAdhocEnv) {
           value: 'true',
         },
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-        ...commonEnv,
         ...jwtEnv,
       ],
       minReplicas: 3,
@@ -300,14 +297,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       podAnnotations: podAnnotations,
-      env: [
-        {
-          name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.otelServiceName as string}-bg`,
-        },
-        ...commonEnv,
-        ...jwtEnv,
-      ],
+      env: [...jwtEnv],
       ...vols,
     },
   ];
@@ -331,14 +321,14 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       podAnnotations: podAnnotations,
-      env: [...commonEnv, ...jwtEnv],
+      env: [...jwtEnv],
       ...vols,
     });
   }
 } else {
   appsArgs = [
     {
-      env: [nodeOptions(memory), ...commonEnv, ...jwtEnv],
+      env: [nodeOptions(memory), ...jwtEnv],
       minReplicas: 3,
       maxReplicas: 25,
       limits: apiLimits,
@@ -370,12 +360,7 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
-        ...commonEnv,
         ...jwtEnv,
-        {
-          name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.otelServiceName as string}-ws`,
-        },
       ],
       args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
       minReplicas: 2,
@@ -392,14 +377,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      env: [
-        ...commonEnv,
-        ...jwtEnv,
-        {
-          name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.otelServiceName as string}-bg`,
-        },
-      ],
+      env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'background'],
       minReplicas: 2,
       maxReplicas: 10,
@@ -421,7 +399,7 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'temporal',
-      env: [...commonEnv, ...jwtEnv],
+      env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'temporal'],
       minReplicas: 1,
       maxReplicas: 3,
@@ -437,15 +415,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [
-        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-        ...commonEnv,
-        ...jwtEnv,
-        {
-          name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.otelServiceName as string}-private`,
-        },
-      ],
+      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
       minReplicas: 1,
       maxReplicas: 4,
       requests: {
@@ -469,14 +439,7 @@ if (isAdhocEnv) {
   if (isPersonalizedDigestEnabled) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
-      env: [
-        ...commonEnv,
-        ...jwtEnv,
-        {
-          name: 'OTEL_SERVICE_NAME',
-          value: `${envVars.otelServiceName as string}-personalized-digest`,
-        },
-      ],
+      env: [...jwtEnv],
       args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
       minReplicas: 1,
       maxReplicas: 4,

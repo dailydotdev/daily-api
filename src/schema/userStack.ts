@@ -14,7 +14,7 @@ import {
   type ReorderUserStackInput,
 } from '../common/schema/userStack';
 import { findOrCreateDatasetTool } from '../common/datasetTool';
-import { NEW_ITEM_POSITION } from '../common/constants';
+import { MAX_STACK_ITEMS, NEW_ITEM_POSITION } from '../common/constants';
 
 interface GQLUserStack {
   id: string;
@@ -159,6 +159,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       if (existing) {
         throw new ValidationError('Stack item already exists in your profile');
+      }
+
+      const count = await ctx.con.getRepository(UserStack).count({
+        where: { userId: ctx.userId },
+      });
+      if (count >= MAX_STACK_ITEMS) {
+        throw new ValidationError(
+          `You can have a maximum of ${MAX_STACK_ITEMS} items in your stack`,
+        );
       }
 
       const userStack = ctx.con.getRepository(UserStack).create({

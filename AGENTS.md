@@ -274,6 +274,7 @@ The migration generator compares entities against the local database schema. Ens
     // GOOD: Inline in function parameters
     const processUser = (user: z.infer<typeof userSchema>) => { ... };
     ```
+- **Schema exports must use a `Schema` suffix** (e.g., `paginationSchema`, `urlParseSchema`, `fileUploadSchema`). This makes schema variables clearly distinguishable from regular values and types.
 
 ## Best Practices & Lessons Learned
 

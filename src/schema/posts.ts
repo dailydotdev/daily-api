@@ -803,6 +803,11 @@ export const typeDefs = /* GraphQL */ `
     language: String
 
     """
+    Twitter handle of the post creator
+    """
+    creatorTwitter: String
+
+    """
     Featured award for the post, currently the most expensive one
     """
     featuredAward: UserPost

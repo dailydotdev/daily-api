@@ -1,7 +1,7 @@
 import { ValidationError } from 'apollo-server-errors';
 import type { EntityManager } from 'typeorm';
 import { generateShortId } from '../ids';
-import { UNKNOWN_SOURCE } from '../entity/Source';
+import { Source, SourceType, UNKNOWN_SOURCE } from '../entity/Source';
 import { Post, PostOrigin, PostType } from '../entity/posts/Post';
 import { SocialTwitterPost } from '../entity/posts/SocialTwitterPost';
 import { markdown } from './markdown';
@@ -30,6 +30,7 @@ export interface TwitterReferencePost {
   contentHtml?: string | null;
   image?: string | null;
   videoId?: string | null;
+  authorUsername?: string | null;
 }
 
 export interface TwitterMappingResult {
@@ -41,29 +42,17 @@ export interface TwitterMappingResult {
 export interface TwitterReferenceUpsertParams {
   entityManager: EntityManager;
   reference: TwitterReferencePost;
-  sourceId?: string | null;
   language?: string | null;
-  isPrivate?: boolean;
 }
-
-const getStringOrUndefined = (value?: string | null): string | undefined => {
-  if (!value) {
-    return undefined;
-  }
-
-  const trimmedValue = value.trim();
-  return trimmedValue.length ? trimmedValue : undefined;
-};
 
 const normalizeTwitterHandleForTitle = (
   handle?: string | null,
 ): string | undefined => {
-  const parsedHandle = getStringOrUndefined(handle);
-  if (!parsedHandle) {
+  if (!handle) {
     return undefined;
   }
 
-  return parsedHandle.replace(/^@+/, '');
+  return handle.trim().replace(/^@+/, '') || undefined;
 };
 
 export const normalizeTwitterHandle = (
@@ -80,24 +69,24 @@ export const normalizeTwitterHandle = (
 export const extractTwitterStatusId = (
   url?: string | null,
 ): string | undefined => {
-  const parsedUrl = getStringOrUndefined(url);
-  if (!parsedUrl) {
+  const parsed = url?.trim();
+  if (!parsed) {
     return undefined;
   }
 
-  const match = parsedUrl.match(/\/status\/(\d+)/i);
+  const match = parsed.match(/\/status\/(\d+)/i);
   return match?.[1];
 };
 
 const extractTwitterHandleFromUrl = (
   url?: string | null,
 ): string | undefined => {
-  const parsedUrl = getStringOrUndefined(url);
-  if (!parsedUrl) {
+  const parsed = url?.trim();
+  if (!parsed) {
     return undefined;
   }
 
-  const match = parsedUrl.match(
+  const match = parsed.match(
     /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com)\/([^/?#]+)\/status\//i,
   );
 
@@ -116,9 +105,9 @@ const formatTwitterTitle = ({
   content?: string | null;
   subType?: TwitterSocialSubType;
 }): string | undefined => {
-  const parsedContent = getStringOrUndefined(content);
+  const parsedContent = content?.trim() || undefined;
   const cleanContent = parsedContent
-    ? getStringOrUndefined(stripLeadingMentions(parsedContent))
+    ? stripLeadingMentions(parsedContent) || undefined
     : undefined;
 
   if (!cleanContent && subType === 'repost' && handle) {
@@ -159,7 +148,7 @@ const pickPrimaryImage = (
     return imageMedia.url;
   }
 
-  const fallback = getStringOrUndefined(fallbackImage);
+  const fallback = fallbackImage?.trim() || undefined;
 
   if (isTwitterProfileImage(fallback)) {
     return undefined;
@@ -178,7 +167,7 @@ const pickPrimaryVideoId = (
     return videoMedia.url;
   }
 
-  return getStringOrUndefined(fallbackVideoId);
+  return fallbackVideoId?.trim() || undefined;
 };
 
 const buildThreadContent = ({
@@ -194,32 +183,33 @@ const buildThreadContent = ({
     content_html?: string | null;
   } | null> | null;
 }): Pick<TwitterMappedPostFields, 'content' | 'contentHtml'> => {
-  const textParts = [getStringOrUndefined(rootContent)];
-  const htmlParts = [getStringOrUndefined(rootContentHtml)];
+  const textParts = [rootContent?.trim()];
+  const htmlParts = [rootContentHtml?.trim()];
 
   threadTweets?.forEach((tweet) => {
-    textParts.push(getStringOrUndefined(tweet?.content));
+    const tweetContent = tweet?.content?.trim();
+    const tweetHtml = tweet?.content_html?.trim();
 
-    const htmlContent = getStringOrUndefined(tweet?.content_html);
-    if (htmlContent) {
-      htmlParts.push(htmlContent);
+    textParts.push(tweetContent);
+
+    if (tweetHtml) {
+      htmlParts.push(tweetHtml);
       return;
     }
 
-    const textContent = getStringOrUndefined(tweet?.content);
-    if (!textContent) {
+    if (!tweetContent) {
       return;
     }
 
-    htmlParts.push(markdown.render(textContent));
+    htmlParts.push(markdown.render(tweetContent));
   });
 
   const content = textParts.filter(Boolean).join('\n\n');
   const contentHtml = htmlParts.filter(Boolean).join('\n');
 
   return {
-    content: getStringOrUndefined(content),
-    contentHtml: getStringOrUndefined(contentHtml),
+    content: content.trim() || undefined,
+    contentHtml: contentHtml.trim() || undefined,
   };
 };
 
@@ -227,12 +217,12 @@ const buildTwitterReferenceUrl = (
   url?: string | null,
   tweetId?: string | null,
 ): string | undefined => {
-  const parsedUrl = getStringOrUndefined(url);
+  const parsedUrl = url?.trim();
   if (parsedUrl) {
     return parsedUrl;
   }
 
-  const parsedTweetId = getStringOrUndefined(tweetId);
+  const parsedTweetId = tweetId?.trim();
   if (!parsedTweetId) {
     return undefined;
   }
@@ -265,11 +255,12 @@ const extractTwitterReference = (
   return {
     subType,
     url: referenceUrl,
-    title: getStringOrUndefined(reference.title || reference.content),
-    content: getStringOrUndefined(reference.content),
-    contentHtml: getStringOrUndefined(reference.content_html),
+    title: reference?.content?.trim() || undefined,
+    content: reference?.content?.trim() || undefined,
+    contentHtml: reference?.content_html?.trim() || undefined,
     image: pickPrimaryImage(reference.media || []),
     videoId: pickPrimaryVideoId(reference.media || []),
+    authorUsername: reference.author_username?.trim() || undefined,
   };
 };
 
@@ -332,10 +323,9 @@ export const mapTwitterSocialPayload = ({
     extractTwitterHandleFromUrl(payload.url);
   const authorUsername = normalizeTwitterHandle(authorHandle);
 
-  const rootContent = getStringOrUndefined(
-    payload.extra?.content || payload.title,
-  );
-  const rootContentHtml = getStringOrUndefined(payload.extra?.content_html);
+  const rootContent =
+    payload.extra?.content?.trim() || payload.title?.trim() || undefined;
+  const rootContentHtml = payload.extra?.content_html?.trim() || undefined;
   const media = payload.extra?.media || [];
 
   const fields: TwitterMappedPostFields = {
@@ -349,7 +339,7 @@ export const mapTwitterSocialPayload = ({
       }) ?? null,
     content: null,
     contentHtml: null,
-    image: pickPrimaryImage(media, payload.image ?? undefined) ?? null,
+    image: pickPrimaryImage(media, payload.image) ?? null,
     videoId: pickPrimaryVideoId(media, payload.extra?.video_id) ?? null,
   };
 
@@ -374,14 +364,40 @@ export const mapTwitterSocialPayload = ({
   };
 };
 
+export const resolveTwitterSourceId = async ({
+  entityManager,
+  authorUsername,
+}: {
+  entityManager: EntityManager;
+  authorUsername?: string | null;
+}): Promise<{ id: string; isPrivate: boolean } | undefined> => {
+  if (!authorUsername) {
+    return undefined;
+  }
+
+  const matchedSource = await entityManager
+    .getRepository(Source)
+    .createQueryBuilder('source')
+    .select(['source.id', 'source.private'])
+    .where('source.type = :type', { type: SourceType.Machine })
+    .andWhere('LOWER(source.twitter) = :twitter', {
+      twitter: authorUsername.toLowerCase(),
+    })
+    .getOne();
+
+  if (!matchedSource) {
+    return undefined;
+  }
+
+  return { id: matchedSource.id, isPrivate: matchedSource.private };
+};
+
 export const upsertTwitterReferencedPost = async ({
   entityManager,
   reference,
-  sourceId,
   language,
-  isPrivate = false,
 }: TwitterReferenceUpsertParams): Promise<string | undefined> => {
-  const referenceUrl = getStringOrUndefined(reference.url);
+  const referenceUrl = reference.url?.trim() || undefined;
   if (!referenceUrl) {
     return undefined;
   }
@@ -419,13 +435,17 @@ export const upsertTwitterReferencedPost = async ({
 
   const id = await generateShortId();
   const now = new Date();
-  const title = getStringOrUndefined(reference.title || reference.content);
-  const content = getStringOrUndefined(reference.content);
+  const title = reference.title || reference.content || undefined;
+  const content = reference.content || undefined;
   const contentHtml =
-    getStringOrUndefined(reference.contentHtml) ||
-    (content ? markdown.render(content) : undefined);
+    reference.contentHtml || (content ? markdown.render(content) : undefined);
   const visible = !!(title || content);
-  const referenceSourceId = sourceId || UNKNOWN_SOURCE;
+  const resolvedSource = await resolveTwitterSourceId({
+    entityManager,
+    authorUsername: reference.authorUsername,
+  });
+  const referenceSourceId = resolvedSource?.id || UNKNOWN_SOURCE;
+  const isPrivate = resolvedSource?.isPrivate ?? true;
 
   const repository = entityManager.getRepository(SocialTwitterPost);
 
@@ -434,6 +454,7 @@ export const upsertTwitterReferencedPost = async ({
     shortId: id,
     subType: 'tweet',
     sourceId: referenceSourceId,
+    creatorTwitter: reference.authorUsername ?? undefined,
     createdAt: now,
     metadataChangedAt: now,
     title,

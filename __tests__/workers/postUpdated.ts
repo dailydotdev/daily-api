@@ -659,8 +659,6 @@ it('should create referenced social post for quote and set sharedPostId', async 
   expect(post.type).toEqual(PostType.SocialTwitter);
   expect(post.subType).toEqual('quote');
   expect(post.sharedPostId).toBeTruthy();
-  expect(post.showOnFeed).toEqual(false);
-  expect(post.private).toEqual(true);
 
   const referencedPost = await con.getRepository(Post).findOneByOrFail({
     id: post.sharedPostId,
@@ -668,6 +666,8 @@ it('should create referenced social post for quote and set sharedPostId', async 
   expect(referencedPost.type).toEqual(PostType.SocialTwitter);
   expect(referencedPost.subType).toEqual('tweet');
   expect(referencedPost.title).toEqual('Referenced quoted tweet');
+  expect(referencedPost.showOnFeed).toEqual(false);
+  expect(referencedPost.private).toEqual(true);
 });
 
 it('should reuse existing referenced social post for quote when status id already exists', async () => {
@@ -755,8 +755,6 @@ it('should create referenced social post for repost and set sharedPostId', async
   expect(post.type).toEqual(PostType.SocialTwitter);
   expect(post.subType).toEqual('repost');
   expect(post.sharedPostId).toBeTruthy();
-  expect(post.showOnFeed).toEqual(false);
-  expect(post.private).toEqual(true);
 
   const referencedPost = await con.getRepository(Post).findOneByOrFail({
     id: post.sharedPostId,
@@ -764,6 +762,8 @@ it('should create referenced social post for repost and set sharedPostId', async
   expect(referencedPost.type).toEqual(PostType.SocialTwitter);
   expect(referencedPost.subType).toEqual('tweet');
   expect(referencedPost.title).toEqual('Referenced repost tweet');
+  expect(referencedPost.showOnFeed).toEqual(false);
+  expect(referencedPost.private).toEqual(true);
 });
 
 it('should map social twitter tweet subtype as plain tweet', async () => {
