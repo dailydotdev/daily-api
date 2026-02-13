@@ -1,7 +1,7 @@
 import { ValidationError } from 'apollo-server-errors';
 import type { EntityManager } from 'typeorm';
 import { generateShortId } from '../ids';
-import { UNKNOWN_SOURCE } from '../entity/Source';
+import { Source, SourceType, UNKNOWN_SOURCE } from '../entity/Source';
 import { Post, PostOrigin, PostType } from '../entity/posts/Post';
 import { SocialTwitterPost } from '../entity/posts/SocialTwitterPost';
 import { markdown } from './markdown';
@@ -30,6 +30,7 @@ export interface TwitterReferencePost {
   contentHtml?: string | null;
   image?: string | null;
   videoId?: string | null;
+  authorUsername?: string | null;
 }
 
 export interface TwitterMappingResult {
@@ -41,9 +42,7 @@ export interface TwitterMappingResult {
 export interface TwitterReferenceUpsertParams {
   entityManager: EntityManager;
   reference: TwitterReferencePost;
-  sourceId?: string | null;
   language?: string | null;
-  isPrivate?: boolean;
 }
 
 const getStringOrUndefined = (value?: string | null): string | undefined => {
@@ -270,6 +269,7 @@ const extractTwitterReference = (
     contentHtml: getStringOrUndefined(reference.content_html),
     image: pickPrimaryImage(reference.media || []),
     videoId: pickPrimaryVideoId(reference.media || []),
+    authorUsername: getStringOrUndefined(reference.author_username),
   };
 };
 
@@ -374,12 +374,38 @@ export const mapTwitterSocialPayload = ({
   };
 };
 
+export const resolveTwitterSourceId = async ({
+  entityManager,
+  authorUsername,
+}: {
+  entityManager: EntityManager;
+  authorUsername?: string | null;
+}): Promise<{ id: string; isPrivate: boolean } | undefined> => {
+  if (!authorUsername) {
+    return undefined;
+  }
+
+  const matchedSource = await entityManager
+    .getRepository(Source)
+    .createQueryBuilder('source')
+    .select(['source.id', 'source.private'])
+    .where('source.type = :type', { type: SourceType.Machine })
+    .andWhere('LOWER(source.twitter) = :twitter', {
+      twitter: authorUsername.toLowerCase(),
+    })
+    .getOne();
+
+  if (!matchedSource) {
+    return undefined;
+  }
+
+  return { id: matchedSource.id, isPrivate: matchedSource.private };
+};
+
 export const upsertTwitterReferencedPost = async ({
   entityManager,
   reference,
-  sourceId,
   language,
-  isPrivate = false,
 }: TwitterReferenceUpsertParams): Promise<string | undefined> => {
   const referenceUrl = getStringOrUndefined(reference.url);
   if (!referenceUrl) {
@@ -425,7 +451,12 @@ export const upsertTwitterReferencedPost = async ({
     getStringOrUndefined(reference.contentHtml) ||
     (content ? markdown.render(content) : undefined);
   const visible = !!(title || content);
-  const referenceSourceId = sourceId || UNKNOWN_SOURCE;
+  const resolvedSource = await resolveTwitterSourceId({
+    entityManager,
+    authorUsername: reference.authorUsername,
+  });
+  const referenceSourceId = resolvedSource?.id || UNKNOWN_SOURCE;
+  const isPrivate = resolvedSource?.isPrivate ?? true;
 
   const repository = entityManager.getRepository(SocialTwitterPost);
 
@@ -434,6 +465,7 @@ export const upsertTwitterReferencedPost = async ({
     shortId: id,
     subType: 'tweet',
     sourceId: referenceSourceId,
+    creatorTwitter: reference.authorUsername ?? undefined,
     createdAt: now,
     metadataChangedAt: now,
     title,
