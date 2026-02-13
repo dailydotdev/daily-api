@@ -132,11 +132,15 @@ export interface FeedConnection<T> {
 /**
  * Parse and validate a limit query parameter.
  * @param limitParam - The limit query string parameter
- * @returns A valid limit between 1 and MAX_LIMIT
+ * @param maxLimit - The maximum limit allowed for this endpoint
+ * @returns A valid limit between 1 and maxLimit
  */
-export const parseLimit = (limitParam?: string): number => {
+export const parseLimit = (
+  limitParam?: string,
+  maxLimit: number = MAX_LIMIT,
+): number => {
   const parsed = parseInt(limitParam || '', 10) || DEFAULT_LIMIT;
-  return Math.min(Math.max(1, parsed), MAX_LIMIT);
+  return Math.min(Math.max(1, parsed), maxLimit);
 };
 
 /**

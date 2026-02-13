@@ -1,7 +1,7 @@
 import { ValidationError } from 'apollo-server-errors';
 import type { EntityManager } from 'typeorm';
 import { generateShortId } from '../ids';
-import { UNKNOWN_SOURCE } from '../entity/Source';
+import { Source, SourceType, UNKNOWN_SOURCE } from '../entity/Source';
 import { Post, PostOrigin, PostType } from '../entity/posts/Post';
 import { SocialTwitterPost } from '../entity/posts/SocialTwitterPost';
 import { markdown } from './markdown';
@@ -30,6 +30,7 @@ export interface TwitterReferencePost {
   contentHtml?: string | null;
   image?: string | null;
   videoId?: string | null;
+  authorUsername?: string | null;
 }
 
 export interface TwitterMappingResult {
@@ -41,9 +42,7 @@ export interface TwitterMappingResult {
 export interface TwitterReferenceUpsertParams {
   entityManager: EntityManager;
   reference: TwitterReferencePost;
-  sourceId?: string | null;
   language?: string | null;
-  isPrivate?: boolean;
 }
 
 const normalizeTwitterHandleForTitle = (
@@ -235,50 +234,34 @@ const extractTwitterReference = (
   payload: TwitterSocialPayload,
 ): TwitterReferencePost | undefined => {
   const extra = payload.extra;
-  if (!extra) {
+  if (!extra?.reference) {
     return undefined;
   }
 
-  const repostSource =
-    extra.reposted_tweet || extra.retweeted_tweet || undefined;
-  const repostUrl = buildTwitterReferenceUrl(
-    extra.reposted_tweet_url || extra.retweeted_tweet_url || repostSource?.url,
-    extra.reposted_tweet_id ||
-      extra.retweeted_tweet_id ||
-      repostSource?.tweet_id,
+  const reference = extra.reference;
+  const referenceUrl = buildTwitterReferenceUrl(
+    reference.url,
+    reference.tweet_id,
   );
 
-  if (repostSource || repostUrl) {
-    return {
-      subType: 'repost',
-      url: repostUrl!,
-      title: repostSource?.content?.trim() || undefined,
-      content: repostSource?.content?.trim() || undefined,
-      contentHtml: repostSource?.content_html?.trim() || undefined,
-      image: pickPrimaryImage(repostSource?.media || []),
-      videoId: pickPrimaryVideoId(repostSource?.media || []),
-    };
+  if (!referenceUrl) {
+    return undefined;
   }
 
-  const quoteSource = extra.quoted_tweet || extra.referenced_tweet || undefined;
-  const quoteUrl = buildTwitterReferenceUrl(
-    extra.quoted_tweet_url || extra.referenced_tweet_url || quoteSource?.url,
-    extra.quoted_tweet_id || extra.referenced_tweet_id || quoteSource?.tweet_id,
-  );
+  const explicitSubType = extra.sub_type || extra.subtype;
+  const subType: 'repost' | 'quote' =
+    explicitSubType === 'quote' ? 'quote' : 'repost';
 
-  if (quoteSource || quoteUrl) {
-    return {
-      subType: 'quote',
-      url: quoteUrl!,
-      title: quoteSource?.content?.trim() || undefined,
-      content: quoteSource?.content?.trim() || undefined,
-      contentHtml: quoteSource?.content_html?.trim() || undefined,
-      image: pickPrimaryImage(quoteSource?.media || []),
-      videoId: pickPrimaryVideoId(quoteSource?.media || []),
-    };
-  }
-
-  return undefined;
+  return {
+    subType,
+    url: referenceUrl,
+    title: reference?.content?.trim() || undefined,
+    content: reference?.content?.trim() || undefined,
+    contentHtml: reference?.content_html?.trim() || undefined,
+    image: pickPrimaryImage(reference.media || []),
+    videoId: pickPrimaryVideoId(reference.media || []),
+    authorUsername: reference.author_username?.trim() || undefined,
+  };
 };
 
 const normalizeTwitterSubType = ({
@@ -381,12 +364,38 @@ export const mapTwitterSocialPayload = ({
   };
 };
 
+export const resolveTwitterSourceId = async ({
+  entityManager,
+  authorUsername,
+}: {
+  entityManager: EntityManager;
+  authorUsername?: string | null;
+}): Promise<{ id: string; isPrivate: boolean } | undefined> => {
+  if (!authorUsername) {
+    return undefined;
+  }
+
+  const matchedSource = await entityManager
+    .getRepository(Source)
+    .createQueryBuilder('source')
+    .select(['source.id', 'source.private'])
+    .where('source.type = :type', { type: SourceType.Machine })
+    .andWhere('LOWER(source.twitter) = :twitter', {
+      twitter: authorUsername.toLowerCase(),
+    })
+    .getOne();
+
+  if (!matchedSource) {
+    return undefined;
+  }
+
+  return { id: matchedSource.id, isPrivate: matchedSource.private };
+};
+
 export const upsertTwitterReferencedPost = async ({
   entityManager,
   reference,
-  sourceId,
   language,
-  isPrivate = false,
 }: TwitterReferenceUpsertParams): Promise<string | undefined> => {
   const referenceUrl = reference.url?.trim() || undefined;
   if (!referenceUrl) {
@@ -431,7 +440,12 @@ export const upsertTwitterReferencedPost = async ({
   const contentHtml =
     reference.contentHtml || (content ? markdown.render(content) : undefined);
   const visible = !!(title || content);
-  const referenceSourceId = sourceId || UNKNOWN_SOURCE;
+  const resolvedSource = await resolveTwitterSourceId({
+    entityManager,
+    authorUsername: reference.authorUsername,
+  });
+  const referenceSourceId = resolvedSource?.id || UNKNOWN_SOURCE;
+  const isPrivate = resolvedSource?.isPrivate ?? true;
 
   const repository = entityManager.getRepository(SocialTwitterPost);
 
@@ -440,6 +454,7 @@ export const upsertTwitterReferencedPost = async ({
     shortId: id,
     subType: 'tweet',
     sourceId: referenceSourceId,
+    creatorTwitter: reference.authorUsername ?? undefined,
     createdAt: now,
     metadataChangedAt: now,
     title,

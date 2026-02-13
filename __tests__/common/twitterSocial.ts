@@ -83,7 +83,7 @@ describe('mapTwitterSocialPayload', () => {
         extra: {
           subtype: 'quote',
           content: 'Main quote',
-          quoted_tweet: {
+          reference: {
             tweet_id: '1999',
             content: 'Referenced quote',
           },
@@ -107,7 +107,7 @@ describe('mapTwitterSocialPayload', () => {
         extra: {
           subtype: 'repost',
           content: 'Main repost',
-          reposted_tweet: {
+          reference: {
             tweet_id: '3001',
             content: 'Referenced repost',
           },

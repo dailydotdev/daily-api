@@ -640,9 +640,9 @@ it('should create referenced social post for quote and set sharedPostId', async 
     url: 'https://x.com/dailydotdev/status/1002',
     source_id: 'a',
     extra: {
-      subtype: 'quote',
+      sub_type: 'quote',
       content: 'Main quote tweet',
-      quoted_tweet: {
+      reference: {
         tweet_id: '2002',
         content: 'Referenced quoted tweet',
         media: [{ type: 'image', url: 'https://pbs.twimg.com/media/ref.jpg' }],
@@ -666,6 +666,8 @@ it('should create referenced social post for quote and set sharedPostId', async 
   expect(referencedPost.type).toEqual(PostType.SocialTwitter);
   expect(referencedPost.subType).toEqual('tweet');
   expect(referencedPost.title).toEqual('Referenced quoted tweet');
+  expect(referencedPost.showOnFeed).toEqual(false);
+  expect(referencedPost.private).toEqual(true);
 });
 
 it('should reuse existing referenced social post for quote when status id already exists', async () => {
@@ -678,10 +680,10 @@ it('should reuse existing referenced social post for quote when status id alread
     url: 'https://x.com/dailydotdev/status/10021',
     source_id: 'a',
     extra: {
-      subtype: 'quote',
+      sub_type: 'quote',
       content: 'Main quote tweet #1',
-      quoted_tweet_url: 'https://x.com/devrelweekly/status/2002',
-      quoted_tweet: {
+      reference: {
+        url: 'https://x.com/devrelweekly/status/2002',
         content: 'Referenced quoted tweet',
       },
     },
@@ -693,9 +695,9 @@ it('should reuse existing referenced social post for quote when status id alread
     url: 'https://x.com/dailydotdev/status/10022',
     source_id: 'a',
     extra: {
-      subtype: 'quote',
+      sub_type: 'quote',
       content: 'Main quote tweet #2',
-      quoted_tweet: {
+      reference: {
         tweet_id: '2002',
         content: 'Referenced quoted tweet',
       },
@@ -735,9 +737,9 @@ it('should create referenced social post for repost and set sharedPostId', async
     url: 'https://x.com/dailydotdev/status/1004',
     source_id: 'a',
     extra: {
-      subtype: 'repost',
+      sub_type: 'repost',
       content: 'Main repost tweet',
-      reposted_tweet: {
+      reference: {
         tweet_id: '3004',
         content: 'Referenced repost tweet',
       },
@@ -760,6 +762,8 @@ it('should create referenced social post for repost and set sharedPostId', async
   expect(referencedPost.type).toEqual(PostType.SocialTwitter);
   expect(referencedPost.subType).toEqual('tweet');
   expect(referencedPost.title).toEqual('Referenced repost tweet');
+  expect(referencedPost.showOnFeed).toEqual(false);
+  expect(referencedPost.private).toEqual(true);
 });
 
 it('should map social twitter tweet subtype as plain tweet', async () => {
@@ -799,8 +803,8 @@ it('should map repost without body to fallback title', async () => {
     url: 'https://x.com/dailydotdev/status/1007',
     source_id: 'a',
     extra: {
-      subtype: 'repost',
-      reposted_tweet: {
+      sub_type: 'repost',
+      reference: {
         tweet_id: '3005',
       },
     },
@@ -827,8 +831,8 @@ it('should map retweet subtype to repost fallback title', async () => {
     url: 'https://x.com/dailydotdev/status/1008',
     source_id: 'a',
     extra: {
-      subtype: 'retweet',
-      retweeted_tweet: {
+      sub_type: 'retweet',
+      reference: {
         tweet_id: '3006',
       },
     },

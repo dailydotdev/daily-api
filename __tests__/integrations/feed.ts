@@ -394,10 +394,18 @@ describe('FeedPreferencesConfigGenerator', () => {
         defaultEnabledState: true,
         options: { type: 'news' },
       },
+      {
+        title: 'Social',
+        group: 'content_types',
+        description: '',
+        defaultEnabledState: true,
+        options: { type: PostType.SocialTwitter },
+      },
     ]);
     await con.getRepository(FeedAdvancedSettings).save([
       { feedId: '1', advancedSettingsId: 1, enabled: false },
       { feedId: '1', advancedSettingsId: 2, enabled: true },
+      { feedId: '1', advancedSettingsId: 4, enabled: false },
     ]);
   });
 
@@ -432,7 +440,7 @@ describe('FeedPreferencesConfigGenerator', () => {
         followed_sources: expect.arrayContaining(['c', 'p']),
         followed_user_ids: expect.arrayContaining(['2', '3']),
         allowed_post_types: postTypes.filter(
-          (x) => x !== PostType.VideoYouTube,
+          (x) => x !== PostType.VideoYouTube && x !== PostType.SocialTwitter,
         ),
         feed_config_name: FeedConfigName.Personalise,
         fresh_page_size: '1',

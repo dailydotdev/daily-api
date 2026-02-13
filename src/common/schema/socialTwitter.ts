@@ -39,9 +39,12 @@ export const twitterSocialReferenceSchema = z
   .object({
     tweet_id: z.string().nullish(),
     url: z.string().nullish(),
+    title: z.string().nullish(),
     content: z.string().nullish(),
     content_html: z.string().nullish(),
+    sub_type: z.string().nullish(),
     media: z.array(twitterSocialMediaSchema).nullish(),
+    author_username: z.string().nullish(),
   })
   .passthrough();
 
@@ -57,18 +60,7 @@ export const twitterSocialExtraSchema = z
     video_id: z.string().nullish(),
     is_thread: z.boolean().nullish(),
     thread_tweets: z.array(twitterSocialThreadTweetSchema).nullish(),
-    referenced_tweet: twitterSocialReferenceSchema.nullish(),
-    quoted_tweet: twitterSocialReferenceSchema.nullish(),
-    retweeted_tweet: twitterSocialReferenceSchema.nullish(),
-    reposted_tweet: twitterSocialReferenceSchema.nullish(),
-    referenced_tweet_id: z.string().nullish(),
-    quoted_tweet_id: z.string().nullish(),
-    retweeted_tweet_id: z.string().nullish(),
-    reposted_tweet_id: z.string().nullish(),
-    referenced_tweet_url: z.string().nullish(),
-    quoted_tweet_url: z.string().nullish(),
-    retweeted_tweet_url: z.string().nullish(),
-    reposted_tweet_url: z.string().nullish(),
+    reference: twitterSocialReferenceSchema.nullish(),
   })
   .passthrough();
 
