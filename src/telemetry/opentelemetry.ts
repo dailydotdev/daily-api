@@ -40,6 +40,8 @@ import {
 } from './tracing';
 import { logger } from '../logger';
 
+const instrumentations = enableOpenTelemetry ? getInstrumentations() : [];
+
 const resourceDetectors = [
   envDetector,
   hostDetector,
@@ -97,7 +99,7 @@ export const startTelemetry = (): void => {
   api.metrics.setGlobalMeterProvider(meterProvider);
 
   // Register instrumentations
-  registerInstrumentations({ instrumentations: getInstrumentations() });
+  registerInstrumentations({ instrumentations });
 
   initCounters(service.name as ServiceName);
   subscribeTracingHooks(service.name);
