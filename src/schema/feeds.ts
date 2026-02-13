@@ -33,6 +33,7 @@ import {
   getCursorFromAfter,
   randomPostsResolver,
   Ranking,
+  repostFeedBuilder,
   sourceFeedBuilder,
   tagFeedBuilder,
   toGQLEnum,
@@ -644,6 +645,31 @@ export const typeDefs = /* GraphQL */ `
       Ranking criteria for the feed
       """
       ranking: Ranking = POPULARITY
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
+
+    """
+    Get reposts of a post
+    """
+    postReposts(
+      """
+      Id of the relevant post to return reposts
+      """
+      id: String!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
 
       """
       Array of supported post types
@@ -1819,6 +1845,24 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         removeBannedPosts: false,
         removeNonPublicThresholdSquads: false,
         allowPrivatePosts: false,
+      },
+    ),
+    postReposts: feedResolver(
+      (ctx, { id }: { id: string } & FeedArgs, builder, alias) =>
+        repostFeedBuilder(ctx, id, builder, alias),
+      feedPageGenerator,
+      applyFeedPaging,
+      {
+        removeHiddenPosts: false,
+        removeBannedPosts: false,
+        removeNonPublicThresholdSquads: false,
+        allowPrivatePosts: false,
+        fetchQueryParams: async (ctx, { id }: { id: string } & FeedArgs) => {
+          const post = await ctx.con
+            .getRepository(Post)
+            .findOneByOrFail({ id });
+          await ensureSourcePermissions(ctx, post.sourceId);
+        },
       },
     ),
     userUpvotedFeed: feedResolver(

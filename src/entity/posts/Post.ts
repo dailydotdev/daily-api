@@ -198,6 +198,9 @@ export class Post {
   @Index('IDX_post_comments')
   comments: number;
 
+  @Column({ type: 'integer', default: 0 })
+  reposts: number;
+
   @Column({ length: 36, nullable: true })
   @Index('IDX_post_scout')
   scoutId: string | null;
