@@ -633,7 +633,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       args: { achievementIds: string[] },
       ctx: AuthContext,
     ): Promise<GQLUserAchievement[]> => {
-      const { achievementIds } = args;
+      const achievementIds = [...new Set(args.achievementIds)];
 
       if (achievementIds.length > SHOWCASED_ACHIEVEMENTS_LIMIT) {
         throw new ValidationError(
@@ -651,44 +651,38 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       // Validate all IDs correspond to unlocked achievements
-      const unlockedAchievements = await ctx.con
-        .getRepository(UserAchievement)
-        .find({
+      const [userAchievements, achievements] = await Promise.all([
+        ctx.con.getRepository(UserAchievement).find({
           where: {
             userId: ctx.userId,
             achievementId: In(achievementIds),
           },
-        });
+        }),
+        ctx.con.getRepository(Achievement).find({
+          where: { id: In(achievementIds) },
+        }),
+      ]);
 
       const unlockedMap = new Map(
-        unlockedAchievements
+        userAchievements
           .filter((ua) => ua.unlockedAt !== null)
           .map((ua) => [ua.achievementId, ua]),
       );
 
-      const invalidIds = achievementIds.filter((id) => !unlockedMap.has(id));
-
-      if (invalidIds.length > 0) {
+      if (achievementIds.some((id) => !unlockedMap.has(id))) {
         throw new ValidationError(
           'All showcased achievements must be unlocked',
         );
       }
 
-      // Update user flags
       await ctx.con.getRepository(User).update(ctx.userId, {
         flags: updateFlagsStatement<User>({
           showcasedAchievements: achievementIds,
         }),
       });
 
-      // Fetch full achievement data
-      const achievements = await ctx.con.getRepository(Achievement).find({
-        where: { id: In(achievementIds) },
-      });
-
       const achievementMap = new Map(achievements.map((a) => [a.id, a]));
 
-      // Preserve order from input
       return achievementIds
         .filter((id) => achievementMap.has(id))
         .map((id) =>
