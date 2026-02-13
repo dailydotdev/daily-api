@@ -160,6 +160,34 @@ The migration generator compares entities against the local database schema. Ens
 - Use early returns instead of nested conditionals
 - Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
 - Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
+- **Prefer switch statements over nested ternary operators** for mapping multiple cases - switch statements are more readable and maintainable when handling 3+ conditional branches:
+  ```typescript
+  // BAD: Nested ternary chain - hard to read and extend
+  const result =
+    value?.case === 'optionA'
+      ? { optionA: value.data }
+      : value?.case === 'optionB'
+        ? { optionB: value.data }
+        : value?.case === 'optionC'
+          ? { optionC: value.data }
+          : {};
+
+  // GOOD: Switch statement - clear and maintainable
+  let result = {};
+  if (value?.case) {
+    switch (value.case) {
+      case 'optionA':
+        result = { optionA: value.data };
+        break;
+      case 'optionB':
+        result = { optionB: value.data };
+        break;
+      case 'optionC':
+        result = { optionC: value.data };
+        break;
+    }
+  }
+  ```
 
 **Comments:**
 - **Do not add unnecessary comments** - code should be self-documenting through clear naming
