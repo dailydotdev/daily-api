@@ -2,6 +2,7 @@ import request from 'supertest';
 import { setupPublicApiTests, createTokenForUser } from './helpers';
 import { DatasetTool } from '../../../src/entity/dataset/DatasetTool';
 import { UserStack } from '../../../src/entity/user/UserStack';
+import { MAX_STACK_ITEMS } from '../../../src/common/constants';
 
 const state = setupPublicApiTests();
 
@@ -106,6 +107,35 @@ describe('GET /public/v1/profile/stack', () => {
       .expect(200);
 
     expect(body.data.length).toBeLessThanOrEqual(5);
+  });
+
+  it('should allow fetching up to maximum stack items', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const tools = await state.con.getRepository(DatasetTool).save(
+      Array.from({ length: 60 }, (_, index) => ({
+        title: `Public Stack Tool ${index}`,
+        titleNormalized: `publicstacktool${index}`,
+        faviconSource: 'none',
+      })),
+    );
+
+    await state.con.getRepository(UserStack).save(
+      tools.map((tool, index) => ({
+        userId: '5',
+        toolId: tool.id,
+        section: 'primary',
+        position: index,
+      })),
+    );
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack')
+      .query({ limit: MAX_STACK_ITEMS })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data).toHaveLength(60);
   });
 });
 

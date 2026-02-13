@@ -10,6 +10,7 @@ import {
   StackConnection,
   ToolType,
 } from './common';
+import { MAX_STACK_ITEMS } from '../../common/constants';
 
 // GraphQL queries
 const AUTOCOMPLETE_TOOLS_QUERY = `
@@ -159,9 +160,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             limit: {
               type: 'integer',
               default: 20,
-              maximum: 50,
+              maximum: MAX_STACK_ITEMS,
               minimum: 1,
-              description: 'Number of items to return (1-50)',
+              description: `Number of items to return (1-${MAX_STACK_ITEMS})`,
             },
             cursor: {
               type: 'string',
@@ -183,7 +184,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      const limit = parseLimit(request.query.limit);
+      const limit = parseLimit(request.query.limit, MAX_STACK_ITEMS);
       const { cursor } = request.query;
       const con = ensureDbConnection(fastify.con);
       const userId = request.userId;

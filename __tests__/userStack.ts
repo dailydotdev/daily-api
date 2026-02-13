@@ -12,6 +12,7 @@ import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
 import { UserStack } from '../src/entity/user/UserStack';
 import { DatasetTool } from '../src/entity/dataset/DatasetTool';
+import { MAX_STACK_ITEMS } from '../src/common/constants';
 
 let con: DataSource;
 let state: GraphQLTestingState;
@@ -148,6 +149,35 @@ describe('mutation addUserStack', () => {
 
     expect(res.errors?.[0]?.message).toBe(
       'Stack item already exists in your profile',
+    );
+  });
+
+  it('should prevent adding more than maximum stack items', async () => {
+    loggedUser = '1';
+
+    const tools = await con.getRepository(DatasetTool).save(
+      Array.from({ length: MAX_STACK_ITEMS }, (_, index) => ({
+        title: `Tool ${index}`,
+        titleNormalized: `tool${index}`,
+        faviconSource: 'none',
+      })),
+    );
+
+    await con.getRepository(UserStack).save(
+      tools.map((tool, index) => ({
+        userId: '1',
+        toolId: tool.id,
+        section: 'Runtime',
+        position: index,
+      })),
+    );
+
+    const res = await client.mutate(MUTATION, {
+      variables: { input: { title: 'Node.js', section: 'Runtime' } },
+    });
+
+    expect(res.errors?.[0]?.message).toBe(
+      `You can have a maximum of ${MAX_STACK_ITEMS} items in your stack`,
     );
   });
 });
