@@ -835,6 +835,16 @@ const worker: Worker = {
             language: fixedData.language,
             isPrivate: fixedData.private,
           });
+
+          if (fixedData.sharedPostId) {
+            fixedData.showOnFeed = false;
+            fixedData.private = true;
+            fixedData.flags = {
+              ...fixedData.flags,
+              showOnFeed: false,
+              private: true,
+            };
+          }
         }
 
         // See if post id is not available
