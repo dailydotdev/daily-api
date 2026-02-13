@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@dailydotdev/pulumi-common':
-        specifier: ^2.17.6
-        version: 2.20.1
+        specifier: 2.17.6
+        version: 2.17.6
       '@pulumi/gcp':
         specifier: ^9.6.0
         version: 9.6.0
@@ -27,8 +27,8 @@ importers:
 
 packages:
 
-  '@dailydotdev/pulumi-common@2.20.1':
-    resolution: {integrity: sha512-Xcth6U0K89XWUUwF2r0OfCpYw4icOZDLeBHYcGeBMxTiAs3Y4yoyDZbkQMsdO8qVZDyY58OmUTRIPBq/axHUbw==}
+  '@dailydotdev/pulumi-common@2.17.6':
+    resolution: {integrity: sha512-qpQbKuVI415SAKVVyyu0qpYY3pt16ZNpTU7peHd3OjWjFw7tiwEC79IkI2Ix4fP9zo6TR01QslXTlPiJ3KI5RA==}
 
   '@google-cloud/paginator@6.0.0':
     resolution: {integrity: sha512-g5nmMnzC+94kBxOKkLGpK1ikvolTFCC3s2qtE4F+1EuArcJ7HHC23RDQVt3Ra3CqpUYZ+oXNKZ8n5Cn5yug8DA==}
@@ -338,8 +338,8 @@ packages:
   '@protobufjs/utf8@1.1.0':
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
 
-  '@pulumi/gcp@9.11.0':
-    resolution: {integrity: sha512-PMjKbpeKTeNIAzZf8nCF2MPlUinMtGfRUaG2E6ktAgiP7CNApebQ1+ThifExCYwJ3Uer9j7FA0ukd2x9yFoSmA==}
+  '@pulumi/gcp@8.41.1':
+    resolution: {integrity: sha512-cEuhyrys+h2HMMdAKIXT6QDjjMzQRDUDV9CytIw146lpXp2bACUr4NwMefX7LgzUW+ebs7t7YClU/sNbI3OaDw==}
 
   '@pulumi/gcp@9.6.0':
     resolution: {integrity: sha512-kEKrPG7WwstD5JWfQW2kHIBaeR1/QZw8rioFyoh5DfrlZmej02CQ/9TVypaOlgQF4+m4iBwEIZeglv0/WS4mYg==}
@@ -1928,11 +1928,10 @@ packages:
 
 snapshots:
 
-  '@dailydotdev/pulumi-common@2.20.1':
+  '@dailydotdev/pulumi-common@2.17.6':
     dependencies:
       '@google-cloud/pubsub': 5.2.3
-      '@grpc/grpc-js': 1.14.3
-      '@pulumi/gcp': 9.11.0
+      '@pulumi/gcp': 8.41.1
       '@pulumi/kubernetes': 4.25.0
       '@pulumi/pulumi': 3.220.0
       knex: 3.1.0(mysql@2.18.1)(pg@8.18.0)
@@ -2412,7 +2411,7 @@ snapshots:
 
   '@protobufjs/utf8@1.1.0': {}
 
-  '@pulumi/gcp@9.11.0':
+  '@pulumi/gcp@8.41.1':
     dependencies:
       '@npmcli/package-json': 6.2.0
       '@pulumi/pulumi': 3.220.0
@@ -2699,7 +2698,7 @@ snapshots:
 
   agent-base@6.0.2:
     dependencies:
-      debug: 4.4.0
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -3102,7 +3101,7 @@ snapshots:
     dependencies:
       '@tootallnate/once': 2.0.0
       agent-base: 6.0.2
-      debug: 4.4.0
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
@@ -3121,7 +3120,7 @@ snapshots:
   https-proxy-agent@5.0.1:
     dependencies:
       agent-base: 6.0.2
-      debug: 4.4.0
+      debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
 
