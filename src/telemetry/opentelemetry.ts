@@ -40,7 +40,7 @@ import {
 } from './tracing';
 import { logger } from '../logger';
 
-const instrumentations = getInstrumentations();
+const instrumentations = enableOpenTelemetry ? getInstrumentations() : [];
 
 const resourceDetectors = [
   envDetector,
