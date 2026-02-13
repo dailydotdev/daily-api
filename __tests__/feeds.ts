@@ -1880,6 +1880,27 @@ describe('query postReposts', () => {
     expect(secondPage.data.postReposts.edges[0].node.id).toEqual('rp1');
   });
 
+  it('should default to share type when supportedTypes is not passed', async () => {
+    const now = Date.now();
+    await createSharePost({
+      id: 'rp-default',
+      shortId: 'rpd1',
+      authorId: '1',
+      createdAt: new Date(now),
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const ids = res.data.postReposts.edges.map((edge) => edge.node.id);
+    expect(ids).toEqual(['rp-default']);
+  });
+
   it('should return only public visible non-deleted reposts', async () => {
     const now = Date.now();
     await createSharePost({
