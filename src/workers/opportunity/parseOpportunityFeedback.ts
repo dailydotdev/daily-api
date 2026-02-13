@@ -46,47 +46,47 @@ const parseOpportunityFeedback = async ({
 
   const updatedFeedback: Array<z.infer<typeof opportunityFeedbackSchema>> =
     await Promise.all(
-    match.feedback.map(async (item) => {
-      if (item.classification) {
-        return item;
-      }
-
-      try {
-        const result = await bragiClient.garmr.execute(() =>
-          bragiClient.instance.parseFeedback({ feedback: item.answer }),
-        );
-        const classification = result.classification;
-
-        if (!classification) {
-          logger.debug(
-            { opportunityId, userId, answer: item.answer },
-            'No classification returned from Bragi',
-          );
+      match.feedback.map(async (item) => {
+        if (item.classification) {
           return item;
         }
 
-        const feedbackClassification: z.infer<
-          typeof feedbackClassificationSchema
-        > = {
-          platform: classification.platform,
-          category: classification.category,
-          sentiment: classification.sentiment,
-          urgency: classification.urgency,
-        };
+        try {
+          const result = await bragiClient.garmr.execute(() =>
+            bragiClient.instance.parseFeedback({ feedback: item.answer }),
+          );
+          const classification = result.classification;
 
-        return {
-          ...item,
-          classification: feedbackClassification,
-        };
-      } catch (err) {
-        logger.debug(
-          { err, opportunityId, userId, answer: item.answer },
-          'Error when parsing feedback',
-        );
-        return item;
-      }
-    }),
-  );
+          if (!classification) {
+            logger.debug(
+              { opportunityId, userId, answer: item.answer },
+              'No classification returned from Bragi',
+            );
+            return item;
+          }
+
+          const feedbackClassification: z.infer<
+            typeof feedbackClassificationSchema
+          > = {
+            platform: classification.platform,
+            category: classification.category,
+            sentiment: classification.sentiment,
+            urgency: classification.urgency,
+          };
+
+          return {
+            ...item,
+            classification: feedbackClassification,
+          };
+        } catch (err) {
+          logger.debug(
+            { err, opportunityId, userId, answer: item.answer },
+            'Error when parsing feedback',
+          );
+          return item;
+        }
+      }),
+    );
 
   await con
     .getRepository(OpportunityMatch)

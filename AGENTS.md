@@ -503,6 +503,14 @@ The migration generator compares entities against the local database schema. Ens
   - Update `skill.md` when adding/changing endpoints (versioned with semver)
   - Fastify route type parameters should be defined inline for single-use types
 
+## Pre-Commit Checks
+
+Before creating any commit, ensure the following pass:
+- `pnpm run build` - TypeScript compilation must succeed with no errors
+- `pnpm run lint` - ESLint must pass with 0 warnings
+
+Do not commit code that fails either check.
+
 ## Pull Requests
 
 Keep PR descriptions concise and to the point. Reviewers should not be exhausted by lengthy explanations.
