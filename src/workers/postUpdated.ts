@@ -25,7 +25,6 @@ import {
   SharePost,
   SocialTwitterPost,
   Source,
-  SourceType,
   Submission,
   SubmissionStatus,
   Toc,
@@ -47,6 +46,7 @@ import { markdown } from '../common/markdown';
 import {
   isTwitterSocialType,
   mapTwitterSocialPayload,
+  resolveTwitterSourceId,
   type TwitterReferencePost,
   upsertTwitterReferencedPost,
 } from '../common/twitterSocial';
@@ -595,30 +595,6 @@ type FixData = {
   twitterReference?: TwitterReferencePost;
 };
 
-const resolveTwitterSourceId = async ({
-  entityManager,
-  authorUsername,
-}: {
-  entityManager: EntityManager;
-  authorUsername?: string;
-}): Promise<string | undefined> => {
-  if (!authorUsername) {
-    return undefined;
-  }
-
-  const matchedSource = await entityManager
-    .getRepository(Source)
-    .createQueryBuilder('source')
-    .select(['source.id'])
-    .where('source.type = :type', { type: SourceType.Machine })
-    .andWhere('LOWER(source.twitter) = :twitter', {
-      twitter: authorUsername,
-    })
-    .getOne();
-
-  return matchedSource?.id;
-};
-
 const resolveTwitterIngestionSourceId = ({
   sourceId,
   resolvedTwitterSourceId,
@@ -659,7 +635,7 @@ const fixData = async ({
   const twitterMapping = isTwitterSocialType(data?.content_type)
     ? mapTwitterSocialPayload({ data })
     : undefined;
-  const resolvedTwitterSourceId =
+  const resolvedTwitterSource =
     isTwitterSocialType(data?.content_type) &&
     (!data?.source_id || data?.source_id === UNKNOWN_SOURCE)
       ? await resolveTwitterSourceId({
@@ -670,7 +646,7 @@ const fixData = async ({
   const sourceId = isTwitterSocialType(data?.content_type)
     ? resolveTwitterIngestionSourceId({
         sourceId: data?.source_id,
-        resolvedTwitterSourceId,
+        resolvedTwitterSourceId: resolvedTwitterSource?.id,
         origin: data?.origin,
       })
     : data?.source_id;

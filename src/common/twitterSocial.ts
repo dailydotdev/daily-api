@@ -374,7 +374,7 @@ export const mapTwitterSocialPayload = ({
   };
 };
 
-const resolveSourceByTwitterUsername = async ({
+export const resolveTwitterSourceId = async ({
   entityManager,
   authorUsername,
 }: {
@@ -451,7 +451,7 @@ export const upsertTwitterReferencedPost = async ({
     getStringOrUndefined(reference.contentHtml) ||
     (content ? markdown.render(content) : undefined);
   const visible = !!(title || content);
-  const resolvedSource = await resolveSourceByTwitterUsername({
+  const resolvedSource = await resolveTwitterSourceId({
     entityManager,
     authorUsername: reference.authorUsername,
   });

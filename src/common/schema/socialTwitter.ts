@@ -44,7 +44,6 @@ export const twitterSocialReferenceSchema = z
     content_html: z.string().nullish(),
     sub_type: z.string().nullish(),
     media: z.array(twitterSocialMediaSchema).nullish(),
-    source_id: z.string().nullish(),
     author_username: z.string().nullish(),
   })
   .passthrough();
