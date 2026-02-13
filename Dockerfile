@@ -29,4 +29,4 @@ RUN --mount=type=cache,id=pnpm,target=/home/node/.local/share/pnpm/store \
 COPY --chown=node:node build .
 COPY --chown=node:node src/routes/llms.txt src/routes/
 
-CMD ["dumb-init", "node", "bin/cli", "api"]
+CMD ["dumb-init", "node", "--require", "./src/telemetry/register.js", "bin/cli", "api"]
