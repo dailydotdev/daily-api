@@ -1,6 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ApolloError, ForbiddenError } from 'apollo-server-errors';
+import {
+  ApolloError,
+  ForbiddenError,
+  ValidationError,
+} from 'apollo-server-errors';
 import type { DataSource, EntityManager } from 'typeorm';
+import { In } from 'typeorm';
 import { BaseContext, type AuthContext } from '../Context';
 import { syncUserRetroactiveAchievements } from '../common/achievement/retroactive';
 import { updateFlagsStatement } from '../common/utils';
@@ -16,6 +21,7 @@ import { traceResolvers } from './trace';
 
 const ACHIEVEMENT_SYNC_LIMIT = 1;
 const CLOSE_ACHIEVEMENTS_LIMIT = 3;
+const SHOWCASED_ACHIEVEMENTS_LIMIT = 3;
 
 type AchievementConnection = DataSource | EntityManager;
 
@@ -135,6 +141,7 @@ export type GQLUserAchievementStats = {
   totalAchievements: number;
   unlockedCount: number;
   lockedCount: number;
+  totalPoints: number;
 };
 
 export type GQLAchievementSyncStatus = {
@@ -264,6 +271,10 @@ export const typeDefs = /* GraphQL */ `
     Number of achievements not yet unlocked
     """
     lockedCount: Int!
+    """
+    Total points from unlocked achievements
+    """
+    totalPoints: Int!
   }
 
   """
@@ -356,6 +367,16 @@ export const typeDefs = /* GraphQL */ `
     Get achievement sync status for current user
     """
     achievementSyncStatus: AchievementSyncStatus! @auth
+
+    """
+    Get a user's showcased achievements
+    """
+    showcasedAchievements(
+      """
+      User ID to get showcased achievements for
+      """
+      userId: ID!
+    ): [UserAchievement!]!
   }
 
   extend type Mutation {
@@ -363,6 +384,16 @@ export const typeDefs = /* GraphQL */ `
     Run retroactive achievement sync for current user
     """
     syncAchievements: AchievementSyncResult! @auth
+
+    """
+    Update the current user's showcased achievements (max 3)
+    """
+    updateShowcasedAchievements(
+      """
+      Achievement IDs to showcase (max 3, must be unlocked)
+      """
+      achievementIds: [ID!]!
+    ): [UserAchievement!]! @auth
   }
 `;
 
@@ -406,20 +437,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ForbiddenError('User not authenticated');
       }
 
-      const [totalAchievements, unlockedCount] = await Promise.all([
-        ctx.con.getRepository(Achievement).count(),
-        ctx.con
-          .getRepository(UserAchievement)
-          .createQueryBuilder('ua')
-          .where('ua.userId = :userId', { userId })
-          .andWhere('ua.unlockedAt IS NOT NULL')
-          .getCount(),
-      ]);
+      const [totalAchievements, unlockedCount, totalPointsResult] =
+        await Promise.all([
+          ctx.con.getRepository(Achievement).count(),
+          ctx.con
+            .getRepository(UserAchievement)
+            .createQueryBuilder('ua')
+            .where('ua.userId = :userId', { userId })
+            .andWhere('ua.unlockedAt IS NOT NULL')
+            .getCount(),
+          ctx.con
+            .getRepository(UserAchievement)
+            .createQueryBuilder('ua')
+            .innerJoin(Achievement, 'a', 'a.id = ua."achievementId"')
+            .select('COALESCE(SUM(a.points), 0)', 'total')
+            .where('ua.userId = :userId', { userId })
+            .andWhere('ua.unlockedAt IS NOT NULL')
+            .getRawOne<{ total: string }>(),
+        ]);
 
       return {
         totalAchievements,
         unlockedCount,
         lockedCount: totalAchievements - unlockedCount,
+        totalPoints: parseInt(totalPointsResult?.total ?? '0', 10),
       };
     },
     achievementSyncStatus: async (
@@ -437,6 +478,58 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return getSyncStatus(getAchievementSyncCount(user.flags));
+    },
+    showcasedAchievements: async (
+      _,
+      args: { userId: string },
+      ctx: BaseContext,
+    ): Promise<GQLUserAchievement[]> => {
+      const { userId } = args;
+
+      const user = await ctx.con.getRepository(User).findOne({
+        select: ['id', 'flags'],
+        where: { id: userId },
+      });
+
+      if (!user) {
+        return [];
+      }
+
+      const achievementIds = user.flags?.showcasedAchievements;
+
+      if (!achievementIds?.length) {
+        return [];
+      }
+
+      const [achievements, userAchievements] = await Promise.all([
+        ctx.con.getRepository(Achievement).find({
+          where: { id: In(achievementIds) },
+        }),
+        ctx.con.getRepository(UserAchievement).find({
+          where: {
+            userId,
+            achievementId: In(achievementIds),
+          },
+        }),
+      ]);
+
+      const achievementMap = new Map(achievements.map((a) => [a.id, a]));
+      const userAchievementMap = new Map(
+        userAchievements.map((ua) => [ua.achievementId, ua]),
+      );
+
+      // Preserve order from flags array, only include unlocked
+      return achievementIds
+        .filter((id) => {
+          const ua = userAchievementMap.get(id);
+          return ua?.unlockedAt && achievementMap.has(id);
+        })
+        .map((id) =>
+          toGQLUserAchievement({
+            achievement: achievementMap.get(id)!,
+            userAchievement: userAchievementMap.get(id),
+          }),
+        );
     },
   },
   Mutation: {
@@ -534,6 +627,76 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           closeAchievements,
         };
       });
+    },
+    updateShowcasedAchievements: async (
+      _,
+      args: { achievementIds: string[] },
+      ctx: AuthContext,
+    ): Promise<GQLUserAchievement[]> => {
+      const { achievementIds } = args;
+
+      if (achievementIds.length > SHOWCASED_ACHIEVEMENTS_LIMIT) {
+        throw new ValidationError(
+          `Cannot showcase more than ${SHOWCASED_ACHIEVEMENTS_LIMIT} achievements`,
+        );
+      }
+
+      if (achievementIds.length === 0) {
+        await ctx.con.getRepository(User).update(ctx.userId, {
+          flags: updateFlagsStatement<User>({
+            showcasedAchievements: [],
+          }),
+        });
+        return [];
+      }
+
+      // Validate all IDs correspond to unlocked achievements
+      const unlockedAchievements = await ctx.con
+        .getRepository(UserAchievement)
+        .find({
+          where: {
+            userId: ctx.userId,
+            achievementId: In(achievementIds),
+          },
+        });
+
+      const unlockedMap = new Map(
+        unlockedAchievements
+          .filter((ua) => ua.unlockedAt !== null)
+          .map((ua) => [ua.achievementId, ua]),
+      );
+
+      const invalidIds = achievementIds.filter((id) => !unlockedMap.has(id));
+
+      if (invalidIds.length > 0) {
+        throw new ValidationError(
+          'All showcased achievements must be unlocked',
+        );
+      }
+
+      // Update user flags
+      await ctx.con.getRepository(User).update(ctx.userId, {
+        flags: updateFlagsStatement<User>({
+          showcasedAchievements: achievementIds,
+        }),
+      });
+
+      // Fetch full achievement data
+      const achievements = await ctx.con.getRepository(Achievement).find({
+        where: { id: In(achievementIds) },
+      });
+
+      const achievementMap = new Map(achievements.map((a) => [a.id, a]));
+
+      // Preserve order from input
+      return achievementIds
+        .filter((id) => achievementMap.has(id))
+        .map((id) =>
+          toGQLUserAchievement({
+            achievement: achievementMap.get(id)!,
+            userAchievement: unlockedMap.get(id),
+          }),
+        );
     },
   },
 });
