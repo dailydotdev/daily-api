@@ -1139,9 +1139,8 @@ interface AuthorFeedArgs extends FeedArgs {
   author: string;
 }
 
-type PostRepostsArgs = ConnectionArguments & {
+type PostRepostsArgs = FeedArgs & {
   id: string;
-  supportedTypes?: string[];
 };
 
 interface FeedPage extends Page {
@@ -1872,7 +1871,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     postReposts: (source, args: PostRepostsArgs, ctx: Context, info) =>
       postRepostsFeedResolver(
         source,
-        { ...args, supportedTypes: args.supportedTypes ?? ['share'] },
+        {
+          ...args,
+          ranking: args.ranking ?? Ranking.TIME,
+          supportedTypes: args.supportedTypes ?? ['share'],
+        },
         ctx,
         info,
       ),
