@@ -831,20 +831,8 @@ const worker: Worker = {
           fixedData.sharedPostId = await upsertTwitterReferencedPost({
             entityManager,
             reference: twitterReference,
-            sourceId: fixedData.sourceId,
             language: fixedData.language,
-            isPrivate: fixedData.private,
           });
-
-          if (fixedData.sharedPostId) {
-            fixedData.showOnFeed = false;
-            fixedData.private = true;
-            fixedData.flags = {
-              ...fixedData.flags,
-              showOnFeed: false,
-              private: true,
-            };
-          }
         }
 
         // See if post id is not available
