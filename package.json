@@ -135,7 +135,6 @@
     "mercurius-cache": "^8.0.0",
     "mercurius-upload": "^7.0.0",
     "nanoid": "^3.3.4",
-    "undici": "^7.8.0",
     "node-html-parser": "^7.0.1",
     "node-stream-zip": "^1.15.0",
     "opentelemetry-instrumentation-typeorm": "^0.41.0",
@@ -150,6 +149,7 @@
     "slugify": "^1.6.6",
     "typeorm": "0.3.28",
     "ua-parser-js": "^2.0.7",
+    "undici": "^6.23.0",
     "uuid": "^11.1.0",
     "validate.js": "^0.13.1",
     "zod": "4.3.5"
