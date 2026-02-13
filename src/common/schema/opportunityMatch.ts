@@ -13,11 +13,6 @@ export const opportunityFeedbackSchema = z.object({
   classification: feedbackClassificationSchema.optional(),
 });
 
-export type OpportunityFeedback = z.infer<typeof opportunityFeedbackSchema>;
-export type FeedbackClassification = z.infer<
-  typeof feedbackClassificationSchema
->;
-
 export const rejectionReasonDetailSchema = z.object({
   reason: z.number(),
   confidence: z.number(),
@@ -33,17 +28,10 @@ export const rejectionFeedbackClassificationSchema = z.object({
   summary: z.string(),
 });
 
-export type RejectionReasonDetail = z.infer<typeof rejectionReasonDetailSchema>;
-export type RejectionFeedbackClassification = z.infer<
-  typeof rejectionFeedbackClassificationSchema
->;
-
 export const anonymousUserContextSchema = z.object({
   seniority: z.string().nullable().optional(),
   locationCountry: z.string().nullable().optional(),
 });
-
-export type AnonymousUserContext = z.infer<typeof anonymousUserContextSchema>;
 
 export const opportunityScreeningAnswersSchema = z.object({
   id: z.uuid(),

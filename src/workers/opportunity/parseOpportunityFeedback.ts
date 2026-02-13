@@ -4,11 +4,12 @@ import type { TypedWorker } from '../worker';
 import { OpportunityMatch } from '../../entity/OpportunityMatch';
 import { Opportunity } from '../../entity/opportunities/Opportunity';
 import { getBragiClient } from '../../integrations/bragi';
-import type {
-  FeedbackClassification,
-  OpportunityFeedback,
-  RejectionFeedbackClassification,
+import {
+  feedbackClassificationSchema,
+  opportunityFeedbackSchema,
+  rejectionFeedbackClassificationSchema,
 } from '../../common/schema/opportunityMatch';
+import type z from 'zod';
 
 type ParseOpportunityFeedbackData = {
   opportunityId: string;
@@ -43,7 +44,8 @@ const parseOpportunityFeedback = async ({
 
   const bragiClient = getBragiClient();
 
-  const updatedFeedback: OpportunityFeedback[] = await Promise.all(
+  const updatedFeedback: Array<z.infer<typeof opportunityFeedbackSchema>> =
+    await Promise.all(
     match.feedback.map(async (item) => {
       if (item.classification) {
         return item;
@@ -63,7 +65,9 @@ const parseOpportunityFeedback = async ({
           return item;
         }
 
-        const feedbackClassification: FeedbackClassification = {
+        const feedbackClassification: z.infer<
+          typeof feedbackClassificationSchema
+        > = {
           platform: classification.platform,
           category: classification.category,
           sentiment: classification.sentiment,
@@ -122,7 +126,9 @@ const parseOpportunityFeedback = async ({
       return;
     }
 
-    const rejectionClassification: RejectionFeedbackClassification = {
+    const rejectionClassification: z.infer<
+      typeof rejectionFeedbackClassificationSchema
+    > = {
       reasons: result.classification.reasons.map((reason) => {
         const preference =
           reason.preference?.case === 'locationTypePreference'

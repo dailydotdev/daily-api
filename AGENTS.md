@@ -226,6 +226,25 @@ The migration generator compares entities against the local database schema. Ens
 **Zod patterns:**
 - Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
 - **Place Zod schemas in `src/common/schema/`** - not inline in resolver files. Create a dedicated file per domain (e.g., `userStack.ts`, `opportunities.ts`)
+- **IMPORTANT - Zod Type Inference:**
+  - **ALWAYS use `z.infer<typeof schema>` to derive TypeScript types from Zod schemas** at the point of use
+  - **NEVER manually define or re-export types that duplicate Zod schema structure**
+  - Export only the schemas themselves, not the inferred types
+  - Example:
+    ```typescript
+    // GOOD: Export only the schema
+    export const userSchema = z.object({ name: z.string(), age: z.number() });
+
+    // BAD: Re-exporting inferred type
+    export type User = z.infer<typeof userSchema>;
+
+    // GOOD: Use z.infer at point of use
+    import type { userSchema } from './schema';
+    type User = z.infer<typeof userSchema>;
+
+    // GOOD: Inline in function parameters
+    const processUser = (user: z.infer<typeof userSchema>) => { ... };
+    ```
 
 ## Best Practices & Lessons Learned
 

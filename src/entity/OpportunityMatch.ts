@@ -17,14 +17,14 @@ import {
   opportunityMatchDescriptionSchema,
 } from '../common/schema/opportunities';
 import type { Screening } from '@dailydotdev/schema';
-import type {
-  OpportunityFeedback,
-  RejectionFeedbackClassification,
+import {
+  opportunityFeedbackSchema,
+  rejectionFeedbackClassificationSchema,
 } from '../common/schema/opportunityMatch';
 
 export type OpportunityMatchHistoryEntry = Partial<{
   status: OpportunityMatchStatus;
-  feedback: Array<OpportunityFeedback>;
+  feedback: Array<z.infer<typeof opportunityFeedbackSchema>>;
   archivedAt: string;
   description: z.infer<typeof opportunityMatchDescriptionSchema>;
 }>;
@@ -60,10 +60,12 @@ export class OpportunityMatch {
   screening: Array<Screening>;
 
   @Column({ type: 'jsonb', default: '[]' })
-  feedback: Array<OpportunityFeedback>;
+  feedback: Array<z.infer<typeof opportunityFeedbackSchema>>;
 
   @Column({ type: 'jsonb', nullable: true, default: '{}' })
-  rejectionClassification: RejectionFeedbackClassification | null;
+  rejectionClassification: z.infer<
+    typeof rejectionFeedbackClassificationSchema
+  > | null;
 
   @Column({ type: 'jsonb', default: '{}' })
   applicationRank: z.infer<typeof applicationScoreSchema>;
