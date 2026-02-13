@@ -14,16 +14,28 @@ const DEFAULT_SEVERITY_NUMBER_MAP = {
 
 const pinoLoggerOptions: LoggerOptions = {
   level: process.env.LOG_LEVEL || 'info',
+  messageKey: 'body',
+  base: null,
+  timestamp: () => `,"timestamp":"${Date.now()}000000"`,
   formatters: {
     level(severity, level) {
       return {
-        severityText: severity,
+        severityText: severity.toUpperCase(),
         severityNumber:
           DEFAULT_SEVERITY_NUMBER_MAP[
             level as keyof typeof DEFAULT_SEVERITY_NUMBER_MAP
           ] || DEFAULT_SEVERITY_NUMBER_MAP[30], // default to INFO
       };
     },
+  },
+};
+
+const devTransport: LoggerOptions['transport'] = {
+  target: 'pino-pretty',
+  options: {
+    levelKey: 'severityText',
+    messageKey: 'body',
+    timestampKey: 'timestamp',
   },
 };
 
@@ -38,6 +50,9 @@ export const loggerConfig: LoggerOptions =
         },
         pinoLoggerOptions,
       )
-    : pinoLoggerOptions;
+    : {
+        ...pinoLoggerOptions,
+        ...(env.NODE_ENV !== 'production' && { transport: devTransport }),
+      };
 
 export const logger = pino(loggerConfig);
