@@ -465,6 +465,7 @@ export const upsertTwitterReferencedPost = async ({
     shortId: id,
     subType: 'tweet',
     sourceId: referenceSourceId,
+    creatorTwitter: reference.authorUsername ?? undefined,
     createdAt: now,
     metadataChangedAt: now,
     title,
