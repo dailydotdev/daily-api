@@ -1,9 +1,5 @@
 import { z } from 'zod';
-
-const optionalString = z
-  .string()
-  .nullish()
-  .transform((v) => v?.trim() || undefined);
+import { optionalStringSchema } from './common';
 
 export const twitterSocialSubTypes = [
   'tweet',
@@ -25,55 +21,55 @@ export const twitterSocialInputSubTypeSchema = z.enum(
 
 export const twitterSocialMediaSchema = z
   .object({
-    type: optionalString,
-    url: optionalString,
-    thumbnail: optionalString,
+    type: optionalStringSchema,
+    url: optionalStringSchema,
+    thumbnail: optionalStringSchema,
   })
   .passthrough();
 
 export const twitterSocialThreadTweetSchema = z
   .object({
-    tweet_id: optionalString,
-    content: optionalString,
-    content_html: optionalString,
+    tweet_id: optionalStringSchema,
+    content: optionalStringSchema,
+    content_html: optionalStringSchema,
     media: z.array(twitterSocialMediaSchema).nullish(),
   })
   .passthrough();
 
 export const twitterSocialReferenceSchema = z
   .object({
-    tweet_id: optionalString,
-    url: optionalString,
-    content: optionalString,
-    content_html: optionalString,
+    tweet_id: optionalStringSchema,
+    url: optionalStringSchema,
+    content: optionalStringSchema,
+    content_html: optionalStringSchema,
     media: z.array(twitterSocialMediaSchema).nullish(),
   })
   .passthrough();
 
 export const twitterSocialExtraSchema = z
   .object({
-    author_username: optionalString,
+    author_username: optionalStringSchema,
     subtype: twitterSocialInputSubTypeSchema.nullish(),
     sub_type: twitterSocialInputSubTypeSchema.nullish(),
-    tweet_id: optionalString,
-    content: optionalString,
-    content_html: optionalString,
+    tweet_id: optionalStringSchema,
+    content: optionalStringSchema,
+    content_html: optionalStringSchema,
     media: z.array(twitterSocialMediaSchema).nullish(),
-    video_id: optionalString,
+    video_id: optionalStringSchema,
     is_thread: z.boolean().nullish(),
     thread_tweets: z.array(twitterSocialThreadTweetSchema).nullish(),
     referenced_tweet: twitterSocialReferenceSchema.nullish(),
     quoted_tweet: twitterSocialReferenceSchema.nullish(),
     retweeted_tweet: twitterSocialReferenceSchema.nullish(),
     reposted_tweet: twitterSocialReferenceSchema.nullish(),
-    referenced_tweet_id: optionalString,
-    quoted_tweet_id: optionalString,
-    retweeted_tweet_id: optionalString,
-    reposted_tweet_id: optionalString,
-    referenced_tweet_url: optionalString,
-    quoted_tweet_url: optionalString,
-    retweeted_tweet_url: optionalString,
-    reposted_tweet_url: optionalString,
+    referenced_tweet_id: optionalStringSchema,
+    quoted_tweet_id: optionalStringSchema,
+    retweeted_tweet_id: optionalStringSchema,
+    reposted_tweet_id: optionalStringSchema,
+    referenced_tweet_url: optionalStringSchema,
+    quoted_tweet_url: optionalStringSchema,
+    retweeted_tweet_url: optionalStringSchema,
+    reposted_tweet_url: optionalStringSchema,
   })
   .passthrough();
 
@@ -81,9 +77,9 @@ export const twitterSocialPayloadSchema = z
   .object({
     content_type: z.literal('social:twitter'),
     url: z.string().min(1),
-    title: optionalString,
-    image: optionalString,
-    language: optionalString,
+    title: optionalStringSchema,
+    image: optionalStringSchema,
+    language: optionalStringSchema,
     extra: twitterSocialExtraSchema.nullish(),
   })
   .passthrough();

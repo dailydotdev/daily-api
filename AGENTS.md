@@ -226,6 +226,7 @@ The migration generator compares entities against the local database schema. Ens
 **Zod patterns:**
 - Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
 - **Place Zod schemas in `src/common/schema/`** - not inline in resolver files. Create a dedicated file per domain (e.g., `userStack.ts`, `opportunities.ts`)
+- **Schema exports must use a `Schema` suffix** (e.g., `optionalStringSchema`, `paginationSchema`, `urlParseSchema`). This makes schema variables clearly distinguishable from regular values and types.
 
 ## Best Practices & Lessons Learned
 

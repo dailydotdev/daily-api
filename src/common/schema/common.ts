@@ -42,3 +42,8 @@ export const fileUploadSchema = z.custom<Promise<FileUpload>>();
 export const zCoerceStringBoolean = z.preprocess((val) => {
   return val === 'false' ? false : Boolean(val);
 }, z.boolean());
+
+export const optionalStringSchema = z
+  .string()
+  .nullish()
+  .transform((v) => v?.trim() || undefined);
