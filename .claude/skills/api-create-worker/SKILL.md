@@ -90,7 +90,7 @@ Create the worker file at `src/workers/[name].ts` (or `src/workers/[domain]/[nam
 
 ### TypedWorker template
 
-Reference example: `src/workers/feedbackClassify.ts` (standard), `src/workers/opportunity/storeCandidateOpportunityMatch.ts` (Protobuf with `parseMessage`).
+Reference examples: `src/workers/feedbackClassify.ts` (standard), `src/workers/opportunity/storeCandidateOpportunityMatch.ts` (Protobuf with `parseMessage`).
 
 ```typescript
 import { TypedWorker } from './worker';
@@ -99,28 +99,9 @@ const worker: TypedWorker<'topic-name'> = {
   subscription: 'subscription-name',
   handler: async (message, con, logger): Promise<void> => {
     const { data, messageId } = message;
-    // Business logic here
   },
-};
-
-export default worker;
-```
-
-If using Protobuf, add `parseMessage`:
-
-```typescript
-import { TypedWorker } from './worker';
-import { YourProtoType } from '@dailydotdev/schema';
-
-const worker: TypedWorker<'topic-name'> = {
-  subscription: 'subscription-name',
-  handler: async (message, con, logger): Promise<void> => {
-    const { data, messageId } = message;
-    // data is typed as YourProtoType
-  },
-  parseMessage: (message) => {
-    return YourProtoType.fromBinary(message.data);
-  },
+  // For Protobuf types only — add parseMessage:
+  // parseMessage: (message) => YourProtoType.fromBinary(message.data),
 };
 
 export default worker;
@@ -155,31 +136,9 @@ Registration depends on worker type:
 | `TypedWorker` | `src/workers/index.ts` | `typedWorkers` |
 | `TypedNotificationWorker` | `src/workers/notifications/index.ts` | `notificationWorkers` |
 
-### TypedWorker registration
+For `TypedWorker`: add import + entry to the `typedWorkers` array in `src/workers/index.ts`.
 
-Add import and entry to the `typedWorkers` array in `src/workers/index.ts`:
-
-```typescript
-import myNewWorker from './myNewWorker';
-
-export const typedWorkers: BaseTypedWorker<any>[] = [
-  // ... existing workers
-  myNewWorker,
-];
-```
-
-### TypedNotificationWorker registration
-
-Add import and entry to the `notificationWorkers` array in `src/workers/notifications/index.ts`. These are automatically wrapped via `notificationWorkerToWorker` and spread into the main `workers` array.
-
-```typescript
-import myNotificationWorker from './myNotificationWorker';
-
-const notificationWorkers = [
-  // ... existing workers
-  myNotificationWorker,
-];
-```
+For `TypedNotificationWorker`: add import + entry to the `notificationWorkers` array in `src/workers/notifications/index.ts`. These are automatically wrapped via `notificationWorkerToWorker` and spread into the main `workers` array.
 
 ---
 
@@ -205,49 +164,14 @@ Create an integration test at `__tests__/workers/[name].ts`.
 
 Reference: `__tests__/workers/feedbackClassify.ts` for a complete TypedWorker test example.
 
-Follow this pattern:
+Follow the pattern in `__tests__/workers/feedbackClassify.ts`. Every test file should include:
 
-```typescript
-import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/myWorker';
-import { typedWorkers } from '../../src/workers';
-import { DataSource } from 'typeorm';
-import createOrGetConnection from '../../src/db';
-
-let con: DataSource;
-
-beforeAll(async () => {
-  con = await createOrGetConnection();
-});
-
-describe('myWorker', () => {
-  beforeEach(async () => {
-    jest.resetAllMocks();
-    // Set up test fixtures
-  });
-
-  it('should be registered', () => {
-    const registeredWorker = typedWorkers.find(
-      (item) => item.subscription === worker.subscription,
-    );
-    expect(registeredWorker).toBeDefined();
-  });
-
-  it('should process messages correctly', async () => {
-    await expectSuccessfulTypedBackground<'topic-name'>(worker, {
-      // message data matching PubSubSchema['topic-name']
-    });
-
-    // Verify database state after processing
-  });
-
-  // Add edge case tests: not found, already processed, etc.
-});
-```
+1. **Registration check** — find the worker in `typedWorkers` (or `workers` for notification workers) by subscription name
+2. **Success path** — `expectSuccessfulTypedBackground<'topic-name'>(worker, { ... })` with the generic type parameter for type safety
+3. **Database verification** — query and assert state changes after processing
+4. **Edge cases** — not found, already processed, invalid data, etc.
 
 For `TypedNotificationWorker`, check registration in the `workers` array (which includes wrapped notification workers) instead of `typedWorkers`.
-
-Use `expectSuccessfulTypedBackground` with the topic name as generic type parameter for full type safety.
 
 ---
 
