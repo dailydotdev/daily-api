@@ -244,50 +244,33 @@ const extractTwitterReference = (
   payload: TwitterSocialPayload,
 ): TwitterReferencePost | undefined => {
   const extra = payload.extra;
-  if (!extra) {
+  if (!extra?.reference) {
     return undefined;
   }
 
-  const repostSource =
-    extra.reposted_tweet || extra.retweeted_tweet || undefined;
-  const repostUrl = buildTwitterReferenceUrl(
-    extra.reposted_tweet_url || extra.retweeted_tweet_url || repostSource?.url,
-    extra.reposted_tweet_id ||
-      extra.retweeted_tweet_id ||
-      repostSource?.tweet_id,
+  const reference = extra.reference;
+  const referenceUrl = buildTwitterReferenceUrl(
+    reference.url,
+    reference.tweet_id,
   );
 
-  if (repostSource || repostUrl) {
-    return {
-      subType: 'repost',
-      url: repostUrl!,
-      title: getStringOrUndefined(repostSource?.content),
-      content: getStringOrUndefined(repostSource?.content),
-      contentHtml: getStringOrUndefined(repostSource?.content_html),
-      image: pickPrimaryImage(repostSource?.media || []),
-      videoId: pickPrimaryVideoId(repostSource?.media || []),
-    };
+  if (!referenceUrl) {
+    return undefined;
   }
 
-  const quoteSource = extra.quoted_tweet || extra.referenced_tweet || undefined;
-  const quoteUrl = buildTwitterReferenceUrl(
-    extra.quoted_tweet_url || extra.referenced_tweet_url || quoteSource?.url,
-    extra.quoted_tweet_id || extra.referenced_tweet_id || quoteSource?.tweet_id,
-  );
+  const explicitSubType = extra.sub_type || extra.subtype;
+  const subType: 'repost' | 'quote' =
+    explicitSubType === 'quote' ? 'quote' : 'repost';
 
-  if (quoteSource || quoteUrl) {
-    return {
-      subType: 'quote',
-      url: quoteUrl!,
-      title: getStringOrUndefined(quoteSource?.content),
-      content: getStringOrUndefined(quoteSource?.content),
-      contentHtml: getStringOrUndefined(quoteSource?.content_html),
-      image: pickPrimaryImage(quoteSource?.media || []),
-      videoId: pickPrimaryVideoId(quoteSource?.media || []),
-    };
-  }
-
-  return undefined;
+  return {
+    subType,
+    url: referenceUrl,
+    title: getStringOrUndefined(reference.title || reference.content),
+    content: getStringOrUndefined(reference.content),
+    contentHtml: getStringOrUndefined(reference.content_html),
+    image: pickPrimaryImage(reference.media || []),
+    videoId: pickPrimaryVideoId(reference.media || []),
+  };
 };
 
 const normalizeTwitterSubType = ({
