@@ -47,16 +47,18 @@ export interface TwitterReferenceUpsertParams {
 }
 
 const normalizeTwitterHandleForTitle = (
-  handle?: string,
+  handle?: string | null,
 ): string | undefined => {
   if (!handle) {
     return undefined;
   }
 
-  return handle.replace(/^@+/, '');
+  return handle.trim().replace(/^@+/, '') || undefined;
 };
 
-export const normalizeTwitterHandle = (handle?: string): string | undefined => {
+export const normalizeTwitterHandle = (
+  handle?: string | null,
+): string | undefined => {
   const parsedHandle = normalizeTwitterHandleForTitle(handle);
   if (!parsedHandle) {
     return undefined;
@@ -65,21 +67,27 @@ export const normalizeTwitterHandle = (handle?: string): string | undefined => {
   return parsedHandle.toLowerCase();
 };
 
-export const extractTwitterStatusId = (url?: string): string | undefined => {
-  if (!url) {
+export const extractTwitterStatusId = (
+  url?: string | null,
+): string | undefined => {
+  const parsed = url?.trim();
+  if (!parsed) {
     return undefined;
   }
 
-  const match = url.match(/\/status\/(\d+)/i);
+  const match = parsed.match(/\/status\/(\d+)/i);
   return match?.[1];
 };
 
-const extractTwitterHandleFromUrl = (url?: string): string | undefined => {
-  if (!url) {
+const extractTwitterHandleFromUrl = (
+  url?: string | null,
+): string | undefined => {
+  const parsed = url?.trim();
+  if (!parsed) {
     return undefined;
   }
 
-  const match = url.match(
+  const match = parsed.match(
     /(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com)\/([^/?#]+)\/status\//i,
   );
 
@@ -95,11 +103,12 @@ const formatTwitterTitle = ({
   subType,
 }: {
   handle?: string;
-  content?: string;
+  content?: string | null;
   subType?: TwitterSocialSubType;
 }): string | undefined => {
-  const cleanContent = content
-    ? stripLeadingMentions(content) || undefined
+  const parsedContent = content?.trim() || undefined;
+  const cleanContent = parsedContent
+    ? stripLeadingMentions(parsedContent) || undefined
     : undefined;
 
   if (!cleanContent && subType === 'repost' && handle) {
@@ -127,12 +136,12 @@ const isVideoMedia = (media: TwitterSocialMedia): boolean => {
   return type === 'video' || type === 'gif' || type === 'animated_gif';
 };
 
-const isTwitterProfileImage = (url?: string): boolean =>
+const isTwitterProfileImage = (url?: string | null): boolean =>
   !!url && /pbs\.twimg\.com\/profile_images\//i.test(url);
 
 const pickPrimaryImage = (
   media: TwitterSocialMedia[] = [],
-  fallbackImage?: string,
+  fallbackImage?: string | null,
 ): string | undefined => {
   const imageMedia = media.find((item) => isImageMedia(item) && item.url);
 
@@ -140,16 +149,18 @@ const pickPrimaryImage = (
     return imageMedia.url;
   }
 
-  if (isTwitterProfileImage(fallbackImage)) {
+  const fallback = fallbackImage?.trim() || undefined;
+
+  if (isTwitterProfileImage(fallback)) {
     return undefined;
   }
 
-  return fallbackImage;
+  return fallback;
 };
 
 const pickPrimaryVideoId = (
   media: TwitterSocialMedia[] = [],
-  fallbackVideoId?: string,
+  fallbackVideoId?: string | null,
 ): string | undefined => {
   const videoMedia = media.find((item) => isVideoMedia(item) && item.url);
 
@@ -157,7 +168,7 @@ const pickPrimaryVideoId = (
     return videoMedia.url;
   }
 
-  return fallbackVideoId;
+  return fallbackVideoId?.trim() || undefined;
 };
 
 const buildThreadContent = ({
@@ -165,30 +176,33 @@ const buildThreadContent = ({
   rootContentHtml,
   threadTweets,
 }: {
-  rootContent?: string;
-  rootContentHtml?: string;
+  rootContent?: string | null;
+  rootContentHtml?: string | null;
   threadTweets?: Array<{
-    tweet_id?: string;
-    content?: string;
-    content_html?: string;
+    tweet_id?: string | null;
+    content?: string | null;
+    content_html?: string | null;
   } | null> | null;
 }): Pick<TwitterMappedPostFields, 'content' | 'contentHtml'> => {
-  const textParts = [rootContent];
-  const htmlParts = [rootContentHtml];
+  const textParts = [rootContent?.trim()];
+  const htmlParts = [rootContentHtml?.trim()];
 
   threadTweets?.forEach((tweet) => {
-    textParts.push(tweet?.content);
+    const tweetContent = tweet?.content?.trim();
+    const tweetHtml = tweet?.content_html?.trim();
 
-    if (tweet?.content_html) {
-      htmlParts.push(tweet.content_html);
+    textParts.push(tweetContent);
+
+    if (tweetHtml) {
+      htmlParts.push(tweetHtml);
       return;
     }
 
-    if (!tweet?.content) {
+    if (!tweetContent) {
       return;
     }
 
-    htmlParts.push(markdown.render(tweet.content));
+    htmlParts.push(markdown.render(tweetContent));
   });
 
   const content = textParts.filter(Boolean).join('\n\n');
@@ -201,18 +215,20 @@ const buildThreadContent = ({
 };
 
 const buildTwitterReferenceUrl = (
-  url?: string,
-  tweetId?: string,
+  url?: string | null,
+  tweetId?: string | null,
 ): string | undefined => {
-  if (url) {
-    return url;
+  const parsedUrl = url?.trim();
+  if (parsedUrl) {
+    return parsedUrl;
   }
 
-  if (!tweetId) {
+  const parsedTweetId = tweetId?.trim();
+  if (!parsedTweetId) {
     return undefined;
   }
 
-  return `https://x.com/i/web/status/${tweetId}`;
+  return `https://x.com/i/web/status/${parsedTweetId}`;
 };
 
 const extractTwitterReference = (
@@ -236,9 +252,9 @@ const extractTwitterReference = (
     return {
       subType: 'repost',
       url: repostUrl!,
-      title: repostSource?.content,
-      content: repostSource?.content,
-      contentHtml: repostSource?.content_html,
+      title: repostSource?.content?.trim() || undefined,
+      content: repostSource?.content?.trim() || undefined,
+      contentHtml: repostSource?.content_html?.trim() || undefined,
       image: pickPrimaryImage(repostSource?.media || []),
       videoId: pickPrimaryVideoId(repostSource?.media || []),
     };
@@ -254,9 +270,9 @@ const extractTwitterReference = (
     return {
       subType: 'quote',
       url: quoteUrl!,
-      title: quoteSource?.content,
-      content: quoteSource?.content,
-      contentHtml: quoteSource?.content_html,
+      title: quoteSource?.content?.trim() || undefined,
+      content: quoteSource?.content?.trim() || undefined,
+      contentHtml: quoteSource?.content_html?.trim() || undefined,
       image: pickPrimaryImage(quoteSource?.media || []),
       videoId: pickPrimaryVideoId(quoteSource?.media || []),
     };
@@ -324,8 +340,9 @@ export const mapTwitterSocialPayload = ({
     extractTwitterHandleFromUrl(payload.url);
   const authorUsername = normalizeTwitterHandle(authorHandle);
 
-  const rootContent = payload.extra?.content || payload.title;
-  const rootContentHtml = payload.extra?.content_html;
+  const rootContent =
+    payload.extra?.content?.trim() || payload.title?.trim() || undefined;
+  const rootContentHtml = payload.extra?.content_html?.trim() || undefined;
   const media = payload.extra?.media || [];
 
   const fields: TwitterMappedPostFields = {
