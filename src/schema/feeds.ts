@@ -348,7 +348,7 @@ export const typeDefs = /* GraphQL */ `
       """
       Array of supported post types
       """
-      supportedTypes: [String!] = ["share"]
+      supportedTypes: [String!]
     ): PostConnection!
 
     """

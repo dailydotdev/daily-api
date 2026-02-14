@@ -241,6 +241,7 @@ The migration generator compares entities against the local database schema. Ens
 - Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy checks in each builder.
 - `applyFeedWhere` does not handle blocked-user actor filtering; for actor-based lists (for example reposts/upvotes), explicitly add `whereNotUserBlocked(...)` with the correct column.
 - For activity lists where chronological order is required (for example repost lists), force `Ranking.TIME` in the resolver wrapper.
+- When introducing query-specific defaults (for example `supportedTypes` for one resolver), do not add schema-level defaults to shared feed queries like `anonymousFeed`; keep defaults scoped to the intended resolver wrapper.
 
 **Avoiding N+1 Queries with Lazy Relations:**
 - **Never await lazy relations inside loops or map functions** - this causes N+1 query problems where each iteration triggers a separate database query.
