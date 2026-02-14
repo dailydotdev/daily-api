@@ -1524,14 +1524,14 @@ const legacySimilarPostsResolver = randomPostsResolver(
 
 const postRepostsFeedResolver = feedResolver(
   (ctx, { id }: PostRepostsArgs, builder, alias) =>
-    repostFeedBuilder(ctx, id, builder, alias),
+    repostFeedBuilder(id, builder, alias),
   feedPageGenerator,
   applyFeedPaging,
   {
     removeHiddenPosts: false,
     removeBannedPosts: false,
     removeNonPublicThresholdSquads: false,
-    allowPrivatePosts: false,
+    allowPrivatePosts: true,
     fetchQueryParams: async (ctx, { id }: PostRepostsArgs) => {
       const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
       await ensureSourcePermissions(ctx, post.sourceId);
@@ -1873,7 +1873,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         source,
         {
           ...args,
-          ranking: args.ranking ?? Ranking.TIME,
+          ranking: Ranking.TIME,
           supportedTypes: args.supportedTypes ?? ['share'],
         },
         ctx,

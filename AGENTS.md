@@ -236,6 +236,11 @@ The migration generator compares entities against the local database schema. Ens
 - **Export and import, don't duplicate**: When you need the same logic in multiple places, export the function from its original location and import it where needed. This ensures a single source of truth and prevents maintenance issues.
 - **Example lesson**: When implementing `handleOpportunityKeywordsUpdate`, the function was duplicated in both `src/common/opportunity/parse.ts` and `src/schema/opportunity.ts`. This caused lint failures and maintenance burden. The correct approach was to export it from `parse.ts` and import it in `opportunity.ts`.
 
+**Feed resolver filtering ownership:**
+- Prefer `feedResolver`/`applyFeedWhere` options (`allowPrivatePosts`, `removeHiddenPosts`, `removeBannedPosts`, `removeNonPublicThresholdSquads`) for standard feed filtering behavior.
+- Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy/blocking checks in each builder.
+- For activity lists where chronological order is required (for example repost lists), force `Ranking.TIME` in the resolver wrapper.
+
 **Avoiding N+1 Queries with Lazy Relations:**
 - **Never await lazy relations inside loops or map functions** - this causes N+1 query problems where each iteration triggers a separate database query.
 - **Batch fetch related entities** using TypeORM's `In()` operator to fetch all related records in a single query, then create a Map for O(1) lookups.
