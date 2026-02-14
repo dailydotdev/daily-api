@@ -38,7 +38,7 @@ describe('organizationUserLeft worker', () => {
 
     await saveFixtures(con, Organization, [
       {
-        id: 'our-org-1',
+        id: '1cf163f2-8099-41c7-841a-8aaace2513be',
         seats: 1,
         name: 'Organization 1',
         subscriptionFlags: {
@@ -47,7 +47,7 @@ describe('organizationUserLeft worker', () => {
         },
       },
       {
-        id: 'our-org-2',
+        id: 'c1226c42-fa24-4007-a990-91af8dab75a0',
         seats: 1,
         name: 'Organization 2',
         subscriptionFlags: {
@@ -71,8 +71,8 @@ describe('organizationUserLeft worker', () => {
     await con.getRepository(ContentPreferenceOrganization).save([
       {
         userId: '1',
-        referenceId: 'our-org-1',
-        organizationId: 'our-org-1',
+        referenceId: '1cf163f2-8099-41c7-841a-8aaace2513be',
+        organizationId: '1cf163f2-8099-41c7-841a-8aaace2513be',
         feedId: '1',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -82,8 +82,8 @@ describe('organizationUserLeft worker', () => {
       },
       {
         userId: '2',
-        referenceId: 'our-org-1',
-        organizationId: 'our-org-1',
+        referenceId: '1cf163f2-8099-41c7-841a-8aaace2513be',
+        organizationId: '1cf163f2-8099-41c7-841a-8aaace2513be',
         feedId: '2',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -93,8 +93,8 @@ describe('organizationUserLeft worker', () => {
       },
       {
         userId: '2',
-        referenceId: 'our-org-2',
-        organizationId: 'our-org-2',
+        referenceId: 'c1226c42-fa24-4007-a990-91af8dab75a0',
+        organizationId: 'c1226c42-fa24-4007-a990-91af8dab75a0',
         feedId: '2',
         status: ContentPreferenceOrganizationStatus.Plus,
         flags: {
@@ -134,7 +134,7 @@ describe('organizationUserLeft worker', () => {
     const warnSpy = jest.spyOn(logger, 'error');
 
     await expectSuccessfulTypedBackground(worker, {
-      organizationId: 'our-org-1',
+      organizationId: '1cf163f2-8099-41c7-841a-8aaace2513be',
       memberId: '87b79108-d258-42d2-b38a-4a02974746cc',
     });
 
@@ -151,14 +151,14 @@ describe('organizationUserLeft worker', () => {
     const warnSpy = jest.spyOn(logger, 'error');
 
     await expectSuccessfulTypedBackground(worker, {
-      organizationId: 'our-org-2',
+      organizationId: 'c1226c42-fa24-4007-a990-91af8dab75a0',
       memberId: '2',
     });
 
     expect(sendEmail).not.toHaveBeenCalled();
     expect(warnSpy).toHaveBeenCalledWith(
       {
-        organizationId: 'our-org-2',
+        organizationId: 'c1226c42-fa24-4007-a990-91af8dab75a0',
         userId: '2',
       },
       'No owner found for organization',
@@ -169,7 +169,7 @@ describe('organizationUserLeft worker', () => {
     const user = usersFixture[0];
 
     await expectSuccessfulTypedBackground(worker, {
-      organizationId: 'our-org-1',
+      organizationId: '1cf163f2-8099-41c7-841a-8aaace2513be',
       memberId: '1',
     });
 
@@ -181,7 +181,9 @@ describe('organizationUserLeft worker', () => {
       message_data: {
         organization: {
           name: 'Organization 1',
-          href: getOrganizationPermalink({ id: 'our-org-1' }),
+          href: getOrganizationPermalink({
+            id: '1cf163f2-8099-41c7-841a-8aaace2513be',
+          }),
         },
         member: {
           name: user.name,
