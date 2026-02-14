@@ -407,12 +407,13 @@ describe('myWorker', () => {
 
 1. **Use Typed Workers**: Use `TypedWorker` for all workers. This ensures type safety and consistency across the codebase.
 2. **Use `triggerTypedEvent`**: Always use `triggerTypedEvent` to publish typed messages. Use the helper functions in `src/common/pubsub.ts` for specific event types.
-3. **Idempotency**: Design workers to handle duplicate messages gracefully
-4. **Logging**: Log with context (messageId, relevant data)
-5. **Error Handling**: Re-throw errors to trigger retries, but log appropriately
-6. **Monitoring**: Use OpenTelemetry spans (automatically added) for observability
-7. **Resource Limits**: Set `maxMessages` appropriately to control concurrency
-8. **Dead Letter Queues**: Configure for critical workers to catch persistent failures
+3. **Inline handler logic**: Place worker logic directly inside the `handler` function. Don't extract a separate named function that the handler simply delegates to — it adds unnecessary indirection for single-use code.
+4. **Idempotency**: Design workers to handle duplicate messages gracefully
+5. **Logging**: Log with context (messageId, relevant data)
+6. **Error Handling**: Re-throw errors to trigger retries, but log appropriately
+7. **Monitoring**: Use OpenTelemetry spans (automatically added) for observability
+8. **Resource Limits**: Set `maxMessages` appropriately to control concurrency
+9. **Dead Letter Queues**: Configure for critical workers to catch persistent failures
 
 ## Troubleshooting
 
