@@ -249,16 +249,6 @@ export const validateWorkEmailDomain = (domain: string): boolean => {
   );
 };
 
-export const unwrapArray = <T>(
-  arrayOrValue: T[] | T | undefined,
-): T | undefined => {
-  if (Array.isArray(arrayOrValue)) {
-    return arrayOrValue[0];
-  }
-
-  return arrayOrValue;
-};
-
 export const parseBigInt = (value: bigint): number => {
   try {
     return Number(value);
