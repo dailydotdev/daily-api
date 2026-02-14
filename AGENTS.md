@@ -131,6 +131,7 @@ The migration generator compares entities against the local database schema. Ens
 - Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
 - When evaluating response objects (GraphQL, API), prefer `toEqual` and `toMatchObject` over multiple `expect().toBe()` lines
 - Avoid redundant test assertions - if an assertion already verifies the value, don't add negative checks that are logically implied (e.g., if `expect(result).toBe('a')` passes, don't also check `expect(result).not.toBe('b')`)
+- When adding/removing persisted entity fields, update affected Jest snapshots in worker/integration tests (for example `toMatchSnapshot` payloads) as part of the same change to avoid CI drift.
 - **Typed worker tests**: Always use the generic type parameter with `expectSuccessfulTypedBackground<'topic-name'>()` for type safety. Use `toChangeObject()` to convert entities to the expected message payload format:
   ```typescript
   await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
@@ -235,6 +236,13 @@ The migration generator compares entities against the local database schema. Ens
 - **Prefer extracting to common utilities** when logic needs to be shared. Place shared helpers in appropriate `src/common/` subdirectories (e.g., `src/common/opportunity/` for opportunity-related helpers).
 - **Export and import, don't duplicate**: When you need the same logic in multiple places, export the function from its original location and import it where needed. This ensures a single source of truth and prevents maintenance issues.
 - **Example lesson**: When implementing `handleOpportunityKeywordsUpdate`, the function was duplicated in both `src/common/opportunity/parse.ts` and `src/schema/opportunity.ts`. This caused lint failures and maintenance burden. The correct approach was to export it from `parse.ts` and import it in `opportunity.ts`.
+
+**Feed resolver filtering ownership:**
+- Prefer `feedResolver`/`applyFeedWhere` options (`allowPrivatePosts`, `removeHiddenPosts`, `removeBannedPosts`, `removeNonPublicThresholdSquads`) for standard feed filtering behavior.
+- Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy checks in each builder.
+- `applyFeedWhere` does not handle blocked-user actor filtering; for actor-based lists (for example reposts/upvotes), explicitly add `whereNotUserBlocked(...)` with the correct column.
+- For activity lists where chronological order is required (for example repost lists), force `Ranking.TIME` in the resolver wrapper.
+- When introducing query-specific defaults (for example `supportedTypes` for one resolver), do not add schema-level defaults to shared feed queries like `anonymousFeed`; keep defaults scoped to the intended resolver wrapper.
 
 **Avoiding N+1 Queries with Lazy Relations:**
 - **Never await lazy relations inside loops or map functions** - this causes N+1 query problems where each iteration triggers a separate database query.

@@ -32,6 +32,7 @@ Object {
   "private": false,
   "publishedAt": null,
   "readTime": null,
+  "reposts": 0,
   "score": Any<Number>,
   "scoutId": null,
   "sentAnalyticsReport": true,
