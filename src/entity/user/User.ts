@@ -46,6 +46,7 @@ export type UserFlags = Partial<{
   };
   subdivision: string | null;
   lastCVParseAt: Date | null;
+  showcasedAchievements: string[];
 }>;
 
 export type UserFlagsPublic = Pick<UserFlags, 'showPlusGift'>;
