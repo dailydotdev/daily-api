@@ -40,6 +40,7 @@ import {
 import { ContentPreference } from '../entity/contentPreference/ContentPreference';
 import { ContentPreferenceWord } from '../entity/contentPreference/ContentPreferenceWord';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
+import { whereNotUserBlocked } from './contentPreference';
 
 export const WATERCOOLER_ID = 'fd062672-63b7-4a10-87bd-96dcd10e9613';
 
@@ -812,13 +813,26 @@ export const tagFeedBuilder = (
   builder.andWhere((subBuilder) => whereTags([tag], subBuilder, alias));
 
 export const repostFeedBuilder = (
+  ctx: Context,
   postId: string,
   builder: SelectQueryBuilder<Post>,
   alias: string,
-): SelectQueryBuilder<Post> =>
-  builder.andWhere(`${alias}."sharedPostId" = :sharedPostId`, {
+): SelectQueryBuilder<Post> => {
+  let newBuilder = builder.andWhere(`${alias}."sharedPostId" = :sharedPostId`, {
     sharedPostId: postId,
   });
+
+  if (ctx.userId) {
+    newBuilder = newBuilder.andWhere(
+      whereNotUserBlocked(newBuilder, {
+        userId: ctx.userId,
+        columnName: 'authorId',
+      }),
+    );
+  }
+
+  return newBuilder;
+};
 
 export const fixedIdsFeedBuilder = (
   ctx: unknown,

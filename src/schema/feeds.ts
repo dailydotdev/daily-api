@@ -1524,7 +1524,7 @@ const legacySimilarPostsResolver = randomPostsResolver(
 
 const postRepostsFeedResolver = feedResolver(
   (ctx, { id }: PostRepostsArgs, builder, alias) =>
-    repostFeedBuilder(id, builder, alias),
+    repostFeedBuilder(ctx, id, builder, alias),
   feedPageGenerator,
   applyFeedPaging,
   {

@@ -1943,7 +1943,7 @@ describe('query postReposts', () => {
     expect(ids).toEqual(['rp4', 'rp3']);
   });
 
-  it('should include reposts from blocked users', async () => {
+  it('should filter reposts from blocked users', async () => {
     loggedUser = '1';
     const now = Date.now();
     await createSharePost({
@@ -1982,7 +1982,7 @@ describe('query postReposts', () => {
     });
 
     const ids = res.data.postReposts.edges.map((edge) => edge.node.id);
-    expect(ids).toEqual(['rp8', 'rp7']);
+    expect(ids).toEqual(['rp8']);
   });
 
   it('should return empty connection when there are no reposts', async () => {

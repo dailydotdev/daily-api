@@ -238,7 +238,8 @@ The migration generator compares entities against the local database schema. Ens
 
 **Feed resolver filtering ownership:**
 - Prefer `feedResolver`/`applyFeedWhere` options (`allowPrivatePosts`, `removeHiddenPosts`, `removeBannedPosts`, `removeNonPublicThresholdSquads`) for standard feed filtering behavior.
-- Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy/blocking checks in each builder.
+- Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy checks in each builder.
+- `applyFeedWhere` does not handle blocked-user actor filtering; for actor-based lists (for example reposts/upvotes), explicitly add `whereNotUserBlocked(...)` with the correct column.
 - For activity lists where chronological order is required (for example repost lists), force `Ranking.TIME` in the resolver wrapper.
 
 **Avoiding N+1 Queries with Lazy Relations:**

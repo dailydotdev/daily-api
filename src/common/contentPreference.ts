@@ -530,7 +530,7 @@ export const whereNotUserBlocked = (
   }: {
     userId: string;
     feedId?: string;
-    columnName?: 'userId' | 'referenceId' | 'id';
+    columnName?: 'userId' | 'referenceId' | 'id' | 'authorId';
   },
 ) => {
   const feedIds = feedId ? [feedId, userId] : [userId];
