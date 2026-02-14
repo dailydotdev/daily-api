@@ -34,6 +34,158 @@ beforeEach(async () => {
   await saveFixtures(con, User, usersFixture);
 });
 
+describe('query discoverHotTakes', () => {
+  const QUERY = `
+    query DiscoverHotTakes($first: Int) {
+      discoverHotTakes(first: $first) {
+        id
+        emoji
+        title
+        subtitle
+        upvotes
+        upvoted
+        user {
+          id
+          name
+          username
+          image
+          reputation
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('should return hot takes from other users with user info', async () => {
+    loggedUser = '1';
+    await con.getRepository(HotTake).save([
+      { userId: '2', emoji: '🔥', title: 'Take from user 2', position: 0 },
+      { userId: '3', emoji: '💡', title: 'Take from user 3', position: 0 },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.discoverHotTakes.length).toBeGreaterThanOrEqual(2);
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).toContain('Take from user 2');
+    expect(titles).toContain('Take from user 3');
+
+    const take = res.data.discoverHotTakes.find(
+      (t: { title: string }) => t.title === 'Take from user 2',
+    );
+    expect(take.user).toBeDefined();
+    expect(take.user.id).toBe('2');
+    expect(take.user.name).toBe('Tsahi');
+    expect(take.user.username).toBe('tsahidaily');
+  });
+
+  it('should exclude current user own hot takes', async () => {
+    loggedUser = '1';
+    await con.getRepository(HotTake).save([
+      { userId: '1', emoji: '🔥', title: 'My own take', position: 0 },
+      { userId: '2', emoji: '💡', title: 'Other take', position: 0 },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('My own take');
+    expect(titles).toContain('Other take');
+  });
+
+  it('should exclude already voted hot takes', async () => {
+    loggedUser = '1';
+    const hotTake1 = await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🔥',
+      title: 'Already voted',
+      position: 0,
+    });
+    await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '💡',
+      title: 'Not voted yet',
+      position: 1,
+    });
+
+    await con.getRepository(UserHotTake).save({
+      hotTakeId: hotTake1.id,
+      userId: '1',
+      vote: UserVote.Up,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('Already voted');
+    expect(titles).toContain('Not voted yet');
+  });
+
+  it('should respect first limit', async () => {
+    loggedUser = '1';
+    await con.getRepository(HotTake).save([
+      { userId: '2', emoji: '1️⃣', title: 'Take 1', position: 0 },
+      { userId: '2', emoji: '2️⃣', title: 'Take 2', position: 1 },
+      { userId: '2', emoji: '3️⃣', title: 'Take 3', position: 2 },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { first: 2 } });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.discoverHotTakes).toHaveLength(2);
+  });
+
+  it('should return empty array when no takes available', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.discoverHotTakes).toEqual([]);
+  });
+
+  it('should exclude takes where user has any vote record', async () => {
+    loggedUser = '1';
+    const hotTake1 = await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🔥',
+      title: 'Skipped take',
+      position: 0,
+    });
+    await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '💡',
+      title: 'Fresh take',
+      position: 1,
+    });
+
+    // Record with vote=None (user saw it but didn't upvote)
+    await con.getRepository(UserHotTake).save({
+      hotTakeId: hotTake1.id,
+      userId: '1',
+      vote: UserVote.None,
+    });
+
+    const res = await client.query(QUERY);
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('Skipped take');
+    expect(titles).toContain('Fresh take');
+  });
+});
+
 describe('query hotTakes', () => {
   const QUERY = `
     query HotTakes($userId: ID!) {

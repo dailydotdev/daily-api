@@ -2303,6 +2303,13 @@ const obj = new GraphORM({
       createdAt: {
         transform: transformDate,
       },
+      user: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'userId',
+        },
+      },
     },
   },
   UserWorkspacePhoto: {

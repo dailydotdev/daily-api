@@ -37,6 +37,7 @@ export const typeDefs = /* GraphQL */ `
     upvotes: Int!
     upvoted: Boolean
     createdAt: DateTime!
+    user: User
   }
 
   type HotTakeEdge {
@@ -71,6 +72,11 @@ export const typeDefs = /* GraphQL */ `
     Get a user's hot takes
     """
     hotTakes(userId: ID!, first: Int, after: String): HotTakeConnection!
+
+    """
+    Discover random hot takes from other users for the tinder experience
+    """
+    discoverHotTakes(first: Int): [HotTake!]! @auth
   }
 
   extend type Mutation {
@@ -101,6 +107,28 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
+    discoverHotTakes: async (
+      _,
+      args: { first?: number },
+      ctx: AuthContext,
+      info,
+    ) => {
+      const pageSize = Math.min(args.first ?? 20, 50);
+
+      return graphorm.query(ctx, info, (builder) => {
+        builder.queryBuilder
+          .where(`"${builder.alias}"."userId" != :currentUserId`, {
+            currentUserId: ctx.userId,
+          })
+          .andWhere(
+            `NOT EXISTS (SELECT 1 FROM "user_hot_take" uht WHERE uht."hotTakeId" = "${builder.alias}"."id" AND uht."userId" = :currentUserId)`,
+          )
+          .orderBy('random()')
+          .limit(pageSize);
+        return builder;
+      });
+    },
+
     hotTakes: async (
       _,
       args: { userId: string; first?: number; after?: string },
