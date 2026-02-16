@@ -3377,10 +3377,17 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
+        canonicalUrl: undefined,
         content: 'Freeform content',
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          aigcDetect: undefined,
+          channels: [],
           cleaned: [],
+          embedding: undefined,
+          enriched: undefined,
+          language: undefined,
+          scraped: undefined,
           storedCodeSnippets: '',
         },
         contentQuality: {
@@ -3415,6 +3422,7 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
           color: 'avocado',
@@ -3512,10 +3520,17 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
+        canonicalUrl: undefined,
         content: 'Collection content',
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          aigcDetect: undefined,
+          channels: [],
           cleaned: [],
+          embedding: undefined,
+          enriched: undefined,
+          language: undefined,
+          scraped: undefined,
           storedCodeSnippets: '',
         },
         contentQuality: {
@@ -3550,15 +3565,21 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
+          color: undefined,
           createdAt: expect.any(Number),
+          description: undefined,
           handle: 'collections',
+          headerImage: undefined,
           id: 'collections',
           image: 'http://image.com/collections',
           name: 'Collections',
           private: false,
+          twitter: undefined,
           type: 'machine',
+          website: undefined,
         },
         summary: 'Post for testing',
         tags: ['javascript', 'webdev', 'react'],
@@ -3595,9 +3616,17 @@ describe('post content updated', () => {
       'api.v1.content-updated',
       {
         banned: false,
+        canonicalUrl: undefined,
+        content: undefined,
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          aigcDetect: undefined,
+          channels: [],
           cleaned: [],
+          embedding: undefined,
+          enriched: undefined,
+          language: undefined,
+          scraped: undefined,
           storedCodeSnippets: '',
         },
         contentQuality: {
@@ -3632,6 +3661,7 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
           color: 'avocado',
