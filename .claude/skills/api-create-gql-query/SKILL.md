@@ -31,9 +31,9 @@ Check existing files in `src/schema/` (e.g., `posts.ts`, `users.ts`, `keywords.t
 
 > **What does the query return?** One of:
 >
-> - **(a)** Single entity — uses `graphorm.queryOne<T>()` or `graphorm.queryOneOrFail<T>()`
-> - **(b)** List of entities — uses `graphorm.query<T>()`
-> - **(c)** Paginated list (Relay-style) — uses `graphorm.queryPaginated<T>()` with cursor-based pagination
+> - **(a)** Single entity — `graphorm.queryOne<T>()` / `graphorm.queryOneOrFail<T>()`
+> - **(b)** List of entities — `graphorm.query<T>()`
+> - **(c)** Paginated list (Relay-style) — `graphorm.queryPaginated<T>()`
 
 Check existing GQL types in the target schema file and `src/schema/common.ts` for reusable types (`PageInfo`, `ConnectionArgs`, scalars like `DateTime`, `JSONObject`).
 
@@ -41,15 +41,7 @@ Check existing GQL types in the target schema file and `src/schema/common.ts` fo
 
 > **What parameters does the query accept?**
 
-For every `String` argument in the GQL schema, ask the user what the value represents so the correct Zod validator can be chosen:
-
-- ID → `z.uuid()` or `z.string().min(1)`
-- Email → `z.email()`
-- URL → `z.url()`
-- Free text → `z.string().min(1)`
-- etc.
-
-All query input parameters must be validated with a Zod schema — this is not optional.
+For every `String` argument, ask what it represents so the correct Zod validator is chosen (e.g., `z.uuid()` for IDs, `z.email()` for emails, `z.url()` for URLs, `z.string().min(1)` for free text). All query input parameters must be validated with a Zod schema — this is not optional.
 
 ### 4. Authentication requirements
 
@@ -64,16 +56,14 @@ All query input parameters must be validated with a Zod schema — this is not o
 
 > **What data should the query return and what filtering/sorting is needed?**
 
-Core implementation details — the where clauses, ordering, and any special logic.
-
 ---
 
 ## Step 1 — Check for Reusable Types
 
-Before creating new types, check these locations:
+Before creating new types, check:
 
 - **Target schema file** — existing GQL types and TypeScript types
-- **`src/schema/common.ts`** — shared types (`PageInfo`, connection patterns, scalars like `DateTime`, `JSONObject`)
+- **`src/schema/common.ts`** — shared types (`PageInfo`, connection patterns, scalars)
 - **`src/entity/`** — existing TypeORM entities that map to the desired return type
 - **`src/graphorm/index.ts`** — existing GraphORM type configurations
 - **`src/common/schema/`** — existing Zod schemas that already validate similar input
@@ -84,176 +74,71 @@ Only create new types if nothing reusable exists.
 
 ## Step 2 — Define Zod Validation Schema
 
-**This step is mandatory for all queries that accept input arguments.**
+**Mandatory for all queries that accept input arguments.**
 
-Create or update a Zod schema in `src/common/schema/` with `Schema` suffix (e.g., `myDomainSchema`).
-
-This project uses **Zod 4.x**. Key API differences from Zod 3.x:
-
-- Primitive validators are top-level: `z.email()`, `z.uuid()`, `z.url()` (not `z.string().email()`)
-- `z.literal([...])` supports arrays
-
-Mapping GQL types to Zod validators:
+Create or update a Zod schema in `src/common/schema/` with `Schema` suffix. This project uses **Zod 4.x** — primitive validators are top-level: `z.email()`, `z.uuid()`, `z.url()` (not `z.string().email()`).
 
 | GQL Type | Use Case | Zod Validator |
 |---|---|---|
-| `String!` | ID (UUID format) | `z.uuid()` |
+| `String!` | ID (UUID) | `z.uuid()` |
 | `String!` | ID (non-UUID) | `z.string().min(1)` |
 | `String!` | Email | `z.email()` |
 | `String!` | URL | `z.url()` |
 | `String!` | Free text | `z.string().min(1)` |
-| `String` (nullable) | Any of above | appropriate validator with `.nullish()` |
-| `Int` / `Int!` | Number | `z.number().int()` with `.min()`/`.max()` bounds |
+| `String` (nullable) | Any | appropriate validator with `.nullish()` |
+| `Int` / `Int!` | Number | `z.number().int()` with `.min()`/`.max()` |
 | `Boolean` | Flag | `z.boolean()` |
-| Pagination args | `first`, `after` | Reuse existing `ConnectionArgs` patterns |
 
 Rules:
 - Never re-export inferred types — use `z.infer<typeof schema>` at point of use
 - Export only the schema, not the inferred type
-- For any generic `String` where the semantic meaning is ambiguous, ask the user what the value represents before choosing a validator
+- For ambiguous `String` args, ask the user what the value represents before choosing a validator
 
 ---
 
 ## Step 3 — Define TypeScript Types
 
-If new types are needed, add a TypeScript `type` (not `interface` — per AGENTS.md code style) for the GQL return type in the schema file:
+If new types are needed, add a TypeScript `type` (not `interface` — per AGENTS.md) for the GQL return type in the schema file.
 
-```typescript
-export type GQLMyEntity = {
-  id: string;
-  name: string;
-  createdAt: Date;
-};
-```
-
-Note: Use `type` over `interface` per project convention. Exception: some existing schema files already use `interface` — follow the pattern in the specific file being modified for consistency.
+Exception: some existing schema files already use `interface` — follow the pattern in the specific file being modified.
 
 ---
 
 ## Step 4 — Define GraphQL Schema (typeDefs)
 
-Add to the `typeDefs` template literal in the schema file:
+Add to the `typeDefs` template literal (using `/* GraphQL */` tag) in the schema file:
 
 - New types if needed
-- `extend type Query { ... }` with the new query field
-- Include auth directives where needed (`@auth`, `@auth(requires: [MODERATOR])`, `@feedPlus`)
-- Use `/* GraphQL */` tagged template for syntax highlighting
+- `extend type Query { ... }` with the new query field and auth directives
 
-For paginated queries, define `Edge` and `Connection` types following the pattern in `src/schema/campaigns.ts`:
-
-```graphql
-type MyEntityEdge {
-  node: MyEntity!
-  cursor: String!
-}
-
-type MyEntityConnection {
-  pageInfo: PageInfo!
-  edges: [MyEntityEdge]!
-}
-```
+For paginated queries, define `Edge` and `Connection` types following the pattern in `src/schema/campaigns.ts`.
 
 ---
 
 ## Step 5 — Write the Resolver
 
-All queries must use **GraphORM** (not TypeORM repositories). Key patterns:
+All queries must use **GraphORM** (not TypeORM repositories). Wrap resolvers in `traceResolvers()`. Validate input with the Zod schema from Step 2 using `schema.parse(args)`. Pass `true` as the 4th argument for read replica when eventual consistency is acceptable. Filter at the database level via the builder callback, not in JavaScript.
 
-- Wrap resolvers in `traceResolvers()` for distributed tracing
-- **Validate input arguments** with the Zod schema from Step 2 at the top of the resolver using `schema.parse(args)`
-- Pass `true` as the 4th argument for read replica when eventual consistency is acceptable
-- Filter at the database level via the builder callback, not in JavaScript
-
-### Single entity
-
-Reference: `src/schema/keywords.ts` → `keyword` query, `src/schema/campaigns.ts` → `campaignById` query.
-
-```typescript
-myQuery: async (_, args: { id: string }, ctx: Context, info) => {
-  const { id } = myQuerySchema.parse(args);
-  return graphorm.queryOne<GQLMyEntity>(
-    ctx,
-    info,
-    (builder) => {
-      builder.queryBuilder.andWhere(`${builder.alias}.id = :id`, { id });
-      return builder;
-    },
-    true,
-  );
-},
-```
-
-### List of entities
-
-Reference: `src/schema/keywords.ts` → `randomPendingKeyword` query.
-
-```typescript
-myListQuery: async (_, args, ctx: AuthContext, info) => {
-  return graphorm.query<GQLMyEntity>(
-    ctx,
-    info,
-    (builder) => {
-      builder.queryBuilder
-        .andWhere(`${builder.alias}."active" = true`)
-        .orderBy(`${builder.alias}."createdAt"`, 'DESC')
-        .limit(50);
-      return builder;
-    },
-    true,
-  );
-},
-```
-
-### Paginated (Relay-style)
-
-Reference: `src/schema/campaigns.ts` → `campaignsList` query.
-
-```typescript
-myPaginatedQuery: async (
-  _,
-  args: ConnectionArguments & { filter?: string },
-  ctx: AuthContext,
-  info,
-): Promise<Connection<GQLMyEntity>> => {
-  const { after, first = 20 } = args;
-  const offset = after ? cursorToOffset(after) : 0;
-
-  return graphorm.queryPaginated(
-    ctx,
-    info,
-    () => !!after,
-    (nodeSize) => nodeSize === first,
-    (_, i) => offsetToCursor(offset + i + 1),
-    (builder) => {
-      builder.queryBuilder
-        .orderBy(`${builder.alias}."createdAt"`, 'DESC')
-        .limit(first)
-        .offset(offset);
-      return builder;
-    },
-  );
-},
-```
+Reference examples:
+- **Single entity**: `src/schema/keywords.ts` → `keyword`, `src/schema/campaigns.ts` → `campaignById`
+- **List**: `src/schema/keywords.ts` → `randomPendingKeyword`
+- **Paginated**: `src/schema/campaigns.ts` → `campaignsList`
 
 ---
 
 ## Step 6 — Add GraphORM Configuration (if needed)
 
-If the query returns a new entity type or needs custom field mappings, add configuration to `src/graphorm/index.ts`:
+If the query returns a new entity type or needs custom field mappings, add configuration to `src/graphorm/index.ts`. Define `requiredColumns`, field transforms, custom relations as needed. Reference `src/graphorm/AGENTS.md` for patterns.
 
-- Define `requiredColumns`, field transforms, custom relations as needed
-- Reference `src/graphorm/AGENTS.md` for all available configuration patterns
-
-Skip this step if using an already-configured entity type.
+Skip if using an already-configured entity type.
 
 ---
 
 ## Step 7 — Register in GraphQL Schema (if new domain file)
 
-**Only needed when creating a new schema file.** Skip if adding to an existing file.
+**Only needed when creating a new schema file.**
 
 In `src/graphql.ts`:
-
 1. Add `import * as newDomain from './schema/newDomain'`
 2. Add `newDomain.typeDefs` to the `typeDefs` array
 3. Add `newDomain.resolvers` to the `merge()` call
@@ -262,52 +147,17 @@ In `src/graphql.ts`:
 
 ## Step 8 — Write Integration Tests
 
-Create or update test file in `__tests__/`.
+Create or update test file in `__tests__/`. Reference: `__tests__/keywords.ts` for the full test structure.
 
-Reference: `__tests__/keywords.ts` for the full test structure.
+Use the `initializeGraphQLTesting` + `MockContext` + `GraphQLTestClient` pattern from `__tests__/helpers`.
 
-### Test setup pattern
+Test cases to include:
+1. **Auth/authorization checks** (if applicable)
+2. **Success path** with expected response shape (use `toMatchObject`/`toEqual`)
+3. **Validation failure** (invalid input rejected by Zod schema)
+4. **Edge cases** (not found, empty results)
 
-```typescript
-import {
-  disposeGraphQLTesting,
-  GraphQLTestClient,
-  GraphQLTestingState,
-  initializeGraphQLTesting,
-  MockContext,
-  testQueryErrorCode,
-} from './helpers';
-import createOrGetConnection from '../src/db';
-
-let con: DataSource;
-let state: GraphQLTestingState;
-let client: GraphQLTestClient;
-let loggedUser: string = null;
-let roles: Roles[] = [];
-
-beforeAll(async () => {
-  con = await createOrGetConnection();
-  state = await initializeGraphQLTesting(
-    () => new MockContext(con, loggedUser, roles),
-  );
-  client = state.client;
-});
-
-afterAll(() => disposeGraphQLTesting(state));
-```
-
-### Test cases to include
-
-1. **Auth/authorization checks** (if applicable) — verify unauthenticated or unauthorized users get the correct error code
-2. **Success path** — verify expected response shape using `toMatchObject` or `toEqual`
-3. **Validation failure** — verify invalid input is rejected by the Zod schema
-4. **Edge cases** — not found (returns `null`), empty results, boundary conditions
-
-### Running tests
-
-```bash
-NODE_ENV=test npx jest __tests__/<test-file>.ts --testEnvironment=node --runInBand
-```
+Run with: `NODE_ENV=test npx jest __tests__/<test-file>.ts --testEnvironment=node --runInBand`
 
 ---
 
@@ -331,7 +181,7 @@ When the user invokes this skill:
 
 1. Read `AGENTS.md` and `src/graphorm/AGENTS.md` for context
 2. Complete Step 0 — ask all requirement questions before writing any code. For every `String` argument, ask what it represents so the right Zod validator is chosen.
-3. Work through Steps 1–8 in order, confirming each step with the user
+3. Work through Steps 1–8 in order
 4. Reference actual codebase examples (`src/schema/keywords.ts` for simple queries, `src/schema/campaigns.ts` for paginated) rather than relying solely on templates
 5. Follow all code style rules from AGENTS.md (arrow functions, no unnecessary comments, type over interface, no barrel imports, etc.)
 6. Verify build and lint pass: `pnpm run build && pnpm run lint`
