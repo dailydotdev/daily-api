@@ -27,17 +27,14 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 
 import { enableOpenTelemetry } from './common';
+import { instrumentations } from './register';
 import {
   type ServiceName,
   createMetricReader,
   initCounters,
   subscribeMetricsHooks,
 } from './metrics';
-import {
-  createSpanProcessor,
-  getInstrumentations,
-  subscribeTracingHooks,
-} from './tracing';
+import { createSpanProcessor, subscribeTracingHooks } from './tracing';
 import { logger } from '../logger';
 
 const resourceDetectors = [
@@ -97,7 +94,7 @@ export const startTelemetry = (): void => {
   api.metrics.setGlobalMeterProvider(meterProvider);
 
   // Register instrumentations
-  registerInstrumentations({ instrumentations: getInstrumentations() });
+  registerInstrumentations({ instrumentations });
 
   initCounters(service.name as ServiceName);
   subscribeTracingHooks(service.name);

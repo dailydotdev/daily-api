@@ -33,6 +33,7 @@ import {
   getCursorFromAfter,
   randomPostsResolver,
   Ranking,
+  repostFeedBuilder,
   sourceFeedBuilder,
   tagFeedBuilder,
   toGQLEnum,
@@ -652,6 +653,31 @@ export const typeDefs = /* GraphQL */ `
     ): PostConnection!
 
     """
+    Get reposts of a post
+    """
+    postReposts(
+      """
+      Id of the relevant post to return reposts
+      """
+      id: String!
+
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+
+      """
+      Paginate first
+      """
+      first: Int
+
+      """
+      Array of supported post types
+      """
+      supportedTypes: [String!]
+    ): PostConnection!
+
+    """
     Get a user's upvote feed
     """
     userUpvotedFeed(
@@ -1113,6 +1139,10 @@ interface AuthorFeedArgs extends FeedArgs {
   author: string;
 }
 
+type PostRepostsArgs = FeedArgs & {
+  id: string;
+};
+
 interface FeedPage extends Page {
   timestamp?: Date;
   pinned?: Date;
@@ -1492,6 +1522,23 @@ const legacySimilarPostsResolver = randomPostsResolver(
   3,
 );
 
+const postRepostsFeedResolver = feedResolver(
+  (ctx, { id }: PostRepostsArgs, builder, alias) =>
+    repostFeedBuilder(ctx, id, builder, alias),
+  feedPageGenerator,
+  applyFeedPaging,
+  {
+    removeHiddenPosts: false,
+    removeBannedPosts: false,
+    removeNonPublicThresholdSquads: false,
+    allowPrivatePosts: true,
+    fetchQueryParams: async (ctx, { id }: PostRepostsArgs) => {
+      const post = await ctx.con.getRepository(Post).findOneByOrFail({ id });
+      await ensureSourcePermissions(ctx, post.sourceId);
+    },
+  },
+);
+
 export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   unknown,
   BaseContext
@@ -1821,6 +1868,17 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         allowPrivatePosts: false,
       },
     ),
+    postReposts: (source, args: PostRepostsArgs, ctx: Context, info) =>
+      postRepostsFeedResolver(
+        source,
+        {
+          ...args,
+          ranking: Ranking.TIME,
+          supportedTypes: args.supportedTypes ?? ['share'],
+        },
+        ctx,
+        info,
+      ),
     userUpvotedFeed: feedResolver(
       (ctx, { userId }: { userId: string } & FeedArgs, builder, alias) =>
         builder

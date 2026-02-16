@@ -9,11 +9,11 @@ import { remoteConfig } from '../src/remoteConfig';
 import { initGeoReader } from '../src/common/geo';
 
 async function run(positionals: string[]) {
+  startTelemetry();
   await remoteConfig.init();
 
   switch (positionals[0]) {
     case 'api':
-      startTelemetry();
       await initGeoReader();
 
       const app = await api();
@@ -23,7 +23,6 @@ async function run(positionals: string[]) {
       });
       break;
     case 'websocket':
-      startTelemetry();
       const websocketApp = await api();
       await websocketApp.listen({
         port: parseInt(process.env.PORT) || 3000,
@@ -31,20 +30,16 @@ async function run(positionals: string[]) {
       });
       break;
     case 'background':
-      startTelemetry();
       await background();
       break;
     case 'temporal':
-      startTelemetry();
       await temporal();
       break;
     case 'cron':
-      startTelemetry();
       await cron(positionals[1]);
       process.exit();
       break;
     case 'personalized-digest':
-      startTelemetry();
       await personalizedDigest();
       break;
     default:

@@ -1797,6 +1797,209 @@ describe('query authorFeed', () => {
   });
 });
 
+describe('query postReposts', () => {
+  const QUERY = `
+    query PostReposts($id: String!, $first: Int, $after: String, $supportedTypes: [String!]) {
+      postReposts(id: $id, first: $first, after: $after, supportedTypes: $supportedTypes) {
+        ${feedFields()}
+      }
+    }
+  `;
+
+  const createSharePost = async ({
+    id,
+    shortId,
+    authorId,
+    privatePost = false,
+    visible = true,
+    deleted = false,
+    createdAt,
+  }: {
+    id: string;
+    shortId: string;
+    authorId: string;
+    privatePost?: boolean;
+    visible?: boolean;
+    deleted?: boolean;
+    createdAt: Date;
+  }) =>
+    con.getRepository(SharePost).save({
+      id,
+      shortId,
+      title: id,
+      url: `http://${id}.com`,
+      score: 0,
+      sourceId: 'a',
+      sharedPostId: 'p1',
+      authorId,
+      private: privatePost,
+      visible,
+      deleted,
+      createdAt,
+    });
+
+  it('should return paginated reposts for a post', async () => {
+    const now = Date.now();
+    await createSharePost({
+      id: 'rp1',
+      shortId: 'rp1',
+      authorId: '1',
+      createdAt: new Date(now - 1000),
+    });
+    await createSharePost({
+      id: 'rp2',
+      shortId: 'rp2',
+      authorId: '2',
+      createdAt: new Date(now),
+    });
+
+    const firstPage = await client.query(QUERY, {
+      variables: {
+        id: 'p1',
+        first: 1,
+        supportedTypes: ['share'],
+      },
+    });
+
+    expect(firstPage.errors).toBeFalsy();
+    expect(firstPage.data.postReposts.edges).toHaveLength(1);
+    expect(firstPage.data.postReposts.edges[0].node.id).toEqual('rp2');
+    expect(firstPage.data.postReposts.pageInfo.hasNextPage).toBe(true);
+
+    const secondPage = await client.query(QUERY, {
+      variables: {
+        id: 'p1',
+        first: 1,
+        after: firstPage.data.postReposts.pageInfo.endCursor,
+        supportedTypes: ['share'],
+      },
+    });
+
+    expect(secondPage.errors).toBeFalsy();
+    expect(secondPage.data.postReposts.edges).toHaveLength(1);
+    expect(secondPage.data.postReposts.edges[0].node.id).toEqual('rp1');
+  });
+
+  it('should default to share type when supportedTypes is not passed', async () => {
+    const now = Date.now();
+    await createSharePost({
+      id: 'rp-default',
+      shortId: 'rpd1',
+      authorId: '1',
+      createdAt: new Date(now),
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1',
+        first: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    const ids = res.data.postReposts.edges.map((edge) => edge.node.id);
+    expect(ids).toEqual(['rp-default']);
+  });
+
+  it('should return visible non-deleted reposts including private ones', async () => {
+    const now = Date.now();
+    await createSharePost({
+      id: 'rp3',
+      shortId: 'rp3',
+      authorId: '1',
+      createdAt: new Date(now),
+    });
+    await createSharePost({
+      id: 'rp4',
+      shortId: 'rp4',
+      authorId: '1',
+      privatePost: true,
+      createdAt: new Date(now + 1000),
+    });
+    await createSharePost({
+      id: 'rp5',
+      shortId: 'rp5',
+      authorId: '1',
+      visible: false,
+      createdAt: new Date(now + 2000),
+    });
+    await createSharePost({
+      id: 'rp6',
+      shortId: 'rp6',
+      authorId: '1',
+      deleted: true,
+      createdAt: new Date(now + 3000),
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1',
+        first: 10,
+        supportedTypes: ['share'],
+      },
+    });
+
+    const ids = res.data.postReposts.edges.map((edge) => edge.node.id);
+    expect(ids).toEqual(['rp4', 'rp3']);
+  });
+
+  it('should filter reposts from blocked users', async () => {
+    loggedUser = '1';
+    const now = Date.now();
+    await createSharePost({
+      id: 'rp7',
+      shortId: 'rp7',
+      authorId: '2',
+      createdAt: new Date(now),
+    });
+    await createSharePost({
+      id: 'rp8',
+      shortId: 'rp8',
+      authorId: '3',
+      createdAt: new Date(now + 1000),
+    });
+
+    await con.getRepository(Feed).save({
+      id: '1',
+      userId: '1',
+    });
+
+    await con.getRepository(ContentPreferenceUser).save({
+      userId: '1',
+      feedId: '1',
+      referenceId: '2',
+      referenceUserId: '2',
+      status: ContentPreferenceStatus.Blocked,
+      type: ContentPreferenceType.User,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1',
+        first: 10,
+        supportedTypes: ['share'],
+      },
+    });
+
+    const ids = res.data.postReposts.edges.map((edge) => edge.node.id);
+    expect(ids).toEqual(['rp8']);
+  });
+
+  it('should return empty connection when there are no reposts', async () => {
+    const res = await client.query(QUERY, {
+      variables: {
+        id: 'p1',
+        first: 10,
+        supportedTypes: ['share'],
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.postReposts.edges).toEqual([]);
+    expect(res.data.postReposts.pageInfo.hasNextPage).toBe(false);
+  });
+});
+
 describe('query mostUpvotedFeed', () => {
   const QUERY = (period = 7, first = 10, source = '', tag = ''): string => `{
     mostUpvotedFeed(first: ${first}, period: ${period}, source: "${source}", tag: "${tag}") {

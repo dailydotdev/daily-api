@@ -25,7 +25,6 @@ import {
   SharePost,
   SocialTwitterPost,
   Source,
-  SourceType,
   Submission,
   SubmissionStatus,
   Toc,
@@ -47,6 +46,8 @@ import { markdown } from '../common/markdown';
 import {
   isTwitterSocialType,
   mapTwitterSocialPayload,
+  normalizeTwitterHandle,
+  resolveTwitterSourceId,
   type TwitterReferencePost,
   upsertTwitterReferencedPost,
 } from '../common/twitterSocial';
@@ -90,6 +91,7 @@ interface Data {
     content?: string;
     video_id?: string;
     duration?: number;
+    author_username?: string;
   };
   meta?: {
     scraped_html?: string;
@@ -595,30 +597,6 @@ type FixData = {
   twitterReference?: TwitterReferencePost;
 };
 
-const resolveTwitterSourceId = async ({
-  entityManager,
-  authorUsername,
-}: {
-  entityManager: EntityManager;
-  authorUsername?: string;
-}): Promise<string | undefined> => {
-  if (!authorUsername) {
-    return undefined;
-  }
-
-  const matchedSource = await entityManager
-    .getRepository(Source)
-    .createQueryBuilder('source')
-    .select(['source.id'])
-    .where('source.type = :type', { type: SourceType.Machine })
-    .andWhere('LOWER(source.twitter) = :twitter', {
-      twitter: authorUsername,
-    })
-    .getOne();
-
-  return matchedSource?.id;
-};
-
 const resolveTwitterIngestionSourceId = ({
   sourceId,
   resolvedTwitterSourceId,
@@ -651,29 +629,37 @@ const fixData = async ({
   entityManager,
   data,
 }: FixDataProps): Promise<FixData> => {
-  const creatorTwitter =
+  const creatorTwitterFromExtra =
     data?.extra?.creator_twitter === '' || data?.extra?.creator_twitter === '@'
       ? undefined
       : data?.extra?.creator_twitter;
 
-  const twitterMapping = isTwitterSocialType(data?.content_type)
+  const isSocialTwitter = isTwitterSocialType(data?.content_type);
+  const twitterMapping = isSocialTwitter
     ? mapTwitterSocialPayload({ data })
     : undefined;
-  const resolvedTwitterSourceId =
-    isTwitterSocialType(data?.content_type) &&
-    (!data?.source_id || data?.source_id === UNKNOWN_SOURCE)
+  const creatorTwitterFromAuthorUsername = normalizeTwitterHandle(
+    data?.extra?.author_username,
+  );
+  const creatorTwitter =
+    creatorTwitterFromExtra ||
+    creatorTwitterFromAuthorUsername ||
+    twitterMapping?.authorUsername;
+  const resolvedTwitterSource =
+    isSocialTwitter && (!data?.source_id || data?.source_id === UNKNOWN_SOURCE)
       ? await resolveTwitterSourceId({
           entityManager,
           authorUsername: twitterMapping?.authorUsername,
         })
       : undefined;
-  const sourceId = isTwitterSocialType(data?.content_type)
+  const sourceId = isSocialTwitter
     ? resolveTwitterIngestionSourceId({
         sourceId: data?.source_id,
-        resolvedTwitterSourceId,
+        resolvedTwitterSourceId: resolvedTwitterSource?.id,
         origin: data?.origin,
       })
     : data?.source_id;
+  const showOnFeed = isSocialTwitter ? false : !data?.order;
 
   const authorId = await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
@@ -741,10 +727,10 @@ const fixData = async ({
       siteTwitter: data?.extra?.site_twitter,
       toc: data?.extra?.toc,
       contentCuration: data?.extra?.content_curation,
-      showOnFeed: !data?.order,
+      showOnFeed,
       flags: {
         private: privacy,
-        showOnFeed: !data?.order,
+        showOnFeed,
         sentAnalyticsReport: privacy || !authorId,
       },
       yggdrasilId: data?.id,
@@ -831,20 +817,8 @@ const worker: Worker = {
           fixedData.sharedPostId = await upsertTwitterReferencedPost({
             entityManager,
             reference: twitterReference,
-            sourceId: fixedData.sourceId,
             language: fixedData.language,
-            isPrivate: fixedData.private,
           });
-
-          if (fixedData.sharedPostId) {
-            fixedData.showOnFeed = false;
-            fixedData.private = true;
-            fixedData.flags = {
-              ...fixedData.flags,
-              showOnFeed: false,
-              private: true,
-            };
-          }
         }
 
         // See if post id is not available

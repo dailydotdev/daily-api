@@ -1,15 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { Message } from '@google-cloud/pubsub';
 
-import FastifyOtelInstrumentation from '@fastify/otel';
-import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
-import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
-import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
-import { GraphQLInstrumentation } from '@opentelemetry/instrumentation-graphql';
-import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
-import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
-import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
-
 import dc from 'node:diagnostics_channel';
 
 import {
@@ -22,14 +13,8 @@ import {
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 
-import {
-  type AppVersionRequest,
-  channelName,
-  getAppVersion,
-  SEMATTRS_DAILY_APPS_USER_ID,
-  SEMATTRS_DAILY_APPS_VERSION,
-  SEMATTRS_DAILY_STAFF,
-} from './common';
+import { type AppVersionRequest, channelName } from './common';
+import { addApiSpanLabels } from './register';
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
   ATTR_MESSAGING_MESSAGE_BODY_SIZE,
@@ -37,17 +22,6 @@ import {
   ATTR_MESSAGING_SYSTEM,
   // @ts-expect-error - no longer resolves types because of cjs/esm change but values are exported
 } from '@opentelemetry/semantic-conventions/incubating';
-
-export const addApiSpanLabels = (
-  span: Span | undefined,
-  req: AppVersionRequest,
-): void => {
-  span?.setAttributes({
-    [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
-    [SEMATTRS_DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
-    [SEMATTRS_DAILY_STAFF]: req.isTeamMember,
-  });
-};
 
 export const addPubsubSpanLabels = (
   span: Span,
@@ -61,38 +35,6 @@ export const addPubsubSpanLabels = (
     [ATTR_MESSAGING_MESSAGE_BODY_SIZE]: message.data?.length || 0,
   });
 };
-
-const ignorePaths = ['/health', '/liveness', '/metrics'];
-
-export const getInstrumentations = () => [
-  new HttpInstrumentation({
-    // Ignore specific endpoints like health checks or internal metrics
-    ignoreIncomingRequestHook: (request) =>
-      ignorePaths.some((path) => request.url?.includes(path)),
-  }),
-  new FastifyOtelInstrumentation({
-    registerOnInitialization: true,
-    recordExceptions: true,
-    ignorePaths: ({ url }) => ignorePaths.some((path) => url?.includes(path)),
-    requestHook: (span, req) => {
-      addApiSpanLabels(span, req as AppVersionRequest);
-    },
-  }),
-  new GraphQLInstrumentation({
-    mergeItems: true,
-    ignoreTrivialResolveSpans: true,
-  }),
-  new PinoInstrumentation(),
-  new GrpcInstrumentation({
-    ignoreGrpcMethods: ['ModifyAckDeadline'],
-  }),
-  // Postgres instrumentation will be supressed if it is a child of typeorm
-  new PgInstrumentation(),
-  new TypeormInstrumentation({
-    suppressInternalInstrumentation: true,
-  }),
-  new UndiciInstrumentation(),
-];
 
 export const subscribeTracingHooks = (serviceName: string): void => {
   dc.subscribe(channelName, (message) => {
