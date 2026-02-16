@@ -72,9 +72,11 @@ Before writing any code, check for types and utilities that can be reused:
    - `EmptyResponse` — for mutations with no meaningful return
    - `GQLDataInput<T>`, `GQLIdInput`, `GQLDataIdInput<T>` — standard input wrappers
    - Pagination types, scalars (`DateTime`, `JSONObject`)
-   - `toGQLEnum()` — expose TypeScript enums as GraphQL enums
-3. **Check `src/entity/` for the relevant domain** — understand database column types and relations
-4. **Check `src/common/schema/`** for existing Zod schemas that validate similar data
+3. **Check `src/common/`** for shared utilities:
+   - `toGQLEnum()` from `src/common/utils.ts` — expose TypeScript enums as GraphQL enums
+   - `updateFlagsStatement` from `src/common/utils.ts` — atomic JSONB flag updates
+4. **Check `src/entity/` for the relevant domain** — understand database column types and relations
+5. **Check `src/common/schema/`** for existing Zod schemas that validate similar data
 
 Report findings to the user before proceeding.
 
@@ -120,9 +122,9 @@ Directive examples:
 - `@auth(requires: [MODERATOR])` — moderator only
 - `@rateLimit(limit: 5, duration: 60) @auth` — rate-limited
 
-### TypeScript interfaces
+### TypeScript types
 
-Add interfaces (prefixed with `GQL`) for any new input/output types:
+Add type declarations (prefixed with `GQL`) for any new input/output types. Use `type` over `interface` per code style rules:
 
 ```typescript
 type GQLMyMutationInput = {
@@ -130,8 +132,6 @@ type GQLMyMutationInput = {
   field2?: number;
 };
 ```
-
-**Note:** Use `type` over `interface` per code style rules.
 
 ---
 
@@ -157,20 +157,20 @@ Mutation: {
 
 **Always prefer Zod for input validation.** Place Zod schemas in `src/common/schema/<domain>.ts` (create the file if it doesn't exist for this domain).
 
-**This project uses Zod 4.x** — use the v4 API:
-- `z.email()` not `z.string().email()`
-- `z.uuid()` not `z.string().uuid()`
-- `z.url()` not `z.string().url()`
+**This project uses Zod 4.x** (currently 4.3.5) — use the v4 API:
+- Primitive types are top-level: `z.email()` not `z.string().email()`, `z.uuid()` not `z.string().uuid()`, `z.url()` not `z.string().url()`
+- `z.literal([...])` supports arrays for enum-like validation; `z.enum([...])` also works
+- Use `.nullish()` instead of `.nullable().optional()`
 - Schema exports must use a `Schema` suffix (e.g., `myMutationInputSchema`)
 - Export only schemas, not inferred types — use `z.infer<typeof schema>` at point of use
 
 ```typescript
 // src/common/schema/<domain>.ts
-import { z } from 'zod';
+import z from 'zod';
 
 export const myMutationInputSchema = z.object({
   field1: z.string().min(1),
-  field2: z.number().int().positive().optional(),
+  field2: z.number().int().positive().nullish(),
   email: z.email(),
 });
 ```
@@ -235,8 +235,9 @@ await con.getRepository(Entity).update({ id }, {
 - No raw SQL — use TypeORM repository methods or query builder
 - No `!` non-null assertions — use explicit checks and throw errors
 - No `logger.info` for success paths — errors propagate naturally
+- No barrel imports — import from specific files, not `index.ts` re-exports
 - Use early returns instead of nested conditionals
-- Use `const` arrow functions for any extracted helpers
+- Use `const` arrow functions; prefer single props-style argument (`{ a, b }`) over positional args
 
 ---
 
