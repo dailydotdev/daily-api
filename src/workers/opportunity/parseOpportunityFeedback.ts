@@ -85,76 +85,83 @@ export const parseOpportunityFeedbackWorker: TypedWorker<'api.v1.opportunity-fee
         .getRepository(OpportunityMatch)
         .update({ opportunityId, userId }, { feedback: updatedFeedback });
 
-      const feedback = match.feedback
-        .map((item) => `Q: ${item.screening}\nA: ${item.answer}`)
-        .join('\n\n');
+      try {
+        const feedback = match.feedback
+          .map((item) => `Q: ${item.screening}\nA: ${item.answer}`)
+          .join('\n\n');
 
-      const opportunity = await con.getRepository(Opportunity).findOne({
-        where: { id: opportunityId },
-        select: ['id', 'title', 'tldr'],
-      });
+        const opportunity = await con.getRepository(Opportunity).findOne({
+          where: { id: opportunityId },
+          select: ['id', 'title', 'tldr'],
+        });
 
-      const jobContext = opportunity
-        ? `${opportunity.title}\n${opportunity.tldr}`
-        : undefined;
+        const jobContext = opportunity
+          ? `${opportunity.title}\n${opportunity.tldr}`
+          : undefined;
 
-      const result = await bragiClient.garmr.execute(() =>
-        bragiClient.instance.classifyRejectionFeedback({
-          feedback,
-          jobContext,
-        }),
-      );
-
-      if (!result?.classification) {
-        logger.debug(
-          { opportunityId, userId },
-          'No rejection classification returned from Bragi',
+        const result = await bragiClient.garmr.execute(() =>
+          bragiClient.instance.classifyRejectionFeedback({
+            feedback,
+            jobContext,
+          }),
         );
-        return;
-      }
 
-      const rejectionClassification: z.infer<
-        typeof rejectionFeedbackClassificationSchema
-      > = {
-        reasons: result.classification.reasons.map((reason) => {
-          let preference = {};
-          if (reason.preference?.case) {
-            switch (reason.preference.case) {
-              case 'locationTypePreference':
-                preference = {
-                  locationTypePreference: reason.preference.value,
-                };
-                break;
-              case 'seniorityPreference':
-                preference = {
-                  seniorityPreference: reason.preference.value,
-                };
-                break;
-              case 'employmentTypePreference':
-                preference = {
-                  employmentTypePreference: reason.preference.value,
-                };
-                break;
-              case 'freeTextPreference':
-                preference = {
-                  freeTextPreference: reason.preference.value,
-                };
-                break;
+        if (!result?.classification) {
+          logger.debug(
+            { opportunityId, userId },
+            'No rejection classification returned from Bragi',
+          );
+          return;
+        }
+
+        const rejectionClassification: z.infer<
+          typeof rejectionFeedbackClassificationSchema
+        > = {
+          reasons: result.classification.reasons.map((reason) => {
+            let preference = {};
+            if (reason.preference?.case) {
+              switch (reason.preference.case) {
+                case 'locationTypePreference':
+                  preference = {
+                    locationTypePreference: reason.preference.value,
+                  };
+                  break;
+                case 'seniorityPreference':
+                  preference = {
+                    seniorityPreference: reason.preference.value,
+                  };
+                  break;
+                case 'employmentTypePreference':
+                  preference = {
+                    employmentTypePreference: reason.preference.value,
+                  };
+                  break;
+                case 'freeTextPreference':
+                  preference = {
+                    freeTextPreference: reason.preference.value,
+                  };
+                  break;
+              }
             }
-          }
 
-          return {
-            reason: reason.reason,
-            confidence: reason.confidence,
-            explanation: reason.explanation,
-            ...preference,
-          };
-        }),
-        summary: result.classification.summary,
-      };
+            return {
+              reason: reason.reason,
+              confidence: reason.confidence,
+              explanation: reason.explanation,
+              ...preference,
+            };
+          }),
+          summary: result.classification.summary,
+        };
 
-      await con
-        .getRepository(OpportunityMatch)
-        .update({ opportunityId, userId }, { rejectionClassification });
+        await con
+          .getRepository(OpportunityMatch)
+          .update({ opportunityId, userId }, { rejectionClassification });
+      } catch (err) {
+        logger.debug(
+          { err, opportunityId, userId },
+          'Error classifying rejection feedback',
+        );
+      }
     },
   };
