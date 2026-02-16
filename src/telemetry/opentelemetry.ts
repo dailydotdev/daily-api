@@ -27,20 +27,15 @@ import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { containerDetector } from '@opentelemetry/resource-detector-container';
 
 import { enableOpenTelemetry } from './common';
+import { instrumentations } from './register';
 import {
   type ServiceName,
   createMetricReader,
   initCounters,
   subscribeMetricsHooks,
 } from './metrics';
-import {
-  createSpanProcessor,
-  getInstrumentations,
-  subscribeTracingHooks,
-} from './tracing';
+import { createSpanProcessor, subscribeTracingHooks } from './tracing';
 import { logger } from '../logger';
-
-const instrumentations = enableOpenTelemetry ? getInstrumentations() : [];
 
 const resourceDetectors = [
   envDetector,

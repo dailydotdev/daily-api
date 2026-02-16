@@ -648,6 +648,9 @@ const obj = new GraphORM({
       numAwards: {
         select: 'awards',
       },
+      numReposts: {
+        select: 'reposts',
+      },
       publication: {
         alias: { field: 'source', type: 'Source' },
       },

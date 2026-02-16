@@ -90,6 +90,9 @@ declare global {
 
       OTEL_SERVICE_NAME: string;
       OTEL_SERVICE_VERSION: string;
+      OTEL_LOGGER_FORMAT: 'otel' | 'gcp';
+      OTEL_METRICS_EXPORTER: 'otlp' | 'prometheus';
+      OTEL_EXPORTER_OTLP_ENDPOINT: string;
     }
   }
 }
