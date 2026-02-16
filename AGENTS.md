@@ -157,9 +157,38 @@ The migration generator compares entities against the local database schema. Ens
 **Keep implementations concise:**
 - Prefer short, readable implementations over verbose ones
 - Avoid excessive logging - errors will propagate naturally
+- **Never use logger.info for successful operations** - successful database updates, API calls, or data processing don't need logging. Results are visible in the database and errors will propagate naturally with automatic retry notifications.
 - Use early returns instead of nested conditionals
 - Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
 - Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
+- **Prefer switch statements over nested ternary operators** for mapping multiple cases - switch statements are more readable and maintainable when handling 3+ conditional branches:
+  ```typescript
+  // BAD: Nested ternary chain - hard to read and extend
+  const result =
+    value?.case === 'optionA'
+      ? { optionA: value.data }
+      : value?.case === 'optionB'
+        ? { optionB: value.data }
+        : value?.case === 'optionC'
+          ? { optionC: value.data }
+          : {};
+
+  // GOOD: Switch statement - clear and maintainable
+  let result = {};
+  if (value?.case) {
+    switch (value.case) {
+      case 'optionA':
+        result = { optionA: value.data };
+        break;
+      case 'optionB':
+        result = { optionB: value.data };
+        break;
+      case 'optionC':
+        result = { optionC: value.data };
+        break;
+    }
+  }
+  ```
 
 **Comments:**
 - **Do not add unnecessary comments** - code should be self-documenting through clear naming
@@ -227,6 +256,25 @@ The migration generator compares entities against the local database schema. Ens
 **Zod patterns:**
 - Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
 - **Place Zod schemas in `src/common/schema/`** - not inline in resolver files. Create a dedicated file per domain (e.g., `userStack.ts`, `opportunities.ts`)
+- **IMPORTANT - Zod Type Inference:**
+  - **ALWAYS use `z.infer<typeof schema>` to derive TypeScript types from Zod schemas** at the point of use
+  - **NEVER manually define or re-export types that duplicate Zod schema structure**
+  - Export only the schemas themselves, not the inferred types
+  - Example:
+    ```typescript
+    // GOOD: Export only the schema
+    export const userSchema = z.object({ name: z.string(), age: z.number() });
+
+    // BAD: Re-exporting inferred type
+    export type User = z.infer<typeof userSchema>;
+
+    // GOOD: Use z.infer at point of use
+    import type { userSchema } from './schema';
+    type User = z.infer<typeof userSchema>;
+
+    // GOOD: Inline in function parameters
+    const processUser = (user: z.infer<typeof userSchema>) => { ... };
+    ```
 - **Schema exports must use a `Schema` suffix** (e.g., `paginationSchema`, `urlParseSchema`, `fileUploadSchema`). This makes schema variables clearly distinguishable from regular values and types.
 
 ## Best Practices & Lessons Learned
@@ -463,6 +511,14 @@ The migration generator compares entities against the local database schema. Ens
   - Import shared constants and utilities from `./common.ts` (`parseLimit`, `ensureDbConnection`, `MAX_LIMIT`, `DEFAULT_LIMIT`)
   - Update `skill.md` when adding/changing endpoints (versioned with semver)
   - Fastify route type parameters should be defined inline for single-use types
+
+## Pre-Commit Checks
+
+Before creating any commit, ensure the following pass:
+- `pnpm run build` - TypeScript compilation must succeed with no errors
+- `pnpm run lint` - ESLint must pass with 0 warnings
+
+Do not commit code that fails either check.
 
 ## Pull Requests
 
