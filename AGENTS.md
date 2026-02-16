@@ -96,6 +96,20 @@ The migration generator compares entities against the local database schema. Ens
   - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
   - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
+- **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly.
+  ```typescript
+  // BAD: plain object
+  return {
+    jobId: job.id,
+    status: job.status,
+  };
+
+  // GOOD: typed proto message
+  return new GetJobStatusResponse({
+    jobId: job.id,
+    status: job.status,
+  });
+  ```
 
 **Business Domains:**
 - **Content**: Posts, comments, bookmarks, feeds, sources
