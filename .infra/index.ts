@@ -32,6 +32,14 @@ import {
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
+const cliArgs = (...commands: string[]): string[] => [
+  'dumb-init',
+  'node',
+  '--require',
+  './src/telemetry/register.js',
+  'bin/cli',
+  ...commands,
+];
 const isPersonalizedDigestEnabled =
   config.require('enablePersonalizedDigest') === 'true';
 
@@ -362,7 +370,7 @@ if (isAdhocEnv) {
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
         ...jwtEnv,
       ],
-      args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
+      args: cliArgs('websocket'),
       minReplicas: 2,
       maxReplicas: 10,
       limits: wsLimits,
@@ -378,7 +386,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'bg',
       env: [...jwtEnv],
-      args: ['dumb-init', 'node', 'bin/cli', 'background'],
+      args: cliArgs('background'),
       minReplicas: 2,
       maxReplicas: 10,
       limits: bgLimits,
@@ -400,7 +408,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'temporal',
       env: [...jwtEnv],
-      args: ['dumb-init', 'node', 'bin/cli', 'temporal'],
+      args: cliArgs('temporal'),
       minReplicas: 1,
       maxReplicas: 3,
       limits: temporalLimits,
@@ -440,7 +448,7 @@ if (isAdhocEnv) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
       env: [...jwtEnv],
-      args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
+      args: cliArgs('personalized-digest'),
       minReplicas: 1,
       maxReplicas: 4,
       requests: { cpu: '50m', memory: '256Mi' },
@@ -541,7 +549,7 @@ const [apps] = deployApplicationSuite(
       ? []
       : crons.map((cron) => ({
           nameSuffix: cron.name,
-          args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
+          args: cliArgs('cron', cron.name),
           schedule: cron.schedule,
           limits: cron.limits ?? bgLimits,
           requests: cron.requests ?? bgRequests,

@@ -518,6 +518,7 @@ it('should map social twitter thread payload to existing post fields', async () 
   })) as Post & {
     content?: string;
     contentHtml?: string;
+    creatorTwitter?: string;
     image?: string;
     videoId?: string;
   };
@@ -569,6 +570,8 @@ it('should ingest provided yggdrasil twitter thread payload and store mapped fie
   expect(post.image).toEqual('https://pbs.twimg.com/media/G0aidOKbgAIb29j.jpg');
   expect(post.videoId).toBeNull();
   expect(post.language).toEqual('en');
+  expect(post.creatorTwitter).toEqual('alexfinn');
+  expect(post.showOnFeed).toEqual(false);
 });
 
 it('should resolve social twitter source by machine source twitter handle', async () => {
@@ -785,6 +788,7 @@ it('should map social twitter tweet subtype as plain tweet', async () => {
     yggdrasilId,
   })) as Post & {
     content?: string;
+    creatorTwitter?: string;
   };
 
   expect(post.type).toEqual(PostType.SocialTwitter);
@@ -792,6 +796,30 @@ it('should map social twitter tweet subtype as plain tweet', async () => {
   expect(post.title).toEqual('@dailydotdev: A plain tweet');
   expect(post.content).toBeNull();
   expect(post.image).toEqual('https://pbs.twimg.com/media/tweet.jpg');
+  expect(post.creatorTwitter).toEqual('dailydotdev');
+  expect(post.showOnFeed).toEqual(false);
+});
+
+it('should keep social twitter post hidden from feed when order is missing', async () => {
+  const yggdrasilId = randomUUID();
+
+  await expectSuccessfulBackground(worker, {
+    id: yggdrasilId,
+    content_type: PostType.SocialTwitter,
+    url: 'https://x.com/dailydotdev/status/1009',
+    source_id: 'a',
+    extra: {
+      subtype: 'tweet',
+      content: 'No order social tweet',
+    },
+  });
+
+  const post = await con.getRepository(SocialTwitterPost).findOneByOrFail({
+    yggdrasilId,
+  });
+
+  expect(post.showOnFeed).toEqual(false);
+  expect(post.flags.showOnFeed).toEqual(false);
 });
 
 it('should map repost without body to fallback title', async () => {
