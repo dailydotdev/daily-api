@@ -5,7 +5,8 @@ export type NotificationAvatarType =
   | 'user'
   | 'top_reader_badge'
   | 'organization'
-  | 'brief';
+  | 'brief'
+  | 'achievement';
 
 @Entity()
 @Index(

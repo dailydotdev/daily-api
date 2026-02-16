@@ -721,9 +721,10 @@ export const generateNotificationMap: Record<
       .icon(NotificationIcon.Bell)
       .description(ctx.achievementDescription)
       .referenceAchievement(ctx.achievementId)
+      .avatarAchievement(ctx)
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/achievements`,
       )
-      .uniqueKey(ctx.achievementId);
+      .uniqueKey(ctx.userIds[0]);
   },
 };
