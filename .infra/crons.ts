@@ -154,4 +154,8 @@ export const crons: Cron[] = [
     name: 'expire-super-agent-trial',
     schedule: '0 */6 * * *',
   },
+  {
+    name: 'update-achievement-rarity',
+    schedule: '0 3 * * *',
+  },
 ];

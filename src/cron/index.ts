@@ -27,6 +27,7 @@ import { userProfileAnalyticsHistoryClickhouseCron } from './userProfileAnalytic
 import { cleanZombieOpportunities } from './cleanZombieOpportunities';
 import { userProfileUpdatedSync } from './userProfileUpdatedSync';
 import expireSuperAgentTrial from './expireSuperAgentTrial';
+import updateAchievementRarity from './updateAchievementRarity';
 
 export const crons: Cron[] = [
   updateViews,
@@ -57,4 +58,5 @@ export const crons: Cron[] = [
   cleanZombieOpportunities,
   userProfileUpdatedSync,
   expireSuperAgentTrial,
+  updateAchievementRarity,
 ];
