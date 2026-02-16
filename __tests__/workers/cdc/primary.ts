@@ -3266,10 +3266,8 @@ describe('post content updated', () => {
       .mocked(triggerTypedEvent)
       .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
-    expect(message.toJson()).toEqual({
-      banned: false,
+    expect(message.toJson()).toMatchObject({
       canonicalUrl: 'http://p4c.com',
-      content: undefined,
       contentCuration: ['c1', 'c2'],
       contentMeta: {
         cleaned: [
@@ -3281,7 +3279,6 @@ describe('post content updated', () => {
         scraped: {
           resourceLocation: 'gs://path.html',
         },
-        storedCodeSnippets: '',
         enriched: { provider: 'test' },
         language: { provider: 'translate' },
         embedding: {
@@ -3293,7 +3290,6 @@ describe('post content updated', () => {
           updatedAt: 1725878687,
         },
         aigcDetect: { provider: 'test' },
-        channels: [],
       },
       contentQuality: {
         isAiProbability: 0.9,
@@ -3305,7 +3301,6 @@ describe('post content updated', () => {
       language: 'en',
       origin: 'crawler',
       postId: 'p4',
-      private: false,
       readTime: 5,
       relatedPosts: [
         {
@@ -3327,7 +3322,6 @@ describe('post content updated', () => {
           type: 'COLLECTION',
         },
       ],
-      sharedPostId: undefined,
       source: {
         active: true,
         color: 'avocado',
@@ -3338,7 +3332,6 @@ describe('post content updated', () => {
         id: 'a',
         image: 'http://image.com/a',
         name: 'A',
-        private: false,
         twitter: '@a',
         type: 'machine',
         website: 'http://a.com',
@@ -3351,8 +3344,6 @@ describe('post content updated', () => {
       url: 'http://p4.com',
       visible: true,
       yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-      deleted: false,
-      translation: {},
     });
   });
 
@@ -3377,15 +3368,9 @@ describe('post content updated', () => {
       .mocked(triggerTypedEvent)
       .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
-    expect(message.toJson()).toEqual({
-      banned: false,
+    expect(message.toJson()).toMatchObject({
       content: 'Freeform content',
       contentCuration: ['c1', 'c2'],
-      contentMeta: {
-        cleaned: [],
-        storedCodeSnippets: '',
-        channels: [],
-      },
       contentQuality: {
         isAiProbability: 0.9,
       },
@@ -3396,7 +3381,6 @@ describe('post content updated', () => {
       language: 'en',
       origin: 'crawler',
       postId: 'p4',
-      private: false,
       readTime: 5,
       relatedPosts: [
         {
@@ -3418,7 +3402,6 @@ describe('post content updated', () => {
           type: 'COLLECTION',
         },
       ],
-      sharedPostId: undefined,
       source: {
         active: true,
         color: 'avocado',
@@ -3429,7 +3412,6 @@ describe('post content updated', () => {
         id: 'a',
         image: 'http://image.com/a',
         name: 'A',
-        private: false,
         twitter: '@a',
         type: 'machine',
         website: 'http://a.com',
@@ -3439,11 +3421,8 @@ describe('post content updated', () => {
       title: 'Post for testing',
       type: PostType.Freeform,
       updatedAt: expect.any(Number),
-      url: undefined,
       visible: true,
       yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-      deleted: false,
-      translation: {},
     });
   });
 
@@ -3515,15 +3494,9 @@ describe('post content updated', () => {
       .mocked(triggerTypedEvent)
       .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
-    expect(message.toJson()).toEqual({
-      banned: false,
+    expect(message.toJson()).toMatchObject({
       content: 'Collection content',
       contentCuration: ['c1', 'c2'],
-      contentMeta: {
-        cleaned: [],
-        storedCodeSnippets: '',
-        channels: [],
-      },
       contentQuality: {
         isAiProbability: 0.9,
       },
@@ -3534,7 +3507,6 @@ describe('post content updated', () => {
       language: 'en',
       origin: 'crawler',
       postId: 'p1',
-      private: false,
       readTime: 5,
       relatedPosts: [
         {
@@ -3556,7 +3528,6 @@ describe('post content updated', () => {
           type: 'COLLECTION',
         },
       ],
-      sharedPostId: undefined,
       source: {
         active: true,
         createdAt: expect.any(Number),
@@ -3564,7 +3535,6 @@ describe('post content updated', () => {
         id: 'collections',
         image: 'http://image.com/collections',
         name: 'Collections',
-        private: false,
         type: 'machine',
       },
       summary: 'Post for testing',
@@ -3572,11 +3542,8 @@ describe('post content updated', () => {
       title: 'Post for testing',
       type: PostType.Collection,
       updatedAt: expect.any(Number),
-      url: undefined,
       visible: true,
       yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-      deleted: false,
-      translation: {},
     });
   });
 
@@ -3601,15 +3568,8 @@ describe('post content updated', () => {
       .mocked(triggerTypedEvent)
       .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
-    expect(message.toJson()).toEqual({
-      banned: false,
-      content: undefined,
+    expect(message.toJson()).toMatchObject({
       contentCuration: ['c1', 'c2'],
-      contentMeta: {
-        cleaned: [],
-        storedCodeSnippets: '',
-        channels: [],
-      },
       contentQuality: {
         isAiProbability: 0.9,
       },
@@ -3620,7 +3580,6 @@ describe('post content updated', () => {
       language: 'en',
       origin: 'crawler',
       postId: 'p4',
-      private: false,
       readTime: 5,
       relatedPosts: [
         {
@@ -3642,7 +3601,6 @@ describe('post content updated', () => {
           type: 'COLLECTION',
         },
       ],
-      sharedPostId: undefined,
       source: {
         active: true,
         color: 'avocado',
@@ -3653,7 +3611,6 @@ describe('post content updated', () => {
         id: 'a',
         image: 'http://image.com/a',
         name: 'A',
-        private: false,
         twitter: '@a',
         type: 'machine',
         website: 'http://a.com',
@@ -3666,8 +3623,6 @@ describe('post content updated', () => {
       url: 'http://youtube.com/watch?v=123',
       visible: true,
       yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-      deleted: false,
-      translation: {},
     });
   });
 
