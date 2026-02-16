@@ -15,7 +15,9 @@ const cron: Cron = {
     const totalUsers = parseInt(totalUsersResult?.cnt ?? '0', 10);
 
     if (totalUsers === 0) {
-      logger.info('No users with unlocked achievements, skipping rarity update');
+      logger.info(
+        'No users with unlocked achievements, skipping rarity update',
+      );
       return;
     }
 
