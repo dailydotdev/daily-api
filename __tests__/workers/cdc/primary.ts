@@ -3262,7 +3262,9 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toEqual({
       banned: false,
@@ -3371,7 +3373,9 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toEqual({
       banned: false,
@@ -3507,7 +3511,9 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toEqual({
       banned: false,
@@ -3591,7 +3597,9 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toEqual({
       banned: false,
@@ -3700,7 +3708,9 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toMatchObject({
       contentMeta: {
@@ -3747,13 +3757,13 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toMatchObject({
       createdAt: Math.floor(contentUpdatedPost.createdAt / 1_000_000),
-      updatedAt: Math.floor(
-        contentUpdatedPost.metadataChangedAt / 1_000_000,
-      ),
+      updatedAt: Math.floor(contentUpdatedPost.metadataChangedAt / 1_000_000),
     });
   });
 
@@ -3779,7 +3789,9 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toMatchObject({
       deleted: true,
@@ -3802,7 +3814,9 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    const [topic, message] = jest.mocked(triggerTypedEvent).mock.calls[0].slice(1);
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
     expect(topic).toBe('api.v1.content-updated');
     expect(message.toJson()).toMatchObject({
       sharedPostId: 'sp1',
