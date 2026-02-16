@@ -39,7 +39,9 @@ describe('jobExecute worker', () => {
       jobId: job.id,
     });
 
-    const updated = await con.getRepository(WorkerJob).findOneBy({ id: job.id });
+    const updated = await con
+      .getRepository(WorkerJob)
+      .findOneBy({ id: job.id });
     expect(updated?.status).toBe(JobStatus.RUNNING);
   });
 
@@ -56,7 +58,9 @@ describe('jobExecute worker', () => {
       jobId: job.id,
     });
 
-    const updated = await con.getRepository(WorkerJob).findOneBy({ id: job.id });
+    const updated = await con
+      .getRepository(WorkerJob)
+      .findOneBy({ id: job.id });
     expect(updated).toMatchObject({
       status: JobStatus.FAILED,
       error: expect.stringContaining('No handler for job type'),
