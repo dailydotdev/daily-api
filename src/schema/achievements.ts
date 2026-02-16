@@ -48,6 +48,7 @@ const toGQLAchievement = (achievement: Achievement): GQLAchievement => {
     eventType: achievement.eventType,
     criteria: achievement.criteria,
     points: achievement.points,
+    rarity: achievement.rarity,
     createdAt: achievement.createdAt,
   };
 };
@@ -120,6 +121,7 @@ export type GQLAchievement = {
     targetCount?: number;
   };
   points: number;
+  rarity: number | null;
   createdAt: Date;
 };
 
@@ -216,6 +218,10 @@ export const typeDefs = /* GraphQL */ `
     Points awarded for unlocking this achievement
     """
     points: Int!
+    """
+    Percentage of active users who unlocked this (null if not yet calculated)
+    """
+    rarity: Float
     """
     When the achievement was created
     """

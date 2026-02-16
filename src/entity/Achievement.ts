@@ -94,4 +94,7 @@ export class Achievement {
 
   @Column({ type: 'smallint', default: 5 })
   points: number;
+
+  @Column({ type: 'real', nullable: true, default: null })
+  rarity: number | null;
 }
