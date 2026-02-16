@@ -12,6 +12,7 @@ import {
   UserCV,
   Location,
 } from '@dailydotdev/schema';
+import { toPlainMessage } from '@bufbuild/protobuf';
 import {
   debeziumTimeToDate,
   demoCompany,
@@ -166,7 +167,7 @@ const buildAndSendCandidateOpportunityMessage = async ({
     },
   });
 
-  await triggerTypedEvent(logger, topic, message);
+  await triggerTypedEvent(logger, topic, toPlainMessage(message));
 };
 
 export const notifyOpportunityMatchAccepted = async ({
@@ -263,7 +264,7 @@ export const notifyRecruiterCandidateMatchAccepted = async ({
     await triggerTypedEvent(
       logger,
       'api.v1.recruiter-accepted-candidate-match',
-      message,
+      toPlainMessage(message),
     );
   } catch (_err) {
     const err = _err as Error;
@@ -291,7 +292,7 @@ export const notifyRecruiterCandidateMatchRejected = async ({
   await triggerTypedEvent(
     logger,
     'api.v1.recruiter-rejected-candidate-match',
-    message,
+    toPlainMessage(message),
   );
 };
 
@@ -337,7 +338,7 @@ export const notifyCandidateOpportunityMatchRejected = async ({
     await triggerTypedEvent(
       logger,
       'api.v1.candidate-rejected-opportunity',
-      message,
+      toPlainMessage(message),
     );
   } catch (_err) {
     const err = _err as Error;
@@ -524,15 +525,17 @@ export const notifyJobOpportunity = async ({
       await triggerTypedEvent(
         logger,
         'gondul.v1.candidate-opportunity-match',
-        new MatchedCandidate({
-          opportunityId,
-          userId,
-          matchScore: 0.87,
-          reasoning:
-            "We have noticed that you've been digging into React performance optimization and exploring payment systems lately. Your skills in TypeScript and Node.js line up directly with the core technologies this team uses. You also follow several Atlassian engineers and have shown consistent interest in project management software, which makes this role a natural fit for your trajectory.",
-          reasoningShort:
-            'Your skills in TypeScript and Node.js line up directly with the core technologies this team uses.',
-        }),
+        toPlainMessage(
+          new MatchedCandidate({
+            opportunityId,
+            userId,
+            matchScore: 0.87,
+            reasoning:
+              "We have noticed that you've been digging into React performance optimization and exploring payment systems lately. Your skills in TypeScript and Node.js line up directly with the core technologies this team uses. You also follow several Atlassian engineers and have shown consistent interest in project management software, which makes this role a natural fit for your trajectory.",
+            reasoningShort:
+              'Your skills in TypeScript and Node.js line up directly with the core technologies this team uses.',
+          }),
+        ),
       );
     }
     return;
@@ -545,7 +548,11 @@ export const notifyJobOpportunity = async ({
   }
 
   try {
-    await triggerTypedEvent(logger, 'api.v1.opportunity-added', message);
+    await triggerTypedEvent(
+      logger,
+      'api.v1.opportunity-added',
+      toPlainMessage(message),
+    );
   } catch (_err) {
     const err = _err as Error;
     logger.error({ err, message }, 'failed to send opportunity event');
@@ -629,7 +636,7 @@ export const notifyCandidatePreferenceChange = async ({
     await triggerTypedEvent(
       logger,
       'api.v1.candidate-preference-updated',
-      message,
+      toPlainMessage(message),
     );
   } catch (_err) {
     const err = _err as Error;

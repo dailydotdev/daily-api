@@ -12,6 +12,7 @@ import {
   UserExperienceType as UserExperienceTypeProto,
   Location,
 } from '@dailydotdev/schema';
+import { toPlainMessage } from '@bufbuild/protobuf';
 import { Readable } from 'node:stream';
 import type { UserExperienceEducation } from '../entity/user/experiences/UserExperienceEducation';
 import type { UserExperienceProject } from '../entity/user/experiences/UserExperienceProject';
@@ -146,7 +147,7 @@ export const userProfileUpdatedSync: Cron = {
         await triggerTypedEvent(
           logger,
           'api.v1.user-profile-updated',
-          userProfileMessage,
+          toPlainMessage(userProfileMessage),
         );
       },
       10,

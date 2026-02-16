@@ -18,7 +18,7 @@ import { PostKeyword, Source } from '../../entity';
 import { triggerTypedEvent } from '../../common';
 import { getSecondsTimestamp } from '../../common/date';
 import { logger } from '../../logger';
-import { JsonValue, Message } from '@bufbuild/protobuf';
+import { JsonValue, Message, toPlainMessage } from '@bufbuild/protobuf';
 import { debeziumTimeToDate } from '../../common/utils';
 
 export const isChanged = <T>(
@@ -161,6 +161,6 @@ export const notifyPostContentUpdated = async ({
   await triggerTypedEvent(
     logger,
     'api.v1.content-updated',
-    contentUpdatedMessage,
+    toPlainMessage(contentUpdatedMessage),
   );
 };

@@ -3267,18 +3267,17 @@ describe('post content updated', () => {
       {
         banned: false,
         canonicalUrl: 'http://p4c.com',
+        content: undefined,
         contentCuration: ['c1', 'c2'],
         contentMeta: {
+          aigcDetect: { provider: 'test' },
+          channels: [],
           cleaned: [
             {
               provider: 'test',
               resourceLocation: 'gs://path.xml',
             },
           ],
-          scraped: {
-            resourceLocation: 'gs://path.html',
-          },
-          storedCodeSnippets: '',
           enriched: { provider: 'test' },
           language: { provider: 'translate' },
           embedding: {
@@ -3288,6 +3287,10 @@ describe('post content updated', () => {
             contentType: 'title_summary',
             resourceLocation: 'yggdrasil',
             updatedAt: 1725878687,
+          },
+          storedCodeSnippets: '',
+          scraped: {
+            resourceLocation: 'gs://path.html',
           },
           aigcDetect: { provider: 'test' },
         },
@@ -3323,6 +3326,7 @@ describe('post content updated', () => {
             type: 'COLLECTION',
           },
         ],
+        sharedPostId: undefined,
         source: {
           active: true,
           color: 'avocado',
