@@ -1,6 +1,6 @@
 import { expectSuccessfulTypedBackground } from '../../helpers';
 import { jobExecuteWorker as worker } from '../../../src/workers/job/jobExecute';
-import { Job } from '../../../src/entity/Job';
+import { WorkerJob } from '../../../src/entity/WorkerJob';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
 import { typedWorkers } from '../../../src/workers';
@@ -27,8 +27,8 @@ describe('jobExecute worker', () => {
   });
 
   it('should skip if job is not pending', async () => {
-    const job = await con.getRepository(Job).save(
-      con.getRepository(Job).create({
+    const job = await con.getRepository(WorkerJob).save(
+      con.getRepository(WorkerJob).create({
         type: 0,
         status: JobStatus.RUNNING,
         payload: {},
@@ -39,13 +39,13 @@ describe('jobExecute worker', () => {
       jobId: job.id,
     });
 
-    const updated = await con.getRepository(Job).findOneBy({ id: job.id });
+    const updated = await con.getRepository(WorkerJob).findOneBy({ id: job.id });
     expect(updated?.status).toBe(JobStatus.RUNNING);
   });
 
   it('should mark job as failed when no handler exists', async () => {
-    const job = await con.getRepository(Job).save(
-      con.getRepository(Job).create({
+    const job = await con.getRepository(WorkerJob).save(
+      con.getRepository(WorkerJob).create({
         type: 0,
         status: JobStatus.PENDING,
         payload: {},
@@ -56,7 +56,7 @@ describe('jobExecute worker', () => {
       jobId: job.id,
     });
 
-    const updated = await con.getRepository(Job).findOneBy({ id: job.id });
+    const updated = await con.getRepository(WorkerJob).findOneBy({ id: job.id });
     expect(updated).toMatchObject({
       status: JobStatus.FAILED,
       error: expect.stringContaining('No handler for job type'),

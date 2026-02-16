@@ -9,7 +9,7 @@ import {
 import type { JobStatus, JobType } from '@dailydotdev/schema';
 
 @Entity()
-export class Job {
+export class WorkerJob {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 

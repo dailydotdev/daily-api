@@ -1,6 +1,6 @@
 import type { TypedWorker } from '../worker';
 import type { DataSource } from 'typeorm';
-import { Job } from '../../entity/Job';
+import { WorkerJob } from '../../entity/WorkerJob';
 import { JobStatus, type JobType } from '@dailydotdev/schema';
 import type { FastifyBaseLogger } from 'fastify';
 
@@ -24,7 +24,7 @@ export const jobExecuteWorker: TypedWorker<'api.v1.job-execute'> = {
   subscription: 'api.job-execute',
   handler: async ({ data }, con, logger) => {
     const { jobId } = data;
-    const repo = con.getRepository(Job);
+    const repo = con.getRepository(WorkerJob);
 
     const job = await repo.findOneBy({ id: jobId });
     if (!job || job.status !== JobStatus.PENDING) {

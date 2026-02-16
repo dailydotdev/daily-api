@@ -2,7 +2,7 @@ import { Code, ConnectError, ConnectRouter } from '@connectrpc/connect';
 import { baseRpcContext } from '../../common/connectRpc';
 import { GetJobStatusResponse, JobService } from '@dailydotdev/schema';
 import createOrGetConnection from '../../db';
-import { Job } from '../../entity/Job';
+import { WorkerJob } from '../../entity/WorkerJob';
 
 const toUnixTimestamp = (date: Date | null): number | undefined =>
   date ? Math.floor(date.getTime() / 1000) : undefined;
@@ -14,7 +14,7 @@ export default function jobRpc(router: ConnectRouter) {
     }
 
     const con = await createOrGetConnection();
-    const job = await con.getRepository(Job).findOneBy({ id: req.jobId });
+    const job = await con.getRepository(WorkerJob).findOneBy({ id: req.jobId });
 
     if (!job) {
       throw new ConnectError('job not found', Code.NotFound);

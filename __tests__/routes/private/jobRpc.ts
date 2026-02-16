@@ -10,7 +10,7 @@ import {
 } from '@connectrpc/connect';
 import jobRpc from '../../../src/routes/private/jobRpc';
 import { baseRpcContext } from '../../../src/common/connectRpc';
-import { Job } from '../../../src/entity/Job';
+import { WorkerJob } from '../../../src/entity/WorkerJob';
 
 let con: DataSource;
 
@@ -67,7 +67,7 @@ describe('JobService.GetStatus', () => {
   });
 
   it('should return job status', async () => {
-    const job = await con.getRepository(Job).save({
+    const job = await con.getRepository(WorkerJob).save({
       type: 0,
       status: JobStatus.PENDING,
       payload: { key: 'value' },
@@ -93,7 +93,7 @@ describe('JobService.GetStatus', () => {
     const startedAt = new Date('2025-01-01T00:00:00Z');
     const completedAt = new Date('2025-01-01T00:01:00Z');
 
-    const job = await con.getRepository(Job).save({
+    const job = await con.getRepository(WorkerJob).save({
       type: 0,
       status: JobStatus.COMPLETED,
       payload: {},
@@ -116,7 +116,7 @@ describe('JobService.GetStatus', () => {
   });
 
   it('should return failed job with error', async () => {
-    const job = await con.getRepository(Job).save({
+    const job = await con.getRepository(WorkerJob).save({
       type: 0,
       status: JobStatus.FAILED,
       payload: {},
