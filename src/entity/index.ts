@@ -14,6 +14,7 @@ export * from './PostReport';
 export * from './PostTag';
 export * from './Settings';
 export * from './Source';
+export * from './SquadPostsAnalytics';
 export * from './SourceDisplay';
 export * from './SourceFeed';
 export * from './SourceMember';

@@ -118,6 +118,7 @@ Object {
         "welcome_post_edit",
         "moderate_post",
         "boost_squad",
+        "view_analytics",
         "member_role_update",
         "post_limit",
         "delete",
