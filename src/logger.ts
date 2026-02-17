@@ -46,7 +46,7 @@ const buildLoggerConfig = (): LoggerOptions => {
     formatters: {
       level: (severity, level) => ({
         severityText: severity.toUpperCase(),
-        seveityNumber:
+        severityNumber:
           OTEL_SEV_MAPPING[level as keyof typeof OTEL_SEV_MAPPING] ||
           OTEL_SEV_MAPPING[30], // default to INFO
       }),
