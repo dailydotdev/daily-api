@@ -1,18 +1,43 @@
 import type { TypedWorker } from '../worker';
-import type { DataSource } from 'typeorm';
+import type { DataSource, Repository } from 'typeorm';
+import { Not, In } from 'typeorm';
 import { WorkerJob } from '../../entity/WorkerJob';
-import { JobStatus, type JobType } from '@dailydotdev/schema';
+import { WorkerJobStatus, type WorkerJobType } from '@dailydotdev/schema';
 import type { FastifyBaseLogger } from 'fastify';
 
-type JobHandlerParams = {
-  payload: Record<string, unknown>;
+export type JobHandlerParams = {
+  input: Record<string, unknown>;
   con: DataSource;
   logger: FastifyBaseLogger;
   jobId: string;
 };
 
+const checkParentCompletion = async (
+  repo: Repository<WorkerJob>,
+  parentId: string,
+) => {
+  const remaining = await repo.count({
+    where: {
+      parentId,
+      status: Not(In([WorkerJobStatus.COMPLETED, WorkerJobStatus.FAILED])),
+    },
+  });
+
+  if (remaining === 0) {
+    const failedCount = await repo.count({
+      where: { parentId, status: WorkerJobStatus.FAILED },
+    });
+
+    await repo.update(parentId, {
+      status:
+        failedCount > 0 ? WorkerJobStatus.FAILED : WorkerJobStatus.COMPLETED,
+      completedAt: new Date(),
+    });
+  }
+};
+
 const getJobHandler = (
-  type: JobType,
+  type: WorkerJobType,
 ): ((params: JobHandlerParams) => Promise<Record<string, unknown>>) | null => {
   switch (type) {
     default:
@@ -27,33 +52,33 @@ export const jobExecuteWorker: TypedWorker<'api.v1.worker-job-execute'> = {
     const repo = con.getRepository(WorkerJob);
 
     const job = await repo.findOneBy({ id: jobId });
-    if (!job || job.status !== JobStatus.PENDING) {
+    if (!job || job.status !== WorkerJobStatus.PENDING) {
       return;
     }
-
-    const handler = getJobHandler(job.type);
-    if (!handler) {
-      await repo
-        .createQueryBuilder()
-        .update()
-        .set({
-          status: JobStatus.FAILED,
-          error: `No handler for job type: ${job.type}`,
-          completedAt: new Date(),
-        })
-        .where({ id: jobId })
-        .execute();
-      return;
-    }
-
-    await repo.update(jobId, {
-      status: JobStatus.RUNNING,
-      startedAt: new Date(),
-    });
 
     try {
+      const handler = getJobHandler(job.type);
+      if (!handler) {
+        await repo
+          .createQueryBuilder()
+          .update()
+          .set({
+            status: WorkerJobStatus.FAILED,
+            error: `No handler for job type: ${job.type}`,
+            completedAt: new Date(),
+          })
+          .where({ id: jobId })
+          .execute();
+        return;
+      }
+
+      await repo.update(jobId, {
+        status: WorkerJobStatus.RUNNING,
+        startedAt: new Date(),
+      });
+
       const result = await handler({
-        payload: job.payload ?? {},
+        input: job.input ?? {},
         con,
         logger,
         jobId: job.id,
@@ -63,7 +88,7 @@ export const jobExecuteWorker: TypedWorker<'api.v1.worker-job-execute'> = {
         .createQueryBuilder()
         .update()
         .set({
-          status: JobStatus.COMPLETED,
+          status: WorkerJobStatus.COMPLETED,
           result: () => `:result`,
           completedAt: new Date(),
         })
@@ -77,7 +102,7 @@ export const jobExecuteWorker: TypedWorker<'api.v1.worker-job-execute'> = {
         .createQueryBuilder()
         .update()
         .set({
-          status: JobStatus.FAILED,
+          status: WorkerJobStatus.FAILED,
           error: errorMessage,
           completedAt: new Date(),
         })
@@ -85,6 +110,10 @@ export const jobExecuteWorker: TypedWorker<'api.v1.worker-job-execute'> = {
         .execute();
 
       logger.error({ jobId, type: job.type, err }, 'job failed');
+    } finally {
+      if (job.parentId) {
+        await checkParentCompletion(repo, job.parentId);
+      }
     }
   },
 };

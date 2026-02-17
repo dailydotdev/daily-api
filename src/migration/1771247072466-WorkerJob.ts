@@ -4,18 +4,39 @@ export class WorkerJob1771247072466 implements MigrationInterface {
   name = 'WorkerJob1771247072466';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      CREATE TABLE "worker_job" (
+        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "type" integer NOT NULL,
+        "status" integer NOT NULL,
+        "parentId" uuid,
+        "input" jsonb,
+        "result" jsonb,
+        "error" text,
+        "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "startedAt" TIMESTAMP WITH TIME ZONE,
+        "completedAt" TIMESTAMP WITH TIME ZONE,
+        CONSTRAINT "PK_98ab1c14ff8d1cf80d18703b92f" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_worker_job_parentId" FOREIGN KEY ("parentId")
+          REFERENCES "worker_job"("id") ON DELETE SET NULL
+      )
+    `);
     await queryRunner.query(
-      `CREATE TABLE "worker_job" ("id" uuid NOT NULL DEFAULT uuid_generate_v4(), "type" integer NOT NULL, "status" integer NOT NULL, "payload" jsonb, "result" jsonb, "error" text, "createdAt" TIMESTAMP NOT NULL DEFAULT now(), "updatedAt" TIMESTAMP NOT NULL DEFAULT now(), "startedAt" TIMESTAMP WITH TIME ZONE, "completedAt" TIMESTAMP WITH TIME ZONE, CONSTRAINT "PK_98ab1c14ff8d1cf80d18703b92f" PRIMARY KEY ("id"))`,
+      `CREATE INDEX IF NOT EXISTS "IDX_46b8d79c5c2f7f299f1b2c1ddf" ON "worker_job" ("type")`,
     );
     await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_46b8d79c5c2f7f299f1b2c1ddf" ON "worker_job" ("type") `,
+      `CREATE INDEX IF NOT EXISTS "IDX_bac37f13b06c08534012dc3607" ON "worker_job" ("status")`,
     );
     await queryRunner.query(
-      `CREATE INDEX IF NOT EXISTS "IDX_bac37f13b06c08534012dc3607" ON "worker_job" ("status") `,
+      `CREATE INDEX IF NOT EXISTS "IDX_worker_job_parentId" ON "worker_job" ("parentId")`,
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "public"."IDX_worker_job_parentId"`,
+    );
     await queryRunner.query(
       `DROP INDEX IF EXISTS "public"."IDX_bac37f13b06c08534012dc3607"`,
     );

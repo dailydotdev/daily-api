@@ -3,10 +3,12 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import type { JobStatus, JobType } from '@dailydotdev/schema';
+import type { WorkerJobStatus, WorkerJobType } from '@dailydotdev/schema';
 
 @Entity()
 export class WorkerJob {
@@ -15,14 +17,22 @@ export class WorkerJob {
 
   @Column({ type: 'integer', comment: 'JobType from protobuf schema' })
   @Index()
-  type: JobType;
+  type: WorkerJobType;
 
   @Column({ type: 'integer', comment: 'JobStatus from protobuf schema' })
   @Index()
-  status: JobStatus;
+  status: WorkerJobStatus;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  parentId: string | null;
+
+  @ManyToOne(() => WorkerJob, { nullable: true })
+  @JoinColumn({ name: 'parentId' })
+  parent: WorkerJob | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  payload: Record<string, unknown> | null;
+  input: Record<string, unknown> | null;
 
   @Column({ type: 'jsonb', nullable: true })
   result: Record<string, unknown> | null;
