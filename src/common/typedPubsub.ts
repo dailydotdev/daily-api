@@ -272,6 +272,9 @@ export type PubSubSchema = {
     achievementId: string;
     userId: string;
   };
+  'api.v1.worker-job-execute': {
+    jobId: string;
+  };
 };
 
 export async function triggerTypedEvent<T extends keyof PubSubSchema>(

@@ -5,6 +5,7 @@ import background from '../src/background';
 import temporal from '../src/temporal/notifications';
 import cron from '../src/cron';
 import personalizedDigest from '../src/commands/personalizedDigest';
+import workerJob from '../src/commands/workerJob';
 import { remoteConfig } from '../src/remoteConfig';
 import { initGeoReader } from '../src/common/geo';
 
@@ -41,6 +42,9 @@ async function run(positionals: string[]) {
       break;
     case 'personalized-digest':
       await personalizedDigest();
+      break;
+    case 'worker-job':
+      await workerJob();
       break;
     default:
       console.log('unknown command');
