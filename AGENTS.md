@@ -464,6 +464,10 @@ The migration generator compares entities against the local database schema. Ens
   ```
 - **Exception**: Queries during write operations that need immediate consistency should use primary.
 
+**Materialized View Tests:**
+- For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).
+- In tests, refresh the materialized view before assertions; do not recreate the materialized view definition inside test files.
+
 **State Checking Patterns:**
 - **Prefer negative checks over listing states** when checking for "non-draft" or similar conditions.
 - Use `state: Not(OpportunityState.DRAFT)` instead of `state: In([IN_REVIEW, LIVE, CLOSED])`.
