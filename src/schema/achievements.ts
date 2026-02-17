@@ -1,7 +1,11 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { ApolloError, ForbiddenError } from 'apollo-server-errors';
+import {
+  ApolloError,
+  AuthenticationError,
+  ForbiddenError,
+} from 'apollo-server-errors';
 import type { DataSource, EntityManager } from 'typeorm';
-import { BaseContext, type AuthContext } from '../Context';
+import { Context, BaseContext, type AuthContext } from '../Context';
 import { syncUserRetroactiveAchievements } from '../common/achievement/retroactive';
 import { updateFlagsStatement } from '../common/utils';
 import {
@@ -72,11 +76,9 @@ const toGQLUserAchievement = ({
 const getUserAchievementsWithProgress = async ({
   con,
   userId,
-  isOwnProfile,
 }: {
   con: AchievementConnection;
   userId: string;
-  isOwnProfile: boolean;
 }): Promise<GQLUserAchievement[]> => {
   const achievements = await con.getRepository(Achievement).find({
     order: { createdAt: 'ASC' },
@@ -90,24 +92,12 @@ const getUserAchievementsWithProgress = async ({
     userAchievements.map((ua) => [ua.achievementId, ua]),
   );
 
-  const results: GQLUserAchievement[] = [];
-
-  for (const achievement of achievements) {
-    const userAchievement = userAchievementMap.get(achievement.id);
-
-    if (!isOwnProfile && !userAchievement?.unlockedAt) {
-      continue;
-    }
-
-    results.push(
-      toGQLUserAchievement({
-        achievement,
-        userAchievement,
-      }),
-    );
-  }
-
-  return results;
+  return achievements.map((achievement) =>
+    toGQLUserAchievement({
+      achievement,
+      userAchievement: userAchievementMap.get(achievement.id),
+    }),
+  );
 };
 
 export type GQLAchievement = {
@@ -346,7 +336,7 @@ export const typeDefs = /* GraphQL */ `
       User ID to get achievements for (defaults to current user)
       """
       userId: ID
-    ): [UserAchievement!]! @auth
+    ): [UserAchievement!]!
 
     """
     Get achievement statistics for a user
@@ -356,7 +346,7 @@ export const typeDefs = /* GraphQL */ `
       User ID to get stats for (defaults to current user)
       """
       userId: ID
-    ): UserAchievementStats! @auth
+    ): UserAchievementStats!
 
     """
     Get achievement sync status for current user
@@ -387,29 +377,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     userAchievements: async (
       _,
       args: { userId?: string },
-      ctx: AuthContext,
+      ctx: Context,
     ): Promise<GQLUserAchievement[]> => {
       const userId = args.userId || ctx.userId;
 
       if (!userId) {
-        throw new ForbiddenError('User not authenticated');
+        throw new AuthenticationError(
+          'You must provide a userId or be logged in',
+        );
       }
 
       return getUserAchievementsWithProgress({
         con: ctx.con,
         userId,
-        isOwnProfile: userId === ctx.userId,
       });
     },
     userAchievementStats: async (
       _,
       args: { userId?: string },
-      ctx: AuthContext,
+      ctx: Context,
     ): Promise<GQLUserAchievementStats> => {
       const userId = args.userId || ctx.userId;
 
       if (!userId) {
-        throw new ForbiddenError('User not authenticated');
+        throw new AuthenticationError(
+          'You must provide a userId or be logged in',
+        );
       }
 
       const [totalAchievements, unlockedCount] = await Promise.all([
@@ -490,7 +483,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         const achievements = await getUserAchievementsWithProgress({
           con: manager,
           userId: ctx.userId,
-          isOwnProfile: true,
         });
 
         const unlockedAchievementIdsSet = new Set(unlockedAchievementIds);
