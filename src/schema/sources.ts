@@ -49,6 +49,7 @@ import {
 } from '../common';
 import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
+import { getPostAnalyticsHistory } from '../common/postAnalytics';
 import {
   SourcePermissionErrorKeys,
   SourceRequestErrorMessage,
@@ -89,10 +90,6 @@ import { remoteConfig } from '../remoteConfig';
 import { GQLCommentAwardArgs } from './comments';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { UserVote } from '../types';
-import { format, subDays } from 'date-fns';
-import { queryReadReplica } from '../common/queryReadReplica';
-import { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
-import { transformDate } from '../common/date';
 
 export interface GQLSourceCategory {
   id: string;
@@ -2030,29 +2027,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         SourcePermissions.ViewAnalytics,
       );
 
-      const fortyFiveDaysAgo = subDays(new Date(), 45);
-      const formattedDate = format(fortyFiveDaysAgo, 'yyyy-MM-dd');
-
-      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(PostAnalyticsHistory)
-          .createQueryBuilder('pah')
-          .innerJoin('pah.post', 'p')
-          .select('pah.date', 'date')
-          .addSelect(
-            'SUM(pah.impressions + pah.impressionsAds)::int',
-            'impressions',
-          )
-          .addSelect('SUM(pah.impressionsAds)::int', 'impressionsAds')
-          .where('p."sourceId" = :sourceId', { sourceId: args.sourceId })
-          .andWhere('p.deleted = false')
-          .andWhere('pah.date >= :formattedDate', { formattedDate })
-          .groupBy('pah.date')
-          .orderBy('pah.date', 'DESC')
-          .getRawMany(),
-      );
-
-      return result.map((row) => ({ ...row, date: transformDate(row.date) }));
+      return getPostAnalyticsHistory({
+        con: ctx.con,
+        whereClause: (qb) =>
+          qb.where('p."sourceId" = :sourceId', { sourceId: args.sourceId }),
+      });
     },
     source: async (
       _,
