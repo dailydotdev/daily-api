@@ -39,4 +39,5 @@ export * from './Organization';
 export * from './campaign';
 export * from './PersonalAccessToken';
 export * from './Feedback';
+export * from './FeedSentiment';
 export * from './Achievement';
