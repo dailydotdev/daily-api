@@ -245,6 +245,7 @@ export async function checkAchievementProgress(
 
     const absoluteValueEventTypes: AchievementEventType[] = [
       AchievementEventType.ReputationGain,
+      AchievementEventType.ReadingStreak,
     ];
 
     if (absoluteValueEventTypes.includes(eventType)) {
