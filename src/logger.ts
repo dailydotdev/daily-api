@@ -3,7 +3,9 @@ import { env } from 'node:process';
 import { createGcpLoggingPinoConfig } from '@google-cloud/pino-logging-gcp-config';
 import pino, { type LoggerOptions } from 'pino';
 
-const DEFAULT_SEVERITY_NUMBER_MAP = {
+const isProd = env.NODE_ENV === 'production';
+
+const OTEL_SEV_MAPPING = {
   10: 1, // TRACE
   20: 5, // DEBUG
   30: 9, // INFO
@@ -12,47 +14,46 @@ const DEFAULT_SEVERITY_NUMBER_MAP = {
   60: 21, // FATAL
 };
 
-const pinoLoggerOptions: LoggerOptions = {
-  level: process.env.LOG_LEVEL || 'info',
-  messageKey: 'body',
-  base: null,
-  timestamp: () => `,"timestamp":"${Date.now()}000000"`,
-  formatters: {
-    level(severity, level) {
-      return {
-        severityText: severity.toUpperCase(),
-        severityNumber:
-          DEFAULT_SEVERITY_NUMBER_MAP[
-            level as keyof typeof DEFAULT_SEVERITY_NUMBER_MAP
-          ] || DEFAULT_SEVERITY_NUMBER_MAP[30], // default to INFO
-      };
-    },
-  },
-};
-
 const devTransport: LoggerOptions['transport'] = {
   target: 'pino-pretty',
-  options: {
-    levelKey: 'severityText',
-    messageKey: 'body',
-    timestampKey: 'timestamp',
-  },
 };
 
-export const loggerConfig: LoggerOptions =
-  env.NODE_ENV === 'production' && env.OTEL_LOGGER_FORMAT === 'gcp'
-    ? createGcpLoggingPinoConfig(
-        {
-          serviceContext: {
-            service: env.OTEL_SERVICE_NAME || 'service',
-            version: env.OTEL_SERVICE_VERSION || 'latest',
-          },
+const buildLoggerConfig = (): LoggerOptions => {
+  const baseOptions: LoggerOptions = {
+    level: env.LOG_LEVEL || 'info',
+  };
+
+  if (!isProd) {
+    return { ...baseOptions, transport: devTransport };
+  }
+
+  if (isProd && env.OTEL_LOGGER_FORMAT === 'gcp') {
+    return createGcpLoggingPinoConfig(
+      {
+        serviceContext: {
+          service: env.OTEL_SERVICE_NAME,
+          version: env.OTEL_SERVICE_VERSION,
         },
-        pinoLoggerOptions,
-      )
-    : {
-        ...pinoLoggerOptions,
-        ...(env.NODE_ENV !== 'production' && { transport: devTransport }),
-      };
+      },
+      baseOptions,
+    );
+  }
+
+  return {
+    ...baseOptions,
+    timestamp: () => `,"timestamp":"${Date.now()}000000"`,
+    messageKey: 'body',
+    formatters: {
+      level: (severity, level) => ({
+        severityText: severity.toUpperCase(),
+        seveityNumber:
+          OTEL_SEV_MAPPING[level as keyof typeof OTEL_SEV_MAPPING] ||
+          OTEL_SEV_MAPPING[30], // default to INFO
+      }),
+    },
+  };
+};
+
+export const loggerConfig: LoggerOptions = buildLoggerConfig();
 
 export const logger = pino(loggerConfig);
