@@ -112,8 +112,7 @@ import { randomInt, randomUUID } from 'crypto';
 import { ArrayContains, DataSource, In, IsNull, QueryRunner } from 'typeorm';
 import { DisallowHandle } from '../entity/DisallowHandle';
 import { queryReadReplica } from '../common/queryReadReplica';
-import { format, subDays } from 'date-fns';
-import { transformDate } from '../common/date';
+import { getPostAnalyticsHistory } from '../common/postAnalytics';
 import {
   acceptedResumeFileTypes,
   ContentLanguage,
@@ -148,7 +147,6 @@ import {
 } from '../entity/user/utils';
 import { getRestoreStreakCache } from '../workers/cdc/primary';
 import { ReportEntity, ReportReason } from '../entity/common';
-import { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 import { reportFunctionMap } from '../common/reporting';
 import { ContentPreferenceUser } from '../entity/contentPreference/ContentPreferenceUser';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
@@ -2871,33 +2869,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     ): Promise<GQLUserPostsAnalyticsHistoryNode[]> => {
       const { userId, con } = ctx;
 
-      const fortyFiveDaysAgo = subDays(new Date(), 45);
-      const formattedDate = format(fortyFiveDaysAgo, 'yyyy-MM-dd');
-
-      const result = await queryReadReplica(con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(PostAnalyticsHistory)
-          .createQueryBuilder('pah')
-          .innerJoin('pah.post', 'p')
-          .select('pah.date', 'date')
-          .addSelect(
-            'SUM(pah.impressions + pah.impressionsAds)::int',
-            'impressions',
-          )
-          .addSelect('SUM(pah.impressionsAds)::int', 'impressionsAds')
-          .where('p.authorId = :userId', { userId })
-          .andWhere('p.deleted = false')
-          .andWhere('p.type != :briefType', { briefType: PostType.Brief })
-          .andWhere('pah.date >= :formattedDate', { formattedDate })
-          .groupBy('pah.date')
-          .orderBy('pah.date', 'DESC')
-          .getRawMany(),
-      );
-
-      return result.map((row) => ({
-        ...row,
-        date: transformDate(row.date),
-      }));
+      return getPostAnalyticsHistory({
+        con,
+        whereClause: (qb) =>
+          qb
+            .where('p.authorId = :userId', { userId })
+            .andWhere('p.type != :briefType', { briefType: PostType.Brief }),
+      });
     },
   },
   Mutation: {
