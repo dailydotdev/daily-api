@@ -2,8 +2,11 @@ import type { TypedWorker } from '../worker';
 import type { DataSource, Repository } from 'typeorm';
 import { Not, In } from 'typeorm';
 import { WorkerJob } from '../../entity/WorkerJob';
-import { WorkerJobStatus, type WorkerJobType } from '@dailydotdev/schema';
+import { WorkerJobStatus, WorkerJobType } from '@dailydotdev/schema';
 import type { FastifyBaseLogger } from 'fastify';
+import { findJobVacancies } from './findJobVacancies';
+import { findCompanyNews } from './findCompanyNews';
+import { findContactActivity } from './findContactActivity';
 
 export type JobHandlerParams = {
   input: Record<string, unknown>;
@@ -40,6 +43,12 @@ const getJobHandler = (
   type: WorkerJobType,
 ): ((params: JobHandlerParams) => Promise<Record<string, unknown>>) | null => {
   switch (type) {
+    case WorkerJobType.FIND_JOB_VACANCIES:
+      return findJobVacancies;
+    case WorkerJobType.FIND_COMPANY_NEWS:
+      return findCompanyNews;
+    case WorkerJobType.FIND_CONTACT_ACTIVITY:
+      return findContactActivity;
     default:
       return null;
   }
