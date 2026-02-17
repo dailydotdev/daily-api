@@ -272,7 +272,7 @@ export type PubSubSchema = {
     achievementId: string;
     userId: string;
   };
-  'api.v1.job-execute': {
+  'api.v1.worker-job-execute': {
     jobId: string;
   };
 };

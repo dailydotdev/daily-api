@@ -8,7 +8,7 @@ import {
   createClient,
   createRouterTransport,
 } from '@connectrpc/connect';
-import jobRpc from '../../../src/routes/private/jobRpc';
+import workerJobRpc from '../../../src/routes/private/workerJobRpc';
 import { baseRpcContext } from '../../../src/common/connectRpc';
 import { WorkerJob } from '../../../src/entity/WorkerJob';
 
@@ -18,7 +18,7 @@ beforeAll(async () => {
   con = await createOrGetConnection();
 });
 
-const mockTransport = createRouterTransport(jobRpc, {
+const mockTransport = createRouterTransport(workerJobRpc, {
   router: {
     interceptors: [
       (next) => {

@@ -20,8 +20,8 @@ const getJobHandler = (
   }
 };
 
-export const jobExecuteWorker: TypedWorker<'api.v1.job-execute'> = {
-  subscription: 'api.job-execute',
+export const jobExecuteWorker: TypedWorker<'api.v1.worker-job-execute'> = {
+  subscription: 'api.worker-job-execute',
   handler: async ({ data }, con, logger) => {
     const { jobId } = data;
     const repo = con.getRepository(WorkerJob);

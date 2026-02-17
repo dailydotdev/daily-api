@@ -493,8 +493,8 @@ export const workers: Worker[] = [
     subscription: 'api.achievement-unlocked-notification',
   },
   {
-    topic: 'api.v1.job-execute',
-    subscription: 'api.job-execute',
+    topic: 'api.v1.worker-job-execute',
+    subscription: 'api.worker-job-execute',
   },
 ];
 

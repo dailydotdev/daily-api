@@ -16,7 +16,7 @@ import {
 import { queryReadReplica } from '../common/queryReadReplica';
 import { kvasir } from './private/kvasir';
 import rpc from './private/rpc';
-import jobRpc from './private/jobRpc';
+import workerJobRpc from './private/workerJobRpc';
 import { connectRpcPlugin } from '../common/connectRpc';
 import { Opportunity } from '../entity/opportunities/Opportunity';
 import { opportunityCreateSchema } from '../common/schema/opportunities';
@@ -301,7 +301,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
     prefix: '/rpc',
   });
   fastify.register(connectRpcPlugin, {
-    routes: jobRpc,
-    prefix: '/job-rpc',
+    routes: workerJobRpc,
+    prefix: '/worker-job-rpc',
   });
 }

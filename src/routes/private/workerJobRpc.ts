@@ -7,7 +7,7 @@ import { WorkerJob } from '../../entity/WorkerJob';
 const toUnixTimestamp = (date: Date | null): number | undefined =>
   date ? Math.floor(date.getTime() / 1000) : undefined;
 
-export default function jobRpc(router: ConnectRouter) {
+export default function workerJobRpc(router: ConnectRouter) {
   router.rpc(JobService, JobService.methods.getStatus, async (req, context) => {
     if (!context.values.get(baseRpcContext).service) {
       throw new ConnectError('unauthenticated', Code.Unauthenticated);

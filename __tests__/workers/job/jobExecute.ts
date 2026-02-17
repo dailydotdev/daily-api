@@ -21,7 +21,7 @@ describe('jobExecute worker', () => {
   });
 
   it('should skip if job not found', async () => {
-    await expectSuccessfulTypedBackground<'api.v1.job-execute'>(worker, {
+    await expectSuccessfulTypedBackground<'api.v1.worker-job-execute'>(worker, {
       jobId: '00000000-0000-0000-0000-000000000000',
     });
   });
@@ -35,7 +35,7 @@ describe('jobExecute worker', () => {
       }),
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.job-execute'>(worker, {
+    await expectSuccessfulTypedBackground<'api.v1.worker-job-execute'>(worker, {
       jobId: job.id,
     });
 
@@ -54,7 +54,7 @@ describe('jobExecute worker', () => {
       }),
     );
 
-    await expectSuccessfulTypedBackground<'api.v1.job-execute'>(worker, {
+    await expectSuccessfulTypedBackground<'api.v1.worker-job-execute'>(worker, {
       jobId: job.id,
     });
 
