@@ -47,7 +47,7 @@ const workerJobWorkersArgsMap: Record<string, WorkerArgs> = {
     ackDeadlineSeconds: 120,
     deadLetterPolicy: {
       deadLetterTopic: `projects/${gcp.config.project}/topics/${workerJobDeadLetter}`,
-      maxDeliveryAttempts: 3,
+      maxDeliveryAttempts: 5,
     },
   },
   'api.worker-job-execute-dead-letter-log': {
