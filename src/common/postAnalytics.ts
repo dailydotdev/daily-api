@@ -1,16 +1,17 @@
 import { format, subDays } from 'date-fns';
-import type { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm';
+import type { DataSource, SelectQueryBuilder } from 'typeorm';
 import { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
 import { queryReadReplica } from './queryReadReplica';
 import { transformDate } from './date';
 
 type AnalyticsHistoryRow = {
-  date: string;
+  date: Date;
   impressions: number;
   impressionsAds: number;
 };
 
-type PostAnalyticsHistoryQueryBuilder = SelectQueryBuilder<PostAnalyticsHistory>;
+type PostAnalyticsHistoryQueryBuilder =
+  SelectQueryBuilder<PostAnalyticsHistory>;
 
 type WhereClauseBuilder = (
   qb: PostAnalyticsHistoryQueryBuilder,
@@ -21,7 +22,7 @@ export const getPostAnalyticsHistory = async ({
   whereClause,
   days = 45,
 }: {
-  con: DataSource | EntityManager;
+  con: DataSource;
   whereClause: WhereClauseBuilder;
   days?: number;
 }): Promise<AnalyticsHistoryRow[]> => {
