@@ -10,10 +10,7 @@ import {
 } from '@opentelemetry/core';
 import {
   detectResources,
-  envDetector,
   hostDetector,
-  osDetector,
-  processDetector,
   resourceFromAttributes,
 } from '@opentelemetry/resources';
 import {
@@ -37,13 +34,7 @@ import {
 import { createSpanProcessor, subscribeTracingHooks } from './tracing';
 import { logger } from '../logger';
 
-const resourceDetectors = [
-  envDetector,
-  hostDetector,
-  osDetector,
-  processDetector,
-  containerDetector,
-];
+const resourceDetectors = [hostDetector, containerDetector];
 
 export const startTelemetry = (): void => {
   if (!enableOpenTelemetry) {

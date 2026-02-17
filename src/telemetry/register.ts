@@ -9,7 +9,7 @@ import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 import { GraphQLInstrumentation } from '@opentelemetry/instrumentation-graphql';
 import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
-import { TypeormInstrumentation } from 'opentelemetry-instrumentation-typeorm';
+import { TypeormInstrumentation } from '@opentelemetry/instrumentation-typeorm';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 
 import {

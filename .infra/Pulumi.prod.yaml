@@ -97,7 +97,7 @@ config:
     otelExporterOtlpEndpoint: http://opentelemetry-collector.opentelemetry.svc.cluster.local:4317
     otelServiceName: api
     otelTracesSampler: parentbased_always_on
-    otelLoggerFormat: gcp
+    otelLoggerFormat: otel
     paddleApiKey:
       secure: AAABAGr18L3064taf8MyYateCjX7TzBXY+mCBNoerpTSC3lF+aEyQusx93fbTon+SsYvI/EziEzyoPWcujb7sJe4TDrGaVkWCP6yqQ8w7D3ojg==
     paddleEnvironment: production
