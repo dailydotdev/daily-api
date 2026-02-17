@@ -1,4 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
+import { ValidationError } from 'apollo-server-errors';
 import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { FeedSentiment } from '../entity/FeedSentiment';
@@ -25,13 +26,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { sentiment }: { sentiment: string },
       ctx: AuthContext,
     ): Promise<GQLEmptyResponse> => {
-      // Validate sentiment value
       const validSentiments = ['good', 'neutral', 'bad'];
       if (!validSentiments.includes(sentiment)) {
-        throw new Error('Invalid sentiment value');
+        throw new ValidationError('Invalid sentiment value');
       }
-
-      // Create feed sentiment record
       const feedSentimentRepo = ctx.con.getRepository(FeedSentiment);
       await feedSentimentRepo.save({
         userId: ctx.userId,

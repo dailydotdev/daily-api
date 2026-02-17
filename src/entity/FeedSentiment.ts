@@ -6,7 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import type { User } from './user';
+import type { User } from './user/User';
 
 @Entity()
 export class FeedSentiment {
