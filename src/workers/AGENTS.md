@@ -165,10 +165,11 @@ export default worker;
 
 ### Step 3: Register the Worker
 
-Add your worker to `src/workers/index.ts`. There are two worker arrays:
+Add your worker to `src/workers/index.ts`. There are three worker arrays:
 
-1. **`typedWorkers`** - TypedWorker instances (standard for all workers)
-2. **`personalizedDigestWorkers`** - Separate array for digest workers (run in dedicated process)
+1. **`typedWorkers`** - TypedWorker instances (standard for all workers, run in the `background` process)
+2. **`personalizedDigestWorkers`** - Separate array for digest workers (run in dedicated `personalized-digest` process)
+3. **`workerJobWorkers`** - Separate array for job execution workers (run in dedicated `worker-job` process via `src/commands/workerJob.ts`). This isolates `jobExecuteWorker` for independent scaling and controlled concurrency (`maxMessages: 5` per pod).
 
 ```typescript
 import myNewWorker from './myNewWorker';

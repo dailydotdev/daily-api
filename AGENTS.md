@@ -12,6 +12,7 @@ This file provides guidance to coding agents when working with code in this repo
 **Development:**
 - `pnpm run dev` - Start API server with hot reload on port 3000
 - `pnpm run dev:background` - Start background processor
+- `pnpm run dev:worker-job` - Start worker-job processor (dedicated process for jobExecuteWorker)
 - `pnpm run dev:temporal-worker` - Start Temporal worker
 - `pnpm run dev:temporal-server` - Start Temporal server for local development
 
@@ -62,11 +63,12 @@ The migration generator compares entities against the local database schema. Ens
 
 **Application Entry Points:**
 - `src/index.ts` - Main Fastify server setup with GraphQL, auth, and middleware
-- `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron, personalized-digest modes
+- `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron, personalized-digest, worker-job modes
 - `src/background.ts` - Pub/Sub message handlers and background processing
 - `src/cron.ts` - Scheduled task execution
 - `src/temporal/` - Temporal workflow definitions and workers
-- `src/commands/` - Standalone command implementations (e.g., personalized digest)
+- `src/commands/` - Standalone command implementations (e.g., personalized digest, worker-job)
+- `src/commands/workerJob.ts` - Dedicated process for `jobExecuteWorker`, isolated from background for independent scaling and controlled concurrency. See `src/workers/job/AGENTS.md` for the full WorkerJob system (entity, RPCs, parent-child batches, adding new job types).
 
 **GraphQL Schema Organization:**
 - `src/graphql.ts` - Combines all schema modules with transformers and directives
@@ -96,6 +98,20 @@ The migration generator compares entities against the local database schema. Ens
   - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
   - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
+- **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly.
+  ```typescript
+  // BAD: plain object
+  return {
+    jobId: job.id,
+    status: job.status,
+  };
+
+  // GOOD: typed proto message
+  return new GetJobStatusResponse({
+    jobId: job.id,
+    status: job.status,
+  });
+  ```
 
 **Business Domains:**
 - **Content**: Posts, comments, bookmarks, feeds, sources

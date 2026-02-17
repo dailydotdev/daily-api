@@ -122,6 +122,7 @@ const counterMap = {
     },
   },
   temporal: {},
+  'worker-job': {},
 };
 
 export type ServiceName = keyof typeof counterMap;
