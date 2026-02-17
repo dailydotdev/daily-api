@@ -2030,7 +2030,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return getPostAnalyticsHistory({
         con: ctx.con,
         whereClause: (qb) =>
-          qb.where('p."sourceId" = :sourceId', { sourceId: args.sourceId }),
+          qb.andWhere('p."sourceId" = :sourceId', { sourceId: args.sourceId }),
       });
     },
     source: async (
