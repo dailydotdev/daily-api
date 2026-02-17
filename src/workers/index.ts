@@ -81,6 +81,7 @@ import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
 import { jobExecuteWorker } from './job/jobExecute';
+import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 
 export { Worker } from './worker';
 
@@ -172,4 +173,7 @@ export const personalizedDigestWorkers: Worker[] = [
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const workerJobWorkers: BaseTypedWorker<any>[] = [jobExecuteWorker];
+export const workerJobWorkers: BaseTypedWorker<any>[] = [
+  jobExecuteWorker,
+  workerJobDeadLetterLog,
+];

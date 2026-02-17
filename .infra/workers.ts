@@ -4,11 +4,12 @@ import {
   personalizedDigestWorkers as commonDigestWorkers,
   workerJobWorkers as commonWorkerJobWorkers,
   digestDeadLetter,
+  workerJobDeadLetter,
   WorkerArgs,
   Worker,
 } from './common';
 
-export { workers, digestDeadLetter };
+export { workers, digestDeadLetter, workerJobDeadLetter };
 
 const digestWorkersArgsMap: Record<string, WorkerArgs> = {
   'api.personalized-digest-email': {
@@ -41,4 +42,33 @@ export const personalizedDigestWorkers: Worker[] = commonDigestWorkers.map(
   },
 );
 
-export const workerJobWorkers: Worker[] = commonWorkerJobWorkers;
+const workerJobWorkersArgsMap: Record<string, WorkerArgs> = {
+  'api.worker-job-execute': {
+    ackDeadlineSeconds: 120,
+    deadLetterPolicy: {
+      deadLetterTopic: `projects/${gcp.config.project}/topics/${workerJobDeadLetter}`,
+      maxDeliveryAttempts: 3,
+    },
+  },
+  'api.worker-job-execute-dead-letter-log': {
+    expirationPolicy: {
+      ttl: '',
+    },
+  },
+};
+
+export const workerJobWorkers: Worker[] = commonWorkerJobWorkers.map(
+  (worker) => {
+    const args: WorkerArgs = workerJobWorkersArgsMap[worker.subscription];
+
+    if (!args) {
+      return worker;
+    }
+
+    const updated: Worker = { ...worker };
+
+    updated.args = args;
+
+    return updated;
+  },
+);

@@ -4,6 +4,7 @@ import * as pulumi from '@pulumi/pulumi';
 import { Input, ProviderResource } from '@pulumi/pulumi';
 import {
   digestDeadLetter,
+  workerJobDeadLetter,
   personalizedDigestWorkers,
   workerJobWorkers,
   workers,
@@ -160,6 +161,11 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
+const workerJobDeadLetterTopic = new Stream(workerJobDeadLetter, {
+  isAdhocEnv,
+  name: workerJobDeadLetter,
+});
+
 createSubscriptionsFromWorkers(
   name,
   isAdhocEnv,
@@ -167,6 +173,7 @@ createSubscriptionsFromWorkers(
     app: name,
     subapp: 'worker-job',
   }),
+  { dependsOn: [workerJobDeadLetterTopic.resource] },
 );
 
 const memory = 860;

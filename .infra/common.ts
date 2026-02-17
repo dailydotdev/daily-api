@@ -18,6 +18,8 @@ export interface Worker {
 
 export const digestDeadLetter = 'api.v1.personalized-digest-email-dead-letter';
 
+export const workerJobDeadLetter = 'api.v1.worker-job-execute-dead-letter';
+
 export const workers: Worker[] = [
   {
     topic: 'views',
@@ -509,5 +511,9 @@ export const workerJobWorkers: Worker[] = [
   {
     topic: 'api.v1.worker-job-execute',
     subscription: 'api.worker-job-execute',
+  },
+  {
+    topic: workerJobDeadLetter,
+    subscription: 'api.worker-job-execute-dead-letter-log',
   },
 ];
