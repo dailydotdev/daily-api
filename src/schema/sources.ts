@@ -89,6 +89,10 @@ import { remoteConfig } from '../remoteConfig';
 import { GQLCommentAwardArgs } from './comments';
 import { UserTransaction } from '../entity/user/UserTransaction';
 import { UserVote } from '../types';
+import { format, subDays } from 'date-fns';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { PostAnalyticsHistory } from '../entity/posts/PostAnalyticsHistory';
+import { transformDate } from '../common/date';
 
 export interface GQLSourceCategory {
   id: string;
@@ -129,6 +133,27 @@ export interface GQLSourceMember {
   createdAt: Date;
   referralToken: string;
   flags?: SourceMemberFlagsPublic;
+}
+
+export interface GQLSquadAnalytics {
+  id: string;
+  impressions: number;
+  reach: number;
+  upvotes: number;
+  downvotes: number;
+  comments: number;
+  bookmarks: number;
+  awards: number;
+  shares: number;
+  clicks: number;
+  upvotesRatio: number;
+  updatedAt: Date;
+}
+
+export interface GQLSquadAnalyticsHistoryNode {
+  date: Date;
+  impressions: number;
+  impressionsAds: number;
 }
 
 interface UpdateMemberRoleArgs {
@@ -400,6 +425,27 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
+  type SquadAnalytics {
+    id: ID!
+    impressions: Int!
+    reach: Int!
+    upvotes: Int!
+    downvotes: Int!
+    comments: Int!
+    bookmarks: Int!
+    awards: Int!
+    shares: Int!
+    clicks: Int!
+    upvotesRatio: Int!
+    updatedAt: DateTime!
+  }
+
+  type SquadAnalyticsHistoryNode {
+    date: DateTime!
+    impressions: Int!
+    impressionsAds: Int!
+  }
+
   extend type Query {
     """
     Get all available sources
@@ -510,6 +556,10 @@ export const typeDefs = /* GraphQL */ `
     Get the source that matches the feed
     """
     sourceByFeed(feed: String!): Source @auth
+
+    squadAnalytics(sourceId: ID!): SquadAnalytics @auth
+
+    squadAnalyticsHistory(sourceId: ID!): [SquadAnalyticsHistoryNode!]! @auth
 
     """
     Get top sources covering this tag
@@ -938,6 +988,7 @@ export enum SourcePermissions {
   ConnectSlack = 'connect_slack',
   ModeratePost = 'moderate_post',
   BoostSquad = 'boost_squad',
+  ViewAnalytics = 'view_analytics',
 }
 
 const memberPermissions = [
@@ -959,6 +1010,7 @@ const moderatorPermissions = [
   SourcePermissions.WelcomePostEdit,
   SourcePermissions.ModeratePost,
   SourcePermissions.BoostSquad,
+  SourcePermissions.ViewAnalytics,
 ];
 const adminPermissions = [
   ...moderatorPermissions,
@@ -1942,6 +1994,66 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { feed }: { feed: string },
       ctx: AuthContext,
     ): Promise<GQLSource | null> => sourceByFeed(feed, ctx),
+    squadAnalytics: async (
+      _,
+      args: { sourceId: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLSquadAnalytics | null> => {
+      await ensureSourcePermissions(
+        ctx,
+        args.sourceId,
+        SourcePermissions.ViewAnalytics,
+      );
+
+      return graphorm.queryOne<GQLSquadAnalytics>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.andWhere(
+            `"${builder.alias}".id = :sourceId`,
+            { sourceId: args.sourceId },
+          ),
+        }),
+        true,
+      );
+    },
+    squadAnalyticsHistory: async (
+      _,
+      args: { sourceId: string },
+      ctx: AuthContext,
+    ): Promise<GQLSquadAnalyticsHistoryNode[]> => {
+      await ensureSourcePermissions(
+        ctx,
+        args.sourceId,
+        SourcePermissions.ViewAnalytics,
+      );
+
+      const fortyFiveDaysAgo = subDays(new Date(), 45);
+      const formattedDate = format(fortyFiveDaysAgo, 'yyyy-MM-dd');
+
+      const result = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(PostAnalyticsHistory)
+          .createQueryBuilder('pah')
+          .innerJoin('pah.post', 'p')
+          .select('pah.date', 'date')
+          .addSelect(
+            'SUM(pah.impressions + pah.impressionsAds)::int',
+            'impressions',
+          )
+          .addSelect('SUM(pah.impressionsAds)::int', 'impressionsAds')
+          .where('p."sourceId" = :sourceId', { sourceId: args.sourceId })
+          .andWhere('p.deleted = false')
+          .andWhere('pah.date >= :formattedDate', { formattedDate })
+          .groupBy('pah.date')
+          .orderBy('pah.date', 'DESC')
+          .getRawMany(),
+      );
+
+      return result.map((row) => ({ ...row, date: transformDate(row.date) }));
+    },
     source: async (
       _,
       { id }: { id: string },

@@ -1740,6 +1740,35 @@ const obj = new GraphORM({
       },
     },
   },
+  SquadAnalytics: {
+    from: 'SquadPostsAnalytics',
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+      upvotesRatio: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            CASE
+              WHEN (${alias}.upvotes + ${alias}.downvotes) > 0
+              THEN ROUND((${alias}.upvotes::numeric / (${alias}.upvotes + ${alias}.downvotes)) * 100, 0)
+              ELSE 0
+            END
+          `;
+        },
+      },
+      reach: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}."reachAll", ${alias}.reach, 0)
+          `;
+        },
+      },
+    },
+  },
   Opportunity: {
     requiredColumns: ['id', 'createdAt'],
     fields: {
