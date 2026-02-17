@@ -68,7 +68,7 @@ The migration generator compares entities against the local database schema. Ens
 - `src/cron.ts` - Scheduled task execution
 - `src/temporal/` - Temporal workflow definitions and workers
 - `src/commands/` - Standalone command implementations (e.g., personalized digest, worker-job)
-- `src/commands/workerJob.ts` - Dedicated process for `jobExecuteWorker`, isolated from background for independent scaling and controlled concurrency
+- `src/commands/workerJob.ts` - Dedicated process for `jobExecuteWorker`, isolated from background for independent scaling and controlled concurrency. See `src/workers/job/AGENTS.md` for the full WorkerJob system (entity, RPCs, parent-child batches, adding new job types).
 
 **GraphQL Schema Organization:**
 - `src/graphql.ts` - Combines all schema modules with transformers and directives
