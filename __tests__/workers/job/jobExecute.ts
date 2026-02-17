@@ -3,7 +3,7 @@ import { jobExecuteWorker as worker } from '../../../src/workers/job/jobExecute'
 import { WorkerJob } from '../../../src/entity/WorkerJob';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../../src/db';
-import { typedWorkers } from '../../../src/workers';
+import { workerJobWorkers } from '../../../src/workers';
 import { JobStatus } from '@dailydotdev/schema';
 
 let con: DataSource;
@@ -14,7 +14,7 @@ beforeAll(async () => {
 
 describe('jobExecute worker', () => {
   it('should be registered', () => {
-    const registeredWorker = typedWorkers.find(
+    const registeredWorker = workerJobWorkers.find(
       (item) => item.subscription === worker.subscription,
     );
     expect(registeredWorker).toBeDefined();

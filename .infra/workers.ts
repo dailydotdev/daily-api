@@ -2,6 +2,7 @@ import * as gcp from '@pulumi/gcp';
 import {
   workers,
   personalizedDigestWorkers as commonDigestWorkers,
+  workerJobWorkers as commonWorkerJobWorkers,
   digestDeadLetter,
   WorkerArgs,
   Worker,
@@ -39,3 +40,5 @@ export const personalizedDigestWorkers: Worker[] = commonDigestWorkers.map(
     return updated;
   },
 );
+
+export const workerJobWorkers: Worker[] = commonWorkerJobWorkers;

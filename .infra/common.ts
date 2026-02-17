@@ -492,10 +492,6 @@ export const workers: Worker[] = [
     topic: 'api.v1.achievement-unlocked',
     subscription: 'api.achievement-unlocked-notification',
   },
-  {
-    topic: 'api.v1.worker-job-execute',
-    subscription: 'api.worker-job-execute',
-  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
@@ -506,5 +502,12 @@ export const personalizedDigestWorkers: Worker[] = [
   {
     topic: digestDeadLetter,
     subscription: 'api.personalized-digest-email-dead-letter-log',
+  },
+];
+
+export const workerJobWorkers: Worker[] = [
+  {
+    topic: 'api.v1.worker-job-execute',
+    subscription: 'api.worker-job-execute',
   },
 ];

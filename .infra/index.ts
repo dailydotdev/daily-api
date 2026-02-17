@@ -5,6 +5,7 @@ import { Input, ProviderResource } from '@pulumi/pulumi';
 import {
   digestDeadLetter,
   personalizedDigestWorkers,
+  workerJobWorkers,
   workers,
 } from './workers';
 import { crons } from './crons';
@@ -158,6 +159,15 @@ if (isPersonalizedDigestEnabled) {
     { dependsOn: [deadLetterTopic.resource] },
   );
 }
+
+createSubscriptionsFromWorkers(
+  name,
+  isAdhocEnv,
+  addLabelsToWorkers(workerJobWorkers, {
+    app: name,
+    subapp: 'worker-job',
+  }),
+);
 
 const memory = 860;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
@@ -333,6 +343,28 @@ if (isAdhocEnv) {
       ...vols,
     });
   }
+
+  appsArgs.push({
+    nameSuffix: 'worker-job',
+    args: ['npm', 'run', 'dev:worker-job'],
+    minReplicas: 1,
+    maxReplicas: 10,
+    limits: bgLimits,
+    requests: bgRequests,
+    metric: {
+      type: 'pubsub',
+      labels: {
+        app: name,
+        subapp: 'worker-job',
+      },
+      targetAverageValue: 50,
+    },
+    ports: [{ containerPort: 9464, name: 'metrics' }],
+    servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+    podAnnotations: podAnnotations,
+    env: [...jwtEnv],
+    ...vols,
+  });
 } else {
   appsArgs = [
     {
@@ -466,6 +498,27 @@ if (isAdhocEnv) {
       ...vols,
     });
   }
+
+  appsArgs.push({
+    nameSuffix: 'worker-job',
+    env: [...jwtEnv],
+    args: cliArgs('worker-job'),
+    minReplicas: 1,
+    maxReplicas: 10,
+    requests: bgRequests,
+    limits: bgLimits,
+    metric: {
+      type: 'pubsub',
+      labels: {
+        app: name,
+        subapp: 'worker-job',
+      },
+      targetAverageValue: 50,
+    },
+    spot: { enabled: true },
+    podAnnotations: podAnnotations,
+    ...vols,
+  });
 }
 
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();

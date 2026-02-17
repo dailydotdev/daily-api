@@ -18,6 +18,7 @@
     "dev": "nodemon ./bin/cli api",
     "dev:background": "nodemon ./bin/cli background",
     "dev:personalized-digest": "nodemon ./bin/cli personalized-digest",
+    "dev:worker-job": "nodemon ./bin/cli worker-job",
     "dev:temporal-worker": "nodemon ./src/temporal/local.ts",
     "dev:temporal-server": "temporal server start-dev",
     "lint": "eslint . --ext .js,.ts --max-warnings 0",

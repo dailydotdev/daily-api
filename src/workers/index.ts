@@ -164,10 +164,12 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
   parseOpportunityWorker,
   feedbackClassify,
   feedbackUpdatedSlack,
-  jobExecuteWorker,
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
   personalizedDigestEmailWorker,
   deadLetterLog,
 ];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const workerJobWorkers: BaseTypedWorker<any>[] = [jobExecuteWorker];
