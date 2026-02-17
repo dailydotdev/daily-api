@@ -3262,94 +3262,89 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        canonicalUrl: 'http://p4c.com',
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [
-            {
-              provider: 'test',
-              resourceLocation: 'gs://path.xml',
-            },
-          ],
-          scraped: {
-            resourceLocation: 'gs://path.html',
-          },
-          storedCodeSnippets: '',
-          enriched: { provider: 'test' },
-          language: { provider: 'translate' },
-          embedding: {
-            size: 999,
-            model: 'test',
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      canonicalUrl: 'http://p4c.com',
+      contentCuration: ['c1', 'c2'],
+      contentMeta: {
+        cleaned: [
+          {
             provider: 'test',
-            contentType: 'title_summary',
-            resourceLocation: 'yggdrasil',
-            updatedAt: 1725878687,
-          },
-          aigcDetect: { provider: 'test' },
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['backend', 'data', 'javascript'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p4',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p2',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p3',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
+            resourceLocation: 'gs://path.xml',
           },
         ],
-        source: {
-          active: true,
-          color: 'avocado',
-          createdAt: expect.any(Number),
-          description: 'A description',
-          handle: 'a',
-          headerImage: 'http://image.com/header',
-          id: 'a',
-          image: 'http://image.com/a',
-          name: 'A',
-          private: false,
-          twitter: '@a',
-          type: 'machine',
-          website: 'http://a.com',
+        scraped: {
+          resourceLocation: 'gs://path.html',
         },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.Article,
-        updatedAt: expect.any(Number),
-        url: 'http://p4.com',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+        enriched: { provider: 'test' },
+        language: { provider: 'translate' },
+        embedding: {
+          size: 999,
+          model: 'test',
+          provider: 'test',
+          contentType: 'title_summary',
+          resourceLocation: 'yggdrasil',
+          updatedAt: 1725878687,
+        },
+        aigcDetect: { provider: 'test' },
       },
-    ]);
+      contentQuality: {
+        isAiProbability: 0.9,
+      },
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['backend', 'data', 'javascript'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p4',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p2',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p3',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        color: 'avocado',
+        createdAt: expect.any(Number),
+        description: 'A description',
+        handle: 'a',
+        headerImage: 'http://image.com/header',
+        id: 'a',
+        image: 'http://image.com/a',
+        name: 'A',
+        twitter: '@a',
+        type: 'machine',
+        website: 'http://a.com',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.Article,
+      updatedAt: expect.any(Number),
+      url: 'http://p4.com',
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should notify on freeform post updated', async () => {
@@ -3369,75 +3364,66 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        content: 'Freeform content',
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [],
-          storedCodeSnippets: '',
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['backend', 'data', 'javascript'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p4',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p2',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p3',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-        ],
-        source: {
-          active: true,
-          color: 'avocado',
-          createdAt: expect.any(Number),
-          description: 'A description',
-          handle: 'a',
-          headerImage: 'http://image.com/header',
-          id: 'a',
-          image: 'http://image.com/a',
-          name: 'A',
-          private: false,
-          twitter: '@a',
-          type: 'machine',
-          website: 'http://a.com',
-        },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.Freeform,
-        updatedAt: expect.any(Number),
-        url: '',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      content: 'Freeform content',
+      contentCuration: ['c1', 'c2'],
+      contentQuality: {
+        isAiProbability: 0.9,
       },
-    ]);
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['backend', 'data', 'javascript'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p4',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p2',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p3',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        color: 'avocado',
+        createdAt: expect.any(Number),
+        description: 'A description',
+        handle: 'a',
+        headerImage: 'http://image.com/header',
+        id: 'a',
+        image: 'http://image.com/a',
+        name: 'A',
+        twitter: '@a',
+        type: 'machine',
+        website: 'http://a.com',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.Freeform,
+      updatedAt: expect.any(Number),
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should not notify on post created', async () => {
@@ -3504,70 +3490,61 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        content: 'Collection content',
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [],
-          storedCodeSnippets: '',
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['javascript', 'webdev'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p1',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p2',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p3',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-        ],
-        source: {
-          active: true,
-          createdAt: expect.any(Number),
-          handle: 'collections',
-          id: 'collections',
-          image: 'http://image.com/collections',
-          name: 'Collections',
-          private: false,
-          type: 'machine',
-        },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.Collection,
-        updatedAt: expect.any(Number),
-        url: '',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      content: 'Collection content',
+      contentCuration: ['c1', 'c2'],
+      contentQuality: {
+        isAiProbability: 0.9,
       },
-    ]);
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['javascript', 'webdev'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p1',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p2',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p3',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        createdAt: expect.any(Number),
+        handle: 'collections',
+        id: 'collections',
+        image: 'http://image.com/collections',
+        name: 'Collections',
+        type: 'machine',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.Collection,
+      updatedAt: expect.any(Number),
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should notify on youtube post updated', async () => {
@@ -3587,74 +3564,66 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [],
-          storedCodeSnippets: '',
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['backend', 'data', 'javascript'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p4',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p2',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p3',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-        ],
-        source: {
-          active: true,
-          color: 'avocado',
-          createdAt: expect.any(Number),
-          description: 'A description',
-          handle: 'a',
-          headerImage: 'http://image.com/header',
-          id: 'a',
-          image: 'http://image.com/a',
-          name: 'A',
-          private: false,
-          twitter: '@a',
-          type: 'machine',
-          website: 'http://a.com',
-        },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.VideoYouTube,
-        updatedAt: expect.any(Number),
-        url: 'http://youtube.com/watch?v=123',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      contentCuration: ['c1', 'c2'],
+      contentQuality: {
+        isAiProbability: 0.9,
       },
-    ]);
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['backend', 'data', 'javascript'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p4',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p2',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p3',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        color: 'avocado',
+        createdAt: expect.any(Number),
+        description: 'A description',
+        handle: 'a',
+        headerImage: 'http://image.com/header',
+        id: 'a',
+        image: 'http://image.com/a',
+        name: 'A',
+        twitter: '@a',
+        type: 'machine',
+        website: 'http://a.com',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.VideoYouTube,
+      updatedAt: expect.any(Number),
+      url: 'http://youtube.com/watch?v=123',
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should handle JSON string from jsonb fields', async () => {
@@ -3694,33 +3663,32 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          contentMeta: {
-            cleaned: [{ provider: 'test', resourceLocation: 'gs://path.xml' }],
-          },
-          contentQuality: {
-            isAiProbability: 0.9,
-          },
-          translation: {
-            hr: {
-              title: 'translated title hr',
-              smartTitle: 'translated smart title hr',
-              titleHtml: '<p>translated title hr</p>',
-              summary: 'translated summary hr',
-            },
-            en: {
-              title: 'translated title',
-              smartTitle: 'translated smart title',
-              titleHtml: '<p>translated title</p>',
-              summary: 'translated summary',
-            },
-          },
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      contentMeta: {
+        cleaned: [{ provider: 'test', resourceLocation: 'gs://path.xml' }],
+      },
+      contentQuality: {
+        isAiProbability: 0.9,
+      },
+      translation: {
+        hr: {
+          title: 'translated title hr',
+          smartTitle: 'translated smart title hr',
+          titleHtml: '<p>translated title hr</p>',
+          summary: 'translated summary hr',
         },
-      ],
-    );
+        en: {
+          title: 'translated title',
+          smartTitle: 'translated smart title',
+          titleHtml: '<p>translated title</p>',
+          summary: 'translated summary',
+        },
+      },
+    });
   });
 
   it('should transform ns timestamp to seconds', async () => {
@@ -3744,17 +3712,14 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          createdAt: Math.floor(contentUpdatedPost.createdAt / 1_000_000),
-          updatedAt: Math.floor(
-            contentUpdatedPost.metadataChangedAt / 1_000_000,
-          ),
-        },
-      ],
-    );
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      createdAt: Math.floor(contentUpdatedPost.createdAt / 1_000_000),
+      updatedAt: Math.floor(contentUpdatedPost.metadataChangedAt / 1_000_000),
+    });
   });
 
   it('should send deleted field', async () => {
@@ -3779,14 +3744,13 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          deleted: true,
-        },
-      ],
-    );
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      deleted: true,
+    });
   });
 
   it('should notify on share post updated', async () => {
@@ -3805,15 +3769,14 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          sharedPostId: 'sp1',
-          type: PostType.Share,
-        },
-      ],
-    );
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      sharedPostId: 'sp1',
+      type: PostType.Share,
+    });
   });
 });
 

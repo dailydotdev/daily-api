@@ -80,6 +80,8 @@ import { parseOpportunityFeedbackWorker } from './opportunity/parseOpportunityFe
 import { parseOpportunityWorker } from './opportunity/parseOpportunity';
 import feedbackClassify from './feedbackClassify';
 import feedbackUpdatedSlack from './feedbackUpdatedSlack';
+import { jobExecuteWorker } from './job/jobExecute';
+import workerJobDeadLetterLog from './workerJobDeadLetterLog';
 
 export { Worker } from './worker';
 
@@ -168,4 +170,10 @@ export const typedWorkers: BaseTypedWorker<any>[] = [
 export const personalizedDigestWorkers: Worker[] = [
   personalizedDigestEmailWorker,
   deadLetterLog,
+];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const workerJobWorkers: BaseTypedWorker<any>[] = [
+  jobExecuteWorker,
+  workerJobDeadLetterLog,
 ];

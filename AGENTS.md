@@ -12,6 +12,7 @@ This file provides guidance to coding agents when working with code in this repo
 **Development:**
 - `pnpm run dev` - Start API server with hot reload on port 3000
 - `pnpm run dev:background` - Start background processor
+- `pnpm run dev:worker-job` - Start worker-job processor (dedicated process for jobExecuteWorker)
 - `pnpm run dev:temporal-worker` - Start Temporal worker
 - `pnpm run dev:temporal-server` - Start Temporal server for local development
 
@@ -62,11 +63,12 @@ The migration generator compares entities against the local database schema. Ens
 
 **Application Entry Points:**
 - `src/index.ts` - Main Fastify server setup with GraphQL, auth, and middleware
-- `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron, personalized-digest modes
+- `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron, personalized-digest, worker-job modes
 - `src/background.ts` - Pub/Sub message handlers and background processing
 - `src/cron.ts` - Scheduled task execution
 - `src/temporal/` - Temporal workflow definitions and workers
-- `src/commands/` - Standalone command implementations (e.g., personalized digest)
+- `src/commands/` - Standalone command implementations (e.g., personalized digest, worker-job)
+- `src/commands/workerJob.ts` - Dedicated process for `jobExecuteWorker`, isolated from background for independent scaling and controlled concurrency. See `src/workers/job/AGENTS.md` for the full WorkerJob system (entity, RPCs, parent-child batches, adding new job types).
 
 **GraphQL Schema Organization:**
 - `src/graphql.ts` - Combines all schema modules with transformers and directives
@@ -96,6 +98,20 @@ The migration generator compares entities against the local database schema. Ens
   - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
   - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
+- **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly.
+  ```typescript
+  // BAD: plain object
+  return {
+    jobId: job.id,
+    status: job.status,
+  };
+
+  // GOOD: typed proto message
+  return new GetJobStatusResponse({
+    jobId: job.id,
+    status: job.status,
+  });
+  ```
 
 **Business Domains:**
 - **Content**: Posts, comments, bookmarks, feeds, sources
@@ -157,9 +173,38 @@ The migration generator compares entities against the local database schema. Ens
 **Keep implementations concise:**
 - Prefer short, readable implementations over verbose ones
 - Avoid excessive logging - errors will propagate naturally
+- **Never use logger.info for successful operations** - successful database updates, API calls, or data processing don't need logging. Results are visible in the database and errors will propagate naturally with automatic retry notifications.
 - Use early returns instead of nested conditionals
 - Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
 - Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
+- **Prefer switch statements over nested ternary operators** for mapping multiple cases - switch statements are more readable and maintainable when handling 3+ conditional branches:
+  ```typescript
+  // BAD: Nested ternary chain - hard to read and extend
+  const result =
+    value?.case === 'optionA'
+      ? { optionA: value.data }
+      : value?.case === 'optionB'
+        ? { optionB: value.data }
+        : value?.case === 'optionC'
+          ? { optionC: value.data }
+          : {};
+
+  // GOOD: Switch statement - clear and maintainable
+  let result = {};
+  if (value?.case) {
+    switch (value.case) {
+      case 'optionA':
+        result = { optionA: value.data };
+        break;
+      case 'optionB':
+        result = { optionB: value.data };
+        break;
+      case 'optionC':
+        result = { optionC: value.data };
+        break;
+    }
+  }
+  ```
 
 **Comments:**
 - **Do not add unnecessary comments** - code should be self-documenting through clear naming
@@ -227,6 +272,25 @@ The migration generator compares entities against the local database schema. Ens
 **Zod patterns:**
 - Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
 - **Place Zod schemas in `src/common/schema/`** - not inline in resolver files. Create a dedicated file per domain (e.g., `userStack.ts`, `opportunities.ts`)
+- **IMPORTANT - Zod Type Inference:**
+  - **ALWAYS use `z.infer<typeof schema>` to derive TypeScript types from Zod schemas** at the point of use
+  - **NEVER manually define or re-export types that duplicate Zod schema structure**
+  - Export only the schemas themselves, not the inferred types
+  - Example:
+    ```typescript
+    // GOOD: Export only the schema
+    export const userSchema = z.object({ name: z.string(), age: z.number() });
+
+    // BAD: Re-exporting inferred type
+    export type User = z.infer<typeof userSchema>;
+
+    // GOOD: Use z.infer at point of use
+    import type { userSchema } from './schema';
+    type User = z.infer<typeof userSchema>;
+
+    // GOOD: Inline in function parameters
+    const processUser = (user: z.infer<typeof userSchema>) => { ... };
+    ```
 - **Schema exports must use a `Schema` suffix** (e.g., `paginationSchema`, `urlParseSchema`, `fileUploadSchema`). This makes schema variables clearly distinguishable from regular values and types.
 
 ## Best Practices & Lessons Learned
@@ -463,6 +527,14 @@ The migration generator compares entities against the local database schema. Ens
   - Import shared constants and utilities from `./common.ts` (`parseLimit`, `ensureDbConnection`, `MAX_LIMIT`, `DEFAULT_LIMIT`)
   - Update `skill.md` when adding/changing endpoints (versioned with semver)
   - Fastify route type parameters should be defined inline for single-use types
+
+## Pre-Commit Checks
+
+Before creating any commit, ensure the following pass:
+- `pnpm run build` - TypeScript compilation must succeed with no errors
+- `pnpm run lint` - ESLint must pass with 0 warnings
+
+Do not commit code that fails either check.
 
 ## Pull Requests
 
