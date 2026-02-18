@@ -216,6 +216,9 @@ export interface GQLPost {
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
   permalink?: string;
+  creatorTwitter?: string;
+  creatorTwitterName?: string;
+  creatorTwitterImage?: string;
   endsAt?: Date;
   pollOptions?: GQLPollOption[];
   numPollVotes?: number;
@@ -812,6 +815,16 @@ export const typeDefs = /* GraphQL */ `
     Twitter handle of the post creator
     """
     creatorTwitter: String
+
+    """
+    Display name of the Twitter creator (for social:twitter posts)
+    """
+    creatorTwitterName: String
+
+    """
+    Profile image URL of the Twitter creator (for social:twitter posts)
+    """
+    creatorTwitterImage: String
 
     """
     Featured award for the post, currently the most expensive one
@@ -3512,6 +3525,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Post: {
     contentHtml: (post: GQLPost): GQLPost['contentHtml'] =>
       mapCloudinaryUrl(post.contentHtml),
+    creatorTwitterImage: (post: GQLPost): GQLPost['creatorTwitterImage'] =>
+      mapCloudinaryUrl(post.creatorTwitterImage),
     image: (post: GQLPost): string | undefined => {
       const image = mapCloudinaryUrl(post.image);
       if (nullableImageType.includes(post.type)) return image;

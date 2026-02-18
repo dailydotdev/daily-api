@@ -29,6 +29,9 @@ export const twitterSocialMediaSchema = z
 export const twitterSocialThreadTweetSchema = z
   .object({
     tweet_id: z.string().nullish(),
+    author_username: z.string().nullish(),
+    author_name: z.string().nullish(),
+    author_avatar: z.string().nullish(),
     content: z.string().nullish(),
     content_html: z.string().nullish(),
     media: z.array(twitterSocialMediaSchema).nullish(),
@@ -45,12 +48,16 @@ export const twitterSocialReferenceSchema = z
     sub_type: z.string().nullish(),
     media: z.array(twitterSocialMediaSchema).nullish(),
     author_username: z.string().nullish(),
+    author_name: z.string().nullish(),
+    author_avatar: z.string().nullish(),
   })
   .passthrough();
 
 export const twitterSocialExtraSchema = z
   .object({
     author_username: z.string().nullish(),
+    author_name: z.string().nullish(),
+    author_avatar: z.string().nullish(),
     subtype: twitterSocialInputSubTypeSchema.nullish(),
     sub_type: twitterSocialInputSubTypeSchema.nullish(),
     tweet_id: z.string().nullish(),

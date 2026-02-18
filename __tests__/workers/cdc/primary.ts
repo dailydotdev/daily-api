@@ -5,6 +5,9 @@ import {
   OpportunityType,
 } from '@dailydotdev/schema';
 import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
   Alerts,
   ArticlePost,
   Banner,
@@ -65,6 +68,7 @@ import {
   UserStreakActionType,
   YouTubePost,
 } from '../../../src/entity';
+import { UserAchievement } from '../../../src/entity/user/UserAchievement';
 import { PollPost } from '../../../src/entity/posts/PollPost';
 import { PollOption } from '../../../src/entity/polls/PollOption';
 import { addDays, addYears, isSameDay } from 'date-fns';
@@ -4838,6 +4842,120 @@ describe('user streak change', () => {
         .getRepository(Alerts)
         .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
+    });
+  });
+
+  describe('streak achievement progress', () => {
+    const streakAchievementId = randomUUID();
+
+    beforeEach(async () => {
+      await con.getRepository(Achievement).save({
+        id: streakAchievementId,
+        name: "I took 'daily dev' literally",
+        description: 'Reach a 365-day reading streak',
+        image: 'https://example.com/streak365.png',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.ReadingStreak,
+        criteria: { targetCount: 365 },
+        points: 50,
+        rarity: 0.01,
+      });
+    });
+
+    it('should NOT unlock 365-day streak achievement with only 50-day streak', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 50,
+        maxStreak: 50,
+      };
+      const before: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 49,
+        maxStreak: 49,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: streakAchievementId,
+          userId: '1-cusc',
+        });
+      expect(userAchievement).not.toBeNull();
+      expect(userAchievement!.progress).toEqual(50);
+      expect(userAchievement!.unlockedAt).toBeNull();
+    });
+
+    it('should unlock 365-day streak achievement when maxStreak reaches 365', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 365,
+        maxStreak: 365,
+      };
+      const before: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 364,
+        maxStreak: 364,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: streakAchievementId,
+          userId: '1-cusc',
+        });
+      expect(userAchievement).not.toBeNull();
+      expect(userAchievement!.progress).toEqual(365);
+      expect(userAchievement!.unlockedAt).not.toBeNull();
+    });
+
+    it('should set progress to absolute maxStreak value, not increment', async () => {
+      for (const maxStreak of [10, 20, 30]) {
+        const after: ChangeObject<ObjectType> = {
+          ...base,
+          currentStreak: maxStreak,
+          maxStreak,
+        };
+        const before: ChangeObject<ObjectType> = {
+          ...base,
+          currentStreak: maxStreak - 1,
+          maxStreak: maxStreak - 1,
+        };
+        await expectSuccessfulBackground(
+          worker,
+          mockChangeMessage<ObjectType>({
+            after,
+            before,
+            op: 'u',
+            table: 'user_streak',
+          }),
+        );
+      }
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: streakAchievementId,
+          userId: '1-cusc',
+        });
+      expect(userAchievement!.progress).toEqual(30);
     });
   });
 });

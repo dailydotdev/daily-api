@@ -1455,14 +1455,14 @@ const onUserStreakChange = async (
       streak: data.payload.after!,
     });
 
-    const currentStreak = data.payload.after!.currentStreak;
-    if (currentStreak > (data.payload.before?.currentStreak ?? 0)) {
+    const maxStreak = data.payload.after!.maxStreak;
+    if (maxStreak > (data.payload.before?.maxStreak ?? 0)) {
       await checkAchievementProgress(
         con,
         logger,
         data.payload.after!.userId,
         AchievementEventType.ReadingStreak,
-        currentStreak,
+        maxStreak,
       );
     }
   }
