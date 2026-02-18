@@ -70,6 +70,28 @@ export type Data = {
   content_quality?: PostContentQuality;
 };
 
+export type FixedData = Partial<ArticlePost> &
+  Partial<CollectionPost> &
+  Partial<YouTubePost> &
+  Partial<SocialTwitterPost> &
+  Partial<Post>;
+
+export type ProcessPostProps = {
+  logger: FastifyBaseLogger;
+  entityManager: EntityManager;
+  data: Data;
+};
+
+export type ProcessedPost = {
+  contentType: PostType;
+  fixedData: FixedData;
+  mergedKeywords: string[];
+  questions: string[];
+  smartTitle?: string;
+  twitterReference?: TwitterReferencePost;
+  allowedUpdateFields?: string[];
+};
+
 export type HandleRejectionProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
@@ -102,29 +124,11 @@ export type UpdatePostProps = {
   questions: string[];
   content_type: PostType;
   smartTitle?: string;
+  allowedUpdateFields?: string[];
 };
 
 export type GetSourcePrivacyProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Data;
-};
-
-export type FixDataProps = {
-  logger: FastifyBaseLogger;
-  entityManager: EntityManager;
-  data: Data;
-};
-
-export type FixData = {
-  mergedKeywords: string[];
-  questions: string[];
-  content_type: PostType;
-  fixedData: Partial<ArticlePost> &
-    Partial<CollectionPost> &
-    Partial<YouTubePost> &
-    Partial<SocialTwitterPost> &
-    Partial<Post>;
-  smartTitle?: string;
-  twitterReference?: TwitterReferencePost;
 };

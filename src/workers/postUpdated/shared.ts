@@ -36,11 +36,7 @@ import type {
   UpdatePostProps,
   GetSourcePrivacyProps,
 } from './types';
-import {
-  twitterAllowedFields,
-  mergeTwitterContentMeta,
-} from './socialTwitter/processing';
-import { freeformAllowedFields } from './freeform/processing';
+import { mergeTwitterContentMeta } from './socialTwitter/processing';
 
 export const handleRejection = async ({
   logger,
@@ -111,11 +107,6 @@ export const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.SocialTwitter]: SocialTwitterPost,
 };
 
-export const allowedFieldsMapping: Partial<Record<PostType, string[]>> = {
-  freeform: freeformAllowedFields,
-  [PostType.SocialTwitter]: twitterAllowedFields,
-};
-
 export const createPost = async ({
   logger,
   entityManager,
@@ -182,6 +173,7 @@ export const updatePost = async ({
   questions,
   content_type = PostType.Article,
   smartTitle,
+  allowedUpdateFields,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
   let databasePost = await entityManager
@@ -288,14 +280,14 @@ export const updatePost = async ({
     };
   }
 
-  if (allowedFieldsMapping[content_type]) {
+  if (allowedUpdateFields) {
     const allowedFields = [
       'id',
       'visible',
       'visibleAt',
       'flags',
       'yggdrasilId',
-      ...allowedFieldsMapping[content_type],
+      ...allowedUpdateFields,
     ];
 
     Object.keys(data).forEach((key) => {

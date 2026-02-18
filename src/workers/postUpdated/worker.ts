@@ -2,12 +2,38 @@ import { messageToJson, Worker } from '../worker';
 import { bannedAuthors, Post, PostType } from '../../entity';
 import { TypeOrmError, type TypeORMQueryFailedError } from '../../errors';
 import { QueryFailedError } from 'typeorm';
+import { isTwitterSocialType } from '../../common/twitterSocial';
 import { upsertTwitterReferencedPost } from '../../common/twitterSocial';
 import { insertCodeSnippetsFromUrl } from '../../common/post';
-import type { Data } from './types';
+import type { Data, ProcessPostProps, ProcessedPost } from './types';
 import { handleRejection, createPost, updatePost } from './shared';
-import { fixData } from './fixData';
-import { handleCollectionRelations } from './collection/processing';
+import { processArticle } from './article/processing';
+import { processFreeform } from './freeform/processing';
+import {
+  processCollection,
+  handleCollectionRelations,
+} from './collection/processing';
+import { processVideoYouTube } from './videoYouTube/processing';
+import { processSocialTwitter } from './socialTwitter/processing';
+
+const resolveProcessor = (
+  contentType?: string,
+): ((props: ProcessPostProps) => Promise<ProcessedPost>) => {
+  if (isTwitterSocialType(contentType)) {
+    return processSocialTwitter;
+  }
+
+  switch (contentType as PostType) {
+    case PostType.VideoYouTube:
+      return processVideoYouTube;
+    case PostType.Freeform:
+      return processFreeform;
+    case PostType.Collection:
+      return processCollection;
+    default:
+      return processArticle;
+  }
+};
 
 const worker: Worker = {
   subscription: 'api.content-published',
@@ -46,14 +72,8 @@ const worker: Worker = {
           postId = matchedYggdrasilPost?.id;
         }
 
-        const {
-          mergedKeywords,
-          questions,
-          content_type,
-          smartTitle,
-          fixedData,
-          twitterReference,
-        } = await fixData({
+        const processor = resolveProcessor(data.content_type);
+        const result = await processor({
           logger,
           entityManager,
           data: {
@@ -62,11 +82,14 @@ const worker: Worker = {
           },
         });
 
-        if (content_type === PostType.SocialTwitter && twitterReference) {
-          fixedData.sharedPostId = await upsertTwitterReferencedPost({
+        if (
+          result.contentType === PostType.SocialTwitter &&
+          result.twitterReference
+        ) {
+          result.fixedData.sharedPostId = await upsertTwitterReferencedPost({
             entityManager,
-            reference: twitterReference,
-            language: fixedData.language,
+            reference: result.twitterReference,
+            language: result.fixedData.language,
           });
         }
 
@@ -74,10 +97,10 @@ const worker: Worker = {
           const newPost = await createPost({
             logger,
             entityManager,
-            data: fixedData,
-            mergedKeywords,
-            questions,
-            smartTitle,
+            data: result.fixedData,
+            mergedKeywords: result.mergedKeywords,
+            questions: result.questions,
+            smartTitle: result.smartTitle,
           });
 
           postId = newPost?.id;
@@ -85,12 +108,13 @@ const worker: Worker = {
           await updatePost({
             logger,
             entityManager,
-            data: fixedData,
+            data: result.fixedData,
             id: postId,
-            mergedKeywords,
-            questions,
-            content_type,
-            smartTitle,
+            mergedKeywords: result.mergedKeywords,
+            questions: result.questions,
+            content_type: result.contentType,
+            smartTitle: result.smartTitle,
+            allowedUpdateFields: result.allowedUpdateFields,
           });
         }
 
@@ -121,7 +145,7 @@ const worker: Worker = {
               entityManager,
               post: {
                 id: postId,
-                type: content_type,
+                type: result.contentType,
               },
               originalData: data,
             }),
