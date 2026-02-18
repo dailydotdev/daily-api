@@ -125,6 +125,75 @@ type SocialTwitterContentMeta = {
   };
 };
 
+type JsonObject = Record<string, unknown>;
+type SocialTwitterCreator = NonNullable<
+  NonNullable<SocialTwitterContentMeta['social_twitter']>['creator']
+>;
+type SocialTwitterMeta = JsonObject &
+  NonNullable<SocialTwitterContentMeta['social_twitter']>;
+
+const toJsonObject = (value: unknown): JsonObject =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as JsonObject)
+    : {};
+
+const mergeSocialTwitterContentMeta = ({
+  existing,
+  incoming,
+}: {
+  existing: unknown;
+  incoming: unknown;
+}): JsonObject & SocialTwitterContentMeta => {
+  const existingContentMeta = toJsonObject(existing) as JsonObject &
+    SocialTwitterContentMeta;
+  const incomingContentMeta = toJsonObject(incoming) as JsonObject &
+    SocialTwitterContentMeta;
+
+  const mergedContentMeta: JsonObject & SocialTwitterContentMeta = {
+    ...existingContentMeta,
+    ...incomingContentMeta,
+  };
+
+  const existingSocialTwitter = toJsonObject(
+    existingContentMeta.social_twitter,
+  ) as SocialTwitterMeta;
+  const incomingSocialTwitter = toJsonObject(
+    incomingContentMeta.social_twitter,
+  ) as SocialTwitterMeta;
+
+  if (
+    !Object.keys(existingSocialTwitter).length &&
+    !Object.keys(incomingSocialTwitter).length
+  ) {
+    return mergedContentMeta;
+  }
+
+  const mergedSocialTwitter: SocialTwitterMeta = {
+    ...existingSocialTwitter,
+    ...incomingSocialTwitter,
+  };
+  const existingCreator = toJsonObject(
+    existingSocialTwitter.creator,
+  ) as SocialTwitterCreator;
+  const incomingCreator = toJsonObject(
+    incomingSocialTwitter.creator,
+  ) as SocialTwitterCreator;
+
+  if (
+    Object.keys(existingCreator).length ||
+    Object.keys(incomingCreator).length
+  ) {
+    mergedSocialTwitter.creator = {
+      ...existingCreator,
+      ...incomingCreator,
+    };
+  }
+
+  mergedContentMeta.social_twitter = mergedSocialTwitter;
+
+  return mergedContentMeta;
+};
+
 type HandleRejectionProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
@@ -461,52 +530,19 @@ const updatePost = async ({
     ['contentMeta', 'contentQuality'];
 
   jsonMetaFields.forEach((metaField) => {
-    if (
-      Object.keys(data[metaField]!).length === 0 &&
-      Object.keys(databasePost[metaField]).length > 0
-    ) {
+    const incomingMeta = toJsonObject(data[metaField]);
+    const existingMeta = toJsonObject(databasePost[metaField]);
+
+    if (!Object.keys(incomingMeta).length && Object.keys(existingMeta).length) {
       data[metaField] = databasePost[metaField];
     }
   });
 
   if (content_type === PostType.SocialTwitter) {
-    const existingContentMeta = databasePost.contentMeta as Record<
-      string,
-      unknown
-    > &
-      SocialTwitterContentMeta;
-    const incomingContentMeta = (data.contentMeta || {}) as Record<
-      string,
-      unknown
-    > &
-      SocialTwitterContentMeta;
-    const existingSocialTwitter = existingContentMeta.social_twitter || {};
-    const incomingSocialTwitter = incomingContentMeta.social_twitter || {};
-    const existingCreator = existingSocialTwitter.creator || {};
-    const incomingCreator = incomingSocialTwitter.creator || {};
-
-    data.contentMeta = {
-      ...existingContentMeta,
-      ...incomingContentMeta,
-      ...(Object.keys(existingSocialTwitter).length ||
-      Object.keys(incomingSocialTwitter).length
-        ? {
-            social_twitter: {
-              ...existingSocialTwitter,
-              ...incomingSocialTwitter,
-              ...(Object.keys(existingCreator).length ||
-              Object.keys(incomingCreator).length
-                ? {
-                    creator: {
-                      ...existingCreator,
-                      ...incomingCreator,
-                    },
-                  }
-                : {}),
-            },
-          }
-        : {}),
-    };
+    data.contentMeta = mergeSocialTwitterContentMeta({
+      existing: databasePost.contentMeta,
+      incoming: data.contentMeta,
+    });
   }
 
   if (
