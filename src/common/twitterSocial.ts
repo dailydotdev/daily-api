@@ -31,6 +31,8 @@ export interface TwitterReferencePost {
   image?: string | null;
   videoId?: string | null;
   authorUsername?: string | null;
+  authorName?: string | null;
+  authorAvatar?: string | null;
 }
 
 export interface TwitterMappingResult {
@@ -51,6 +53,25 @@ export interface TwitterAuthorProfile {
   name?: string;
   profileImage?: string;
 }
+
+export const buildTwitterCreatorMeta = (
+  profile: TwitterAuthorProfile,
+): { social_twitter: { creator: Record<string, string> } } | undefined => {
+  const { handle, name, profileImage } = profile;
+  if (!handle && !name && !profileImage) {
+    return undefined;
+  }
+
+  return {
+    social_twitter: {
+      creator: {
+        ...(handle ? { handle } : {}),
+        ...(name ? { name } : {}),
+        ...(profileImage ? { profile_image: profileImage } : {}),
+      },
+    },
+  };
+};
 
 const normalizeTwitterHandleForTitle = (
   handle?: string | null,
@@ -256,6 +277,8 @@ const extractTwitterReference = (
     image: pickPrimaryImage(reference.media || []),
     videoId: pickPrimaryVideoId(reference.media || []),
     authorUsername: reference.author_username?.trim() || undefined,
+    authorName: reference.author_name?.trim() || undefined,
+    authorAvatar: reference.author_avatar?.trim() || undefined,
   };
 };
 
@@ -451,6 +474,13 @@ export const upsertTwitterReferencedPost = async ({
   const referenceSourceId = resolvedSource?.id || UNKNOWN_SOURCE;
   const isPrivate = resolvedSource?.isPrivate ?? true;
 
+  const contentMeta =
+    buildTwitterCreatorMeta({
+      handle: normalizeTwitterHandle(reference.authorUsername),
+      name: reference.authorName || undefined,
+      profileImage: reference.authorAvatar || undefined,
+    }) ?? {};
+
   const repository = entityManager.getRepository(SocialTwitterPost);
 
   const post = repository.create({
@@ -459,6 +489,7 @@ export const upsertTwitterReferencedPost = async ({
     subType: 'tweet',
     sourceId: referenceSourceId,
     creatorTwitter: reference.authorUsername ?? undefined,
+    contentMeta,
     createdAt: now,
     metadataChangedAt: now,
     title,

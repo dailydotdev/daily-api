@@ -1,6 +1,7 @@
 import { ValidationError } from 'apollo-server-errors';
 import { PostType } from '../../src/entity';
 import {
+  buildTwitterCreatorMeta,
   isTwitterSocialType,
   mapTwitterSocialPayload,
 } from '../../src/common/twitterSocial';
@@ -290,6 +291,40 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields.image).toBe('https://pbs.twimg.com/media/abc123.jpg');
   });
 
+  it('should extract reference author name and avatar', () => {
+    const payload = mapTwitterSocialPayload({
+      data: {
+        content_type: PostType.SocialTwitter,
+        url: 'https://x.com/yacinemtb/status/2024104140285067735',
+        extra: {
+          sub_type: 'repost',
+          content: 'RT @jietang: We just uploaded our GLM-5 tech report',
+          author_username: 'yacineMTB',
+          author_name: 'kache',
+          author_avatar:
+            'https://pbs.twimg.com/profile_images/1901438455927668736/FjhhhN0b_normal.jpg',
+          reference: {
+            tweet_id: '2024054780730171787',
+            url: 'https://x.com/jietang/status/2024054780730171787',
+            content: 'We just uploaded our GLM-5 tech report onto arxiv.',
+            author_username: 'jietang',
+            author_name: 'jietang',
+            author_avatar:
+              'https://pbs.twimg.com/profile_images/2969848274/9650ac94b38c2872eecea8a7dfa376ef_normal.jpeg',
+          },
+        },
+      },
+    });
+
+    expect(payload.reference).toMatchObject({
+      subType: 'repost',
+      authorUsername: 'jietang',
+      authorName: 'jietang',
+      authorAvatar:
+        'https://pbs.twimg.com/profile_images/2969848274/9650ac94b38c2872eecea8a7dfa376ef_normal.jpeg',
+    });
+  });
+
   it('should throw validation error for invalid payload', () => {
     expect(() =>
       mapTwitterSocialPayload({
@@ -299,5 +334,41 @@ describe('mapTwitterSocialPayload', () => {
         },
       }),
     ).toThrow(ValidationError);
+  });
+});
+
+describe('buildTwitterCreatorMeta', () => {
+  it('should build social_twitter contentMeta from author profile', () => {
+    const result = buildTwitterCreatorMeta({
+      handle: 'jietang',
+      name: 'jietang',
+      profileImage:
+        'https://pbs.twimg.com/profile_images/2969848274/9650ac94b38c2872eecea8a7dfa376ef_normal.jpeg',
+    });
+
+    expect(result).toEqual({
+      social_twitter: {
+        creator: {
+          handle: 'jietang',
+          name: 'jietang',
+          profile_image:
+            'https://pbs.twimg.com/profile_images/2969848274/9650ac94b38c2872eecea8a7dfa376ef_normal.jpeg',
+        },
+      },
+    });
+  });
+
+  it('should return undefined when no profile fields are set', () => {
+    expect(buildTwitterCreatorMeta({})).toBeUndefined();
+  });
+
+  it('should omit missing fields from creator meta', () => {
+    const result = buildTwitterCreatorMeta({ handle: 'user1' });
+
+    expect(result).toEqual({
+      social_twitter: {
+        creator: { handle: 'user1' },
+      },
+    });
   });
 });
