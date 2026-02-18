@@ -171,6 +171,7 @@ export interface GQLPollOption {
 export interface GQLPost {
   id: string;
   type: PostType;
+  subType?: string;
   shortId: string;
   publishedAt?: Date;
   pinnedAt?: Date;
@@ -189,6 +190,7 @@ export interface GQLPost {
   numUpvotes: number;
   numComments: number;
   numAwards: number;
+  numReposts: number;
   deleted?: boolean;
   private: boolean;
   // Used only for pagination (not part of the schema)
@@ -214,6 +216,9 @@ export interface GQLPost {
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
   permalink?: string;
+  creatorTwitter?: string;
+  creatorTwitterName?: string;
+  creatorTwitterImage?: string;
   endsAt?: Date;
   pollOptions?: GQLPollOption[];
   numPollVotes?: number;
@@ -552,6 +557,11 @@ export const typeDefs = /* GraphQL */ `
     type: String
 
     """
+    Post sub type (for platform specific variants)
+    """
+    subType: String
+
+    """
     Unique URL friendly short identifier
     """
     shortId: String
@@ -665,6 +675,11 @@ export const typeDefs = /* GraphQL */ `
     Total number of awards
     """
     numAwards: Int!
+
+    """
+    Total number of reposts
+    """
+    numReposts: Int!
 
     """
     Permanent link to the comments of the post
@@ -795,6 +810,21 @@ export const typeDefs = /* GraphQL */ `
     Language of the post
     """
     language: String
+
+    """
+    Twitter handle of the post creator
+    """
+    creatorTwitter: String
+
+    """
+    Display name of the Twitter creator (for social:twitter posts)
+    """
+    creatorTwitterName: String
+
+    """
+    Profile image URL of the Twitter creator (for social:twitter posts)
+    """
+    creatorTwitterImage: String
 
     """
     Featured award for the post, currently the most expensive one
@@ -3495,6 +3525,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Post: {
     contentHtml: (post: GQLPost): GQLPost['contentHtml'] =>
       mapCloudinaryUrl(post.contentHtml),
+    creatorTwitterImage: (post: GQLPost): GQLPost['creatorTwitterImage'] =>
+      mapCloudinaryUrl(post.creatorTwitterImage),
     image: (post: GQLPost): string | undefined => {
       const image = mapCloudinaryUrl(post.image);
       if (nullableImageType.includes(post.type)) return image;

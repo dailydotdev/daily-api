@@ -526,6 +526,7 @@ const obj = new GraphORM({
       'scoutId',
       'private',
       'type',
+      'subType',
       'slug',
       'translation',
       {
@@ -646,6 +647,9 @@ const obj = new GraphORM({
       },
       numAwards: {
         select: 'awards',
+      },
+      numReposts: {
+        select: 'reposts',
       },
       publication: {
         alias: { field: 'source', type: 'Source' },
@@ -792,6 +796,12 @@ const obj = new GraphORM({
             contentLanguage: ctx.contentLanguage,
           });
         },
+      },
+      creatorTwitterName: {
+        select: `"contentMeta"->'social_twitter'->'creator'->>'name'`,
+      },
+      creatorTwitterImage: {
+        select: `"contentMeta"->'social_twitter'->'creator'->>'profile_image'`,
       },
       featuredAward: {
         relation: {
@@ -1732,6 +1742,35 @@ const obj = new GraphORM({
       reputation: {
         transform: (value) => {
           return Math.max(0, value);
+        },
+      },
+    },
+  },
+  SquadAnalytics: {
+    from: 'SquadPostsAnalytics',
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+      upvotesRatio: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            CASE
+              WHEN (${alias}.upvotes + ${alias}.downvotes) > 0
+              THEN ROUND((${alias}.upvotes::numeric / (${alias}.upvotes + ${alias}.downvotes)) * 100, 0)
+              ELSE 0
+            END
+          `;
+        },
+      },
+      reach: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}."reachAll", ${alias}.reach, 0)
+          `;
         },
       },
     },

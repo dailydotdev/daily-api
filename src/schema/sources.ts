@@ -49,6 +49,7 @@ import {
 } from '../common';
 import { toGQLEnum } from '../common/utils';
 import { GraphQLResolveInfo } from 'graphql';
+import { getPostAnalyticsHistory } from '../common/postAnalytics';
 import {
   SourcePermissionErrorKeys,
   SourceRequestErrorMessage,
@@ -129,6 +130,27 @@ export interface GQLSourceMember {
   createdAt: Date;
   referralToken: string;
   flags?: SourceMemberFlagsPublic;
+}
+
+export interface GQLSquadAnalytics {
+  id: string;
+  impressions: number;
+  reach: number;
+  upvotes: number;
+  downvotes: number;
+  comments: number;
+  bookmarks: number;
+  awards: number;
+  shares: number;
+  clicks: number;
+  upvotesRatio: number;
+  updatedAt: Date;
+}
+
+export interface GQLSquadAnalyticsHistoryNode {
+  date: Date;
+  impressions: number;
+  impressionsAds: number;
 }
 
 interface UpdateMemberRoleArgs {
@@ -400,6 +422,27 @@ export const typeDefs = /* GraphQL */ `
     amount: Int!
   }
 
+  type SquadAnalytics {
+    id: ID!
+    impressions: Int!
+    reach: Int!
+    upvotes: Int!
+    downvotes: Int!
+    comments: Int!
+    bookmarks: Int!
+    awards: Int!
+    shares: Int!
+    clicks: Int!
+    upvotesRatio: Int!
+    updatedAt: DateTime!
+  }
+
+  type SquadAnalyticsHistoryNode {
+    date: DateTime!
+    impressions: Int!
+    impressionsAds: Int!
+  }
+
   extend type Query {
     """
     Get all available sources
@@ -510,6 +553,10 @@ export const typeDefs = /* GraphQL */ `
     Get the source that matches the feed
     """
     sourceByFeed(feed: String!): Source @auth
+
+    squadAnalytics(sourceId: ID!): SquadAnalytics @auth
+
+    squadAnalyticsHistory(sourceId: ID!): [SquadAnalyticsHistoryNode!]! @auth
 
     """
     Get top sources covering this tag
@@ -938,6 +985,7 @@ export enum SourcePermissions {
   ConnectSlack = 'connect_slack',
   ModeratePost = 'moderate_post',
   BoostSquad = 'boost_squad',
+  ViewAnalytics = 'view_analytics',
 }
 
 const memberPermissions = [
@@ -959,6 +1007,7 @@ const moderatorPermissions = [
   SourcePermissions.WelcomePostEdit,
   SourcePermissions.ModeratePost,
   SourcePermissions.BoostSquad,
+  SourcePermissions.ViewAnalytics,
 ];
 const adminPermissions = [
   ...moderatorPermissions,
@@ -1942,6 +1991,48 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       { feed }: { feed: string },
       ctx: AuthContext,
     ): Promise<GQLSource | null> => sourceByFeed(feed, ctx),
+    squadAnalytics: async (
+      _,
+      args: { sourceId: string },
+      ctx: AuthContext,
+      info: GraphQLResolveInfo,
+    ): Promise<GQLSquadAnalytics | null> => {
+      await ensureSourcePermissions(
+        ctx,
+        args.sourceId,
+        SourcePermissions.ViewAnalytics,
+      );
+
+      return graphorm.queryOne<GQLSquadAnalytics>(
+        ctx,
+        info,
+        (builder) => ({
+          ...builder,
+          queryBuilder: builder.queryBuilder.andWhere(
+            `"${builder.alias}".id = :sourceId`,
+            { sourceId: args.sourceId },
+          ),
+        }),
+        true,
+      );
+    },
+    squadAnalyticsHistory: async (
+      _,
+      args: { sourceId: string },
+      ctx: AuthContext,
+    ): Promise<GQLSquadAnalyticsHistoryNode[]> => {
+      await ensureSourcePermissions(
+        ctx,
+        args.sourceId,
+        SourcePermissions.ViewAnalytics,
+      );
+
+      return getPostAnalyticsHistory({
+        con: ctx.con,
+        whereClause: (qb) =>
+          qb.andWhere('p."sourceId" = :sourceId', { sourceId: args.sourceId }),
+      });
+    },
     source: async (
       _,
       { id }: { id: string },

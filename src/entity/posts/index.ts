@@ -9,3 +9,4 @@ export * from './utils';
 export * from './PostRelation';
 export * from './CollectionPost';
 export * from './YouTubePost';
+export * from './SocialTwitterPost';

@@ -634,6 +634,22 @@ describe('commentsPermalink field', () => {
   });
 });
 
+describe('numReposts field', () => {
+  const QUERY = `{
+    post(id: "p1") {
+      numReposts
+    }
+  }`;
+
+  it('should return the total number of reposts', async () => {
+    await con.getRepository(Post).update({ id: 'p1' }, { reposts: 4 });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeFalsy();
+    expect(res.data.post.numReposts).toEqual(4);
+  });
+});
+
 describe('domain field', () => {
   const QUERY = `{
     post(id: "p1") {

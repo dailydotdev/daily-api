@@ -1,28 +1,29 @@
-import dc from 'node:diagnostics_channel';
 import type { FastifyInstance } from 'fastify';
-import { api, resources, metrics } from '@opentelemetry/sdk-node';
+
+import dc from 'node:diagnostics_channel';
+
+import { metrics, type Counter, ValueType } from '@opentelemetry/api';
+import {
+  PeriodicExportingMetricReader,
+  type IMetricReader,
+} from '@opentelemetry/sdk-metrics';
+import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-grpc';
 import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import {
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_RESPONSE_STATUS_CODE,
   ATTR_HTTP_ROUTE,
-  ATTR_SERVICE_NAME,
   METRIC_HTTP_SERVER_REQUEST_DURATION,
 } from '@opentelemetry/semantic-conventions';
 
-import { containerDetector } from '@opentelemetry/resource-detector-container';
-import { gcpDetector } from '@opentelemetry/resource-detector-gcp';
-import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
-
 import { logger } from '../logger';
 import {
+  type AppVersionRequest,
+  type CounterOptions,
   channelName,
-  AppVersionRequest,
-  CounterOptions,
   getAppVersion,
   SEMATTRS_DAILY_APPS_VERSION,
 } from './common';
-import { ValueType } from '@opentelemetry/api';
 
 const counterMap = {
   api: {
@@ -121,45 +122,63 @@ const counterMap = {
     },
   },
   temporal: {},
+  'worker-job': {},
 };
+
+export type ServiceName = keyof typeof counterMap;
 
 export const counters: Partial<{
   [meterKey in keyof typeof counterMap]: Partial<{
-    [counterKey in keyof (typeof counterMap)[meterKey]]?: api.Counter;
+    [counterKey in keyof (typeof counterMap)[meterKey]]?: Counter;
   }>;
 }> = {};
 
-export const startMetrics = async (
-  serviceName: keyof typeof counterMap,
-): Promise<void> => {
-  if (process.env.METRICS_ENABLED !== 'true') {
-    return;
+export const createMetricReader = (): IMetricReader => {
+  const exporterType = process.env.OTEL_METRICS_EXPORTER ?? 'otlp';
+
+  if (exporterType === 'prometheus') {
+    logger.info('Using Prometheus metrics exporter on port 9464');
+    return new PrometheusExporter({ port: 9464 });
   }
 
-  const readers: metrics.MetricReader[] = [
-    new PrometheusExporter({}, (err) => {
-      if (err) {
-        logger.error({ err }, `Failed to start metrics server`);
-      }
+  logger.info('Using OTLP metrics exporter');
+  return new PeriodicExportingMetricReader({
+    exporter: new OTLPMetricExporter({
+      url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
     }),
-  ];
+  });
+};
 
-  const resource = resources
-    .resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: serviceName,
-    })
-    .merge(
-      resources.detectResources({
-        detectors: [containerDetector, gcpDetector, new GcpDetectorSync()],
-      }),
-    );
+export const initCounters = (serviceName: ServiceName): void => {
+  const currentCounter = counterMap[serviceName];
 
-  await resource.waitForAsyncAttributes?.();
+  if (currentCounter) {
+    const meter = metrics.getMeter(serviceName);
+    if (!counters[serviceName]) {
+      counters[serviceName] = {};
+    }
 
-  const meterProvider = new metrics.MeterProvider({ resource, readers });
-  api.metrics.setGlobalMeterProvider(meterProvider);
+    for (const [counterKey, counterOptions] of Object.entries<CounterOptions>(
+      currentCounter,
+    )) {
+      const counter: Counter = meter.createCounter(
+        counterOptions.name,
+        counterOptions,
+      );
+      // @ts-expect-error - property keys are statically defined above
+      counters[serviceName][counterKey] = counter;
 
-  const requestDuration = api.metrics
+      if (process.env.OTEL_METRICS_EXPORTER === 'prometheus') {
+        counter.add(0);
+      }
+    }
+  }
+};
+
+const requestDurationIncludePaths = ['/boot'];
+
+export const subscribeMetricsHooks = (serviceName: string): void => {
+  const requestDuration = metrics
     .getMeter(serviceName)
     .createHistogram(METRIC_HTTP_SERVER_REQUEST_DURATION, {
       description: 'The duration of HTTP request',
@@ -172,11 +191,8 @@ export const startMetrics = async (
       },
     });
 
-  const requestDurationIncludePaths = ['/boot'];
-
-  // @ts-expect-error - types are not generic in dc subscribe
-  dc.subscribe(channelName, ({ fastify }: { fastify: FastifyInstance }) => {
-    // Decorate the main span with some metadata
+  dc.subscribe(channelName, (message) => {
+    const { fastify } = message as { fastify: FastifyInstance };
     fastify.addHook('onResponse', async (req, res) => {
       if (req.routeOptions.url === '/graphql') {
         return;
@@ -198,27 +214,4 @@ export const startMetrics = async (
       }
     });
   });
-
-  // We need to create and default all the counters to ensure that prometheus has scraped them
-  // This is a known "limitation" of prometheus and distributed system like kubernetes
-  const currentCounter = counterMap[serviceName];
-
-  if (currentCounter) {
-    const meter = api.metrics.getMeter(serviceName);
-    if (!counters[serviceName]) {
-      counters[serviceName] = {};
-    }
-
-    for (const [counterKey, counterOptions] of Object.entries<CounterOptions>(
-      currentCounter,
-    )) {
-      const counter: api.Counter = meter.createCounter(
-        counterOptions.name,
-        counterOptions,
-      );
-      // @ts-expect-error - property keys are statically defined above
-      counters[serviceName][counterKey] = counter;
-      counter.add(0);
-    }
-  }
 };

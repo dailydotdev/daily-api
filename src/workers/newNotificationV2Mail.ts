@@ -123,6 +123,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   campaign_post_first_milestone: '80',
   campaign_squad_first_milestone: '82',
   new_opportunity_match: '87',
+  rematched_opportunity: '92',
   post_analytics: '',
   poll_result: '84',
   poll_result_author: '84',
@@ -133,6 +134,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   experience_company_enriched: '',
   recruiter_external_payment: '91',
   feedback_resolved: '',
+  achievement_unlocked: '', // No email for achievement unlocks
 };
 
 type TemplateData = Record<string, unknown> & {
@@ -1078,6 +1080,22 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       opportunity_link: notification.targetUrl,
     };
   },
+  rematched_opportunity: async (con, _, notification) => {
+    const [foundUser, opportunityMatch] = await Promise.all([
+      con.getRepository(User).findOneBy({ id: notification.uniqueKey }),
+      con.getRepository(OpportunityMatch).findOneByOrFail({
+        opportunityId: notification.referenceId,
+        userId: notification.uniqueKey,
+      }),
+    ]);
+    if (!foundUser || !opportunityMatch) {
+      return null;
+    }
+
+    return {
+      opportunity_link: notification.targetUrl,
+    };
+  },
   post_analytics: async () => {
     return null;
   },
@@ -1261,6 +1279,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
   },
   feedback_resolved: async () => {
     return null;
+  },
+  achievement_unlocked: async () => {
+    return null; // No email for achievement unlocks
   },
 };
 

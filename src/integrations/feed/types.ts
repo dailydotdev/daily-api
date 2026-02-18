@@ -5,6 +5,7 @@ import { GenericMetadata } from '../lofn';
 export type FeedResponse = {
   data: [postId: string, metadata: string | null][];
   cursor?: string;
+  staleCursor?: boolean; // True when feed cache was regenerated and cursor became stale
 };
 
 export enum FeedConfigName {

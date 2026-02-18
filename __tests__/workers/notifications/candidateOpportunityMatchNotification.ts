@@ -1,13 +1,22 @@
 import { DataSource } from 'typeorm';
 import { candidateOpportunityMatchNotification as worker } from '../../../src/workers/notifications/candidateOpportunityMatchNotification';
 import createOrGetConnection from '../../../src/db';
-import { User } from '../../../src/entity';
+import { User, Organization } from '../../../src/entity';
 import { usersFixture } from '../../fixture';
 import { workers } from '../../../src/workers';
 import { invokeTypedNotificationWorker, saveFixtures } from '../../helpers';
 import { NotificationType } from '../../../src/notifications/common';
 import type { NotificationOpportunityMatchContext } from '../../../src/notifications';
 import { MatchedCandidate } from '@dailydotdev/schema';
+import { OpportunityMatch } from '../../../src/entity/OpportunityMatch';
+import { Opportunity } from '../../../src/entity/opportunities/Opportunity';
+import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
+import {
+  datasetLocationsFixture,
+  opportunitiesFixture,
+  organizationsFixture,
+} from '../../fixture/opportunity';
+import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
 
 let con: DataSource;
 
@@ -18,7 +27,10 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
   beforeEach(async () => {
     jest.resetAllMocks();
+    await saveFixtures(con, DatasetLocation, datasetLocationsFixture);
+    await saveFixtures(con, Organization, organizationsFixture);
     await saveFixtures(con, User, usersFixture);
+    await saveFixtures(con, Opportunity, opportunitiesFixture);
   });
 
   it('should be registered', () => {
@@ -35,7 +47,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
         worker,
         new MatchedCandidate({
           userId: '1',
-          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440002',
           matchScore: 85,
           reasoning: 'Based on your React and TypeScript skills and experience',
           reasoningShort: 'Based on your React and TypeScript skills',
@@ -49,7 +61,7 @@ describe('candidateOpportunityMatchNotification worker', () => {
 
     expect(context.userIds).toEqual(['1']);
     expect(context.opportunityId).toEqual(
-      '550e8400-e29b-41d4-a716-446655440001',
+      '550e8400-e29b-41d4-a716-446655440002',
     );
     expect(context.reasoningShort).toEqual(
       'Based on your React and TypeScript skills',
@@ -117,6 +129,67 @@ describe('candidateOpportunityMatchNotification worker', () => {
         }),
       );
 
+    expect(result).toBeUndefined();
+  });
+
+  it('should not send notification when match already exists', async () => {
+    // Create existing match
+    await con.getRepository(OpportunityMatch).save({
+      userId: '1',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      status: OpportunityMatchStatus.Pending,
+      description: {
+        matchScore: 75,
+        reasoning: 'Initial',
+        reasoningShort: 'Initial',
+      },
+      feedback: [],
+      history: [],
+    });
+
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          matchScore: 85,
+          reasoning: 'Updated',
+          reasoningShort: 'Updated',
+        }),
+      );
+
+    // Should skip because match already exists
+    expect(result).toBeUndefined();
+  });
+
+  it('should not send notification for re-match (candidate_rejected)', async () => {
+    await con.getRepository(OpportunityMatch).save({
+      userId: '1',
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      status: OpportunityMatchStatus.CandidateRejected,
+      description: {
+        matchScore: 75,
+        reasoning: 'Initial',
+        reasoningShort: 'Initial',
+      },
+      feedback: [{ screening: 'test', answer: 'rejected' }],
+      history: [],
+    });
+
+    const result =
+      await invokeTypedNotificationWorker<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        new MatchedCandidate({
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          matchScore: 90,
+          reasoning: 'Re-match',
+          reasoningShort: 'Re-match',
+        }),
+      );
+
+    // Should skip - re-matches are handled by reMatchedOpportunityNotification
     expect(result).toBeUndefined();
   });
 });

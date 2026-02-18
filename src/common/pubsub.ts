@@ -22,12 +22,8 @@ import {
 } from '../entity';
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
-import {
-  addPubsubSpanLabels,
-  opentelemetry,
-  runInRootSpan,
-  runInSpan,
-} from '../telemetry';
+import { SpanKind } from '@opentelemetry/api';
+import { addPubsubSpanLabels, runInRootSpan, runInSpan } from '../telemetry';
 import { Message } from '@google-cloud/pubsub';
 // import { performance } from 'perf_hooks';
 import { DataSource } from 'typeorm';
@@ -130,7 +126,7 @@ export const publishEvent = async (
       }
     },
     {
-      kind: opentelemetry.SpanKind.PRODUCER,
+      kind: SpanKind.PRODUCER,
     },
   );
 
@@ -537,7 +533,7 @@ export const workerSubscribe = (
         // });
       },
       {
-        kind: opentelemetry.SpanKind.CONSUMER,
+        kind: SpanKind.CONSUMER,
       },
     ),
   );

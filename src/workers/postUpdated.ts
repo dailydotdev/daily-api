@@ -6,9 +6,11 @@ import {
   addRelatedPosts,
   ArticlePost,
   bannedAuthors,
+  COMMUNITY_PICKS_SOURCE,
   CollectionPost,
   findAuthor,
   FreeformPost,
+  generateTitleHtml,
   getPostVisible,
   mergeKeywords,
   parseReadTime,
@@ -22,6 +24,7 @@ import {
   relatePosts,
   removeKeywords,
   SharePost,
+  SocialTwitterPost,
   Source,
   Submission,
   SubmissionStatus,
@@ -41,6 +44,14 @@ import { FastifyBaseLogger } from 'fastify';
 import { EntityManager, QueryFailedError } from 'typeorm';
 import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
+import {
+  isTwitterSocialType,
+  mapTwitterSocialPayload,
+  normalizeTwitterHandle,
+  resolveTwitterSourceId,
+  type TwitterReferencePost,
+  upsertTwitterReferencedPost,
+} from '../common/twitterSocial';
 import { counters } from '../telemetry';
 import { I18nRecord } from '../types';
 import { insertCodeSnippetsFromUrl } from '../common/post';
@@ -78,9 +89,12 @@ interface Data {
     toc?: Toc;
     content_curation?: string[];
     origin_entries?: string[];
-    content: string;
+    content?: string;
     video_id?: string;
     duration?: number;
+    author_username?: string;
+    author_name?: string;
+    author_avatar?: string;
   };
   meta?: {
     scraped_html?: string;
@@ -90,6 +104,13 @@ interface Data {
     };
     stored_code_snippets?: string;
     channels?: string[];
+    social_twitter?: {
+      creator?: {
+        handle?: string;
+        name?: string;
+        profile_image?: string;
+      };
+    };
   };
   content_quality?: PostContentQuality;
 }
@@ -280,6 +301,37 @@ const allowedFieldsMapping: Partial<Record<PostType, string[]>> = {
     'tagsStr',
     'contentMeta',
   ],
+  [PostType.SocialTwitter]: [
+    'canonicalUrl',
+    'content',
+    'contentCuration',
+    'contentHtml',
+    'contentMeta',
+    'contentQuality',
+    'creatorTwitter',
+    'description',
+    'image',
+    'language',
+    'metadataChangedAt',
+    'origin',
+    'private',
+    'publishedAt',
+    'readTime',
+    'sentAnalyticsReport',
+    'sharedPostId',
+    'showOnFeed',
+    'siteTwitter',
+    'sourceId',
+    'subType',
+    'summary',
+    'tagsStr',
+    'title',
+    'titleHtml',
+    'translation',
+    'type',
+    'url',
+    'videoId',
+  ],
 };
 
 const contentTypeFromPostType: Record<PostType, typeof Post> = {
@@ -291,6 +343,7 @@ const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.VideoYouTube]: YouTubePost,
   [PostType.Brief]: BriefPost,
   [PostType.Poll]: PollPost,
+  [PostType.SocialTwitter]: SocialTwitterPost,
 };
 
 type UpdatePostProps = {
@@ -398,13 +451,38 @@ const updatePost = async ({
     ['contentMeta', 'contentQuality'];
 
   jsonMetaFields.forEach((metaField) => {
-    if (
-      Object.keys(data[metaField]!).length === 0 &&
-      Object.keys(databasePost[metaField]).length > 0
-    ) {
+    const incomingKeys = Object.keys(data[metaField] ?? {});
+    const existingKeys = Object.keys(databasePost[metaField] ?? {});
+
+    if (!incomingKeys.length && existingKeys.length) {
       data[metaField] = databasePost[metaField];
     }
   });
+
+  if (content_type === PostType.SocialTwitter) {
+    const existingMeta = (databasePost.contentMeta ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const incomingMeta = (data.contentMeta ?? {}) as Record<string, unknown>;
+    const existingTwitter =
+      (existingMeta.social_twitter as Record<string, unknown>) ?? {};
+    const incomingTwitter =
+      (incomingMeta.social_twitter as Record<string, unknown>) ?? {};
+
+    data.contentMeta = {
+      ...existingMeta,
+      ...incomingMeta,
+      social_twitter: {
+        ...existingTwitter,
+        ...incomingTwitter,
+        creator: {
+          ...((existingTwitter.creator as Record<string, unknown>) ?? {}),
+          ...((incomingTwitter.creator as Record<string, unknown>) ?? {}),
+        },
+      },
+    };
+  }
 
   if (
     data.contentQuality &&
@@ -493,25 +571,40 @@ const getSourcePrivacy = async ({
   data,
 }: GetSourcePrivacyProps): Promise<boolean | undefined> => {
   try {
-    let query = entityManager
-      .getRepository(Source)
-      .createQueryBuilder('source')
-      .select(['source.private']);
+    const sourceRepo = entityManager.getRepository(Source);
 
-    // If we don't have a source id, we need to find the source id from the post
-    if (!data?.source_id || data?.source_id === UNKNOWN_SOURCE) {
-      query = query.innerJoinAndSelect(
-        'source.posts',
-        'posts',
-        'posts.id = :id',
-        { id: data?.post_id },
-      );
-    } else {
-      query = query.where('source.id = :id', { id: data?.source_id });
+    const resolveById = async (id: string): Promise<Source> =>
+      sourceRepo
+        .createQueryBuilder('source')
+        .select(['source.private'])
+        .where('source.id = :id', { id })
+        .getOneOrFail();
+
+    const resolveFromPost = async (postId: string): Promise<Source> =>
+      sourceRepo
+        .createQueryBuilder('source')
+        .select(['source.private'])
+        .innerJoinAndSelect('source.posts', 'posts', 'posts.id = :id', {
+          id: postId,
+        })
+        .getOneOrFail();
+
+    if (!data?.source_id) {
+      const source = await resolveFromPost(data?.post_id);
+      return source.private;
     }
 
-    const source = await query.getOneOrFail();
+    if (data?.source_id === UNKNOWN_SOURCE && data?.post_id) {
+      try {
+        const source = await resolveFromPost(data.post_id);
+        return source.private;
+      } catch {
+        const source = await resolveById(UNKNOWN_SOURCE);
+        return source.private;
+      }
+    }
 
+    const source = await resolveById(data.source_id);
     return source.private;
   } catch (err) {
     const sourcePostError = new Error('failed to find source for post');
@@ -533,24 +626,85 @@ type FixData = {
   content_type: PostType;
   fixedData: Partial<ArticlePost> &
     Partial<CollectionPost> &
-    Partial<YouTubePost>;
+    Partial<YouTubePost> &
+    Partial<SocialTwitterPost> &
+    Partial<Post>;
   smartTitle?: string;
+  twitterReference?: TwitterReferencePost;
 };
+
+const resolveTwitterIngestionSourceId = ({
+  sourceId,
+  resolvedTwitterSourceId,
+  origin,
+}: {
+  sourceId?: string;
+  resolvedTwitterSourceId?: string;
+  origin?: string;
+}): string => {
+  const explicitSourceId =
+    sourceId && sourceId !== UNKNOWN_SOURCE ? sourceId : undefined;
+
+  if (explicitSourceId) {
+    return explicitSourceId;
+  }
+
+  if (resolvedTwitterSourceId) {
+    return resolvedTwitterSourceId;
+  }
+
+  if (origin === PostOrigin.UserGenerated) {
+    return COMMUNITY_PICKS_SOURCE;
+  }
+
+  return UNKNOWN_SOURCE;
+};
+
 const fixData = async ({
   logger,
   entityManager,
   data,
 }: FixDataProps): Promise<FixData> => {
-  const creatorTwitter =
+  const creatorTwitterFromExtra =
     data?.extra?.creator_twitter === '' || data?.extra?.creator_twitter === '@'
-      ? null
+      ? undefined
       : data?.extra?.creator_twitter;
+
+  const isSocialTwitter = isTwitterSocialType(data?.content_type);
+  const twitterMapping = isSocialTwitter
+    ? mapTwitterSocialPayload({ data })
+    : undefined;
+  const creatorTwitterFromAuthorUsername = normalizeTwitterHandle(
+    data?.extra?.author_username,
+  );
+  const creatorTwitter =
+    creatorTwitterFromExtra ||
+    creatorTwitterFromAuthorUsername ||
+    twitterMapping?.authorUsername;
+  const resolvedTwitterSource =
+    isSocialTwitter && (!data?.source_id || data?.source_id === UNKNOWN_SOURCE)
+      ? await resolveTwitterSourceId({
+          entityManager,
+          authorUsername: twitterMapping?.authorUsername,
+        })
+      : undefined;
+  const sourceId = isSocialTwitter
+    ? resolveTwitterIngestionSourceId({
+        sourceId: data?.source_id,
+        resolvedTwitterSourceId: resolvedTwitterSource?.id,
+        origin: data?.origin,
+      })
+    : data?.source_id;
+  const showOnFeed = isSocialTwitter ? false : !data?.order;
 
   const authorId = await findAuthor(entityManager, creatorTwitter || undefined);
   const privacy = await getSourcePrivacy({
     logger,
     entityManager,
-    data,
+    data: {
+      ...data,
+      source_id: sourceId,
+    },
   });
 
   let keywords = data?.extra?.keywords;
@@ -576,50 +730,92 @@ const fixData = async ({
   const duration = data?.extra?.duration
     ? data?.extra?.duration / 60
     : undefined;
+  const contentMeta: Data['meta'] = {
+    ...(data?.meta || {}),
+  };
 
-  // Try and fix generic data here
+  const authorProfile = twitterMapping?.authorProfile;
+  if (authorProfile) {
+    contentMeta.social_twitter = {
+      ...(contentMeta.social_twitter || {}),
+      creator: {
+        ...(contentMeta.social_twitter?.creator || {}),
+        ...(authorProfile.handle ? { handle: authorProfile.handle } : {}),
+        ...(authorProfile.name ? { name: authorProfile.name } : {}),
+        ...(authorProfile.profileImage
+          ? { profile_image: authorProfile.profileImage }
+          : {}),
+      },
+    };
+  }
+
+  const contentType =
+    (isTwitterSocialType(data?.content_type)
+      ? PostType.SocialTwitter
+      : (data?.content_type as PostType)) || PostType.Article;
+
+  const fixedData: FixData['fixedData'] = {
+    origin: data?.origin as PostOrigin,
+    authorId,
+    creatorTwitter,
+    url: data?.url,
+    canonicalUrl: data?.extra?.canonical_url || data?.url,
+    image: data?.image,
+    sourceId,
+    title: data?.title && he.decode(data?.title),
+    readTime: parseReadTime(data?.extra?.read_time || duration),
+    publishedAt: parseDate(data?.published_at),
+    metadataChangedAt: parseDate(data?.updated_at) || new Date(),
+    tagsStr: allowedKeywords?.join(',') || null,
+    private: privacy,
+    sentAnalyticsReport: privacy || !authorId,
+    summary: data?.extra?.summary,
+    description: data?.extra?.description,
+    siteTwitter: data?.extra?.site_twitter,
+    toc: data?.extra?.toc,
+    contentCuration: data?.extra?.content_curation,
+    showOnFeed,
+    flags: {
+      private: privacy,
+      showOnFeed,
+      sentAnalyticsReport: privacy || !authorId,
+    },
+    yggdrasilId: data?.id,
+    type: contentType,
+    content: data?.extra?.content,
+    contentHtml: data?.extra?.content
+      ? markdown.render(data.extra.content)
+      : undefined,
+    videoId: data?.extra?.video_id,
+    language: data?.language,
+    subType: null,
+    contentMeta,
+    contentQuality: data?.content_quality || {},
+    ...(twitterMapping?.fields
+      ? {
+          ...twitterMapping.fields,
+          title: twitterMapping.fields.title ?? undefined,
+          content: twitterMapping.fields.content ?? undefined,
+          contentHtml: twitterMapping.fields.contentHtml ?? undefined,
+          image: twitterMapping.fields.image ?? undefined,
+          videoId: twitterMapping.fields.videoId ?? undefined,
+        }
+      : {}),
+  };
+
+  if (contentType === PostType.SocialTwitter) {
+    fixedData.titleHtml = fixedData.title
+      ? generateTitleHtml(fixedData.title, [])
+      : null;
+  }
+
   return {
     mergedKeywords,
     questions: data?.extra?.questions || [],
-    content_type: data?.content_type as PostType,
+    content_type: contentType,
     smartTitle: data?.alt_title,
-    fixedData: {
-      origin: data?.origin as PostOrigin,
-      authorId,
-      creatorTwitter,
-      url: data?.url,
-      canonicalUrl: data?.extra?.canonical_url || data?.url,
-      image: data?.image,
-      sourceId: data?.source_id,
-      title: data?.title && he.decode(data?.title),
-      readTime: parseReadTime(data?.extra?.read_time || duration),
-      publishedAt: parseDate(data?.published_at),
-      metadataChangedAt: parseDate(data?.updated_at) || new Date(),
-      tagsStr: allowedKeywords?.join(',') || null,
-      private: privacy,
-      sentAnalyticsReport: privacy || !authorId,
-      summary: data?.extra?.summary,
-      description: data?.extra?.description,
-      siteTwitter: data?.extra?.site_twitter,
-      toc: data?.extra?.toc,
-      contentCuration: data?.extra?.content_curation,
-      showOnFeed: !data?.order,
-      flags: {
-        private: privacy,
-        showOnFeed: !data?.order,
-        sentAnalyticsReport: privacy || !authorId,
-      },
-      yggdrasilId: data?.id,
-      type: data?.content_type as PostType,
-      content: data?.extra?.content,
-      contentHtml: data?.extra?.content
-        ? markdown.render(data.extra.content)
-        : undefined,
-      videoId: data?.extra?.video_id,
-      language: data?.language,
-      contentMeta: data?.meta || {},
-      contentQuality: data?.content_quality || {},
-    },
+    twitterReference: twitterMapping?.reference,
+    fixedData,
   };
 };
 
@@ -667,6 +863,7 @@ const worker: Worker = {
           content_type,
           smartTitle,
           fixedData,
+          twitterReference,
         } = await fixData({
           logger,
           entityManager,
@@ -676,6 +873,14 @@ const worker: Worker = {
             post_id: postId || data.post_id,
           },
         });
+
+        if (content_type === PostType.SocialTwitter && twitterReference) {
+          fixedData.sharedPostId = await upsertTwitterReferencedPost({
+            entityManager,
+            reference: twitterReference,
+            language: fixedData.language,
+          });
+        }
 
         // See if post id is not available
         if (!postId) {

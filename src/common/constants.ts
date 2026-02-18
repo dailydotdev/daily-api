@@ -20,5 +20,6 @@ export const coresBalanceExpirationSeconds = 60 * ONE_MINUTE_IN_SECONDS;
 
 // Position value for newly added items (tools, stack, hot takes)
 export const NEW_ITEM_POSITION = 999999;
+export const MAX_STACK_ITEMS = 100;
 
 export const PUBLIC_API_PREFIX = '/public/v1';

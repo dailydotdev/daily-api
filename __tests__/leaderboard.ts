@@ -15,6 +15,12 @@ import {
   UserStreak,
 } from '../src/entity';
 import { PopularHotTake } from '../src/entity/PopularHotTake';
+import {
+  Achievement,
+  AchievementType,
+  AchievementEventType,
+} from '../src/entity/Achievement';
+import { UserAchievement } from '../src/entity/user/UserAchievement';
 
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
@@ -483,6 +489,187 @@ describe('leaderboard', () => {
         },
       },
     ]);
+  });
+
+  describe('mostAchievementPoints', () => {
+    const ACHIEVEMENT_QUERY = `
+      query MostAchievementPoints($limit: Int) {
+        mostAchievementPoints(limit: $limit) {
+          score
+          user {
+            id
+            username
+          }
+        }
+      }
+    `;
+
+    const createAchievement = (
+      overrides: Partial<Achievement> = {},
+    ): Partial<Achievement> => ({
+      name: 'Test Achievement',
+      description: 'A test achievement',
+      image: 'https://daily.dev/badge.jpg',
+      type: AchievementType.Instant,
+      eventType: AchievementEventType.ProfileImageUpdate,
+      criteria: {},
+      points: 10,
+      ...overrides,
+    });
+
+    it('should return empty when no achievements are unlocked', async () => {
+      const res = await client.query(ACHIEVEMENT_QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.mostAchievementPoints).toEqual([]);
+    });
+
+    it('should return users ranked by total achievement points', async () => {
+      const [a1, a2, a3] = await con.getRepository(Achievement).save([
+        createAchievement({ name: 'Achievement 1', points: 10 }),
+        createAchievement({
+          name: 'Achievement 2',
+          points: 20,
+          eventType: AchievementEventType.PostUpvote,
+        }),
+        createAchievement({
+          name: 'Achievement 3',
+          points: 30,
+          eventType: AchievementEventType.CommentUpvote,
+        }),
+      ]);
+
+      const now = new Date();
+      await con.getRepository(UserAchievement).save([
+        { userId: '1', achievementId: a1.id, unlockedAt: now },
+        { userId: '1', achievementId: a2.id, unlockedAt: now },
+        { userId: '2', achievementId: a3.id, unlockedAt: now },
+        { userId: '3', achievementId: a1.id, unlockedAt: now },
+      ]);
+
+      const res = await client.query(ACHIEVEMENT_QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.mostAchievementPoints).toHaveLength(3);
+      expect(res.data.mostAchievementPoints).toMatchObject([
+        { score: 30, user: { id: '1' } },
+        { score: 30, user: { id: '2' } },
+        { score: 10, user: { id: '3' } },
+      ]);
+    });
+
+    it('should rank users who reached the same score earlier higher', async () => {
+      const [a1] = await con
+        .getRepository(Achievement)
+        .save([createAchievement({ name: 'Achievement 1', points: 10 })]);
+
+      await con.getRepository(UserAchievement).save([
+        {
+          userId: '1',
+          achievementId: a1.id,
+          unlockedAt: new Date('2024-06-01'),
+        },
+        {
+          userId: '2',
+          achievementId: a1.id,
+          unlockedAt: new Date('2024-01-01'),
+        },
+      ]);
+
+      const res = await client.query(ACHIEVEMENT_QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.mostAchievementPoints).toMatchObject([
+        { score: 10, user: { id: '2' } },
+        { score: 10, user: { id: '1' } },
+      ]);
+    });
+
+    it('should not include achievements that are not unlocked', async () => {
+      const [a1, a2] = await con.getRepository(Achievement).save([
+        createAchievement({ name: 'Achievement 1', points: 10 }),
+        createAchievement({
+          name: 'Achievement 2',
+          points: 50,
+          eventType: AchievementEventType.PostUpvote,
+        }),
+      ]);
+
+      await con.getRepository(UserAchievement).save([
+        { userId: '1', achievementId: a1.id, unlockedAt: new Date() },
+        {
+          userId: '1',
+          achievementId: a2.id,
+          unlockedAt: null,
+          progress: 5,
+        },
+      ]);
+
+      const res = await client.query(ACHIEVEMENT_QUERY);
+      expect(res.errors).toBeFalsy();
+      expect(res.data.mostAchievementPoints).toHaveLength(1);
+      expect(res.data.mostAchievementPoints[0]).toMatchObject({
+        score: 10,
+        user: { id: '1' },
+      });
+    });
+
+    it('should respect the limit parameter', async () => {
+      const [a1] = await con
+        .getRepository(Achievement)
+        .save([createAchievement({ name: 'Achievement 1', points: 10 })]);
+
+      await con.getRepository(UserAchievement).save([
+        { userId: '1', achievementId: a1.id, unlockedAt: new Date() },
+        { userId: '2', achievementId: a1.id, unlockedAt: new Date() },
+        { userId: '3', achievementId: a1.id, unlockedAt: new Date() },
+      ]);
+
+      const res = await client.query(ACHIEVEMENT_QUERY, {
+        variables: { limit: 2 },
+      });
+      expect(res.errors).toBeFalsy();
+      expect(res.data.mostAchievementPoints).toHaveLength(2);
+    });
+
+    it('should use latest unlock time as tiebreaker across multiple achievements', async () => {
+      const [a1, a2] = await con.getRepository(Achievement).save([
+        createAchievement({ name: 'Achievement 1', points: 10 }),
+        createAchievement({
+          name: 'Achievement 2',
+          points: 10,
+          eventType: AchievementEventType.PostUpvote,
+        }),
+      ]);
+
+      await con.getRepository(UserAchievement).save([
+        {
+          userId: '1',
+          achievementId: a1.id,
+          unlockedAt: new Date('2024-01-01'),
+        },
+        {
+          userId: '1',
+          achievementId: a2.id,
+          unlockedAt: new Date('2024-12-01'),
+        },
+        {
+          userId: '2',
+          achievementId: a1.id,
+          unlockedAt: new Date('2024-06-01'),
+        },
+        {
+          userId: '2',
+          achievementId: a2.id,
+          unlockedAt: new Date('2024-06-15'),
+        },
+      ]);
+
+      const res = await client.query(ACHIEVEMENT_QUERY);
+      expect(res.errors).toBeFalsy();
+      // Both have 20 points, but user 2's MAX(unlockedAt) is earlier
+      expect(res.data.mostAchievementPoints).toMatchObject([
+        { score: 20, user: { id: '2' } },
+        { score: 20, user: { id: '1' } },
+      ]);
+    });
   });
 
   describe('popularHotTakes', () => {

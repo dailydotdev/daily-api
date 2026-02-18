@@ -389,6 +389,7 @@ export const getPersonalizedDigestEmailPayload = async ({
     logger.info(
       {
         adProps,
+        personalizedDigest,
       },
       'Got Skadi powered Ad',
     );

@@ -1,6 +1,6 @@
 import type { Roles } from './roles';
 import type { AccessToken } from './auth';
-import type { opentelemetry } from './telemetry';
+import type { Span, Tracer } from '@opentelemetry/api';
 import type { GarmrService } from './integrations/garmr';
 import { type Client } from '@connectrpc/connect';
 import type { ServiceType } from '@bufbuild/protobuf';
@@ -87,6 +87,12 @@ declare global {
       GONDUL_OPPORTUNITY_SERVER_ORIGIN: string;
       BROKKR_ORIGIN: string;
       OUTBOUND_SERVICE_SECRET: string;
+
+      OTEL_SERVICE_NAME: string;
+      OTEL_SERVICE_VERSION: string;
+      OTEL_LOGGER_FORMAT: 'otel' | 'gcp';
+      OTEL_METRICS_EXPORTER: 'otlp' | 'prometheus';
+      OTEL_EXPORTER_OTLP_ENDPOINT: string;
     }
   }
 }
@@ -107,7 +113,7 @@ declare module 'fastify' {
     isBot?: boolean;
 
     // Used for tracing
-    span?: opentelemetry.Span;
+    span?: Span;
 
     // Used for public API authentication
     apiUserId?: string;
@@ -116,7 +122,7 @@ declare module 'fastify' {
 
   interface FastifyInstance {
     // Used for tracing
-    tracer?: opentelemetry.Tracer;
+    tracer?: Tracer;
     // Used for public API routes to access database
     con?: DataSource;
   }

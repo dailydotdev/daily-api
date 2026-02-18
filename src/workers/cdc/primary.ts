@@ -30,6 +30,7 @@ import {
   SourceFeed,
   SourceMember,
   SourceRequest,
+  SourceType,
   SourceUser,
   SQUAD_IMAGE_PLACEHOLDER,
   SquadPublicRequest,
@@ -44,6 +45,11 @@ import {
   UserTopReader,
   Feedback,
 } from '../../entity';
+import { BookmarkList } from '../../entity/BookmarkList';
+import { HotTake } from '../../entity/user/HotTake';
+import { UserStack } from '../../entity/user/UserStack';
+import { SharePost } from '../../entity/posts/SharePost';
+import { PostAnalytics } from '../../entity/posts/PostAnalytics';
 import { Campaign, CampaignType } from '../../entity/campaign/Campaign';
 import { messageToJson, Worker } from '../worker';
 import {
@@ -113,7 +119,8 @@ import {
   runEntityReminderWorkflow,
   runReminderWorkflow,
 } from '../../temporal/notifications/utils';
-import { addDays, nextMonday, nextTuesday } from 'date-fns';
+import { addDays, differenceInMonths, nextMonday, nextTuesday } from 'date-fns';
+import { hasPlusStatusChanged } from '../../paddle';
 import {
   postReportReasonsMap,
   reportCommentReasonsMap,
@@ -134,6 +141,7 @@ import { UserReport } from '../../entity/UserReport';
 import {
   UserTransaction,
   UserTransactionStatus,
+  UserTransactionType,
 } from '../../entity/user/UserTransaction';
 import { checkUserCoresAccess } from '../../common/user';
 import { ContentPreference } from '../../entity/contentPreference/ContentPreference';
@@ -166,6 +174,11 @@ import { enrichCompanyForExperience } from '../../common/companyEnrichment';
 import { Company } from '../../entity/Company';
 import { OpportunityUser } from '../../entity/opportunities/user/OpportunityUser';
 import { OpportunityUserType } from '../../entity/opportunities/types';
+import { SourceMemberRoles } from '../../roles';
+import {
+  checkAchievementProgress,
+  AchievementEventType,
+} from '../../common/achievement';
 
 const convertUserToChangeObject = (user: User): ChangeObject<User> => ({
   ...user,
@@ -190,6 +203,52 @@ const isFreeformPostChangeLongEnough = (
     (freeform.payload.before!.content?.length || 0) -
       (freeform.payload.after!.content?.length || 0),
   ) >= FREEFORM_POST_MINIMUM_CHANGE_LENGTH;
+
+const checkProfileCompletionAchievement = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  user: ChangeObject<User>,
+): Promise<void> => {
+  // Profile completion criteria:
+  // 1. Profile image
+  // 2. Bio (headline)
+  // 3. Experience level
+  // 4. Work experience
+  // 5. Education experience
+  const hasProfileImage = !!user.image && user.image !== '';
+  const hasHeadline = !!user.bio && String(user.bio).trim() !== '';
+  const hasExperienceLevel = !!user.experienceLevel;
+
+  if (!hasProfileImage || !hasHeadline || !hasExperienceLevel) {
+    return;
+  }
+
+  const experienceResult = await con
+    .getRepository(UserExperience)
+    .createQueryBuilder('ue')
+    .select([
+      `MAX(CASE WHEN ue.type = :workType THEN 1 ELSE 0 END) as "hasWork"`,
+      `MAX(CASE WHEN ue.type = :educationType THEN 1 ELSE 0 END) as "hasEducation"`,
+    ])
+    .where('ue.userId = :userId', { userId: user.id })
+    .setParameters({
+      workType: UserExperienceType.Work,
+      educationType: UserExperienceType.Education,
+    })
+    .getRawOne();
+
+  const hasWork = experienceResult?.hasWork == 1;
+  const hasEducation = experienceResult?.hasEducation == 1;
+
+  if (hasWork && hasEducation) {
+    await checkAchievementProgress(
+      con,
+      logger,
+      user.id,
+      AchievementEventType.ProfileComplete,
+    );
+  }
+};
 
 const isCollectionUpdated = (
   collection: ChangeMessage<CollectionPost>,
@@ -340,6 +399,30 @@ const onPostVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
+      if (data.payload.after!.vote === UserVote.Up) {
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.after!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.PostUpvote,
+          );
+          if (post.authorId) {
+            await checkAchievementProgress(
+              con,
+              logger,
+              post.authorId,
+              AchievementEventType.UpvoteReceived,
+            );
+          }
+        }
+      }
       break;
     case 'u':
       await handleVoteUpdated({
@@ -359,6 +442,33 @@ const onPostVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      if (
+        data.payload.after!.vote === UserVote.Up &&
+        data.payload.before!.vote !== UserVote.Up
+      ) {
+        const post = await con.getRepository(Post).findOne({
+          where: { id: data.payload.after!.postId },
+          select: ['id', 'authorId', 'scoutId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (post && post.authorId !== voterId && post.scoutId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.PostUpvote,
+          );
+          if (post.authorId) {
+            await checkAchievementProgress(
+              con,
+              logger,
+              post.authorId,
+              AchievementEventType.UpvoteReceived,
+            );
+          }
+        }
+      }
       break;
     case 'd':
       await handleVoteDeleted({
@@ -394,6 +504,28 @@ const onCommentVoteChange = async (
         },
         vote: data.payload.after!.vote,
       });
+      if (data.payload.after!.vote === UserVote.Up) {
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.after!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.CommentUpvote,
+          );
+          await checkAchievementProgress(
+            con,
+            logger,
+            comment.userId,
+            AchievementEventType.UpvoteReceived,
+          );
+        }
+      }
       break;
     case 'u':
       await handleVoteUpdated({
@@ -413,6 +545,31 @@ const onCommentVoteChange = async (
         },
         voteBefore: data.payload.before!.vote,
       });
+      if (
+        data.payload.after!.vote === UserVote.Up &&
+        data.payload.before!.vote !== UserVote.Up
+      ) {
+        const comment = await con.getRepository(Comment).findOne({
+          where: { id: data.payload.after!.commentId },
+          select: ['id', 'userId'],
+        });
+
+        const voterId = data.payload.after!.userId;
+        if (comment && comment.userId !== voterId) {
+          await checkAchievementProgress(
+            con,
+            logger,
+            voterId,
+            AchievementEventType.CommentUpvote,
+          );
+          await checkAchievementProgress(
+            con,
+            logger,
+            comment.userId,
+            AchievementEventType.UpvoteReceived,
+          );
+        }
+      }
       break;
     case 'd':
       await handleVoteDeleted({
@@ -473,6 +630,12 @@ const onCommentChange = async (
         data.payload.after!.contentHtml,
       );
     }
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.CommentCreate,
+    );
   } else if (data.payload.op === 'u') {
     if (data.payload.before!.contentHtml !== data.payload.after!.contentHtml) {
       await notifyCommentEdited(logger, data.payload.after!);
@@ -502,6 +665,13 @@ const onUserChange = async (
         data.payload.before!,
         data.payload.after!,
       );
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ReputationGain,
+        data.payload.after!.reputation,
+      );
     }
     if (
       data.payload.before!.infoConfirmed &&
@@ -516,6 +686,40 @@ const onUserChange = async (
     }
     if (data.payload.before!.readme !== data.payload.after!.readme) {
       await notifyUserReadmeUpdated(logger, data.payload.after!);
+    }
+
+    if (
+      isChanged(data.payload.before!, data.payload.after!, 'image') &&
+      data.payload.after!.image
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ProfileImageUpdate,
+      );
+    }
+    if (
+      isChanged(data.payload.before!, data.payload.after!, 'cover') &&
+      data.payload.after!.cover
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ProfileCoverUpdate,
+      );
+    }
+    if (
+      isChanged(data.payload.before!, data.payload.after!, 'locationId') &&
+      data.payload.after!.locationId
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.ProfileLocationUpdate,
+      );
     }
 
     if (
@@ -534,6 +738,38 @@ const onUserChange = async (
         },
       );
     }
+
+    const beforeFlags = JSON.parse(
+      (data.payload.before!.subscriptionFlags as unknown as string) || '{}',
+    );
+    const afterFlags = JSON.parse(
+      (data.payload.after!.subscriptionFlags as unknown as string) || '{}',
+    );
+    const plusStatus = hasPlusStatusChanged(afterFlags, beforeFlags);
+    if (plusStatus.statusChanged && plusStatus.isPlus) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.id,
+        AchievementEventType.PlusSubscribe,
+      );
+    }
+
+    if (plusStatus.isPlus && afterFlags.createdAt) {
+      const createdAt = new Date(afterFlags.createdAt);
+      const monthsSubscribed = differenceInMonths(new Date(), createdAt);
+      if (monthsSubscribed >= 12) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          data.payload.after!.id,
+          AchievementEventType.SubscriptionAnniversary,
+          monthsSubscribed,
+        );
+      }
+    }
+
+    await checkProfileCompletionAchievement(con, logger, data.payload.after!);
   }
   if (data.payload.op === 'd') {
     await triggerTypedEvent(logger, 'user-deleted', {
@@ -572,6 +808,26 @@ const onPostChange = async (
       if (isFreeformPostLongEnough(freeform)) {
         await notifyFreeformContentRequested(logger, freeform);
       }
+      if (data.payload.after!.authorId) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          data.payload.after!.authorId,
+          AchievementEventType.PostFreeform,
+        );
+      }
+    }
+    if (
+      data.payload.after!.type === PostType.Share &&
+      data.payload.after!.authorId &&
+      data.payload.after!.visible
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.authorId,
+        AchievementEventType.PostShare,
+      );
     }
     if (data.payload.after!.type === PostType.Poll) {
       const poll = data as ChangeMessage<PollPost>;
@@ -917,6 +1173,17 @@ const onFeedChange = async (
 ) => {
   if (data.payload.op === 'c') {
     await updateAlerts(con, data.payload.after!.userId, { myFeed: 'created' });
+
+    // feed id differs from userId means custom feed
+    const feed = data.payload.after!;
+    if (feed.id !== feed.userId) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        feed.userId,
+        AchievementEventType.FeedCreate,
+      );
+    }
   }
 };
 
@@ -977,6 +1244,31 @@ const onSourceMemberChange = async (
 ) => {
   if (data.payload.op === 'c') {
     await notifyMemberJoinedSource(logger, data.payload.after!);
+
+    const sourceMember = data.payload.after!;
+    const source = await con
+      .getRepository(Source)
+      .findOneBy({ id: sourceMember.sourceId });
+
+    if (source && source.type === SourceType.Squad) {
+      if (sourceMember.role === SourceMemberRoles.Member) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          sourceMember.userId,
+          AchievementEventType.SquadJoin,
+        );
+      }
+
+      if (sourceMember.role === SourceMemberRoles.Admin) {
+        await checkAchievementProgress(
+          con,
+          logger,
+          sourceMember.userId,
+          AchievementEventType.SquadCreate,
+        );
+      }
+    }
   }
   if (data.payload.op === 'u') {
     if (data.payload.before!.role !== data.payload.after!.role) {
@@ -1162,6 +1454,17 @@ const onUserStreakChange = async (
     await triggerTypedEvent(logger, 'api.v1.user-streak-updated', {
       streak: data.payload.after!,
     });
+
+    const maxStreak = data.payload.after!.maxStreak;
+    if (maxStreak > (data.payload.before?.maxStreak ?? 0)) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        data.payload.after!.userId,
+        AchievementEventType.ReadingStreak,
+        maxStreak,
+      );
+    }
   }
 };
 
@@ -1213,7 +1516,7 @@ const onUserCompanyCompanyChange = async (
 };
 
 const onUserTopReaderChange = async (
-  _: DataSource,
+  con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserTopReader>,
 ) => {
@@ -1223,10 +1526,22 @@ const onUserTopReaderChange = async (
   await triggerTypedEvent(logger, 'api.v1.user-top-reader', {
     userTopReader: data.payload.after!,
   });
+
+  const userId = data.payload.after!.userId;
+  const badgeCount = await con
+    .getRepository(UserTopReader)
+    .count({ where: { userId } });
+  await checkAchievementProgress(
+    con,
+    logger,
+    userId,
+    AchievementEventType.TopReaderBadge,
+    badgeCount,
+  );
 };
 
 const onUserTransactionChange = async (
-  _: DataSource,
+  con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<UserTransaction>,
 ) => {
@@ -1241,6 +1556,48 @@ const onUserTransactionChange = async (
     await triggerTypedEvent(logger, 'api.v1.user-transaction', {
       transaction: data.payload.after!,
     });
+
+    const transaction = data.payload.after!;
+
+    if (
+      transaction.referenceType === UserTransactionType.PostBoost &&
+      transaction.senderId
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        transaction.senderId,
+        AchievementEventType.PostBoost,
+      );
+    }
+
+    if (
+      (transaction.referenceType === UserTransactionType.Post ||
+        transaction.referenceType === UserTransactionType.Comment) &&
+      transaction.senderId &&
+      transaction.receiverId !== transaction.senderId
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        transaction.receiverId,
+        AchievementEventType.AwardReceived,
+      );
+    }
+
+    if (
+      (transaction.referenceType === UserTransactionType.Post ||
+        transaction.referenceType === UserTransactionType.Comment) &&
+      transaction.senderId &&
+      transaction.receiverId !== transaction.senderId
+    ) {
+      await checkAchievementProgress(
+        con,
+        logger,
+        transaction.senderId,
+        AchievementEventType.AwardGiven,
+      );
+    }
   }
 };
 
@@ -1262,10 +1619,19 @@ const onBookmarkChange = async (
   if (data.payload.after?.remindAt) {
     runReminderWorkflow(getParams('after'));
   }
+
+  if (data.payload.op === 'c') {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.BookmarkPost,
+    );
+  }
 };
 
 const onContentPreferenceChange = async (
-  _: DataSource,
+  con: DataSource,
   logger: FastifyBaseLogger,
   data: ChangeMessage<ContentPreference>,
 ) => {
@@ -1284,6 +1650,30 @@ const onContentPreferenceChange = async (
           await triggerTypedEvent(logger, 'api.v1.user-follow', {
             payload: contentPreferenceUser,
           });
+
+          await checkAchievementProgress(
+            con,
+            logger,
+            contentPreferenceUser.userId,
+            AchievementEventType.UserFollow,
+          );
+
+          const followerCount = await con
+            .getRepository(ContentPreference)
+            .count({
+              where: {
+                referenceId: contentPreferenceUser.referenceId,
+                type: ContentPreferenceType.User,
+                status: ContentPreferenceStatus.Follow,
+              },
+            });
+          await checkAchievementProgress(
+            con,
+            logger,
+            contentPreferenceUser.referenceId,
+            AchievementEventType.FollowerGain,
+            followerCount,
+          );
         }
         break;
       }
@@ -1380,6 +1770,25 @@ const onUserCandidatePreferenceChange = async (
     logger,
     userId: data.payload.after!.userId,
   });
+
+  // cv field has a blob when uploaded
+  const cv = JSON.parse(
+    (data.payload.after!.cv as unknown as string) || '{}',
+  ) as { blob?: string };
+  const previousCv = JSON.parse(
+    (data.payload.before?.cv as unknown as string) || '{}',
+  ) as { blob?: string };
+  const hasCvBlob = cv?.blob;
+  const hadPreviousCvBlob = previousCv?.blob;
+
+  if (hasCvBlob && !hadPreviousCvBlob) {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.CVUpload,
+    );
+  }
 };
 
 const onOpportunityChange = async (
@@ -1617,6 +2026,36 @@ const onUserExperienceChange = async (
 ) => {
   const experience = data.payload.after;
 
+  if (data.payload.op === 'c' && experience) {
+    const eventTypeMap: Record<UserExperienceType, AchievementEventType> = {
+      [UserExperienceType.Work]: AchievementEventType.ExperienceWork,
+      [UserExperienceType.Education]: AchievementEventType.ExperienceEducation,
+      [UserExperienceType.OpenSource]:
+        AchievementEventType.ExperienceOpenSource,
+      [UserExperienceType.Project]: AchievementEventType.ExperienceProject,
+      [UserExperienceType.Volunteering]:
+        AchievementEventType.ExperienceVolunteering,
+      [UserExperienceType.Certification]:
+        AchievementEventType.ExperienceCertification,
+    };
+
+    const eventType = eventTypeMap[experience.type];
+    await checkAchievementProgress(con, logger, experience.userId, eventType);
+
+    if (
+      experience.type === UserExperienceType.Work ||
+      experience.type === UserExperienceType.Education
+    ) {
+      const user = await con.getRepository(User).findOneBy({
+        id: experience.userId,
+      });
+      if (user) {
+        const userChangeObject = convertUserToChangeObject(user);
+        await checkProfileCompletionAchievement(con, logger, userChangeObject);
+      }
+    }
+  }
+
   if (
     !experience ||
     ![UserExperienceType.Work, UserExperienceType.Education].includes(
@@ -1761,6 +2200,111 @@ const onFeedbackChange = async (
   }
 };
 
+const onHotTakeChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<HotTake>,
+) => {
+  if (data.payload.op === 'c') {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.HotTakeCreate,
+    );
+  }
+};
+
+const onUserStackChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<UserStack>,
+) => {
+  if (data.payload.op === 'c') {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.ExperienceSkill,
+    );
+  }
+};
+
+const onBookmarkListChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<BookmarkList>,
+) => {
+  if (data.payload.op === 'c') {
+    await checkAchievementProgress(
+      con,
+      logger,
+      data.payload.after!.userId,
+      AchievementEventType.BookmarkListCreate,
+    );
+  }
+};
+
+const onPostAnalyticsChange = async (
+  con: DataSource,
+  logger: FastifyBaseLogger,
+  data: ChangeMessage<PostAnalytics>,
+) => {
+  if (data.payload.op !== 'u') {
+    return;
+  }
+
+  const postId = data.payload.after!.id;
+  const clicks = data.payload.after!.clicks;
+  const prevClicks = data.payload.before?.clicks ?? 0;
+
+  if (clicks <= prevClicks) {
+    return;
+  }
+
+  const sharePost = await con.getRepository(SharePost).findOne({
+    where: { id: postId },
+    select: ['id', 'authorId'],
+  });
+
+  if (!sharePost || !sharePost.authorId) {
+    return;
+  }
+
+  if (prevClicks === 0 && clicks > 0) {
+    await checkAchievementProgress(
+      con,
+      logger,
+      sharePost.authorId,
+      AchievementEventType.ShareClick,
+    );
+  }
+
+  await checkAchievementProgress(
+    con,
+    logger,
+    sharePost.authorId,
+    AchievementEventType.ShareClickMilestone,
+    clicks,
+  );
+
+  const postsWithClicks = await con
+    .getRepository(SharePost)
+    .createQueryBuilder('sp')
+    .innerJoin(PostAnalytics, 'pa', 'pa.id = sp.id')
+    .where('sp.authorId = :userId', { userId: sharePost.authorId })
+    .andWhere('pa.clicks > 0')
+    .getCount();
+
+  await checkAchievementProgress(
+    con,
+    logger,
+    sharePost.authorId,
+    AchievementEventType.SharePostsClicked,
+    postsWithClicks,
+  );
+};
+
 const worker: Worker = {
   subscription: 'api-cdc',
   maxMessages: parseInt(process.env.CDC_WORKER_MAX_MESSAGES) || undefined,
@@ -1897,6 +2441,18 @@ const worker: Worker = {
           break;
         case getTableName(con, Feedback):
           await onFeedbackChange(con, logger, data);
+          break;
+        case getTableName(con, HotTake):
+          await onHotTakeChange(con, logger, data);
+          break;
+        case getTableName(con, UserStack):
+          await onUserStackChange(con, logger, data);
+          break;
+        case getTableName(con, BookmarkList):
+          await onBookmarkListChange(con, logger, data);
+          break;
+        case getTableName(con, PostAnalytics):
+          await onPostAnalyticsChange(con, logger, data);
           break;
       }
     } catch (err) {

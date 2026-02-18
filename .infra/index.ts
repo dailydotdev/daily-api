@@ -4,7 +4,9 @@ import * as pulumi from '@pulumi/pulumi';
 import { Input, ProviderResource } from '@pulumi/pulumi';
 import {
   digestDeadLetter,
+  workerJobDeadLetter,
   personalizedDigestWorkers,
+  workerJobWorkers,
   workers,
 } from './workers';
 import { crons } from './crons';
@@ -32,6 +34,14 @@ import {
 const isAdhocEnv = detectIsAdhocEnv();
 const name = 'api';
 const debeziumTopicName = `${name}.changes`;
+const cliArgs = (...commands: string[]): string[] => [
+  'dumb-init',
+  'node',
+  '--require',
+  './src/telemetry/register.js',
+  'bin/cli',
+  ...commands,
+];
 const isPersonalizedDigestEnabled =
   config.require('enablePersonalizedDigest') === 'true';
 
@@ -151,6 +161,21 @@ if (isPersonalizedDigestEnabled) {
   );
 }
 
+const workerJobDeadLetterTopic = new Stream(workerJobDeadLetter, {
+  isAdhocEnv,
+  name: workerJobDeadLetter,
+});
+
+createSubscriptionsFromWorkers(
+  name,
+  isAdhocEnv,
+  addLabelsToWorkers(workerJobWorkers, {
+    app: name,
+    subapp: 'worker-job',
+  }),
+  { dependsOn: [workerJobDeadLetterTopic.resource] },
+);
+
 const memory = 860;
 const apiRequests: pulumi.Input<{ cpu: string; memory: string }> = {
   cpu: '500m',
@@ -240,8 +265,6 @@ const jwtEnv = [
   { name: 'JWT_PRIVATE_KEY_PATH', value: '/opt/app/cert/key.pem' },
 ];
 
-const commonEnv = [{ name: 'SERVICE_VERSION', value: imageTag }];
-
 let appsArgs: ApplicationArgs[];
 if (isAdhocEnv) {
   podAnnotations['prometheus.io/scrape'] = 'true';
@@ -261,7 +284,6 @@ if (isAdhocEnv) {
           value: 'true',
         },
         { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-        ...commonEnv,
         ...jwtEnv,
       ],
       minReplicas: 3,
@@ -300,14 +322,7 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       podAnnotations: podAnnotations,
-      env: [
-        {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
-        },
-        ...commonEnv,
-        ...jwtEnv,
-      ],
+      env: [...jwtEnv],
       ...vols,
     },
   ];
@@ -331,14 +346,36 @@ if (isAdhocEnv) {
       ports: [{ containerPort: 9464, name: 'metrics' }],
       servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
       podAnnotations: podAnnotations,
-      env: [...commonEnv, ...jwtEnv],
+      env: [...jwtEnv],
       ...vols,
     });
   }
+
+  appsArgs.push({
+    nameSuffix: 'worker-job',
+    args: ['npm', 'run', 'dev:worker-job'],
+    minReplicas: 1,
+    maxReplicas: 10,
+    limits: bgLimits,
+    requests: bgRequests,
+    metric: {
+      type: 'pubsub',
+      labels: {
+        app: name,
+        subapp: 'worker-job',
+      },
+      targetAverageValue: 50,
+    },
+    ports: [{ containerPort: 9464, name: 'metrics' }],
+    servicePorts: [{ targetPort: 9464, port: 9464, name: 'metrics' }],
+    podAnnotations: podAnnotations,
+    env: [...jwtEnv],
+    ...vols,
+  });
 } else {
   appsArgs = [
     {
-      env: [nodeOptions(memory), ...commonEnv, ...jwtEnv],
+      env: [nodeOptions(memory), ...jwtEnv],
       minReplicas: 3,
       maxReplicas: 25,
       limits: apiLimits,
@@ -370,14 +407,9 @@ if (isAdhocEnv) {
       env: [
         nodeOptions(wsMemory),
         { name: 'ENABLE_SUBSCRIPTIONS', value: 'true' },
-        ...commonEnv,
         ...jwtEnv,
-        {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-ws`,
-        },
       ],
-      args: ['dumb-init', 'node', 'bin/cli', 'websocket'],
+      args: cliArgs('websocket'),
       minReplicas: 2,
       maxReplicas: 10,
       limits: wsLimits,
@@ -392,15 +424,8 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'bg',
-      env: [
-        ...commonEnv,
-        ...jwtEnv,
-        {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-bg`,
-        },
-      ],
-      args: ['dumb-init', 'node', 'bin/cli', 'background'],
+      env: [...jwtEnv],
+      args: cliArgs('background'),
       minReplicas: 2,
       maxReplicas: 10,
       limits: bgLimits,
@@ -421,8 +446,8 @@ if (isAdhocEnv) {
     },
     {
       nameSuffix: 'temporal',
-      env: [...commonEnv, ...jwtEnv],
-      args: ['dumb-init', 'node', 'bin/cli', 'temporal'],
+      env: [...jwtEnv],
+      args: cliArgs('temporal'),
       minReplicas: 1,
       maxReplicas: 3,
       limits: temporalLimits,
@@ -437,15 +462,7 @@ if (isAdhocEnv) {
     {
       nameSuffix: 'private',
       port: 3000,
-      env: [
-        { name: 'ENABLE_PRIVATE_ROUTES', value: 'true' },
-        ...commonEnv,
-        ...jwtEnv,
-        {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-private`,
-        },
-      ],
+      env: [{ name: 'ENABLE_PRIVATE_ROUTES', value: 'true' }, ...jwtEnv],
       minReplicas: 1,
       maxReplicas: 4,
       requests: {
@@ -469,15 +486,8 @@ if (isAdhocEnv) {
   if (isPersonalizedDigestEnabled) {
     appsArgs.push({
       nameSuffix: 'personalized-digest',
-      env: [
-        ...commonEnv,
-        ...jwtEnv,
-        {
-          name: 'SERVICE_NAME',
-          value: `${envVars.serviceName as string}-personalized-digest`,
-        },
-      ],
-      args: ['dumb-init', 'node', 'bin/cli', 'personalized-digest'],
+      env: [...jwtEnv],
+      args: cliArgs('personalized-digest'),
       minReplicas: 1,
       maxReplicas: 4,
       requests: { cpu: '50m', memory: '256Mi' },
@@ -495,6 +505,27 @@ if (isAdhocEnv) {
       ...vols,
     });
   }
+
+  appsArgs.push({
+    nameSuffix: 'worker-job',
+    env: [...jwtEnv],
+    args: cliArgs('worker-job'),
+    minReplicas: 1,
+    maxReplicas: 10,
+    requests: bgRequests,
+    limits: bgLimits,
+    metric: {
+      type: 'pubsub',
+      labels: {
+        app: name,
+        subapp: 'worker-job',
+      },
+      targetAverageValue: 50,
+    },
+    spot: { enabled: true },
+    podAnnotations: podAnnotations,
+    ...vols,
+  });
 }
 
 const vpcNativeProvider = isAdhocEnv ? undefined : getVpcNativeCluster();
@@ -532,7 +563,7 @@ const [apps] = deployApplicationSuite(
     secrets: envVars,
     migrations,
     debezium: {
-      version: '3.4.0.Final',
+      version: '3.4.1.Final',
       topicName: debeziumTopicName,
       propsPath: './application.properties',
       propsVars: {
@@ -550,7 +581,7 @@ const [apps] = deployApplicationSuite(
       ],
       requests: {
         cpu: '50m',
-        memory: '450Mi'
+        memory: '450Mi',
       },
       limits: {
         memory: '900Mi',
@@ -578,7 +609,7 @@ const [apps] = deployApplicationSuite(
       ? []
       : crons.map((cron) => ({
           nameSuffix: cron.name,
-          args: ['dumb-init', 'node', 'bin/cli', 'cron', cron.name],
+          args: cliArgs('cron', cron.name),
           schedule: cron.schedule,
           limits: cron.limits ?? bgLimits,
           requests: cron.requests ?? bgRequests,

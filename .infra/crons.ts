@@ -143,6 +143,10 @@ export const crons: Cron[] = [
     schedule: '10 */1 * * *',
   },
   {
+    name: 'squad-posts-analytics-refresh',
+    schedule: '20 */1 * * *',
+  },
+  {
     name: 'clean-zombie-opportunities',
     schedule: '30 6 * * *',
   },
@@ -153,5 +157,9 @@ export const crons: Cron[] = [
   {
     name: 'expire-super-agent-trial',
     schedule: '0 */6 * * *',
+  },
+  {
+    name: 'update-achievement-rarity',
+    schedule: '0 3 * * *',
   },
 ];

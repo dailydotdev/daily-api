@@ -6,6 +6,7 @@ import './config';
 import { crons } from './cron/index';
 import createOrGetConnection from './db';
 import { logger } from './logger';
+import { runInRootSpan } from './telemetry';
 
 export default async function app(cronName: string): Promise<void> {
   const connection = await createOrGetConnection();
@@ -14,7 +15,9 @@ export default async function app(cronName: string): Promise<void> {
   const selectedCron = crons.find((cron) => cron.name === cronName);
   if (selectedCron) {
     logger.info({ cron: cronName }, 'running cron');
-    await selectedCron.handler(connection, logger, pubsub);
+    await runInRootSpan(`cron: ${cronName}`, async () => {
+      await selectedCron.handler(connection, logger, pubsub);
+    });
   } else {
     logger.warn({ cron: cronName }, 'no such cron');
   }

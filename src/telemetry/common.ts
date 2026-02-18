@@ -1,8 +1,8 @@
 import { FastifyRequest } from 'fastify';
 import type { MetricOptions } from '@opentelemetry/api';
-import { unwrapArray } from '../common';
+import { unwrapArray } from '../common/array';
 
-export const enableOpenTelemetryTracing = process.env.OTEL_ENABLED === 'true';
+export const enableOpenTelemetry = process.env.OTEL_ENABLED === 'true';
 export const channelName = 'fastify.initialization';
 
 // Try to get the app version from the header, then query param, then default to unknown

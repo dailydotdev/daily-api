@@ -1,4 +1,4 @@
 {
   "ext": "ts,json",
-  "exec": "ts-node"
+  "exec": "ts-node --require ./src/telemetry/register.ts"
 }

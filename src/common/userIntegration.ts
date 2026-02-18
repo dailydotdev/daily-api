@@ -105,6 +105,24 @@ export const getAttachmentForPostType = async <TPostType extends PostType>({
 
       break;
     }
+    case PostType.SocialTwitter: {
+      const socialPost = post as Post & { content?: string; image?: string };
+
+      if (socialPost.title) {
+        attachment.title = socialPost.title;
+        attachment.title_link = postLink;
+      }
+
+      if (socialPost.content) {
+        attachment.text = socialPost.content;
+      }
+
+      if (socialPost.image) {
+        attachment.image_url = socialPost.image;
+      }
+
+      break;
+    }
     case PostType.Freeform:
     case PostType.Welcome:
     case PostType.Brief: {
