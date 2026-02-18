@@ -15,7 +15,6 @@ const worker: Worker = {
     const data: Data = messageToJson(message);
     logger.info({ data }, 'content-updated received');
     try {
-      // See if we received any rejections
       const { reject_reason } = data;
       await con.transaction(async (entityManager) => {
         if (reject_reason) {
@@ -24,7 +23,7 @@ const worker: Worker = {
 
         const creatorTwitter = data?.extra?.creator_twitter;
 
-        if (creatorTwitter && bannedAuthors.indexOf(creatorTwitter) > -1) {
+        if (creatorTwitter && bannedAuthors.includes(creatorTwitter)) {
           logger.info(
             { data, messageId: message.messageId },
             'post update failed because author is banned',
@@ -59,7 +58,6 @@ const worker: Worker = {
           entityManager,
           data: {
             ...data,
-            // pass resolved post id or fallback to original data
             post_id: postId || data.post_id,
           },
         });
@@ -72,9 +70,7 @@ const worker: Worker = {
           });
         }
 
-        // See if post id is not available
         if (!postId) {
-          // Handle creation of new post
           const newPost = await createPost({
             logger,
             entityManager,
@@ -86,7 +82,6 @@ const worker: Worker = {
 
           postId = newPost?.id;
         } else {
-          // Handle update of existing post
           await updatePost({
             logger,
             entityManager,
@@ -100,8 +95,6 @@ const worker: Worker = {
         }
 
         if (postId) {
-          // temp wrapper to avoid any issue with post processing
-          // while we test code snippets insertion
           const safeInsertCodeSnippets = async () => {
             try {
               await insertCodeSnippetsFromUrl({
@@ -126,7 +119,6 @@ const worker: Worker = {
           await Promise.all([
             handleCollectionRelations({
               entityManager,
-              logger,
               post: {
                 id: postId,
                 type: content_type,

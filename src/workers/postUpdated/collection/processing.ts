@@ -5,7 +5,6 @@ import {
   PostType,
   relatePosts,
 } from '../../../entity';
-import type { FastifyBaseLogger } from 'fastify';
 import type { EntityManager } from 'typeorm';
 import type { Data } from '../types';
 
@@ -15,7 +14,6 @@ export const handleCollectionRelations = async ({
   originalData,
 }: {
   entityManager: EntityManager;
-  logger: FastifyBaseLogger;
   post: Pick<CollectionPost, 'id' | 'type'>;
   originalData: Data;
 }) => {

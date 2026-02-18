@@ -13,7 +13,7 @@ import type {
 import type { TwitterReferencePost } from '../../common/twitterSocial';
 import type { I18nRecord } from '../../types';
 
-type Data = {
+export type Data = {
   id: string;
   post_id: string;
   url: string;
@@ -70,13 +70,13 @@ type Data = {
   content_quality?: PostContentQuality;
 };
 
-type HandleRejectionProps = {
+export type HandleRejectionProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Data;
 };
 
-type CreatePostProps = {
+export type CreatePostProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
@@ -85,7 +85,7 @@ type CreatePostProps = {
   smartTitle?: string;
 };
 
-type CheckExistingPostProps = {
+export type CheckExistingPostProps = {
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
   logger: FastifyBaseLogger;
@@ -93,7 +93,7 @@ type CheckExistingPostProps = {
   excludeId?: string;
 };
 
-type UpdatePostProps = {
+export type UpdatePostProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Partial<ArticlePost>;
@@ -104,19 +104,19 @@ type UpdatePostProps = {
   smartTitle?: string;
 };
 
-type GetSourcePrivacyProps = {
+export type GetSourcePrivacyProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Data;
 };
 
-type FixDataProps = {
+export type FixDataProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
   data: Data;
 };
 
-type FixData = {
+export type FixData = {
   mergedKeywords: string[];
   questions: string[];
   content_type: PostType;
@@ -127,15 +127,4 @@ type FixData = {
     Partial<Post>;
   smartTitle?: string;
   twitterReference?: TwitterReferencePost;
-};
-
-export type {
-  Data,
-  HandleRejectionProps,
-  CreatePostProps,
-  CheckExistingPostProps,
-  UpdatePostProps,
-  GetSourcePrivacyProps,
-  FixDataProps,
-  FixData,
 };

@@ -49,7 +49,6 @@ export const handleRejection = async ({
 }: HandleRejectionProps) => {
   const { reject_reason, submission_id } = data;
   if (!submission_id) {
-    // Check if we have a submission id, we need to notify
     logger.info({ data }, 'received rejection without submission id');
     return;
   }
@@ -68,8 +67,6 @@ export const handleRejection = async ({
           : SubmissionFailErrorKeys.GenericError,
     });
   }
-
-  return;
 };
 
 export const checkExistingUrl = async ({
@@ -138,7 +135,6 @@ export const createPost = async ({
     return null;
   }
 
-  // Apply vordr checks before creating the post
   data = await preparePostForInsert(data, {
     con: entityManager,
     userId: data.authorId || undefined,
@@ -192,7 +188,6 @@ export const updatePost = async ({
     .getRepository(postType)
     .findOneBy({ id });
 
-  // Update the post type in the database so that it matches the content type
   if (!databasePost) {
     await entityManager
       .createQueryBuilder()
@@ -213,7 +208,7 @@ export const updatePost = async ({
   if (
     !databasePost ||
     databasePost.metadataChangedAt.toISOString() >=
-      data.metadataChangedAt!.toISOString()
+      (data.metadataChangedAt?.toISOString() ?? '')
   ) {
     counters?.background?.postError?.add(1, {
       reason: 'date_conflict',
@@ -242,7 +237,6 @@ export const updatePost = async ({
 
   const metadataChangedAt = data?.metadataChangedAt;
 
-  // Apply vordr checks before updating the post
   data = await preparePostForUpdate(data, databasePost, {
     con: entityManager,
     userId: data.authorId || undefined,
@@ -252,17 +246,10 @@ export const updatePost = async ({
   data.id = databasePost.id;
   data.sourceId = data.sourceId || databasePost.sourceId;
 
-  let updateBecameVisible = false;
+  const updateBecameVisible =
+    !databasePost.visible && getPostVisible({ post: { title } });
 
-  if (!databasePost.visible) {
-    updateBecameVisible = getPostVisible({ post: { title } });
-  }
-
-  if (updateBecameVisible) {
-    data.visible = true;
-  } else {
-    data.visible = databasePost.visible;
-  }
+  data.visible = updateBecameVisible || databasePost.visible;
 
   if (data.visible && !databasePost.visibleAt) {
     data.visibleAt = data.metadataChangedAt;
@@ -312,7 +299,7 @@ export const updatePost = async ({
     ];
 
     Object.keys(data).forEach((key) => {
-      if (allowedFields.indexOf(key) === -1) {
+      if (!allowedFields.includes(key)) {
         delete data[key as keyof typeof data];
       }
     });
@@ -357,7 +344,6 @@ export const updatePost = async ({
   }
 
   await addQuestions(entityManager, questions, data.id, true);
-  return;
 };
 
 export const getSourcePrivacy = async ({
