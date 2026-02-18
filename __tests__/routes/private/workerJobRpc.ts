@@ -8,7 +8,7 @@ import {
   createClient,
   createRouterTransport,
 } from '@connectrpc/connect';
-import workerJobRpc from '../../../src/routes/private/workerJobRpc';
+import { createWorkerJobRpc } from '../../../src/routes/private/workerJobRpc';
 import { baseRpcContext } from '../../../src/common/connectRpc';
 import { WorkerJob } from '../../../src/entity/WorkerJob';
 
@@ -16,6 +16,12 @@ let con: DataSource;
 
 beforeAll(async () => {
   con = await createOrGetConnection();
+});
+
+const workerJobRpc = createWorkerJobRpc((context) => {
+  if (!context.values.get(baseRpcContext).service) {
+    throw new ConnectError('unauthenticated', Code.Unauthenticated);
+  }
 });
 
 const mockTransport = createRouterTransport(workerJobRpc, {
