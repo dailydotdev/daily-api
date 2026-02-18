@@ -10,6 +10,7 @@ import {
   CollectionPost,
   findAuthor,
   FreeformPost,
+  generateTitleHtml,
   getPostVisible,
   mergeKeywords,
   parseReadTime,
@@ -92,6 +93,9 @@ interface Data {
     video_id?: string;
     duration?: number;
     author_username?: string;
+    author_name?: string;
+    author_avatar?: string;
+    author_profile_image?: string;
   };
   meta?: {
     scraped_html?: string;
@@ -101,9 +105,26 @@ interface Data {
     };
     stored_code_snippets?: string;
     channels?: string[];
+    social_twitter?: {
+      creator?: {
+        handle?: string;
+        name?: string;
+        profile_image?: string;
+      };
+    };
   };
   content_quality?: PostContentQuality;
 }
+
+type SocialTwitterContentMeta = {
+  social_twitter?: {
+    creator?: {
+      handle?: string;
+      name?: string;
+      profile_image?: string;
+    };
+  };
+};
 
 type HandleRejectionProps = {
   logger: FastifyBaseLogger;
@@ -316,6 +337,7 @@ const allowedFieldsMapping: Partial<Record<PostType, string[]>> = {
     'summary',
     'tagsStr',
     'title',
+    'titleHtml',
     'translation',
     'type',
     'url',
@@ -447,6 +469,46 @@ const updatePost = async ({
       data[metaField] = databasePost[metaField];
     }
   });
+
+  if (content_type === PostType.SocialTwitter) {
+    const existingContentMeta = databasePost.contentMeta as Record<
+      string,
+      unknown
+    > &
+      SocialTwitterContentMeta;
+    const incomingContentMeta = (data.contentMeta || {}) as Record<
+      string,
+      unknown
+    > &
+      SocialTwitterContentMeta;
+    const existingSocialTwitter = existingContentMeta.social_twitter || {};
+    const incomingSocialTwitter = incomingContentMeta.social_twitter || {};
+    const existingCreator = existingSocialTwitter.creator || {};
+    const incomingCreator = incomingSocialTwitter.creator || {};
+
+    data.contentMeta = {
+      ...existingContentMeta,
+      ...incomingContentMeta,
+      ...(Object.keys(existingSocialTwitter).length ||
+      Object.keys(incomingSocialTwitter).length
+        ? {
+            social_twitter: {
+              ...existingSocialTwitter,
+              ...incomingSocialTwitter,
+              ...(Object.keys(existingCreator).length ||
+              Object.keys(incomingCreator).length
+                ? {
+                    creator: {
+                      ...existingCreator,
+                      ...incomingCreator,
+                    },
+                  }
+                : {}),
+            },
+          }
+        : {}),
+    };
+  }
 
   if (
     data.contentQuality &&
@@ -694,67 +756,103 @@ const fixData = async ({
   const duration = data?.extra?.duration
     ? data?.extra?.duration / 60
     : undefined;
+  const socialTwitterCreatorProfile = twitterMapping?.authorProfile
+    ? {
+        ...(twitterMapping.authorProfile.handle
+          ? { handle: twitterMapping.authorProfile.handle }
+          : {}),
+        ...(twitterMapping.authorProfile.name
+          ? { name: twitterMapping.authorProfile.name }
+          : {}),
+        ...(twitterMapping.authorProfile.profileImage
+          ? { profile_image: twitterMapping.authorProfile.profileImage }
+          : {}),
+      }
+    : undefined;
+  const contentMeta: Data['meta'] & SocialTwitterContentMeta = {
+    ...(data?.meta || {}),
+  };
+
+  if (
+    socialTwitterCreatorProfile &&
+    Object.keys(socialTwitterCreatorProfile).length
+  ) {
+    contentMeta.social_twitter = {
+      ...(contentMeta.social_twitter || {}),
+      creator: {
+        ...(contentMeta.social_twitter?.creator || {}),
+        ...socialTwitterCreatorProfile,
+      },
+    };
+  }
 
   const contentType =
     (isTwitterSocialType(data?.content_type)
       ? PostType.SocialTwitter
       : (data?.content_type as PostType)) || PostType.Article;
 
-  // Try and fix generic data here
+  const fixedData: FixData['fixedData'] = {
+    origin: data?.origin as PostOrigin,
+    authorId,
+    creatorTwitter,
+    url: data?.url,
+    canonicalUrl: data?.extra?.canonical_url || data?.url,
+    image: data?.image,
+    sourceId,
+    title: data?.title && he.decode(data?.title),
+    readTime: parseReadTime(data?.extra?.read_time || duration),
+    publishedAt: parseDate(data?.published_at),
+    metadataChangedAt: parseDate(data?.updated_at) || new Date(),
+    tagsStr: allowedKeywords?.join(',') || null,
+    private: privacy,
+    sentAnalyticsReport: privacy || !authorId,
+    summary: data?.extra?.summary,
+    description: data?.extra?.description,
+    siteTwitter: data?.extra?.site_twitter,
+    toc: data?.extra?.toc,
+    contentCuration: data?.extra?.content_curation,
+    showOnFeed,
+    flags: {
+      private: privacy,
+      showOnFeed,
+      sentAnalyticsReport: privacy || !authorId,
+    },
+    yggdrasilId: data?.id,
+    type: contentType,
+    content: data?.extra?.content,
+    contentHtml: data?.extra?.content
+      ? markdown.render(data.extra.content)
+      : undefined,
+    videoId: data?.extra?.video_id,
+    language: data?.language,
+    subType: null,
+    contentMeta,
+    contentQuality: data?.content_quality || {},
+    ...(twitterMapping?.fields
+      ? {
+          ...twitterMapping.fields,
+          title: twitterMapping.fields.title ?? undefined,
+          content: twitterMapping.fields.content ?? undefined,
+          contentHtml: twitterMapping.fields.contentHtml ?? undefined,
+          image: twitterMapping.fields.image ?? undefined,
+          videoId: twitterMapping.fields.videoId ?? undefined,
+        }
+      : {}),
+  };
+
+  if (contentType === PostType.SocialTwitter) {
+    fixedData.titleHtml = fixedData.title
+      ? generateTitleHtml(fixedData.title, [])
+      : null;
+  }
+
   return {
     mergedKeywords,
     questions: data?.extra?.questions || [],
     content_type: contentType,
     smartTitle: data?.alt_title,
     twitterReference: twitterMapping?.reference,
-    fixedData: {
-      origin: data?.origin as PostOrigin,
-      authorId,
-      creatorTwitter,
-      url: data?.url,
-      canonicalUrl: data?.extra?.canonical_url || data?.url,
-      image: data?.image,
-      sourceId,
-      title: data?.title && he.decode(data?.title),
-      readTime: parseReadTime(data?.extra?.read_time || duration),
-      publishedAt: parseDate(data?.published_at),
-      metadataChangedAt: parseDate(data?.updated_at) || new Date(),
-      tagsStr: allowedKeywords?.join(',') || null,
-      private: privacy,
-      sentAnalyticsReport: privacy || !authorId,
-      summary: data?.extra?.summary,
-      description: data?.extra?.description,
-      siteTwitter: data?.extra?.site_twitter,
-      toc: data?.extra?.toc,
-      contentCuration: data?.extra?.content_curation,
-      showOnFeed,
-      flags: {
-        private: privacy,
-        showOnFeed,
-        sentAnalyticsReport: privacy || !authorId,
-      },
-      yggdrasilId: data?.id,
-      type: contentType,
-      content: data?.extra?.content,
-      contentHtml: data?.extra?.content
-        ? markdown.render(data.extra.content)
-        : undefined,
-      videoId: data?.extra?.video_id,
-      language: data?.language,
-      subType: null,
-      contentMeta: data?.meta || {},
-      contentQuality: data?.content_quality || {},
-      ...(twitterMapping?.fields
-        ? {
-            ...twitterMapping.fields,
-            title: twitterMapping.fields.title ?? undefined,
-            content: twitterMapping.fields.content ?? undefined,
-            contentHtml: twitterMapping.fields.contentHtml ?? undefined,
-            image: twitterMapping.fields.image ?? undefined,
-            videoId: twitterMapping.fields.videoId ?? undefined,
-          }
-        : {}),
-    },
+    fixedData,
   };
 };
 
