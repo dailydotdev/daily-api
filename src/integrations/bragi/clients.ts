@@ -38,7 +38,7 @@ const garmrBragiService = new GarmrService({
 
 const transport = env.BRAGI_ORIGIN
   ? createGrpcTransport({
-      baseUrl: 'http://host.docker.internal:50051',
+      baseUrl: env.BRAGI_ORIGIN,
       httpVersion: '2',
     })
   : undefined;
