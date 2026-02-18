@@ -797,6 +797,12 @@ const obj = new GraphORM({
           });
         },
       },
+      creatorTwitterName: {
+        select: `"contentMeta"->'social_twitter'->'creator'->>'name'`,
+      },
+      creatorTwitterImage: {
+        select: `"contentMeta"->'social_twitter'->'creator'->>'profile_image'`,
+      },
       featuredAward: {
         relation: {
           isMany: false,

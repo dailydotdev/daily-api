@@ -40,9 +40,12 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields).toMatchObject({
       type: PostType.SocialTwitter,
       subType: 'thread',
-      title: '@user: Root tweet',
+      title: 'Root tweet',
       image: 'https://pbs.twimg.com/media/1.jpg',
       videoId: 'https://video.twimg.com/1.mp4',
+    });
+    expect(payload.authorProfile).toMatchObject({
+      handle: 'user',
     });
     expect(payload.fields.content).toContain('Root tweet');
     expect(payload.fields.content).toContain('Thread item 1');
@@ -60,8 +63,14 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields.type).toBe(PostType.SocialTwitter);
     expect(payload.fields.subType).toBe('thread');
     expect(payload.fields.title).toEqual(
-      `@${twitterSocialThreadPayloadFixture.extra.author_username}: ${twitterSocialThreadPayloadFixture.extra.content}`,
+      twitterSocialThreadPayloadFixture.extra.content,
     );
+    expect(payload.authorProfile).toEqual({
+      handle: 'alexfinn',
+      name: 'Alex Finn',
+      profileImage:
+        'https://pbs.twimg.com/profile_images/1745232634278461440/7gQcr_R__normal.jpg',
+    });
     expect(payload.fields.image).toEqual(
       'https://pbs.twimg.com/media/G0aidOKbgAIb29j.jpg',
     );
@@ -123,7 +132,7 @@ describe('mapTwitterSocialPayload', () => {
     });
   });
 
-  it('should fallback repost title when body is missing', () => {
+  it('should keep repost title empty when body is missing', () => {
     const payload = mapTwitterSocialPayload({
       data: {
         content_type: PostType.SocialTwitter,
@@ -137,7 +146,7 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields).toMatchObject({
       type: PostType.SocialTwitter,
       subType: 'repost',
-      title: '@dailydotdev: reposted',
+      title: null,
       content: null,
       contentHtml: null,
     });
@@ -157,7 +166,7 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields).toMatchObject({
       type: PostType.SocialTwitter,
       subType: 'repost',
-      title: '@dailydotdev: reposted',
+      title: null,
     });
   });
 
@@ -177,7 +186,7 @@ describe('mapTwitterSocialPayload', () => {
     expect(payload.fields).toMatchObject({
       type: PostType.SocialTwitter,
       subType: 'tweet',
-      title: '@user: Single tweet content',
+      title: 'Single tweet content',
       image: 'https://pbs.twimg.com/media/t.jpg',
     });
     expect(payload.fields.content).toBeNull();
@@ -212,7 +221,7 @@ describe('mapTwitterSocialPayload', () => {
     });
 
     expect(payload.authorUsername).toBe('dailydev');
-    expect(payload.fields.title).toBe('@DailyDev: Single tweet content');
+    expect(payload.fields.title).toBe('Single tweet content');
   });
 
   it('should strip leading @mentions from title content', () => {
@@ -229,7 +238,7 @@ describe('mapTwitterSocialPayload', () => {
     });
 
     expect(payload.fields.title).toBe(
-      '@bcherny: I use both Cowork and Claude Code personally',
+      'I use both Cowork and Claude Code personally',
     );
   });
 
@@ -245,7 +254,7 @@ describe('mapTwitterSocialPayload', () => {
       },
     });
 
-    expect(payload.fields.title).toBe('@user: actual content here');
+    expect(payload.fields.title).toBe('actual content here');
   });
 
   it('should exclude twitter profile images as post image', () => {

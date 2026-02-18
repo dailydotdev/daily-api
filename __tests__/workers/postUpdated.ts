@@ -518,6 +518,7 @@ it('should map social twitter thread payload to existing post fields', async () 
   })) as Post & {
     content?: string;
     contentHtml?: string;
+    titleHtml?: string | null;
     creatorTwitter?: string;
     image?: string;
     videoId?: string;
@@ -525,7 +526,8 @@ it('should map social twitter thread payload to existing post fields', async () 
 
   expect(post.type).toEqual(PostType.SocialTwitter);
   expect(post.subType).toEqual('thread');
-  expect(post.title).toEqual('@dailydotdev: Root tweet');
+  expect(post.title).toEqual('Root tweet');
+  expect(post.titleHtml).toEqual('<p>Root tweet</p>');
   expect(post.content).toContain('Root tweet');
   expect(post.content).toContain('Thread tweet 2');
   expect(post.contentHtml).toContain('<p>Root tweet</p>');
@@ -549,14 +551,21 @@ it('should ingest provided yggdrasil twitter thread payload and store mapped fie
     contentHtml?: string;
     image?: string;
     videoId?: string;
+    contentMeta: {
+      social_twitter?: {
+        creator?: {
+          handle?: string;
+          name?: string;
+          profile_image?: string;
+        };
+      };
+    };
   };
 
   expect(post.type).toEqual(PostType.SocialTwitter);
   expect(post.subType).toEqual('thread');
   expect(post.sourceId).toEqual(UNKNOWN_SOURCE);
-  expect(post.title).toEqual(
-    `@${fixturePayload.extra.author_username}: ${fixturePayload.extra.content}`,
-  );
+  expect(post.title).toEqual(fixturePayload.extra.content);
   expect(post.content).toContain(
     'Elon just revealed exactly how the X algorithm works',
   );
@@ -572,6 +581,16 @@ it('should ingest provided yggdrasil twitter thread payload and store mapped fie
   expect(post.language).toEqual('en');
   expect(post.creatorTwitter).toEqual('alexfinn');
   expect(post.showOnFeed).toEqual(false);
+  expect(post.contentMeta).toMatchObject({
+    social_twitter: {
+      creator: {
+        handle: 'alexfinn',
+        name: 'Alex Finn',
+        profile_image:
+          'https://pbs.twimg.com/profile_images/1745232634278461440/7gQcr_R__normal.jpg',
+      },
+    },
+  });
 });
 
 it('should resolve social twitter source by machine source twitter handle', async () => {
@@ -789,14 +808,30 @@ it('should map social twitter tweet subtype as plain tweet', async () => {
   })) as Post & {
     content?: string;
     creatorTwitter?: string;
+    titleHtml?: string | null;
+    contentMeta: {
+      social_twitter?: {
+        creator?: {
+          handle?: string;
+        };
+      };
+    };
   };
 
   expect(post.type).toEqual(PostType.SocialTwitter);
   expect(post.subType).toEqual('tweet');
-  expect(post.title).toEqual('@dailydotdev: A plain tweet');
+  expect(post.title).toEqual('A plain tweet');
+  expect(post.titleHtml).toEqual('<p>A plain tweet</p>');
   expect(post.content).toBeNull();
   expect(post.image).toEqual('https://pbs.twimg.com/media/tweet.jpg');
   expect(post.creatorTwitter).toEqual('dailydotdev');
+  expect(post.contentMeta).toMatchObject({
+    social_twitter: {
+      creator: {
+        handle: 'dailydotdev',
+      },
+    },
+  });
   expect(post.showOnFeed).toEqual(false);
 });
 
@@ -822,7 +857,7 @@ it('should keep social twitter post hidden from feed when order is missing', asy
   expect(post.flags.showOnFeed).toEqual(false);
 });
 
-it('should map repost without body to fallback title', async () => {
+it('should map repost without body to null title', async () => {
   const yggdrasilId = randomUUID();
 
   await expectSuccessfulBackground(worker, {
@@ -842,15 +877,17 @@ it('should map repost without body to fallback title', async () => {
     yggdrasilId,
   })) as Post & {
     content?: string;
+    titleHtml?: string | null;
   };
 
   expect(post.type).toEqual(PostType.SocialTwitter);
   expect(post.subType).toEqual('repost');
-  expect(post.title).toEqual('@dailydotdev: reposted');
+  expect(post.title).toBeNull();
+  expect(post.titleHtml).toBeNull();
   expect(post.content).toBeNull();
 });
 
-it('should map retweet subtype to repost fallback title', async () => {
+it('should map retweet subtype to repost with null title', async () => {
   const yggdrasilId = randomUUID();
 
   await expectSuccessfulBackground(worker, {
@@ -870,11 +907,13 @@ it('should map retweet subtype to repost fallback title', async () => {
     yggdrasilId,
   })) as Post & {
     content?: string;
+    titleHtml?: string | null;
   };
 
   expect(post.type).toEqual(PostType.SocialTwitter);
   expect(post.subType).toEqual('repost');
-  expect(post.title).toEqual('@dailydotdev: reposted');
+  expect(post.title).toBeNull();
+  expect(post.titleHtml).toBeNull();
   expect(post.content).toBeNull();
 });
 
