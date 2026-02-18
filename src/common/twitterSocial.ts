@@ -419,6 +419,56 @@ export const resolveTwitterSourceId = async ({
   return { id: matchedSource.id, isPrivate: matchedSource.private };
 };
 
+const buildReferencePostFields = async ({
+  entityManager,
+  reference,
+  language,
+}: {
+  entityManager: EntityManager;
+  reference: TwitterReferencePost;
+  language?: string | null;
+}) => {
+  const title = reference.title || reference.content || undefined;
+  const content = reference.content || undefined;
+  const contentHtml =
+    reference.contentHtml || (content ? markdown.render(content) : undefined);
+  const visible = !!(title || content);
+  const resolvedSource = await resolveTwitterSourceId({
+    entityManager,
+    authorUsername: reference.authorUsername,
+  });
+  const sourceId = resolvedSource?.id || UNKNOWN_SOURCE;
+  const isPrivate = resolvedSource?.isPrivate ?? true;
+  const contentMeta =
+    buildTwitterCreatorMeta({
+      handle: normalizeTwitterHandle(reference.authorUsername),
+      name: reference.authorName || undefined,
+      profileImage: reference.authorAvatar || undefined,
+    }) ?? {};
+
+  return {
+    subType: 'tweet' as const,
+    sourceId,
+    creatorTwitter: reference.authorUsername ?? undefined,
+    contentMeta,
+    metadataChangedAt: new Date(),
+    title,
+    content,
+    contentHtml,
+    image: reference.image ?? undefined,
+    videoId: reference.videoId ?? undefined,
+    private: isPrivate,
+    visible,
+    language: language || 'en',
+    flags: {
+      private: isPrivate,
+      visible,
+      sentAnalyticsReport: true,
+      showOnFeed: false,
+    },
+  };
+};
+
 export const upsertTwitterReferencedPost = async ({
   entityManager,
   reference,
@@ -441,6 +491,12 @@ export const upsertTwitterReferencedPost = async ({
     .getRawOne<{ id: string }>();
 
   if (existingPost?.id) {
+    const fields = await buildReferencePostFields({
+      entityManager,
+      reference,
+      language,
+    });
+    await entityManager.getRepository(Post).update(existingPost.id, fields);
     return existingPost.id;
   }
 
@@ -456,61 +512,37 @@ export const upsertTwitterReferencedPost = async ({
       .getRawOne<{ id: string }>();
 
     if (existingByStatusId?.id) {
+      const fields = await buildReferencePostFields({
+        entityManager,
+        reference,
+        language,
+      });
+      await entityManager
+        .getRepository(Post)
+        .update(existingByStatusId.id, fields);
       return existingByStatusId.id;
     }
   }
 
   const id = await generateShortId();
-  const now = new Date();
-  const title = reference.title || reference.content || undefined;
-  const content = reference.content || undefined;
-  const contentHtml =
-    reference.contentHtml || (content ? markdown.render(content) : undefined);
-  const visible = !!(title || content);
-  const resolvedSource = await resolveTwitterSourceId({
+  const fields = await buildReferencePostFields({
     entityManager,
-    authorUsername: reference.authorUsername,
+    reference,
+    language,
   });
-  const referenceSourceId = resolvedSource?.id || UNKNOWN_SOURCE;
-  const isPrivate = resolvedSource?.isPrivate ?? true;
-
-  const contentMeta =
-    buildTwitterCreatorMeta({
-      handle: normalizeTwitterHandle(reference.authorUsername),
-      name: reference.authorName || undefined,
-      profileImage: reference.authorAvatar || undefined,
-    }) ?? {};
 
   const repository = entityManager.getRepository(SocialTwitterPost);
 
   const post = repository.create({
     id,
     shortId: id,
-    subType: 'tweet',
-    sourceId: referenceSourceId,
-    creatorTwitter: reference.authorUsername ?? undefined,
-    contentMeta,
-    createdAt: now,
-    metadataChangedAt: now,
-    title,
-    content,
-    contentHtml,
-    image: reference.image ?? undefined,
-    videoId: reference.videoId ?? undefined,
+    ...fields,
+    createdAt: fields.metadataChangedAt,
     url: referenceUrl,
     canonicalUrl: referenceUrl,
-    private: isPrivate,
-    visible,
-    visibleAt: visible ? now : null,
+    visibleAt: fields.visible ? fields.metadataChangedAt : null,
     showOnFeed: false,
     origin: PostOrigin.Crawler,
-    language: language || 'en',
-    flags: {
-      private: isPrivate,
-      visible,
-      sentAnalyticsReport: true,
-      showOnFeed: false,
-    },
     sentAnalyticsReport: true,
   });
 

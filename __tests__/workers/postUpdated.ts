@@ -722,6 +722,9 @@ it('should reuse existing referenced social post for quote when status id alread
       reference: {
         tweet_id: '2002',
         content: 'Referenced quoted tweet',
+        author_username: 'devrelweekly',
+        author_name: 'DevRel Weekly',
+        author_avatar: 'https://pbs.twimg.com/profile_images/devrel.jpg',
       },
     },
   });
@@ -748,6 +751,15 @@ it('should reuse existing referenced social post for quote when status id alread
     .getMany();
 
   expect(referencedPosts).toHaveLength(1);
+  expect(referencedPosts[0].contentMeta).toMatchObject({
+    social_twitter: {
+      creator: {
+        handle: 'devrelweekly',
+        name: 'DevRel Weekly',
+        profile_image: 'https://pbs.twimg.com/profile_images/devrel.jpg',
+      },
+    },
+  });
 });
 
 it('should create referenced social post for repost and set sharedPostId', async () => {
