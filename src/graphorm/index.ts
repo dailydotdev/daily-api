@@ -798,10 +798,14 @@ const obj = new GraphORM({
         },
       },
       creatorTwitterName: {
-        select: `"contentMeta"->'social_twitter'->'creator'->>'name'`,
+        rawSelect: true,
+        select: (_, alias) =>
+          `${alias}."contentMeta"->>'social_twitter'->>'creator'->>'name'`,
       },
       creatorTwitterImage: {
-        select: `"contentMeta"->'social_twitter'->'creator'->>'profile_image'`,
+        rawSelect: true,
+        select: (_, alias) =>
+          `${alias}."contentMeta"->>'social_twitter'->>'creator'->>'profile_image'`,
       },
       featuredAward: {
         relation: {
