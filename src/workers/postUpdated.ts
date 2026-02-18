@@ -115,85 +115,6 @@ interface Data {
   content_quality?: PostContentQuality;
 }
 
-type SocialTwitterContentMeta = {
-  social_twitter?: {
-    creator?: {
-      handle?: string;
-      name?: string;
-      profile_image?: string;
-    };
-  };
-};
-
-type JsonObject = Record<string, unknown>;
-type SocialTwitterCreator = NonNullable<
-  NonNullable<SocialTwitterContentMeta['social_twitter']>['creator']
->;
-type SocialTwitterMeta = JsonObject &
-  NonNullable<SocialTwitterContentMeta['social_twitter']>;
-
-const toJsonObject = (value: unknown): JsonObject =>
-  value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as JsonObject)
-    : {};
-
-const mergeSocialTwitterContentMeta = ({
-  existing,
-  incoming,
-}: {
-  existing: unknown;
-  incoming: unknown;
-}): JsonObject & SocialTwitterContentMeta => {
-  const existingContentMeta = toJsonObject(existing) as JsonObject &
-    SocialTwitterContentMeta;
-  const incomingContentMeta = toJsonObject(incoming) as JsonObject &
-    SocialTwitterContentMeta;
-
-  const mergedContentMeta: JsonObject & SocialTwitterContentMeta = {
-    ...existingContentMeta,
-    ...incomingContentMeta,
-  };
-
-  const existingSocialTwitter = toJsonObject(
-    existingContentMeta.social_twitter,
-  ) as SocialTwitterMeta;
-  const incomingSocialTwitter = toJsonObject(
-    incomingContentMeta.social_twitter,
-  ) as SocialTwitterMeta;
-
-  if (
-    !Object.keys(existingSocialTwitter).length &&
-    !Object.keys(incomingSocialTwitter).length
-  ) {
-    return mergedContentMeta;
-  }
-
-  const mergedSocialTwitter: SocialTwitterMeta = {
-    ...existingSocialTwitter,
-    ...incomingSocialTwitter,
-  };
-  const existingCreator = toJsonObject(
-    existingSocialTwitter.creator,
-  ) as SocialTwitterCreator;
-  const incomingCreator = toJsonObject(
-    incomingSocialTwitter.creator,
-  ) as SocialTwitterCreator;
-
-  if (
-    Object.keys(existingCreator).length ||
-    Object.keys(incomingCreator).length
-  ) {
-    mergedSocialTwitter.creator = {
-      ...existingCreator,
-      ...incomingCreator,
-    };
-  }
-
-  mergedContentMeta.social_twitter = mergedSocialTwitter;
-
-  return mergedContentMeta;
-};
-
 type HandleRejectionProps = {
   logger: FastifyBaseLogger;
   entityManager: EntityManager;
@@ -530,19 +451,37 @@ const updatePost = async ({
     ['contentMeta', 'contentQuality'];
 
   jsonMetaFields.forEach((metaField) => {
-    const incomingMeta = toJsonObject(data[metaField]);
-    const existingMeta = toJsonObject(databasePost[metaField]);
+    const incomingKeys = Object.keys(data[metaField] ?? {});
+    const existingKeys = Object.keys(databasePost[metaField] ?? {});
 
-    if (!Object.keys(incomingMeta).length && Object.keys(existingMeta).length) {
+    if (!incomingKeys.length && existingKeys.length) {
       data[metaField] = databasePost[metaField];
     }
   });
 
   if (content_type === PostType.SocialTwitter) {
-    data.contentMeta = mergeSocialTwitterContentMeta({
-      existing: databasePost.contentMeta,
-      incoming: data.contentMeta,
-    });
+    const existingMeta = (databasePost.contentMeta ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const incomingMeta = (data.contentMeta ?? {}) as Record<string, unknown>;
+    const existingTwitter =
+      (existingMeta.social_twitter as Record<string, unknown>) ?? {};
+    const incomingTwitter =
+      (incomingMeta.social_twitter as Record<string, unknown>) ?? {};
+
+    data.contentMeta = {
+      ...existingMeta,
+      ...incomingMeta,
+      social_twitter: {
+        ...existingTwitter,
+        ...incomingTwitter,
+        creator: {
+          ...((existingTwitter.creator as Record<string, unknown>) ?? {}),
+          ...((incomingTwitter.creator as Record<string, unknown>) ?? {}),
+        },
+      },
+    };
   }
 
   if (
@@ -791,32 +730,21 @@ const fixData = async ({
   const duration = data?.extra?.duration
     ? data?.extra?.duration / 60
     : undefined;
-  const socialTwitterCreatorProfile = twitterMapping?.authorProfile
-    ? {
-        ...(twitterMapping.authorProfile.handle
-          ? { handle: twitterMapping.authorProfile.handle }
-          : {}),
-        ...(twitterMapping.authorProfile.name
-          ? { name: twitterMapping.authorProfile.name }
-          : {}),
-        ...(twitterMapping.authorProfile.profileImage
-          ? { profile_image: twitterMapping.authorProfile.profileImage }
-          : {}),
-      }
-    : undefined;
-  const contentMeta: Data['meta'] & SocialTwitterContentMeta = {
+  const contentMeta: Data['meta'] = {
     ...(data?.meta || {}),
   };
 
-  if (
-    socialTwitterCreatorProfile &&
-    Object.keys(socialTwitterCreatorProfile).length
-  ) {
+  const authorProfile = twitterMapping?.authorProfile;
+  if (authorProfile) {
     contentMeta.social_twitter = {
       ...(contentMeta.social_twitter || {}),
       creator: {
         ...(contentMeta.social_twitter?.creator || {}),
-        ...socialTwitterCreatorProfile,
+        ...(authorProfile.handle ? { handle: authorProfile.handle } : {}),
+        ...(authorProfile.name ? { name: authorProfile.name } : {}),
+        ...(authorProfile.profileImage
+          ? { profile_image: authorProfile.profileImage }
+          : {}),
       },
     };
   }
