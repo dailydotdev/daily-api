@@ -12,10 +12,7 @@ import { UserComment } from '../entity/user/UserComment';
 import { HotTake } from '../entity/user/HotTake';
 import { UserHotTake } from '../entity/user/UserHotTake';
 import { UserVote } from '../types';
-import {
-  AchievementEventType,
-  checkAchievementProgress,
-} from './achievement';
+import { AchievementEventType, checkAchievementProgress } from './achievement';
 
 type UserVoteProps = {
   ctx: AuthContext;
