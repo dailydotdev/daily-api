@@ -8,13 +8,20 @@ import {
   UNKNOWN_SOURCE,
 } from '../../../entity';
 import type { Post } from '../../../entity';
+import type { EntityManager } from 'typeorm';
 import {
   mapTwitterSocialPayload,
   normalizeTwitterHandle,
   resolveTwitterSourceId,
   upsertTwitterReferencedPost,
 } from '../../../common/twitterSocial';
-import type { ProcessPostProps, ProcessedPost } from '../types';
+import type { TwitterReferencePost } from '../../../common/twitterSocial';
+import type {
+  FixedData,
+  OnUpdateArgs,
+  ProcessPostProps,
+  ProcessedPost,
+} from '../types';
 import { buildCommonPostFields } from '../common';
 import { getSourcePrivacy } from '../shared';
 
@@ -106,6 +113,29 @@ export const mergeTwitterContentMeta = ({
       },
     },
   };
+};
+
+export const onUpdateSocialTwitter = ({
+  databasePost,
+  data,
+}: OnUpdateArgs): void => {
+  data.contentMeta = mergeTwitterContentMeta({ databasePost, data });
+};
+
+export const beforeWriteSocialTwitter = async ({
+  entityManager,
+  fixedData,
+  twitterReference,
+}: {
+  entityManager: EntityManager;
+  fixedData: FixedData;
+  twitterReference: TwitterReferencePost;
+}): Promise<void> => {
+  fixedData.sharedPostId = await upsertTwitterReferencedPost({
+    entityManager,
+    reference: twitterReference,
+    language: fixedData.language,
+  });
 };
 
 export const processSocialTwitter = async ({
@@ -209,8 +239,6 @@ export const processSocialTwitter = async ({
     ? generateTitleHtml(fixedData.title, [])
     : null;
 
-  const twitterReference = twitterMapping?.reference;
-
   return {
     contentType: PostType.SocialTwitter,
     fixedData,
@@ -218,20 +246,6 @@ export const processSocialTwitter = async ({
     questions: data?.extra?.questions || [],
     smartTitle: data?.alt_title,
     allowedUpdateFields: twitterAllowedFields,
-    onUpdate: ({ databasePost, data: updateData }) => {
-      updateData.contentMeta = mergeTwitterContentMeta({
-        databasePost,
-        data: updateData,
-      });
-    },
-    beforeWrite: twitterReference
-      ? async ({ entityManager: em, fixedData: fd }) => {
-          fd.sharedPostId = await upsertTwitterReferencedPost({
-            entityManager: em,
-            reference: twitterReference,
-            language: fd.language,
-          });
-        }
-      : undefined,
+    twitterReference: twitterMapping?.reference,
   };
 };

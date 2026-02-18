@@ -29,6 +29,7 @@ import { updateFlagsStatement } from '../../common';
 import { counters } from '../../telemetry';
 import { BriefPost } from '../../entity/posts/BriefPost';
 import { PollPost } from '../../entity/posts/PollPost';
+import { isTwitterSocialType } from '../../common/twitterSocial';
 import type {
   HandleRejectionProps,
   CreatePostProps,
@@ -36,6 +37,7 @@ import type {
   UpdatePostProps,
   GetSourcePrivacyProps,
 } from './types';
+import { onUpdateSocialTwitter } from './socialTwitter/processing';
 
 export const handleRejection = async ({
   logger,
@@ -173,7 +175,6 @@ export const updatePost = async ({
   content_type = PostType.Article,
   smartTitle,
   allowedUpdateFields,
-  onUpdate,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
   let databasePost = await entityManager
@@ -259,8 +260,8 @@ export const updatePost = async ({
     }
   });
 
-  if (onUpdate) {
-    onUpdate({ databasePost, data });
+  if (isTwitterSocialType(content_type)) {
+    onUpdateSocialTwitter({ databasePost, data });
   }
 
   if (

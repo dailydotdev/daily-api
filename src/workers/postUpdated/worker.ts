@@ -13,7 +13,10 @@ import {
   handleCollectionRelations,
 } from './collection/processing';
 import { processVideoYouTube } from './videoYouTube/processing';
-import { processSocialTwitter } from './socialTwitter/processing';
+import {
+  processSocialTwitter,
+  beforeWriteSocialTwitter,
+} from './socialTwitter/processing';
 
 const resolveProcessor = (
   contentType?: string,
@@ -81,10 +84,11 @@ const worker: Worker = {
           },
         });
 
-        if (result.beforeWrite) {
-          await result.beforeWrite({
+        if (result.twitterReference) {
+          await beforeWriteSocialTwitter({
             entityManager,
             fixedData: result.fixedData,
+            twitterReference: result.twitterReference,
           });
         }
 
@@ -110,7 +114,6 @@ const worker: Worker = {
             content_type: result.contentType,
             smartTitle: result.smartTitle,
             allowedUpdateFields: result.allowedUpdateFields,
-            onUpdate: result.onUpdate,
           });
         }
 
