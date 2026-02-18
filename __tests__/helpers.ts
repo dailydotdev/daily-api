@@ -39,6 +39,7 @@ import {
   createRouterTransport,
 } from '@connectrpc/connect';
 import {
+  ActivityItem,
   ApplicationService as GondulService,
   Credits,
   TransferType,
@@ -46,9 +47,15 @@ import {
   ScreeningQuestionsResponse,
   BrokkrService,
   ExtractMarkdownResponse,
+  FindCompanyNewsResponse,
+  FindContactActivityResponse,
+  FindJobVacanciesResponse,
+  JobVacancy,
+  NewsItem,
   ParseCVResponse,
   ParseError,
   ParseOpportunityResponse,
+  Pipelines,
   Opportunity,
   OpportunityMeta,
   OpportunityContent,
@@ -715,6 +722,47 @@ export const createGarmrMock = () => {
     },
   });
 };
+
+export const createMockBragiPipelinesTransport = () =>
+  createRouterTransport(({ service }) => {
+    service(Pipelines, {
+      findJobVacancies: () =>
+        new FindJobVacanciesResponse({
+          id: 'mock-id',
+          vacancies: [
+            new JobVacancy({
+              role: 'Senior Engineer',
+              seniority: 'Senior',
+              stack: ['TypeScript'],
+              description: 'Build things',
+              sweScore: 0.9,
+            }),
+          ],
+        }),
+      findCompanyNews: () =>
+        new FindCompanyNewsResponse({
+          id: 'mock-id',
+          newsItems: [
+            new NewsItem({
+              headline: 'Acme raises $10M',
+              summary: 'Series A funding round',
+              newsType: 'funding',
+            }),
+          ],
+        }),
+      findContactActivity: () =>
+        new FindContactActivityResponse({
+          id: 'mock-id',
+          activities: [
+            new ActivityItem({
+              title: 'Scaling our platform',
+              summary: 'Blog post about infrastructure',
+              activityType: 'linkedin_post',
+            }),
+          ],
+        }),
+    });
+  });
 
 export const createMockGondulOpportunityServiceTransport = () => {
   return createRouterTransport(({ service }) => {
