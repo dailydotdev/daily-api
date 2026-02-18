@@ -1,7 +1,7 @@
 import { expectSuccessfulTypedBackground, saveFixtures } from '../helpers';
 import worker from '../../src/workers/candidateReviewOpportunitySlack';
 import { OpportunityMatch } from '../../src/entity/OpportunityMatch';
-import { User } from '../../src/entity';
+import { User } from '../../src/entity/user/User';
 import createOrGetConnection from '../../src/db';
 import { webhooks } from '../../src/common/slack';
 import { OpportunityMatchStatus } from '../../src/entity/opportunities/types';
@@ -61,7 +61,7 @@ describe('candidateReviewOpportunitySlack worker', () => {
     expect(actions.elements[1].action_id).toBe('candidate_review_reject');
   });
 
-  it('should skip without error when opportunityId is not a valid UUID', async () => {
+  it('should throw when opportunityId is not a valid UUID', async () => {
     const data = new ApplicationScored({
       opportunityId: 'not-a-uuid',
       userId: '1',
@@ -69,10 +69,32 @@ describe('candidateReviewOpportunitySlack worker', () => {
       description: 'Strong candidate',
     });
 
-    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
-      worker,
-      data,
+    await expect(
+      expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+        worker,
+        data,
+      ),
+    ).rejects.toThrow(
+      'candidateReviewOpportunitySlack: invalid message payload',
     );
+
+    expect(webhooks.recruiterReview.send).not.toHaveBeenCalled();
+  });
+
+  it('should throw when opportunity match is missing', async () => {
+    const data = new ApplicationScored({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userId: '999999',
+      score: 85,
+      description: 'Strong candidate',
+    });
+
+    await expect(
+      expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+        worker,
+        data,
+      ),
+    ).rejects.toThrow('candidateReviewOpportunitySlack: match not found');
 
     expect(webhooks.recruiterReview.send).not.toHaveBeenCalled();
   });
