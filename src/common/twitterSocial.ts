@@ -37,12 +37,19 @@ export interface TwitterMappingResult {
   fields: TwitterMappedPostFields;
   reference?: TwitterReferencePost;
   authorUsername?: string;
+  authorProfile?: TwitterAuthorProfile;
 }
 
 export interface TwitterReferenceUpsertParams {
   entityManager: EntityManager;
   reference: TwitterReferencePost;
   language?: string | null;
+}
+
+export interface TwitterAuthorProfile {
+  handle?: string;
+  name?: string;
+  profileImage?: string;
 }
 
 const normalizeTwitterHandleForTitle = (
@@ -97,32 +104,20 @@ const stripLeadingMentions = (text: string): string =>
   text.replace(/^(?:@\w+\s*)+/, '').trim();
 
 const formatTwitterTitle = ({
-  handle,
   content,
-  subType,
 }: {
-  handle?: string;
   content?: string | null;
-  subType?: TwitterSocialSubType;
 }): string | undefined => {
   const parsedContent = content?.trim() || undefined;
   const cleanContent = parsedContent
     ? stripLeadingMentions(parsedContent) || undefined
     : undefined;
 
-  if (!cleanContent && subType === 'repost' && handle) {
-    return `@${handle}: reposted`;
-  }
-
   if (!cleanContent) {
     return undefined;
   }
 
-  if (!handle) {
-    return cleanContent;
-  }
-
-  return `@${handle}: ${cleanContent}`;
+  return cleanContent;
 };
 
 const isImageMedia = (media: TwitterSocialMedia): boolean => {
@@ -322,6 +317,16 @@ export const mapTwitterSocialPayload = ({
     normalizeTwitterHandleForTitle(payload.extra?.author_username) ||
     extractTwitterHandleFromUrl(payload.url);
   const authorUsername = normalizeTwitterHandle(authorHandle);
+  const authorName = payload.extra?.author_name?.trim() || undefined;
+  const authorProfileImage = payload.extra?.author_avatar?.trim() || undefined;
+  const authorProfile =
+    authorUsername || authorName || authorProfileImage
+      ? {
+          handle: authorUsername,
+          name: authorName,
+          profileImage: authorProfileImage,
+        }
+      : undefined;
 
   const rootContent =
     payload.extra?.content?.trim() || payload.title?.trim() || undefined;
@@ -333,9 +338,7 @@ export const mapTwitterSocialPayload = ({
     subType,
     title:
       formatTwitterTitle({
-        handle: authorHandle,
         content: rootContent,
-        subType,
       }) ?? null,
     content: null,
     contentHtml: null,
@@ -344,7 +347,7 @@ export const mapTwitterSocialPayload = ({
   };
 
   if (subType !== 'thread') {
-    return { fields, reference, authorUsername };
+    return { fields, reference, authorUsername, authorProfile };
   }
 
   const { content, contentHtml } = buildThreadContent({
@@ -361,6 +364,7 @@ export const mapTwitterSocialPayload = ({
     },
     reference,
     authorUsername,
+    authorProfile,
   };
 };
 

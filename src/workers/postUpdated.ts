@@ -10,6 +10,7 @@ import {
   CollectionPost,
   findAuthor,
   FreeformPost,
+  generateTitleHtml,
   getPostVisible,
   mergeKeywords,
   parseReadTime,
@@ -92,6 +93,8 @@ interface Data {
     video_id?: string;
     duration?: number;
     author_username?: string;
+    author_name?: string;
+    author_avatar?: string;
   };
   meta?: {
     scraped_html?: string;
@@ -101,6 +104,13 @@ interface Data {
     };
     stored_code_snippets?: string;
     channels?: string[];
+    social_twitter?: {
+      creator?: {
+        handle?: string;
+        name?: string;
+        profile_image?: string;
+      };
+    };
   };
   content_quality?: PostContentQuality;
 }
@@ -316,6 +326,7 @@ const allowedFieldsMapping: Partial<Record<PostType, string[]>> = {
     'summary',
     'tagsStr',
     'title',
+    'titleHtml',
     'translation',
     'type',
     'url',
@@ -440,13 +451,38 @@ const updatePost = async ({
     ['contentMeta', 'contentQuality'];
 
   jsonMetaFields.forEach((metaField) => {
-    if (
-      Object.keys(data[metaField]!).length === 0 &&
-      Object.keys(databasePost[metaField]).length > 0
-    ) {
+    const incomingKeys = Object.keys(data[metaField] ?? {});
+    const existingKeys = Object.keys(databasePost[metaField] ?? {});
+
+    if (!incomingKeys.length && existingKeys.length) {
       data[metaField] = databasePost[metaField];
     }
   });
+
+  if (content_type === PostType.SocialTwitter) {
+    const existingMeta = (databasePost.contentMeta ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const incomingMeta = (data.contentMeta ?? {}) as Record<string, unknown>;
+    const existingTwitter =
+      (existingMeta.social_twitter as Record<string, unknown>) ?? {};
+    const incomingTwitter =
+      (incomingMeta.social_twitter as Record<string, unknown>) ?? {};
+
+    data.contentMeta = {
+      ...existingMeta,
+      ...incomingMeta,
+      social_twitter: {
+        ...existingTwitter,
+        ...incomingTwitter,
+        creator: {
+          ...((existingTwitter.creator as Record<string, unknown>) ?? {}),
+          ...((incomingTwitter.creator as Record<string, unknown>) ?? {}),
+        },
+      },
+    };
+  }
 
   if (
     data.contentQuality &&
@@ -694,67 +730,92 @@ const fixData = async ({
   const duration = data?.extra?.duration
     ? data?.extra?.duration / 60
     : undefined;
+  const contentMeta: Data['meta'] = {
+    ...(data?.meta || {}),
+  };
+
+  const authorProfile = twitterMapping?.authorProfile;
+  if (authorProfile) {
+    contentMeta.social_twitter = {
+      ...(contentMeta.social_twitter || {}),
+      creator: {
+        ...(contentMeta.social_twitter?.creator || {}),
+        ...(authorProfile.handle ? { handle: authorProfile.handle } : {}),
+        ...(authorProfile.name ? { name: authorProfile.name } : {}),
+        ...(authorProfile.profileImage
+          ? { profile_image: authorProfile.profileImage }
+          : {}),
+      },
+    };
+  }
 
   const contentType =
     (isTwitterSocialType(data?.content_type)
       ? PostType.SocialTwitter
       : (data?.content_type as PostType)) || PostType.Article;
 
-  // Try and fix generic data here
+  const fixedData: FixData['fixedData'] = {
+    origin: data?.origin as PostOrigin,
+    authorId,
+    creatorTwitter,
+    url: data?.url,
+    canonicalUrl: data?.extra?.canonical_url || data?.url,
+    image: data?.image,
+    sourceId,
+    title: data?.title && he.decode(data?.title),
+    readTime: parseReadTime(data?.extra?.read_time || duration),
+    publishedAt: parseDate(data?.published_at),
+    metadataChangedAt: parseDate(data?.updated_at) || new Date(),
+    tagsStr: allowedKeywords?.join(',') || null,
+    private: privacy,
+    sentAnalyticsReport: privacy || !authorId,
+    summary: data?.extra?.summary,
+    description: data?.extra?.description,
+    siteTwitter: data?.extra?.site_twitter,
+    toc: data?.extra?.toc,
+    contentCuration: data?.extra?.content_curation,
+    showOnFeed,
+    flags: {
+      private: privacy,
+      showOnFeed,
+      sentAnalyticsReport: privacy || !authorId,
+    },
+    yggdrasilId: data?.id,
+    type: contentType,
+    content: data?.extra?.content,
+    contentHtml: data?.extra?.content
+      ? markdown.render(data.extra.content)
+      : undefined,
+    videoId: data?.extra?.video_id,
+    language: data?.language,
+    subType: null,
+    contentMeta,
+    contentQuality: data?.content_quality || {},
+    ...(twitterMapping?.fields
+      ? {
+          ...twitterMapping.fields,
+          title: twitterMapping.fields.title ?? undefined,
+          content: twitterMapping.fields.content ?? undefined,
+          contentHtml: twitterMapping.fields.contentHtml ?? undefined,
+          image: twitterMapping.fields.image ?? undefined,
+          videoId: twitterMapping.fields.videoId ?? undefined,
+        }
+      : {}),
+  };
+
+  if (contentType === PostType.SocialTwitter) {
+    fixedData.titleHtml = fixedData.title
+      ? generateTitleHtml(fixedData.title, [])
+      : null;
+  }
+
   return {
     mergedKeywords,
     questions: data?.extra?.questions || [],
     content_type: contentType,
     smartTitle: data?.alt_title,
     twitterReference: twitterMapping?.reference,
-    fixedData: {
-      origin: data?.origin as PostOrigin,
-      authorId,
-      creatorTwitter,
-      url: data?.url,
-      canonicalUrl: data?.extra?.canonical_url || data?.url,
-      image: data?.image,
-      sourceId,
-      title: data?.title && he.decode(data?.title),
-      readTime: parseReadTime(data?.extra?.read_time || duration),
-      publishedAt: parseDate(data?.published_at),
-      metadataChangedAt: parseDate(data?.updated_at) || new Date(),
-      tagsStr: allowedKeywords?.join(',') || null,
-      private: privacy,
-      sentAnalyticsReport: privacy || !authorId,
-      summary: data?.extra?.summary,
-      description: data?.extra?.description,
-      siteTwitter: data?.extra?.site_twitter,
-      toc: data?.extra?.toc,
-      contentCuration: data?.extra?.content_curation,
-      showOnFeed,
-      flags: {
-        private: privacy,
-        showOnFeed,
-        sentAnalyticsReport: privacy || !authorId,
-      },
-      yggdrasilId: data?.id,
-      type: contentType,
-      content: data?.extra?.content,
-      contentHtml: data?.extra?.content
-        ? markdown.render(data.extra.content)
-        : undefined,
-      videoId: data?.extra?.video_id,
-      language: data?.language,
-      subType: null,
-      contentMeta: data?.meta || {},
-      contentQuality: data?.content_quality || {},
-      ...(twitterMapping?.fields
-        ? {
-            ...twitterMapping.fields,
-            title: twitterMapping.fields.title ?? undefined,
-            content: twitterMapping.fields.content ?? undefined,
-            contentHtml: twitterMapping.fields.contentHtml ?? undefined,
-            image: twitterMapping.fields.image ?? undefined,
-            videoId: twitterMapping.fields.videoId ?? undefined,
-          }
-        : {}),
-    },
+    fixedData,
   };
 };
 
