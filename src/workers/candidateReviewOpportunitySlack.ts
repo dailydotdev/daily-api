@@ -15,7 +15,7 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
     if (process.env.NODE_ENV === 'development') return;
 
     if (!validateGondulOpportunityMessage(data)) {
-      return;
+      throw new Error('candidateReviewOpportunitySlack: invalid message payload');
     }
 
     const {
@@ -28,7 +28,11 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
       where: { opportunityId, userId },
       relations: ['opportunity', 'user'],
     });
-    if (!match) return;
+    if (!match) {
+      throw new Error(
+        `candidateReviewOpportunitySlack: match not found (opportunityId=${opportunityId}, userId=${userId})`,
+      );
+    }
 
     const [opportunity, user, pref, keywords] = await Promise.all([
       match.opportunity,
