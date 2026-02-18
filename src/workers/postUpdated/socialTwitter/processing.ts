@@ -12,6 +12,7 @@ import {
   mapTwitterSocialPayload,
   normalizeTwitterHandle,
   resolveTwitterSourceId,
+  upsertTwitterReferencedPost,
 } from '../../../common/twitterSocial';
 import type { ProcessPostProps, ProcessedPost } from '../types';
 import { buildCommonPostFields } from '../common';
@@ -208,13 +209,29 @@ export const processSocialTwitter = async ({
     ? generateTitleHtml(fixedData.title, [])
     : null;
 
+  const twitterReference = twitterMapping?.reference;
+
   return {
     contentType: PostType.SocialTwitter,
     fixedData,
     mergedKeywords,
     questions: data?.extra?.questions || [],
     smartTitle: data?.alt_title,
-    twitterReference: twitterMapping?.reference,
     allowedUpdateFields: twitterAllowedFields,
+    onUpdate: ({ databasePost, data: updateData }) => {
+      updateData.contentMeta = mergeTwitterContentMeta({
+        databasePost,
+        data: updateData,
+      });
+    },
+    beforeWrite: twitterReference
+      ? async ({ entityManager: em, fixedData: fd }) => {
+          fd.sharedPostId = await upsertTwitterReferencedPost({
+            entityManager: em,
+            reference: twitterReference,
+            language: fd.language,
+          });
+        }
+      : undefined,
   };
 };

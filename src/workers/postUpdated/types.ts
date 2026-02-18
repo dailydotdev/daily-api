@@ -10,7 +10,6 @@ import type {
   Toc,
   YouTubePost,
 } from '../../entity';
-import type { TwitterReferencePost } from '../../common/twitterSocial';
 import type { I18nRecord } from '../../types';
 
 export type Data = {
@@ -82,14 +81,25 @@ export type ProcessPostProps = {
   data: Data;
 };
 
+export type OnUpdateHook = (args: {
+  databasePost: Post;
+  data: Partial<ArticlePost>;
+}) => void;
+
+export type BeforeWriteHook = (args: {
+  entityManager: EntityManager;
+  fixedData: FixedData;
+}) => Promise<void>;
+
 export type ProcessedPost = {
   contentType: PostType;
   fixedData: FixedData;
   mergedKeywords: string[];
   questions: string[];
   smartTitle?: string;
-  twitterReference?: TwitterReferencePost;
   allowedUpdateFields?: string[];
+  onUpdate?: OnUpdateHook;
+  beforeWrite?: BeforeWriteHook;
 };
 
 export type HandleRejectionProps = {
@@ -125,6 +135,7 @@ export type UpdatePostProps = {
   content_type: PostType;
   smartTitle?: string;
   allowedUpdateFields?: string[];
+  onUpdate?: OnUpdateHook;
 };
 
 export type GetSourcePrivacyProps = {

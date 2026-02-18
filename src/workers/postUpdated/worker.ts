@@ -3,7 +3,6 @@ import { bannedAuthors, Post, PostType } from '../../entity';
 import { TypeOrmError, type TypeORMQueryFailedError } from '../../errors';
 import { QueryFailedError } from 'typeorm';
 import { isTwitterSocialType } from '../../common/twitterSocial';
-import { upsertTwitterReferencedPost } from '../../common/twitterSocial';
 import { insertCodeSnippetsFromUrl } from '../../common/post';
 import type { Data, ProcessPostProps, ProcessedPost } from './types';
 import { handleRejection, createPost, updatePost } from './shared';
@@ -82,14 +81,10 @@ const worker: Worker = {
           },
         });
 
-        if (
-          result.contentType === PostType.SocialTwitter &&
-          result.twitterReference
-        ) {
-          result.fixedData.sharedPostId = await upsertTwitterReferencedPost({
+        if (result.beforeWrite) {
+          await result.beforeWrite({
             entityManager,
-            reference: result.twitterReference,
-            language: result.fixedData.language,
+            fixedData: result.fixedData,
           });
         }
 
@@ -115,6 +110,7 @@ const worker: Worker = {
             content_type: result.contentType,
             smartTitle: result.smartTitle,
             allowedUpdateFields: result.allowedUpdateFields,
+            onUpdate: result.onUpdate,
           });
         }
 

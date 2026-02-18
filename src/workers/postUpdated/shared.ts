@@ -36,7 +36,6 @@ import type {
   UpdatePostProps,
   GetSourcePrivacyProps,
 } from './types';
-import { mergeTwitterContentMeta } from './socialTwitter/processing';
 
 export const handleRejection = async ({
   logger,
@@ -174,6 +173,7 @@ export const updatePost = async ({
   content_type = PostType.Article,
   smartTitle,
   allowedUpdateFields,
+  onUpdate,
 }: UpdatePostProps) => {
   const postType = contentTypeFromPostType[content_type];
   let databasePost = await entityManager
@@ -259,8 +259,8 @@ export const updatePost = async ({
     }
   });
 
-  if (content_type === PostType.SocialTwitter) {
-    data.contentMeta = mergeTwitterContentMeta({ databasePost, data });
+  if (onUpdate) {
+    onUpdate({ databasePost, data });
   }
 
   if (
