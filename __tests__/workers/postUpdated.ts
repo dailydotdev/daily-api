@@ -764,6 +764,10 @@ it('should create referenced social post for repost and set sharedPostId', async
       reference: {
         tweet_id: '3004',
         content: 'Referenced repost tweet',
+        author_username: 'jietang',
+        author_name: 'jietang',
+        author_avatar:
+          'https://pbs.twimg.com/profile_images/2969848274/9650ac94b38c2872eecea8a7dfa376ef_normal.jpeg',
       },
     },
   });
@@ -786,6 +790,16 @@ it('should create referenced social post for repost and set sharedPostId', async
   expect(referencedPost.title).toEqual('Referenced repost tweet');
   expect(referencedPost.showOnFeed).toEqual(false);
   expect(referencedPost.private).toEqual(true);
+  expect(referencedPost.contentMeta).toMatchObject({
+    social_twitter: {
+      creator: {
+        handle: 'jietang',
+        name: 'jietang',
+        profile_image:
+          'https://pbs.twimg.com/profile_images/2969848274/9650ac94b38c2872eecea8a7dfa376ef_normal.jpeg',
+      },
+    },
+  });
 });
 
 it('should map social twitter tweet subtype as plain tweet', async () => {
