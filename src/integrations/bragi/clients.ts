@@ -34,6 +34,10 @@ const garmrBragiService = new GarmrService({
     threshold: 0.1,
     duration: 10 * 1000,
   },
+  retryOpts: {
+    maxAttempts: 3,
+    backoff: 2 * 1000,
+  },
 });
 
 const transport = env.BRAGI_ORIGIN
