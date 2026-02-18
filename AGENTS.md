@@ -98,7 +98,7 @@ The migration generator compares entities against the local database schema. Ens
   - For enum-like validation of string literals, both `z.literal([...])` and `z.enum([...])` work in Zod 4.x
   - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
-- **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly.
+- **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly. **This applies to mock/`isMockEnabled` returns too** — when mocking RPC transport, always use actual proto message class instances, not raw JSON objects.
   ```typescript
   // BAD: plain object
   return {
@@ -111,6 +111,19 @@ The migration generator compares entities against the local database schema. Ens
     jobId: job.id,
     status: job.status,
   });
+
+  // BAD: mock with raw object
+  parseFeedback: async () => ({
+    classification: { platform: FeedbackPlatform.RECRUITER },
+  }),
+
+  // GOOD: mock with proto message classes
+  parseFeedback: async () =>
+    new ParseFeedbackResponse({
+      classification: new FeedbackClassification({
+        platform: FeedbackPlatform.RECRUITER,
+      }),
+    }),
   ```
 
 **Business Domains:**

@@ -5,8 +5,12 @@ import { createContextValues } from '@connectrpc/connect';
 import { ValidationError } from 'apollo-server-errors';
 import { DeepPartial } from 'typeorm';
 import z from 'zod';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { outboundRpcContext } from './context';
 import rpc from './rpc';
+import { createJobRpc } from './jobRpc';
+import { createWorkerJobRpc } from '../private/workerJobRpc';
+import type { VerifyAuth } from '../private/workerJobRpc';
 import createOrGetConnection from '../../db';
 import {
   privateCreateOpportunitySchema,
@@ -199,8 +203,21 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     },
   );
 
+  const verifyOutboundAuth: VerifyAuth = (context) => {
+    if (!context.values.get(outboundRpcContext).authorized) {
+      throw new ConnectError('unauthenticated', Code.Unauthenticated);
+    }
+  };
+
+  const jobRpc = createJobRpc(verifyOutboundAuth);
+  const workerJobRpc = createWorkerJobRpc(verifyOutboundAuth);
+
   fastify.register(fastifyConnectPlugin, {
-    routes: rpc,
+    routes: (router) => {
+      rpc(router);
+      jobRpc(router);
+      workerJobRpc(router);
+    },
     prefix: '/rpc',
     jsonOptions: {
       ignoreUnknownFields: false,

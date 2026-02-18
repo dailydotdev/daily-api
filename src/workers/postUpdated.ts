@@ -45,6 +45,7 @@ import { EntityManager, QueryFailedError } from 'typeorm';
 import { parseDate, updateFlagsStatement } from '../common';
 import { markdown } from '../common/markdown';
 import {
+  buildTwitterCreatorMeta,
   isTwitterSocialType,
   mapTwitterSocialPayload,
   normalizeTwitterHandle,
@@ -736,17 +737,17 @@ const fixData = async ({
 
   const authorProfile = twitterMapping?.authorProfile;
   if (authorProfile) {
-    contentMeta.social_twitter = {
-      ...(contentMeta.social_twitter || {}),
-      creator: {
-        ...(contentMeta.social_twitter?.creator || {}),
-        ...(authorProfile.handle ? { handle: authorProfile.handle } : {}),
-        ...(authorProfile.name ? { name: authorProfile.name } : {}),
-        ...(authorProfile.profileImage
-          ? { profile_image: authorProfile.profileImage }
-          : {}),
-      },
-    };
+    const twitterMeta = buildTwitterCreatorMeta(authorProfile);
+    if (twitterMeta) {
+      contentMeta.social_twitter = {
+        ...(contentMeta.social_twitter || {}),
+        ...twitterMeta.social_twitter,
+        creator: {
+          ...(contentMeta.social_twitter?.creator || {}),
+          ...twitterMeta.social_twitter.creator,
+        },
+      };
+    }
   }
 
   const contentType =
