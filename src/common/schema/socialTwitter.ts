@@ -32,7 +32,6 @@ export const twitterSocialThreadTweetSchema = z
     author_username: z.string().nullish(),
     author_name: z.string().nullish(),
     author_avatar: z.string().nullish(),
-    author_profile_image: z.string().nullish(),
     content: z.string().nullish(),
     content_html: z.string().nullish(),
     media: z.array(twitterSocialMediaSchema).nullish(),
@@ -51,7 +50,6 @@ export const twitterSocialReferenceSchema = z
     author_username: z.string().nullish(),
     author_name: z.string().nullish(),
     author_avatar: z.string().nullish(),
-    author_profile_image: z.string().nullish(),
   })
   .passthrough();
 
@@ -60,7 +58,6 @@ export const twitterSocialExtraSchema = z
     author_username: z.string().nullish(),
     author_name: z.string().nullish(),
     author_avatar: z.string().nullish(),
-    author_profile_image: z.string().nullish(),
     subtype: twitterSocialInputSubTypeSchema.nullish(),
     sub_type: twitterSocialInputSubTypeSchema.nullish(),
     tweet_id: z.string().nullish(),

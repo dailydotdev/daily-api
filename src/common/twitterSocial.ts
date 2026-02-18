@@ -318,10 +318,7 @@ export const mapTwitterSocialPayload = ({
     extractTwitterHandleFromUrl(payload.url);
   const authorUsername = normalizeTwitterHandle(authorHandle);
   const authorName = payload.extra?.author_name?.trim() || undefined;
-  const authorProfileImage =
-    payload.extra?.author_profile_image?.trim() ||
-    payload.extra?.author_avatar?.trim() ||
-    undefined;
+  const authorProfileImage = payload.extra?.author_avatar?.trim() || undefined;
   const authorProfile =
     authorUsername || authorName || authorProfileImage
       ? {

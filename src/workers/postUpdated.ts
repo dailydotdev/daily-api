@@ -95,7 +95,6 @@ interface Data {
     author_username?: string;
     author_name?: string;
     author_avatar?: string;
-    author_profile_image?: string;
   };
   meta?: {
     scraped_html?: string;
