@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
@@ -8,10 +9,16 @@ import {
   MockContext,
   saveFixtures,
 } from './helpers';
+import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
+} from '../src/entity';
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
 import { HotTake } from '../src/entity/user/HotTake';
 import { UserHotTake } from '../src/entity/user/UserHotTake';
+import { UserAchievement } from '../src/entity/user/UserAchievement';
 import { UserVote } from '../src/types';
 
 let con: DataSource;
@@ -132,6 +139,37 @@ describe('query discoverHotTakes', () => {
     );
     expect(titles).not.toContain('Already voted');
     expect(titles).toContain('Not voted yet');
+  });
+
+  it('should exclude cold voted hot takes', async () => {
+    loggedUser = '1';
+    const hotTake1 = await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🧊',
+      title: 'Already cold voted',
+      position: 0,
+    });
+    await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🔥',
+      title: 'Still available',
+      position: 1,
+    });
+
+    await con.getRepository(UserHotTake).save({
+      hotTakeId: hotTake1.id,
+      userId: '1',
+      vote: UserVote.Down,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('Already cold voted');
+    expect(titles).toContain('Still available');
   });
 
   it('should respect first limit', async () => {
@@ -325,6 +363,23 @@ describe('mutation vote on hot take', () => {
     }
   `;
 
+  const addHotTakeVoteAchievement = async (targetCount: number = 2) => {
+    const achievementId = randomUUID();
+    await con.getRepository(Achievement).save({
+      id: achievementId,
+      name: `Hot and cold ${achievementId}`,
+      description: 'Vote on hot takes',
+      image: 'https://example.com/hot_take_vote.png',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.HotTakeVote,
+      criteria: { targetCount },
+      points: 10,
+      rarity: 0.2,
+    });
+
+    return achievementId;
+  };
+
   it('should require authentication', async () => {
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -359,8 +414,12 @@ describe('mutation vote on hot take', () => {
       hotTakeId: hotTake.id,
       userId: '2',
     });
+    const updatedHotTake = await con
+      .getRepository(HotTake)
+      .findOneByOrFail({ id: hotTake.id });
     expect(userHotTake).not.toBeNull();
     expect(userHotTake?.vote).toBe(UserVote.Up);
+    expect(updatedHotTake.upvotes).toBe(1);
   });
 
   it('should remove upvote when voting with 0', async () => {
@@ -418,7 +477,78 @@ describe('mutation vote on hot take', () => {
       hotTakeId: hotTake.id,
       userId: '2',
     });
+    const updatedHotTake = await con
+      .getRepository(HotTake)
+      .findOneByOrFail({ id: hotTake.id });
     expect(userHotTake?.vote).toBe(UserVote.Down);
+    expect(updatedHotTake.upvotes).toBe(0);
+  });
+
+  it('should progress hot and cold vote achievement', async () => {
+    loggedUser = '1';
+    const achievementId = await addHotTakeVoteAchievement(2);
+    const [hotTakeOne, hotTakeTwo] = await con.getRepository(HotTake).save([
+      {
+        userId: '2',
+        emoji: '🔥',
+        title: 'Hot take 1',
+        position: 0,
+      },
+      {
+        userId: '3',
+        emoji: '🧊',
+        title: 'Hot take 2',
+        position: 1,
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: {
+        id: hotTakeOne.id,
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+    await client.mutate(MUTATION, {
+      variables: {
+        id: hotTakeTwo.id,
+        entity: 'hot_take',
+        vote: -1,
+      },
+    });
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId,
+      userId: '1',
+    });
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement?.progress).toBe(2);
+    expect(userAchievement?.unlockedAt).not.toBeNull();
+  });
+
+  it('should not progress achievement when voting own hot take', async () => {
+    loggedUser = '1';
+    const achievementId = await addHotTakeVoteAchievement(1);
+    const ownHotTake = await con.getRepository(HotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'My own take',
+      position: 0,
+    });
+
+    await client.mutate(MUTATION, {
+      variables: {
+        id: ownHotTake.id,
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId,
+      userId: '1',
+    });
+    expect(userAchievement).toBeNull();
   });
 
   it('should return error for non-existent hot take', async () => {
