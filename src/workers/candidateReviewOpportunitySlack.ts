@@ -15,7 +15,9 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
     if (process.env.NODE_ENV === 'development') return;
 
     if (!validateGondulOpportunityMessage(data)) {
-      throw new Error('candidateReviewOpportunitySlack: invalid message payload');
+      throw new Error(
+        'candidateReviewOpportunitySlack: invalid message payload',
+      );
     }
 
     const {
