@@ -3,22 +3,20 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { DataSource, EntityManager } from 'typeorm';
 import { Achievement, AchievementEventType } from '../../entity/Achievement';
 import { updateUserAchievementProgress } from './index';
-
-type AchievementConnection = DataSource | EntityManager;
 type ProgressMap = Map<string, number>;
 type RetroactiveHandler = (
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   userIds: string[],
 ) => Promise<ProgressMap>;
 
 interface SyncUsersRetroactiveAchievementsParams {
-  con: AchievementConnection;
+  con: DataSource | EntityManager;
   logger: FastifyBaseLogger;
   userIds: string[];
 }
 
 interface SyncUserRetroactiveAchievementsParams {
-  con: AchievementConnection;
+  con: DataSource | EntityManager;
   logger: FastifyBaseLogger;
   userId: string;
 }

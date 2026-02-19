@@ -1,5 +1,4 @@
-import { DataSource } from 'typeorm';
-import type { EntityManager } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import {
   Achievement,
@@ -16,10 +15,8 @@ export {
   AchievementType,
 } from '../../entity/Achievement';
 
-type AchievementConnection = DataSource | EntityManager;
-
 export async function getAchievementsByEventType(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   eventType: AchievementEventType,
 ): Promise<Achievement[]> {
   return con
@@ -31,7 +28,7 @@ export async function getAchievementsByEventType(
 }
 
 export async function getOrCreateUserAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   userId: string,
   achievementId: string,
 ): Promise<UserAchievement> {
@@ -55,7 +52,7 @@ export async function getOrCreateUserAchievement(
 }
 
 export async function updateUserAchievementProgress(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   _logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
@@ -83,11 +80,7 @@ export async function updateUserAchievementProgress(
     updateData.unlockedAt = new Date();
   }
 
-  const withTransaction = (
-    callback: (manager: EntityManager) => Promise<void>,
-  ) => (con instanceof DataSource ? con.transaction(callback) : callback(con));
-
-  await withTransaction(async (manager) => {
+  await con.transaction(async (manager) => {
     await manager
       .getRepository(UserAchievement)
       .update({ achievementId, userId }, updateData);
@@ -112,7 +105,7 @@ export async function updateUserAchievementProgress(
 }
 
 export async function incrementUserAchievementProgress(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
@@ -142,7 +135,7 @@ export async function incrementUserAchievementProgress(
 }
 
 async function evaluateInstantAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -172,7 +165,7 @@ async function evaluateInstantAchievement(
 }
 
 async function evaluateMilestoneAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -203,7 +196,7 @@ async function evaluateMilestoneAchievement(
 }
 
 async function evaluateAbsoluteValueAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -234,7 +227,7 @@ async function evaluateAbsoluteValueAchievement(
 }
 
 type AchievementEvaluator = (
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -254,7 +247,7 @@ function getEvaluator(type: AchievementType): AchievementEvaluator {
 }
 
 export async function checkAchievementProgress(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   eventType: AchievementEventType,
