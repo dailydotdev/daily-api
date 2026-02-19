@@ -5,6 +5,7 @@ import {
   AchievementEventType,
   AchievementType,
 } from '../../entity/Achievement';
+import { Alerts } from '../../entity/Alerts';
 import { User } from '../../entity/user/User';
 import { UserAchievement } from '../../entity/user/UserAchievement';
 import { updateFlagsStatement } from '../utils';
@@ -98,6 +99,13 @@ export async function updateUserAchievementProgress(
           }),
         });
       }
+
+      await manager
+        .getRepository(Alerts)
+        .upsert(
+          { userId, showAchievementUnlock: achievementId },
+          { conflictPaths: ['userId'] },
+        );
     }
   });
 
