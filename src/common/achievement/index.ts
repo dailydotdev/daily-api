@@ -5,7 +5,9 @@ import {
   AchievementEventType,
   AchievementType,
 } from '../../entity/Achievement';
+import { User } from '../../entity/user/User';
 import { UserAchievement } from '../../entity/user/UserAchievement';
+import { updateFlagsStatement } from '../utils';
 import { triggerTypedEvent } from '../typedPubsub';
 
 export {
@@ -83,6 +85,21 @@ export async function updateUserAchievementProgress(
   }
 
   await repo.update({ achievementId, userId }, updateData);
+
+  if (shouldUnlock) {
+    const user = await con.getRepository(User).findOne({
+      select: ['id', 'flags'],
+      where: { id: userId },
+    });
+
+    if (user?.flags?.trackedAchievementId === achievementId) {
+      await con.getRepository(User).update(userId, {
+        flags: updateFlagsStatement<User>({
+          trackedAchievementId: null,
+        }),
+      });
+    }
+  }
 
   return shouldUnlock;
 }

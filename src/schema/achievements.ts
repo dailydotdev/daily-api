@@ -16,6 +16,7 @@ import {
 import { User } from '../entity/user/User';
 import type { UserFlags } from '../entity/user/User';
 import { UserAchievement } from '../entity/user/UserAchievement';
+import type { GQLEmptyResponse } from './common';
 import { traceResolvers } from './trace';
 
 const ACHIEVEMENT_SYNC_LIMIT = 1;
@@ -98,6 +99,33 @@ const getUserAchievementsWithProgress = async ({
       userAchievement: userAchievementMap.get(achievement.id),
     }),
   );
+};
+
+const getTrackedUserAchievement = async ({
+  con,
+  userId,
+  achievementId,
+}: {
+  con: AchievementConnection;
+  userId: string;
+  achievementId: string;
+}): Promise<GQLUserAchievement | null> => {
+  const achievement = await con.getRepository(Achievement).findOne({
+    where: { id: achievementId },
+  });
+
+  if (!achievement) {
+    return null;
+  }
+
+  const userAchievement = await con.getRepository(UserAchievement).findOne({
+    where: { userId, achievementId },
+  });
+
+  return toGQLUserAchievement({
+    achievement,
+    userAchievement,
+  });
 };
 
 export type GQLAchievement = {
@@ -352,6 +380,12 @@ export const typeDefs = /* GraphQL */ `
     Get achievement sync status for current user
     """
     achievementSyncStatus: AchievementSyncStatus! @auth
+
+    """
+    Get the currently tracked achievement for current user.
+    Returns null when no achievement is being tracked.
+    """
+    trackedAchievement: UserAchievement @auth
   }
 
   extend type Mutation {
@@ -359,6 +393,17 @@ export const typeDefs = /* GraphQL */ `
     Run retroactive achievement sync for current user
     """
     syncAchievements: AchievementSyncResult! @auth
+
+    """
+    Track a locked achievement for the current user.
+    Tracking a new one replaces the previous tracked achievement.
+    """
+    trackAchievement(achievementId: ID!): UserAchievement! @auth
+
+    """
+    Stop tracking achievement for current user.
+    """
+    untrackAchievement: EmptyResponse! @auth
   }
 `;
 
@@ -436,6 +481,43 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       return getSyncStatus(getAchievementSyncCount(user.flags));
+    },
+    trackedAchievement: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLUserAchievement | null> => {
+      const user = await ctx.con.getRepository(User).findOne({
+        select: ['id', 'flags'],
+        where: { id: ctx.userId },
+      });
+
+      if (!user) {
+        throw new ForbiddenError('User not authenticated');
+      }
+
+      const trackedAchievementId = user.flags?.trackedAchievementId;
+      if (!trackedAchievementId) {
+        return null;
+      }
+
+      const trackedAchievement = await getTrackedUserAchievement({
+        con: ctx.con,
+        userId: ctx.userId,
+        achievementId: trackedAchievementId,
+      });
+
+      if (!trackedAchievement || trackedAchievement.unlockedAt) {
+        await ctx.con.getRepository(User).update(ctx.userId, {
+          flags: updateFlagsStatement<User>({
+            trackedAchievementId: null,
+          }),
+        });
+
+        return null;
+      }
+
+      return trackedAchievement;
     },
   },
   Mutation: {
@@ -532,6 +614,59 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           closeAchievements,
         };
       });
+    },
+    trackAchievement: async (
+      _,
+      args: { achievementId: string },
+      ctx: AuthContext,
+    ): Promise<GQLUserAchievement> => {
+      const achievement = await ctx.con.getRepository(Achievement).findOne({
+        where: { id: args.achievementId },
+      });
+
+      if (!achievement) {
+        throw new ApolloError('Achievement not found', 'NOT_FOUND');
+      }
+
+      const userAchievement = await ctx.con
+        .getRepository(UserAchievement)
+        .findOne({
+          where: {
+            userId: ctx.userId,
+            achievementId: args.achievementId,
+          },
+        });
+
+      if (userAchievement?.unlockedAt) {
+        throw new ApolloError(
+          'Unlocked achievements cannot be tracked',
+          'ACHIEVEMENT_ALREADY_UNLOCKED',
+        );
+      }
+
+      await ctx.con.getRepository(User).update(ctx.userId, {
+        flags: updateFlagsStatement<User>({
+          trackedAchievementId: args.achievementId,
+        }),
+      });
+
+      return toGQLUserAchievement({
+        achievement,
+        userAchievement,
+      });
+    },
+    untrackAchievement: async (
+      _,
+      __,
+      ctx: AuthContext,
+    ): Promise<GQLEmptyResponse> => {
+      await ctx.con.getRepository(User).update(ctx.userId, {
+        flags: updateFlagsStatement<User>({
+          trackedAchievementId: null,
+        }),
+      });
+
+      return { _: true };
     },
   },
 });
