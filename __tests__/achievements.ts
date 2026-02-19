@@ -398,7 +398,8 @@ describe('tracked achievement', () => {
         mutation: TRACK_ACHIEVEMENT_MUTATION,
         variables: { achievementId: achievementIds.a1 },
       },
-      'ACHIEVEMENT_ALREADY_UNLOCKED',
+      'CONFLICT',
+      'Unlocked achievements cannot be tracked',
     );
   });
 

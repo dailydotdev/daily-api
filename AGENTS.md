@@ -224,6 +224,10 @@ The migration generator compares entities against the local database schema. Ens
 - If you feel a comment is needed, ask first before adding it
 - Avoid comments that simply restate what the code does (e.g., `// Check if user exists` before `if (!user)`)
 
+**GraphQL resolver errors:**
+- Do not throw `ApolloError` directly inside schema resolvers.
+- Prefer `AuthenticationError` / `ForbiddenError` / `ValidationError` from `apollo-server-errors`, or shared typed errors from `src/errors.ts` (for example `NotFoundError`, `ConflictError`).
+
 **Function style:**
 - Prefer const arrow functions over function declarations: `const foo = () => {}` instead of `function foo() {}`
 - Prefer single props-style argument over multiple arguments: `const foo = ({ a, b }) => {}` instead of `const foo = (a, b) => {}`

@@ -1,9 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
-import {
-  ApolloError,
-  AuthenticationError,
-  ForbiddenError,
-} from 'apollo-server-errors';
+import { AuthenticationError, ForbiddenError } from 'apollo-server-errors';
 import type { DataSource, EntityManager } from 'typeorm';
 import { Context, BaseContext, type AuthContext } from '../Context';
 import { syncUserRetroactiveAchievements } from '../common/achievement/retroactive';
@@ -17,6 +13,7 @@ import {
 import { User } from '../entity/user/User';
 import type { UserFlags } from '../entity/user/User';
 import { UserAchievement } from '../entity/user/UserAchievement';
+import { ConflictError, NotFoundError } from '../errors';
 import type { GQLEmptyResponse } from './common';
 import { traceResolvers } from './trace';
 
@@ -552,10 +549,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
         const currentSyncCount = getAchievementSyncCount(user.flags);
         if (currentSyncCount >= ACHIEVEMENT_SYNC_LIMIT) {
-          throw new ApolloError(
-            'You already used your achievement sync.',
-            'ACHIEVEMENT_SYNC_LIMIT_REACHED',
-          );
+          throw new ConflictError('You already used your achievement sync.');
         }
 
         const { unlockedAchievementIds } =
@@ -636,7 +630,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
 
       if (!achievement) {
-        throw new ApolloError('Achievement not found', 'NOT_FOUND');
+        throw new NotFoundError('Achievement not found');
       }
 
       const userAchievement = await ctx.con
@@ -649,10 +643,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         });
 
       if (userAchievement?.unlockedAt) {
-        throw new ApolloError(
-          'Unlocked achievements cannot be tracked',
-          'ACHIEVEMENT_ALREADY_UNLOCKED',
-        );
+        throw new ConflictError('Unlocked achievements cannot be tracked');
       }
 
       await ctx.con.getRepository(User).update(ctx.userId, {
