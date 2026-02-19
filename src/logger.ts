@@ -41,7 +41,7 @@ const buildLoggerConfig = (): LoggerOptions => {
 
   return {
     ...baseOptions,
-    timestamp: () => `,"timestamp":"${Date.now()}000000"`,
+    timestamp: () => `,"timeUnixNano":"${Date.now()}000000"`,
     messageKey: 'body',
     formatters: {
       level: (severity, level) => ({
