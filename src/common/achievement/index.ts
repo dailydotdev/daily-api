@@ -83,8 +83,9 @@ export async function updateUserAchievementProgress(
     updateData.unlockedAt = new Date();
   }
 
-  const withTransaction = (callback: (manager: EntityManager) => Promise<void>) =>
-    con instanceof DataSource ? con.transaction(callback) : callback(con);
+  const withTransaction = (
+    callback: (manager: EntityManager) => Promise<void>,
+  ) => (con instanceof DataSource ? con.transaction(callback) : callback(con));
 
   await withTransaction(async (manager) => {
     await manager
