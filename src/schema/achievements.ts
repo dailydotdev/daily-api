@@ -7,6 +7,7 @@ import {
 import type { DataSource, EntityManager } from 'typeorm';
 import { Context, BaseContext, type AuthContext } from '../Context';
 import { syncUserRetroactiveAchievements } from '../common/achievement/retroactive';
+import { queryReadReplica } from '../common/queryReadReplica';
 import { updateFlagsStatement } from '../common/utils';
 import {
   Achievement,
@@ -413,9 +414,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 >({
   Query: {
     achievements: async (_, __, ctx): Promise<GQLAchievement[]> => {
-      const achievements = await ctx.con.getRepository(Achievement).find({
-        order: { createdAt: 'ASC' },
-      });
+      const achievements = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(Achievement).find({
+          order: { createdAt: 'ASC' },
+        }),
+      );
 
       return achievements;
     },
@@ -432,10 +435,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      return getUserAchievementsWithProgress({
-        con: ctx.con,
-        userId,
-      });
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        getUserAchievementsWithProgress({
+          con: queryRunner.manager,
+          userId,
+        }),
+      );
     },
     userAchievementStats: async (
       _,
@@ -450,15 +455,19 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         );
       }
 
-      const [totalAchievements, unlockedCount] = await Promise.all([
-        ctx.con.getRepository(Achievement).count(),
-        ctx.con
-          .getRepository(UserAchievement)
-          .createQueryBuilder('ua')
-          .where('ua.userId = :userId', { userId })
-          .andWhere('ua.unlockedAt IS NOT NULL')
-          .getCount(),
-      ]);
+      const [totalAchievements, unlockedCount] = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          Promise.all([
+            queryRunner.manager.getRepository(Achievement).count(),
+            queryRunner.manager
+              .getRepository(UserAchievement)
+              .createQueryBuilder('ua')
+              .where('ua.userId = :userId', { userId })
+              .andWhere('ua.unlockedAt IS NOT NULL')
+              .getCount(),
+          ]),
+      );
 
       return {
         totalAchievements,
@@ -471,10 +480,12 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       __,
       ctx: AuthContext,
     ): Promise<GQLAchievementSyncStatus> => {
-      const user = await ctx.con.getRepository(User).findOne({
-        select: ['id', 'flags'],
-        where: { id: ctx.userId },
-      });
+      const user = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(User).findOne({
+          select: ['id', 'flags'],
+          where: { id: ctx.userId },
+        }),
+      );
 
       if (!user) {
         throw new ForbiddenError('User not authenticated');

@@ -492,6 +492,7 @@ The migration generator compares entities against the local database schema. Ens
   );
   ```
 - **Exception**: Queries during write operations that need immediate consistency should use primary.
+- For GraphQL resolvers, default to read replica for pure reads (`Query` fields) either via `queryReadReplica(...)` or GraphORM read-replica mode (4th arg `true`). If the resolver can write or depends on read-after-write consistency, use primary.
 
 **Materialized View Tests:**
 - For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).
