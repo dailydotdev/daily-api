@@ -2,8 +2,6 @@ import { IncomingWebhook } from '@slack/webhook';
 import { WebClient } from '@slack/web-api';
 import type {
   Block,
-  ChatPostMessageResponse,
-  ChatUpdateResponse,
   ConversationsCreateResponse,
   ConversationsInviteSharedResponse,
   KnownBlock,
@@ -117,7 +115,7 @@ export class SlackClient {
     channel: string;
     text: string;
     blocks?: (KnownBlock | Block)[];
-  }): Promise<Pick<ChatPostMessageResponse, 'ts' | 'channel'>> {
+  }): Promise<{ ts: string; channel: string }> {
     const result = await this.garmr.execute(async () =>
       this.client.chat.postMessage({
         channel,
@@ -125,6 +123,10 @@ export class SlackClient {
         blocks,
       }),
     );
+
+    if (!result.ts || !result.channel) {
+      throw new Error('Slack postMessage missing message reference');
+    }
 
     return {
       ts: result.ts,
@@ -142,7 +144,7 @@ export class SlackClient {
     ts: string;
     text: string;
     blocks?: (KnownBlock | Block)[];
-  }): Promise<Pick<ChatUpdateResponse, 'ts' | 'channel'>> {
+  }): Promise<{ ts: string; channel: string }> {
     const result = await this.garmr.execute(async () =>
       this.client.chat.update({
         channel,
@@ -151,6 +153,10 @@ export class SlackClient {
         blocks,
       }),
     );
+
+    if (!result.ts || !result.channel) {
+      throw new Error('Slack updateMessage missing message reference');
+    }
 
     return {
       ts: result.ts,
@@ -179,9 +185,6 @@ export const slackClient = new SlackClient(
     garmr: garmrSlackService,
   },
 );
-
-export const SLACK_USER_FEEDBACK_CHANNEL_ID =
-  process.env.SLACK_USER_FEEDBACK_CHANNEL_ID;
 
 interface NotifyBoostedProps {
   mdLink: string;
