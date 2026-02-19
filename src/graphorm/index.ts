@@ -2408,6 +2408,26 @@ const obj = new GraphORM({
       },
     },
   },
+  Achievement: {
+    fields: {
+      criteria: { jsonType: true },
+      createdAt: { transform: transformDate },
+    },
+  },
+  UserAchievement: {
+    requiredColumns: ['achievementId', 'userId'],
+    fields: {
+      achievement: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'achievementId',
+        },
+      },
+      createdAt: { transform: transformDate },
+      updatedAt: { transform: transformDate },
+    },
+  },
 });
 
 export default obj;

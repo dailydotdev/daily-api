@@ -1,26 +1,22 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthenticationError, ForbiddenError } from 'apollo-server-errors';
-import type { DataSource, EntityManager } from 'typeorm';
+import type { GraphQLResolveInfo } from 'graphql';
+import type { EntityManager } from 'typeorm';
 import { Context, BaseContext, type AuthContext } from '../Context';
 import { syncUserRetroactiveAchievements } from '../common/achievement/retroactive';
 import { queryReadReplica } from '../common/queryReadReplica';
 import { updateFlagsStatement } from '../common/utils';
-import {
-  Achievement,
-  AchievementEventType,
-  AchievementType,
-} from '../entity/Achievement';
+import { Achievement } from '../entity/Achievement';
 import { User } from '../entity/user/User';
 import type { UserFlags } from '../entity/user/User';
 import { UserAchievement } from '../entity/user/UserAchievement';
 import { ConflictError, NotFoundError } from '../errors';
+import graphorm from '../graphorm';
 import type { GQLEmptyResponse } from './common';
 import { traceResolvers } from './trace';
 
 const ACHIEVEMENT_SYNC_LIMIT = 1;
 const CLOSE_ACHIEVEMENTS_LIMIT = 3;
-
-type AchievementConnection = DataSource | EntityManager;
 
 const getAchievementSyncCount = (flags?: UserFlags): number => {
   return flags?.syncedAchievements ? 1 : 0;
@@ -37,46 +33,15 @@ const getSyncStatus = (syncCount: number): GQLAchievementSyncStatus => {
   };
 };
 
-const getTargetCount = (achievement: GQLAchievement): number => {
+const getTargetCount = (achievement: Achievement): number => {
   return achievement.criteria.targetCount ?? 1;
-};
-
-const toGQLAchievement = (achievement: Achievement): GQLAchievement => {
-  return {
-    id: achievement.id,
-    name: achievement.name,
-    description: achievement.description,
-    image: achievement.image,
-    type: achievement.type,
-    eventType: achievement.eventType,
-    criteria: achievement.criteria,
-    points: achievement.points,
-    rarity: achievement.rarity,
-    createdAt: achievement.createdAt,
-  };
-};
-
-const toGQLUserAchievement = ({
-  achievement,
-  userAchievement,
-}: {
-  achievement: Achievement;
-  userAchievement?: UserAchievement | null;
-}): GQLUserAchievement => {
-  return {
-    achievement: toGQLAchievement(achievement),
-    progress: userAchievement?.progress ?? 0,
-    unlockedAt: userAchievement?.unlockedAt ?? null,
-    createdAt: userAchievement?.createdAt ?? new Date(),
-    updatedAt: userAchievement?.updatedAt ?? new Date(),
-  };
 };
 
 const getUserAchievementsWithProgress = async ({
   con,
   userId,
 }: {
-  con: AchievementConnection;
+  con: EntityManager;
   userId: string;
 }): Promise<GQLUserAchievement[]> => {
   const achievements = await con.getRepository(Achievement).find({
@@ -91,58 +56,20 @@ const getUserAchievementsWithProgress = async ({
     userAchievements.map((ua) => [ua.achievementId, ua]),
   );
 
-  return achievements.map((achievement) =>
-    toGQLUserAchievement({
+  return achievements.map((achievement) => {
+    const ua = userAchievementMap.get(achievement.id);
+    return {
       achievement,
-      userAchievement: userAchievementMap.get(achievement.id),
-    }),
-  );
-};
-
-const getTrackedUserAchievement = async ({
-  con,
-  userId,
-  achievementId,
-}: {
-  con: AchievementConnection;
-  userId: string;
-  achievementId: string;
-}): Promise<GQLUserAchievement | null> => {
-  const achievement = await con.getRepository(Achievement).findOne({
-    where: { id: achievementId },
+      progress: ua?.progress ?? 0,
+      unlockedAt: ua?.unlockedAt ?? null,
+      createdAt: ua?.createdAt ?? new Date(),
+      updatedAt: ua?.updatedAt ?? new Date(),
+    };
   });
-
-  if (!achievement) {
-    return null;
-  }
-
-  const userAchievement = await con.getRepository(UserAchievement).findOne({
-    where: { userId, achievementId },
-  });
-
-  return toGQLUserAchievement({
-    achievement,
-    userAchievement,
-  });
-};
-
-export type GQLAchievement = {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  type: AchievementType;
-  eventType: AchievementEventType;
-  criteria: {
-    targetCount?: number;
-  };
-  points: number;
-  rarity: number | null;
-  createdAt: Date;
 };
 
 export type GQLUserAchievement = {
-  achievement: GQLAchievement;
+  achievement: Achievement;
   progress: number;
   unlockedAt: Date | null;
   createdAt: Date;
@@ -410,15 +337,16 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   BaseContext
 >({
   Query: {
-    achievements: async (_, __, ctx): Promise<GQLAchievement[]> => {
-      const achievements = await queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(Achievement).find({
-          order: { createdAt: 'ASC' },
-        }),
-      );
-
-      return achievements;
-    },
+    achievements: (_, __, ctx: Context, info: GraphQLResolveInfo) =>
+      graphorm.query(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.orderBy(`"${builder.alias}"."createdAt"`, 'ASC');
+          return builder;
+        },
+        true,
+      ),
     userAchievements: async (
       _,
       args: { userId?: string },
@@ -509,23 +437,37 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return null;
       }
 
-      const trackedAchievement = await getTrackedUserAchievement({
-        con: ctx.con,
-        userId: ctx.userId,
-        achievementId: trackedAchievementId,
+      const achievement = await ctx.con.getRepository(Achievement).findOne({
+        where: { id: trackedAchievementId },
       });
 
-      if (!trackedAchievement || trackedAchievement.unlockedAt) {
+      if (!achievement) {
         await ctx.con.getRepository(User).update(ctx.userId, {
-          flags: updateFlagsStatement<User>({
-            trackedAchievementId: null,
-          }),
+          flags: updateFlagsStatement<User>({ trackedAchievementId: null }),
         });
-
         return null;
       }
 
-      return trackedAchievement;
+      const userAchievement = await ctx.con
+        .getRepository(UserAchievement)
+        .findOne({
+          where: { userId: ctx.userId, achievementId: trackedAchievementId },
+        });
+
+      if (userAchievement?.unlockedAt) {
+        await ctx.con.getRepository(User).update(ctx.userId, {
+          flags: updateFlagsStatement<User>({ trackedAchievementId: null }),
+        });
+        return null;
+      }
+
+      return {
+        achievement,
+        progress: userAchievement?.progress ?? 0,
+        unlockedAt: null,
+        createdAt: userAchievement?.createdAt ?? new Date(),
+        updatedAt: userAchievement?.updatedAt ?? new Date(),
+      };
     },
   },
   Mutation: {
@@ -652,10 +594,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         }),
       });
 
-      return toGQLUserAchievement({
+      return {
         achievement,
-        userAchievement,
-      });
+        progress: userAchievement?.progress ?? 0,
+        unlockedAt: userAchievement?.unlockedAt ?? null,
+        createdAt: userAchievement?.createdAt ?? new Date(),
+        updatedAt: userAchievement?.updatedAt ?? new Date(),
+      };
     },
     untrackAchievement: async (
       _,
