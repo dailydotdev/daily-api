@@ -167,6 +167,30 @@ The migration generator compares entities against the local database schema. Ens
     feedback: toChangeObject(feedback),
   });
   ```
+- **RPC/Connect error testing**: Create **separate transport mocks** for error scenarios instead of parameterizing existing transport mocks. Keep the happy-path transport unchanged and add a dedicated error transport (e.g., `createMockBragiPipelinesNotFoundTransport`). In the test, `jest.restoreAllMocks()` then re-spy with the error transport:
+  ```typescript
+  // In __tests__/helpers.ts - separate transport for error scenario
+  export const createMockBragiPipelinesNotFoundTransport = () =>
+    createRouterTransport(({ service }) => {
+      service(Pipelines, {
+        findJobVacancies: () => {
+          throw new ConnectError('not found', ConnectCode.NotFound);
+        },
+      });
+    });
+
+  // In test file
+  it('should handle NotFound from Bragi', async () => {
+    jest.restoreAllMocks();
+    jest
+      .spyOn(bragiClients, 'getBragiClient')
+      .mockImplementation((): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(Pipelines, createMockBragiPipelinesNotFoundTransport()),
+        garmr: createGarmrMock(),
+      }));
+    // ... test assertions
+  });
+  ```
 
 **Infrastructure Concerns:**
 - OpenTelemetry for distributed tracing and metrics

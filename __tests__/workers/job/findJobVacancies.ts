@@ -1,6 +1,7 @@
 import {
   createGarmrMock,
   createMockBragiPipelinesTransport,
+  createMockBragiPipelinesNotFoundTransport,
   expectSuccessfulTypedBackground,
 } from '../../helpers';
 import { jobExecuteWorker as worker } from '../../../src/workers/job/jobExecute';
@@ -69,6 +70,40 @@ describe('findJobVacancies handler', () => {
     });
     expect(updated?.startedAt).toBeTruthy();
     expect(updated?.completedAt).toBeTruthy();
+  });
+
+  it('should return empty result on NotFound ConnectError from Bragi', async () => {
+    jest.restoreAllMocks();
+    jest
+      .spyOn(bragiClients, 'getBragiClient')
+      .mockImplementation((): ServiceClient<typeof Pipelines> => {
+        const transport = createMockBragiPipelinesNotFoundTransport();
+
+        return {
+          instance: createClient(Pipelines, transport),
+          garmr: createGarmrMock(),
+        };
+      });
+
+    const job = await con.getRepository(WorkerJob).save(
+      con.getRepository(WorkerJob).create({
+        type: WorkerJobType.FIND_JOB_VACANCIES,
+        status: WorkerJobStatus.PENDING,
+        input: { companyName: 'Unknown Corp' },
+      }),
+    );
+
+    await expectSuccessfulTypedBackground<'api.v1.worker-job-execute'>(worker, {
+      jobId: job.id,
+    });
+
+    const updated = await con
+      .getRepository(WorkerJob)
+      .findOneBy({ id: job.id });
+    expect(updated).toMatchObject({
+      status: WorkerJobStatus.COMPLETED,
+      result: {},
+    });
   });
 
   it('should mark child COMPLETED and update parent on batch completion', async () => {
