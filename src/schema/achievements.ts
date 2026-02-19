@@ -61,7 +61,7 @@ const toGQLUserAchievement = ({
   userAchievement,
 }: {
   achievement: Achievement;
-  userAchievement?: UserAchievement;
+  userAchievement?: UserAchievement | null;
 }): GQLUserAchievement => {
   return {
     achievement: toGQLAchievement(achievement),
