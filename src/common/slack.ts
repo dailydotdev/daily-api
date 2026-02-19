@@ -1,8 +1,12 @@
 import { IncomingWebhook } from '@slack/webhook';
 import { WebClient } from '@slack/web-api';
 import type {
+  Block,
+  ChatPostMessageResponse,
+  ChatUpdateResponse,
   ConversationsCreateResponse,
   ConversationsInviteSharedResponse,
+  KnownBlock,
 } from '@slack/web-api';
 import { Post, Comment, User, Source, type Campaign } from '../entity';
 import { getDiscussionLink, getSourceLink } from './links';
@@ -104,6 +108,55 @@ export class SlackClient {
       }),
     );
   }
+
+  async postMessage({
+    channel,
+    text,
+    blocks,
+  }: {
+    channel: string;
+    text: string;
+    blocks?: (KnownBlock | Block)[];
+  }): Promise<Pick<ChatPostMessageResponse, 'ts' | 'channel'>> {
+    const result = await this.garmr.execute(async () =>
+      this.client.chat.postMessage({
+        channel,
+        text,
+        blocks,
+      }),
+    );
+
+    return {
+      ts: result.ts,
+      channel: result.channel,
+    };
+  }
+
+  async updateMessage({
+    channel,
+    ts,
+    text,
+    blocks,
+  }: {
+    channel: string;
+    ts: string;
+    text: string;
+    blocks?: (KnownBlock | Block)[];
+  }): Promise<Pick<ChatUpdateResponse, 'ts' | 'channel'>> {
+    const result = await this.garmr.execute(async () =>
+      this.client.chat.update({
+        channel,
+        ts,
+        text,
+        blocks,
+      }),
+    );
+
+    return {
+      ts: result.ts,
+      channel: result.channel,
+    };
+  }
 }
 
 // Configure Garmr service for Slack
@@ -126,6 +179,9 @@ export const slackClient = new SlackClient(
     garmr: garmrSlackService,
   },
 );
+
+export const SLACK_USER_FEEDBACK_CHANNEL_ID =
+  process.env.SLACK_USER_FEEDBACK_CHANNEL_ID;
 
 interface NotifyBoostedProps {
   mdLink: string;

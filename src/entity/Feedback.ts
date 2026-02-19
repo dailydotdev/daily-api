@@ -32,6 +32,9 @@ export type FeedbackClassification = {
 export type FeedbackFlags = Partial<{
   vordr: boolean;
   slackNotifiedAt: string; // ISO timestamp
+  slackMessageTs: string;
+  slackChannelId: string;
+  slackClosedAt: string; // ISO timestamp
 }>;
 
 @Entity()
