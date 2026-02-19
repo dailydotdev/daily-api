@@ -1,4 +1,5 @@
-import type { DataSource, EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
+import type { EntityManager } from 'typeorm';
 import { FastifyBaseLogger } from 'fastify';
 import {
   Achievement,
@@ -55,14 +56,12 @@ export async function getOrCreateUserAchievement(
 
 export async function updateUserAchievementProgress(
   con: AchievementConnection,
-  logger: FastifyBaseLogger,
+  _logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
   progress: number,
   targetCount: number,
 ): Promise<boolean> {
-  const repo = con.getRepository(UserAchievement);
-
   const userAchievement = await getOrCreateUserAchievement(
     con,
     userId,
@@ -84,22 +83,29 @@ export async function updateUserAchievementProgress(
     updateData.unlockedAt = new Date();
   }
 
-  await repo.update({ achievementId, userId }, updateData);
+  const withTransaction = (callback: (manager: EntityManager) => Promise<void>) =>
+    con instanceof DataSource ? con.transaction(callback) : callback(con);
 
-  if (shouldUnlock) {
-    const user = await con.getRepository(User).findOne({
-      select: ['id', 'flags'],
-      where: { id: userId },
-    });
+  await withTransaction(async (manager) => {
+    await manager
+      .getRepository(UserAchievement)
+      .update({ achievementId, userId }, updateData);
 
-    if (user?.flags?.trackedAchievementId === achievementId) {
-      await con.getRepository(User).update(userId, {
-        flags: updateFlagsStatement<User>({
-          trackedAchievementId: null,
-        }),
+    if (shouldUnlock) {
+      const user = await manager.getRepository(User).findOne({
+        select: ['id', 'flags'],
+        where: { id: userId },
       });
+
+      if (user?.flags?.trackedAchievementId === achievementId) {
+        await manager.getRepository(User).update(userId, {
+          flags: updateFlagsStatement<User>({
+            trackedAchievementId: null,
+          }),
+        });
+      }
     }
-  }
+  });
 
   return shouldUnlock;
 }
