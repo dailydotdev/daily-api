@@ -5,7 +5,9 @@ import {
   AchievementEventType,
   AchievementType,
 } from '../../entity/Achievement';
+import { User } from '../../entity/user/User';
 import { UserAchievement } from '../../entity/user/UserAchievement';
+import { updateFlagsStatement } from '../utils';
 import { triggerTypedEvent } from '../typedPubsub';
 
 export {
@@ -13,10 +15,8 @@ export {
   AchievementType,
 } from '../../entity/Achievement';
 
-type AchievementConnection = DataSource | EntityManager;
-
 export async function getAchievementsByEventType(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   eventType: AchievementEventType,
 ): Promise<Achievement[]> {
   return con
@@ -28,7 +28,7 @@ export async function getAchievementsByEventType(
 }
 
 export async function getOrCreateUserAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   userId: string,
   achievementId: string,
 ): Promise<UserAchievement> {
@@ -52,15 +52,13 @@ export async function getOrCreateUserAchievement(
 }
 
 export async function updateUserAchievementProgress(
-  con: AchievementConnection,
-  logger: FastifyBaseLogger,
+  con: DataSource | EntityManager,
+  _logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
   progress: number,
   targetCount: number,
 ): Promise<boolean> {
-  const repo = con.getRepository(UserAchievement);
-
   const userAchievement = await getOrCreateUserAchievement(
     con,
     userId,
@@ -82,13 +80,32 @@ export async function updateUserAchievementProgress(
     updateData.unlockedAt = new Date();
   }
 
-  await repo.update({ achievementId, userId }, updateData);
+  await con.transaction(async (manager) => {
+    await manager
+      .getRepository(UserAchievement)
+      .update({ achievementId, userId }, updateData);
+
+    if (shouldUnlock) {
+      const user = await manager.getRepository(User).findOne({
+        select: ['id', 'flags'],
+        where: { id: userId },
+      });
+
+      if (user?.flags?.trackedAchievementId === achievementId) {
+        await manager.getRepository(User).update(userId, {
+          flags: updateFlagsStatement<User>({
+            trackedAchievementId: null,
+          }),
+        });
+      }
+    }
+  });
 
   return shouldUnlock;
 }
 
 export async function incrementUserAchievementProgress(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievementId: string,
@@ -118,7 +135,7 @@ export async function incrementUserAchievementProgress(
 }
 
 async function evaluateInstantAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -148,7 +165,7 @@ async function evaluateInstantAchievement(
 }
 
 async function evaluateMilestoneAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -179,7 +196,7 @@ async function evaluateMilestoneAchievement(
 }
 
 async function evaluateAbsoluteValueAchievement(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -210,7 +227,7 @@ async function evaluateAbsoluteValueAchievement(
 }
 
 type AchievementEvaluator = (
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   achievements: Achievement[],
@@ -230,7 +247,7 @@ function getEvaluator(type: AchievementType): AchievementEvaluator {
 }
 
 export async function checkAchievementProgress(
-  con: AchievementConnection,
+  con: DataSource | EntityManager,
   logger: FastifyBaseLogger,
   userId: string,
   eventType: AchievementEventType,

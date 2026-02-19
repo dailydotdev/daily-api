@@ -6,13 +6,16 @@ import {
   User,
 } from '../src/entity';
 import { UserAchievement } from '../src/entity/user/UserAchievement';
+import { updateUserAchievementProgress } from '../src/common/achievement';
 import {
+  createMockLogger,
   disposeGraphQLTesting,
   GraphQLTestClient,
   GraphQLTestingState,
   initializeGraphQLTesting,
   MockContext,
   saveFixtures,
+  testMutationErrorCode,
   testQueryErrorCode,
 } from './helpers';
 import createOrGetConnection from '../src/db';
@@ -110,6 +113,40 @@ const USER_ACHIEVEMENT_STATS_QUERY = /* GraphQL */ `
       totalAchievements
       unlockedCount
       lockedCount
+    }
+  }
+`;
+
+const TRACKED_ACHIEVEMENT_QUERY = /* GraphQL */ `
+  query TrackedAchievement {
+    trackedAchievement {
+      achievement {
+        id
+        name
+      }
+      progress
+      unlockedAt
+    }
+  }
+`;
+
+const TRACK_ACHIEVEMENT_MUTATION = /* GraphQL */ `
+  mutation TrackAchievement($achievementId: ID!) {
+    trackAchievement(achievementId: $achievementId) {
+      achievement {
+        id
+        name
+      }
+      progress
+      unlockedAt
+    }
+  }
+`;
+
+const UNTRACK_ACHIEVEMENT_MUTATION = /* GraphQL */ `
+  mutation UntrackAchievement {
+    untrackAchievement {
+      _
     }
   }
 `;
@@ -308,5 +345,121 @@ describe('query userAchievementStats', () => {
       { query: USER_ACHIEVEMENT_STATS_QUERY },
       'UNAUTHENTICATED',
     );
+  });
+});
+
+describe('tracked achievement', () => {
+  it('should return null when there is no tracked achievement', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(TRACKED_ACHIEVEMENT_QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.trackedAchievement).toBeNull();
+  });
+
+  it('should track a locked achievement', async () => {
+    loggedUser = '1';
+
+    const res = await client.mutate(TRACK_ACHIEVEMENT_MUTATION, {
+      variables: { achievementId: achievementIds.a2 },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.trackAchievement).toEqual({
+      achievement: {
+        id: achievementIds.a2,
+        name: 'Bookworm',
+      },
+      progress: 0,
+      unlockedAt: null,
+    });
+
+    const user = await con.getRepository(User).findOne({
+      select: ['id', 'flags'],
+      where: { id: '1' },
+    });
+    expect(user?.flags?.trackedAchievementId).toBe(achievementIds.a2);
+  });
+
+  it('should reject tracking an unlocked achievement', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(UserAchievement).save({
+      achievementId: achievementIds.a1,
+      userId: '1',
+      progress: 1,
+      unlockedAt: new Date('2024-06-01'),
+    });
+
+    await testMutationErrorCode(
+      client,
+      {
+        mutation: TRACK_ACHIEVEMENT_MUTATION,
+        variables: { achievementId: achievementIds.a1 },
+      },
+      'CONFLICT',
+      'Unlocked achievements cannot be tracked',
+    );
+  });
+
+  it('should replace previously tracked achievement', async () => {
+    loggedUser = '1';
+
+    await client.mutate(TRACK_ACHIEVEMENT_MUTATION, {
+      variables: { achievementId: achievementIds.a2 },
+    });
+
+    await client.mutate(TRACK_ACHIEVEMENT_MUTATION, {
+      variables: { achievementId: achievementIds.a3 },
+    });
+
+    const user = await con.getRepository(User).findOne({
+      select: ['id', 'flags'],
+      where: { id: '1' },
+    });
+    expect(user?.flags?.trackedAchievementId).toBe(achievementIds.a3);
+  });
+
+  it('should clear tracked achievement', async () => {
+    loggedUser = '1';
+
+    await con.getRepository(User).update('1', {
+      flags: { trackedAchievementId: achievementIds.a2 },
+    });
+
+    const res = await client.mutate(UNTRACK_ACHIEVEMENT_MUTATION);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.untrackAchievement).toEqual({ _: true });
+
+    const user = await con.getRepository(User).findOne({
+      select: ['id', 'flags'],
+      where: { id: '1' },
+    });
+    expect(user?.flags?.trackedAchievementId).toBeNull();
+  });
+
+  it('should auto-clear tracked achievement when achievement unlocks', async () => {
+    await con.getRepository(User).update('1', {
+      flags: { trackedAchievementId: achievementIds.a2 },
+    });
+
+    const wasUnlocked = await updateUserAchievementProgress(
+      con,
+      createMockLogger(),
+      '1',
+      achievementIds.a2,
+      10,
+      10,
+    );
+
+    expect(wasUnlocked).toBe(true);
+
+    const user = await con.getRepository(User).findOne({
+      select: ['id', 'flags'],
+      where: { id: '1' },
+    });
+    expect(user?.flags?.trackedAchievementId).toBeNull();
   });
 });

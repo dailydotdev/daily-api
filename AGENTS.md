@@ -224,6 +224,10 @@ The migration generator compares entities against the local database schema. Ens
 - If you feel a comment is needed, ask first before adding it
 - Avoid comments that simply restate what the code does (e.g., `// Check if user exists` before `if (!user)`)
 
+**GraphQL resolver errors:**
+- Do not throw `ApolloError` directly inside schema resolvers.
+- Prefer `AuthenticationError` / `ForbiddenError` / `ValidationError` from `apollo-server-errors`, or shared typed errors from `src/errors.ts` (for example `NotFoundError`, `ConflictError`).
+
 **Function style:**
 - Prefer const arrow functions over function declarations: `const foo = () => {}` instead of `function foo() {}`
 - Prefer single props-style argument over multiple arguments: `const foo = ({ a, b }) => {}` instead of `const foo = (a, b) => {}`
@@ -492,6 +496,7 @@ The migration generator compares entities against the local database schema. Ens
   );
   ```
 - **Exception**: Queries during write operations that need immediate consistency should use primary.
+- For GraphQL resolvers, default to read replica for pure reads (`Query` fields) either via `queryReadReplica(...)` or GraphORM read-replica mode (4th arg `true`). If the resolver can write or depends on read-after-write consistency, use primary.
 
 **Materialized View Tests:**
 - For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).
