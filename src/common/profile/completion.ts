@@ -136,14 +136,21 @@ export const ensureProfileCompleteIfEnabled = async (
   userId: string,
 ): Promise<void> => {
   const gb = getUserGrowthBookInstance(userId);
-  const gateEnabled = gb.getFeatureValue(
+  const gateValue = gb.getFeatureValue(
     features.profileCompletionPostGate.id,
     features.profileCompletionPostGate.defaultValue ?? false,
   );
 
-  if (!gateEnabled) {
+  const requiredPercentage =
+    gateValue === true
+      ? 100
+      : typeof gateValue === 'number' && gateValue > 0 && gateValue <= 100
+        ? gateValue
+        : null;
+
+  if (!requiredPercentage) {
     return;
   }
 
-  await ensureProfileComplete(con, userId);
+  await ensureProfileComplete(con, userId, requiredPercentage);
 };

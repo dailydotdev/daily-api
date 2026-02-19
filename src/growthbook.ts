@@ -121,7 +121,10 @@ export const features = {
   dailyDigest: new Feature('daily_personalized_digest', {
     ...digestFeatureBaseConfig,
   }),
-  profileCompletionPostGate: new Feature('profile_completion_post_gate', false),
+  profileCompletionPostGate: new Feature<boolean | number>(
+    'profile_completion_post_gate',
+    false,
+  ),
 };
 
 export class ExperimentAllocationClient {
