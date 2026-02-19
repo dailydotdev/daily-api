@@ -8,7 +8,7 @@ import {
   rejectionFeedbackClassificationSchema,
 } from '../../common/schema/opportunityMatch';
 import type z from 'zod';
-import { notifyOpportunityFeedbackClassified } from '../../common/opportunity/pubsub';
+import { triggerTypedEvent } from '../../common/typedPubsub';
 
 export const parseOpportunityFeedbackWorker: TypedWorker<'api.v1.opportunity-feedback-submitted'> =
   {
@@ -166,12 +166,15 @@ export const parseOpportunityFeedbackWorker: TypedWorker<'api.v1.opportunity-fee
         );
       }
 
-      await notifyOpportunityFeedbackClassified({
+      await triggerTypedEvent(
         logger,
-        opportunityId,
-        userId,
-        feedback: updatedFeedback,
-        rejectionClassification,
-      });
+        'api.v1.opportunity-feedback-classified',
+        {
+          opportunityId,
+          userId,
+          feedback: updatedFeedback,
+          rejectionClassification,
+        },
+      );
     },
   };

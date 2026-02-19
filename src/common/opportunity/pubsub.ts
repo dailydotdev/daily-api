@@ -33,7 +33,6 @@ import {
 import { ContentPreferenceOrganization } from '../../entity/contentPreference/ContentPreferenceOrganization';
 import { OpportunityUser } from '../../entity/opportunities/user';
 import { OpportunityUserType } from '../../entity/opportunities/types';
-import type { PubSubSchema } from '../typedPubsub';
 
 const fetchCandidateKeywords = async (
   manager: EntityManager,
@@ -670,26 +669,5 @@ export const notifyOpportunityFeedbackSubmitted = async ({
   await triggerTypedEvent(logger, 'api.v1.opportunity-feedback-submitted', {
     opportunityId,
     userId,
-  });
-};
-
-export const notifyOpportunityFeedbackClassified = async ({
-  logger,
-  opportunityId,
-  userId,
-  feedback,
-  rejectionClassification,
-}: {
-  logger: FastifyBaseLogger;
-  opportunityId: string;
-  userId: string;
-  feedback: PubSubSchema['api.v1.opportunity-feedback-classified']['feedback'];
-  rejectionClassification?: PubSubSchema['api.v1.opportunity-feedback-classified']['rejectionClassification'];
-}) => {
-  await triggerTypedEvent(logger, 'api.v1.opportunity-feedback-classified', {
-    opportunityId,
-    userId,
-    feedback,
-    rejectionClassification,
   });
 };

@@ -17,7 +17,7 @@ import {
 
 const mockParseFeedback = jest.fn();
 const mockClassifyRejectionFeedback = jest.fn();
-const mockNotifyFeedbackClassified = jest.fn();
+const mockTriggerTypedEvent = jest.fn();
 
 jest.mock('../../../src/integrations/bragi', () => ({
   getBragiClient: () => ({
@@ -32,10 +32,9 @@ jest.mock('../../../src/integrations/bragi', () => ({
   }),
 }));
 
-jest.mock('../../../src/common/opportunity/pubsub', () => ({
-  ...jest.requireActual('../../../src/common/opportunity/pubsub'),
-  notifyOpportunityFeedbackClassified: (...args: unknown[]) =>
-    mockNotifyFeedbackClassified(...args),
+jest.mock('../../../src/common/typedPubsub', () => ({
+  ...jest.requireActual('../../../src/common/typedPubsub'),
+  triggerTypedEvent: (...args: unknown[]) => mockTriggerTypedEvent(...args),
 }));
 
 let con: DataSource;
@@ -87,7 +86,7 @@ describe('parseOpportunityFeedback worker', () => {
     );
 
     expect(mockParseFeedback).not.toHaveBeenCalled();
-    expect(mockNotifyFeedbackClassified).not.toHaveBeenCalled();
+    expect(mockTriggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should skip when match has no feedback', async () => {
@@ -108,7 +107,7 @@ describe('parseOpportunityFeedback worker', () => {
     );
 
     expect(mockParseFeedback).not.toHaveBeenCalled();
-    expect(mockNotifyFeedbackClassified).not.toHaveBeenCalled();
+    expect(mockTriggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should parse feedback and store classification in database', async () => {
@@ -156,23 +155,26 @@ describe('parseOpportunityFeedback worker', () => {
       urgency: FeedbackUrgency.LOW,
     });
 
-    expect(mockNotifyFeedbackClassified).toHaveBeenCalledWith({
-      logger: expect.anything(),
-      opportunityId: testOpportunityId,
-      userId: '2',
-      feedback: expect.arrayContaining([
-        expect.objectContaining({
-          answer: 'Great experience!',
-          classification: {
-            platform: FeedbackPlatform.RECRUITER,
-            category: FeedbackCategory.FEATURE_REQUEST,
-            sentiment: FeedbackSentiment.POSITIVE,
-            urgency: FeedbackUrgency.LOW,
-          },
-        }),
-      ]),
-      rejectionClassification: undefined,
-    });
+    expect(mockTriggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.opportunity-feedback-classified',
+      {
+        opportunityId: testOpportunityId,
+        userId: '2',
+        feedback: expect.arrayContaining([
+          expect.objectContaining({
+            answer: 'Great experience!',
+            classification: {
+              platform: FeedbackPlatform.RECRUITER,
+              category: FeedbackCategory.FEATURE_REQUEST,
+              sentiment: FeedbackSentiment.POSITIVE,
+              urgency: FeedbackUrgency.LOW,
+            },
+          }),
+        ]),
+        rejectionClassification: undefined,
+      },
+    );
   });
 
   it('should call classifyRejectionFeedback with combined Q&A and store result', async () => {
@@ -251,7 +253,9 @@ describe('parseOpportunityFeedback worker', () => {
       summary: 'Candidate declined due to salary and location',
     });
 
-    expect(mockNotifyFeedbackClassified).toHaveBeenCalledWith(
+    expect(mockTriggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.opportunity-feedback-classified',
       expect.objectContaining({
         opportunityId: testOpportunityId,
         userId: '1',
@@ -432,7 +436,9 @@ describe('parseOpportunityFeedback worker', () => {
     // But per-item feedback classification should still be stored
     expect(updatedMatch?.feedback?.[0]?.classification).toBeDefined();
 
-    expect(mockNotifyFeedbackClassified).toHaveBeenCalledWith(
+    expect(mockTriggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.opportunity-feedback-classified',
       expect.objectContaining({
         opportunityId: testOpportunityId,
         userId: '1',
