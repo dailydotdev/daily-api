@@ -7,19 +7,19 @@ export const findJobVacancies = async ({
   input,
 }: JobHandlerParams): Promise<Record<string, unknown>> => {
   const client = getBragiClient();
-  try {
-    const response = await client.garmr.execute(() =>
-      client.instance.findJobVacancies({
+  const response = await client.garmr.execute(async () => {
+    try {
+      return await client.instance.findJobVacancies({
         companyName: input.companyName as string,
         website: input.website as string | undefined,
         emailDomain: input.emailDomain as string | undefined,
-      }),
-    );
-    return response.toJson() as Record<string, unknown>;
-  } catch (err) {
-    if (err instanceof ConnectError && err.code === Code.NotFound) {
-      return new FindJobVacanciesResponse().toJson() as Record<string, unknown>;
+      });
+    } catch (err) {
+      if (err instanceof ConnectError && err.code === Code.NotFound) {
+        return new FindJobVacanciesResponse();
+      }
+      throw err;
     }
-    throw err;
-  }
+  });
+  return response.toJson() as Record<string, unknown>;
 };

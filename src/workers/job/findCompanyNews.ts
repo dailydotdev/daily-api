@@ -7,20 +7,20 @@ export const findCompanyNews = async ({
   input,
 }: JobHandlerParams): Promise<Record<string, unknown>> => {
   const client = getBragiClient();
-  try {
-    const response = await client.garmr.execute(() =>
-      client.instance.findCompanyNews({
+  const response = await client.garmr.execute(async () => {
+    try {
+      return await client.instance.findCompanyNews({
         companyName: input.companyName as string,
         website: input.website as string | undefined,
         country: input.country as string | undefined,
         emailDomain: input.emailDomain as string | undefined,
-      }),
-    );
-    return response.toJson() as Record<string, unknown>;
-  } catch (err) {
-    if (err instanceof ConnectError && err.code === Code.NotFound) {
-      return new FindCompanyNewsResponse().toJson() as Record<string, unknown>;
+      });
+    } catch (err) {
+      if (err instanceof ConnectError && err.code === Code.NotFound) {
+        return new FindCompanyNewsResponse();
+      }
+      throw err;
     }
-    throw err;
-  }
+  });
+  return response.toJson() as Record<string, unknown>;
 };
