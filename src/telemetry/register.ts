@@ -51,7 +51,13 @@ const getInstrumentations = () => [
     mergeItems: true,
     ignoreTrivialResolveSpans: true,
   }),
-  new PinoInstrumentation(),
+  new PinoInstrumentation({
+    logKeys: {
+      traceId: 'traceId',
+      spanId: 'spanId',
+      traceFlags: 'traceFlags',
+    },
+  }),
   new GrpcInstrumentation({
     ignoreGrpcMethods: ['ModifyAckDeadline'],
   }),
