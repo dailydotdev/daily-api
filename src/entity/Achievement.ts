@@ -97,4 +97,7 @@ export class Achievement {
 
   @Column({ type: 'real', nullable: true, default: null })
   rarity: number | null;
+
+  @Column({ type: 'text', nullable: true, default: null })
+  unit: string | null;
 }

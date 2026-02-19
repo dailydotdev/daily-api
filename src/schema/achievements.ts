@@ -166,6 +166,10 @@ export const typeDefs = /* GraphQL */ `
     """
     rarity: Float
     """
+    Progress unit label for display (e.g. "posts upvoted", "day streak")
+    """
+    unit: String
+    """
     When the achievement was created
     """
     createdAt: DateTime!
