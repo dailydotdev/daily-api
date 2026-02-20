@@ -24,8 +24,6 @@ import {
   SquadSource,
   User,
 } from '../entity';
-import { UserExperience } from '../entity/user/experiences/UserExperience';
-import { UserExperienceType } from '../entity/user/experiences/types';
 import { DatasetLocation } from '../entity/dataset/DatasetLocation';
 import {
   getPermissionsForMember,
@@ -87,6 +85,11 @@ import { logger } from '../logger';
 import { freyjaClient, type FunnelState } from '../integrations/freyja';
 import { isUserPartOfOrganization } from '../common/plus';
 import { remoteConfig, RemoteConfigValue } from '../remoteConfig';
+import {
+  calculateProfileCompletion,
+  getProfileExperienceFlags as getSharedProfileExperienceFlags,
+  type ProfileCompletion,
+} from '../common/profile/completion';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -549,80 +552,6 @@ const getLocation = async (
   return location;
 };
 
-export type ProfileCompletion = {
-  percentage: number;
-  hasProfileImage: boolean;
-  hasHeadline: boolean;
-  hasExperienceLevel: boolean;
-  hasWork: boolean;
-  hasEducation: boolean;
-};
-
-type ProfileExperienceFlags = {
-  hasWork: boolean;
-  hasEducation: boolean;
-};
-
-const getProfileExperienceFlags = async (
-  con: DataSource | QueryRunner,
-  userId: string,
-): Promise<ProfileExperienceFlags> => {
-  const result = await con.manager
-    .createQueryBuilder(UserExperience, 'ue')
-    .select(`MAX(CASE WHEN ue.type = :workType THEN 1 ELSE 0 END)`, 'hasWork')
-    .addSelect(
-      `MAX(CASE WHEN ue.type = :educationType THEN 1 ELSE 0 END)`,
-      'hasEducation',
-    )
-    .where('ue.userId = :userId', { userId })
-    .andWhere('ue.type IN (:...types)', {
-      types: [UserExperienceType.Work, UserExperienceType.Education],
-    })
-    .setParameters({
-      workType: UserExperienceType.Work,
-      educationType: UserExperienceType.Education,
-    })
-    .getRawOne();
-
-  const hasWork = result?.hasWork == 1;
-  const hasEducation = result?.hasEducation == 1;
-
-  return { hasWork, hasEducation };
-};
-
-const calculateProfileCompletion = (
-  user: User | null,
-  experienceFlags: ProfileExperienceFlags | null,
-): ProfileCompletion | null => {
-  if (!user || !experienceFlags) {
-    return null;
-  }
-
-  // Calculate completion based on 5 items (each worth 20%)
-  const hasProfileImage = !!user.image && user.image !== '';
-  const hasHeadline = !!user.bio && user.bio.trim() !== '';
-  const hasExperienceLevel = !!user.experienceLevel;
-  const { hasWork, hasEducation } = experienceFlags;
-
-  const completedItems = [
-    hasProfileImage,
-    hasHeadline,
-    hasExperienceLevel,
-    hasWork,
-    hasEducation,
-  ].filter(Boolean).length;
-
-  const percentage = Math.round((completedItems / 5) * 100);
-  return {
-    percentage,
-    hasProfileImage,
-    hasHeadline,
-    hasExperienceLevel,
-    hasWork,
-    hasEducation,
-  };
-};
-
 const loggedInBoot = async ({
   con,
   req,
@@ -683,7 +612,7 @@ const loggedInBoot = async ({
           getFeeds({ con: queryRunner, userId }),
           getUnreadNotificationsCount(queryRunner, userId),
           getLocation(queryRunner, userId),
-          getProfileExperienceFlags(queryRunner, userId),
+          getSharedProfileExperienceFlags(queryRunner.manager, userId),
         ]);
       }),
       getBalanceBoot({ userId }),
