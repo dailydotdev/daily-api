@@ -50,6 +50,10 @@ import type { postMetricsUpdatedTopic } from './schema/topics';
 import type { CampaignUpdateEventArgs } from './campaign/common';
 import type { entityReminderSchema } from './schema/reminders';
 import { SourceMemberRoles } from '../roles';
+import type {
+  opportunityFeedbackSchema,
+  rejectionFeedbackClassificationSchema,
+} from './schema/opportunityMatch';
 
 export type PubSubSchema = {
   'pub-request': {
@@ -254,6 +258,14 @@ export type PubSubSchema = {
     opportunityId: string;
     userId: string;
   };
+  'api.v1.opportunity-feedback-classified': {
+    opportunityId: string;
+    userId: string;
+    feedback: Array<z.infer<typeof opportunityFeedbackSchema>>;
+    rejectionClassification?: z.infer<
+      typeof rejectionFeedbackClassificationSchema
+    >;
+  };
   'api.v1.experience-company-enriched': {
     experienceId: string;
     userId: string;
@@ -267,6 +279,13 @@ export type PubSubSchema = {
   };
   'api.v1.feedback-updated': {
     feedbackId: string;
+  };
+  'api.v1.achievement-unlocked': {
+    achievementId: string;
+    userId: string;
+  };
+  'api.v1.worker-job-execute': {
+    jobId: string;
   };
 };
 

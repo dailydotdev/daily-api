@@ -24,6 +24,7 @@ export enum PostType {
   VideoYouTube = 'video:youtube',
   Brief = 'brief',
   Poll = 'poll',
+  SocialTwitter = 'social:twitter',
 }
 
 export const postTypes: string[] = Object.values(PostType);
@@ -136,6 +137,10 @@ export class Post {
   type: PostType;
 
   @Column({ type: 'text', nullable: true })
+  @Index('IDX_post_subType')
+  subType?: string | null;
+
+  @Column({ type: 'text', nullable: true })
   title?: string | null;
 
   @Column({ type: 'text', nullable: true })
@@ -192,6 +197,9 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_comments')
   comments: number;
+
+  @Column({ type: 'integer', default: 0 })
+  reposts: number;
 
   @Column({ length: 36, nullable: true })
   @Index('IDX_post_scout')
@@ -328,4 +336,13 @@ export class Post {
   @Column({ type: 'integer', default: 0 })
   @Index('IDX_post_awards')
   awards: number;
+
+  @Column({ type: 'text', nullable: true })
+  summary?: string;
+
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Column({ nullable: true })
+  readTime?: number;
 }

@@ -10,7 +10,7 @@ import {
   opportunitiesFixture,
   organizationsFixture,
 } from '../../fixture/opportunity';
-import { OpportunityPreviewResult } from '@dailydotdev/schema';
+import { OpportunityPreviewResult, PreviewType } from '@dailydotdev/schema';
 import { OpportunityJob } from '../../../src/entity/opportunities/OpportunityJob';
 import { OpportunityPreviewStatus } from '../../../src/common/opportunity/types';
 import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
@@ -56,6 +56,27 @@ describe('opportunityPreviewResult worker', () => {
     });
   });
 
+  it('should skip without error when opportunityId is not a valid UUID', async () => {
+    const data = new OpportunityPreviewResult({
+      opportunityId: 'not-a-uuid',
+      userIds: ['1', '2', '3'],
+      totalCount: 3,
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.opportunity-preview-results'>(
+      worker,
+      data,
+    );
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(opportunity?.flags.preview).toBeUndefined();
+  });
+
   it('should throw error if opportunityId is missing', async () => {
     const applicationScoreData = new OpportunityPreviewResult({
       userIds: ['1', '2', '3'],
@@ -90,5 +111,88 @@ describe('opportunityPreviewResult worker', () => {
 
     expect(opportunity).toBeDefined();
     expect(opportunity!.flags.preview?.userIds.length).toBe(20);
+  });
+
+  it('should save preview type when provided', async () => {
+    const applicationScoreData = new OpportunityPreviewResult({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userIds: ['1', '2', '3'],
+      totalCount: 3,
+      previewType: PreviewType.ANALYSIS,
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.opportunity-preview-results'>(
+      worker,
+      applicationScoreData,
+    );
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.flags.preview).toEqual({
+      userIds: ['1', '2', '3'],
+      totalCount: 3,
+      status: OpportunityPreviewStatus.READY,
+      type: PreviewType.ANALYSIS,
+    });
+  });
+
+  it('should save preview type as default when provided', async () => {
+    const applicationScoreData = new OpportunityPreviewResult({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userIds: ['1', '2'],
+      totalCount: 2,
+      previewType: PreviewType.DEFAULT,
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.opportunity-preview-results'>(
+      worker,
+      applicationScoreData,
+    );
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.flags.preview).toEqual({
+      userIds: ['1', '2'],
+      totalCount: 2,
+      status: OpportunityPreviewStatus.READY,
+      type: PreviewType.DEFAULT,
+    });
+  });
+
+  it('should save preview result without type when not provided', async () => {
+    const applicationScoreData = new OpportunityPreviewResult({
+      opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+      userIds: ['1'],
+      totalCount: 1,
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.opportunity-preview-results'>(
+      worker,
+      applicationScoreData,
+    );
+
+    const opportunity = await con.getRepository(OpportunityJob).findOne({
+      where: {
+        id: '550e8400-e29b-41d4-a716-446655440001',
+      },
+    });
+
+    expect(opportunity).toBeDefined();
+    expect(opportunity!.flags.preview).toEqual({
+      userIds: ['1'],
+      totalCount: 1,
+      status: OpportunityPreviewStatus.READY,
+      type: undefined,
+    });
   });
 });

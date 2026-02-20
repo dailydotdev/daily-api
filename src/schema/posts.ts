@@ -137,6 +137,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import { ensureProfileCompleteIfEnabled } from '../common/profile/completion';
 import {
   type GetBalanceResult,
   throwUserTransactionError,
@@ -171,6 +172,7 @@ export interface GQLPollOption {
 export interface GQLPost {
   id: string;
   type: PostType;
+  subType?: string;
   shortId: string;
   publishedAt?: Date;
   pinnedAt?: Date;
@@ -189,6 +191,7 @@ export interface GQLPost {
   numUpvotes: number;
   numComments: number;
   numAwards: number;
+  numReposts: number;
   deleted?: boolean;
   private: boolean;
   // Used only for pagination (not part of the schema)
@@ -214,6 +217,9 @@ export interface GQLPost {
   slug?: string;
   translation?: Partial<Record<keyof PostTranslation, boolean>>;
   permalink?: string;
+  creatorTwitter?: string;
+  creatorTwitterName?: string;
+  creatorTwitterImage?: string;
   endsAt?: Date;
   pollOptions?: GQLPollOption[];
   numPollVotes?: number;
@@ -552,6 +558,11 @@ export const typeDefs = /* GraphQL */ `
     type: String
 
     """
+    Post sub type (for platform specific variants)
+    """
+    subType: String
+
+    """
     Unique URL friendly short identifier
     """
     shortId: String
@@ -665,6 +676,11 @@ export const typeDefs = /* GraphQL */ `
     Total number of awards
     """
     numAwards: Int!
+
+    """
+    Total number of reposts
+    """
+    numReposts: Int!
 
     """
     Permanent link to the comments of the post
@@ -795,6 +811,21 @@ export const typeDefs = /* GraphQL */ `
     Language of the post
     """
     language: String
+
+    """
+    Twitter handle of the post creator
+    """
+    creatorTwitter: String
+
+    """
+    Display name of the Twitter creator (for social:twitter posts)
+    """
+    creatorTwitterName: String
+
+    """
+    Profile image URL of the Twitter creator (for social:twitter posts)
+    """
+    creatorTwitterImage: String
 
     """
     Featured award for the post, currently the most expensive one
@@ -1049,6 +1080,8 @@ export const typeDefs = /* GraphQL */ `
   type PostAnalyticsPublic {
     id: ID!
     impressions: Int!
+    reputation: Int!
+    upvotes: Int!
   }
 
   type PostAnalyticsHistory {
@@ -1275,6 +1308,20 @@ export const typeDefs = /* GraphQL */ `
       """
       id: ID!
     ): PostAnalyticsHistoryConnection! @auth
+
+    """
+    Get paginated list of posts authored by the authenticated user with analytics
+    """
+    userPostsWithAnalytics(
+      """
+      Paginate after opaque cursor
+      """
+      after: String
+      """
+      Paginate first
+      """
+      first: Int
+    ): PostConnection! @auth
   }
 
   extend type Mutation {
@@ -2385,6 +2432,36 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       );
     },
+    userPostsWithAnalytics: async (
+      _,
+      args: ConnectionArguments,
+      ctx: AuthContext,
+      info,
+    ): Promise<ConnectionRelay<GQLPost>> => {
+      return queryPaginatedByDate(
+        ctx,
+        info,
+        args,
+        { key: 'createdAt' },
+        {
+          queryBuilder: (builder) => {
+            builder.queryBuilder = builder.queryBuilder
+              .andWhere(`${builder.alias}.authorId = :userId`, {
+                userId: ctx.userId,
+              })
+              .andWhere(`${builder.alias}.deleted = false`)
+              .andWhere(`${builder.alias}.visible = true`)
+              .andWhere(`${builder.alias}.type != :briefType`, {
+                briefType: PostType.Brief,
+              });
+
+            return builder;
+          },
+          orderByKey: 'DESC',
+          readReplica: true,
+        },
+      );
+    },
   },
   Mutation: {
     createSourcePostModeration: async (
@@ -2620,6 +2697,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await Promise.all([
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -2840,6 +2918,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await Promise.all([
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -2909,6 +2988,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .from(Post, 'post')
           .where('post.id = :id', { id })
           .getOneOrFail(),
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -3264,6 +3344,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       await Promise.all([
         sourceCheck,
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
 
@@ -3344,7 +3425,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { sourceIds, ...postArgs } = args;
       const detectedPostType = getMultipleSourcesPostType(args);
 
-      await ensurePostRateLimit(ctx.con, ctx.userId);
+      await Promise.all([
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
       const isPostingToSelfSource = sourceIds.includes(ctx.userId);
       if (isPostingToSelfSource) {
         await ensureUserSourceExists(ctx.userId, ctx.con);
@@ -3449,6 +3533,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   Post: {
     contentHtml: (post: GQLPost): GQLPost['contentHtml'] =>
       mapCloudinaryUrl(post.contentHtml),
+    creatorTwitterImage: (post: GQLPost): GQLPost['creatorTwitterImage'] =>
+      mapCloudinaryUrl(post.creatorTwitterImage),
     image: (post: GQLPost): string | undefined => {
       const image = mapCloudinaryUrl(post.image);
       if (nullableImageType.includes(post.type)) return image;

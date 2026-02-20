@@ -16,6 +16,7 @@ interface GQLUpdateAlertsInput extends Partial<GQLAlerts> {
   myFeed?: string;
   lastBootPopup?: Date;
   briefBannerLastSeen?: Date;
+  showAchievementUnlock?: string | null;
 }
 
 export const typeDefs = /* GraphQL */ `
@@ -94,6 +95,11 @@ export const typeDefs = /* GraphQL */ `
     showTopReader: Boolean
 
     """
+    Achievement ID to show unlock celebration for
+    """
+    showAchievementUnlock: String
+
+    """
     Whether to show the Super Agent trial upgrade notification
     """
     showSuperAgentTrialUpgrade: Boolean
@@ -164,6 +170,11 @@ export const typeDefs = /* GraphQL */ `
     Whether to show the top reader badge
     """
     showTopReader: Boolean
+
+    """
+    Achievement ID to show unlock celebration for
+    """
+    showAchievementUnlock: String
 
     """
     Date of the last time user saw the brief banner

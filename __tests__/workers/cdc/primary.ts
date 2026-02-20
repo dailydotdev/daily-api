@@ -5,6 +5,9 @@ import {
   OpportunityType,
 } from '@dailydotdev/schema';
 import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
   Alerts,
   ArticlePost,
   Banner,
@@ -65,6 +68,7 @@ import {
   UserStreakActionType,
   YouTubePost,
 } from '../../../src/entity';
+import { UserAchievement } from '../../../src/entity/user/UserAchievement';
 import { PollPost } from '../../../src/entity/posts/PollPost';
 import { PollOption } from '../../../src/entity/polls/PollOption';
 import { addDays, addYears, isSameDay } from 'date-fns';
@@ -3262,94 +3266,89 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        canonicalUrl: 'http://p4c.com',
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [
-            {
-              provider: 'test',
-              resourceLocation: 'gs://path.xml',
-            },
-          ],
-          scraped: {
-            resourceLocation: 'gs://path.html',
-          },
-          storedCodeSnippets: '',
-          enriched: { provider: 'test' },
-          language: { provider: 'translate' },
-          embedding: {
-            size: 999,
-            model: 'test',
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      canonicalUrl: 'http://p4c.com',
+      contentCuration: ['c1', 'c2'],
+      contentMeta: {
+        cleaned: [
+          {
             provider: 'test',
-            contentType: 'title_summary',
-            resourceLocation: 'yggdrasil',
-            updatedAt: 1725878687,
-          },
-          aigcDetect: { provider: 'test' },
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['backend', 'data', 'javascript'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p4',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p2',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p3',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
+            resourceLocation: 'gs://path.xml',
           },
         ],
-        source: {
-          active: true,
-          color: 'avocado',
-          createdAt: expect.any(Number),
-          description: 'A description',
-          handle: 'a',
-          headerImage: 'http://image.com/header',
-          id: 'a',
-          image: 'http://image.com/a',
-          name: 'A',
-          private: false,
-          twitter: '@a',
-          type: 'machine',
-          website: 'http://a.com',
+        scraped: {
+          resourceLocation: 'gs://path.html',
         },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.Article,
-        updatedAt: expect.any(Number),
-        url: 'http://p4.com',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+        enriched: { provider: 'test' },
+        language: { provider: 'translate' },
+        embedding: {
+          size: 999,
+          model: 'test',
+          provider: 'test',
+          contentType: 'title_summary',
+          resourceLocation: 'yggdrasil',
+          updatedAt: 1725878687,
+        },
+        aigcDetect: { provider: 'test' },
       },
-    ]);
+      contentQuality: {
+        isAiProbability: 0.9,
+      },
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['backend', 'data', 'javascript'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p4',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p2',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p3',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        color: 'avocado',
+        createdAt: expect.any(Number),
+        description: 'A description',
+        handle: 'a',
+        headerImage: 'http://image.com/header',
+        id: 'a',
+        image: 'http://image.com/a',
+        name: 'A',
+        twitter: '@a',
+        type: 'machine',
+        website: 'http://a.com',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.Article,
+      updatedAt: expect.any(Number),
+      url: 'http://p4.com',
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should notify on freeform post updated', async () => {
@@ -3369,75 +3368,66 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        content: 'Freeform content',
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [],
-          storedCodeSnippets: '',
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['backend', 'data', 'javascript'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p4',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p2',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p3',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-        ],
-        source: {
-          active: true,
-          color: 'avocado',
-          createdAt: expect.any(Number),
-          description: 'A description',
-          handle: 'a',
-          headerImage: 'http://image.com/header',
-          id: 'a',
-          image: 'http://image.com/a',
-          name: 'A',
-          private: false,
-          twitter: '@a',
-          type: 'machine',
-          website: 'http://a.com',
-        },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.Freeform,
-        updatedAt: expect.any(Number),
-        url: '',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      content: 'Freeform content',
+      contentCuration: ['c1', 'c2'],
+      contentQuality: {
+        isAiProbability: 0.9,
       },
-    ]);
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['backend', 'data', 'javascript'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p4',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p2',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p3',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        color: 'avocado',
+        createdAt: expect.any(Number),
+        description: 'A description',
+        handle: 'a',
+        headerImage: 'http://image.com/header',
+        id: 'a',
+        image: 'http://image.com/a',
+        name: 'A',
+        twitter: '@a',
+        type: 'machine',
+        website: 'http://a.com',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.Freeform,
+      updatedAt: expect.any(Number),
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should not notify on post created', async () => {
@@ -3504,70 +3494,61 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        content: 'Collection content',
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [],
-          storedCodeSnippets: '',
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['javascript', 'webdev'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p1',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p2',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p3',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-        ],
-        source: {
-          active: true,
-          createdAt: expect.any(Number),
-          handle: 'collections',
-          id: 'collections',
-          image: 'http://image.com/collections',
-          name: 'Collections',
-          private: false,
-          type: 'machine',
-        },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.Collection,
-        updatedAt: expect.any(Number),
-        url: '',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      content: 'Collection content',
+      contentCuration: ['c1', 'c2'],
+      contentQuality: {
+        isAiProbability: 0.9,
       },
-    ]);
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['javascript', 'webdev'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p1',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p2',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p3',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        createdAt: expect.any(Number),
+        handle: 'collections',
+        id: 'collections',
+        image: 'http://image.com/collections',
+        name: 'Collections',
+        type: 'machine',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.Collection,
+      updatedAt: expect.any(Number),
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should notify on youtube post updated', async () => {
@@ -3587,74 +3568,66 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toEqual([
-      'api.v1.content-updated',
-      {
-        banned: false,
-        contentCuration: ['c1', 'c2'],
-        contentMeta: {
-          cleaned: [],
-          storedCodeSnippets: '',
-        },
-        contentQuality: {
-          isAiProbability: 0.9,
-        },
-        createdAt: expect.any(Number),
-        description: 'Post for testing',
-        image: 'https://daily.dev/image.jpg',
-        keywords: ['backend', 'data', 'javascript'],
-        language: 'en',
-        origin: 'crawler',
-        postId: 'p4',
-        private: false,
-        readTime: 5,
-        relatedPosts: [
-          {
-            createdAt: expect.any(Number),
-            postId: 'p1',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p2',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-          {
-            createdAt: expect.any(Number),
-            postId: 'p3',
-            relatedPostId: 'p4',
-            type: 'COLLECTION',
-          },
-        ],
-        source: {
-          active: true,
-          color: 'avocado',
-          createdAt: expect.any(Number),
-          description: 'A description',
-          handle: 'a',
-          headerImage: 'http://image.com/header',
-          id: 'a',
-          image: 'http://image.com/a',
-          name: 'A',
-          private: false,
-          twitter: '@a',
-          type: 'machine',
-          website: 'http://a.com',
-        },
-        summary: 'Post for testing',
-        tags: ['javascript', 'webdev', 'react'],
-        title: 'Post for testing',
-        type: PostType.VideoYouTube,
-        updatedAt: expect.any(Number),
-        url: 'http://youtube.com/watch?v=123',
-        visible: true,
-        yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
-        deleted: false,
-        translation: {},
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      contentCuration: ['c1', 'c2'],
+      contentQuality: {
+        isAiProbability: 0.9,
       },
-    ]);
+      createdAt: expect.any(Number),
+      description: 'Post for testing',
+      image: 'https://daily.dev/image.jpg',
+      keywords: ['backend', 'data', 'javascript'],
+      language: 'en',
+      origin: 'crawler',
+      postId: 'p4',
+      readTime: 5,
+      relatedPosts: [
+        {
+          createdAt: expect.any(Number),
+          postId: 'p1',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p2',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+        {
+          createdAt: expect.any(Number),
+          postId: 'p3',
+          relatedPostId: 'p4',
+          type: 'COLLECTION',
+        },
+      ],
+      source: {
+        active: true,
+        color: 'avocado',
+        createdAt: expect.any(Number),
+        description: 'A description',
+        handle: 'a',
+        headerImage: 'http://image.com/header',
+        id: 'a',
+        image: 'http://image.com/a',
+        name: 'A',
+        twitter: '@a',
+        type: 'machine',
+        website: 'http://a.com',
+      },
+      summary: 'Post for testing',
+      tags: ['javascript', 'webdev', 'react'],
+      title: 'Post for testing',
+      type: PostType.VideoYouTube,
+      updatedAt: expect.any(Number),
+      url: 'http://youtube.com/watch?v=123',
+      visible: true,
+      yggdrasilId: 'f30cdfd4-80cd-4955-bed1-0442dc5511bf',
+    });
   });
 
   it('should handle JSON string from jsonb fields', async () => {
@@ -3694,33 +3667,32 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          contentMeta: {
-            cleaned: [{ provider: 'test', resourceLocation: 'gs://path.xml' }],
-          },
-          contentQuality: {
-            isAiProbability: 0.9,
-          },
-          translation: {
-            hr: {
-              title: 'translated title hr',
-              smartTitle: 'translated smart title hr',
-              titleHtml: '<p>translated title hr</p>',
-              summary: 'translated summary hr',
-            },
-            en: {
-              title: 'translated title',
-              smartTitle: 'translated smart title',
-              titleHtml: '<p>translated title</p>',
-              summary: 'translated summary',
-            },
-          },
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      contentMeta: {
+        cleaned: [{ provider: 'test', resourceLocation: 'gs://path.xml' }],
+      },
+      contentQuality: {
+        isAiProbability: 0.9,
+      },
+      translation: {
+        hr: {
+          title: 'translated title hr',
+          smartTitle: 'translated smart title hr',
+          titleHtml: '<p>translated title hr</p>',
+          summary: 'translated summary hr',
         },
-      ],
-    );
+        en: {
+          title: 'translated title',
+          smartTitle: 'translated smart title',
+          titleHtml: '<p>translated title</p>',
+          summary: 'translated summary',
+        },
+      },
+    });
   });
 
   it('should transform ns timestamp to seconds', async () => {
@@ -3744,17 +3716,14 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          createdAt: Math.floor(contentUpdatedPost.createdAt / 1_000_000),
-          updatedAt: Math.floor(
-            contentUpdatedPost.metadataChangedAt / 1_000_000,
-          ),
-        },
-      ],
-    );
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      createdAt: Math.floor(contentUpdatedPost.createdAt / 1_000_000),
+      updatedAt: Math.floor(contentUpdatedPost.metadataChangedAt / 1_000_000),
+    });
   });
 
   it('should send deleted field', async () => {
@@ -3779,14 +3748,13 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          deleted: true,
-        },
-      ],
-    );
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      deleted: true,
+    });
   });
 
   it('should notify on share post updated', async () => {
@@ -3805,15 +3773,14 @@ describe('post content updated', () => {
       }),
     );
     expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
-    expect(jest.mocked(triggerTypedEvent).mock.calls[0].slice(1)).toMatchObject(
-      [
-        'api.v1.content-updated',
-        {
-          sharedPostId: 'sp1',
-          type: PostType.Share,
-        },
-      ],
-    );
+    const [topic, message] = jest
+      .mocked(triggerTypedEvent)
+      .mock.calls[0].slice(1);
+    expect(topic).toBe('api.v1.content-updated');
+    expect(message.toJson()).toMatchObject({
+      sharedPostId: 'sp1',
+      type: PostType.Share,
+    });
   });
 });
 
@@ -4875,6 +4842,120 @@ describe('user streak change', () => {
         .getRepository(Alerts)
         .findOneBy({ userId: '1-cusc' });
       expect(alert.showRecoverStreak).toEqual(true);
+    });
+  });
+
+  describe('streak achievement progress', () => {
+    const streakAchievementId = randomUUID();
+
+    beforeEach(async () => {
+      await con.getRepository(Achievement).save({
+        id: streakAchievementId,
+        name: "I took 'daily dev' literally",
+        description: 'Reach a 365-day reading streak',
+        image: 'https://example.com/streak365.png',
+        type: AchievementType.Milestone,
+        eventType: AchievementEventType.ReadingStreak,
+        criteria: { targetCount: 365 },
+        points: 50,
+        rarity: 0.01,
+      });
+    });
+
+    it('should NOT unlock 365-day streak achievement with only 50-day streak', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 50,
+        maxStreak: 50,
+      };
+      const before: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 49,
+        maxStreak: 49,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: streakAchievementId,
+          userId: '1-cusc',
+        });
+      expect(userAchievement).not.toBeNull();
+      expect(userAchievement!.progress).toEqual(50);
+      expect(userAchievement!.unlockedAt).toBeNull();
+    });
+
+    it('should unlock 365-day streak achievement when maxStreak reaches 365', async () => {
+      const after: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 365,
+        maxStreak: 365,
+      };
+      const before: ChangeObject<ObjectType> = {
+        ...base,
+        currentStreak: 364,
+        maxStreak: 364,
+      };
+      await expectSuccessfulBackground(
+        worker,
+        mockChangeMessage<ObjectType>({
+          after,
+          before,
+          op: 'u',
+          table: 'user_streak',
+        }),
+      );
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: streakAchievementId,
+          userId: '1-cusc',
+        });
+      expect(userAchievement).not.toBeNull();
+      expect(userAchievement!.progress).toEqual(365);
+      expect(userAchievement!.unlockedAt).not.toBeNull();
+    });
+
+    it('should set progress to absolute maxStreak value, not increment', async () => {
+      for (const maxStreak of [10, 20, 30]) {
+        const after: ChangeObject<ObjectType> = {
+          ...base,
+          currentStreak: maxStreak,
+          maxStreak,
+        };
+        const before: ChangeObject<ObjectType> = {
+          ...base,
+          currentStreak: maxStreak - 1,
+          maxStreak: maxStreak - 1,
+        };
+        await expectSuccessfulBackground(
+          worker,
+          mockChangeMessage<ObjectType>({
+            after,
+            before,
+            op: 'u',
+            table: 'user_streak',
+          }),
+        );
+      }
+
+      const userAchievement = await con
+        .getRepository(UserAchievement)
+        .findOneBy({
+          achievementId: streakAchievementId,
+          userId: '1-cusc',
+        });
+      expect(userAchievement!.progress).toEqual(30);
     });
   });
 });
@@ -6601,12 +6682,15 @@ describe('opportunity', () => {
       }),
     );
 
-    expect(triggerTypedEvent).toHaveBeenCalledTimes(2);
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(3);
     expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
       'api.v1.opportunity-added',
     );
     expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
       'api.v1.opportunity-went-live',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[2][1]).toEqual(
+      'api.v1.opportunity-updated',
     );
   });
 
@@ -6779,6 +6863,124 @@ describe('opportunity', () => {
 
     expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
   });
+
+  it('should trigger opportunity-updated when LIVE opportunity is updated (state remains LIVE)', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Updated Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    // Should trigger opportunity-added twice (existing logic for after.state=LIVE and before.state=LIVE) and opportunity-updated
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(3);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[1][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+    expect(jest.mocked(triggerTypedEvent).mock.calls[2][1]).toEqual(
+      'api.v1.opportunity-updated',
+    );
+    expect(
+      jest.mocked(triggerTypedEvent).mock.calls[2][2].excludedUserIds,
+    ).toEqual(['1', '2', '4']);
+  });
+
+  it('should NOT trigger opportunity-updated on create (only opportunity-added)', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.LIVE,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'c',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(1);
+    expect(jest.mocked(triggerTypedEvent).mock.calls[0][1]).toEqual(
+      'api.v1.opportunity-added',
+    );
+    // Verify opportunity-updated was NOT called
+    const calls = jest.mocked(triggerTypedEvent).mock.calls;
+    const opportunityUpdatedCalls = calls.filter(
+      (call) => call[1] === 'api.v1.opportunity-updated',
+    );
+    expect(opportunityUpdatedCalls).toHaveLength(0);
+  });
+
+  it('should NOT trigger opportunity-updated when state is not LIVE', async () => {
+    await expectSuccessfulBackground(
+      worker,
+      mockChangeMessage<OpportunityJob>({
+        before: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: organizationsFixture[0].id,
+        },
+        after: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          createdAt: new Date().getTime(),
+          updatedAt: new Date().getTime(),
+          type: OpportunityType.JOB,
+          title: 'Updated Senior Backend Engineer',
+          tldr: 'We are looking for a Senior Backend Engineer...',
+          content: [],
+          meta: {},
+          state: OpportunityState.DRAFT,
+          organizationId: organizationsFixture[0].id,
+        },
+        op: 'u',
+        table: 'opportunity',
+      }),
+    );
+
+    expect(triggerTypedEvent).toHaveBeenCalledTimes(0);
+  });
 });
 
 describe('user_candidate_preference', () => {
@@ -6787,13 +6989,14 @@ describe('user_candidate_preference', () => {
   });
 
   it('should trigger candidate preference change event on creation', async () => {
+    const cv = {
+      blob: 'https://example.com/cv.pdf',
+      lastModified: new Date('2023-01-01'),
+    };
     const candidatePreferenceData = {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
-      cv: {
-        url: 'https://example.com/cv.pdf',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       cvParsed: {},
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
@@ -6822,7 +7025,7 @@ describe('user_candidate_preference', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        after: candidatePreferenceData,
+        after: { ...candidatePreferenceData, cv: JSON.stringify(cv) },
         op: 'c',
         table: 'user_candidate_preference',
       }),
@@ -6835,14 +7038,15 @@ describe('user_candidate_preference', () => {
   });
 
   it('should trigger candidate preference change event on update', async () => {
+    const cv = {
+      blob: 'https://example.com/cv.pdf',
+      lastModified: new Date('2023-01-01'),
+    };
     const originalData = {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
-        url: 'https://example.com/cv.pdf',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
       employmentType: [0], // EmploymentType.FULL_TIME
@@ -6875,11 +7079,12 @@ describe('user_candidate_preference', () => {
     // Create the UserCandidatePreference record
     await con.getRepository(UserCandidatePreference).save(updatedData);
 
+    const cvStr = JSON.stringify(cv);
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        before: originalData,
-        after: updatedData,
+        before: { ...originalData, cv: cvStr },
+        after: { ...updatedData, cv: cvStr },
         op: 'u',
         table: 'user_candidate_preference',
       }),
@@ -6896,10 +7101,10 @@ describe('user_candidate_preference', () => {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
-        url: 'https://example.com/cv.pdf',
+      cv: JSON.stringify({
+        blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
-      },
+      }),
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
       employmentType: [0], // EmploymentType.FULL_TIME
@@ -6936,10 +7141,10 @@ describe('user_candidate_preference', () => {
       userId: '1',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
-        url: 'https://example.com/cv.pdf',
+      cv: JSON.stringify({
+        blob: 'https://example.com/cv.pdf',
         lastModified: new Date('2023-01-01'),
-      },
+      }),
       role: 'Senior Full Stack Developer',
       roleType: 0.8,
       employmentType: [0], // EmploymentType.FULL_TIME
@@ -6972,13 +7177,14 @@ describe('user_candidate_preference', () => {
   });
 
   it('should handle disabled candidate status', async () => {
+    const cv = {
+      blob: '',
+      lastModified: new Date('2023-01-01'),
+    };
     const candidatePreferenceData = {
       userId: '2',
       status: CandidateStatus.DISABLED,
-      cv: {
-        url: '',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       role: '',
       roleType: 0.5,
       employmentType: [],
@@ -6998,7 +7204,7 @@ describe('user_candidate_preference', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        after: candidatePreferenceData,
+        after: { ...candidatePreferenceData, cv: JSON.stringify(cv) },
         op: 'c',
         table: 'user_candidate_preference',
       }),
@@ -7019,10 +7225,10 @@ describe('user_candidate_preference', () => {
           userId: 'non-existent-user',
           status: CandidateStatus.OPEN_TO_OFFERS,
           cvParsed: {},
-          cv: {
-            url: 'https://example.com/cv.pdf',
+          cv: JSON.stringify({
+            blob: 'https://example.com/cv.pdf',
             lastModified: new Date('2023-01-01'),
-          },
+          }),
           role: 'Senior Developer',
           roleType: 0.8,
           employmentType: [0],
@@ -7046,14 +7252,15 @@ describe('user_candidate_preference', () => {
   });
 
   it('should handle complex employment types and locations', async () => {
+    const cv = {
+      blob: 'https://example.com/cv.pdf',
+      lastModified: new Date('2023-01-01'),
+    };
     const candidatePreferenceData = {
       userId: '3',
       status: CandidateStatus.OPEN_TO_OFFERS,
       cvParsed: {},
-      cv: {
-        url: 'https://example.com/cv.pdf',
-        lastModified: new Date('2023-01-01'),
-      },
+      cv,
       role: 'Full Stack Engineer',
       roleType: 0.9,
       employmentType: [0, 1, 2], // Multiple employment types
@@ -7086,7 +7293,7 @@ describe('user_candidate_preference', () => {
     await expectSuccessfulBackground(
       worker,
       mockChangeMessage<UserCandidatePreference>({
-        after: candidatePreferenceData,
+        after: { ...candidatePreferenceData, cv: JSON.stringify(cv) },
         op: 'u',
         table: 'user_candidate_preference',
       }),

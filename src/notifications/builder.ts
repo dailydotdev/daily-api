@@ -30,6 +30,7 @@ import {
   NotificationBundleV2,
   NotificationStreakContext,
   Reference,
+  type NotificationAchievementContext,
   type NotificationBoostContext,
   type NotificationCampaignContext,
   type NotificationOrganizationContext,
@@ -226,6 +227,20 @@ export class NotificationBuilder {
     });
   }
 
+  referenceFeedback(feedbackId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: feedbackId,
+      referenceType: 'feedback',
+    });
+  }
+
+  referenceAchievement(achievementId: string): NotificationBuilder {
+    return this.enrichNotification({
+      referenceId: achievementId,
+      referenceType: 'achievement',
+    });
+  }
+
   icon(icon: NotificationIcon): NotificationBuilder {
     return this.enrichNotification({ icon });
   }
@@ -391,6 +406,17 @@ export class NotificationBuilder {
       image: emptyImage,
     });
 
+    return this;
+  }
+
+  avatarAchievement(ctx: NotificationAchievementContext): NotificationBuilder {
+    this.avatars.push({
+      type: 'achievement',
+      referenceId: ctx.achievementId,
+      image: ctx.achievementImage,
+      name: ctx.achievementName,
+      targetUrl: `${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/achievements`,
+    });
     return this;
   }
 

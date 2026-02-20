@@ -16,7 +16,9 @@ import {
 import { queryReadReplica } from '../common/queryReadReplica';
 import { kvasir } from './private/kvasir';
 import rpc from './private/rpc';
-import { connectRpcPlugin } from '../common/connectRpc';
+import { createWorkerJobRpc } from './private/workerJobRpc';
+import { connectRpcPlugin, baseRpcContext } from '../common/connectRpc';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { Opportunity } from '../entity/opportunities/Opportunity';
 import { opportunityCreateSchema } from '../common/schema/opportunities';
 import { markdown } from '../common/markdown';
@@ -298,5 +300,13 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.register(connectRpcPlugin, {
     routes: rpc,
     prefix: '/rpc',
+  });
+  fastify.register(connectRpcPlugin, {
+    routes: createWorkerJobRpc((context) => {
+      if (!context.values.get(baseRpcContext).service) {
+        throw new ConnectError('unauthenticated', Code.Unauthenticated);
+      }
+    }),
+    prefix: '/worker-job-rpc',
   });
 }

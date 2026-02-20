@@ -38,6 +38,12 @@ const AllowedContentCurationTypes = [
   'tutorial',
   'story',
   'meme',
+  'drama',
+  'endorsement',
+  'criticism',
+  'leak',
+  'milestone',
+  'hot_take',
 ] as const;
 
 function getDefaultConfig(

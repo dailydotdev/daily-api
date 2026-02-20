@@ -25,6 +25,7 @@ import {
 } from '../../../paddle';
 import { addMilliseconds } from 'date-fns';
 import { notifyNewPaddlePlusTransaction } from '../slack';
+import { revokeAllUserTokens } from '../../personalAccessToken';
 
 /**
  * Maps Paddle subscription status to internal SubscriptionStatus.
@@ -148,6 +149,11 @@ export const updateUserSubscription = async ({
         }),
       },
     );
+
+    // Revoke all API tokens when subscription becomes inactive
+    if (!isActive) {
+      await revokeAllUserTokens(con, userId);
+    }
   }
 };
 

@@ -5,10 +5,12 @@ import { GenericMetadata } from '../lofn';
 export type FeedResponse = {
   data: [postId: string, metadata: string | null][];
   cursor?: string;
+  staleCursor?: boolean; // True when feed cache was regenerated and cursor became stale
 };
 
 export enum FeedConfigName {
   Personalise = 'personalise',
+  Channel = 'channel',
   Vector = 'vector',
   Onboarding = 'onboarding',
   PersonaliseV27 = 'personalise_v27',
@@ -45,6 +47,7 @@ export type VectorSimilarityProvider = FeedProvider & {
 export type FeedConfig = {
   user_id?: string;
   feed_config_name?: FeedConfigName;
+  channel?: string;
   page_size: number;
   offset?: number;
   total_pages: number;

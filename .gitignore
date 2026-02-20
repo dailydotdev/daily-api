@@ -12,3 +12,5 @@ debezium/data
 coverage
 .DS_Store
 node-compile-cache/
+.cache/
+plans/*.md

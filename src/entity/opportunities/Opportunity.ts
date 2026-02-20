@@ -13,6 +13,7 @@ import type {
   OpportunityMeta,
   OpportunityState,
   OpportunityType,
+  PreviewType,
 } from '@dailydotdev/schema';
 import type { OpportunityUser } from './user';
 import type { OpportunityKeyword } from '../OpportunityKeyword';
@@ -27,6 +28,7 @@ export type OpportunityFlags = Partial<{
     userIds: string[];
     totalCount: number;
     status: OpportunityPreviewStatus;
+    type?: PreviewType;
   };
   batchSize: number;
   plan: string;
@@ -44,6 +46,8 @@ export type OpportunityFlags = Partial<{
   parseError: string | null;
   isTrial: boolean;
   public_draft: boolean;
+  sourceUrl: string | null;
+  source: 'user' | 'machine' | null;
 }>;
 
 export type OpportunityFlagsPublic = Pick<

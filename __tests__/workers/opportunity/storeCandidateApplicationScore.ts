@@ -94,6 +94,23 @@ describe('storeCandidateApplicationScore worker', () => {
     });
   });
 
+  it('should skip without error when opportunityId is not a valid UUID', async () => {
+    const applicationScoreData = new ApplicationScored({
+      userId: '1',
+      opportunityId: 'not-a-uuid',
+      score: 85,
+      description: 'Test description',
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-application-scored'>(
+      worker,
+      applicationScoreData,
+    );
+
+    const matches = await con.getRepository(OpportunityMatch).find();
+    expect(matches).toHaveLength(0);
+  });
+
   it('should warn and return early when userId is missing', async () => {
     const applicationScoreData = new ApplicationScored({
       userId: '',

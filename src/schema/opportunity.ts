@@ -10,12 +10,9 @@ import {
   OpportunityContent,
   OpportunityState,
   ScreeningQuestionsRequest,
-  Opportunity as OpportunityMessage,
-  Location as LocationMessage,
 } from '@dailydotdev/schema';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
 import {
-  getSecondsTimestamp,
   toGQLEnum,
   uniqueifyObjectArray,
   updateFlagsStatement,
@@ -101,6 +98,7 @@ import { SubscriptionStatus } from '../common/plus';
 import { paddleInstance } from '../common/paddle';
 import type { ISubscriptionUpdateItem } from '@paddle/paddle-node-sdk';
 import { OpportunityPreviewStatus } from '../common/opportunity/types';
+import { buildOpportunityPreviewPayload } from '../common/opportunity/preview';
 import {
   getOpportunityFileBuffer,
   validateOpportunityFileType,
@@ -255,6 +253,7 @@ export const typeDefs = /* GraphQL */ `
 
   type OpportunityLocation {
     id: ID!
+    locationId: ID!
     location: Location!
     type: ProtoEnumValue!
   }
@@ -783,11 +782,13 @@ export const typeDefs = /* GraphQL */ `
   }
 
   input LocationInput {
+    locationId: ID
     city: String
     country: String
     subdivision: String
     continent: String
     type: ProtoEnumValue
+    externalLocationId: String
   }
 
   input OpportunityScreeningAnswerInput {
@@ -842,8 +843,6 @@ export const typeDefs = /* GraphQL */ `
     tldr: String
     meta: OpportunityMetaInput
     location: [LocationInput]
-    externalLocationId: String
-    locationType: ProtoEnumValue
     keywords: [OpportunityKeywordInput]
     content: OpportunityContentInput
     questions: [OpportunityScreeningQuestionInput!]
@@ -1215,41 +1214,68 @@ async function renderOpportunityContent(
   return new OpportunityContent(renderedContent);
 }
 
+type LocationInput = {
+  locationId?: string | null;
+  externalLocationId?: string | null;
+  type?: number | null;
+  city?: string | null;
+  country?: string | null;
+  subdivision?: string | null;
+};
+
 /**
  * Handles opportunity location updates
- * Creates or updates locations based on externalLocationId and locationType
+ * Creates or updates locations based on locationId or externalLocationId from each location input.
+ * When locationId is provided, re-uses the existing DatasetLocation directly.
+ * When externalLocationId is provided, resolves via findOrCreateDatasetLocation.
  */
 async function handleOpportunityLocationUpdate(
   entityManager: EntityManager,
   opportunityId: string,
-  externalLocationId: string | null | undefined,
-  locationType: number | undefined | null,
+  locations: LocationInput[] | undefined | null,
   ctx: AuthContext,
 ): Promise<void> {
-  if (externalLocationId) {
-    // If externalLocationId is provided, replace all locations with the new one
-    await entityManager.getRepository(OpportunityLocation).delete({
-      opportunityId,
-    });
+  if (!locations || locations.length === 0) {
+    return;
+  }
 
-    const location = await findOrCreateDatasetLocation(
-      ctx.con,
-      externalLocationId,
-    );
+  // Delete all existing locations for this opportunity
+  await entityManager.getRepository(OpportunityLocation).delete({
+    opportunityId,
+  });
 
-    // Create new OpportunityLocation relationship
-    if (location) {
-      await entityManager.getRepository(OpportunityLocation).insert({
+  const locationsToInsert: Array<{
+    opportunityId: string;
+    locationId: string;
+    type: number;
+  }> = [];
+
+  for (const locationInput of locations) {
+    let resolvedLocationId: string | null = null;
+
+    if (locationInput.locationId) {
+      resolvedLocationId = locationInput.locationId;
+    } else if (locationInput.externalLocationId) {
+      const location = await findOrCreateDatasetLocation(
+        ctx.con,
+        locationInput.externalLocationId,
+      );
+      resolvedLocationId = location?.id ?? null;
+    }
+
+    if (resolvedLocationId) {
+      locationsToInsert.push({
         opportunityId,
-        locationId: location.id,
-        type: locationType || 1,
+        locationId: resolvedLocationId,
+        type: locationInput.type || 1,
       });
     }
-  } else if (locationType !== undefined && locationType !== null) {
-    // If only locationType is provided (no externalLocationId), update existing locations
+  }
+
+  if (locationsToInsert.length > 0) {
     await entityManager
       .getRepository(OpportunityLocation)
-      .update({ opportunityId }, { type: locationType });
+      .insert(locationsToInsert);
   }
 }
 
@@ -1712,8 +1738,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         throw new ConflictError('Opportunity is not ready for preview yet');
       }
 
-      const keywords = await opportunity.keywords;
-
       let opportunityPreview: OpportunityJob['flags']['preview'] = {
         userIds: [],
         totalCount: 0,
@@ -1736,69 +1760,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             : OpportunityPreviewStatus.READY;
         }
       } else {
-        const opportunityContent: Record<string, unknown> = {};
-
-        // since this is json endpoint we need to make sure all keys are present
-        // even if empty, remove this when we move to protobuf service call
-        Object.keys(new OpportunityContent()).forEach((key) => {
-          const opportunityKey = key as keyof OpportunityContent;
-
-          opportunityContent[opportunityKey] =
-            opportunity.content[opportunityKey] || {};
-        });
-
-        // Fetch locations from OpportunityLocation table
-        const opportunityLocations = await ctx.con
-          .getRepository(OpportunityLocation)
-          .find({
-            where: { opportunityId: opportunity.id },
-            relations: ['location'],
-          });
-
-        const locations = await Promise.all(
-          opportunityLocations.map(async (ol) => {
-            const datasetLocation = await ol.location;
-
-            if (!datasetLocation.country && datasetLocation.continent) {
-              return new LocationMessage({
-                type: ol.type,
-                continent: datasetLocation.continent,
-              });
-            }
-
-            return new LocationMessage({
-              ...datasetLocation,
-              type: ol.type,
-              city: datasetLocation.city || undefined,
-              subdivision: datasetLocation.subdivision || undefined,
-              country: datasetLocation.country || undefined,
-            });
-          }),
-        );
-
-        // Default to US location if no locations are specified
-        if (locations.length === 0) {
-          locations.push(
-            new LocationMessage({
-              iso2: 'US',
-              country: 'United States',
-            }),
-          );
-        }
-
-        const opportunityMessage = new OpportunityMessage({
-          id: opportunity.id,
-          createdAt: getSecondsTimestamp(opportunity.createdAt),
-          updatedAt: getSecondsTimestamp(opportunity.updatedAt),
-          type: opportunity.type,
-          state: opportunity.state,
-          title: opportunity.title,
-          tldr: opportunity.tldr,
-          content: opportunityContent,
-          meta: opportunity.meta,
-          location: locations,
-          keywords: keywords.map((k) => k.keyword),
-          flags: opportunity.flags,
+        const opportunityMessage = await buildOpportunityPreviewPayload({
+          opportunity,
+          con: ctx.con,
         });
 
         const gondulOpportunityServiceClient =
@@ -2491,8 +2455,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           content,
           questions,
           recruiter,
-          externalLocationId,
-          locationType,
+          location,
           ...opportunityUpdate
         } = opportunity;
 
@@ -2511,13 +2474,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .setParameter('metaJson', JSON.stringify(opportunity.meta || {}))
           .execute();
 
-        await handleOpportunityLocationUpdate(
-          entityManager,
-          id,
-          externalLocationId,
-          locationType,
-          ctx,
-        );
+        await handleOpportunityLocationUpdate(entityManager, id, location, ctx);
 
         await handleOpportunityKeywordsUpdate(entityManager, id, keywords);
 

@@ -1,0 +1,26 @@
+# daily.dev Public API
+
+> LLM-friendly documentation for the daily.dev API
+
+This API provides access to personalized developer content feeds. It requires a Plus subscription and Personal Access Token.
+
+## Documentation
+
+- **Quick Start & Examples**: https://api.daily.dev/public/v1/skill.md
+- **OpenAPI Specification (JSON)**: https://api.daily.dev/public/v1/docs/json
+- **OpenAPI Specification (YAML)**: https://api.daily.dev/public/v1/docs/yaml
+
+## Authentication
+
+All API requests require a Bearer token:
+```
+Authorization: Bearer dda_your_token_here
+```
+
+Tokens are created at https://app.daily.dev/settings/api (requires Plus subscription).
+
+## Base URL
+
+```
+https://api.daily.dev/public/v1
+```

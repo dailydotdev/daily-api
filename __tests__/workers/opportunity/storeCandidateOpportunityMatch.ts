@@ -13,6 +13,7 @@ import {
 } from '../../fixture/opportunity';
 import { MatchedCandidate } from '@dailydotdev/schema';
 import { DatasetLocation } from '../../../src/entity/dataset/DatasetLocation';
+import { OpportunityMatchStatus } from '../../../src/entity/opportunities/types';
 
 let con: DataSource;
 
@@ -108,6 +109,24 @@ describe('storeCandidateOpportunityMatch worker', () => {
     expect(matches).toHaveLength(0);
   });
 
+  it('should skip without error when opportunityId is not a valid UUID', async () => {
+    const matchData = new MatchedCandidate({
+      userId: '1',
+      opportunityId: 'not-a-uuid',
+      matchScore: 85,
+      reasoning: 'Strong technical background',
+      reasoningShort: 'Strong technical background',
+    });
+
+    await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+      worker,
+      matchData,
+    );
+
+    const matches = await con.getRepository(OpportunityMatch).find();
+    expect(matches).toHaveLength(0);
+  });
+
   it('should parse binary message correctly', () => {
     const testData = new MatchedCandidate({
       userId: '1',
@@ -175,5 +194,229 @@ describe('storeCandidateOpportunityMatch worker', () => {
         opportunityId: '550e8400-e29b-41d4-a716-446655440002',
       }),
     );
+  });
+
+  describe('re-match handling', () => {
+    it('should reset a candidate_rejected match to pending on re-match', async () => {
+      // Create initial match with candidate_rejected status
+      await con.getRepository(OpportunityMatch).save({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: OpportunityMatchStatus.CandidateRejected,
+        description: {
+          matchScore: 75,
+          reasoning: 'Initial reasoning',
+          reasoningShort: 'Initial short',
+        },
+        feedback: [{ screening: 'test', answer: 'initial answer' }],
+        history: [],
+      });
+
+      const matchData = new MatchedCandidate({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        matchScore: 90,
+        reasoning: 'Updated reasoning for re-match',
+        reasoningShort: 'Updated short',
+      });
+
+      await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        matchData,
+      );
+
+      const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      });
+
+      expect(updatedMatch).toBeDefined();
+      expect(updatedMatch!.status).toBe(OpportunityMatchStatus.Pending);
+      expect(updatedMatch!.description.matchScore).toBe(90);
+      expect(updatedMatch!.description.reasoning).toBe(
+        'Updated reasoning for re-match',
+      );
+      expect(updatedMatch!.feedback).toEqual([]);
+    });
+
+    it('should archive previous state to history on re-match', async () => {
+      await con.getRepository(OpportunityMatch).save({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: OpportunityMatchStatus.CandidateRejected,
+        description: {
+          matchScore: 75,
+          reasoning: 'Initial reasoning',
+          reasoningShort: 'Initial short',
+        },
+        feedback: [{ screening: 'salary', answer: 'too low' }],
+        history: [],
+      });
+
+      const matchData = new MatchedCandidate({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        matchScore: 85,
+        reasoning: 'Re-match reasoning',
+        reasoningShort: 'Re-match short',
+      });
+
+      await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        matchData,
+      );
+
+      const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      });
+
+      expect(updatedMatch!.history).toHaveLength(1);
+      expect(updatedMatch!.history[0]).toMatchObject({
+        status: OpportunityMatchStatus.CandidateRejected,
+        feedback: [{ screening: 'salary', answer: 'too low' }],
+        description: {
+          matchScore: 75,
+          reasoning: 'Initial reasoning',
+          reasoningShort: 'Initial short',
+        },
+      });
+      expect(updatedMatch!.history[0].archivedAt).toBeDefined();
+    });
+
+    it('should update alerts with hasSeenOpportunity=false on re-match', async () => {
+      await saveFixtures(con, Alerts, [
+        {
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+          flags: { hasSeenOpportunity: true },
+        },
+      ]);
+
+      await con.getRepository(OpportunityMatch).save({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: OpportunityMatchStatus.CandidateRejected,
+        description: {
+          matchScore: 75,
+          reasoning: 'Initial',
+          reasoningShort: 'Initial',
+        },
+        feedback: [],
+        history: [],
+      });
+
+      const matchData = new MatchedCandidate({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        matchScore: 85,
+        reasoning: 'Re-match',
+        reasoningShort: 'Re-match',
+      });
+
+      await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        matchData,
+      );
+
+      const alerts = await con.getRepository(Alerts).findOneBy({ userId: '1' });
+      expect(alerts!.flags!.hasSeenOpportunity).toBe(false);
+    });
+
+    it('should append to history on multiple re-matches', async () => {
+      await con.getRepository(OpportunityMatch).save({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: OpportunityMatchStatus.CandidateRejected,
+        description: {
+          matchScore: 80,
+          reasoning: 'Second reasoning',
+          reasoningShort: 'Second short',
+        },
+        feedback: [{ screening: 'location', answer: 'too far' }],
+        history: [
+          {
+            status: OpportunityMatchStatus.CandidateRejected,
+            feedback: [{ screening: 'salary', answer: 'too low' }],
+            description: {
+              matchScore: 75,
+              reasoning: 'First reasoning',
+              reasoningShort: 'First short',
+            },
+            archivedAt: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+      });
+
+      const matchData = new MatchedCandidate({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        matchScore: 90,
+        reasoning: 'Third reasoning',
+        reasoningShort: 'Third short',
+      });
+
+      await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        matchData,
+      );
+
+      const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      });
+
+      expect(updatedMatch!.history).toHaveLength(2);
+      expect(updatedMatch!.history[0].description!.matchScore).toBe(75);
+      expect(updatedMatch!.history[1].description!.matchScore).toBe(80);
+    });
+
+    it('should not reset match if status is not candidate_rejected', async () => {
+      await con.getRepository(OpportunityMatch).save({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        status: OpportunityMatchStatus.CandidateAccepted,
+        description: {
+          matchScore: 75,
+          reasoning: 'Initial',
+          reasoningShort: 'Initial',
+        },
+        feedback: [{ screening: 'test', answer: 'answer' }],
+        history: [],
+      });
+
+      const matchData = new MatchedCandidate({
+        userId: '1',
+        opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        matchScore: 90,
+        reasoning: 'Updated',
+        reasoningShort: 'Updated',
+      });
+
+      await expectSuccessfulTypedBackground<'gondul.v1.candidate-opportunity-match'>(
+        worker,
+        matchData,
+      );
+
+      const match = await con.getRepository(OpportunityMatch).findOne({
+        where: {
+          userId: '1',
+          opportunityId: '550e8400-e29b-41d4-a716-446655440001',
+        },
+      });
+
+      // Status and feedback should remain unchanged (only description updates via upsert)
+      expect(match!.status).toBe(OpportunityMatchStatus.CandidateAccepted);
+      expect(match!.feedback).toEqual([
+        { screening: 'test', answer: 'answer' },
+      ]);
+      expect(match!.history).toEqual([]);
+    });
   });
 });

@@ -31,7 +31,7 @@ import {
 } from '../src/notifications';
 import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
-import { opentelemetry } from '../src/telemetry/opentelemetry';
+import type { Span } from '@opentelemetry/api';
 import { logger } from '../src/logger';
 import {
   Code as ConnectCode,
@@ -39,6 +39,7 @@ import {
   createRouterTransport,
 } from '@connectrpc/connect';
 import {
+  ActivityItem,
   ApplicationService as GondulService,
   Credits,
   TransferType,
@@ -46,9 +47,15 @@ import {
   ScreeningQuestionsResponse,
   BrokkrService,
   ExtractMarkdownResponse,
+  FindCompanyNewsResponse,
+  FindContactActivityResponse,
+  FindJobVacanciesResponse,
+  JobVacancy,
+  NewsItem,
   ParseCVResponse,
   ParseError,
   ParseOpportunityResponse,
+  Pipelines,
   Opportunity,
   OpportunityMeta,
   OpportunityContent,
@@ -72,7 +79,7 @@ import { userExperienceWorkFixture } from './fixture/profile/work';
 import { randomUUID } from 'node:crypto';
 
 export class MockContext extends Context {
-  mockSpan: MockProxy<opentelemetry.Span> & opentelemetry.Span;
+  mockSpan: MockProxy<Span> & Span;
   mockUserId: string | null;
   mockRoles: Roles[];
   mockIsTeamMember: boolean;
@@ -93,10 +100,8 @@ export class MockContext extends Context {
     trackingId: string | undefined = undefined,
   ) {
     super(mock<FastifyRequest>(), con);
-    this.mockSpan = mock<opentelemetry.Span>();
-    this.mockSpan.setAttributes.mockImplementation(() =>
-      mock<opentelemetry.Span>(),
-    );
+    this.mockSpan = mock<Span>();
+    this.mockSpan.setAttributes.mockImplementation(() => mock<Span>());
     this.mockUserId = userId;
     this.mockRoles = roles;
     this.mockIsTeamMember = isTeamMember;
@@ -110,7 +115,7 @@ export class MockContext extends Context {
     }
   }
 
-  get span(): opentelemetry.Span {
+  get span(): Span {
     return this.mockSpan;
   }
 
@@ -717,6 +722,62 @@ export const createGarmrMock = () => {
     },
   });
 };
+
+export const createMockBragiPipelinesTransport = () =>
+  createRouterTransport(({ service }) => {
+    service(Pipelines, {
+      findJobVacancies: () =>
+        new FindJobVacanciesResponse({
+          id: 'mock-id',
+          vacancies: [
+            new JobVacancy({
+              role: 'Senior Engineer',
+              seniority: 'Senior',
+              stack: ['TypeScript'],
+              description: 'Build things',
+              sweScore: 0.9,
+            }),
+          ],
+        }),
+      findCompanyNews: () =>
+        new FindCompanyNewsResponse({
+          id: 'mock-id',
+          newsItems: [
+            new NewsItem({
+              headline: 'Acme raises $10M',
+              summary: 'Series A funding round',
+              newsType: 'funding',
+            }),
+          ],
+        }),
+      findContactActivity: () =>
+        new FindContactActivityResponse({
+          id: 'mock-id',
+          activities: [
+            new ActivityItem({
+              title: 'Scaling our platform',
+              summary: 'Blog post about infrastructure',
+              activityType: 'linkedin_post',
+            }),
+          ],
+        }),
+    });
+  });
+
+export const createMockBragiPipelinesNotFoundTransport = () =>
+  createRouterTransport(({ service }) => {
+    service(Pipelines, {
+      findJobVacancies: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+      findCompanyNews: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+      findContactActivity: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+    });
+  });
 
 export const createMockGondulOpportunityServiceTransport = () => {
   return createRouterTransport(({ service }) => {

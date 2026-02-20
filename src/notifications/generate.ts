@@ -37,6 +37,8 @@ import {
   type NotificationRecruiterOpportunityLiveContext,
   type NotificationExperienceCompanyEnrichedContext,
   type NotificationRecruiterExternalPaymentContext,
+  type NotificationFeedbackResolvedContext,
+  type NotificationAchievementContext,
 } from './types';
 import { UPVOTE_TITLES } from '../workers/notifications/utils';
 import { checkHasMention } from '../common/markdown';
@@ -206,6 +208,8 @@ export const notificationTitleMap: Record<
   announcements: systemTitle,
   in_app_purchases: systemTitle,
   new_opportunity_match: () => `New job match waiting for you`,
+  rematched_opportunity: () =>
+    `Job requirements changed, and you've been re-matched with a job`,
   post_analytics: (ctx: NotificationPostAnalyticsContext) => {
     return `Your post has reached ${formatMetricValue(ctx.analytics.impressions)} impressions so far. <span class="text-text-link">View more analytics</span>`;
   },
@@ -236,6 +240,10 @@ export const notificationTitleMap: Record<
     ctx: NotificationRecruiterExternalPaymentContext,
   ) =>
     `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
+  feedback_resolved: () =>
+    `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>. Thank you for helping us improve!`,
+  achievement_unlocked: (ctx: NotificationAchievementContext) =>
+    `<span class="text-theme-color-cabbage">Achievement unlocked!</span> ${ctx.achievementName}`,
 };
 
 export const generateNotificationMap: Record<
@@ -580,6 +588,15 @@ export const generateNotificationMap: Record<
       .description(
         `<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
       )
+      .targetUrl(`${process.env.COMMENTS_PREFIX}/jobs/${ctx.opportunityId}`),
+  rematched_opportunity: (builder, ctx: NotificationOpportunityMatchContext) =>
+    builder
+      .icon(NotificationIcon.Opportunity)
+      .referenceOpportunity(ctx.opportunityId)
+      .uniqueKey(ctx.userIds[0])
+      .description(
+        `<span><strong class="text-accent-cabbage-default">Why this is a match:</strong> ${ctx.reasoningShort}</span>`,
+      )
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}`,
       ),
@@ -683,5 +700,31 @@ export const generateNotificationMap: Record<
       .targetUrl(
         `${process.env.COMMENTS_PREFIX}/opportunity/${ctx.opportunityId}/prepare`,
       );
+  },
+  feedback_resolved: (
+    builder: NotificationBuilder,
+    ctx: NotificationFeedbackResolvedContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .title('Your feedback has been resolved')
+      .referenceFeedback(ctx.feedbackId)
+      .description(ctx.feedbackDescription, true)
+      .targetUrl(process.env.COMMENTS_PREFIX)
+      .uniqueKey(ctx.feedbackId);
+  },
+  achievement_unlocked: (
+    builder: NotificationBuilder,
+    ctx: NotificationAchievementContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .description(ctx.achievementDescription)
+      .referenceAchievement(ctx.achievementId)
+      .avatarAchievement(ctx)
+      .targetUrl(
+        `${process.env.COMMENTS_PREFIX}/${ctx.userIds[0]}/achievements`,
+      )
+      .uniqueKey(ctx.userIds[0]);
   },
 };

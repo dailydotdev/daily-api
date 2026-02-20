@@ -30,6 +30,7 @@ import { BookmarkErrorMessage } from '../errors';
 
 interface GQLAddBookmarkInput {
   postIds: string[];
+  listId?: string;
 }
 
 export interface GQLBookmark {
@@ -100,6 +101,13 @@ export const typeDefs = /* GraphQL */ `
     Post ids to bookmark
     """
     postIds: [ID]!
+
+    """
+    Optional list ID to add bookmarks to (Plus users only).
+    If not provided, Plus users get "last used list" behavior.
+    Non-Plus users: this parameter is ignored.
+    """
+    listId: ID
   }
 
   type Mutation {
@@ -340,17 +348,30 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       ctx: AuthContext,
       info,
     ): Promise<GQLBookmark[]> => {
-      let lastUsedListId = null;
+      let targetListId: string | null = null;
+
       if (ctx.isPlus) {
-        const lastAddedBookmark = await ctx.con
-          .getRepository(Bookmark)
-          .findOne({
-            where: { userId: ctx.userId },
-            order: { updatedAt: 'DESC' },
-            select: ['listId'],
-          });
-        lastUsedListId = lastAddedBookmark?.listId ?? null;
+        if (data.listId !== undefined) {
+          // If listId is provided, validate it exists and belongs to user
+          if (data.listId !== null) {
+            await ctx.con
+              .getRepository(BookmarkList)
+              .findOneByOrFail({ userId: ctx.userId, id: data.listId });
+          }
+          targetListId = data.listId ?? null;
+        } else {
+          // Use "last used list" behavior
+          const lastAddedBookmark = await ctx.con
+            .getRepository(Bookmark)
+            .findOne({
+              where: { userId: ctx.userId },
+              order: { updatedAt: 'DESC' },
+              select: ['listId'],
+            });
+          targetListId = lastAddedBookmark?.listId ?? null;
+        }
       }
+      // Non-plus users: targetListId stays null, listId param is ignored
 
       if (data.postIds.length > maxBookmarksPerMutation) {
         throw new ValidationError(BookmarkErrorMessage.EXCEEDS_MUTATION_LIMIT);
@@ -365,7 +386,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           posts.map((post) => ({
             postId: post.id,
             userId: ctx.userId,
-            listId: lastUsedListId,
+            listId: targetListId,
           })),
           ['postId', 'userId'],
         );

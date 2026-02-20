@@ -17,6 +17,7 @@ module.exports = {
   testPathIgnorePatterns: [
     '<rootDir>/__tests__/setup.ts',
     '<rootDir>/__tests__/teardown.ts',
+    '<rootDir>/__tests__/.*/helpers.ts',
     '<rootDir>/__tests__/helpers.ts',
     '<rootDir>/__tests__/fixture/',
   ],

@@ -1,9 +1,11 @@
 import type { Roles } from './roles';
 import type { AccessToken } from './auth';
-import type { opentelemetry } from './telemetry';
+import type { Span, Tracer } from '@opentelemetry/api';
 import type { GarmrService } from './integrations/garmr';
 import { type Client } from '@connectrpc/connect';
 import type { ServiceType } from '@bufbuild/protobuf';
+// eslint-disable-next-line unused-imports/no-unused-imports
+import type { DataSource } from 'typeorm';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -67,6 +69,7 @@ declare global {
       SLACK_TRANSACTIONS_WEBHOOK: string;
       SLACK_ADS_WEBHOOK: string;
       SLACK_USER_FEEDBACK_WEBHOOK: string;
+      SLACK_USER_FEEDBACK_CHANNEL_ID: string;
       NJORD_ORIGIN: string;
       OPEN_EXCHANGE_RATES_APP_ID?: string;
       SKADI_ORIGIN: string;
@@ -84,6 +87,13 @@ declare global {
       GONDUL_ORIGIN: string;
       GONDUL_OPPORTUNITY_SERVER_ORIGIN: string;
       BROKKR_ORIGIN: string;
+      OUTBOUND_SERVICE_SECRET: string;
+
+      OTEL_SERVICE_NAME: string;
+      OTEL_SERVICE_VERSION: string;
+      OTEL_LOGGER_FORMAT: 'otel' | 'gcp';
+      OTEL_METRICS_EXPORTER: 'otlp' | 'prometheus';
+      OTEL_EXPORTER_OTLP_ENDPOINT: string;
     }
   }
 }
@@ -104,12 +114,18 @@ declare module 'fastify' {
     isBot?: boolean;
 
     // Used for tracing
-    span?: opentelemetry.Span;
+    span?: Span;
+
+    // Used for public API authentication
+    apiUserId?: string;
+    apiTokenId?: string;
   }
 
   interface FastifyInstance {
     // Used for tracing
-    tracer?: opentelemetry.Tracer;
+    tracer?: Tracer;
+    // Used for public API routes to access database
+    con?: DataSource;
   }
 }
 

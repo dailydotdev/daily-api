@@ -21,11 +21,14 @@ import cleanGiftedPlus from './cleanGiftedPlus';
 import { cleanStaleUserTransactions } from './cleanStaleUserTransactions';
 import { postAnalyticsClickhouseCron } from './postAnalyticsClickhouse';
 import { postAnalyticsHistoryDayClickhouseCron } from './postAnalyticsHistoryDayClickhouse';
+import { userPostsAnalyticsRefreshCron } from './userPostsAnalyticsRefresh';
+import { squadPostsAnalyticsRefreshCron } from './squadPostsAnalyticsRefresh';
 import { userProfileAnalyticsClickhouseCron } from './userProfileAnalyticsClickhouse';
 import { userProfileAnalyticsHistoryClickhouseCron } from './userProfileAnalyticsHistoryClickhouse';
 import { cleanZombieOpportunities } from './cleanZombieOpportunities';
 import { userProfileUpdatedSync } from './userProfileUpdatedSync';
 import expireSuperAgentTrial from './expireSuperAgentTrial';
+import updateAchievementRarity from './updateAchievementRarity';
 
 export const crons: Cron[] = [
   updateViews,
@@ -50,9 +53,12 @@ export const crons: Cron[] = [
   cleanStaleUserTransactions,
   postAnalyticsClickhouseCron,
   postAnalyticsHistoryDayClickhouseCron,
+  userPostsAnalyticsRefreshCron,
+  squadPostsAnalyticsRefreshCron,
   userProfileAnalyticsClickhouseCron,
   userProfileAnalyticsHistoryClickhouseCron,
   cleanZombieOpportunities,
   userProfileUpdatedSync,
   expireSuperAgentTrial,
+  updateAchievementRarity,
 ];

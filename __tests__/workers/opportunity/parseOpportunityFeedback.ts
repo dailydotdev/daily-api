@@ -16,6 +16,8 @@ import {
 } from '@dailydotdev/schema';
 
 const mockParseFeedback = jest.fn();
+const mockClassifyRejectionFeedback = jest.fn();
+const mockTriggerTypedEvent = jest.fn();
 
 jest.mock('../../../src/integrations/bragi', () => ({
   getBragiClient: () => ({
@@ -24,8 +26,15 @@ jest.mock('../../../src/integrations/bragi', () => ({
     },
     instance: {
       parseFeedback: (...args: unknown[]) => mockParseFeedback(...args),
+      classifyRejectionFeedback: (...args: unknown[]) =>
+        mockClassifyRejectionFeedback(...args),
     },
   }),
+}));
+
+jest.mock('../../../src/common/typedPubsub', () => ({
+  ...jest.requireActual('../../../src/common/typedPubsub'),
+  triggerTypedEvent: (...args: unknown[]) => mockTriggerTypedEvent(...args),
 }));
 
 let con: DataSource;
@@ -77,6 +86,7 @@ describe('parseOpportunityFeedback worker', () => {
     );
 
     expect(mockParseFeedback).not.toHaveBeenCalled();
+    expect(mockTriggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should skip when match has no feedback', async () => {
@@ -97,6 +107,7 @@ describe('parseOpportunityFeedback worker', () => {
     );
 
     expect(mockParseFeedback).not.toHaveBeenCalled();
+    expect(mockTriggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should parse feedback and store classification in database', async () => {
@@ -143,5 +154,296 @@ describe('parseOpportunityFeedback worker', () => {
       sentiment: FeedbackSentiment.POSITIVE,
       urgency: FeedbackUrgency.LOW,
     });
+
+    expect(mockTriggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.opportunity-feedback-classified',
+      {
+        opportunityId: testOpportunityId,
+        userId: '2',
+        feedback: expect.arrayContaining([
+          expect.objectContaining({
+            answer: 'Great experience!',
+            classification: {
+              platform: FeedbackPlatform.RECRUITER,
+              category: FeedbackCategory.FEATURE_REQUEST,
+              sentiment: FeedbackSentiment.POSITIVE,
+              urgency: FeedbackUrgency.LOW,
+            },
+          }),
+        ]),
+        rejectionClassification: undefined,
+      },
+    );
+  });
+
+  it('should call classifyRejectionFeedback with combined Q&A and store result', async () => {
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: testOpportunityId,
+      userId: '1',
+      status: OpportunityMatchStatus.Pending,
+      description: { reasoning: 'Test match' },
+      feedback: [
+        { screening: 'Why decline?', answer: 'Salary too low' },
+        { screening: 'Anything else?', answer: 'Location is bad' },
+      ],
+    });
+
+    mockParseFeedback.mockResolvedValue({
+      classification: {
+        platform: FeedbackPlatform.RECRUITER,
+        category: FeedbackCategory.FEATURE_REQUEST,
+        sentiment: FeedbackSentiment.NEGATIVE,
+        urgency: FeedbackUrgency.MEDIUM,
+      },
+    });
+
+    mockClassifyRejectionFeedback.mockResolvedValue({
+      id: 'test-id',
+      classification: {
+        reasons: [
+          {
+            reason: 3,
+            confidence: 0.95,
+            explanation: 'Salary expectations not met',
+            preference: { case: 'freeTextPreference', value: 'Too low' },
+          },
+          {
+            reason: 1,
+            confidence: 0.7,
+            explanation: 'Location mismatch',
+          },
+        ],
+        summary: 'Candidate declined due to salary and location',
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-feedback-submitted'>(
+      worker,
+      {
+        opportunityId: testOpportunityId,
+        userId: '1',
+      },
+    );
+
+    expect(mockClassifyRejectionFeedback).toHaveBeenCalledWith({
+      feedback:
+        'Q: Why decline?\nA: Salary too low\n\nQ: Anything else?\nA: Location is bad',
+      jobContext: 'Test Opportunity\nTest TLDR',
+    });
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+      where: { opportunityId: testOpportunityId, userId: '1' },
+    });
+
+    expect(updatedMatch?.rejectionClassification).toEqual({
+      reasons: [
+        {
+          reason: 3,
+          confidence: 0.95,
+          explanation: 'Salary expectations not met',
+          freeTextPreference: 'Too low',
+        },
+        {
+          reason: 1,
+          confidence: 0.7,
+          explanation: 'Location mismatch',
+        },
+      ],
+      summary: 'Candidate declined due to salary and location',
+    });
+
+    expect(mockTriggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.opportunity-feedback-classified',
+      expect.objectContaining({
+        opportunityId: testOpportunityId,
+        userId: '1',
+        rejectionClassification: {
+          reasons: [
+            {
+              reason: 3,
+              confidence: 0.95,
+              explanation: 'Salary expectations not met',
+              freeTextPreference: 'Too low',
+            },
+            {
+              reason: 1,
+              confidence: 0.7,
+              explanation: 'Location mismatch',
+            },
+          ],
+          summary: 'Candidate declined due to salary and location',
+        },
+      }),
+    );
+  });
+
+  it('should classify feedback for candidate rejected matches from submitted events', async () => {
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: testOpportunityId,
+      userId: '1',
+      status: OpportunityMatchStatus.CandidateRejected,
+      description: { reasoning: 'Test match' },
+      feedback: [{ screening: 'Why decline?', answer: 'Offer too low' }],
+    });
+
+    mockParseFeedback.mockResolvedValue({
+      classification: {
+        platform: FeedbackPlatform.RECRUITER,
+        category: FeedbackCategory.FEATURE_REQUEST,
+        sentiment: FeedbackSentiment.NEGATIVE,
+        urgency: FeedbackUrgency.MEDIUM,
+      },
+    });
+
+    mockClassifyRejectionFeedback.mockResolvedValue({
+      id: 'test-id',
+      classification: {
+        reasons: [
+          {
+            reason: 3,
+            confidence: 0.95,
+            explanation: 'Salary expectations not met',
+            preference: { case: 'freeTextPreference', value: 'Offer too low' },
+          },
+        ],
+        summary: 'Candidate declined due to compensation',
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-feedback-submitted'>(
+      worker,
+      {
+        opportunityId: testOpportunityId,
+        userId: '1',
+      },
+    );
+
+    expect(mockClassifyRejectionFeedback).toHaveBeenCalled();
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+      where: { opportunityId: testOpportunityId, userId: '1' },
+    });
+
+    expect(updatedMatch?.rejectionClassification).toMatchObject({
+      summary: 'Candidate declined due to compensation',
+    });
+  });
+
+  it('should reclassify when already classified', async () => {
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: testOpportunityId,
+      userId: '1',
+      status: OpportunityMatchStatus.Pending,
+      description: { reasoning: 'Test match' },
+      feedback: [{ screening: 'Why?', answer: 'Not interested' }],
+      rejectionClassification: {
+        reasons: [{ reason: 10, confidence: 0.8, explanation: 'Other' }],
+        summary: 'Already classified',
+      },
+    });
+
+    mockParseFeedback.mockResolvedValue({
+      classification: {
+        platform: FeedbackPlatform.RECRUITER,
+        category: FeedbackCategory.FEATURE_REQUEST,
+        sentiment: FeedbackSentiment.NEGATIVE,
+        urgency: FeedbackUrgency.LOW,
+      },
+    });
+
+    mockClassifyRejectionFeedback.mockResolvedValue({
+      id: 'test-id',
+      classification: {
+        reasons: [
+          {
+            reason: 5,
+            confidence: 0.91,
+            explanation: 'Candidate prefers another area',
+          },
+        ],
+        summary: 'Updated classification',
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-feedback-submitted'>(
+      worker,
+      {
+        opportunityId: testOpportunityId,
+        userId: '1',
+      },
+    );
+
+    expect(mockClassifyRejectionFeedback).toHaveBeenCalled();
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+      where: { opportunityId: testOpportunityId, userId: '1' },
+    });
+
+    expect(updatedMatch?.rejectionClassification).toEqual({
+      reasons: [
+        {
+          reason: 5,
+          confidence: 0.91,
+          explanation: 'Candidate prefers another area',
+        },
+      ],
+      summary: 'Updated classification',
+    });
+  });
+
+  it('should handle ConnectError from classifyRejectionFeedback gracefully', async () => {
+    await con.getRepository(OpportunityMatch).save({
+      opportunityId: testOpportunityId,
+      userId: '1',
+      status: OpportunityMatchStatus.Pending,
+      description: { reasoning: 'Test match' },
+      feedback: [{ screening: 'Why?', answer: 'Salary' }],
+    });
+
+    mockParseFeedback.mockResolvedValue({
+      classification: {
+        platform: FeedbackPlatform.RECRUITER,
+        category: FeedbackCategory.FEATURE_REQUEST,
+        sentiment: FeedbackSentiment.NEGATIVE,
+        urgency: FeedbackUrgency.LOW,
+      },
+    });
+
+    const { ConnectError: CE } = jest.requireActual('@connectrpc/connect');
+    mockClassifyRejectionFeedback.mockRejectedValue(
+      new CE('Service unavailable'),
+    );
+
+    await expectSuccessfulTypedBackground<'api.v1.opportunity-feedback-submitted'>(
+      worker,
+      {
+        opportunityId: testOpportunityId,
+        userId: '1',
+      },
+    );
+
+    // parseFeedback should still have been called and stored
+    expect(mockParseFeedback).toHaveBeenCalled();
+
+    const updatedMatch = await con.getRepository(OpportunityMatch).findOne({
+      where: { opportunityId: testOpportunityId, userId: '1' },
+    });
+
+    // Rejection classification should remain empty JSON (error was handled gracefully)
+    expect(updatedMatch?.rejectionClassification).toEqual({});
+    // But per-item feedback classification should still be stored
+    expect(updatedMatch?.feedback?.[0]?.classification).toBeDefined();
+
+    expect(mockTriggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.opportunity-feedback-classified',
+      expect.objectContaining({
+        opportunityId: testOpportunityId,
+        userId: '1',
+        rejectionClassification: undefined,
+      }),
+    );
   });
 });

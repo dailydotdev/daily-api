@@ -1,5 +1,6 @@
 import { ApplicationScored } from '@dailydotdev/schema';
 import { TypedWorker } from './worker';
+import { validateGondulOpportunityMessage } from '../common/schema/opportunities';
 import { ONE_DAY_IN_MINUTES, webhooks } from '../common';
 import { generateResumeSignedUrl } from '../common/googleCloud';
 import { OpportunityMatch } from '../entity/OpportunityMatch';
@@ -13,6 +14,12 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
   handler: async ({ data }, con): Promise<void> => {
     if (process.env.NODE_ENV === 'development') return;
 
+    if (!validateGondulOpportunityMessage(data)) {
+      throw new Error(
+        'candidateReviewOpportunitySlack: invalid message payload',
+      );
+    }
+
     const {
       opportunityId,
       userId,
@@ -23,7 +30,11 @@ const worker: TypedWorker<'gondul.v1.candidate-application-scored'> = {
       where: { opportunityId, userId },
       relations: ['opportunity', 'user'],
     });
-    if (!match) return;
+    if (!match) {
+      throw new Error(
+        `candidateReviewOpportunitySlack: match not found (opportunityId=${opportunityId}, userId=${userId})`,
+      );
+    }
 
     const [opportunity, user, pref, keywords] = await Promise.all([
       match.opportunity,

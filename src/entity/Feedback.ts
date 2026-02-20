@@ -13,9 +13,11 @@ import { UserFeedbackCategory } from '@dailydotdev/schema';
 export enum FeedbackStatus {
   Pending = 0,
   Processing = 1,
-  Completed = 2,
-  Failed = 3,
-  Spam = 4,
+  Accepted = 2, // Classified by Bragi, Linear issue created → triggers Slack notification via CDC
+  Completed = 3, // Linear ticket moved to "Done" → triggers notification to user
+  Cancelled = 4, // Linear ticket cancelled
+  Failed = 5, // Classification failed
+  Spam = 6, // Marked as spam
 }
 
 export type FeedbackClassification = {
@@ -29,6 +31,10 @@ export type FeedbackClassification = {
 
 export type FeedbackFlags = Partial<{
   vordr: boolean;
+  slackNotifiedAt: string; // ISO timestamp
+  slackMessageTs: string;
+  slackChannelId: string;
+  slackClosedAt: string; // ISO timestamp
 }>;
 
 @Entity()
@@ -74,6 +80,9 @@ export class Feedback {
 
   @Column({ type: 'jsonb', default: {} })
   flags: FeedbackFlags;
+
+  @Column({ type: 'text', nullable: true })
+  screenshotUrl: string | null;
 
   @CreateDateColumn()
   @Index('IDX_feedback_created_at')

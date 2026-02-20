@@ -10,7 +10,7 @@ import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { Context } from '../Context';
 import { Connection, Edge } from 'graphql-relay';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import type { GraphqlPayload } from '../compatibility/utils';
+import type { GraphqlPayload } from '../routes/public/graphqlExecutor';
 
 export type QueryBuilder = SelectQueryBuilder<any>;
 

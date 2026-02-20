@@ -18,6 +18,8 @@ export interface Worker {
 
 export const digestDeadLetter = 'api.v1.personalized-digest-email-dead-letter';
 
+export const workerJobDeadLetter = 'api.v1.worker-job-execute-dead-letter';
+
 export const workers: Worker[] = [
   {
     topic: 'views',
@@ -402,6 +404,10 @@ export const workers: Worker[] = [
     subscription: 'api.candidate-opportunity-match-notification',
   },
   {
+    topic: 'gondul.v1.candidate-opportunity-match',
+    subscription: 'api.rematched-opportunity-notification',
+  },
+  {
     topic: 'api.v1.delayed-notification-reminder',
     subscription: 'api.campaign-post-analytics-notification',
   },
@@ -484,6 +490,10 @@ export const workers: Worker[] = [
     topic: 'api.v1.feedback-updated',
     subscription: 'api.feedback-updated-slack',
   },
+  {
+    topic: 'api.v1.achievement-unlocked',
+    subscription: 'api.achievement-unlocked-notification',
+  },
 ];
 
 export const personalizedDigestWorkers: Worker[] = [
@@ -494,5 +504,16 @@ export const personalizedDigestWorkers: Worker[] = [
   {
     topic: digestDeadLetter,
     subscription: 'api.personalized-digest-email-dead-letter-log',
+  },
+];
+
+export const workerJobWorkers: Worker[] = [
+  {
+    topic: 'api.v1.worker-job-execute',
+    subscription: 'api.worker-job-execute',
+  },
+  {
+    topic: workerJobDeadLetter,
+    subscription: 'api.worker-job-execute-dead-letter-log',
   },
 ];

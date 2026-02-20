@@ -526,6 +526,7 @@ const obj = new GraphORM({
       'scoutId',
       'private',
       'type',
+      'subType',
       'slug',
       'translation',
       {
@@ -646,6 +647,9 @@ const obj = new GraphORM({
       },
       numAwards: {
         select: 'awards',
+      },
+      numReposts: {
+        select: 'reposts',
       },
       publication: {
         alias: { field: 'source', type: 'Source' },
@@ -793,6 +797,16 @@ const obj = new GraphORM({
           });
         },
       },
+      creatorTwitterName: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `${alias}."contentMeta"->'social_twitter'->'creator'->>'name'`,
+      },
+      creatorTwitterImage: {
+        rawSelect: true,
+        select: (_, alias) =>
+          `${alias}."contentMeta"->'social_twitter'->'creator'->>'profile_image'`,
+      },
       featuredAward: {
         relation: {
           isMany: false,
@@ -820,18 +834,17 @@ const obj = new GraphORM({
         },
       },
       analytics: {
-        transform: (value: number, ctx, parent): number | null => {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'id',
+        },
+        transform: (value, ctx, parent) => {
           const post = parent as Post;
-
           const isAuthor = post?.authorId && ctx.userId === post.authorId;
-
-          if (isAuthor) {
-            return value;
-          }
-
           const isScout = post?.scoutId && ctx.userId === post.scoutId;
 
-          if (isScout) {
+          if (isAuthor || isScout) {
             return value;
           }
 
@@ -1678,6 +1691,11 @@ const obj = new GraphORM({
           `;
         },
       },
+      reputation: {
+        transform: (value) => {
+          return Math.max(0, value);
+        },
+      },
     },
   },
   UserProfileAnalytics: {
@@ -1696,6 +1714,68 @@ const obj = new GraphORM({
       },
       updatedAt: {
         transform: transformDate,
+      },
+    },
+  },
+  UserPostsAnalytics: {
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+      upvotesRatio: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            CASE
+              WHEN (${alias}.upvotes + ${alias}.downvotes) > 0
+              THEN ROUND((${alias}.upvotes::numeric / (${alias}.upvotes + ${alias}.downvotes)) * 100, 0)
+              ELSE 0
+            END
+          `;
+        },
+      },
+      reach: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}."reachAll", ${alias}.reach, 0)
+          `;
+        },
+      },
+      reputation: {
+        transform: (value) => {
+          return Math.max(0, value);
+        },
+      },
+    },
+  },
+  SquadAnalytics: {
+    from: 'SquadPostsAnalytics',
+    requiredColumns: ['id', 'updatedAt'],
+    fields: {
+      updatedAt: {
+        transform: transformDate,
+      },
+      upvotesRatio: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            CASE
+              WHEN (${alias}.upvotes + ${alias}.downvotes) > 0
+              THEN ROUND((${alias}.upvotes::numeric / (${alias}.upvotes + ${alias}.downvotes)) * 100, 0)
+              ELSE 0
+            END
+          `;
+        },
+      },
+      reach: {
+        rawSelect: true,
+        select: (_, alias) => {
+          return `
+            GREATEST(${alias}."reachAll", ${alias}.reach, 0)
+          `;
+        },
       },
     },
   },
@@ -2312,6 +2392,40 @@ const obj = new GraphORM({
           parentColumn: 'userId',
         },
       },
+    },
+  },
+  PersonalAccessToken: {
+    requiredColumns: ['id', 'userId'],
+    fields: {
+      createdAt: {
+        transform: transformDate,
+      },
+      expiresAt: {
+        transform: transformDate,
+      },
+      lastUsedAt: {
+        transform: transformDate,
+      },
+    },
+  },
+  Achievement: {
+    fields: {
+      criteria: { jsonType: true },
+      createdAt: { transform: transformDate },
+    },
+  },
+  UserAchievement: {
+    requiredColumns: ['achievementId', 'userId'],
+    fields: {
+      achievement: {
+        relation: {
+          isMany: false,
+          childColumn: 'id',
+          parentColumn: 'achievementId',
+        },
+      },
+      createdAt: { transform: transformDate },
+      updatedAt: { transform: transformDate },
     },
   },
 });

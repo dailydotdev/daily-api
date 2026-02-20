@@ -1,0 +1,283 @@
+import request from 'supertest';
+import { setupPublicApiTests, createTokenForUser } from './helpers';
+import { DatasetTool } from '../../../src/entity/dataset/DatasetTool';
+import { UserStack } from '../../../src/entity/user/UserStack';
+import { MAX_STACK_ITEMS } from '../../../src/common/constants';
+
+const state = setupPublicApiTests();
+
+// Helper to create a test tool
+const createTestTool = async (title: string) => {
+  return state.con.getRepository(DatasetTool).save({
+    title,
+    titleNormalized: title.toLowerCase(),
+    faviconUrl: 'https://example.com/icon.png',
+    faviconSource: 'custom',
+  });
+};
+
+describe('GET /public/v1/profile/stack/search', () => {
+  beforeEach(async () => {
+    // Create some test tools
+    await state.con.getRepository(DatasetTool).save([
+      {
+        title: 'TypeScript',
+        titleNormalized: 'typescript',
+        faviconUrl: 'https://example.com/ts.png',
+        faviconSource: 'custom',
+      },
+      {
+        title: 'JavaScript',
+        titleNormalized: 'javascript',
+        faviconUrl: 'https://example.com/js.png',
+        faviconSource: 'custom',
+      },
+      {
+        title: 'Python',
+        titleNormalized: 'python',
+        faviconUrl: 'https://example.com/py.png',
+        faviconSource: 'custom',
+      },
+    ]);
+  });
+
+  it('should search for tools', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack/search')
+      .query({ query: 'Type' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBeGreaterThan(0);
+    expect(body.data[0]).toMatchObject({
+      id: expect.any(String),
+      title: expect.any(String),
+    });
+  });
+
+  it('should require query parameter', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // Server returns 500 for schema validation errors due to global error handler
+    await request(state.app.server)
+      .get('/public/v1/profile/stack/search')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(500);
+  });
+
+  it('should return empty array for no matches', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack/search')
+      .query({ query: 'xyznonexistent123' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.data.length).toBe(0);
+  });
+});
+
+describe('GET /public/v1/profile/stack', () => {
+  it('should return user stack', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+    expect(body.pagination).toMatchObject({
+      hasNextPage: expect.any(Boolean),
+    });
+  });
+
+  it('should support pagination', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack')
+      .query({ limit: 5 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data.length).toBeLessThanOrEqual(5);
+  });
+
+  it('should allow fetching up to maximum stack items', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    const tools = await state.con.getRepository(DatasetTool).save(
+      Array.from({ length: 60 }, (_, index) => ({
+        title: `Public Stack Tool ${index}`,
+        titleNormalized: `publicstacktool${index}`,
+        faviconSource: 'none',
+      })),
+    );
+
+    await state.con.getRepository(UserStack).save(
+      tools.map((tool, index) => ({
+        userId: '5',
+        toolId: tool.id,
+        section: 'primary',
+        position: index,
+      })),
+    );
+
+    const { body } = await request(state.app.server)
+      .get('/public/v1/profile/stack')
+      .query({ limit: MAX_STACK_ITEMS })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body.data).toHaveLength(60);
+  });
+});
+
+describe('POST /public/v1/profile/stack', () => {
+  it('should add tool to stack', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // Create a test tool first
+    const tool = await createTestTool('TestStackTool');
+
+    const { body } = await request(state.app.server)
+      .post('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: tool.title,
+        section: 'primary',
+      })
+      .expect(200);
+
+    expect(body).toMatchObject({
+      id: expect.any(String),
+      section: 'primary',
+      position: expect.any(Number),
+      tool: expect.objectContaining({
+        title: tool.title,
+      }),
+    });
+  });
+
+  it('should require title and section', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // Server returns 500 for schema validation errors due to global error handler
+    await request(state.app.server)
+      .post('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: 'Test' })
+      .expect(500);
+
+    await request(state.app.server)
+      .post('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ section: 'primary' })
+      .expect(500);
+  });
+});
+
+describe('PATCH /public/v1/profile/stack/:id', () => {
+  it('should update stack item', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // Create a test tool and add to stack
+    const tool = await createTestTool('UpdateStackTool');
+
+    const { body: addBody } = await request(state.app.server)
+      .post('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: tool.title,
+        section: 'primary',
+      })
+      .expect(200);
+
+    // Update it
+    const { body } = await request(state.app.server)
+      .patch(`/public/v1/profile/stack/${addBody.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ section: 'hobby', icon: '🔧' })
+      .expect(200);
+
+    expect(body).toMatchObject({
+      id: addBody.id,
+      section: 'hobby',
+      icon: '🔧',
+    });
+  });
+});
+
+describe('DELETE /public/v1/profile/stack/:id', () => {
+  it('should delete stack item', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // Create a test tool and add to stack
+    const tool = await createTestTool('DeleteStackTool');
+
+    const { body: addBody } = await request(state.app.server)
+      .post('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: tool.title,
+        section: 'primary',
+      })
+      .expect(200);
+
+    // Delete it
+    const { body } = await request(state.app.server)
+      .delete(`/public/v1/profile/stack/${addBody.id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+
+    expect(body).toMatchObject({ success: true });
+
+    // Verify it's deleted
+    const item = await state.con.getRepository(UserStack).findOneBy({
+      id: addBody.id,
+    });
+    expect(item).toBeNull();
+  });
+});
+
+describe('PUT /public/v1/profile/stack/reorder', () => {
+  it('should reorder stack items', async () => {
+    const token = await createTokenForUser(state.con, '5');
+
+    // Create two test tools and add to stack
+    const tool1 = await createTestTool('ReorderTool1');
+    const tool2 = await createTestTool('ReorderTool2');
+
+    const { body: add1 } = await request(state.app.server)
+      .post('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: tool1.title, section: 'primary' })
+      .expect(200);
+
+    const { body: add2 } = await request(state.app.server)
+      .post('/public/v1/profile/stack')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ title: tool2.title, section: 'primary' })
+      .expect(200);
+
+    // Reorder
+    const { body } = await request(state.app.server)
+      .put('/public/v1/profile/stack/reorder')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        items: [
+          { id: add2.id, position: 0 },
+          { id: add1.id, position: 1 },
+        ],
+      })
+      .expect(200);
+
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+});
