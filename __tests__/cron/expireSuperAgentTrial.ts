@@ -16,9 +16,24 @@ import { remoteConfig } from '../../src/remoteConfig';
 
 let con: DataSource;
 
-const testOrgPrefix = 'esat-'; // expire-super-agent-trial prefix
-// UUID base for test opportunity IDs (valid UUID format)
-const testOpBase = 'e5a70000-0000-0000-0000-00000000000';
+// Valid UUIDs for test organizations
+const testOrgIds = {
+  expiredWithPlan: 'e5a70001-0000-0000-0000-000000000001',
+  expiredNoPlan: 'e5a70002-0000-0000-0000-000000000002',
+  activeTrial: 'e5a70003-0000-0000-0000-000000000003',
+  noTrial: 'e5a70004-0000-0000-0000-000000000004',
+};
+
+// Valid UUIDs for test opportunities
+const testOpIds = {
+  trialLive: 'e5a70100-0000-0000-0000-000000000001',
+  trialReview: 'e5a70100-0000-0000-0000-000000000002',
+  trialClosed: 'e5a70100-0000-0000-0000-000000000003',
+  trialDraft: 'e5a70100-0000-0000-0000-000000000004',
+  paidLive: 'e5a70100-0000-0000-0000-000000000005',
+  activeTrial: 'e5a70100-0000-0000-0000-000000000006',
+  noTrialOrg: 'e5a70100-0000-0000-0000-000000000007',
+};
 
 beforeAll(async () => {
   con = await createOrGetConnection();
@@ -32,7 +47,7 @@ beforeEach(async () => {
 
   await saveFixtures(con, Organization, [
     {
-      id: `${testOrgPrefix}expired-with-plan`,
+      id: testOrgIds.expiredWithPlan,
       name: 'Expired With Plan Org ESAT',
       recruiterSubscriptionFlags: {
         isTrialActive: true,
@@ -43,7 +58,7 @@ beforeEach(async () => {
       },
     },
     {
-      id: `${testOrgPrefix}expired-no-plan`,
+      id: testOrgIds.expiredNoPlan,
       name: 'Expired No Plan Org ESAT',
       recruiterSubscriptionFlags: {
         isTrialActive: true,
@@ -53,7 +68,7 @@ beforeEach(async () => {
       },
     },
     {
-      id: `${testOrgPrefix}active-trial`,
+      id: testOrgIds.activeTrial,
       name: 'Active Trial Org ESAT',
       recruiterSubscriptionFlags: {
         isTrialActive: true,
@@ -63,7 +78,7 @@ beforeEach(async () => {
       },
     },
     {
-      id: `${testOrgPrefix}no-trial`,
+      id: testOrgIds.noTrial,
       name: 'No Trial Org ESAT',
       recruiterSubscriptionFlags: {
         status: SubscriptionStatus.Active,
@@ -76,12 +91,12 @@ beforeEach(async () => {
   await saveFixtures(con, OpportunityJob, [
     // Trial opportunity for expired org - should have trial features removed
     {
-      id: `${testOpBase}1`,
+      id: testOpIds.trialLive,
       type: OpportunityType.JOB,
       state: OpportunityState.LIVE,
       title: 'Trial Live Op ESAT',
       tldr: 'Trial live opportunity',
-      organizationId: `${testOrgPrefix}expired-no-plan`,
+      organizationId: testOrgIds.expiredNoPlan,
       flags: {
         plan: 'pri_seat_123',
         isTrial: true,
@@ -93,12 +108,12 @@ beforeEach(async () => {
     },
     // Trial opportunity in review for expired org - should have trial features removed
     {
-      id: `${testOpBase}2`,
+      id: testOpIds.trialReview,
       type: OpportunityType.JOB,
       state: OpportunityState.IN_REVIEW,
       title: 'Trial Review Op ESAT',
       tldr: 'Trial in review opportunity',
-      organizationId: `${testOrgPrefix}expired-no-plan`,
+      organizationId: testOrgIds.expiredNoPlan,
       flags: {
         plan: 'pri_seat_456',
         isTrial: true,
@@ -110,59 +125,58 @@ beforeEach(async () => {
     },
     // Trial opportunity already closed - should not be affected
     {
-      id: `${testOpBase}3`,
+      id: testOpIds.trialClosed,
       type: OpportunityType.JOB,
       state: OpportunityState.CLOSED,
       title: 'Trial Closed Op ESAT',
       tldr: 'Trial closed opportunity',
-      organizationId: `${testOrgPrefix}expired-no-plan`,
+      organizationId: testOrgIds.expiredNoPlan,
       flags: { plan: 'pri_seat_789', isTrial: true, batchSize: 150 },
     },
     // Trial opportunity draft - should not be affected
     {
-      id: `${testOpBase}4`,
+      id: testOpIds.trialDraft,
       type: OpportunityType.JOB,
       state: OpportunityState.DRAFT,
       title: 'Trial Draft Op ESAT',
       tldr: 'Trial draft opportunity',
-      organizationId: `${testOrgPrefix}expired-no-plan`,
+      organizationId: testOrgIds.expiredNoPlan,
       flags: { plan: 'pri_seat_abc', isTrial: true, batchSize: 150 },
     },
     // Paid opportunity without trial for expired org - should not be affected
     {
-      id: `${testOpBase}5`,
+      id: testOpIds.paidLive,
       type: OpportunityType.JOB,
       state: OpportunityState.LIVE,
       title: 'Paid Live Op ESAT',
       tldr: 'Paid live opportunity',
-      organizationId: `${testOrgPrefix}expired-with-plan`,
+      organizationId: testOrgIds.expiredWithPlan,
       flags: { plan: 'pri_original_123', batchSize: 200 },
     },
     // Trial opportunity for active trial org - should not be affected
     {
-      id: `${testOpBase}6`,
+      id: testOpIds.activeTrial,
       type: OpportunityType.JOB,
       state: OpportunityState.LIVE,
       title: 'Active Trial Op ESAT',
       tldr: 'Active trial opportunity',
-      organizationId: `${testOrgPrefix}active-trial`,
+      organizationId: testOrgIds.activeTrial,
       flags: { plan: 'pri_seat_xyz', isTrial: true, batchSize: 150 },
     },
     // Opportunity for non-trial org - should not be affected
     {
-      id: `${testOpBase}7`,
+      id: testOpIds.noTrialOrg,
       type: OpportunityType.JOB,
       state: OpportunityState.LIVE,
       title: 'No Trial Org Op ESAT',
       tldr: 'No trial org opportunity',
-      organizationId: `${testOrgPrefix}no-trial`,
+      organizationId: testOrgIds.noTrial,
       flags: { plan: 'pri_regular_123', batchSize: 100 },
     },
   ]);
 });
 
 afterEach(() => {
-  // @ts-expect-error - resetting to undefined for tests
   remoteConfig.vars.superAgentTrial = undefined;
 });
 
@@ -178,7 +192,7 @@ describe('expireSuperAgentTrial cron', () => {
     // Verify expired trial with original plan - keeps active status
     const expiredWithPlan = await con
       .getRepository(Organization)
-      .findOneBy({ id: `${testOrgPrefix}expired-with-plan` });
+      .findOneBy({ id: testOrgIds.expiredWithPlan });
     expect(expiredWithPlan?.recruiterSubscriptionFlags).toMatchObject({
       isTrialActive: false,
       status: SubscriptionStatus.Active,
@@ -191,7 +205,7 @@ describe('expireSuperAgentTrial cron', () => {
     // Verify expired trial without original plan - downgrades to none
     const expiredNoPlan = await con
       .getRepository(Organization)
-      .findOneBy({ id: `${testOrgPrefix}expired-no-plan` });
+      .findOneBy({ id: testOrgIds.expiredNoPlan });
     expect(expiredNoPlan?.recruiterSubscriptionFlags).toMatchObject({
       isTrialActive: false,
       status: SubscriptionStatus.None,
@@ -200,7 +214,7 @@ describe('expireSuperAgentTrial cron', () => {
     // Verify active trial was not affected
     const activeTrial = await con
       .getRepository(Organization)
-      .findOneBy({ id: `${testOrgPrefix}active-trial` });
+      .findOneBy({ id: testOrgIds.activeTrial });
     expect(activeTrial?.recruiterSubscriptionFlags).toMatchObject({
       isTrialActive: true,
       status: SubscriptionStatus.Active,
@@ -212,7 +226,7 @@ describe('expireSuperAgentTrial cron', () => {
     // Verify org without trial was not affected
     const noTrial = await con
       .getRepository(Organization)
-      .findOneBy({ id: `${testOrgPrefix}no-trial` });
+      .findOneBy({ id: testOrgIds.noTrial });
     expect(noTrial?.recruiterSubscriptionFlags).toMatchObject({
       status: SubscriptionStatus.Active,
     });
@@ -227,7 +241,7 @@ describe('expireSuperAgentTrial cron', () => {
     // Trial LIVE opportunity for expired org - should remain LIVE but have trial features removed
     // and batchSize reset to default (50)
     const trialLive = await opportunityRepo.findOneBy({
-      id: `${testOpBase}1`,
+      id: testOpIds.trialLive,
     });
     expect(trialLive?.state).toBe(OpportunityState.LIVE);
     expect(trialLive?.flags?.plan).toBe('pri_seat_123'); // plan preserved
@@ -239,7 +253,7 @@ describe('expireSuperAgentTrial cron', () => {
 
     // Trial IN_REVIEW opportunity for expired org - should remain IN_REVIEW but have trial features removed
     const trialReview = await opportunityRepo.findOneBy({
-      id: `${testOpBase}2`,
+      id: testOpIds.trialReview,
     });
     expect(trialReview?.state).toBe(OpportunityState.IN_REVIEW);
     expect(trialReview?.flags?.plan).toBe('pri_seat_456'); // plan preserved
@@ -248,21 +262,21 @@ describe('expireSuperAgentTrial cron', () => {
 
     // Trial CLOSED opportunity - should remain closed and have trial features intact (not affected)
     const trialClosed = await opportunityRepo.findOneBy({
-      id: `${testOpBase}3`,
+      id: testOpIds.trialClosed,
     });
     expect(trialClosed?.state).toBe(OpportunityState.CLOSED);
     expect(trialClosed?.flags?.isTrial).toBe(true); // not affected since already closed
 
     // Trial DRAFT opportunity - should remain draft and have trial features intact (not affected)
     const trialDraft = await opportunityRepo.findOneBy({
-      id: `${testOpBase}4`,
+      id: testOpIds.trialDraft,
     });
     expect(trialDraft?.state).toBe(OpportunityState.DRAFT);
     expect(trialDraft?.flags?.isTrial).toBe(true); // not affected since draft
 
     // Paid opportunity without trial for expired org - should remain unchanged
     const paidLive = await opportunityRepo.findOneBy({
-      id: `${testOpBase}5`,
+      id: testOpIds.paidLive,
     });
     expect(paidLive?.state).toBe(OpportunityState.LIVE);
     expect(paidLive?.flags?.plan).toBe('pri_original_123');
@@ -270,14 +284,14 @@ describe('expireSuperAgentTrial cron', () => {
 
     // Trial opportunity for active trial org - should remain unchanged
     const activeTrial = await opportunityRepo.findOneBy({
-      id: `${testOpBase}6`,
+      id: testOpIds.activeTrial,
     });
     expect(activeTrial?.state).toBe(OpportunityState.LIVE);
     expect(activeTrial?.flags?.isTrial).toBe(true); // trial still active
 
     // Opportunity for non-trial org - should remain unchanged
     const noTrialOp = await opportunityRepo.findOneBy({
-      id: `${testOpBase}7`,
+      id: testOpIds.noTrialOrg,
     });
     expect(noTrialOp?.state).toBe(OpportunityState.LIVE);
     expect(noTrialOp?.flags?.batchSize).toBe(100);
@@ -299,19 +313,19 @@ describe('expireSuperAgentTrial cron', () => {
     await saveFixtures(con, OpportunityUserRecruiter, [
       // User 1 is recruiter on trial opportunity for expired org
       {
-        opportunityId: `${testOpBase}1`,
+        opportunityId: testOpIds.trialLive,
         userId: '1',
         type: OpportunityUserType.Recruiter,
       },
       // User 2 is recruiter on trial opportunity for active trial org (not affected)
       {
-        opportunityId: `${testOpBase}6`,
+        opportunityId: testOpIds.activeTrial,
         userId: '2',
         type: OpportunityUserType.Recruiter,
       },
       // User 3 is recruiter on paid opportunity (not affected)
       {
-        opportunityId: `${testOpBase}5`,
+        opportunityId: testOpIds.paidLive,
         userId: '3',
         type: OpportunityUserType.Recruiter,
       },

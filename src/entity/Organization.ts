@@ -7,7 +7,7 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import type { ContentPreferenceOrganization } from './contentPreference/ContentPreferenceOrganization';
@@ -25,10 +25,8 @@ export type OrganizationLink = z.infer<typeof organizationLinksSchema>;
 @Index('IDX_organization_subflags_subscriptionid', { synchronize: false })
 @Index('IDX_organization_trial_expires_at', { synchronize: false })
 export class Organization {
-  @PrimaryColumn({
-    type: 'text',
+  @PrimaryGeneratedColumn('uuid', {
     primaryKeyConstraintName: 'PK_organization_organization_id',
-    default: () => 'uuid_generate_v4()',
   })
   id: string;
 

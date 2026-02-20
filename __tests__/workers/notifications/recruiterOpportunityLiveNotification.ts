@@ -34,7 +34,7 @@ describe('recruiterOpportunityLiveNotification worker', () => {
 
   it('should send notification to all recruiters when opportunity goes live', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org123',
+      id: 'fa7a93b2-52d2-47bc-b97c-b479f9cf4ff9',
       name: 'Test Organization',
     });
 
@@ -101,7 +101,7 @@ describe('recruiterOpportunityLiveNotification worker', () => {
 
   it('should return empty array when no recruiters found', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org456',
+      id: '91e23aba-5940-4b9e-a857-0f2dfbeedc5c',
       name: 'Another Organization',
     });
 

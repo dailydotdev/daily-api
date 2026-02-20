@@ -42,7 +42,7 @@ describe('warmIntroNotification worker', () => {
 
   it('should send notification with all required fields', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org123',
+      id: 'e34d0a84-89ea-4ba3-ba6e-1b8fe9ac952f',
       name: 'Test Organization',
       image: 'https://example.com/org.png',
     });
@@ -102,7 +102,7 @@ describe('warmIntroNotification worker', () => {
     );
     expect(context.organization).toEqual(
       expect.objectContaining({
-        id: 'org123',
+        id: 'e34d0a84-89ea-4ba3-ba6e-1b8fe9ac952f',
         name: 'Test Organization',
         image: 'https://example.com/org.png',
       }),
@@ -111,7 +111,7 @@ describe('warmIntroNotification worker', () => {
 
   it('should handle missing recruiter gracefully', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org456',
+      id: '0672bc0f-93c0-43a0-ad8a-ca6ba89428d4',
       name: 'Another Organization',
       image: 'https://example.com/another-org.png',
     });
@@ -151,7 +151,7 @@ describe('warmIntroNotification worker', () => {
     expect(context.recruiter).toBeUndefined();
     expect(context.organization).toEqual(
       expect.objectContaining({
-        id: 'org456',
+        id: '0672bc0f-93c0-43a0-ad8a-ca6ba89428d4',
         name: 'Another Organization',
       }),
     );
@@ -187,7 +187,7 @@ describe('warmIntroNotification worker', () => {
 
   it('should handle missing optional description', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org789',
+      id: 'c6d40f37-af7e-43ba-af90-9f31d6645037',
       name: 'Test Org',
     });
 
@@ -226,7 +226,7 @@ describe('warmIntroNotification worker', () => {
 
   it('should convert markdown description to HTML in applicationRank', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org999',
+      id: '439c472a-b339-4d47-8a75-6f8669c56d27',
       name: 'Test Company',
     });
 

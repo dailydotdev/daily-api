@@ -35,7 +35,7 @@ describe('recruiterNewCandidateNotification worker', () => {
 
   it('should send notification to all recruiters when candidate accepts', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org123',
+      id: 'ea674f55-ab85-458c-9335-ad29d42fde1e',
       name: 'Test Organization',
     });
 
@@ -104,7 +104,7 @@ describe('recruiterNewCandidateNotification worker', () => {
 
   it('should return empty array when no recruiters found', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org456',
+      id: '63197362-8a95-455e-ab32-8b2205ca5f90',
       name: 'Another Organization',
     });
 
