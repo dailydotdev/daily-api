@@ -76,6 +76,9 @@ export class Alerts {
   @Column({ type: 'bool', default: false })
   showTopReader?: boolean;
 
+  @Column({ type: 'text', nullable: true, default: null })
+  showAchievementUnlock: string | null;
+
   @Column({ type: 'bool', default: false })
   showSuperAgentTrialUpgrade?: boolean;
 
@@ -120,6 +123,7 @@ export const ALERTS_DEFAULT: Omit<
   bootPopup: false,
   showRecoverStreak: false,
   showTopReader: false,
+  showAchievementUnlock: null,
   showSuperAgentTrialUpgrade: false,
   briefBannerLastSeen: null,
   opportunityId: null,
