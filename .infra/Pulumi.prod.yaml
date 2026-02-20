@@ -220,6 +220,8 @@ config:
       secure: AAABAOcnI1KjC12NLNtt8v+7aMgD8YSrr+NVjcq/W2TnhalcCNgxIC9RZoockpN+2cmDiMHOd7YO+1YEznsosf6KXOvpIgmWjXD0/S3nguqbkIk=
     outboundServiceSecret:
       secure: AAABALeVUcWiTAIPqO9Ut85Q8eX5bIh/cUy/NDjOi4lSMQ/D04V92IxQCpXjzITm1CKybCpcIp+nMQiNvimDdmvGy/gLisyMyqEERKbrFw3nHV8Dsm6TadNoUSACPfNB9sDgOtQjn+VaPHVp6AtLhDnndUhVYUVja2rFUf3Acqjs8qt8alwoPMJscNRmvu3AgcB4zBY6m2M4vJ8J/2Cj5Q==
+    slackUserFeedbackChannelId:
+      secure: AAABAGKs8XRmYMur5FnCQtTg7eN0Qs7N9xb8IAk8M0Qzs4xflQe78dioAA==
   api:k8s:
     host: subs.daily.dev
     namespace: daily
