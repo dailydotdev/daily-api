@@ -68,7 +68,7 @@ config:
     meiliIndex: dailydev
     meiliOrigin: 'http://localhost:7700/' # your local inet address, you can update it in .env file, can be sorted by adding meilisearch to local pulumi stack
     meiliToken: topsecret
-    otelMetricsExporter: prometheus
+    otelMetricsExporter: otlp
     otelLoggerFormat: otel
     nodeEnv: development
     ogUrl: http://localhost:3000
