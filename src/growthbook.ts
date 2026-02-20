@@ -121,9 +121,9 @@ export const features = {
   dailyDigest: new Feature('daily_personalized_digest', {
     ...digestFeatureBaseConfig,
   }),
-  profileCompletionPostGate: new Feature<boolean | number>(
+  profileCompletionPostGate: new Feature<number>(
     'profile_completion_post_gate',
-    false,
+    0,
   ),
 };
 

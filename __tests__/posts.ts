@@ -162,7 +162,7 @@ jest.mock('../src/growthbook', () => {
       getFeatureValue: (featureId: string, defaultValue: unknown) =>
         featureId === actual.features.profileCompletionPostGate.id &&
         profileCompletionPostGateTestEnabled
-          ? true
+          ? 100
           : defaultValue,
     }),
   };
