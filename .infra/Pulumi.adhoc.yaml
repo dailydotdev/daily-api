@@ -76,6 +76,8 @@ config:
     otelExporterOtlpEndpoint: http://otel-collector.local.svc.cluster.local:4317
     otelServiceName: api
     otelTracesSampler: always_on
+    # This can be removed once @opentelemetry/instrumentation-pg has defaulted to stable semconvs
+    otelSemconvStabilityOptIn: database
     paddleApiKey: topsecret
     paddleEnvironment: sandbox
     paddleWebhookSecret: topsecret

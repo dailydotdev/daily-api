@@ -98,6 +98,8 @@ config:
     otelServiceName: api
     otelTracesSampler: parentbased_always_on
     otelLoggerFormat: otel
+    # This can be removed once @opentelemetry/instrumentation-pg has defaulted to stable semconvs
+    otelSemconvStabilityOptIn: database
     paddleApiKey:
       secure: AAABAGr18L3064taf8MyYateCjX7TzBXY+mCBNoerpTSC3lF+aEyQusx93fbTon+SsYvI/EziEzyoPWcujb7sJe4TDrGaVkWCP6yqQ8w7D3ojg==
     paddleEnvironment: production
