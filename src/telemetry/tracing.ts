@@ -29,7 +29,7 @@ export const addPubsubSpanLabels = (
   message: Message | { id: string; data?: Buffer },
 ): void => {
   span.setAttributes({
-    [ATTR_MESSAGING_SYSTEM]: 'pubsub',
+    [ATTR_MESSAGING_SYSTEM]: 'gcp_pubsub',
     [ATTR_MESSAGING_DESTINATION_NAME]: subscription,
     [ATTR_MESSAGING_MESSAGE_ID]: message.id,
     [ATTR_MESSAGING_MESSAGE_BODY_SIZE]: message.data?.length || 0,
