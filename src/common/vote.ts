@@ -12,6 +12,10 @@ import { UserComment } from '../entity/user/UserComment';
 import { HotTake } from '../entity/user/HotTake';
 import { UserHotTake } from '../entity/user/UserHotTake';
 import { UserVote } from '../types';
+import {
+  AchievementEventType,
+  checkAchievementProgress,
+} from './achievement';
 
 type UserVoteProps = {
   ctx: AuthContext;
@@ -165,10 +169,15 @@ export const voteHotTake = async ({
   try {
     validateVoteType({ vote });
 
-    // Verify hot take exists
-    await ctx.con.getRepository(HotTake).findOneByOrFail({ id });
-
     const userHotTakeRepo = ctx.con.getRepository(UserHotTake);
+    const hotTake = await ctx.con
+      .getRepository(HotTake)
+      .findOneByOrFail({ id });
+    const existingVote = await userHotTakeRepo.findOneBy({
+      hotTakeId: id,
+      userId: ctx.userId,
+    });
+    const previousVote = existingVote?.vote ?? UserVote.None;
 
     // Save vote (triggers handle upvotes count updates)
     await userHotTakeRepo.save({
@@ -176,6 +185,20 @@ export const voteHotTake = async ({
       userId: ctx.userId,
       vote,
     });
+
+    const shouldCheckAchievement =
+      vote !== UserVote.None &&
+      previousVote !== vote &&
+      hotTake.userId !== ctx.userId;
+
+    if (shouldCheckAchievement) {
+      await checkAchievementProgress(
+        ctx.con,
+        ctx.log,
+        ctx.userId,
+        AchievementEventType.HotTakeVote,
+      );
+    }
   } catch (originalError) {
     const err = originalError as TypeORMQueryFailedError;
 
