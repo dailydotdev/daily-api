@@ -40,6 +40,7 @@ import * as gear from './schema/gear';
 import * as userWorkspacePhoto from './schema/userWorkspacePhoto';
 import * as personalAccessTokens from './schema/personalAccessTokens';
 import * as feedback from './schema/feedback';
+import * as feedSentiment from './schema/feedSentiment';
 import * as achievements from './schema/achievements';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import {
@@ -97,6 +98,7 @@ export const schema = urlDirective.transformer(
               userWorkspacePhoto.typeDefs,
               personalAccessTokens.typeDefs,
               feedback.typeDefs,
+              feedSentiment.typeDefs,
               achievements.typeDefs,
             ],
             resolvers: merge(
@@ -137,6 +139,7 @@ export const schema = urlDirective.transformer(
               userWorkspacePhoto.resolvers,
               personalAccessTokens.resolvers,
               feedback.resolvers,
+              feedSentiment.resolvers,
               achievements.resolvers,
             ),
           }),
