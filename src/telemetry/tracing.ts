@@ -60,7 +60,12 @@ export const createSpanProcessor = (): BatchSpanProcessor => {
     url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
   });
 
-  return new BatchSpanProcessor(traceExporter);
+  return new BatchSpanProcessor(traceExporter, {
+    maxQueueSize: 4096,
+    maxExportBatchSize: 512,
+    scheduledDelayMillis: 5000,
+    exportTimeoutMillis: 30000,
+  });
 };
 
 export const runInSpan = async <T>(
