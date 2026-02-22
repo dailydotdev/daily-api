@@ -34,7 +34,7 @@ describe('recruiterExternalPaymentNotification worker', () => {
 
   it('should send notification to all recruiters when external payment is made', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org-ext-pay-1',
+      id: '98176fb1-34cc-43a5-8924-9fdc7106e615',
       name: 'Test Organization',
     });
 
@@ -98,7 +98,7 @@ describe('recruiterExternalPaymentNotification worker', () => {
 
   it('should return empty array when no recruiters found', async () => {
     const organization = await con.getRepository(Organization).save({
-      id: 'org-ext-pay-2',
+      id: '541d282c-d445-4b65-8cfb-1472b415df6d',
       name: 'Another Organization',
     });
 

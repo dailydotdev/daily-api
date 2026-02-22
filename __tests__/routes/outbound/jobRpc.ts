@@ -207,6 +207,37 @@ describe('GetFindJobVacanciesBatchResult', () => {
     expect(failed?.error).toBe('timeout');
   });
 
+  it('should return empty results for child with empty object result', async () => {
+    const repo = con.getRepository(WorkerJob);
+
+    const parent = await repo.save(
+      repo.create({
+        type: WorkerJobType.FIND_JOB_VACANCIES,
+        status: WorkerJobStatus.COMPLETED,
+        input: null,
+      }),
+    );
+
+    await repo.save(
+      repo.create({
+        type: WorkerJobType.FIND_JOB_VACANCIES,
+        status: WorkerJobStatus.COMPLETED,
+        parentId: parent.id,
+        input: { companyName: 'Unknown Corp' },
+        result: {},
+        completedAt: new Date(),
+      }),
+    );
+
+    const result = await mockClient.getFindJobVacanciesBatchResult(
+      { jobId: parent.id },
+      authOptions,
+    );
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].results).toHaveLength(0);
+  });
+
   it('should return empty children for batch with no items', async () => {
     const repo = con.getRepository(WorkerJob);
 
@@ -229,6 +260,76 @@ describe('GetFindJobVacanciesBatchResult', () => {
       hasMore: false,
     });
     expect(result.children).toHaveLength(0);
+  });
+});
+
+describe('GetFindCompanyNewsBatchResult', () => {
+  it('should return empty results for child with empty object result', async () => {
+    const repo = con.getRepository(WorkerJob);
+
+    const parent = await repo.save(
+      repo.create({
+        type: WorkerJobType.FIND_COMPANY_NEWS,
+        status: WorkerJobStatus.COMPLETED,
+        input: null,
+      }),
+    );
+
+    await repo.save(
+      repo.create({
+        type: WorkerJobType.FIND_COMPANY_NEWS,
+        status: WorkerJobStatus.COMPLETED,
+        parentId: parent.id,
+        input: { companyName: 'Unknown Corp' },
+        result: {},
+        completedAt: new Date(),
+      }),
+    );
+
+    const result = await mockClient.getFindCompanyNewsBatchResult(
+      { jobId: parent.id },
+      authOptions,
+    );
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].results).toHaveLength(0);
+  });
+});
+
+describe('GetFindContactActivityBatchResult', () => {
+  it('should return empty results for child with empty object result', async () => {
+    const repo = con.getRepository(WorkerJob);
+
+    const parent = await repo.save(
+      repo.create({
+        type: WorkerJobType.FIND_CONTACT_ACTIVITY,
+        status: WorkerJobStatus.COMPLETED,
+        input: null,
+      }),
+    );
+
+    await repo.save(
+      repo.create({
+        type: WorkerJobType.FIND_CONTACT_ACTIVITY,
+        status: WorkerJobStatus.COMPLETED,
+        parentId: parent.id,
+        input: {
+          firstName: 'John',
+          lastName: 'Doe',
+          companyName: 'Unknown Corp',
+        },
+        result: {},
+        completedAt: new Date(),
+      }),
+    );
+
+    const result = await mockClient.getFindContactActivityBatchResult(
+      { jobId: parent.id },
+      authOptions,
+    );
+
+    expect(result.children).toHaveLength(1);
+    expect(result.children[0].results).toHaveLength(0);
   });
 });
 

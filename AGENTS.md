@@ -167,6 +167,30 @@ The migration generator compares entities against the local database schema. Ens
     feedback: toChangeObject(feedback),
   });
   ```
+- **RPC/Connect error testing**: Create **separate transport mocks** for error scenarios instead of parameterizing existing transport mocks. Keep the happy-path transport unchanged and add a dedicated error transport (e.g., `createMockBragiPipelinesNotFoundTransport`). In the test, `jest.restoreAllMocks()` then re-spy with the error transport:
+  ```typescript
+  // In __tests__/helpers.ts - separate transport for error scenario
+  export const createMockBragiPipelinesNotFoundTransport = () =>
+    createRouterTransport(({ service }) => {
+      service(Pipelines, {
+        findJobVacancies: () => {
+          throw new ConnectError('not found', ConnectCode.NotFound);
+        },
+      });
+    });
+
+  // In test file
+  it('should handle NotFound from Bragi', async () => {
+    jest.restoreAllMocks();
+    jest
+      .spyOn(bragiClients, 'getBragiClient')
+      .mockImplementation((): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(Pipelines, createMockBragiPipelinesNotFoundTransport()),
+        garmr: createGarmrMock(),
+      }));
+    // ... test assertions
+  });
+  ```
 
 **Infrastructure Concerns:**
 - OpenTelemetry for distributed tracing and metrics
@@ -223,6 +247,10 @@ The migration generator compares entities against the local database schema. Ens
 - **Do not add unnecessary comments** - code should be self-documenting through clear naming
 - If you feel a comment is needed, ask first before adding it
 - Avoid comments that simply restate what the code does (e.g., `// Check if user exists` before `if (!user)`)
+
+**GraphQL resolver errors:**
+- Do not throw `ApolloError` directly inside schema resolvers.
+- Prefer `AuthenticationError` / `ForbiddenError` / `ValidationError` from `apollo-server-errors`, or shared typed errors from `src/errors.ts` (for example `NotFoundError`, `ConflictError`).
 
 **Function style:**
 - Prefer const arrow functions over function declarations: `const foo = () => {}` instead of `function foo() {}`
@@ -492,6 +520,7 @@ The migration generator compares entities against the local database schema. Ens
   );
   ```
 - **Exception**: Queries during write operations that need immediate consistency should use primary.
+- For GraphQL resolvers, default to read replica for pure reads (`Query` fields) either via `queryReadReplica(...)` or GraphORM read-replica mode (4th arg `true`). If the resolver can write or depends on read-after-write consistency, use primary.
 
 **Materialized View Tests:**
 - For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).

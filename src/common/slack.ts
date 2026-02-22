@@ -1,8 +1,10 @@
 import { IncomingWebhook } from '@slack/webhook';
 import { WebClient } from '@slack/web-api';
 import type {
+  Block,
   ConversationsCreateResponse,
   ConversationsInviteSharedResponse,
+  KnownBlock,
 } from '@slack/web-api';
 import { Post, Comment, User, Source, type Campaign } from '../entity';
 import { getDiscussionLink, getSourceLink } from './links';
@@ -103,6 +105,63 @@ export class SlackClient {
         force: true, // ignore invalid users
       }),
     );
+  }
+
+  async postMessage({
+    channel,
+    text,
+    blocks,
+  }: {
+    channel: string;
+    text: string;
+    blocks?: (KnownBlock | Block)[];
+  }): Promise<{ ts: string; channel: string }> {
+    const result = await this.garmr.execute(async () =>
+      this.client.chat.postMessage({
+        channel,
+        text,
+        blocks,
+      }),
+    );
+
+    if (!result.ts || !result.channel) {
+      throw new Error('Slack postMessage missing message reference');
+    }
+
+    return {
+      ts: result.ts,
+      channel: result.channel,
+    };
+  }
+
+  async updateMessage({
+    channel,
+    ts,
+    text,
+    blocks,
+  }: {
+    channel: string;
+    ts: string;
+    text: string;
+    blocks?: (KnownBlock | Block)[];
+  }): Promise<{ ts: string; channel: string }> {
+    const result = await this.garmr.execute(async () =>
+      this.client.chat.update({
+        channel,
+        ts,
+        text,
+        blocks,
+      }),
+    );
+
+    if (!result.ts || !result.channel) {
+      throw new Error('Slack updateMessage missing message reference');
+    }
+
+    return {
+      ts: result.ts,
+      channel: result.channel,
+    };
   }
 }
 

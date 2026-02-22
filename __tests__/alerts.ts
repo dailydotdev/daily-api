@@ -64,6 +64,7 @@ describe('query userAlerts', () => {
         lastBootPopup
         lastFeedSettingsFeedback
         showTopReader
+        showAchievementUnlock
         showSuperAgentTrialUpgrade
         briefBannerLastSeen
         opportunityId

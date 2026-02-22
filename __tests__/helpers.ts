@@ -764,6 +764,21 @@ export const createMockBragiPipelinesTransport = () =>
     });
   });
 
+export const createMockBragiPipelinesNotFoundTransport = () =>
+  createRouterTransport(({ service }) => {
+    service(Pipelines, {
+      findJobVacancies: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+      findCompanyNews: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+      findContactActivity: () => {
+        throw new ConnectError('not found', ConnectCode.NotFound);
+      },
+    });
+  });
+
 export const createMockGondulOpportunityServiceTransport = () => {
   return createRouterTransport(({ service }) => {
     service(OpportunityService, {

@@ -137,6 +137,7 @@ import { queryReadReplica } from '../common/queryReadReplica';
 import { remoteConfig } from '../remoteConfig';
 import { ensurePostRateLimit } from '../common/rateLimit';
 import { whereNotUserBlocked } from '../common/contentPreference';
+import { ensureProfileCompleteIfEnabled } from '../common/profile/completion';
 import {
   type GetBalanceResult,
   throwUserTransactionError,
@@ -2696,6 +2697,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await Promise.all([
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -2916,6 +2918,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
 
       await Promise.all([
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -2985,6 +2988,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           .from(Post, 'post')
           .where('post.id = :id', { id })
           .getOneOrFail(),
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensureSourcePermissions(ctx, sourceId, SourcePermissions.Post),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
@@ -3340,6 +3344,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
 
       await Promise.all([
         sourceCheck,
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
         ensurePostRateLimit(ctx.con, ctx.userId),
       ]);
 
@@ -3420,7 +3425,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       const { sourceIds, ...postArgs } = args;
       const detectedPostType = getMultipleSourcesPostType(args);
 
-      await ensurePostRateLimit(ctx.con, ctx.userId);
+      await Promise.all([
+        ensureProfileCompleteIfEnabled(ctx.con, ctx.userId),
+        ensurePostRateLimit(ctx.con, ctx.userId),
+      ]);
       const isPostingToSelfSource = sourceIds.includes(ctx.userId);
       if (isPostingToSelfSource) {
         await ensureUserSourceExists(ctx.userId, ctx.con);

@@ -1,5 +1,5 @@
 import { expectSuccessfulBackground, saveFixtures } from '../helpers';
-import worker from '../../src/workers/postUpdated';
+import worker from '../../src/workers/postUpdated/worker';
 import {
   ArticlePost,
   COMMUNITY_PICKS_SOURCE,

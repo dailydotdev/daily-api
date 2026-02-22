@@ -5,9 +5,10 @@ import { User } from '../../src/entity';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../../src/db';
 import { typedWorkers } from '../../src/workers';
-import { webhooks } from '../../src/common/slack';
+import { slackClient } from '../../src/common/slack';
 
-jest.spyOn(webhooks.userFeedback, 'send').mockResolvedValue(undefined);
+const postMessageMock = jest.spyOn(slackClient, 'postMessage');
+const updateMessageMock = jest.spyOn(slackClient, 'updateMessage');
 
 let con: DataSource;
 
@@ -18,6 +19,15 @@ beforeAll(async () => {
 describe('feedbackUpdatedSlack worker', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
+    process.env.SLACK_USER_FEEDBACK_CHANNEL_ID = 'C_FEEDBACK';
+    postMessageMock.mockResolvedValue({
+      channel: 'C_FEEDBACK',
+      ts: '1730011111.000200',
+    });
+    updateMessageMock.mockResolvedValue({
+      channel: 'C_FEEDBACK',
+      ts: '1730011111.000200',
+    });
 
     await con.getRepository(User).save({
       id: '1',
@@ -56,12 +66,15 @@ describe('feedbackUpdatedSlack worker', () => {
       feedbackId: feedback.id,
     });
 
-    expect(webhooks.userFeedback.send).toHaveBeenCalledTimes(1);
+    expect(postMessageMock).toHaveBeenCalledTimes(1);
+    expect(updateMessageMock).not.toHaveBeenCalled();
 
     const updated = await con
       .getRepository(Feedback)
       .findOneBy({ id: feedback.id });
     expect(updated?.flags?.slackNotifiedAt).toBeDefined();
+    expect(updated?.flags?.slackMessageTs).toEqual('1730011111.000200');
+    expect(updated?.flags?.slackChannelId).toEqual('C_FEEDBACK');
   });
 
   it('should skip non-accepted feedback', async () => {
@@ -77,7 +90,8 @@ describe('feedbackUpdatedSlack worker', () => {
       feedbackId: feedback.id,
     });
 
-    expect(webhooks.userFeedback.send).not.toHaveBeenCalled();
+    expect(postMessageMock).not.toHaveBeenCalled();
+    expect(updateMessageMock).not.toHaveBeenCalled();
   });
 
   it('should skip when feedback not found', async () => {
@@ -85,7 +99,8 @@ describe('feedbackUpdatedSlack worker', () => {
       feedbackId: '00000000-0000-0000-0000-000000000000',
     });
 
-    expect(webhooks.userFeedback.send).not.toHaveBeenCalled();
+    expect(postMessageMock).not.toHaveBeenCalled();
+    expect(updateMessageMock).not.toHaveBeenCalled();
   });
 
   it('should skip if slackNotifiedAt is already set (idempotency)', async () => {
@@ -108,6 +123,116 @@ describe('feedbackUpdatedSlack worker', () => {
       feedbackId: feedback.id,
     });
 
-    expect(webhooks.userFeedback.send).not.toHaveBeenCalled();
+    expect(postMessageMock).not.toHaveBeenCalled();
+    expect(updateMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('should update slack message for completed feedback', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Completed feedback',
+      status: FeedbackStatus.Completed,
+      linearIssueUrl: 'https://linear.app/issue/123',
+      flags: {
+        slackNotifiedAt: new Date().toISOString(),
+        slackMessageTs: '1730011111.000200',
+        slackChannelId: 'C_FEEDBACK',
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(updateMessageMock).toHaveBeenCalledTimes(1);
+    expect(postMessageMock).not.toHaveBeenCalled();
+
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
+    expect(updated?.flags?.slackClosedAt).toBeDefined();
+  });
+
+  it('should update slack message for cancelled feedback', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Cancelled feedback',
+      status: FeedbackStatus.Cancelled,
+      linearIssueUrl: 'https://linear.app/issue/123',
+      flags: {
+        slackNotifiedAt: new Date().toISOString(),
+        slackMessageTs: '1730011111.000200',
+        slackChannelId: 'C_FEEDBACK',
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(updateMessageMock).toHaveBeenCalledTimes(1);
+    expect(postMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('should skip close update when slackMessageTs is missing', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Completed feedback without slack metadata',
+      status: FeedbackStatus.Completed,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(updateMessageMock).not.toHaveBeenCalled();
+    expect(postMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('should skip close update when slackClosedAt is already set', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Already closed feedback',
+      status: FeedbackStatus.Completed,
+      flags: {
+        slackMessageTs: '1730011111.000200',
+        slackChannelId: 'C_FEEDBACK',
+        slackClosedAt: new Date().toISOString(),
+      },
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(updateMessageMock).not.toHaveBeenCalled();
+    expect(postMessageMock).not.toHaveBeenCalled();
+  });
+
+  it('should handle slack API errors gracefully', async () => {
+    postMessageMock.mockRejectedValueOnce(new Error('slack failure'));
+
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 1,
+      description: 'Test feedback description',
+      status: FeedbackStatus.Accepted,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    const updated = await con
+      .getRepository(Feedback)
+      .findOneBy({ id: feedback.id });
+    expect(updated?.flags?.slackNotifiedAt).toBeUndefined();
+    expect(postMessageMock).toHaveBeenCalledTimes(1);
   });
 });

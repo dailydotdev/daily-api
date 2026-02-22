@@ -16,6 +16,7 @@ interface UserAlerts {
   lastBootPopup: string;
   lastFeedSettingsFeedback: string;
   showTopReader: boolean;
+  showAchievementUnlock: string | null;
   showSuperAgentTrialUpgrade: boolean;
   briefBannerLastSeen: string;
   opportunityId: string;
@@ -45,6 +46,7 @@ export default async function (
         lastBootPopup
         lastFeedSettingsFeedback
         showTopReader
+        showAchievementUnlock
         showSuperAgentTrialUpgrade
         briefBannerLastSeen
         opportunityId
