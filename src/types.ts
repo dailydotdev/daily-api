@@ -56,6 +56,7 @@ declare global {
       ANALYTICS_URL: string;
       POST_SCRAPER_ORIGIN: string;
       YGGDRASIL_ORIGIN?: string;
+      YGGDRASIL_SENTIMENT_ORIGIN: string;
       SUBMIT_ARTICLE_THRESHOLD: string;
       SLACK_SIGNING_SECRET: string;
       API_CONFIG_FEATURE_KEY: string;

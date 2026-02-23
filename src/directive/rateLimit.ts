@@ -59,6 +59,9 @@ const keyGenerator: RateLimitKeyGenerator<Context> = (
         return `${context.userId ?? context.trackingId}:createComment`;
       case 'parseOpportunity':
         return `${context.userId ?? context.trackingId}:parseOpportunity`;
+      case 'sentimentTimeSeries':
+      case 'sentimentHighlights':
+        return `${context.userId ?? context.trackingId ?? context.req.ip}:sentiment`;
       default:
         return `${context.userId ?? context.trackingId}:${defaultKeyGenerator(
           directiveArgs,
@@ -106,6 +109,12 @@ export const onLimit: RateLimitOnLimit<Context> = (
       counters?.api?.rateLimit?.add(1, { type: 'parseOpportunity' });
       throw new RateLimitError({
         message: `You tried to parse job too many times. Try again in ${period} or contact team for assistance.`,
+      });
+    case 'sentimentTimeSeries':
+    case 'sentimentHighlights':
+      counters?.api?.rateLimit?.add(1, { type: 'sentiment' });
+      throw new RateLimitError({
+        message: `Rate limit exceeded. Try again in ${period}`,
       });
     default:
       counters?.api?.rateLimit?.add(1, { type: 'default' });

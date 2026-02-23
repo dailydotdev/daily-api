@@ -1,0 +1,316 @@
+import { ValidationError } from 'apollo-server-errors';
+import { IResolvers } from '@graphql-tools/utils';
+import type { BaseContext } from '../Context';
+import { NotFoundError } from '../errors';
+import { HttpError } from '../integrations/retry';
+import { yggdrasilSentimentClient } from '../integrations/yggdrasil/clients';
+import type {
+  HighlightsResponse,
+  TimeSeriesResponse,
+} from '../integrations/yggdrasil/types';
+import { traceResolvers } from './trace';
+
+type SentimentResolution = 'QUARTER_HOUR' | 'HOUR' | 'DAY';
+type SentimentResolverObject = {
+  __provider?: string;
+};
+
+const PROVIDER_AUTHOR_TYPE: Record<string, string> = {
+  x_search: 'SentimentAuthorX',
+};
+
+const PROVIDER_METRICS_TYPE: Record<string, string> = {
+  x_search: 'SentimentMetricsX',
+};
+
+const defaultHighlightsLimit = 20;
+const minHighlightsLimit = 1;
+const maxHighlightsLimit = 50;
+
+const mapResolutionEnum = (
+  resolution: SentimentResolution,
+): '15m' | '1h' | '1d' => {
+  switch (resolution) {
+    case 'QUARTER_HOUR':
+      return '15m';
+    case 'HOUR':
+      return '1h';
+    case 'DAY':
+      return '1d';
+  }
+};
+
+const validateSentimentFilter = ({
+  entity,
+  groupId,
+}: {
+  entity?: string;
+  groupId?: string;
+}): void => {
+  const hasEntity = !!entity;
+  const hasGroupId = !!groupId;
+
+  if ((hasEntity && hasGroupId) || (!hasEntity && !hasGroupId)) {
+    throw new ValidationError('Exactly one of entity or groupId must be set');
+  }
+};
+
+const validateHighlightsFirst = (first?: number): number => {
+  if (first == null) {
+    return defaultHighlightsLimit;
+  }
+
+  if (first < minHighlightsLimit || first > maxHighlightsLimit) {
+    throw new ValidationError(
+      `first must be between ${minHighlightsLimit} and ${maxHighlightsLimit}`,
+    );
+  }
+
+  return first;
+};
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined;
+
+const asNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' ? value : undefined;
+
+const transformAuthor = (
+  provider: string,
+  raw: Record<string, unknown>,
+): Record<string, unknown> => {
+  switch (provider) {
+    case 'x_search':
+      return {
+        id: asString(raw.id),
+        name: asString(raw.name),
+        handle: asString(raw.handle),
+        avatarUrl: asString(raw.avatar_url),
+      };
+    default:
+      return raw;
+  }
+};
+
+const transformMetrics = (
+  provider: string,
+  raw: Record<string, unknown>,
+): Record<string, unknown> => {
+  switch (provider) {
+    case 'x_search':
+      return {
+        likeCount: asNumber(raw.like_count),
+        replyCount: asNumber(raw.reply_count),
+        retweetCount: asNumber(raw.retweet_count),
+        quoteCount: asNumber(raw.quote_count),
+        bookmarkCount: asNumber(raw.bookmark_count),
+        impressionCount: asNumber(raw.impression_count),
+      };
+    default:
+      return raw;
+  }
+};
+
+const transformTimeSeries = (data: TimeSeriesResponse) => ({
+  start: data.start,
+  resolutionSeconds: data.resolution_seconds,
+  entities: {
+    nodes: Object.entries(data.entities || {}).map(([entity, series]) => ({
+      entity,
+      timestamps: series.t,
+      scores: series.s,
+      volume: series.v,
+    })),
+  },
+});
+
+const transformHighlights = (data: HighlightsResponse) => ({
+  items: data.items.map((item) => ({
+    provider: item.provider,
+    externalItemId: item.external_item_id,
+    url: item.url,
+    text: item.text,
+    author: item.author
+      ? {
+          __provider: item.provider,
+          ...transformAuthor(item.provider, item.author),
+        }
+      : null,
+    metrics: item.metrics
+      ? {
+          __provider: item.provider,
+          ...transformMetrics(item.provider, item.metrics),
+        }
+      : null,
+    createdAt: item.created_at,
+    sentiments: item.sentiments.map((sentiment) => ({
+      entity: sentiment.entity,
+      score: sentiment.score,
+      highlightScore: sentiment.highlight_score,
+    })),
+  })),
+  cursor: data.cursor,
+});
+
+export const typeDefs = /* GraphQL */ `
+  enum SentimentResolution {
+    QUARTER_HOUR
+    HOUR
+    DAY
+  }
+
+  type SentimentEntityTimeSeries {
+    entity: String!
+    timestamps: [Int!]!
+    scores: [Float!]!
+    volume: [Int!]!
+  }
+
+  type SentimentEntityTimeSeriesData {
+    nodes: [SentimentEntityTimeSeries!]!
+  }
+
+  type SentimentTimeSeries {
+    start: Int!
+    resolutionSeconds: Int!
+    entities: SentimentEntityTimeSeriesData!
+  }
+
+  type SentimentAuthorX {
+    id: String
+    name: String
+    handle: String
+    avatarUrl: String
+  }
+
+  union SentimentHighlightAuthor = SentimentAuthorX
+
+  type SentimentMetricsX {
+    likeCount: Int
+    replyCount: Int
+    retweetCount: Int
+    quoteCount: Int
+    bookmarkCount: Int
+    impressionCount: Int
+  }
+
+  union SentimentHighlightMetrics = SentimentMetricsX
+
+  type SentimentAnnotation {
+    entity: String!
+    score: Float!
+    highlightScore: Float!
+  }
+
+  type SentimentHighlightItem {
+    provider: String!
+    externalItemId: String!
+    url: String!
+    text: String!
+    author: SentimentHighlightAuthor
+    metrics: SentimentHighlightMetrics
+    createdAt: DateTime!
+    sentiments: [SentimentAnnotation!]!
+  }
+
+  type SentimentHighlightsConnection {
+    items: [SentimentHighlightItem!]!
+    cursor: String
+  }
+
+  extend type Query {
+    sentimentTimeSeries(
+      resolution: SentimentResolution!
+      entity: String
+      groupId: ID
+      lookback: String
+    ): SentimentTimeSeries! @rateLimit(limit: 30, duration: 60)
+
+    sentimentHighlights(
+      entity: String
+      groupId: ID
+      first: Int
+      after: String
+    ): SentimentHighlightsConnection! @rateLimit(limit: 30, duration: 60)
+  }
+`;
+
+export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
+  unknown,
+  BaseContext
+>({
+  Query: {
+    sentimentTimeSeries: async (
+      _,
+      args: {
+        resolution: SentimentResolution;
+        entity?: string;
+        groupId?: string;
+        lookback?: string;
+      },
+    ) => {
+      validateSentimentFilter({ entity: args.entity, groupId: args.groupId });
+
+      try {
+        const data = await yggdrasilSentimentClient.getTimeSeries({
+          resolution: mapResolutionEnum(args.resolution),
+          entity: args.entity,
+          groupId: args.groupId,
+          lookback: args.lookback,
+        });
+
+        return transformTimeSeries(data);
+      } catch (error) {
+        if (error instanceof HttpError && error.statusCode === 404) {
+          throw new NotFoundError('Sentiment series target not found');
+        }
+
+        throw error;
+      }
+    },
+
+    sentimentHighlights: async (
+      _,
+      args: {
+        entity?: string;
+        groupId?: string;
+        first?: number;
+        after?: string;
+      },
+    ) => {
+      validateSentimentFilter({ entity: args.entity, groupId: args.groupId });
+      const first = validateHighlightsFirst(args.first);
+
+      try {
+        const data = await yggdrasilSentimentClient.getHighlights({
+          entity: args.entity,
+          groupId: args.groupId,
+          limit: first,
+          after: args.after,
+        });
+
+        return transformHighlights(data);
+      } catch (error) {
+        if (error instanceof HttpError && error.statusCode === 404) {
+          throw new NotFoundError('Sentiment highlights target not found');
+        }
+
+        throw error;
+      }
+    },
+  },
+
+  SentimentHighlightAuthor: {
+    __resolveType: (obj: SentimentResolverObject) => {
+      const provider = obj.__provider ?? '';
+      return PROVIDER_AUTHOR_TYPE[provider] ?? 'SentimentAuthorX';
+    },
+  },
+
+  SentimentHighlightMetrics: {
+    __resolveType: (obj: SentimentResolverObject) => {
+      const provider = obj.__provider ?? '';
+      return PROVIDER_METRICS_TYPE[provider] ?? 'SentimentMetricsX';
+    },
+  },
+});
