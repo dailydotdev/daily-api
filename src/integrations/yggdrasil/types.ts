@@ -30,13 +30,29 @@ export type SentimentAnnotation = {
   highlight_score: number;
 };
 
+export type XSearchAuthor = {
+  id?: string;
+  name?: string;
+  handle?: string;
+  avatar_url?: string;
+};
+
+export type XSearchMetrics = {
+  like_count?: number;
+  reply_count?: number;
+  retweet_count?: number;
+  quote_count?: number;
+  bookmark_count?: number;
+  impression_count?: number;
+};
+
 export type HighlightItem = {
   provider: string;
   external_item_id: string;
   url: string;
   text: string;
-  author: Record<string, unknown> | null;
-  metrics: Record<string, unknown> | null;
+  author: XSearchAuthor | null;
+  metrics: XSearchMetrics | null;
   created_at: string;
   sentiments: SentimentAnnotation[];
 };

@@ -7,6 +7,8 @@ import { yggdrasilSentimentClient } from '../integrations/yggdrasil/clients';
 import type {
   HighlightsResponse,
   TimeSeriesResponse,
+  XSearchAuthor,
+  XSearchMetrics,
 } from '../integrations/yggdrasil/types';
 import { traceResolvers } from './trace';
 
@@ -69,48 +71,20 @@ const validateHighlightsFirst = (first?: number): number => {
   return first;
 };
 
-const pickString = (
-  raw: Record<string, unknown>,
-  ...keys: string[]
-): string | undefined => {
-  for (const key of keys) {
-    const value = raw[key];
-    if (typeof value === 'string') {
-      return value;
-    }
-  }
-
-  return undefined;
-};
-
-const pickNumber = (
-  raw: Record<string, unknown>,
-  ...keys: string[]
-): number | undefined => {
-  for (const key of keys) {
-    const value = raw[key];
-    if (typeof value === 'number') {
-      return value;
-    }
-  }
-
-  return undefined;
-};
-
-const transformAuthor = (raw: Record<string, unknown>) => ({
-  id: pickString(raw, 'id'),
-  name: pickString(raw, 'name'),
-  handle: pickString(raw, 'handle'),
-  avatarUrl: pickString(raw, 'avatar_url', 'avatarUrl'),
+const transformAuthor = (raw: XSearchAuthor) => ({
+  id: raw.id,
+  name: raw.name,
+  handle: raw.handle,
+  avatarUrl: raw.avatar_url,
 });
 
-const transformMetrics = (raw: Record<string, unknown>) => ({
-  likeCount: pickNumber(raw, 'like_count', 'likeCount'),
-  replyCount: pickNumber(raw, 'reply_count', 'replyCount'),
-  retweetCount: pickNumber(raw, 'retweet_count', 'retweetCount'),
-  quoteCount: pickNumber(raw, 'quote_count', 'quoteCount'),
-  bookmarkCount: pickNumber(raw, 'bookmark_count', 'bookmarkCount'),
-  impressionCount: pickNumber(raw, 'impression_count', 'impressionCount'),
+const transformMetrics = (raw: XSearchMetrics) => ({
+  likeCount: raw.like_count,
+  replyCount: raw.reply_count,
+  retweetCount: raw.retweet_count,
+  quoteCount: raw.quote_count,
+  bookmarkCount: raw.bookmark_count,
+  impressionCount: raw.impression_count,
 });
 
 const transformTimeSeries = (data: TimeSeriesResponse) => ({

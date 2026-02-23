@@ -342,6 +342,10 @@ The migration generator compares entities against the local database schema. Ens
 - **Export and import, don't duplicate**: When you need the same logic in multiple places, export the function from its original location and import it where needed. This ensures a single source of truth and prevents maintenance issues.
 - **Example lesson**: When implementing `handleOpportunityKeywordsUpdate`, the function was duplicated in both `src/common/opportunity/parse.ts` and `src/schema/opportunity.ts`. This caused lint failures and maintenance burden. The correct approach was to export it from `parse.ts` and import it in `opportunity.ts`.
 
+**Typed Integration Mapping:**
+- When an external payload is already represented by explicit TypeScript types, prefer direct field mapping over dynamic key-picking helpers.
+- Keep transformations straightforward (e.g. `avatar_url -> avatarUrl`) and avoid runtime key probing unless the integration schema is genuinely unknown.
+
 **Feed resolver filtering ownership:**
 - Prefer `feedResolver`/`applyFeedWhere` options (`allowPrivatePosts`, `removeHiddenPosts`, `removeBannedPosts`, `removeNonPublicThresholdSquads`) for standard feed filtering behavior.
 - Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy checks in each builder.
