@@ -247,7 +247,7 @@ export class GraphORM {
         );
       } else {
         // Add where clause to fetch children by relation
-        childBuilder.queryBuilder = childBuilder.queryBuilder.where(
+        childBuilder.queryBuilder = childBuilder.queryBuilder.andWhere(
           `"${childBuilder.alias}"."${relation.childColumn}" = "${alias}"."${relation.parentColumn}"`,
         );
       }
