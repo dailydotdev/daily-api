@@ -797,8 +797,8 @@ describe('mutation moveBookmark', () => {
 
 describe('query bookmarks', () => {
   const QUERY = `
-    query BookmarksFeed($first: Int, $now: DateTime, $listId: ID, $reminderOnly: Boolean, $unreadOnly: Boolean) {
-      bookmarksFeed(first: $first, now: $now, listId: $listId, reminderOnly: $reminderOnly, unreadOnly: $unreadOnly) {
+    query BookmarksFeed($first: Int, $now: DateTime, $listId: ID, $reminderOnly: Boolean, $unreadOnly: Boolean, $after: String, $sort: BookmarkSort) {
+      bookmarksFeed(first: $first, now: $now, listId: $listId, reminderOnly: $reminderOnly, unreadOnly: $unreadOnly, after: $after, sort: $sort) {
         pageInfo {
           endCursor
           hasNextPage
@@ -842,6 +842,46 @@ describe('query bookmarks', () => {
     const res = await client.query(QUERY, { variables: { first: 2, now } });
     delete res.data.bookmarksFeed.pageInfo.endCursor;
     expect(res.data).toMatchSnapshot();
+  });
+
+  it('should return oldest bookmarks first when using TIME_ASC sort', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    const res = await client.query(QUERY, {
+      variables: { first: 3, now, sort: 'TIME_ASC' },
+    });
+    expect(res.errors).toBeFalsy();
+    expect(res.data.bookmarksFeed.edges.map(({ node }) => node.id)).toEqual([
+      'p5',
+      'p1',
+      'p3',
+    ]);
+  });
+
+  it('should paginate with ascending sort using forward cursor traversal', async () => {
+    loggedUser = '1';
+    await saveFixtures(con, Bookmark, bookmarksFixture);
+    const firstPage = await client.query(QUERY, {
+      variables: { first: 2, now, sort: 'TIME_ASC' },
+    });
+    expect(firstPage.errors).toBeFalsy();
+    expect(
+      firstPage.data.bookmarksFeed.edges.map(({ node }) => node.id),
+    ).toEqual(['p5', 'p1']);
+    expect(firstPage.data.bookmarksFeed.pageInfo.hasNextPage).toBeTruthy();
+
+    const secondPage = await client.query(QUERY, {
+      variables: {
+        first: 2,
+        now,
+        sort: 'TIME_ASC',
+        after: firstPage.data.bookmarksFeed.pageInfo.endCursor,
+      },
+    });
+    expect(secondPage.errors).toBeFalsy();
+    expect(
+      secondPage.data.bookmarksFeed.edges.map(({ node }) => node.id),
+    ).toEqual(['p3']);
   });
 
   it('should return bookmarks filtered with reminder only', async () => {

@@ -48,6 +48,11 @@ export interface GQLBookmarkList {
 }
 
 export const typeDefs = /* GraphQL */ `
+  enum BookmarkSort {
+    TIME_DESC
+    TIME_ASC
+  }
+
   type BookmarkList {
     """
     Unique identifier
@@ -196,6 +201,11 @@ export const typeDefs = /* GraphQL */ `
       Array of supported post types
       """
       supportedTypes: [String!]
+
+      """
+      Sort order for bookmarks by creation time
+      """
+      sort: BookmarkSort
     ): PostConnection! @auth
 
     """
@@ -267,25 +277,36 @@ interface BookmarksArgs extends ConnectionArguments {
   reminderOnly: boolean;
   supportedTypes?: string[];
   ranking: Ranking;
+  sort?: BookmarkSort;
 }
 
 interface BookmarkPage extends Page {
   limit: number;
   timestamp?: Date;
+  sort: BookmarkSort;
 }
+
+type BookmarkSort = 'TIME_DESC' | 'TIME_ASC';
+
+const defaultBookmarkSort: BookmarkSort = 'TIME_DESC';
 
 const bookmarkPageGenerator: PageGenerator<
   GQLPost,
   BookmarksArgs,
   BookmarkPage
 > = {
-  connArgsToPage: ({ first, after }: FeedArgs) => {
+  connArgsToPage: ({ first, after, sort }: BookmarksArgs) => {
     const cursor = getCursorFromAfter(after || undefined);
     const limit = Math.min(first || 30, 50);
+    const selectedSort = sort || defaultBookmarkSort;
     if (cursor) {
-      return { limit, timestamp: new Date(parseInt(cursor)) };
+      return {
+        limit,
+        sort: selectedSort,
+        timestamp: new Date(parseInt(cursor)),
+      };
     }
-    return { limit };
+    return { limit, sort: selectedSort };
   },
   nodeToCursor: (page, args, node) => {
     return base64(`time:${node.bookmarkedAt!.getTime()}`);
@@ -300,13 +321,18 @@ const applyBookmarkPaging = (
   page: BookmarkPage,
   builder: SelectQueryBuilder<Post>,
 ): SelectQueryBuilder<Post> => {
+  const direction = page.sort === 'TIME_ASC' ? 'ASC' : 'DESC';
   let newBuilder = builder
     .limit(page.limit)
-    .orderBy('bookmark.createdAt', 'DESC');
+    .orderBy('bookmark.createdAt', direction);
   if (page.timestamp) {
-    newBuilder = newBuilder.andWhere('bookmark."createdAt" < :timestamp', {
-      timestamp: page.timestamp,
-    });
+    const operator = page.sort === 'TIME_ASC' ? '>' : '<';
+    newBuilder = newBuilder.andWhere(
+      `bookmark."createdAt" ${operator} :timestamp`,
+      {
+        timestamp: page.timestamp,
+      },
+    );
   }
   return newBuilder;
 };
