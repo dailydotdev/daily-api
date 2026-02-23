@@ -69,47 +69,49 @@ const validateHighlightsFirst = (first?: number): number => {
   return first;
 };
 
-const asString = (value: unknown): string | undefined =>
-  typeof value === 'string' ? value : undefined;
-
-const asNumber = (value: unknown): number | undefined =>
-  typeof value === 'number' ? value : undefined;
-
-const transformAuthor = (
-  provider: string,
+const pickString = (
   raw: Record<string, unknown>,
-): Record<string, unknown> => {
-  switch (provider) {
-    case 'x_search':
-      return {
-        id: asString(raw.id),
-        name: asString(raw.name),
-        handle: asString(raw.handle),
-        avatarUrl: asString(raw.avatar_url),
-      };
-    default:
-      return raw;
+  ...keys: string[]
+): string | undefined => {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === 'string') {
+      return value;
+    }
   }
+
+  return undefined;
 };
 
-const transformMetrics = (
-  provider: string,
+const pickNumber = (
   raw: Record<string, unknown>,
-): Record<string, unknown> => {
-  switch (provider) {
-    case 'x_search':
-      return {
-        likeCount: asNumber(raw.like_count),
-        replyCount: asNumber(raw.reply_count),
-        retweetCount: asNumber(raw.retweet_count),
-        quoteCount: asNumber(raw.quote_count),
-        bookmarkCount: asNumber(raw.bookmark_count),
-        impressionCount: asNumber(raw.impression_count),
-      };
-    default:
-      return raw;
+  ...keys: string[]
+): number | undefined => {
+  for (const key of keys) {
+    const value = raw[key];
+    if (typeof value === 'number') {
+      return value;
+    }
   }
+
+  return undefined;
 };
+
+const transformAuthor = (raw: Record<string, unknown>) => ({
+  id: pickString(raw, 'id'),
+  name: pickString(raw, 'name'),
+  handle: pickString(raw, 'handle'),
+  avatarUrl: pickString(raw, 'avatar_url', 'avatarUrl'),
+});
+
+const transformMetrics = (raw: Record<string, unknown>) => ({
+  likeCount: pickNumber(raw, 'like_count', 'likeCount'),
+  replyCount: pickNumber(raw, 'reply_count', 'replyCount'),
+  retweetCount: pickNumber(raw, 'retweet_count', 'retweetCount'),
+  quoteCount: pickNumber(raw, 'quote_count', 'quoteCount'),
+  bookmarkCount: pickNumber(raw, 'bookmark_count', 'bookmarkCount'),
+  impressionCount: pickNumber(raw, 'impression_count', 'impressionCount'),
+});
 
 const transformTimeSeries = (data: TimeSeriesResponse) => ({
   start: data.start,
@@ -125,7 +127,7 @@ const transformTimeSeries = (data: TimeSeriesResponse) => ({
 });
 
 const transformHighlights = (data: HighlightsResponse) => ({
-  items: data.items.map((item) => ({
+  items: (data.items || []).map((item) => ({
     provider: item.provider,
     externalItemId: item.external_item_id,
     url: item.url,
@@ -133,17 +135,17 @@ const transformHighlights = (data: HighlightsResponse) => ({
     author: item.author
       ? {
           __provider: item.provider,
-          ...transformAuthor(item.provider, item.author),
+          ...transformAuthor(item.author),
         }
       : null,
     metrics: item.metrics
       ? {
           __provider: item.provider,
-          ...transformMetrics(item.provider, item.metrics),
+          ...transformMetrics(item.metrics),
         }
       : null,
     createdAt: item.created_at,
-    sentiments: item.sentiments.map((sentiment) => ({
+    sentiments: (item.sentiments || []).map((sentiment) => ({
       entity: sentiment.entity,
       score: sentiment.score,
       highlightScore: sentiment.highlight_score,

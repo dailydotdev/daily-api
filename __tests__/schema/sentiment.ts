@@ -13,6 +13,22 @@ import { rateLimiterName } from '../../src/directive/rateLimit';
 import { yggdrasilSentimentClient } from '../../src/integrations/yggdrasil/clients';
 import { HttpError } from '../../src/integrations/retry';
 
+jest.mock('../../src/integrations/yggdrasil/clients', () => ({
+  yggdrasilSentimentClient: {
+    getTimeSeries: jest.fn(),
+    getHighlights: jest.fn(),
+  },
+}));
+
+const getTimeSeriesMock =
+  yggdrasilSentimentClient.getTimeSeries as jest.MockedFunction<
+    typeof yggdrasilSentimentClient.getTimeSeries
+  >;
+const getHighlightsMock =
+  yggdrasilSentimentClient.getHighlights as jest.MockedFunction<
+    typeof yggdrasilSentimentClient.getHighlights
+  >;
+
 let con: DataSource;
 let state: GraphQLTestingState;
 let client: GraphQLTestClient;
@@ -42,7 +58,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   trackingId = 'sentiment-test-tracking';
-  jest.restoreAllMocks();
+  jest.clearAllMocks();
   await deleteKeysByPattern(`${rateLimiterName}:*`);
 });
 
@@ -75,19 +91,17 @@ describe('query sentimentTimeSeries', () => {
   `;
 
   it('should return transformed time series data for entity queries', async () => {
-    const getTimeSeries = jest
-      .spyOn(yggdrasilSentimentClient, 'getTimeSeries')
-      .mockResolvedValue({
-        start: 1739815200,
-        resolution_seconds: 3600,
-        entities: {
-          'daily.dev': {
-            t: [0, 3600],
-            s: [0.5, -0.2],
-            v: [4, 3],
-          },
+    getTimeSeriesMock.mockResolvedValue({
+      start: 1739815200,
+      resolution_seconds: 3600,
+      entities: {
+        'daily.dev': {
+          t: [0, 3600],
+          s: [0.5, -0.2],
+          v: [4, 3],
         },
-      });
+      },
+    });
 
     const res = await client.query(QUERY, {
       variables: {
@@ -98,7 +112,7 @@ describe('query sentimentTimeSeries', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(getTimeSeries).toHaveBeenCalledWith({
+    expect(getTimeSeriesMock).toHaveBeenCalledWith({
       resolution: '1h',
       entity: 'daily.dev',
       groupId: undefined,
@@ -123,15 +137,13 @@ describe('query sentimentTimeSeries', () => {
   });
 
   it('should accept groupId and map 404 to NOT_FOUND', async () => {
-    jest
-      .spyOn(yggdrasilSentimentClient, 'getTimeSeries')
-      .mockRejectedValue(
-        new HttpError(
-          'http://localhost:3002/api/sentiment/timeseries',
-          404,
-          'not found',
-        ),
-      );
+    getTimeSeriesMock.mockRejectedValue(
+      new HttpError(
+        'http://localhost:3002/api/sentiment/timeseries',
+        404,
+        'not found',
+      ),
+    );
 
     await testQueryErrorCode(
       client,
@@ -225,41 +237,39 @@ describe('query sentimentHighlights', () => {
   `;
 
   it('should transform highlight payload and resolve X union types', async () => {
-    const getHighlights = jest
-      .spyOn(yggdrasilSentimentClient, 'getHighlights')
-      .mockResolvedValue({
-        items: [
-          {
-            provider: 'x_search',
-            external_item_id: '123',
-            url: 'https://x.com/status/123',
-            text: 'Daily dev mention',
-            author: {
-              id: 'a1',
-              name: 'Alice',
-              handle: 'alice',
-              avatar_url: 'https://avatar',
-            },
-            metrics: {
-              like_count: 11,
-              reply_count: 4,
-              retweet_count: 3,
-              quote_count: 1,
-              bookmark_count: 2,
-              impression_count: 150,
-            },
-            created_at: '2026-02-20T15:00:00.000Z',
-            sentiments: [
-              {
-                entity: 'daily.dev',
-                score: 0.7,
-                highlight_score: 0.8,
-              },
-            ],
+    getHighlightsMock.mockResolvedValue({
+      items: [
+        {
+          provider: 'x_search',
+          external_item_id: '123',
+          url: 'https://x.com/status/123',
+          text: 'Daily dev mention',
+          author: {
+            id: 'a1',
+            name: 'Alice',
+            handle: 'alice',
+            avatar_url: 'https://avatar',
           },
-        ],
-        cursor: 'next-cursor',
-      });
+          metrics: {
+            like_count: 11,
+            reply_count: 4,
+            retweet_count: 3,
+            quote_count: 1,
+            bookmark_count: 2,
+            impression_count: 150,
+          },
+          created_at: '2026-02-20T15:00:00.000Z',
+          sentiments: [
+            {
+              entity: 'daily.dev',
+              score: 0.7,
+              highlight_score: 0.8,
+            },
+          ],
+        },
+      ],
+      cursor: 'next-cursor',
+    });
 
     const res = await client.query(QUERY, {
       variables: {
@@ -270,7 +280,7 @@ describe('query sentimentHighlights', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(getHighlights).toHaveBeenCalledWith({
+    expect(getHighlightsMock).toHaveBeenCalledWith({
       entity: 'daily.dev',
       groupId: undefined,
       limit: 12,
@@ -314,27 +324,27 @@ describe('query sentimentHighlights', () => {
   });
 
   it('should default first to 20 and fallback unknown providers to X unions', async () => {
-    const getHighlights = jest
-      .spyOn(yggdrasilSentimentClient, 'getHighlights')
-      .mockResolvedValue({
-        items: [
-          {
-            provider: 'unknown-provider',
-            external_item_id: '456',
-            url: 'https://example.com/456',
-            text: 'Unknown provider payload',
-            author: {
-              name: 'Unknown Author',
-            },
-            metrics: {
-              custom_count: 99,
-            },
-            created_at: '2026-02-21T15:00:00.000Z',
-            sentiments: [],
+    getHighlightsMock.mockResolvedValue({
+      items: [
+        {
+          provider: 'unknown-provider',
+          external_item_id: '456',
+          url: 'https://example.com/456',
+          text: 'Unknown provider payload',
+          author: {
+            name: 'Unknown Author',
+            handle: 'unknown-handle',
+            avatar_url: 'https://unknown-author-avatar',
           },
-        ],
-        cursor: null,
-      });
+          metrics: {
+            like_count: 99,
+          },
+          created_at: '2026-02-21T15:00:00.000Z',
+          sentiments: [],
+        },
+      ],
+      cursor: null,
+    });
 
     const res = await client.query(QUERY, {
       variables: {
@@ -343,7 +353,7 @@ describe('query sentimentHighlights', () => {
     });
 
     expect(res.errors).toBeFalsy();
-    expect(getHighlights).toHaveBeenCalledWith({
+    expect(getHighlightsMock).toHaveBeenCalledWith({
       entity: 'daily.dev',
       groupId: undefined,
       limit: 20,
@@ -352,9 +362,17 @@ describe('query sentimentHighlights', () => {
     expect(res.data.sentimentHighlights.items[0].author.__typename).toEqual(
       'SentimentAuthorX',
     );
+    expect(res.data.sentimentHighlights.items[0].author).toMatchObject({
+      name: 'Unknown Author',
+      handle: 'unknown-handle',
+      avatarUrl: 'https://unknown-author-avatar',
+    });
     expect(res.data.sentimentHighlights.items[0].metrics.__typename).toEqual(
       'SentimentMetricsX',
     );
+    expect(res.data.sentimentHighlights.items[0].metrics).toMatchObject({
+      likeCount: 99,
+    });
   });
 
   it('should validate first range', async () => {
@@ -373,13 +391,13 @@ describe('query sentimentHighlights', () => {
   });
 
   it('should enforce shared 30/min rate limit across sentiment queries', async () => {
-    jest.spyOn(yggdrasilSentimentClient, 'getTimeSeries').mockResolvedValue({
+    getTimeSeriesMock.mockResolvedValue({
       start: 1739815200,
       resolution_seconds: 3600,
       entities: {},
     });
 
-    jest.spyOn(yggdrasilSentimentClient, 'getHighlights').mockResolvedValue({
+    getHighlightsMock.mockResolvedValue({
       items: [],
       cursor: null,
     });
