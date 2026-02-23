@@ -55,6 +55,7 @@ import {
   mapCloudinaryUrl,
   THREE_MONTHS_IN_SECONDS,
   isTest,
+  updateFlagsStatement,
 } from '../common';
 import { AccessToken, signJwt } from '../auth';
 import { cookies, setCookie, setRawCookie } from '../cookies';
@@ -90,6 +91,7 @@ import {
   getProfileExperienceFlags as getSharedProfileExperienceFlags,
   type ProfileCompletion,
 } from '../common/profile/completion';
+import { unwrapArray } from '../common/array';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
   permalink: string;
@@ -176,6 +178,53 @@ type BootMiddleware = (
   req: FastifyRequest,
   res: FastifyReply,
 ) => Promise<Record<string, unknown>>;
+
+type BootQuery = {
+  referrer?: string | string[];
+  app_platform?: string | string[];
+};
+
+const getBootQuery = (req: FastifyRequest): BootQuery =>
+  (req.query as BootQuery) || {};
+
+const getBootReferrer = (req: FastifyRequest): string | undefined =>
+  unwrapArray(getBootQuery(req).referrer);
+
+const isExtensionBootRequest = (req: FastifyRequest): boolean =>
+  unwrapArray(getBootQuery(req).app_platform) === 'extension';
+
+const getLastExtensionUseRedisKey = (userId: string): string =>
+  generateStorageKey(StorageTopic.Boot, 'last_extension_use', userId);
+
+const updateLastExtensionUse = async ({
+  con,
+  userId,
+}: {
+  con: DataSource;
+  userId: string;
+}): Promise<void> => {
+  const redisResult = await ioRedisPool.execute((client) =>
+    client.set(
+      getLastExtensionUseRedisKey(userId),
+      Date.now().toString(),
+      'EX',
+      ONE_DAY_IN_SECONDS,
+      'NX',
+    ),
+  );
+  if (redisResult !== 'OK') {
+    return;
+  }
+
+  await con.getRepository(User).update(
+    { id: userId },
+    {
+      flags: updateFlagsStatement<User>({
+        lastExtensionUse: new Date(),
+      }),
+    },
+  );
+};
 
 const geoSection = (req: FastifyRequest): BaseBoot['geo'] => {
   const region = req.headers['x-client-region'] as string;
@@ -847,8 +896,7 @@ export const getBootData = async (
   res: FastifyReply,
   middleware?: BootMiddleware,
 ): Promise<AnonymousBoot | LoggedInBoot> => {
-  // Extract referrer from query params (e.g., ?referrer=recruiter)
-  const referrer = (req.query as { referrer?: string })?.referrer;
+  const referrer = getBootReferrer(req);
 
   if (
     req.userId &&
@@ -1156,7 +1204,7 @@ const funnelBoots = {
 const funnelHandler: RouteHandler = async (req, res) => {
   const con = await createOrGetConnection();
   const { id = 'funnel' } = req.params as { id: keyof typeof funnelBoots };
-  const referrer = (req.query as { referrer?: string })?.referrer;
+  const referrer = getBootReferrer(req);
 
   if (id in funnelBoots) {
     const funnel = funnelBoots[id];
@@ -1181,6 +1229,10 @@ export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.addHook('onResponse', async (req, res) => {
     if (!req.userId || res.statusCode !== 200) {
       return;
+    }
+
+    if (isExtensionBootRequest(req)) {
+      await updateLastExtensionUse({ con, userId: req.userId });
     }
 
     if (await isUserPartOfOrganization(con, req.userId)) {
