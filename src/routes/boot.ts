@@ -182,7 +182,6 @@ type BootMiddleware = (
 type BootQuery = {
   referrer?: string | string[];
   app_platform?: string | string[];
-  appPlatform?: string | string[];
 };
 
 const getBootQuery = (req: FastifyRequest): BootQuery =>
@@ -191,15 +190,8 @@ const getBootQuery = (req: FastifyRequest): BootQuery =>
 const getBootReferrer = (req: FastifyRequest): string | undefined =>
   unwrapArray(getBootQuery(req).referrer);
 
-const isExtensionBootRequest = (req: FastifyRequest): boolean => {
-  const query = getBootQuery(req);
-  const appPlatform =
-    unwrapArray(query.app_platform) ??
-    unwrapArray(query.appPlatform) ??
-    unwrapArray(req.headers['x-app-platform']);
-
-  return appPlatform === 'extension';
-};
+const isExtensionBootRequest = (req: FastifyRequest): boolean =>
+  unwrapArray(getBootQuery(req).app_platform) === 'extension';
 
 const getLastExtensionUseRedisKey = (userId: string): string =>
   generateStorageKey(StorageTopic.Boot, 'last_extension_use', userId);
