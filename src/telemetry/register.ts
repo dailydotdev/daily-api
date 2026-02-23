@@ -1,6 +1,7 @@
 // This module MUST be loaded via --require before any application code.
 // It instantiates OpenTelemetry instrumentations that monkey-patch require()
 // hooks, ensuring all subsequently loaded modules (http, pg, etc.) are patched.
+import { ClientRequest } from 'node:http';
 import type { Span } from '@opentelemetry/api';
 
 import FastifyOtelInstrumentation from '@fastify/otel';
@@ -36,6 +37,12 @@ const ignorePaths = ['/health', '/liveness', '/metrics'];
 
 const getInstrumentations = () => [
   new HttpInstrumentation({
+    requestHook: (span, req) => {
+      if (!span.isRecording()) return;
+      const suffix =
+        req instanceof ClientRequest ? ` ${req.host}${req.path}` : req.url;
+      span.updateName(`${req.method} ${suffix}`);
+    },
     ignoreIncomingRequestHook: (request) =>
       ignorePaths.some((path) => request.url?.includes(path)),
   }),

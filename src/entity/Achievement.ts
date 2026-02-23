@@ -27,6 +27,7 @@ export enum AchievementEventType {
   ExperienceVolunteering = 'experience_volunteering',
   ExperienceSkill = 'experience_skill',
   HotTakeCreate = 'hot_take_create',
+  HotTakeVote = 'hot_take_vote',
   PostShare = 'post_share',
   PostFreeform = 'post_freeform',
   SquadJoin = 'squad_join',

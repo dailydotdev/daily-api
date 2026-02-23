@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {
@@ -8,10 +9,16 @@ import {
   MockContext,
   saveFixtures,
 } from './helpers';
+import {
+  Achievement,
+  AchievementEventType,
+  AchievementType,
+} from '../src/entity';
 import { User } from '../src/entity/user/User';
 import { usersFixture } from './fixture/user';
 import { HotTake } from '../src/entity/user/HotTake';
 import { UserHotTake } from '../src/entity/user/UserHotTake';
+import { UserAchievement } from '../src/entity/user/UserAchievement';
 import { UserVote } from '../src/types';
 
 let con: DataSource;
@@ -32,6 +39,189 @@ afterAll(() => disposeGraphQLTesting(state));
 beforeEach(async () => {
   loggedUser = null;
   await saveFixtures(con, User, usersFixture);
+});
+
+describe('query discoverHotTakes', () => {
+  const QUERY = `
+    query DiscoverHotTakes($first: Int) {
+      discoverHotTakes(first: $first) {
+        id
+        emoji
+        title
+        subtitle
+        upvotes
+        upvoted
+        user {
+          id
+          name
+          username
+          image
+          reputation
+        }
+      }
+    }
+  `;
+
+  it('should require authentication', async () => {
+    const res = await client.query(QUERY);
+    expect(res.errors?.[0]?.extensions?.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('should return hot takes from other users with user info', async () => {
+    loggedUser = '1';
+    await con.getRepository(HotTake).save([
+      { userId: '2', emoji: '🔥', title: 'Take from user 2', position: 0 },
+      { userId: '3', emoji: '💡', title: 'Take from user 3', position: 0 },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.discoverHotTakes.length).toBeGreaterThanOrEqual(2);
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).toContain('Take from user 2');
+    expect(titles).toContain('Take from user 3');
+
+    const take = res.data.discoverHotTakes.find(
+      (t: { title: string }) => t.title === 'Take from user 2',
+    );
+    expect(take.user).toBeDefined();
+    expect(take.user.id).toBe('2');
+    expect(take.user.name).toBe('Tsahi');
+    expect(take.user.username).toBe('tsahidaily');
+  });
+
+  it('should exclude current user own hot takes', async () => {
+    loggedUser = '1';
+    await con.getRepository(HotTake).save([
+      { userId: '1', emoji: '🔥', title: 'My own take', position: 0 },
+      { userId: '2', emoji: '💡', title: 'Other take', position: 0 },
+    ]);
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('My own take');
+    expect(titles).toContain('Other take');
+  });
+
+  it('should exclude already voted hot takes', async () => {
+    loggedUser = '1';
+    const hotTake1 = await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🔥',
+      title: 'Already voted',
+      position: 0,
+    });
+    await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '💡',
+      title: 'Not voted yet',
+      position: 1,
+    });
+
+    await con.getRepository(UserHotTake).save({
+      hotTakeId: hotTake1.id,
+      userId: '1',
+      vote: UserVote.Up,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('Already voted');
+    expect(titles).toContain('Not voted yet');
+  });
+
+  it('should exclude cold voted hot takes', async () => {
+    loggedUser = '1';
+    const hotTake1 = await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🧊',
+      title: 'Already cold voted',
+      position: 0,
+    });
+    await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🔥',
+      title: 'Still available',
+      position: 1,
+    });
+
+    await con.getRepository(UserHotTake).save({
+      hotTakeId: hotTake1.id,
+      userId: '1',
+      vote: UserVote.Down,
+    });
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('Already cold voted');
+    expect(titles).toContain('Still available');
+  });
+
+  it('should respect first limit', async () => {
+    loggedUser = '1';
+    await con.getRepository(HotTake).save([
+      { userId: '2', emoji: '1️⃣', title: 'Take 1', position: 0 },
+      { userId: '2', emoji: '2️⃣', title: 'Take 2', position: 1 },
+      { userId: '2', emoji: '3️⃣', title: 'Take 3', position: 2 },
+    ]);
+
+    const res = await client.query(QUERY, { variables: { first: 2 } });
+    expect(res.errors).toBeUndefined();
+    expect(res.data.discoverHotTakes).toHaveLength(2);
+  });
+
+  it('should return empty array when no takes available', async () => {
+    loggedUser = '1';
+
+    const res = await client.query(QUERY);
+    expect(res.errors).toBeUndefined();
+    expect(res.data.discoverHotTakes).toEqual([]);
+  });
+
+  it('should exclude takes where user has any vote record', async () => {
+    loggedUser = '1';
+    const hotTake1 = await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '🔥',
+      title: 'Skipped take',
+      position: 0,
+    });
+    await con.getRepository(HotTake).save({
+      userId: '2',
+      emoji: '💡',
+      title: 'Fresh take',
+      position: 1,
+    });
+
+    // Record with vote=None (user saw it but didn't upvote)
+    await con.getRepository(UserHotTake).save({
+      hotTakeId: hotTake1.id,
+      userId: '1',
+      vote: UserVote.None,
+    });
+
+    const res = await client.query(QUERY);
+    const titles = res.data.discoverHotTakes.map(
+      (t: { title: string }) => t.title,
+    );
+    expect(titles).not.toContain('Skipped take');
+    expect(titles).toContain('Fresh take');
+  });
 });
 
 describe('query hotTakes', () => {
@@ -173,6 +363,23 @@ describe('mutation vote on hot take', () => {
     }
   `;
 
+  const addHotTakeVoteAchievement = async (targetCount: number = 2) => {
+    const achievementId = randomUUID();
+    await con.getRepository(Achievement).save({
+      id: achievementId,
+      name: `Hot and cold ${achievementId}`,
+      description: 'Vote on hot takes',
+      image: 'https://example.com/hot_take_vote.png',
+      type: AchievementType.Milestone,
+      eventType: AchievementEventType.HotTakeVote,
+      criteria: { targetCount },
+      points: 10,
+      rarity: 0.2,
+    });
+
+    return achievementId;
+  };
+
   it('should require authentication', async () => {
     const res = await client.mutate(MUTATION, {
       variables: {
@@ -207,8 +414,12 @@ describe('mutation vote on hot take', () => {
       hotTakeId: hotTake.id,
       userId: '2',
     });
+    const updatedHotTake = await con
+      .getRepository(HotTake)
+      .findOneByOrFail({ id: hotTake.id });
     expect(userHotTake).not.toBeNull();
     expect(userHotTake?.vote).toBe(UserVote.Up);
+    expect(updatedHotTake.upvotes).toBe(1);
   });
 
   it('should remove upvote when voting with 0', async () => {
@@ -266,7 +477,78 @@ describe('mutation vote on hot take', () => {
       hotTakeId: hotTake.id,
       userId: '2',
     });
+    const updatedHotTake = await con
+      .getRepository(HotTake)
+      .findOneByOrFail({ id: hotTake.id });
     expect(userHotTake?.vote).toBe(UserVote.Down);
+    expect(updatedHotTake.upvotes).toBe(0);
+  });
+
+  it('should progress hot and cold vote achievement', async () => {
+    loggedUser = '1';
+    const achievementId = await addHotTakeVoteAchievement(2);
+    const [hotTakeOne, hotTakeTwo] = await con.getRepository(HotTake).save([
+      {
+        userId: '2',
+        emoji: '🔥',
+        title: 'Hot take 1',
+        position: 0,
+      },
+      {
+        userId: '3',
+        emoji: '🧊',
+        title: 'Hot take 2',
+        position: 1,
+      },
+    ]);
+
+    await client.mutate(MUTATION, {
+      variables: {
+        id: hotTakeOne.id,
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+    await client.mutate(MUTATION, {
+      variables: {
+        id: hotTakeTwo.id,
+        entity: 'hot_take',
+        vote: -1,
+      },
+    });
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId,
+      userId: '1',
+    });
+    expect(userAchievement).not.toBeNull();
+    expect(userAchievement?.progress).toBe(2);
+    expect(userAchievement?.unlockedAt).not.toBeNull();
+  });
+
+  it('should not progress achievement when voting own hot take', async () => {
+    loggedUser = '1';
+    const achievementId = await addHotTakeVoteAchievement(1);
+    const ownHotTake = await con.getRepository(HotTake).save({
+      userId: '1',
+      emoji: '🔥',
+      title: 'My own take',
+      position: 0,
+    });
+
+    await client.mutate(MUTATION, {
+      variables: {
+        id: ownHotTake.id,
+        entity: 'hot_take',
+        vote: 1,
+      },
+    });
+
+    const userAchievement = await con.getRepository(UserAchievement).findOneBy({
+      achievementId,
+      userId: '1',
+    });
+    expect(userAchievement).toBeNull();
   });
 
   it('should return error for non-existent hot take', async () => {

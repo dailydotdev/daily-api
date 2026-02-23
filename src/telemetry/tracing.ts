@@ -29,7 +29,7 @@ export const addPubsubSpanLabels = (
   message: Message | { id: string; data?: Buffer },
 ): void => {
   span.setAttributes({
-    [ATTR_MESSAGING_SYSTEM]: 'pubsub',
+    [ATTR_MESSAGING_SYSTEM]: 'gcp_pubsub',
     [ATTR_MESSAGING_DESTINATION_NAME]: subscription,
     [ATTR_MESSAGING_MESSAGE_ID]: message.id,
     [ATTR_MESSAGING_MESSAGE_BODY_SIZE]: message.data?.length || 0,
@@ -60,7 +60,12 @@ export const createSpanProcessor = (): BatchSpanProcessor => {
     url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
   });
 
-  return new BatchSpanProcessor(traceExporter);
+  return new BatchSpanProcessor(traceExporter, {
+    maxQueueSize: 4096,
+    maxExportBatchSize: 512,
+    scheduledDelayMillis: 5000,
+    exportTimeoutMillis: 30000,
+  });
 };
 
 export const runInSpan = async <T>(
