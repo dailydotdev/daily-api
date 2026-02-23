@@ -516,6 +516,89 @@ describe('logged in boot', () => {
     });
   });
 
+  it('should set lastExtensionUse when app_platform is extension', async () => {
+    const userId = '1';
+    const requestStart = Date.now();
+
+    mockLoggedIn(userId);
+    await request(app.server)
+      .get(`${BASE_PATH}?app_platform=extension`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    await setTimeout(50);
+
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    expect(user.flags.lastExtensionUse).toBeTruthy();
+    expect(
+      new Date(user.flags.lastExtensionUse as Date).getTime(),
+    ).toBeGreaterThanOrEqual(requestStart);
+  });
+
+  it('should not set lastExtensionUse when app_platform is not extension', async () => {
+    const userId = '1';
+
+    mockLoggedIn(userId);
+    await request(app.server)
+      .get(BASE_PATH)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    await setTimeout(50);
+
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    expect(user.flags.lastExtensionUse).toBeFalsy();
+  });
+
+  it('should write lastExtensionUse only once per day', async () => {
+    const userId = '1';
+
+    mockLoggedIn(userId);
+    await request(app.server)
+      .get(`${BASE_PATH}?app_platform=extension`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    await setTimeout(50);
+
+    const firstUser = await con.getRepository(User).findOneBy({ id: userId });
+    if (!firstUser?.flags.lastExtensionUse) {
+      throw new Error('Missing first lastExtensionUse');
+    }
+    const firstLastExtensionUse = new Date(
+      firstUser.flags.lastExtensionUse as Date,
+    ).getTime();
+
+    mockLoggedIn(userId);
+    await request(app.server)
+      .get(`${BASE_PATH}?app_platform=extension`)
+      .set('User-Agent', TEST_UA)
+      .set('Cookie', 'ory_kratos_session=value;')
+      .expect(200);
+
+    await setTimeout(50);
+
+    const user = await con.getRepository(User).findOneBy({ id: userId });
+    if (!user?.flags.lastExtensionUse) {
+      throw new Error('User not found');
+    }
+
+    expect(new Date(user.flags.lastExtensionUse as Date).getTime()).toEqual(
+      firstLastExtensionUse,
+    );
+  });
+
   it('should set hasLocationSet to true when user has location date flag', async () => {
     await con.getRepository(User).save({
       ...usersFixture[0],
