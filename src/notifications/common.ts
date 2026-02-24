@@ -1,5 +1,5 @@
 import { ValidationError } from 'apollo-server-errors';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, QueryRunner } from 'typeorm';
 import {
   NotFoundError,
   TypeOrmError,
@@ -475,6 +475,23 @@ export const streamNotificationUsers = (
   }
 
   return query.stream();
+};
+
+export const UNREAD_NOTIFICATIONS_LIMIT = 11;
+
+export const getUnreadNotificationsCount = async (
+  con: DataSource | QueryRunner,
+  userId: string,
+): Promise<number> => {
+  const result = await con.manager.query(
+    `SELECT COUNT(*)::int AS count FROM (
+      SELECT 1 FROM user_notification
+      WHERE "userId" = $1 AND "public" = true AND "readAt" IS NULL
+      LIMIT $2
+    ) t`,
+    [userId, UNREAD_NOTIFICATIONS_LIMIT],
+  );
+  return result[0]?.count ?? 0;
 };
 
 enum UserNotificationUniqueKey {

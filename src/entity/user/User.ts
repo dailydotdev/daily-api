@@ -369,9 +369,6 @@ export class User {
   @Index('IDX_user_locationId')
   location: Promise<DatasetLocation>;
 
-  @Column({ type: 'integer', default: 0 })
-  unreadNotificationsCount: number;
-
   // used for diffing changes, eg. filters for cdc during updates
   // due to user table having a lot of depenencies
   @Column({ type: 'int', default: 0 })

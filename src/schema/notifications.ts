@@ -15,7 +15,6 @@ import {
   NotificationAvatarV2,
   NotificationAttachmentV2,
 } from '../entity';
-import { User } from '../entity/user/User';
 import { ConnectionArguments } from 'graphql-relay';
 import { In, IsNull } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
@@ -29,6 +28,7 @@ import {
   saveNotificationPreference,
   postNewCommentNotificationTypes,
   notificationPreferenceMap,
+  getUnreadNotificationsCount,
   commentReplyNotificationTypes,
 } from '../notifications/common';
 import { ValidationError } from 'apollo-server-errors';
@@ -348,13 +348,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       source,
       args: ConnectionArguments,
       ctx: AuthContext,
-    ): Promise<number> => {
-      const user = await ctx.con.manager.getRepository(User).findOne({
-        where: { id: ctx.userId },
-        select: ['unreadNotificationsCount'],
-      });
-      return user?.unreadNotificationsCount ?? 0;
-    },
+    ): Promise<number> =>
+      await getUnreadNotificationsCount(ctx.con, ctx.userId),
     banner: async (
       source,
       { lastSeen }: { lastSeen: Date },
@@ -477,9 +472,6 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             { userId: ctx.userId, readAt: IsNull() },
             { readAt: new Date() },
           );
-        await entityManager
-          .getRepository(User)
-          .update({ id: ctx.userId }, { unreadNotificationsCount: 0 });
       });
       return { _: true };
     },

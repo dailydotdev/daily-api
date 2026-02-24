@@ -90,6 +90,7 @@ import {
   getProfileExperienceFlags as getSharedProfileExperienceFlags,
   type ProfileCompletion,
 } from '../common/profile/completion';
+import { getUnreadNotificationsCount } from '../notifications/common';
 import { unwrapArray } from '../common/array';
 
 export type BootSquadSource = Omit<GQLSource, 'currentMember'> & {
@@ -524,7 +525,6 @@ const getUser = async (
       'readme',
       'language',
       'hideExperience',
-      'unreadNotificationsCount',
     ],
   });
 
@@ -628,7 +628,16 @@ const loggedInBoot = async ({
       roles,
       extra,
       [alerts, settings, marketingCta],
-      [user, squads, lastBanner, exp, feeds, location, experienceFlags],
+      [
+        user,
+        squads,
+        lastBanner,
+        exp,
+        feeds,
+        unreadNotificationsCount,
+        location,
+        experienceFlags,
+      ],
       balance,
       clickbaitTries,
       anonymousTheme,
@@ -650,6 +659,7 @@ const loggedInBoot = async ({
           getAndUpdateLastBannerRedis(queryRunner),
           getExperimentation({ userId, con: queryRunner, ...geo }),
           getFeeds({ con: queryRunner, userId }),
+          getUnreadNotificationsCount(queryRunner, userId),
           getLocation(queryRunner, userId),
           getSharedProfileExperienceFlags(queryRunner.manager, userId),
         ]);
@@ -698,7 +708,6 @@ const loggedInBoot = async ({
           'flags',
           'locationId',
           'readmeHtml',
-          'unreadNotificationsCount',
         ]),
         // Legacy social fields with explicit null for JSON backwards compatibility
         twitter: user.twitter ?? null,
@@ -763,9 +772,7 @@ const loggedInBoot = async ({
         'updatedAt',
         'bookmarkSlug',
       ]),
-      notifications: {
-        unreadNotificationsCount: user?.unreadNotificationsCount ?? 0,
-      },
+      notifications: { unreadNotificationsCount },
       squads,
       accessToken,
       exp,
