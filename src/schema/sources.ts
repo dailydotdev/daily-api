@@ -12,6 +12,7 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
+  SourceStack,
   SquadSource,
   User,
 } from '../entity';
@@ -477,6 +478,11 @@ export const typeDefs = /* GraphQL */ `
       Sort by the number of members count in descending order
       """
       sortByMembersCount: Boolean
+
+      """
+      Filter squads that use a specific stack/tool
+      """
+      toolId: ID
     ): SourceConnection!
 
     """
@@ -1512,6 +1518,7 @@ interface SourcesArgs extends ConnectionArguments {
   categoryId?: string;
   featured?: boolean;
   sortByMembersCount?: boolean;
+  toolId?: string;
 }
 
 interface SourcesByType extends ConnectionArguments {
@@ -1748,6 +1755,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         filter.categoryId = args.categoryId;
       }
 
+      if (args.toolId) {
+        filter.type = SourceType.Squad;
+      }
+
       const page = sourcePageGenerator.connArgsToPage(args);
       return graphorm.queryPaginated(
         ctx,
@@ -1772,6 +1783,15 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             builder.queryBuilder.andWhere(
               `COALESCE((${builder.alias}.flags->'featured')::boolean, FALSE) = :featured`,
               { featured: args.featured },
+            );
+          }
+
+          if (args.toolId) {
+            builder.queryBuilder.innerJoin(
+              SourceStack,
+              'sourceStack',
+              `"sourceStack"."sourceId" = ${builder.alias}.id AND "sourceStack"."toolId" = :toolId`,
+              { toolId: args.toolId },
             );
           }
 
