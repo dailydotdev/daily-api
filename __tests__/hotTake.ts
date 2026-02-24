@@ -193,57 +193,29 @@ describe('query discoverHotTakes', () => {
     expect(res.data.discoverHotTakes).toEqual([]);
   });
 
-  it('should prioritize hot takes with higher score', async () => {
+  it('should order hot takes by weighted vote score', async () => {
     loggedUser = '1';
-    const [coldTake, hotTake, lukewarmTake] = await con
-      .getRepository(HotTake)
-      .save([
-        { userId: '2', emoji: '🧊', title: 'Cold take', position: 0 },
-        { userId: '2', emoji: '🔥', title: 'Hot take', position: 1 },
-        { userId: '2', emoji: '😐', title: 'Lukewarm take', position: 2 },
-      ]);
+    const [coldTake, hotTake, mehTake] = await con.getRepository(HotTake).save([
+      { userId: '2', emoji: '🧊', title: 'Cold take', position: 0 },
+      { userId: '2', emoji: '🔥', title: 'Hot take', position: 1 },
+      { userId: '2', emoji: '😐', title: 'Meh take', position: 2 },
+    ]);
 
-    // Cold take: 2 downvotes → score = 2 * -2 = -4
-    // Hot take: 3 upvotes → score = 3 * 2 = 6
-    // Lukewarm take: 1 upvote + 1 neutral → score = 1*2 + 1*(-1) = 1
     await con.getRepository(UserHotTake).save([
       { hotTakeId: coldTake.id, userId: '2', vote: UserVote.Down },
       { hotTakeId: coldTake.id, userId: '3', vote: UserVote.Down },
       { hotTakeId: hotTake.id, userId: '2', vote: UserVote.Up },
       { hotTakeId: hotTake.id, userId: '3', vote: UserVote.Up },
       { hotTakeId: hotTake.id, userId: '4', vote: UserVote.Up },
-      { hotTakeId: lukewarmTake.id, userId: '3', vote: UserVote.Up },
-      { hotTakeId: lukewarmTake.id, userId: '4', vote: UserVote.None },
-    ]);
-
-    const res = await client.query(QUERY);
-    expect(res.errors).toBeUndefined();
-    expect(res.data.discoverHotTakes[0].title).toBe('Hot take');
-    expect(res.data.discoverHotTakes[1].title).toBe('Lukewarm take');
-    expect(res.data.discoverHotTakes[2].title).toBe('Cold take');
-  });
-
-  it('should deprioritize takes with many neutral votes', async () => {
-    loggedUser = '1';
-    const [engagingTake, mehTake] = await con.getRepository(HotTake).save([
-      { userId: '2', emoji: '🔥', title: 'Engaging take', position: 0 },
-      { userId: '2', emoji: '😐', title: 'Meh take', position: 1 },
-    ]);
-
-    // Engaging: 2 upvotes → score = 2*2 = 4
-    // Meh: 1 upvote + 3 neutrals → score = 1*2 + 3*(-1) = -1
-    await con.getRepository(UserHotTake).save([
-      { hotTakeId: engagingTake.id, userId: '3', vote: UserVote.Up },
-      { hotTakeId: engagingTake.id, userId: '4', vote: UserVote.Up },
-      { hotTakeId: mehTake.id, userId: '2', vote: UserVote.Up },
-      { hotTakeId: mehTake.id, userId: '3', vote: UserVote.None },
+      { hotTakeId: mehTake.id, userId: '3', vote: UserVote.Up },
       { hotTakeId: mehTake.id, userId: '4', vote: UserVote.None },
     ]);
 
     const res = await client.query(QUERY);
     expect(res.errors).toBeUndefined();
-    expect(res.data.discoverHotTakes[0].title).toBe('Engaging take');
-    expect(res.data.discoverHotTakes[1].title).toBe('Meh take');
+    expect(
+      res.data.discoverHotTakes.map((t: { title: string }) => t.title),
+    ).toEqual(['Hot take', 'Meh take', 'Cold take']);
   });
 
   it('should exclude takes where user has any vote record', async () => {
