@@ -213,16 +213,31 @@ export const updatePost = async ({
     return null;
   }
 
-  if (
-    await checkExistingUrl({
-      entityManager,
-      data,
-      logger,
-      errorMsg: 'failed updating post because URL/canonical exists already',
-      excludeId: databasePost?.id,
-    })
-  ) {
-    return null;
+  const hasUrlConflict = await checkExistingUrl({
+    entityManager,
+    data,
+    logger,
+    errorMsg: 'failed updating post because URL/canonical exists already',
+    excludeId: databasePost?.id,
+  });
+
+  if (hasUrlConflict) {
+    if (data.origin !== PostOrigin.Squad) {
+      return null;
+    }
+
+    data.canonicalUrl = null;
+    if (
+      await checkExistingUrl({
+        entityManager,
+        data,
+        logger,
+        errorMsg: 'failed updating post because URL exists already',
+        excludeId: databasePost?.id,
+      })
+    ) {
+      return null;
+    }
   }
 
   const title = data?.title || databasePost.title;
