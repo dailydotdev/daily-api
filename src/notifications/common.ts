@@ -1,5 +1,5 @@
 import { ValidationError } from 'apollo-server-errors';
-import { DataSource, EntityManager, IsNull, QueryRunner } from 'typeorm';
+import { DataSource, EntityManager, QueryRunner } from 'typeorm';
 import {
   NotFoundError,
   TypeOrmError,
@@ -21,7 +21,7 @@ import {
 import { UserNotification } from '../entity/notifications/UserNotification';
 import type { ConnectionManager } from '../entity/posts';
 import { Comment } from '../entity/Comment';
-import type { UserNotificationFlags } from '../entity/user/User';
+import { User, type UserNotificationFlags } from '../entity/user/User';
 
 export enum NotificationType {
   CommunityPicksFailed = 'community_picks_failed',
@@ -480,14 +480,14 @@ export const streamNotificationUsers = (
 export const getUnreadNotificationsCount = async (
   con: DataSource | QueryRunner,
   userId: string,
-) =>
-  await con.manager.getRepository(UserNotification).count({
-    where: {
-      userId,
-      public: true,
-      readAt: IsNull(),
-    },
+): Promise<number> => {
+  const result = await con.manager.getRepository(User).findOne({
+    where: { id: userId },
+    select: ['unreadNotificationsCount'],
   });
+
+  return result?.unreadNotificationsCount ?? 0;
+};
 
 enum UserNotificationUniqueKey {
   PostAdded = 'post_added',

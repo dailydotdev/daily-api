@@ -10,6 +10,7 @@ import {
   Banner,
   NotificationPreference,
   Comment,
+  User,
   UserNotification,
   NotificationV2,
   NotificationAvatarV2,
@@ -472,6 +473,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             { userId: ctx.userId, readAt: IsNull() },
             { readAt: new Date() },
           );
+        await entityManager
+          .getRepository(User)
+          .update({ id: ctx.userId }, { unreadNotificationsCount: 0 });
       });
       return { _: true };
     },
