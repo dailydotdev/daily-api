@@ -455,6 +455,19 @@ export const createSharePost = async ({
     const { private: privacy } = await con
       .getRepository(Source)
       .findOneByOrFail({ id: sourceId });
+    const originalPost = await con.getRepository(ArticlePost).findOne({
+      where: { id: postId },
+      select: ['id', 'title', 'summary', 'url', 'origin', 'yggdrasilId'],
+    });
+
+    const isBrokenOriginalPost = Boolean(
+      originalPost &&
+      !originalPost.title &&
+      !originalPost.summary &&
+      originalPost.url &&
+      originalPost.yggdrasilId,
+    );
+    const isVisible = isBrokenOriginalPost ? false : visible;
 
     const id = await generateShortId();
 
@@ -470,12 +483,12 @@ export const createSharePost = async ({
       sentAnalyticsReport: true,
       private: privacy,
       origin: PostOrigin.UserGenerated,
-      visible,
-      visibleAt: visible ? new Date() : null,
+      visible: isVisible,
+      visibleAt: isVisible ? new Date() : null,
       flags: {
         sentAnalyticsReport: true,
         private: privacy,
-        visible,
+        visible: isVisible,
       },
       type: PostType.Share,
     } as DeepPartial<SharePost>);
@@ -493,20 +506,8 @@ export const createSharePost = async ({
       await saveMentions(con, post.id, userId, mentions, PostMention);
     }
 
-    // Check if original post is an ArticlePost and missing title and summary
-    const originalPost = await con.getRepository(ArticlePost).findOne({
-      where: { id: postId },
-      select: ['id', 'title', 'summary', 'url', 'origin', 'yggdrasilId'],
-    });
-
     // If original post is an ArticlePost missing title and summary but with yggdrasilId, request rescrape
-    if (
-      originalPost &&
-      !originalPost.title &&
-      !originalPost.summary &&
-      originalPost.url &&
-      originalPost.yggdrasilId
-    ) {
+    if (isBrokenOriginalPost && originalPost) {
       await notifyContentRequested(logger, {
         id: originalPost.id,
         url: originalPost.url,

@@ -169,8 +169,12 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
-    transform: async (value: string, ctx: Context, parent) => {
+    transform: async (value: string | null, ctx: Context, parent) => {
       if (!ctx.userId) {
+        if (!value && (parent as { url?: string })?.url) {
+          return 'Failed to scrape';
+        }
+
         return value;
       }
 
@@ -220,6 +224,10 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
 
       if (i18nValue) {
         return i18nValue;
+      }
+
+      if (!value && (parent as { url?: string })?.url) {
+        return 'Failed to scrape';
       }
 
       return value;
@@ -660,8 +668,10 @@ const obj = new GraphORM({
       sharedPost: {
         relation: {
           isMany: false,
-          childColumn: 'id',
-          parentColumn: 'sharedPostId',
+          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+            qb
+              .where(`${childAlias}.id = ${parentAlias}."sharedPostId"`)
+              .andWhere(`${childAlias}."deleted" = false`),
         },
       },
       downvoted: {
