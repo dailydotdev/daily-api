@@ -12,11 +12,11 @@ import {
   SourceFlagsPublic,
   SourceMember,
   SourceMemberFlagsPublic,
-  SourceStack,
   SquadSource,
   User,
 } from '../entity';
 import { SourceType, SourceUser } from '../entity/Source';
+import { SourceStack } from '../entity/sources/SourceStack';
 import {
   Roles,
   SourceMemberRoles,

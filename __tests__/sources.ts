@@ -14,7 +14,6 @@ import {
   Source,
   SourceFeed,
   SourceMember,
-  SourceStack,
   SourceType,
   SquadPublicRequest,
   SquadPublicRequestStatus,
@@ -23,6 +22,7 @@ import {
   WelcomePost,
 } from '../src/entity';
 import { DisallowHandle } from '../src/entity/DisallowHandle';
+import { SourceStack } from '../src/entity/sources/SourceStack';
 import { SourceCategory } from '../src/entity/sources/SourceCategory';
 import { SourceTagView } from '../src/entity/SourceTagView';
 import { SourcePermissionErrorKeys } from '../src/errors';
