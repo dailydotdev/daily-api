@@ -15,7 +15,7 @@ export class ArticlePost extends Post {
 
   @Column({ type: 'text', nullable: true })
   @Index({ unique: true })
-  canonicalUrl?: string;
+  canonicalUrl?: string | null;
 
   @Column({ type: 'text', nullable: true })
   image?: string | null;
