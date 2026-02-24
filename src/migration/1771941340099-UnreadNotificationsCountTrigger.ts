@@ -1,4 +1,4 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import type { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class UnreadNotificationsCountTrigger1771941340099
   implements MigrationInterface
@@ -6,12 +6,12 @@ export class UnreadNotificationsCountTrigger1771941340099
   name = 'UnreadNotificationsCountTrigger1771941340099';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `ALTER TABLE "user"
-        ADD "unreadNotificationsCount" integer NOT NULL DEFAULT 0`,
-    );
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "user"
+        ADD "unreadNotificationsCount" integer NOT NULL DEFAULT 0
+    `);
 
-    await queryRunner.query(`
+    await queryRunner.query(/* sql */ `
       CREATE OR REPLACE FUNCTION increment_unread_notifications_count()
         RETURNS TRIGGER
         LANGUAGE PLPGSQL
@@ -27,14 +27,14 @@ export class UnreadNotificationsCountTrigger1771941340099
       $$
     `);
 
-    await queryRunner.query(`
+    await queryRunner.query(/* sql */ `
       CREATE TRIGGER increment_unread_notifications_count
         AFTER INSERT ON "user_notification"
         FOR EACH ROW
         EXECUTE PROCEDURE increment_unread_notifications_count()
     `);
 
-    await queryRunner.query(`
+    await queryRunner.query(/* sql */ `
       CREATE OR REPLACE FUNCTION update_unread_notifications_count()
         RETURNS TRIGGER
         LANGUAGE PLPGSQL
@@ -55,14 +55,14 @@ export class UnreadNotificationsCountTrigger1771941340099
       $$
     `);
 
-    await queryRunner.query(`
+    await queryRunner.query(/* sql */ `
       CREATE TRIGGER update_unread_notifications_count
         AFTER UPDATE ON "user_notification"
         FOR EACH ROW
         EXECUTE PROCEDURE update_unread_notifications_count()
     `);
 
-    await queryRunner.query(`
+    await queryRunner.query(/* sql */ `
       CREATE OR REPLACE FUNCTION decrement_unread_notifications_count()
         RETURNS TRIGGER
         LANGUAGE PLPGSQL
@@ -78,14 +78,14 @@ export class UnreadNotificationsCountTrigger1771941340099
       $$
     `);
 
-    await queryRunner.query(`
+    await queryRunner.query(/* sql */ `
       CREATE TRIGGER decrement_unread_notifications_count
         AFTER DELETE ON "user_notification"
         FOR EACH ROW
         EXECUTE PROCEDURE decrement_unread_notifications_count()
     `);
 
-    await queryRunner.query(`
+    await queryRunner.query(/* sql */ `
       UPDATE "user" u
       SET "unreadNotificationsCount" = COALESCE(sub.cnt, 0)
       FROM (
@@ -99,28 +99,36 @@ export class UnreadNotificationsCountTrigger1771941340099
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP TRIGGER IF EXISTS decrement_unread_notifications_count ON "user_notification"`,
-    );
-    await queryRunner.query(
-      `DROP TRIGGER IF EXISTS update_unread_notifications_count ON "user_notification"`,
-    );
-    await queryRunner.query(
-      `DROP TRIGGER IF EXISTS increment_unread_notifications_count ON "user_notification"`,
-    );
+    await queryRunner.query(/* sql */ `
+      DROP TRIGGER IF EXISTS decrement_unread_notifications_count
+        ON "user_notification"
+    `);
 
-    await queryRunner.query(
-      `DROP FUNCTION IF EXISTS decrement_unread_notifications_count()`,
-    );
-    await queryRunner.query(
-      `DROP FUNCTION IF EXISTS update_unread_notifications_count()`,
-    );
-    await queryRunner.query(
-      `DROP FUNCTION IF EXISTS increment_unread_notifications_count()`,
-    );
+    await queryRunner.query(/* sql */ `
+      DROP TRIGGER IF EXISTS update_unread_notifications_count
+        ON "user_notification"
+    `);
 
-    await queryRunner.query(
-      `ALTER TABLE "user" DROP COLUMN "unreadNotificationsCount"`,
-    );
+    await queryRunner.query(/* sql */ `
+      DROP TRIGGER IF EXISTS increment_unread_notifications_count
+        ON "user_notification"
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP FUNCTION IF EXISTS decrement_unread_notifications_count()
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP FUNCTION IF EXISTS update_unread_notifications_count()
+    `);
+
+    await queryRunner.query(/* sql */ `
+      DROP FUNCTION IF EXISTS increment_unread_notifications_count()
+    `);
+
+    await queryRunner.query(/* sql */ `
+      ALTER TABLE "user"
+        DROP COLUMN "unreadNotificationsCount"
+    `);
   }
 }
