@@ -39,6 +39,7 @@ import {
   saveNotificationPreference,
   streamNotificationUsers,
   NotificationChannel,
+  UNREAD_NOTIFICATIONS_LIMIT,
 } from '../src/notifications/common';
 import { postsFixture, sharedPostsFixture } from './fixture/post';
 import { sourcesFixture } from './fixture/source';
@@ -162,6 +163,28 @@ describe('query notification count', () => {
     ]);
     const res = await client.query(QUERY());
     expect(res.data).toEqual({ unreadNotificationsCount: 1 });
+  });
+
+  it('should cap the count at UNREAD_NOTIFICATIONS_LIMIT', async () => {
+    loggedUser = '1';
+    const total = UNREAD_NOTIFICATIONS_LIMIT + 5;
+    const notifs = await con.getRepository(NotificationV2).save(
+      Array.from({ length: total }, (_, i) => ({
+        ...notificationV2Fixture,
+        uniqueKey: `cap-${i}`,
+      })),
+    );
+    await con.getRepository(UserNotification).insert(
+      notifs.map((n) => ({
+        userId: '1',
+        notificationId: n.id,
+        createdAt: notificationV2Fixture.createdAt,
+      })),
+    );
+    const res = await client.query(QUERY());
+    expect(res.data).toEqual({
+      unreadNotificationsCount: UNREAD_NOTIFICATIONS_LIMIT,
+    });
   });
 });
 

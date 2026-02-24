@@ -477,7 +477,8 @@ export const streamNotificationUsers = (
   return query.stream();
 };
 
-export const UNREAD_NOTIFICATIONS_LIMIT = 11;
+// +1 over the frontend display cap (20) so the client can show "20+" when the API returns 21
+export const UNREAD_NOTIFICATIONS_LIMIT = 21;
 
 export const getUnreadNotificationsCount = async (
   con: DataSource | QueryRunner,
@@ -494,7 +495,7 @@ export const getUnreadNotificationsCount = async (
 
   const result = await con.manager
     .createQueryBuilder()
-    .select('COUNT(*)::int', 'count')
+    .select('COUNT(1)::int', 'count')
     .from(`(${subQuery.getQuery()})`, 't')
     .setParameters(subQuery.getParameters())
     .getRawOne<{ count: number }>();
