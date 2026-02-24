@@ -484,20 +484,18 @@ export const getUnreadNotificationsCount = async (
   con: DataSource | QueryRunner,
   userId: string,
 ): Promise<number> => {
-  const subQuery = con.manager
-    .createQueryBuilder()
-    .select('1')
-    .from(UserNotification, 'un')
-    .where('un."userId" = :userId', { userId })
-    .andWhere('un."public" = true')
-    .andWhere('un."readAt" IS NULL')
-    .limit(UNREAD_NOTIFICATIONS_LIMIT);
-
   const result = await con.manager
     .createQueryBuilder()
     .select('COUNT(1)::int', 'count')
-    .from(`(${subQuery.getQuery()})`, 't')
-    .setParameters(subQuery.getParameters())
+    .from((qb) => {
+      return qb
+        .select('1')
+        .from(UserNotification, 'un')
+        .where('un."userId" = :userId', { userId })
+        .andWhere('un."public" = true')
+        .andWhere('un."readAt" IS NULL')
+        .limit(UNREAD_NOTIFICATIONS_LIMIT);
+    }, 't')
     .getRawOne<{ count: number }>();
 
   return result?.count ?? 0;
