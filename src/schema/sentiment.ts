@@ -13,6 +13,7 @@ import type {
 import { traceResolvers } from './trace';
 
 type SentimentResolution = 'QUARTER_HOUR' | 'HOUR' | 'DAY';
+type SentimentHighlightsOrderBy = 'SCORE' | 'RECENCY';
 type SentimentResolverObject = {
   __provider?: string;
 };
@@ -39,6 +40,19 @@ const mapResolutionEnum = (
       return '1h';
     case 'DAY':
       return '1d';
+  }
+};
+
+const mapOrderByEnum = (
+  orderBy?: SentimentHighlightsOrderBy,
+): 'score' | 'recency' | undefined => {
+  switch (orderBy) {
+    case 'SCORE':
+      return 'score';
+    case 'RECENCY':
+      return 'recency';
+    default:
+      return undefined;
   }
 };
 
@@ -135,6 +149,11 @@ export const typeDefs = /* GraphQL */ `
     DAY
   }
 
+  enum SentimentHighlightsOrderBy {
+    SCORE
+    RECENCY
+  }
+
   type SentimentEntityTimeSeries {
     entity: String!
     timestamps: [Int!]!
@@ -207,6 +226,7 @@ export const typeDefs = /* GraphQL */ `
       groupId: ID
       first: Int
       after: String
+      orderBy: SentimentHighlightsOrderBy
     ): SentimentHighlightsConnection! @rateLimit(limit: 30, duration: 60)
   }
 `;
@@ -252,6 +272,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         groupId?: string;
         first?: number;
         after?: string;
+        orderBy?: SentimentHighlightsOrderBy;
       },
     ) => {
       validateSentimentFilter({ entity: args.entity, groupId: args.groupId });
@@ -263,6 +284,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           groupId: args.groupId,
           limit: first,
           after: args.after,
+          orderBy: mapOrderByEnum(args.orderBy),
         });
 
         return transformHighlights(data);

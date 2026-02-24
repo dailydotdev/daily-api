@@ -22,6 +22,7 @@ export type HighlightsParams = {
   groupId?: string;
   limit?: number;
   after?: string;
+  orderBy?: 'score' | 'recency';
 };
 
 export type SentimentAnnotation = {

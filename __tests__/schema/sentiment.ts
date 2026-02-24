@@ -192,12 +192,14 @@ describe('query sentimentHighlights', () => {
       $groupId: ID
       $first: Int
       $after: String
+      $orderBy: SentimentHighlightsOrderBy
     ) {
       sentimentHighlights(
         entity: $entity
         groupId: $groupId
         first: $first
         after: $after
+        orderBy: $orderBy
       ) {
         cursor
         items {
@@ -285,6 +287,7 @@ describe('query sentimentHighlights', () => {
       groupId: undefined,
       limit: 12,
       after: 'prev-cursor',
+      orderBy: undefined,
     });
     expect(res.data.sentimentHighlights).toEqual({
       cursor: 'next-cursor',
@@ -358,6 +361,7 @@ describe('query sentimentHighlights', () => {
       groupId: undefined,
       limit: 20,
       after: undefined,
+      orderBy: undefined,
     });
     expect(res.data.sentimentHighlights.items[0].author.__typename).toEqual(
       'SentimentAuthorX',
@@ -388,6 +392,30 @@ describe('query sentimentHighlights', () => {
       'GRAPHQL_VALIDATION_FAILED',
       'first must be between 1 and 50',
     );
+  });
+
+  it('should map orderBy enum to yggdrasil orderBy param', async () => {
+    getHighlightsMock.mockResolvedValue({
+      items: [],
+      cursor: null,
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        entity: 'daily.dev',
+        first: 10,
+        orderBy: 'RECENCY',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(getHighlightsMock).toHaveBeenCalledWith({
+      entity: 'daily.dev',
+      groupId: undefined,
+      limit: 10,
+      after: undefined,
+      orderBy: 'recency',
+    });
   });
 
   it('should enforce shared 30/min rate limit across sentiment queries', async () => {

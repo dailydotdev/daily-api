@@ -68,6 +68,9 @@ export class YggdrasilSentimentClient {
     if (params.after) {
       searchParams.set('after', params.after);
     }
+    if (params.orderBy) {
+      searchParams.set('order_by', params.orderBy);
+    }
 
     return this.garmr.execute(() =>
       retryFetchParse<HighlightsResponse>(
