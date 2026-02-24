@@ -2539,6 +2539,19 @@ describe('mutation sharePost', () => {
     expect(post.title).toEqual('My comment');
   });
 
+  it('should create invisible share and still return mutation result', async () => {
+    loggedUser = '1';
+    const res = await client.mutate(MUTATION, {
+      variables: { ...variables, id: 'p7' },
+    });
+    expect(res.errors).toBeFalsy();
+
+    const post = await con
+      .getRepository(SharePost)
+      .findOneByOrFail({ id: res.data.sharePost.id });
+    expect(post.visible).toEqual(false);
+  });
+
   it('should share sharedPost to squad if title was provided', async () => {
     await con.getRepository(SharePost).save({
       id: 'sp-1',

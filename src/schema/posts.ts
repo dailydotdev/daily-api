@@ -3018,6 +3018,10 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         },
       });
 
+      if (!newPost.visible) {
+        return newPost as unknown as GQLPost;
+      }
+
       return getPostById(ctx, info, newPost.id);
     },
     editSharePost: async (

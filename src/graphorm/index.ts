@@ -166,20 +166,27 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
   return clickbaitProbability > threshold;
 };
 
+const fallbackFailedScrapeTitle = (
+  value: string | null,
+  parent: unknown,
+): string | null => {
+  if (!value && (parent as { url?: string })?.url) {
+    return 'Failed to scrape';
+  }
+
+  return value;
+};
+
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
   return {
     select: field,
     transform: async (value: string | null, ctx: Context, parent) => {
       if (!ctx.userId) {
-        if (!value && (parent as { url?: string })?.url) {
-          return 'Failed to scrape';
-        }
-
-        return value;
+        return fallbackFailedScrapeTitle(value, parent);
       }
 
       if (remoteConfig.vars.kvasirRequirePlus && !ctx.isPlus) {
-        return value;
+        return fallbackFailedScrapeTitle(value, parent);
       }
 
       const typedParent = parent as {
@@ -226,11 +233,7 @@ const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
         return i18nValue;
       }
 
-      if (!value && (parent as { url?: string })?.url) {
-        return 'Failed to scrape';
-      }
-
-      return value;
+      return fallbackFailedScrapeTitle(value, parent);
     },
   };
 };
@@ -668,7 +671,7 @@ const obj = new GraphORM({
       sharedPost: {
         relation: {
           isMany: false,
-          customRelation: (ctx, parentAlias, childAlias, qb): QueryBuilder =>
+          customRelation: (_, parentAlias, childAlias, qb): QueryBuilder =>
             qb
               .where(`${childAlias}.id = ${parentAlias}."sharedPostId"`)
               .andWhere(`${childAlias}."deleted" = false`),
