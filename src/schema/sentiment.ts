@@ -110,7 +110,7 @@ const transformTimeSeries = (data: TimeSeriesResponse) => ({
       timestamps: series.t,
       scores: series.s,
       volume: series.v,
-      scoreVariance: series.sv,
+      scoreVariance: series.sv ?? [],
     })),
   },
 });
