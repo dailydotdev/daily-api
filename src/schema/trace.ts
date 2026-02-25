@@ -26,7 +26,6 @@ export function traceResolver<
       context.span.setAttributes({
         ['graphql.operation.name']: info.operation?.name?.value,
         ['graphql.operation.type']: info.operation.operation,
-        ['graphql.variableValues']: JSON.stringify(info.variableValues),
       });
     }
 
