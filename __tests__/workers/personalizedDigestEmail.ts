@@ -666,12 +666,10 @@ describe('personalizedDigestEmail worker', () => {
       .slice(0, 5)
       .map((post) => ({ post_id: post.id }));
 
-    nock('http://localhost:6000')
-      .post('/feed.json')
-      .reply(200, {
-        data: mockedPostIds,
-        rows: mockedPostIds.length,
-      });
+    nock('http://localhost:6000').post('/feed.json').reply(200, {
+      data: mockedPostIds,
+      rows: mockedPostIds.length,
+    });
 
     nock('http://localhost:8080')
       .post('/private')
