@@ -1,6 +1,5 @@
 import type { Roles } from './roles';
 import type { AccessToken } from './auth';
-import type { Span, Tracer } from '@opentelemetry/api';
 import type { GarmrService } from './integrations/garmr';
 import { type Client } from '@connectrpc/connect';
 import type { ServiceType } from '@bufbuild/protobuf';
@@ -114,17 +113,12 @@ declare module 'fastify' {
     sessionId?: string;
     isBot?: boolean;
 
-    // Used for tracing
-    span?: Span;
-
     // Used for public API authentication
     apiUserId?: string;
     apiTokenId?: string;
   }
 
   interface FastifyInstance {
-    // Used for tracing
-    tracer?: Tracer;
     // Used for public API routes to access database
     con?: DataSource;
   }

@@ -18,7 +18,6 @@ import { UserAchievement } from '../entity/user/UserAchievement';
 import { ConflictError, NotFoundError } from '../errors';
 import graphorm from '../graphorm';
 import type { GQLEmptyResponse } from './common';
-import { traceResolvers } from './trace';
 
 const ACHIEVEMENT_SYNC_LIMIT = 1;
 const CLOSE_ACHIEVEMENTS_LIMIT = 3;
@@ -382,10 +381,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     achievements: (_, __, ctx: Context, info: GraphQLResolveInfo) =>
       graphorm.query(
@@ -772,4 +768,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
     },
   },
-});
+};

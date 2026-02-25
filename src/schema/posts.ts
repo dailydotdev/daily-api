@@ -15,7 +15,6 @@ import {
   sourceTypesWithMembers,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   checkIfUserPostInSourceDirectlyOrThrow,
   createFreeformPost,
@@ -1912,10 +1911,7 @@ const postCodeSnippetPageGenerator = offsetPageGenerator<GQLPostCodeSnippet>(
   500,
 );
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     sourcePostModeration: async (
       _,
@@ -3578,4 +3574,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
-});
+};

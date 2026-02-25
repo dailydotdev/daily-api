@@ -1,6 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext } from '../Context';
-import { traceResolvers } from './trace';
 import { logger } from '../logger';
 import {
   getSlackClient,
@@ -199,10 +198,7 @@ export const typeDefs = /* GraphQL */ `
 
 const sourcesWithMultipleConnections = [BRIEFING_SOURCE];
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     slackChannels: async (
       _,
@@ -530,4 +526,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
   },
-});
+};

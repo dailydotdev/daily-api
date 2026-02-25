@@ -99,6 +99,7 @@ The migration generator compares entities against the local database schema. Ens
   - Always consult the [Zod 4.x documentation](https://zod.dev) for the latest API
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
 - **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly. **This applies to mock/`isMockEnabled` returns too** — when mocking RPC transport, always use actual proto message class instances, not raw JSON objects.
+- **Never create wrapper types around `@dailydotdev/schema` classes** (e.g., `UserBriefingRequest & { extraField }`) — if a field exists in the proto, use it directly. If it doesn't exist yet, update the schema package first.
   ```typescript
   // BAD: plain object
   return {
@@ -159,6 +160,7 @@ The migration generator compares entities against the local database schema. Ens
 - Mercurius integration testing for GraphQL endpoints
 - Avoid creating multiple overlapping tests for the same scenario; a single test per key scenario is preferred
 - When evaluating response objects (GraphQL, API), prefer `toEqual` and `toMatchObject` over multiple `expect().toBe()` lines
+- **Prefer strict schema assertions over `expect.objectContaining`** — when verifying proto message payloads (e.g., `UserBriefingRequest`), use `new SchemaClass({...})` to assert exact structure. `expect.objectContaining` weakens validation by ignoring extra fields, which defeats schema correctness checks.
 - Avoid redundant test assertions - if an assertion already verifies the value, don't add negative checks that are logically implied (e.g., if `expect(result).toBe('a')` passes, don't also check `expect(result).not.toBe('b')`)
 - When adding/removing persisted entity fields, update affected Jest snapshots in worker/integration tests (for example `toMatchSnapshot` payloads) as part of the same change to avoid CI drift.
 - **Typed worker tests**: Always use the generic type parameter with `expectSuccessfulTypedBackground<'topic-name'>()` for type safety. Use `toChangeObject()` to convert entities to the expected message payload format:

@@ -1,7 +1,6 @@
 import { IResolvers } from '@graphql-tools/utils';
 
 import { AuthContext, BaseContext } from '../Context';
-import { traceResolvers } from './trace';
 import { getShortUrl, isValidHttpUrl, isAllowedShortenerUrl } from '../common';
 import { ValidationError } from 'apollo-server-errors';
 
@@ -19,10 +18,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     getShortUrl: async (
       source,
@@ -37,4 +33,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return result;
     },
   },
-});
+};

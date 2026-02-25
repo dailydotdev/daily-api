@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import {
   AuthContext,
   BaseContext,
@@ -339,10 +338,7 @@ const notificationsPageGenerator = createDatePageGenerator<
   key: 'createdAt',
 });
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     unreadNotificationsCount: async (
       source,
@@ -579,4 +575,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   NotificationAttachment: {
     image: (source: NotificationAttachmentV2) => mapCloudinaryUrl(source.image),
   },
-});
+};

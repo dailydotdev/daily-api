@@ -1,7 +1,6 @@
 import z from 'zod';
 import { IResolvers } from '@graphql-tools/utils';
 import { GraphQLResolveInfo } from 'graphql';
-import { traceResolvers } from './trace';
 import { remoteConfig } from '../remoteConfig';
 import { AuthContext, BaseContext, type Context } from '../Context';
 import graphorm, { LocationVerificationStatus } from '../graphorm';
@@ -1400,10 +1399,7 @@ const handleClosedTransition = async ({
     .update({ id: opportunity.id }, { state: OpportunityState.CLOSED });
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     opportunityById: async (
       _,
@@ -3113,4 +3109,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
     },
   },
-});
+};

@@ -5,7 +5,6 @@ import dc from 'node:diagnostics_channel';
 
 import {
   trace,
-  context,
   type Span,
   type SpanOptions,
   SpanStatusCode,
@@ -13,8 +12,7 @@ import {
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 
-import { type AppVersionRequest, channelName } from './common';
-import { addApiSpanLabels } from './register';
+import { channelName, ignoredPaths } from './common';
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
   ATTR_MESSAGING_MESSAGE_BODY_SIZE,
@@ -22,6 +20,8 @@ import {
   ATTR_MESSAGING_SYSTEM,
   // @ts-expect-error - no longer resolves types because of cjs/esm change but values are exported
 } from '@opentelemetry/semantic-conventions/incubating';
+
+import otelPlugin from './plugin';
 
 export const addPubsubSpanLabels = (
   span: Span,
@@ -39,18 +39,10 @@ export const addPubsubSpanLabels = (
 export const subscribeTracingHooks = (serviceName: string): void => {
   dc.subscribe(channelName, (message) => {
     const { fastify } = message as { fastify: FastifyInstance };
-    fastify.decorate('tracer', trace.getTracer(serviceName));
-    fastify.decorateRequest('span');
 
-    fastify.addHook('onRequest', async (req) => {
-      req.span = trace.getSpan(context.active());
-    });
-
-    // Decorate the main span with some metadata
-    fastify.addHook('onResponse', async (req: AppVersionRequest) => {
-      if (req?.span?.isRecording()) {
-        addApiSpanLabels(req.span, req);
-      }
+    fastify.register(otelPlugin, {
+      ignoredPaths: ignoredPaths,
+      tracer: trace.getTracer(serviceName),
     });
   });
 };

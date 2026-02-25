@@ -17,7 +17,6 @@ import { GraphQLResolveInfo } from 'graphql';
 
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   anonymousFeedBuilder,
   AnonymousFeedFilters,
@@ -1539,10 +1538,7 @@ const postRepostsFeedResolver = feedResolver(
   },
 );
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     anonymousFeed: (source, args: AnonymousFeedArgs, ctx: Context, info) => {
       if (args.version >= 2 && args.ranking === Ranking.POPULARITY) {
@@ -2516,4 +2512,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
   },
-});
+};

@@ -6,7 +6,6 @@ import {
 } from 'graphql-relay';
 import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, Context, type AuthContext } from '../Context';
-import { traceResolvers } from './trace';
 import graphorm from '../graphorm';
 import { Campaign, CampaignState, CampaignType } from '../entity/campaign';
 import type { GQLPost } from './posts';
@@ -179,10 +178,7 @@ type StartCampaignMutationArgs = Omit<
   'userId'
 >;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     userCampaignStats: async (
       _,
@@ -329,4 +325,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       }
     },
   },
-});
+};

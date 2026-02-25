@@ -1,7 +1,6 @@
 import { UserAction, UserActionType } from '../entity';
 
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { GQLEmptyResponse } from './common';
 import graphorm from '../graphorm';
 import { DataSource, type EntityManager } from 'typeorm';
@@ -62,10 +61,7 @@ export const insertOrIgnoreAction = (
     .orIgnore()
     .execute();
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     completeAction: async (
       _,
@@ -89,4 +85,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return builder;
       }),
   },
-});
+};

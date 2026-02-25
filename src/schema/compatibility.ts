@@ -1,6 +1,5 @@
 import { IFieldResolver, IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import { GQLPost } from './posts';
 import {
   anonymousFeedBuilder,
@@ -176,10 +175,7 @@ const orderFeed = (
     'DESC',
   );
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     latest: compatFeedResolver(
       (
@@ -242,4 +238,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         ),
     ),
   },
-});
+};

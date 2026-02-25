@@ -1,4 +1,4 @@
-import { traceResolvers } from './trace';
+import type { IResolvers } from '@graphql-tools/utils';
 import { type AuthContext } from '../Context';
 import { getLimit, toGQLEnum } from '../common';
 import { UserExperienceType } from '../entity/user/experiences/types';
@@ -321,7 +321,7 @@ const getUserExperience = (
     readReplica,
   );
 
-export const resolvers = traceResolvers<unknown, AuthContext>({
+export const resolvers: IResolvers<unknown, AuthContext> = {
   Query: {
     userExperiences: async (
       _,
@@ -458,4 +458,4 @@ export const resolvers = traceResolvers<unknown, AuthContext>({
       return { _: true };
     },
   },
-});
+};
