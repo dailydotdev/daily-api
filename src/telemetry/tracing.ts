@@ -5,7 +5,6 @@ import dc from 'node:diagnostics_channel';
 
 import {
   trace,
-  context,
   type Span,
   type SpanOptions,
   SpanStatusCode,
@@ -41,21 +40,19 @@ export const addPubsubSpanLabels = (
 export const subscribeTracingHooks = (serviceName: string): void => {
   dc.subscribe(channelName, (message) => {
     const { fastify } = message as { fastify: FastifyInstance };
-    fastify.decorate('tracer', trace.getTracer(serviceName));
-    fastify.decorateRequest('span');
-    fastify.addHook('onRequest', async (req) => {
-      req.span = trace.getSpan(context.active());
-    });
 
     // Decorate the main span with some metadata
     fastify.addHook('onResponse', async (req: AppVersionRequest) => {
-      if (req?.span?.isRecording()) {
-        addApiSpanLabels(req.span, req);
+      const { span } = req.opentelemetry();
+
+      if (span?.isRecording()) {
+        addApiSpanLabels(span, req);
       }
     });
 
     fastify.register(otelPlugin, {
       ignoredPaths: ignoredPaths,
+      tracer: trace.getTracer(serviceName),
     });
   });
 };

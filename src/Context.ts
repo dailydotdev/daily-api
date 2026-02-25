@@ -60,8 +60,8 @@ export class Context {
     return this.req.log;
   }
 
-  get span(): Span | undefined {
-    return this.req.span;
+  get span(): Span | null {
+    return this.req.opentelemetry().span;
   }
 
   get isPlus(): boolean {
