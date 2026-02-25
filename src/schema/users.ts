@@ -174,6 +174,9 @@ import {
 } from '../common/googleCloud';
 import { fileTypeFromBuffer } from 'file-type';
 import { notificationFlagsSchema } from '../common/schema/notificationFlagsSchema';
+import { userGithubRepositoriesSchema } from '../common/schema/github';
+import { gitHubClient } from '../integrations/github/clients';
+import type { GQLGitHubUserRepository } from '../integrations/github/types';
 import { syncNotificationFlagsToCio } from '../cio';
 import { UserCandidatePreference } from '../entity/user/UserCandidatePreference';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
@@ -1248,6 +1251,19 @@ export const typeDefs = /* GraphQL */ `
     impressionsAds: Int!
   }
 
+  type GitHubUserRepository {
+    id: ID!
+    owner: String!
+    name: String!
+    fullName: String!
+    url: String!
+    description: String
+    stars: Int!
+    forks: Int!
+    language: String
+    updatedAt: String!
+  }
+
   extend type Query {
     """
     Get user based on logged in session
@@ -1464,6 +1480,12 @@ export const typeDefs = /* GraphQL */ `
     Get daily impressions history for all posts authored by the authenticated user (last 45 days)
     """
     userPostsAnalyticsHistory: [UserPostsAnalyticsHistoryNode!]! @auth
+
+    """
+    Get public GitHub repositories for a user
+    """
+    userGithubRepositories(userId: ID!): [GitHubUserRepository!]!
+      @cacheControl(maxAge: 3600)
   }
 
   ${toGQLEnum(UploadPreset, 'UploadPreset')}
@@ -2876,6 +2898,57 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
             .where('p.authorId = :userId', { userId })
             .andWhere('p.type != :briefType', { briefType: PostType.Brief }),
       });
+    },
+    userGithubRepositories: async (
+      _,
+      args: { userId: string },
+      ctx: BaseContext,
+    ): Promise<GQLGitHubUserRepository[]> => {
+      const { userId } = userGithubRepositoriesSchema.parse(args);
+
+      const user = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(User).findOne({
+          where: { id: userId },
+          select: ['id', 'socialLinks', 'github'],
+        }),
+      );
+
+      if (!user) {
+        return [];
+      }
+
+      const githubLink = user.socialLinks?.find(
+        (link) => link.platform === 'github',
+      );
+      const githubUsername = githubLink
+        ? extractHandleFromUrl(githubLink.url, 'github')
+        : user.github;
+
+      if (!githubUsername) {
+        return [];
+      }
+
+      try {
+        const repos = await gitHubClient.listUserRepositories(
+          githubUsername,
+          6,
+        );
+
+        return repos.map((repo) => ({
+          id: String(repo.id),
+          owner: repo.owner.login,
+          name: repo.name,
+          fullName: repo.full_name,
+          url: repo.html_url,
+          description: repo.description,
+          stars: repo.stargazers_count,
+          forks: repo.forks_count,
+          language: repo.language,
+          updatedAt: repo.updated_at,
+        }));
+      } catch {
+        return [];
+      }
     },
   },
   Mutation: {
