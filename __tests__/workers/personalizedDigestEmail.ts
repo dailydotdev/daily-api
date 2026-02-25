@@ -653,6 +653,65 @@ describe('personalizedDigestEmail worker', () => {
     expect(digestPost).toBeTruthy();
   });
 
+  it('should store ad snapshot in DigestPost flags for non-Plus user', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    nock.cleanAll();
+
+    const mockedPostIds = postsFixture
+      .slice(0, 5)
+      .map((post) => ({ post_id: post.id }));
+
+    nock('http://localhost:6000')
+      .post('/feed.json')
+      .reply(200, {
+        data: mockedPostIds,
+        rows: mockedPostIds.length,
+      });
+
+    nock('http://localhost:8080')
+      .post('/private')
+      .reply(200, {
+        type: 'dynamic_ad',
+        value: {
+          digest: {
+            title: 'Test Ad',
+            link: 'https://example.com/ad',
+            image: 'https://example.com/ad.png',
+            company_name: 'TestCorp',
+            company_logo: 'https://example.com/logo.png',
+            call_to_action: 'Learn more',
+          },
+        },
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    expect(digestPost).toBeTruthy();
+    expect(digestPost!.flags.ad).toEqual({
+      type: 'dynamic_ad',
+      index: 2,
+      title: 'Test Ad',
+      link: 'https://example.com/ad',
+      image: 'https://example.com/ad.png',
+      company_name: 'TestCorp',
+      company_logo: 'https://example.com/logo.png',
+      call_to_action: 'Learn more',
+    });
+  });
+
   it('should store null ad for Plus user in DigestPost', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
