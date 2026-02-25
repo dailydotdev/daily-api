@@ -2,7 +2,6 @@
 // It instantiates OpenTelemetry instrumentations that monkey-patch require()
 // hooks, ensuring all subsequently loaded modules (http, pg, etc.) are patched.
 import { ClientRequest } from 'node:http';
-import type { Span } from '@opentelemetry/api';
 
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
@@ -12,26 +11,7 @@ import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from '@opentelemetry/instrumentation-typeorm';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 
-import {
-  type AppVersionRequest,
-  enableOpenTelemetry,
-  getAppVersion,
-  ignoredPaths,
-  SEMATTRS_DAILY_APPS_USER_ID,
-  SEMATTRS_DAILY_APPS_VERSION,
-  SEMATTRS_DAILY_STAFF,
-} from './common';
-
-export const addApiSpanLabels = (
-  span: Span | undefined,
-  req: AppVersionRequest,
-): void => {
-  span?.setAttributes({
-    [SEMATTRS_DAILY_APPS_VERSION]: getAppVersion(req),
-    [SEMATTRS_DAILY_APPS_USER_ID]: req.userId || req.trackingId || 'unknown',
-    [SEMATTRS_DAILY_STAFF]: req.isTeamMember,
-  });
-};
+import { enableOpenTelemetry, ignoredPaths } from './common';
 
 const getInstrumentations = () => [
   new HttpInstrumentation({

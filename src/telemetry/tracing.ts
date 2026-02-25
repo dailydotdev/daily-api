@@ -12,8 +12,7 @@ import {
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 
-import { type AppVersionRequest, channelName, ignoredPaths } from './common';
-import { addApiSpanLabels } from './register';
+import { channelName, ignoredPaths } from './common';
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
   ATTR_MESSAGING_MESSAGE_BODY_SIZE,
@@ -40,15 +39,6 @@ export const addPubsubSpanLabels = (
 export const subscribeTracingHooks = (serviceName: string): void => {
   dc.subscribe(channelName, (message) => {
     const { fastify } = message as { fastify: FastifyInstance };
-
-    // Decorate the main span with some metadata
-    fastify.addHook('onResponse', async (req: AppVersionRequest) => {
-      const { span } = req.opentelemetry();
-
-      if (span?.isRecording()) {
-        addApiSpanLabels(span, req);
-      }
-    });
 
     fastify.register(otelPlugin, {
       ignoredPaths: ignoredPaths,
