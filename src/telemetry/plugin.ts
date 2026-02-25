@@ -99,6 +99,8 @@ const plugin: FastifyPluginCallback<FastifyOtelPluginOptions> = async (
         [ATTR_HTTP_ROUTE]: requestPath,
       });
 
+      span.updateName(`${request.method} ${requestPath}`);
+
       const rpcMetadata = getRPCMetadata(ctx);
       if (rpcMetadata?.type === RPCType.HTTP) {
         rpcMetadata.route = requestPath;
