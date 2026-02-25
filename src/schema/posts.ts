@@ -543,6 +543,17 @@ export const typeDefs = /* GraphQL */ `
     summary: Boolean
   }
 
+  type DigestAd {
+    type: String!
+    index: Int!
+    title: String
+    link: String
+    image: String
+    companyName: String
+    companyLogo: String
+    callToAction: String
+  }
+
   """
   Content post
   """
@@ -786,6 +797,16 @@ export const typeDefs = /* GraphQL */ `
     Total number of related sources for collection post
     """
     numCollectionSources: Int!
+
+    """
+    Post IDs included in a digest post
+    """
+    digestPostIds: [String]
+
+    """
+    Ad snapshot for a digest post
+    """
+    digestAd: DigestAd
 
     """
     Video ID for video post

@@ -90,7 +90,8 @@ import {
   SourcePostModerationStatus,
   WarningReason,
 } from '../src/entity/SourcePostModeration';
-import { generateUUID } from '../src/ids';
+import { generateShortId, generateUUID } from '../src/ids';
+import { DigestPost } from '../src/entity/posts/DigestPost';
 import { GQLResponse } from 'mercurius-integration-testing';
 import type { GQLPostSmartTitle } from '../src/schema/posts';
 import { TransferError } from '../src/errors';
@@ -1502,6 +1503,111 @@ describe('query post', () => {
         id: 'p1',
         analytics: null,
       });
+    });
+  });
+
+  describe('digest post fields', () => {
+    const DIGEST_QUERY = /* GraphQL */ `
+      query Post($id: ID!) {
+        post(id: $id) {
+          id
+          type
+          digestPostIds
+          digestAd {
+            type
+            index
+            title
+            link
+            image
+            companyName
+            companyLogo
+            callToAction
+          }
+        }
+      }
+    `;
+
+    it('should return digestPostIds for Digest posts', async () => {
+      const postId = await generateShortId();
+
+      await con.getRepository(DigestPost).save(
+        con.getRepository(DigestPost).create({
+          id: postId,
+          shortId: postId,
+          authorId: '1',
+          private: false,
+          visible: true,
+          sourceId: 'a',
+          flags: {
+            digestPostIds: ['p1', 'p2', 'p3'],
+            collectionSources: ['a'],
+            ad: null,
+          },
+        }),
+      );
+
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: postId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.digestPostIds).toEqual(['p1', 'p2', 'p3']);
+      expect(res.data.post.digestAd).toBeNull();
+    });
+
+    it('should return digestAd for Digest posts with ad', async () => {
+      const postId = await generateShortId();
+
+      await con.getRepository(DigestPost).save(
+        con.getRepository(DigestPost).create({
+          id: postId,
+          shortId: postId,
+          authorId: '1',
+          private: false,
+          visible: true,
+          sourceId: 'a',
+          flags: {
+            digestPostIds: ['p1'],
+            collectionSources: ['a'],
+            ad: {
+              type: 'dynamic_ad',
+              index: 2,
+              title: 'Ad title',
+              link: 'https://example.com',
+              image: 'https://example.com/img.png',
+              company_name: 'Acme',
+              company_logo: 'https://example.com/logo.png',
+              call_to_action: 'Try now',
+            },
+          },
+        }),
+      );
+
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: postId },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.digestAd).toEqual({
+        type: 'dynamic_ad',
+        index: 2,
+        title: 'Ad title',
+        link: 'https://example.com',
+        image: 'https://example.com/img.png',
+        companyName: 'Acme',
+        companyLogo: 'https://example.com/logo.png',
+        callToAction: 'Try now',
+      });
+    });
+
+    it('should return null digestPostIds for non-Digest posts', async () => {
+      const res = await client.query(DIGEST_QUERY, {
+        variables: { id: 'p1' },
+      });
+
+      expect(res.errors).toBeFalsy();
+      expect(res.data.post.digestPostIds).toBeNull();
+      expect(res.data.post.digestAd).toBeNull();
     });
   });
 });

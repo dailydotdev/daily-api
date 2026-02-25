@@ -51,6 +51,7 @@ import {
 } from '../types';
 import { whereVordrFilter } from '../common/vordr';
 import { UserCompany, Post } from '../entity';
+import type { PostFlags } from '../entity/posts/Post';
 import {
   ContentPreferenceStatus,
   ContentPreferenceType,
@@ -742,6 +743,31 @@ const obj = new GraphORM({
       numCollectionSources: {
         select: 'collectionSources',
         transform: (value: string[]): number => value?.length ?? 0,
+      },
+      digestPostIds: {
+        select: 'flags',
+        transform: (value: PostFlags): string[] | null =>
+          value?.digestPostIds ?? null,
+      },
+      digestAd: {
+        select: 'flags',
+        jsonType: true,
+        transform: (value: PostFlags) => {
+          const ad = value?.ad;
+          if (!ad) {
+            return null;
+          }
+          return {
+            type: ad.type,
+            index: ad.index,
+            title: ad.title,
+            link: ad.link,
+            image: ad.image,
+            companyName: ad.company_name,
+            companyLogo: ad.company_logo,
+            callToAction: ad.call_to_action,
+          };
+        },
       },
       domain: {
         alias: { field: 'url', type: 'string' },
