@@ -13,7 +13,7 @@ import {
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 
-import { type AppVersionRequest, channelName } from './common';
+import { type AppVersionRequest, channelName, ignoredPaths } from './common';
 import { addApiSpanLabels } from './register';
 import {
   ATTR_MESSAGING_DESTINATION_NAME,
@@ -22,6 +22,8 @@ import {
   ATTR_MESSAGING_SYSTEM,
   // @ts-expect-error - no longer resolves types because of cjs/esm change but values are exported
 } from '@opentelemetry/semantic-conventions/incubating';
+
+import otelPlugin from './plugin';
 
 export const addPubsubSpanLabels = (
   span: Span,
@@ -41,7 +43,6 @@ export const subscribeTracingHooks = (serviceName: string): void => {
     const { fastify } = message as { fastify: FastifyInstance };
     fastify.decorate('tracer', trace.getTracer(serviceName));
     fastify.decorateRequest('span');
-
     fastify.addHook('onRequest', async (req) => {
       req.span = trace.getSpan(context.active());
     });
@@ -51,6 +52,10 @@ export const subscribeTracingHooks = (serviceName: string): void => {
       if (req?.span?.isRecording()) {
         addApiSpanLabels(req.span, req);
       }
+    });
+
+    fastify.register(otelPlugin, {
+      ignoredPaths: ignoredPaths,
     });
   });
 };

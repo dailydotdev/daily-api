@@ -4,7 +4,6 @@
 import { ClientRequest } from 'node:http';
 import type { Span } from '@opentelemetry/api';
 
-import FastifyOtelInstrumentation from '@fastify/otel';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
@@ -17,6 +16,7 @@ import {
   type AppVersionRequest,
   enableOpenTelemetry,
   getAppVersion,
+  ignoredPaths,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_APPS_VERSION,
   SEMATTRS_DAILY_STAFF,
@@ -33,8 +33,6 @@ export const addApiSpanLabels = (
   });
 };
 
-const ignorePaths = ['/health', '/liveness', '/metrics'];
-
 const getInstrumentations = () => [
   new HttpInstrumentation({
     requestHook: (span, req) => {
@@ -44,15 +42,7 @@ const getInstrumentations = () => [
       span.updateName(`${req.method} ${suffix}`);
     },
     ignoreIncomingRequestHook: (request) =>
-      ignorePaths.some((path) => request.url?.includes(path)),
-  }),
-  new FastifyOtelInstrumentation({
-    registerOnInitialization: true,
-    recordExceptions: true,
-    ignorePaths: ({ url }) => ignorePaths.some((path) => url?.includes(path)),
-    requestHook: (span, req) => {
-      addApiSpanLabels(span, req as AppVersionRequest);
-    },
+      ignoredPaths.some((path) => request.url?.includes(path)),
   }),
   new GraphQLInstrumentation({
     mergeItems: true,
