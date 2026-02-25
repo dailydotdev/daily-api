@@ -8,7 +8,6 @@ import {
   PageGenerator,
   processSearchQuery,
 } from './common';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { Bookmark, BookmarkList, Post } from '../entity';
 import {
@@ -363,10 +362,7 @@ const searchResolver = feedResolver(
   { removeHiddenPosts: true, removeBannedPosts: false },
 );
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     addBookmarks: async (
       source,
@@ -662,4 +658,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
     },
   },
-});
+};

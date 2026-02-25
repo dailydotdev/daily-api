@@ -15,6 +15,7 @@ import createOrGetConnection from '../../../src/db';
 import { generatePersonalAccessToken } from '../../../src/common/personalAccessToken';
 import { v4 as uuidv4 } from 'uuid';
 import { ioRedisPool } from '../../../src/redis';
+import { context, propagation, trace } from '@opentelemetry/api';
 
 export type TestState = {
   app: FastifyInstance;
@@ -27,6 +28,16 @@ export const setupPublicApiTests = (): TestState => {
   beforeAll(async () => {
     state.con = await createOrGetConnection();
     state.app = await appFunc();
+    state.app.decorateRequest('opentelemetry', function opentelemetry() {
+      const ctx = context.active();
+      return {
+        span: null,
+        tracer: trace.getTracer('test'),
+        context: ctx,
+        inject: (carrier, setter) => propagation.inject(ctx, carrier, setter),
+        extract: (carrier, getter) => propagation.extract(ctx, carrier, getter),
+      };
+    });
     return state.app.ready();
   });
 

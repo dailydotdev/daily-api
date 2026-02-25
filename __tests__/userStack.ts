@@ -1,3 +1,11 @@
+jest.mock('../src/common/datasetTool', () => ({
+  ...(jest.requireActual('../src/common/datasetTool') as Record<
+    string,
+    unknown
+  >),
+  fetchAndUploadToolIcon: jest.fn().mockResolvedValue(null),
+}));
+
 import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import {

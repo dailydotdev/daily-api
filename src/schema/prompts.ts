@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import graphorm from '../graphorm';
 import { AuthContext, BaseContext } from '../Context';
 import { Prompt } from '../entity/Prompt';
@@ -47,10 +46,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     prompts: (_, __, ctx: AuthContext, info): Promise<GQLPrompt[]> =>
       graphorm.query<GQLPrompt>(ctx, info, (builder) => {
@@ -61,4 +57,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         return builder;
       }),
   },
-});
+};

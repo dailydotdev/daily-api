@@ -36,3 +36,5 @@ export type AppVersionRequest = FastifyRequest<{
     v?: string | string[];
   };
 }>;
+
+export const ignoredPaths = ['/health', '/liveness', '/metrics'];

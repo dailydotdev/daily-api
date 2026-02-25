@@ -24,6 +24,24 @@ module.exports = {
   },
   overrides: [
     {
+      files: ['src/schema/*.ts'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            paths: [
+              {
+                name: './trace',
+                importNames: ['traceResolvers'],
+                message:
+                  'traceResolvers is applied centrally in src/graphql.ts. Do not wrap individual schema resolvers.',
+              },
+            ],
+          },
+        ],
+      },
+    },
+    {
       files: ['migrations/*.ts', 'seeds/*.ts', 'scripts/*.ts'],
       extends: 'eslint:recommended',
       parserOptions: {

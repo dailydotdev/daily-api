@@ -10,7 +10,6 @@ import type {
   XSearchAuthor,
   XSearchMetrics,
 } from '../integrations/yggdrasil/types';
-import { traceResolvers } from './trace';
 
 type SentimentResolution = 'QUARTER_HOUR' | 'HOUR' | 'DAY';
 type SentimentHighlightsOrderBy = 'SCORE' | 'RECENCY';
@@ -233,10 +232,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     sentimentTimeSeries: async (
       _,
@@ -313,4 +309,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return PROVIDER_METRICS_TYPE[provider] ?? 'SentimentMetricsX';
     },
   },
-});
+};

@@ -98,7 +98,7 @@ export default async function (
     fastify.swagger(),
   );
   fastify.get('/docs/yaml', { schema: { hide: true } }, async (_, reply) => {
-    reply.type('text/yaml').send(fastify.swagger({ yaml: true }));
+    return reply.type('text/yaml').send(fastify.swagger({ yaml: true }));
   });
 
   // AI agent skill documentation (no auth required) - proxied from GitHub
@@ -111,7 +111,7 @@ export default async function (
 
     const content = await response.text();
 
-    reply
+    return reply
       .type('text/markdown')
       .header('cache-control', 'public, max-age=600, s-maxage=600')
       .send(content);

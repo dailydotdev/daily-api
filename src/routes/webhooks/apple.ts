@@ -252,7 +252,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(
+      return handleNotifcationRequest(
         verifier,
         request,
         response,
@@ -275,7 +275,7 @@ export const apple = async (fastify: FastifyInstance): Promise<void> => {
         appAppleId,
       );
 
-      await handleNotifcationRequest(
+      return handleNotifcationRequest(
         verifier,
         request,
         response,
