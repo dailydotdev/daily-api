@@ -10,6 +10,7 @@ This file provides guidance to coding agents when working with code in this repo
 ## Essential Commands
 
 **Development:**
+
 - `pnpm run dev` - Start API server with hot reload on port 3000
 - `pnpm run dev:background` - Start background processor
 - `pnpm run dev:worker-job` - Start worker-job processor (dedicated process for jobExecuteWorker)
@@ -17,6 +18,7 @@ This file provides guidance to coding agents when working with code in this repo
 - `pnpm run dev:temporal-server` - Start Temporal server for local development
 
 **Database:**
+
 - `pnpm run db:migrate:latest` - Apply latest migrations
 - `pnpm run db:migrate:reset` - Drop schema and rerun migrations
 - `pnpm run db:seed:import` - Import seed data for local development
@@ -27,12 +29,14 @@ This file provides guidance to coding agents when working with code in this repo
 
 **Migration Generation:**
 When adding or modifying entity columns, **always generate a migration** using:
+
 ```bash
 # IMPORTANT: Run nvm use from within daily-api directory (uses .nvmrc with node 22.22)
 cd /path/to/daily-api
 nvm use
 pnpm run db:migrate:make src/migration/DescriptiveMigrationName
 ```
+
 The migration generator compares entities against the local database schema. Ensure your local DB is up to date with `pnpm run db:migrate:latest` before generating new migrations.
 
 **IMPORTANT: Review generated migrations for schema drift.** The generator may include unrelated changes from local schema differences. Always review and clean up migrations to include only the intended changes.
@@ -40,12 +44,14 @@ The migration generator compares entities against the local database schema. Ens
 **After generating a migration, use the `/format-migration` skill** to format the SQL code for readability and consistency. This skill ensures proper SQL formatting with multi-line queries, correct constraint placement, and index handling best practices.
 
 **Building & Testing:**
+
 - `pnpm run build` - Compile TypeScript to build directory
 - `pnpm run lint` - Run ESLint (max 0 warnings)
 - `pnpm run test` - Run full test suite with database reset
 - `pnpm run cli` - Run CLI commands (e.g., `pnpm run cli api`)
 
 **Individual Test Execution:**
+
 - Remember to run only individual tests when possible for faster feedback
 - `NODE_ENV=test npx jest __tests__/specific-test.ts --testEnvironment=node --runInBand`
 - Use `--testEnvironment=node --runInBand` flags for database-dependent tests
@@ -53,6 +59,7 @@ The migration generator compares entities against the local database schema. Ens
 ## High-Level Architecture
 
 **Core Framework Stack:**
+
 - **Fastify** - Web framework with plugins for CORS, helmet, cookies, rate limiting
 - **Mercurius** - GraphQL server with caching, upload support, and subscriptions
 - **TypeORM** - Database ORM with entity-based modeling and migrations
@@ -62,6 +69,7 @@ The migration generator compares entities against the local database schema. Ens
 - **ClickHouse** - Analytics and metrics storage
 
 **Application Entry Points:**
+
 - `src/index.ts` - Main Fastify server setup with GraphQL, auth, and middleware
 - `bin/cli.ts` - CLI dispatcher supporting api, background, temporal, cron, personalized-digest, worker-job modes
 - `src/background.ts` - Pub/Sub message handlers and background processing
@@ -71,25 +79,29 @@ The migration generator compares entities against the local database schema. Ens
 - `src/commands/workerJob.ts` - Dedicated process for `jobExecuteWorker`, isolated from background for independent scaling and controlled concurrency. See `src/workers/job/AGENTS.md` for the full WorkerJob system (entity, RPCs, parent-child batches, adding new job types).
 
 **GraphQL Schema Organization:**
+
 - `src/graphql.ts` - Combines all schema modules with transformers and directives
 - `src/schema/` - GraphQL resolvers organized by domain (posts, users, feeds, etc.)
 - `src/directive/` - Custom GraphQL directives for auth, rate limiting, URL processing
 - **Docs**: See `src/graphorm/AGENTS.md` for comprehensive guide on using GraphORM to solve N+1 queries. GraphORM is the default and preferred method for all GraphQL query responses. Use GraphORM instead of TypeORM repositories for GraphQL resolvers to prevent N+1 queries and enforce best practices.
 
 **Data Layer:**
+
 - `src/entity/` - TypeORM entities defining database schema
-- `src/migration/` - Database migrations for schema evolution  
+- `src/migration/` - Database migrations for schema evolution
 - `src/data-source.ts` - Database connection with replication configuration
 
 **Core Services:**
+
 - `src/Context.ts` - Request context with user, permissions, and data loaders
 - `src/auth.ts` - Authentication middleware and user context resolution
 - `src/dataLoaderService.ts` - Efficient batch loading for related entities
 - `src/workers/` - Use workers for async, non-critical operations (notifications, reputation, external syncs). Prefer `TypedWorker` for type safety. Architecture uses Google Pub/Sub + CDC (Debezium) for reactive processing. See `src/workers/AGENTS.md` for more.
-- `src/integrations/` - External service integrations (Slack, SendGrid, etc.) 
+- `src/integrations/` - External service integrations (Slack, SendGrid, etc.)
 - `src/cron/` - Scheduled cron jobs for maintenance and periodic tasks. One file per cron, registered in `index.ts`, deployed via `.infra/crons.ts` Pulumi config. Each cron exports a `Cron` object with `name` and `handler(DataSource, logger, pubsub)`. Run locally with `pnpm run cli cron <name>`. See `src/cron/AGENTS.md` for more.
 
 **Type Safety & Validation:**
+
 - We favor type safety throughout the codebase. **Prefer `type` over `interface`** for type declarations.
 - **Zod schemas** are preferred for runtime validation, especially for input validation, API boundaries, and data parsing. Zod provides both type inference and runtime validation, making it ideal for verifying user input, API payloads, and external data sources.
 - **This project uses Zod 4.x** (currently 4.3.5). Be aware of API differences from Zod 3.x:
@@ -100,6 +112,7 @@ The migration generator compares entities against the local database schema. Ens
 - When possible, prefer Zod schemas over manual validation as they provide type safety, better error messages, and can be inferred to TypeScript types.
 - **Connect RPC handlers must return typed proto message classes** from `@dailydotdev/schema`, not plain objects. Use `new ResponseType({...})` instead of returning `{...}` directly. **This applies to mock/`isMockEnabled` returns too** — when mocking RPC transport, always use actual proto message class instances, not raw JSON objects.
 - **Never create wrapper types around `@dailydotdev/schema` classes** (e.g., `UserBriefingRequest & { extraField }`) — if a field exists in the proto, use it directly. If it doesn't exist yet, update the schema package first.
+
   ```typescript
   // BAD: plain object
   return {
@@ -128,6 +141,7 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 **Business Domains:**
+
 - **Content**: Posts, comments, bookmarks, feeds, sources
 - **Users**: Authentication, preferences, profiles, user experience, streaks
 - **Squads**: Squad management, member roles, public requests
@@ -137,6 +151,7 @@ The migration generator compares entities against the local database schema. Ens
 - **Opportunities**: Job matching, recruiter features, candidate profiles
 
 **Roles & Permissions:**
+
 - **System Moderator**: Users with `Roles.Moderator` in their roles array (`ctx.roles.includes(Roles.Moderator)`). System moderators have elevated privileges across the platform including:
   - Banning/unbanning posts
   - Deleting any post or comment
@@ -145,6 +160,7 @@ The migration generator compares entities against the local database schema. Ens
 - The `@auth(requires: [MODERATOR])` GraphQL directive restricts mutations to system moderators only
 
 **Testing Strategy:**
+
 - **Prefer integration tests over unit tests** - Integration tests provide more value by testing the full stack (GraphQL/API endpoints, validation, database interactions)
 - **Unit tests should be rare** - Only create unit tests for complex utility functions with significant business logic. Simple validation or formatting functions are better tested through integration tests
 - **Avoid test duplication** - Don't create both unit and integration tests for the same functionality. If integration tests cover the behavior, unit tests are redundant
@@ -170,6 +186,7 @@ The migration generator compares entities against the local database schema. Ens
   });
   ```
 - **RPC/Connect error testing**: Create **separate transport mocks** for error scenarios instead of parameterizing existing transport mocks. Keep the happy-path transport unchanged and add a dedicated error transport (e.g., `createMockBragiPipelinesNotFoundTransport`). In the test, `jest.restoreAllMocks()` then re-spy with the error transport:
+
   ```typescript
   // In __tests__/helpers.ts - separate transport for error scenario
   export const createMockBragiPipelinesNotFoundTransport = () =>
@@ -184,17 +201,21 @@ The migration generator compares entities against the local database schema. Ens
   // In test file
   it('should handle NotFound from Bragi', async () => {
     jest.restoreAllMocks();
-    jest
-      .spyOn(bragiClients, 'getBragiClient')
-      .mockImplementation((): ServiceClient<typeof Pipelines> => ({
-        instance: createClient(Pipelines, createMockBragiPipelinesNotFoundTransport()),
+    jest.spyOn(bragiClients, 'getBragiClient').mockImplementation(
+      (): ServiceClient<typeof Pipelines> => ({
+        instance: createClient(
+          Pipelines,
+          createMockBragiPipelinesNotFoundTransport(),
+        ),
         garmr: createGarmrMock(),
-      }));
+      }),
+    );
     // ... test assertions
   });
   ```
 
 **Infrastructure Concerns:**
+
 - OpenTelemetry for distributed tracing and metrics
 - GrowthBook for feature flags and A/B testing
 - OneSignal for push notifications
@@ -202,6 +223,7 @@ The migration generator compares entities against the local database schema. Ens
 - Rate limiting and caching at multiple layers
 
 **Infrastructure as Code:**
+
 - `.infra/` - Pulumi configuration for deployment
 - `.infra/crons.ts` - Cron job schedules and resource limits
 - `.infra/common.ts` - Worker subscription definitions
@@ -210,6 +232,7 @@ The migration generator compares entities against the local database schema. Ens
 ## Code Style Preferences
 
 **Keep implementations concise:**
+
 - Prefer short, readable implementations over verbose ones
 - Avoid excessive logging - errors will propagate naturally
 - **Never use logger.info for successful operations** - successful database updates, API calls, or data processing don't need logging. Results are visible in the database and errors will propagate naturally with automatic retry notifications.
@@ -217,6 +240,7 @@ The migration generator compares entities against the local database schema. Ens
 - Extract repeated patterns into small inline helpers (e.g., `const respond = (text) => ...`)
 - Combine related checks (e.g., `if (!match || match.status !== X)` instead of separate blocks)
 - **Prefer switch statements over nested ternary operators** for mapping multiple cases - switch statements are more readable and maintainable when handling 3+ conditional branches:
+
   ```typescript
   // BAD: Nested ternary chain - hard to read and extend
   const result =
@@ -246,43 +270,51 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 **Comments:**
+
 - **Do not add unnecessary comments** - code should be self-documenting through clear naming
 - If you feel a comment is needed, ask first before adding it
 - Avoid comments that simply restate what the code does (e.g., `// Check if user exists` before `if (!user)`)
 
 **GraphQL resolver errors:**
+
 - Do not throw `ApolloError` directly inside schema resolvers.
 - Prefer `AuthenticationError` / `ForbiddenError` / `ValidationError` from `apollo-server-errors`, or shared typed errors from `src/errors.ts` (for example `NotFoundError`, `ConflictError`).
 
 **Function style:**
+
 - Prefer const arrow functions over function declarations: `const foo = () => {}` instead of `function foo() {}`
 - Prefer single props-style argument over multiple arguments: `const foo = ({ a, b }) => {}` instead of `const foo = (a, b) => {}`
 - Don't extract single-use code into separate functions - keep logic inline where it's used
 - Only extract functions when the same logic is needed in multiple places
 
 **PubSub topics should be general-purpose:**
+
 - Topics should contain only essential identifiers (e.g., `{ opportunityId, userId }`)
 - Subscribers fetch their own data - don't optimize topic payloads for specific consumers
 - This allows multiple subscribers with different data needs
 
 **Avoid magic numbers for time durations:**
+
 - Use time constants from `src/common/constants.ts` instead of inline calculations
 - Available constants: `ONE_MINUTE_IN_SECONDS`, `ONE_HOUR_IN_SECONDS`, `ONE_DAY_IN_SECONDS`, `ONE_WEEK_IN_SECONDS`, `ONE_MONTH_IN_SECONDS`, `ONE_YEAR_IN_SECONDS`, `ONE_HOUR_IN_MINUTES`, `ONE_DAY_IN_MINUTES`
 - Example: Use `2 * ONE_DAY_IN_MINUTES` instead of `2 * 24 * 60`
 - Add new constants to `src/common/constants.ts` if needed (they are re-exported from `src/common/index.ts`)
 
 **Type declarations:**
+
 - **Prefer `type` over `interface`** - Use `type` for all type declarations unless you specifically need interface features (declaration merging, extends)
 - Only create separate exported types if they are used in multiple places
 - For single-use types, define them inline within the parent type
 - Example: Instead of `export type FileData = {...}; type Flags = { file: FileData }`, use `type Flags = { file: { ... } }`
 
 **Imports:**
+
 - **Never use `require()`** - Always use `import` statements at the top of the file. If you believe a lazy/dynamic import or `require()` is truly necessary, explicitly ask for permission before using it.
 - **Avoid barrel file imports** (index.ts re-exports). Import directly from the specific file instead.
 - Example: Use `import { User } from './entity/user/User'` instead of `import { User } from './entity'`
 - This improves build times, makes dependencies clearer, and avoids circular dependency issues
 - **Never use inline type imports** - Always use regular `import type` statements at the top of the file instead of `import('module').Type` syntax.
+
   ```typescript
   // BAD: Inline type import
   type FastifyInstance = {
@@ -298,9 +330,11 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 **Avoid non-null assertion operator (`!`):**
+
 - **Never use the `!` operator** to assert that a value is not null/undefined. Instead, explicitly check and throw an error if the value is missing.
 - This provides better runtime safety and clearer error messages when something goes wrong.
 - **Example pattern**:
+
   ```typescript
   // BAD: Using non-null assertion
   const result = await executeGraphql(fastify.con!, query);
@@ -313,6 +347,7 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 **Zod patterns:**
+
 - Use `.nullish()` instead of `.nullable().optional()` - they are equivalent but `.nullish()` is more concise
 - **Place Zod schemas in `src/common/schema/`** - not inline in resolver files. Create a dedicated file per domain (e.g., `userStack.ts`, `opportunities.ts`)
 - **IMPORTANT - Zod Type Inference:**
@@ -320,6 +355,7 @@ The migration generator compares entities against the local database schema. Ens
   - **NEVER manually define or re-export types that duplicate Zod schema structure**
   - Export only the schemas themselves, not the inferred types
   - Example:
+
     ```typescript
     // GOOD: Export only the schema
     export const userSchema = z.object({ name: z.string(), age: z.number() });
@@ -334,21 +370,25 @@ The migration generator compares entities against the local database schema. Ens
     // GOOD: Inline in function parameters
     const processUser = (user: z.infer<typeof userSchema>) => { ... };
     ```
+
 - **Schema exports must use a `Schema` suffix** (e.g., `paginationSchema`, `urlParseSchema`, `fileUploadSchema`). This makes schema variables clearly distinguishable from regular values and types.
 
 ## Best Practices & Lessons Learned
 
 **Avoiding Code Duplication:**
+
 - **Always check for existing implementations** before creating new helper functions. Use Grep or Glob tools to search for similar function names or logic patterns across the codebase.
 - **Prefer extracting to common utilities** when logic needs to be shared. Place shared helpers in appropriate `src/common/` subdirectories (e.g., `src/common/opportunity/` for opportunity-related helpers).
 - **Export and import, don't duplicate**: When you need the same logic in multiple places, export the function from its original location and import it where needed. This ensures a single source of truth and prevents maintenance issues.
 - **Example lesson**: When implementing `handleOpportunityKeywordsUpdate`, the function was duplicated in both `src/common/opportunity/parse.ts` and `src/schema/opportunity.ts`. This caused lint failures and maintenance burden. The correct approach was to export it from `parse.ts` and import it in `opportunity.ts`.
 
 **Typed Integration Mapping:**
+
 - When an external payload is already represented by explicit TypeScript types, prefer direct field mapping over dynamic key-picking helpers.
 - Keep transformations straightforward (e.g. `avatar_url -> avatarUrl`) and avoid runtime key probing unless the integration schema is genuinely unknown.
 
 **Feed resolver filtering ownership:**
+
 - Prefer `feedResolver`/`applyFeedWhere` options (`allowPrivatePosts`, `removeHiddenPosts`, `removeBannedPosts`, `removeNonPublicThresholdSquads`) for standard feed filtering behavior.
 - Keep feed builder functions focused on feed-specific constraints (for example, `sharedPostId` for reposts) instead of duplicating common visibility/privacy checks in each builder.
 - `applyFeedWhere` does not handle blocked-user actor filtering; for actor-based lists (for example reposts/upvotes), explicitly add `whereNotUserBlocked(...)` with the correct column.
@@ -356,16 +396,18 @@ The migration generator compares entities against the local database schema. Ens
 - When introducing query-specific defaults (for example `supportedTypes` for one resolver), do not add schema-level defaults to shared feed queries like `anonymousFeed`; keep defaults scoped to the intended resolver wrapper.
 
 **Avoiding N+1 Queries with Lazy Relations:**
+
 - **Never await lazy relations inside loops or map functions** - this causes N+1 query problems where each iteration triggers a separate database query.
 - **Batch fetch related entities** using TypeORM's `In()` operator to fetch all related records in a single query, then create a Map for O(1) lookups.
 - **Example pattern**:
+
   ```typescript
   // BAD: N+1 queries - each iteration awaits a lazy relation
   const results = await Promise.all(
     items.map(async (item) => {
       const related = await item.lazyRelation; // Triggers a query per item!
       return { ...related, itemId: item.id };
-    })
+    }),
   );
 
   // GOOD: Batch fetch with single query + Map lookup
@@ -377,12 +419,15 @@ The migration generator compares entities against the local database schema. Ens
     return { ...related, itemId: item.id };
   });
   ```
+
 - **Example lesson**: In `notifyJobOpportunity`, locations were fetched one-by-one inside a `Promise.all` map by awaiting `locationData.location`. The fix was to extract all `locationId`s upfront, fetch all `DatasetLocation` records in a single query using `In(locationIds)`, and use a Map for lookups.
 
 **Using Eager Loading with TypeORM Relations:**
+
 - **Prefer eager loading over separate queries** when you need to access entity relations. Instead of fetching an entity and then querying for related records separately, use TypeORM's query builder with `leftJoinAndSelect()` to fetch everything in a single query.
 - **This is more efficient than both**: (1) awaiting lazy relations, which triggers separate queries, and (2) extracting IDs and fetching with `In()`, which requires two queries.
 - **Example pattern**:
+
   ```typescript
   // BAD: Separate query for related entities
   const entities = await repo.find({ where: { ... } });
@@ -406,9 +451,11 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 **Selecting Only Necessary Fields:**
+
 - **Always use `.select()` to fetch only the fields you need** when using query builder. This reduces data transfer, improves query performance, and makes the code more maintainable by explicitly documenting which fields are used.
 - **Specify fields for both the main entity and joined relations** - don't let TypeORM fetch all columns by default.
 - **Example pattern**:
+
   ```typescript
   // BAD: Fetches ALL columns from both tables
   const entities = await repo
@@ -433,6 +480,7 @@ The migration generator compares entities against the local database schema. Ens
     .getMany();
   // Now only fetches the 5 columns we actually need
   ```
+
 - **Important TypeORM quirk**: When using `leftJoinAndSelect` with explicit `.select()`, TypeORM maps joined relations to `__relationName__` (double underscore prefix) instead of the normal property name. Access via type assertion:
   ```typescript
   // With explicit .select(), relation is NOT on entity.user
@@ -442,9 +490,11 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 **Updating JSONB Flag Fields:**
+
 - **Use flag update utilities** instead of manually spreading existing flags. Utilities in `src/common/utils.ts` leverage PostgreSQL's JSONB `||` operator for atomic, efficient updates.
 - Available utilities: `updateFlagsStatement`, `updateNotificationFlags`, `updateSubscriptionFlags`, `updateRecruiterSubscriptionFlags`
 - **Example pattern**:
+
   ```typescript
   // BAD: Manual spread - requires reading entity first, non-atomic
   const entity = await repo.findOneBy({ id });
@@ -458,8 +508,10 @@ The migration generator compares entities against the local database schema. Ens
     flags: updateFlagsStatement<Entity>({ newField: value }),
   });
   ```
+
 - The utilities generate SQL like `flags || '{"newField": "value"}'` which atomically merges without needing to read first (unless you need to reference existing values).
 - **For nested JSONB values** (arrays, objects with special characters), use query builder with `setParameter` to properly escape:
+
   ```typescript
   // BAD: Inline JSON string - can have escape issues with nested data
   await repo.update(id, {
@@ -477,11 +529,13 @@ The migration generator compares entities against the local database schema. Ens
   ```
 
 **Using Transactions for Multiple Sequential Updates:**
+
 - **Wrap multiple sequential database updates in a transaction** to ensure atomicity - if any operation fails, all changes are rolled back.
 - Use `con.transaction(async (manager) => { ... })` pattern where `manager` is an `EntityManager` for all operations within the transaction.
 - **When to use transactions**: Any time you have 2+ sequential write operations that should succeed or fail together.
 - **For reusable functions**: Accept `DataSource | EntityManager` as the connection parameter so the function can participate in a caller's transaction.
 - **Example pattern**:
+
   ```typescript
   // BAD: Multiple sequential updates without transaction
   await orgRepo.update(orgId, { status: 'active' });
@@ -513,11 +567,14 @@ The migration generator compares entities against the local database schema. Ens
     await anotherUpdate({ con: manager });
   });
   ```
+
 - **For cron jobs and batch operations**: Keep read-only queries outside the transaction, then wrap all writes in a single transaction.
 
 **Using queryReadReplica Helper:**
+
 - Use `queryReadReplica` helper from `src/common/queryReadReplica.ts` for read-only queries in common functions and cron jobs.
 - **Example pattern**:
+
   ```typescript
   import { queryReadReplica } from '../common/queryReadReplica';
 
@@ -525,21 +582,26 @@ The migration generator compares entities against the local database schema. Ens
     queryRunner.manager.getRepository(Entity).find({ where: {...} })
   );
   ```
+
 - **Exception**: Queries during write operations that need immediate consistency should use primary.
 - For GraphQL resolvers, default to read replica for pure reads (`Query` fields) either via `queryReadReplica(...)` or GraphORM read-replica mode (4th arg `true`). If the resolver can write or depends on read-after-write consistency, use primary.
 
 **Materialized View Tests:**
+
 - For integration tests that depend on materialized views, assume schema setup is handled by migrations (`db:migrate:latest` / test reset flow).
 - In tests, refresh the materialized view before assertions; do not recreate the materialized view definition inside test files.
 
 **State Checking Patterns:**
+
 - **Prefer negative checks over listing states** when checking for "non-draft" or similar conditions.
 - Use `state: Not(OpportunityState.DRAFT)` instead of `state: In([IN_REVIEW, LIVE, CLOSED])`.
 - This is more maintainable as new states are added.
 
 **JSONB Key Removal with null vs undefined:**
+
 - **Use `null` to remove JSONB keys** - `undefined` will not be sent to PostgreSQL.
 - **Example pattern**:
+
   ```typescript
   // BAD: undefined won't remove the key
   const flags = { ...existingFlags, keyToRemove: undefined };
@@ -547,32 +609,69 @@ The migration generator compares entities against the local database schema. Ens
   // GOOD: null removes the key from JSONB
   const flags = { ...existingFlags, keyToRemove: null };
   ```
+
 - **Hard-code keys for removal** instead of using `Object.keys()` dynamically - it's clearer and safer.
 
 **Boolean Coercion Bug with `||` Operator:**
+
 - **Never use `||` to provide default values for boolean parameters** - it incorrectly converts `false` to the default value.
 - Use nullish coalescing (`??`) or explicit conditionals instead.
 - **Example pattern**:
+
   ```typescript
   // BAD: false || null = null (loses the false value!)
   const variables = {
-    unreadOnly: unreadOnly || null,  // When unreadOnly is false, this becomes null
+    unreadOnly: unreadOnly || null, // When unreadOnly is false, this becomes null
   };
 
   // GOOD: Explicit conditional preserves boolean semantics
   const variables = {
-    unreadOnly: unreadOnly ? true : null,  // Only send true when explicitly true
+    unreadOnly: unreadOnly ? true : null, // Only send true when explicitly true
   };
 
   // GOOD: Use ?? for optional string/number parameters
   const variables = {
-    cursor: cursor ?? null,  // Empty string is preserved, only undefined/null becomes null
+    cursor: cursor ?? null, // Empty string is preserved, only undefined/null becomes null
     listId: listId ?? null,
   };
   ```
+
 - **Rule of thumb**: Use `??` for optional parameters where empty string or `0` are valid values. Use explicit conditionals for boolean flags where you only want to send `true`.
 
+**Fastify Async Handlers Must Return `reply.send()`:**
+
+- **Always `return` the `reply.send()` call** in async Fastify route handlers. Without `return`, the async function resolves with `undefined`, and Fastify may attempt to handle the response a second time — causing `ERR_HTTP_HEADERS_SENT` / "Reply was already sent" errors.
+- This also applies when delegating to a helper function that sends the reply — the caller must `return` the helper's result.
+- **Example pattern**:
+
+  ```typescript
+  // BAD: sends reply but doesn't return — implicit return undefined
+  handler: async (req, res) => {
+    // ... processing ...
+    res.send('done');
+  };
+
+  // GOOD: return the reply
+  handler: async (req, res) => {
+    // ... processing ...
+    return res.send('done');
+  };
+
+  // BAD: helper sends reply but caller doesn't return
+  handler: async (req, res) => {
+    await handleRequest(req, res);
+  };
+
+  // GOOD: return the helper's result
+  handler: async (req, res) => {
+    return handleRequest(req, res);
+  };
+  ```
+
+- **Example lesson**: The Paddle webhook handler had `res.send('Processed webhook event')` without `return`. This was a latent bug that became visible when a custom OpenTelemetry Fastify plugin added an `onSend` hook, changing response lifecycle timing enough to trigger the double-send detection.
+
 **Public API Development:**
+
 - The public REST API (`src/routes/public/`) has its own development patterns documented in `src/routes/public/AGENTS.md`.
 - Key patterns include:
   - Use `executeGraphql()` from `./graphqlExecutor` for direct GraphQL execution
@@ -583,6 +682,7 @@ The migration generator compares entities against the local database schema. Ens
 ## Pre-Commit Checks
 
 Before creating any commit, ensure the following pass:
+
 - `pnpm run build` - TypeScript compilation must succeed with no errors
 - `pnpm run lint` - ESLint must pass with 0 warnings
 
@@ -603,6 +703,7 @@ Hooks are configured in `.claude/settings.json`:
 ## Node.js Version Upgrade Checklist
 
 When upgrading Node.js version, update these files:
+
 - `.nvmrc`
 - `package.json` (volta section)
 - `Dockerfile`
