@@ -1,5 +1,8 @@
 jest.mock('../src/common/datasetTool', () => ({
-  ...(jest.requireActual('../src/common/datasetTool') as Record<string, unknown>),
+  ...(jest.requireActual('../src/common/datasetTool') as Record<
+    string,
+    unknown
+  >),
   fetchAndUploadToolIcon: jest.fn().mockResolvedValue(null),
 }));
 
