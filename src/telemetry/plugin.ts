@@ -111,11 +111,11 @@ const plugin: FastifyPluginCallback<FastifyOtelPluginOptions> = async (
     request[kRequestSpan] = span ?? null;
   });
 
-  instance.addHook('onSend', async (request, reply, payload) => {
+  instance.addHook('onSend', (request, reply, payload, done) => {
     const requestPath = request.routeOptions.url;
 
     if (isIgnoredPath(requestPath)) {
-      return payload;
+      return done(null, payload);
     }
     const span = request[kRequestSpan];
 
@@ -134,14 +134,13 @@ const plugin: FastifyPluginCallback<FastifyOtelPluginOptions> = async (
       span.setAttributes({
         [ATTR_HTTP_RESPONSE_STATUS_CODE]: reply.statusCode,
       });
-      span.end();
     }
 
     request[kRequestSpan] = null;
-    return payload;
+    done(null, payload);
   });
 
-  instance.addHook('onError', async (request, _reply, error) => {
+  instance.addHook('onError', async (request, _, error) => {
     const requestPath = request.routeOptions.url;
 
     if (isIgnoredPath(requestPath)) {
