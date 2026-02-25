@@ -1,7 +1,12 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { AuthenticationError, ForbiddenError } from 'apollo-server-errors';
+import {
+  AuthenticationError,
+  ForbiddenError,
+  ValidationError,
+} from 'apollo-server-errors';
 import type { GraphQLResolveInfo } from 'graphql';
 import type { EntityManager } from 'typeorm';
+import { In } from 'typeorm';
 import { Context, BaseContext, type AuthContext } from '../Context';
 import { syncUserRetroactiveAchievements } from '../common/achievement/retroactive';
 import { queryReadReplica } from '../common/queryReadReplica';
@@ -16,6 +21,7 @@ import type { GQLEmptyResponse } from './common';
 
 const ACHIEVEMENT_SYNC_LIMIT = 1;
 const CLOSE_ACHIEVEMENTS_LIMIT = 3;
+const MAX_SHOWCASE_ACHIEVEMENTS = 3;
 
 const getAchievementSyncCount = (flags?: UserFlags): number => {
   return flags?.syncedAchievements ? 1 : 0;
@@ -30,6 +36,34 @@ const getSyncStatus = (syncCount: number): GQLAchievementSyncStatus => {
     canSync: remainingSyncs > 0,
     syncedAchievements: syncCount > 0,
   };
+};
+
+const mapToGQLUserAchievements = (
+  ids: string[],
+  achievements: Achievement[],
+  userAchievements: UserAchievement[],
+): GQLUserAchievement[] => {
+  const achievementMap = new Map(achievements.map((a) => [a.id, a]));
+  const userAchievementMap = new Map(
+    userAchievements.map((ua) => [ua.achievementId, ua]),
+  );
+
+  return ids
+    .map((id) => {
+      const achievement = achievementMap.get(id);
+      if (!achievement) {
+        return null;
+      }
+      const ua = userAchievementMap.get(id);
+      return {
+        achievement,
+        progress: ua?.progress ?? 0,
+        unlockedAt: ua?.unlockedAt ?? null,
+        createdAt: ua?.createdAt ?? new Date(),
+        updatedAt: ua?.updatedAt ?? new Date(),
+      };
+    })
+    .filter(Boolean) as GQLUserAchievement[];
 };
 
 const getTargetCount = (achievement: Achievement): number => {
@@ -314,6 +348,12 @@ export const typeDefs = /* GraphQL */ `
     Returns null when no achievement is being tracked.
     """
     trackedAchievement: UserAchievement @auth
+
+    """
+    Get a user's showcased achievements for their profile.
+    Returns empty array if no showcase is set.
+    """
+    showcaseAchievements(userId: ID!): [UserAchievement!]!
   }
 
   extend type Mutation {
@@ -332,6 +372,12 @@ export const typeDefs = /* GraphQL */ `
     Stop tracking achievement for current user.
     """
     untrackAchievement: EmptyResponse! @auth
+
+    """
+    Set up to 3 unlocked achievements to showcase on profile.
+    Pass empty array to clear the showcase.
+    """
+    setShowcaseAchievements(achievementIds: [ID!]!): [UserAchievement!]! @auth
   }
 `;
 
@@ -417,6 +463,46 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       }
 
       return getSyncStatus(getAchievementSyncCount(user.flags));
+    },
+    showcaseAchievements: async (
+      _,
+      args: { userId: string },
+      ctx: Context,
+    ): Promise<GQLUserAchievement[]> => {
+      const user = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(User).findOne({
+          select: ['id', 'flags'],
+          where: { id: args.userId },
+        }),
+      );
+
+      if (!user) {
+        return [];
+      }
+
+      const showcaseIds = user.flags?.showcaseAchievementIds;
+      if (!showcaseIds?.length) {
+        return [];
+      }
+
+      const [achievements, userAchievements] = await queryReadReplica(
+        ctx.con,
+        ({ queryRunner }) =>
+          Promise.all([
+            queryRunner.manager
+              .getRepository(Achievement)
+              .find({ where: { id: In(showcaseIds) } }),
+            queryRunner.manager.getRepository(UserAchievement).find({
+              where: { userId: args.userId, achievementId: In(showcaseIds) },
+            }),
+          ]),
+      );
+
+      return mapToGQLUserAchievements(
+        showcaseIds,
+        achievements,
+        userAchievements,
+      );
     },
     trackedAchievement: async (
       _,
@@ -614,6 +700,72 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
       });
 
       return { _: true };
+    },
+    setShowcaseAchievements: async (
+      _,
+      args: { achievementIds: string[] },
+      ctx: AuthContext,
+    ): Promise<GQLUserAchievement[]> => {
+      const { achievementIds } = args;
+
+      if (achievementIds.length > MAX_SHOWCASE_ACHIEVEMENTS) {
+        throw new ValidationError(
+          `Cannot showcase more than ${MAX_SHOWCASE_ACHIEVEMENTS} achievements`,
+        );
+      }
+
+      if (achievementIds.length === 0) {
+        await ctx.con.getRepository(User).update(ctx.userId, {
+          flags: updateFlagsStatement<User>({
+            showcaseAchievementIds: null,
+          }),
+        });
+        return [];
+      }
+
+      const uniqueIds = [...new Set(achievementIds)];
+
+      const achievements = await ctx.con
+        .getRepository(Achievement)
+        .find({ where: { id: In(uniqueIds) } });
+
+      if (achievements.length !== uniqueIds.length) {
+        throw new NotFoundError('One or more achievements not found');
+      }
+
+      const userAchievements = await ctx.con
+        .getRepository(UserAchievement)
+        .find({
+          where: {
+            userId: ctx.userId,
+            achievementId: In(uniqueIds),
+          },
+        });
+
+      const unlockedIds = new Set(
+        userAchievements
+          .filter((ua) => ua.unlockedAt !== null)
+          .map((ua) => ua.achievementId),
+      );
+
+      const lockedIds = uniqueIds.filter((id) => !unlockedIds.has(id));
+      if (lockedIds.length > 0) {
+        throw new ValidationError(
+          'Only unlocked achievements can be showcased',
+        );
+      }
+
+      await ctx.con.getRepository(User).update(ctx.userId, {
+        flags: updateFlagsStatement<User>({
+          showcaseAchievementIds: uniqueIds,
+        }),
+      });
+
+      return mapToGQLUserAchievements(
+        uniqueIds,
+        achievements,
+        userAchievements,
+      );
     },
   },
 };
