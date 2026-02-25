@@ -40,21 +40,15 @@ export const briefFeedClient = new FeedClient(process.env.BRIEFING_FEED, {
   }),
 });
 
-type UserBriefingRequestWithBlockedTags = UserBriefingRequest & {
-  blockedTags?: string[];
-};
-
 export const getUserConfigForBriefingRequest = async ({
   con,
   userId,
 }: {
   con: EntityManager;
   userId: string;
-}): Promise<{
-  allowedTags: string[];
-  blockedTags: string[];
-  seniorityLevel?: string;
-}> => {
+}): Promise<
+  Pick<UserBriefingRequest, 'allowedTags' | 'blockedTags' | 'seniorityLevel'>
+> => {
   if (!userId) {
     throw new Error('User id is required');
   }
@@ -92,16 +86,6 @@ export const getUserConfigForBriefingRequest = async ({
     blockedTags: blockedKeywords.map((item) => item.keywordId),
     seniorityLevel: user.experienceLevel ?? undefined,
   };
-};
-
-export const setUserBriefingBlockedTags = ({
-  request,
-  blockedTags,
-}: {
-  request: UserBriefingRequest;
-  blockedTags: string[];
-}): void => {
-  (request as UserBriefingRequestWithBlockedTags).blockedTags = blockedTags;
 };
 
 const throwIfExceedDailyLimit = async (

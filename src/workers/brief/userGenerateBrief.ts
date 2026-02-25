@@ -13,7 +13,6 @@ import { insertOrIgnoreAction } from '../../schema/actions';
 import {
   briefFeedClient,
   briefingPostIdsMaxItems,
-  setUserBriefingBlockedTags,
   getUserConfigForBriefingRequest,
 } from '../../common/brief';
 import { queryReadReplica } from '../../common/queryReadReplica';
@@ -96,10 +95,7 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       );
 
       briefRequest.allowedTags = userConfig.allowedTags;
-      setUserBriefingBlockedTags({
-        request: briefRequest,
-        blockedTags: userConfig.blockedTags,
-      });
+      briefRequest.blockedTags = userConfig.blockedTags;
       briefRequest.seniorityLevel = userConfig.seniorityLevel;
 
       const lastBriefPost = await queryReadReplica<Pick<

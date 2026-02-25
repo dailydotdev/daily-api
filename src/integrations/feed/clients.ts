@@ -84,12 +84,10 @@ export class FeedClient implements IFeedClient, IGarmrClient {
       frequency,
       modelName = BriefingModel.Default,
       allowedTags,
+      blockedTags,
       seniorityLevel,
       recentBriefing,
     } = request;
-    const blockedTags = (
-      request as UserBriefingRequest & { blockedTags?: string[] }
-    ).blockedTags;
 
     const result = await this.garmr.execute(() => {
       return fetchParse<JsonValue>(`${this.url}/api/user/briefing`, {

@@ -199,11 +199,12 @@ describe('userGenerateBrief worker', () => {
       expect.anything(),
       'api.v1.brief-ready',
       {
-        payload: expect.objectContaining({
+        payload: new UserBriefingRequest({
           userId: 'ugbw-1',
           frequency: BriefingType.Daily,
           modelName: BriefingModel.Default,
           allowedTags: ['webdev', 'development'],
+          blockedTags: ['fullstack'],
           seniorityLevel: 'NOT_ENGINEER',
         }),
         postId,
@@ -397,12 +398,33 @@ describe('userGenerateBrief worker', () => {
       expect.anything(),
       'api.v1.brief-ready',
       {
-        payload: expect.objectContaining({
+        payload: new UserBriefingRequest({
           userId: 'ugbw-1',
           frequency: BriefingType.Daily,
           modelName: BriefingModel.Default,
           allowedTags: ['webdev', 'development'],
+          blockedTags: ['fullstack'],
           seniorityLevel: 'NOT_ENGINEER',
+          recentBriefing: {
+            sections: [
+              {
+                title: 'Must know',
+                items: [
+                  {
+                    title: 'OpenAI gets a DoD contract, Microsoft gets salty',
+                    body: `OpenAI landed a $200 million contract with the US Department of Defense for AI tools, marking its first direct federal government partnership. This move, reported by The Verge and TechCrunch, signals a shift from OpenAI's previous stance on military use. It also puts them in direct competition with Microsoft, their main investor, who previously handled government AI contracts through Azure. The tension is real, with OpenAI reportedly considering an antitrust complaint against Microsoft to loosen their grip.`,
+                  },
+                ],
+              },
+            ],
+            briefStatistics: {
+              posts: 3,
+              sources: 2,
+              savedTime: 40 * 60,
+            },
+            readingTime: 5 * 60,
+            sourceIds: ['a', 'b'],
+          },
         }),
         postId,
       },
@@ -712,11 +734,12 @@ describe('userGenerateBrief worker', () => {
       expect.anything(),
       'api.v1.brief-ready',
       {
-        payload: expect.objectContaining({
+        payload: new UserBriefingRequest({
           userId: 'ugbw-1',
           frequency: BriefingType.Daily,
           modelName: BriefingModel.Default,
           allowedTags: ['webdev', 'development'],
+          blockedTags: ['fullstack'],
           seniorityLevel: 'NOT_ENGINEER',
         }),
         postId,
