@@ -409,6 +409,18 @@ export class NotificationBuilder {
     return this;
   }
 
+  avatarDigest(): NotificationBuilder {
+    this.avatars.push({
+      type: 'digest',
+      name: 'Digest',
+      targetUrl: '',
+      referenceId: 'digest',
+      image: emptyImage,
+    });
+
+    return this;
+  }
+
   avatarAchievement(ctx: NotificationAchievementContext): NotificationBuilder {
     this.avatars.push({
       type: 'achievement',

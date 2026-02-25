@@ -113,6 +113,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   briefing_ready: '81',
+  digest_ready: '',
   user_follow: '',
   marketing: '',
   new_user_welcome: '',
@@ -1048,6 +1049,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       ),
       sendAtMs: personalizedDigest.lastSendDate?.getTime(),
     };
+  },
+  digest_ready: async () => {
+    return null;
   },
   user_follow: async () => {
     return null;
