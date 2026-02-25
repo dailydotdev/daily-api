@@ -1512,16 +1512,18 @@ describe('query post', () => {
         post(id: $id) {
           id
           type
-          digestPostIds
-          digestAd {
-            type
-            index
-            title
-            link
-            image
-            companyName
-            companyLogo
-            callToAction
+          flags {
+            digestPostIds
+            ad {
+              type
+              index
+              title
+              link
+              image
+              companyName
+              companyLogo
+              callToAction
+            }
           }
         }
       }
@@ -1551,11 +1553,11 @@ describe('query post', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.post.digestPostIds).toEqual(['p1', 'p2', 'p3']);
-      expect(res.data.post.digestAd).toBeNull();
+      expect(res.data.post.flags.digestPostIds).toEqual(['p1', 'p2', 'p3']);
+      expect(res.data.post.flags.ad).toBeNull();
     });
 
-    it('should return digestAd for Digest posts with ad', async () => {
+    it('should return ad for Digest posts with ad', async () => {
       const postId = await generateShortId();
 
       await con.getRepository(DigestPost).save(
@@ -1588,7 +1590,7 @@ describe('query post', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.post.digestAd).toEqual({
+      expect(res.data.post.flags.ad).toEqual({
         type: 'dynamic_ad',
         index: 2,
         title: 'Ad title',
@@ -1606,8 +1608,8 @@ describe('query post', () => {
       });
 
       expect(res.errors).toBeFalsy();
-      expect(res.data.post.digestPostIds).toBeNull();
-      expect(res.data.post.digestAd).toBeNull();
+      expect(res.data.post.flags.digestPostIds).toBeNull();
+      expect(res.data.post.flags.ad).toBeNull();
     });
   });
 });

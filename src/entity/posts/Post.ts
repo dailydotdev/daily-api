@@ -78,6 +78,8 @@ export type PostFlagsPublic = Pick<
   | 'sources'
   | 'savedTime'
   | 'generatedAt'
+  | 'digestPostIds'
+  | 'ad'
 >;
 
 export type PostContentQuality = Partial<{
