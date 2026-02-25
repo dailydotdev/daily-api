@@ -47,6 +47,7 @@ const getInstrumentations = () => [
   new GraphQLInstrumentation({
     mergeItems: true,
     ignoreTrivialResolveSpans: true,
+    ignoreResolveSpans: true,
   }),
   new PinoInstrumentation({
     logKeys: {
