@@ -78,14 +78,19 @@ export class FeedClient implements IFeedClient, IGarmrClient {
     };
   }
 
-  async getUserBrief({
-    userId,
-    frequency,
-    modelName = BriefingModel.Default,
-    allowedTags,
-    seniorityLevel,
-    recentBriefing,
-  }: UserBriefingRequest): Promise<Briefing> {
+  async getUserBrief(request: UserBriefingRequest): Promise<Briefing> {
+    const {
+      userId,
+      frequency,
+      modelName = BriefingModel.Default,
+      allowedTags,
+      seniorityLevel,
+      recentBriefing,
+    } = request;
+    const blockedTags = (
+      request as UserBriefingRequest & { blockedTags?: string[] }
+    ).blockedTags;
+
     const result = await this.garmr.execute(() => {
       return fetchParse<JsonValue>(`${this.url}/api/user/briefing`, {
         ...this.fetchOptions,
@@ -95,6 +100,7 @@ export class FeedClient implements IFeedClient, IGarmrClient {
           frequency,
           model_name: modelName,
           allowed_tags: allowedTags,
+          blocked_tags: blockedTags,
           seniority_level: seniorityLevel,
           recent_briefing: recentBriefing
             ? {

@@ -95,6 +95,9 @@ export const userGenerateBriefWorker: TypedWorker<'api.v1.brief-generate'> = {
       );
 
       briefRequest.allowedTags = userConfig.allowedTags;
+      (
+        briefRequest as UserBriefingRequest & { blockedTags?: string[] }
+      ).blockedTags = userConfig.blockedTags;
       briefRequest.seniorityLevel = userConfig.seniorityLevel;
 
       const lastBriefPost = await queryReadReplica<Pick<
