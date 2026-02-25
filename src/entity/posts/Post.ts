@@ -23,6 +23,7 @@ export enum PostType {
   Collection = 'collection',
   VideoYouTube = 'video:youtube',
   Brief = 'brief',
+  Digest = 'digest',
   Poll = 'poll',
   SocialTwitter = 'social:twitter',
 }
