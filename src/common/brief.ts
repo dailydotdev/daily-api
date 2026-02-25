@@ -40,6 +40,10 @@ export const briefFeedClient = new FeedClient(process.env.BRIEFING_FEED, {
   }),
 });
 
+type UserBriefingRequestWithBlockedTags = UserBriefingRequest & {
+  blockedTags?: string[];
+};
+
 export const getUserConfigForBriefingRequest = async ({
   con,
   userId,
@@ -88,6 +92,16 @@ export const getUserConfigForBriefingRequest = async ({
     blockedTags: blockedKeywords.map((item) => item.keywordId),
     seniorityLevel: user.experienceLevel ?? undefined,
   };
+};
+
+export const setUserBriefingBlockedTags = ({
+  request,
+  blockedTags,
+}: {
+  request: UserBriefingRequest;
+  blockedTags: string[];
+}): void => {
+  (request as UserBriefingRequestWithBlockedTags).blockedTags = blockedTags;
 };
 
 const throwIfExceedDailyLimit = async (
