@@ -4,7 +4,6 @@ import { omitBy, isEmpty } from 'lodash';
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import { DevCardTheme, DevCard } from '../entity';
 import { NotFoundError } from '../errors';
 import { DevCardData, getDevCardData } from '../common/devcard';
@@ -144,10 +143,7 @@ interface GenerateDevCardInput extends Pick<
 
 interface DevCardByIdResult extends Omit<DevCard, 'user'>, DevCardData {}
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     devCard: async (
       source,
@@ -248,4 +244,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
     },
   },
-});
+};

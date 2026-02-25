@@ -3,7 +3,6 @@ import { ForbiddenError, ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import { DataSource, EntityManager, In, Not } from 'typeorm';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   getDiscussionLink,
   mapCloudinaryUrl,
@@ -676,10 +675,7 @@ const validateComment = (ctx: Context, content: string): void => {
   }
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     commentFeed: async (
       _,
@@ -1224,4 +1220,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     permalink: (comment: GQLComment): string =>
       getDiscussionLink(comment.postId, comment.id),
   },
-});
+};

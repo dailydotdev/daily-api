@@ -1,6 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   Keyword,
   KeywordFlagsPublic,
@@ -138,10 +137,7 @@ export const typeDefs = /* GraphQL */ `
 
 const PENDING_THRESHOLD = 25;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     randomPendingKeyword: async (
       source,
@@ -285,4 +281,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return { _: true };
     },
   },
-});
+};

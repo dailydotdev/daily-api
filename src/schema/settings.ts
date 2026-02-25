@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import {
   CampaignCtaPlacement,
@@ -363,10 +362,7 @@ export const getSettings = async (
   }
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     updateUserSettings: async (
       _,
@@ -469,4 +465,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     rssUrl: (obj: PartialBookmarkSharing) =>
       obj.slug && `${process.env.URL_PREFIX}/rss/b/${obj.slug}`,
   },
-});
+};

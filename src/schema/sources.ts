@@ -73,7 +73,6 @@ import { TrendingSource } from '../entity/TrendingSource';
 import { PopularSource } from '../entity/PopularSource';
 import { PopularVideoSource } from '../entity/PopularVideoSource';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
-import { traceResolvers } from './trace';
 import { SourceCategory } from '../entity/sources/SourceCategory';
 import { validate } from 'uuid';
 import { ContentPreferenceStatus } from '../entity/contentPreference/types';
@@ -1645,10 +1644,7 @@ const paginateSourceMembers = (
   );
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     sourceCategory: async (
       _,
@@ -2771,4 +2767,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       return referralUrl;
     },
   },
-});
+};

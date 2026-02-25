@@ -1,6 +1,5 @@
 import { IResolvers } from '@graphql-tools/utils';
 import { BaseContext, type AuthContext } from '../Context';
-import { traceResolvers } from './trace';
 import { GQLUser } from './users';
 import { User, UserCompany, UserStats, UserStreak } from '../entity';
 import { UserAchievement } from '../entity/user/UserAchievement';
@@ -183,10 +182,7 @@ const getUserLeaderboardForStat = async ({
     });
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     highestReputation: async (_, args, ctx): Promise<GQLUserLeaderboard[]> => {
       const users = await ctx.con.getRepository(User).find({
@@ -324,4 +320,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       );
     },
   },
-});
+};

@@ -3,7 +3,6 @@ import type { IResolvers } from '@graphql-tools/utils';
 import { z } from 'zod';
 import { ForbiddenError } from 'apollo-server-errors';
 import type { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import { Organization } from '../entity/Organization';
 import { findOrCreateDatasetLocation } from '../entity/dataset/utils';
 import {
@@ -690,10 +689,7 @@ export const updateOrganizationSchema = z.object({
   externalLocationId: z.string().optional(),
 });
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     organizations: async (
       _,
@@ -1555,4 +1551,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       });
     },
   },
-});
+};
