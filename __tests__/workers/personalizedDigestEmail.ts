@@ -38,6 +38,8 @@ import { SubscriptionCycles } from '../../src/paddle';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { BriefingModel } from '../../src/integrations/feed/types';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
+import { DigestPost } from '../../src/entity/posts/DigestPost';
+import { triggerTypedEvent } from '../../src/common/typedPubsub';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -570,6 +572,146 @@ describe('personalizedDigestEmail worker', () => {
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should create DigestPost when generating digest email', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const digestPostBefore = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPostBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    expect(digestPost).toBeTruthy();
+    expect(digestPost!.type).toBe(PostType.Digest);
+    expect(digestPost!.authorId).toBe('1');
+    expect(digestPost!.private).toBeTruthy();
+    expect(digestPost!.visible).toBeTruthy();
+    expect(digestPost!.flags.digestPostIds).toHaveLength(5);
+    expect(digestPost!.flags.collectionSources).toBeDefined();
+  });
+
+  it('should publish api.v1.digest-ready after creating DigestPost', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    expect(triggerTypedEvent).toHaveBeenCalledWith(
+      expect.anything(),
+      'api.v1.digest-ready',
+      {
+        userId: '1',
+        postId: digestPost!.id,
+      },
+    );
+  });
+
+  it('should still send email after creating DigestPost', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPost).toBeTruthy();
+  });
+
+  it('should store null ad for Plus user in DigestPost', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { cycle: SubscriptionCycles.Yearly } },
+      );
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    expect(digestPost).toBeTruthy();
+    expect(digestPost!.flags.ad).toBeNull();
+  });
+
+  it('should not create DigestPost when no posts returned from feed', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    nock.cleanAll();
+
+    nockScope = nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        nockBody = body;
+        return true;
+      })
+      .reply(200, {
+        data: [],
+        rows: 0,
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    expect(digestPost).toBeNull();
+    expect(triggerTypedEvent).not.toHaveBeenCalled();
   });
 
   it('should truncate long posts summary', async () => {

@@ -31,6 +31,7 @@ import { UserBriefingRequest } from '@dailydotdev/schema';
 import { BriefingModel } from '../integrations/feed/types';
 import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
+import { createDigestPost } from '../common/digest';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -117,7 +118,7 @@ const digestTypeToFunctionMap: Record<
 
     const currentDate = new Date();
 
-    const emailPayload = await getPersonalizedDigestEmailPayload({
+    const result = await getPersonalizedDigestEmailPayload({
       con,
       logger,
       personalizedDigest,
@@ -129,9 +130,25 @@ const digestTypeToFunctionMap: Record<
       feature: digestFeature,
     });
 
-    if (!emailPayload) {
+    if (!result) {
       return;
     }
+
+    const { emailPayload, postIds, sourceIds, ad } = result;
+
+    const digestPostId = await createDigestPost({
+      con,
+      userId: user.id,
+      postIds,
+      sourceIds,
+      ad,
+      adIndex: digestFeature.adIndex,
+    });
+
+    triggerTypedEvent(logger, 'api.v1.digest-ready', {
+      userId: user.id,
+      postId: digestPostId,
+    });
 
     await dedupedSend(() => sendEmail(emailPayload), {
       con,

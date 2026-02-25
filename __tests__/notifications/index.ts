@@ -1956,6 +1956,45 @@ describe('brief notifications', () => {
   });
 });
 
+describe('digest notifications', () => {
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    await saveFixtures(con, User, usersFixture);
+  });
+
+  it('should notify when user digest is ready', async () => {
+    const post = postsFixture[0] as ChangeObject<Post>;
+
+    const type = NotificationType.DigestReady;
+    const ctx: NotificationPostContext = {
+      userIds: ['1'],
+      source: sourcesFixture.find(
+        (item) => item.id === 'unknown',
+      ) as Reference<Source>,
+      post,
+    };
+
+    const actual = generateNotificationV2(type, ctx);
+    expect(actual.notification.type).toEqual(type);
+    expect(actual.userIds).toEqual(['1']);
+    expect(actual.notification.public).toEqual(true);
+    expect(actual.notification.referenceId).toEqual(post.id);
+    expect(actual.notification.targetUrl).toEqual(
+      'http://localhost:5002/posts/p1',
+    );
+    expect(actual.attachments!.length).toEqual(0);
+    expect(actual.avatars).toEqual([
+      {
+        image: emptyImage,
+        name: 'Digest',
+        referenceId: 'digest',
+        targetUrl: '',
+        type: 'digest',
+      },
+    ]);
+  });
+});
+
 describe('user follow notifications', () => {
   beforeEach(async () => {
     jest.resetAllMocks();
