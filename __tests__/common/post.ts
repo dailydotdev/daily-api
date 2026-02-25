@@ -41,6 +41,25 @@ describe('getPostTranslatedTitle', () => {
     expect(result).toBe('Original Title');
   });
 
+  it('should return empty string if title is null and translation is undefined', () => {
+    const post: Partial<Post> = {
+      title: null,
+      translation: undefined,
+    };
+
+    const result = getPostTranslatedTitle(post, ContentLanguage.German);
+    expect(result).toBe('');
+  });
+
+  it('should return empty string when content language is not set and title is null', () => {
+    const post: Partial<Post> = {
+      title: null,
+    };
+
+    const result = getPostTranslatedTitle(post, null);
+    expect(result).toBe('');
+  });
+
   it('should return the original title if "de" is undefined', () => {
     const post: Partial<Post> = {
       title: 'Original Title',

@@ -1185,10 +1185,10 @@ export const getPostTranslatedTitle = (
   contentLanguage: ContentLanguage | null,
 ): string => {
   if (!contentLanguage) {
-    return post.title as string;
+    return post.title ?? '';
   }
 
-  return post.translation?.[contentLanguage]?.title || post.title!;
+  return post.translation?.[contentLanguage]?.title ?? post.title ?? '';
 };
 
 export const getSmartTitle = (

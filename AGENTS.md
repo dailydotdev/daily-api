@@ -353,6 +353,10 @@ The migration generator compares entities against the local database schema. Ens
 - For activity lists where chronological order is required (for example repost lists), force `Ranking.TIME` in the resolver wrapper.
 - When introducing query-specific defaults (for example `supportedTypes` for one resolver), do not add schema-level defaults to shared feed queries like `anonymousFeed`; keep defaults scoped to the intended resolver wrapper.
 
+**API contract ownership for nullable content fields:**
+- If a field is treated as required by frontend render paths (for example `Post.title`), normalize nullish values at the API layer (`graphorm`/common post helpers) instead of scattering client-side fallbacks.
+- Keep the backend output contract stable (`''` for missing title) so webapp/extension code can rely on consistent string semantics.
+
 **Avoiding N+1 Queries with Lazy Relations:**
 - **Never await lazy relations inside loops or map functions** - this causes N+1 query problems where each iteration triggers a separate database query.
 - **Batch fetch related entities** using TypeORM's `In()` operator to fetch all related records in a single query, then create a Map for O(1) lookups.

@@ -169,12 +169,12 @@ const checkIfTitleIsClickbait = (value?: string): boolean => {
 const fallbackFailedScrapeTitle = (
   value: string | null,
   parent: unknown,
-): string | null => {
+): string => {
   if (!value && (parent as { url?: string })?.url) {
     return 'Failed to scrape';
   }
 
-  return value;
+  return value ?? '';
 };
 
 const createSmartTitleField = ({ field }: { field: string }): GraphORMField => {
