@@ -110,6 +110,7 @@ const transformTimeSeries = (data: TimeSeriesResponse) => ({
       timestamps: series.t,
       scores: series.s,
       volume: series.v,
+      scoreVariance: series.sv,
     })),
   },
 });
@@ -159,6 +160,7 @@ export const typeDefs = /* GraphQL */ `
     timestamps: [Int!]!
     scores: [Float!]!
     volume: [Int!]!
+    scoreVariance: [Float!]!
   }
 
   type SentimentEntityTimeSeriesData {

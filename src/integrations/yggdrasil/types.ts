@@ -9,6 +9,7 @@ export type EntityTimeSeries = {
   t: number[];
   s: number[];
   v: number[];
+  sv: number[];
 };
 
 export type TimeSeriesResponse = {

@@ -84,6 +84,7 @@ describe('query sentimentTimeSeries', () => {
             timestamps
             scores
             volume
+            scoreVariance
           }
         }
       }
@@ -99,6 +100,7 @@ describe('query sentimentTimeSeries', () => {
           t: [0, 3600],
           s: [0.5, -0.2],
           v: [4, 3],
+          sv: [0.25, 1],
         },
       },
     });
@@ -129,6 +131,7 @@ describe('query sentimentTimeSeries', () => {
               timestamps: [0, 3600],
               scores: [0.5, -0.2],
               volume: [4, 3],
+              scoreVariance: [0.25, 1],
             },
           ],
         },
