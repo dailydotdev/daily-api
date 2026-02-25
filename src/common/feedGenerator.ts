@@ -31,6 +31,7 @@ import { mapArrayToOjbect } from './object';
 import { runInSpan } from '../telemetry';
 import { whereVordrFilter } from './vordr';
 import { baseFeedConfig, type FeedFlagsFilters } from '../integrations/feed';
+import type { FeedResponse } from '../integrations/feed/types';
 import { ContentPreferenceSource } from '../entity/contentPreference/ContentPreferenceSource';
 import { ContentPreferenceKeyword } from '../entity/contentPreference/ContentPreferenceKeyword';
 import {
@@ -556,6 +557,8 @@ export function feedResolver<
           )
         : [];
 
+    const staleCursor = (queryParams as FeedResponse)?.staleCursor;
+
     const result = await runInSpan('feedResolver.queryPaginated', async () =>
       graphorm.queryPaginated<GQLPost>(
         context,
@@ -597,8 +600,10 @@ export function feedResolver<
         (nodes) =>
           pageGenerator.transformNodes?.(page, nodes, queryParams) ?? nodes,
         true,
+        staleCursor ? { staleCursor } : undefined,
       ),
     );
+
     // Sometimes the feed can have a bit less posts than requested due to recent ban or deletion
     if (
       warnOnPartialFirstPage &&
