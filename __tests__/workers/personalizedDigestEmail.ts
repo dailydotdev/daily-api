@@ -596,13 +596,15 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(DigestPost)
       .findOneBy({ authorId: '1' });
 
-    expect(digestPost).toBeTruthy();
-    expect(digestPost!.type).toBe(PostType.Digest);
-    expect(digestPost!.authorId).toBe('1');
-    expect(digestPost!.private).toBeTruthy();
-    expect(digestPost!.visible).toBeTruthy();
-    expect(digestPost!.flags.digestPostIds).toHaveLength(5);
-    expect(digestPost!.flags.collectionSources).toBeDefined();
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
+    expect(digestPost.type).toBe(PostType.Digest);
+    expect(digestPost.authorId).toBe('1');
+    expect(digestPost.private).toBeTruthy();
+    expect(digestPost.visible).toBeTruthy();
+    expect(digestPost.flags.digestPostIds).toHaveLength(5);
+    expect(digestPost.flags.collectionSources).toBeDefined();
   });
 
   it('should publish api.v1.digest-ready after creating DigestPost', async () => {
@@ -622,12 +624,15 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(DigestPost)
       .findOneBy({ authorId: '1' });
 
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
     expect(triggerTypedEvent).toHaveBeenCalledWith(
       expect.anything(),
       'api.v1.digest-ready',
       {
         userId: '1',
-        postId: digestPost!.id,
+        postId: digestPost.id,
       },
     );
   });
@@ -697,8 +702,10 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(DigestPost)
       .findOneBy({ authorId: '1' });
 
-    expect(digestPost).toBeTruthy();
-    expect(digestPost!.flags.ad).toEqual({
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
+    expect(digestPost.flags.ad).toEqual({
       type: 'dynamic_ad',
       index: 2,
       title: 'Test Ad',
@@ -734,8 +741,10 @@ describe('personalizedDigestEmail worker', () => {
       .getRepository(DigestPost)
       .findOneBy({ authorId: '1' });
 
-    expect(digestPost).toBeTruthy();
-    expect(digestPost!.flags.ad).toBeNull();
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
+    expect(digestPost.flags.ad).toBeNull();
   });
 
   it('should not create DigestPost when no posts returned from feed', async () => {

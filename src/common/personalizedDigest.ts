@@ -580,4 +580,5 @@ export const digestSendTypeToBriefingType = (
 
 export const personalizedDigestNotificationTypes = [
   NotificationType.BriefingReady,
+  NotificationType.DigestReady,
 ];

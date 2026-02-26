@@ -148,28 +148,33 @@ const digestTypeToFunctionMap: Record<
         })
       : true;
 
-    if (isDigestNotificationEnabled) {
-      const digestPostId = await createDigestPost({
+    await dedupedSend(
+      async () => {
+        if (isDigestNotificationEnabled) {
+          const digestPostId = await createDigestPost({
+            con,
+            userId: user.id,
+            postIds,
+            sourceIds,
+            ad,
+            adIndex: digestFeature.adIndex,
+          });
+
+          await triggerTypedEvent(logger, 'api.v1.digest-ready', {
+            userId: user.id,
+            postId: digestPostId,
+          });
+        }
+
+        await sendEmail(emailPayload);
+      },
+      {
         con,
-        userId: user.id,
-        postIds,
-        sourceIds,
-        ad,
-        adIndex: digestFeature.adIndex,
-      });
-
-      triggerTypedEvent(logger, 'api.v1.digest-ready', {
-        userId: user.id,
-        postId: digestPostId,
-      });
-    }
-
-    await dedupedSend(() => sendEmail(emailPayload), {
-      con,
-      personalizedDigest,
-      date: currentDate,
-      deduplicate,
-    });
+        personalizedDigest,
+        date: currentDate,
+        deduplicate,
+      },
+    );
   },
   [UserPersonalizedDigestType.ReadingReminder]: async (data, con) => {
     const { personalizedDigest, emailSendTimestamp, deduplicate = true } = data;
