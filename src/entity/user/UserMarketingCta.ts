@@ -1,8 +1,16 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  PrimaryColumn,
+} from 'typeorm';
 import type { User } from './User';
 import type { MarketingCta } from '../MarketingCta';
 
 @Entity()
+@Index('IDX_user_marketing_cta_userId_readAt_null', { synchronize: false })
 export class UserMarketingCta {
   @PrimaryColumn({ type: 'text' })
   marketingCtaId: string;
