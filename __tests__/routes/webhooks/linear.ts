@@ -60,6 +60,32 @@ const createFeedback = async (
   return con.getRepository(Feedback).save(feedback);
 };
 
+const expectFeedbackNotification = async (
+  feedbackId: string,
+  type: NotificationType,
+): Promise<void> => {
+  const notification = await con.getRepository(NotificationV2).findOne({
+    where: {
+      type,
+      referenceId: feedbackId,
+    },
+  });
+  expect(notification).toBeTruthy();
+  expect(notification?.referenceType).toEqual('feedback');
+
+  if (!notification) {
+    throw new Error('Expected feedback notification');
+  }
+
+  const userNotification = await con.getRepository(UserNotification).findOne({
+    where: {
+      userId: '1',
+      notificationId: notification.id,
+    },
+  });
+  expect(userNotification).toBeTruthy();
+};
+
 describe('POST /webhooks/linear', () => {
   describe('signature verification', () => {
     it('should return 403 when no linear-signature header', async () => {
@@ -282,28 +308,10 @@ describe('POST /webhooks/linear', () => {
         .findOneBy({ linearIssueId: 'linear-issue-123' });
       expect(updatedFeedback?.status).toEqual(FeedbackStatus.Cancelled);
 
-      const notification = await con.getRepository(NotificationV2).findOne({
-        where: {
-          type: NotificationType.FeedbackCancelled,
-          referenceId: feedback.id,
-        },
-      });
-      expect(notification).toBeTruthy();
-      expect(notification?.referenceType).toEqual('feedback');
-
-      if (!notification) {
-        throw new Error('Expected feedback cancelled notification');
-      }
-
-      const userNotification = await con
-        .getRepository(UserNotification)
-        .findOne({
-          where: {
-            userId: '1',
-            notificationId: notification.id,
-          },
-        });
-      expect(userNotification).toBeTruthy();
+      await expectFeedbackNotification(
+        feedback.id,
+        NotificationType.FeedbackCancelled,
+      );
     });
 
     it('should update status to Completed and create notification when state is "Done"', async () => {
@@ -328,26 +336,10 @@ describe('POST /webhooks/linear', () => {
         .findOneBy({ linearIssueId: 'linear-issue-123' });
       expect(updatedFeedback?.status).toEqual(FeedbackStatus.Completed);
 
-      // Verify notification was created
-      const notification = await con.getRepository(NotificationV2).findOne({
-        where: {
-          type: NotificationType.FeedbackResolved,
-          referenceId: feedback.id,
-        },
-      });
-      expect(notification).toBeTruthy();
-      expect(notification?.referenceType).toEqual('feedback');
-
-      // Verify user notification was created
-      const userNotification = await con
-        .getRepository(UserNotification)
-        .findOne({
-          where: {
-            userId: '1',
-            notificationId: notification!.id,
-          },
-        });
-      expect(userNotification).toBeTruthy();
+      await expectFeedbackNotification(
+        feedback.id,
+        NotificationType.FeedbackResolved,
+      );
     });
 
     it('should not create duplicate notification if status is already Completed', async () => {

@@ -11,7 +11,6 @@ import {
 import {
   generateNotificationV2,
   storeNotificationBundleV2,
-  type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
 } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
@@ -20,6 +19,13 @@ import { NotificationType } from '../../notifications/common';
 const linearStateToFeedbackStatus: Record<string, FeedbackStatus> = {
   Done: FeedbackStatus.Completed,
   Canceled: FeedbackStatus.Cancelled,
+};
+
+const feedbackStatusToNotificationType: Partial<
+  Record<FeedbackStatus, NotificationType>
+> = {
+  [FeedbackStatus.Completed]: NotificationType.FeedbackResolved,
+  [FeedbackStatus.Cancelled]: NotificationType.FeedbackCancelled,
 };
 
 const verifyLinearSignature = (
@@ -116,30 +122,14 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
           .getRepository(Feedback)
           .update({ id: feedback.id }, { status: newStatus });
 
-        // Generate notification if status changed to Completed
-        if (newStatus === FeedbackStatus.Completed) {
+        const notificationType = feedbackStatusToNotificationType[newStatus];
+        if (notificationType) {
           const ctx: NotificationFeedbackResolvedContext = {
             userIds: [feedback.userId],
             feedbackId: feedback.id,
             feedbackDescription: feedback.description,
           };
-          const bundle = generateNotificationV2(
-            NotificationType.FeedbackResolved,
-            ctx,
-          );
-          await storeNotificationBundleV2(manager, bundle);
-        }
-
-        if (newStatus === FeedbackStatus.Cancelled) {
-          const ctx: NotificationFeedbackCancelledContext = {
-            userIds: [feedback.userId],
-            feedbackId: feedback.id,
-            feedbackDescription: feedback.description,
-          };
-          const bundle = generateNotificationV2(
-            NotificationType.FeedbackCancelled,
-            ctx,
-          );
+          const bundle = generateNotificationV2(notificationType, ctx);
           await storeNotificationBundleV2(manager, bundle);
         }
       });

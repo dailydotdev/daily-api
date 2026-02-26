@@ -51,6 +51,8 @@ import { generateCampaignPostNotification } from '../common/campaign/post';
 import { generateCampaignSquadNotification } from '../common/campaign/source';
 
 const systemTitle = () => undefined;
+const feedbackCancelledTitle =
+  "We've reviewed your feedback and don't have plans to address this at the moment. Thank you for helping us improve!";
 
 const getPostOrSharedPostTitle = (
   ctx: NotificationPostContext,
@@ -243,8 +245,7 @@ export const notificationTitleMap: Record<
     `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
   feedback_resolved: () =>
     `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>. Thank you for helping us improve!`,
-  feedback_cancelled: () =>
-    "We've reviewed your feedback and don't have plans to address this at the moment. Thank you for helping us improve!",
+  feedback_cancelled: () => feedbackCancelledTitle,
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> ${ctx.achievementName}`,
 };
@@ -722,9 +723,7 @@ export const generateNotificationMap: Record<
   ) => {
     return builder
       .icon(NotificationIcon.Bell)
-      .title(
-        "We've reviewed your feedback and don't have plans to address this at the moment. Thank you for helping us improve!",
-      )
+      .title(feedbackCancelledTitle)
       .referenceFeedback(ctx.feedbackId)
       .description(ctx.feedbackDescription, true)
       .targetUrl(process.env.COMMENTS_PREFIX)
