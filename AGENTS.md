@@ -84,6 +84,7 @@ The migration generator compares entities against the local database schema. Ens
 - `src/schema/` - GraphQL resolvers organized by domain (posts, users, feeds, etc.)
 - `src/directive/` - Custom GraphQL directives for auth, rate limiting, URL processing
 - **Docs**: See `src/graphorm/AGENTS.md` for comprehensive guide on using GraphORM to solve N+1 queries. GraphORM is the default and preferred method for all GraphQL query responses. Use GraphORM instead of TypeORM repositories for GraphQL resolvers to prevent N+1 queries and enforce best practices.
+- **GraphORM mappings**: Only add entries in `src/graphorm/index.ts` when you need custom mapping/fields/transforms or GraphQL type names differ from TypeORM entity names. For straightforward reads, keep GraphQL type names aligned with entities and use GraphORM without extra config.
 
 **Data Layer:**
 

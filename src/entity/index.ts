@@ -13,6 +13,8 @@ export * from './posts';
 export * from './PostReport';
 export * from './PostTag';
 export * from './Settings';
+export * from './SentimentEntity';
+export * from './SentimentGroup';
 export * from './Source';
 export * from './SquadPostsAnalytics';
 export * from './SourceDisplay';

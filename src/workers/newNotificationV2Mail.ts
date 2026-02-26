@@ -135,6 +135,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   experience_company_enriched: '',
   recruiter_external_payment: '91',
   feedback_resolved: '',
+  feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
 };
 
@@ -1282,6 +1283,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   feedback_resolved: async () => {
+    return null;
+  },
+  feedback_cancelled: async () => {
     return null;
   },
   achievement_unlocked: async () => {
