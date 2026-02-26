@@ -32,6 +32,8 @@ import { BriefingModel } from '../integrations/feed/types';
 import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { createDigestPost } from '../common/digest';
+import { Feature as FeatureEntity, FeatureType } from '../entity/Feature';
+import { isProd } from '../common/utils';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -136,19 +138,31 @@ const digestTypeToFunctionMap: Record<
 
     const { emailPayload, postIds, sourceIds, ad } = result;
 
-    const digestPostId = await createDigestPost({
-      con,
-      userId: user.id,
-      postIds,
-      sourceIds,
-      ad,
-      adIndex: digestFeature.adIndex,
-    });
+    const isDigestNotificationEnabled = isProd
+      ? await con.getRepository(FeatureEntity).exists({
+          where: {
+            userId: user.id,
+            feature: FeatureType.Team,
+            value: 1,
+          },
+        })
+      : true;
 
-    triggerTypedEvent(logger, 'api.v1.digest-ready', {
-      userId: user.id,
-      postId: digestPostId,
-    });
+    if (isDigestNotificationEnabled) {
+      const digestPostId = await createDigestPost({
+        con,
+        userId: user.id,
+        postIds,
+        sourceIds,
+        ad,
+        adIndex: digestFeature.adIndex,
+      });
+
+      triggerTypedEvent(logger, 'api.v1.digest-ready', {
+        userId: user.id,
+        postId: digestPostId,
+      });
+    }
 
     await dedupedSend(() => sendEmail(emailPayload), {
       con,
