@@ -11487,4 +11487,40 @@ describe('query userPostsWithAnalytics', () => {
     expect(postIds).not.toContain('brief-upwa');
     expect(res.data.userPostsWithAnalytics.edges).toHaveLength(3);
   });
+
+  it('should exclude digest posts from analytics', async () => {
+    await saveFixtures(con, Post, [
+      {
+        id: 'digest-upwa',
+        shortId: 'sdgst-upwa',
+        title: 'Digest Post',
+        url: 'https://example.com/digest-upwa',
+        sourceId: 'a',
+        authorId: '1-upwa',
+        type: PostType.Digest,
+        visible: true,
+      },
+    ]);
+
+    await saveFixtures(con, PostAnalytics, [
+      con.getRepository(PostAnalytics).create({
+        id: 'digest-upwa',
+        impressions: 100,
+        impressionsAds: 50,
+        reputation: 25,
+        upvotes: 10,
+      }),
+    ]);
+
+    loggedUser = '1-upwa';
+
+    const res = await client.query(QUERY, { variables: { first: 10 } });
+
+    expect(res.errors).toBeFalsy();
+    const postIds = res.data.userPostsWithAnalytics.edges.map(
+      (e: { node: { id: string } }) => e.node.id,
+    );
+    expect(postIds).not.toContain('digest-upwa');
+    expect(res.data.userPostsWithAnalytics.edges).toHaveLength(3);
+  });
 });
