@@ -36,6 +36,32 @@ const defaultTopEntitiesLimit = 20;
 const minTopEntitiesLimit = 1;
 const maxTopEntitiesLimit = 50;
 
+const validateBoundedLimit = ({
+  value,
+  defaultValue,
+  minValue,
+  maxValue,
+  fieldName,
+}: {
+  value?: number;
+  defaultValue: number;
+  minValue: number;
+  maxValue: number;
+  fieldName: string;
+}): number => {
+  if (value == null) {
+    return defaultValue;
+  }
+
+  if (value < minValue || value > maxValue) {
+    throw new ValidationError(
+      `${fieldName} must be between ${minValue} and ${maxValue}`,
+    );
+  }
+
+  return value;
+};
+
 const mapResolutionEnum = (
   resolution: SentimentResolution,
 ): '15m' | '1h' | '1d' => {
@@ -78,31 +104,23 @@ const validateSentimentFilter = ({
 };
 
 const validateHighlightsFirst = (first?: number): number => {
-  if (first == null) {
-    return defaultHighlightsLimit;
-  }
-
-  if (first < minHighlightsLimit || first > maxHighlightsLimit) {
-    throw new ValidationError(
-      `first must be between ${minHighlightsLimit} and ${maxHighlightsLimit}`,
-    );
-  }
-
-  return first;
+  return validateBoundedLimit({
+    value: first,
+    defaultValue: defaultHighlightsLimit,
+    minValue: minHighlightsLimit,
+    maxValue: maxHighlightsLimit,
+    fieldName: 'first',
+  });
 };
 
 const validateTopEntitiesLimit = (limit?: number): number => {
-  if (limit == null) {
-    return defaultTopEntitiesLimit;
-  }
-
-  if (limit < minTopEntitiesLimit || limit > maxTopEntitiesLimit) {
-    throw new ValidationError(
-      `limit must be between ${minTopEntitiesLimit} and ${maxTopEntitiesLimit}`,
-    );
-  }
-
-  return limit;
+  return validateBoundedLimit({
+    value: limit,
+    defaultValue: defaultTopEntitiesLimit,
+    minValue: minTopEntitiesLimit,
+    maxValue: maxTopEntitiesLimit,
+    fieldName: 'limit',
+  });
 };
 
 const transformAuthor = (raw: XSearchAuthor) => ({
