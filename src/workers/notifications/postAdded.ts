@@ -25,7 +25,11 @@ import { SourceMemberRoles } from '../../roles';
 import { insertOrIgnoreAction } from '../../schema/actions';
 import { In, Not } from 'typeorm';
 
-const blockedTypes = Object.freeze([PostType.Welcome, PostType.Brief]);
+const blockedTypes = Object.freeze([
+  PostType.Welcome,
+  PostType.Brief,
+  PostType.Digest,
+]);
 
 export const postAdded: TypedNotificationWorker<'api.v1.post-visible'> = {
   subscription: 'api.post-added-notification-v2',

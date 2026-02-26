@@ -1976,6 +1976,9 @@ describe('digest notifications', () => {
 
     const actual = generateNotificationV2(type, ctx);
     expect(actual.notification.type).toEqual(type);
+    expect(actual.notification.title).toEqual(
+      '<strong>Your personalized digest is ready!</strong> Here are the top posts curated for you.',
+    );
     expect(actual.userIds).toEqual(['1']);
     expect(actual.notification.public).toEqual(true);
     expect(actual.notification.referenceId).toEqual(post.id);

@@ -1,6 +1,9 @@
 import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
+import { In } from 'typeorm';
 import type { Context } from '../Context';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { SentimentEntity } from '../entity/SentimentEntity';
 import { NotFoundError } from '../errors';
 import graphorm from '../graphorm';
 import { HttpError } from '../integrations/retry';
@@ -29,6 +32,35 @@ const PROVIDER_METRICS_TYPE: Record<string, string> = {
 const defaultHighlightsLimit = 20;
 const minHighlightsLimit = 1;
 const maxHighlightsLimit = 50;
+const defaultTopEntitiesLimit = 20;
+const minTopEntitiesLimit = 1;
+const maxTopEntitiesLimit = 50;
+
+const validateBoundedLimit = ({
+  value,
+  defaultValue,
+  minValue,
+  maxValue,
+  fieldName,
+}: {
+  value?: number;
+  defaultValue: number;
+  minValue: number;
+  maxValue: number;
+  fieldName: string;
+}): number => {
+  if (value == null) {
+    return defaultValue;
+  }
+
+  if (value < minValue || value > maxValue) {
+    throw new ValidationError(
+      `${fieldName} must be between ${minValue} and ${maxValue}`,
+    );
+  }
+
+  return value;
+};
 
 const mapResolutionEnum = (
   resolution: SentimentResolution,
@@ -72,17 +104,23 @@ const validateSentimentFilter = ({
 };
 
 const validateHighlightsFirst = (first?: number): number => {
-  if (first == null) {
-    return defaultHighlightsLimit;
-  }
+  return validateBoundedLimit({
+    value: first,
+    defaultValue: defaultHighlightsLimit,
+    minValue: minHighlightsLimit,
+    maxValue: maxHighlightsLimit,
+    fieldName: 'first',
+  });
+};
 
-  if (first < minHighlightsLimit || first > maxHighlightsLimit) {
-    throw new ValidationError(
-      `first must be between ${minHighlightsLimit} and ${maxHighlightsLimit}`,
-    );
-  }
-
-  return first;
+const validateTopEntitiesLimit = (limit?: number): number => {
+  return validateBoundedLimit({
+    value: limit,
+    defaultValue: defaultTopEntitiesLimit,
+    minValue: minTopEntitiesLimit,
+    maxValue: maxTopEntitiesLimit,
+    fieldName: 'limit',
+  });
 };
 
 const transformAuthor = (raw: XSearchAuthor) => ({
@@ -111,6 +149,7 @@ const transformTimeSeries = (data: TimeSeriesResponse) => ({
       scores: series.s,
       volume: series.v,
       scoreVariance: series.sv ?? [],
+      dIndex: series.d ?? [],
     })),
   },
 });
@@ -161,6 +200,7 @@ export const typeDefs = /* GraphQL */ `
     scores: [Float!]!
     volume: [Int!]!
     scoreVariance: [Float!]!
+    dIndex: [Float!]!
   }
 
   type SentimentEntityTimeSeriesData {
@@ -227,6 +267,13 @@ export const typeDefs = /* GraphQL */ `
     entities: [SentimentEntity!]!
   }
 
+  type SentimentTopEntity {
+    entity: SentimentEntity!
+    dIndex: Float!
+    score: Float!
+    volume: Int!
+  }
+
   extend type Query {
     sentimentTimeSeries(
       resolution: SentimentResolution!
@@ -242,6 +289,13 @@ export const typeDefs = /* GraphQL */ `
       after: String
       orderBy: SentimentHighlightsOrderBy
     ): SentimentHighlightsConnection! @rateLimit(limit: 30, duration: 60)
+
+    topSentimentEntities(
+      groupId: ID!
+      resolution: SentimentResolution!
+      lookback: String
+      limit: Int
+    ): [SentimentTopEntity!]! @rateLimit(limit: 30, duration: 60)
 
     sentimentGroup(id: ID!): SentimentGroup
   }
@@ -309,6 +363,61 @@ export const resolvers: IResolvers<unknown, Context> = {
         throw error;
       }
     },
+
+    topSentimentEntities: async (
+      _,
+      args: {
+        groupId: string;
+        resolution: SentimentResolution;
+        lookback?: string;
+        limit?: number;
+      },
+      ctx,
+    ) => {
+      const limit = validateTopEntitiesLimit(args.limit);
+
+      try {
+        const data = await yggdrasilSentimentClient.getTopEntities({
+          groupId: args.groupId,
+          resolution: mapResolutionEnum(args.resolution),
+          lookback: args.lookback,
+          limit,
+        });
+
+        if (!data.entities.length) {
+          return [];
+        }
+
+        const entityKeys = [
+          ...new Set(data.entities.map((item) => item.entity)),
+        ];
+        const entities = await queryReadReplica(ctx.con, ({ queryRunner }) =>
+          queryRunner.manager.getRepository(SentimentEntity).findBy({
+            entity: In(entityKeys),
+          }),
+        );
+
+        const entityMap = new Map(
+          entities.map((entity) => [entity.entity, entity]),
+        );
+
+        return data.entities
+          .map((item) => ({
+            entity: entityMap.get(item.entity),
+            dIndex: item.d_index,
+            score: item.score,
+            volume: item.volume,
+          }))
+          .filter((item) => !!item.entity);
+      } catch (error) {
+        if (error instanceof HttpError && error.statusCode === 404) {
+          throw new NotFoundError('Sentiment group not found');
+        }
+
+        throw error;
+      }
+    },
+
     sentimentGroup: async (_, { id }: { id: string }, ctx, info) => {
       return graphorm.queryOne(
         ctx,

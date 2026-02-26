@@ -2468,8 +2468,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
               })
               .andWhere(`${builder.alias}.deleted = false`)
               .andWhere(`${builder.alias}.visible = true`)
-              .andWhere(`${builder.alias}.type != :briefType`, {
-                briefType: PostType.Brief,
+              .andWhere(`${builder.alias}.type NOT IN (:...excludedTypes)`, {
+                excludedTypes: [PostType.Brief, PostType.Digest],
               });
 
             return builder;

@@ -31,7 +31,7 @@ import {
   initCounters,
   subscribeMetricsHooks,
 } from './metrics';
-import { createSpanProcessor, subscribeTracingHooks } from './tracing';
+import { createSpanProcessor } from './tracing';
 import { logger } from '../logger';
 
 const resourceDetectors = [hostDetector, containerDetector];
@@ -88,7 +88,6 @@ export const startTelemetry = (): void => {
   registerInstrumentations({ instrumentations });
 
   initCounters(service.name as ServiceName);
-  subscribeTracingHooks(service.name);
   subscribeMetricsHooks();
 
   closeWithGrace(async ({ signal, err }) => {

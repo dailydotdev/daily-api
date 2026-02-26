@@ -5,6 +5,8 @@ import { retryFetchParse } from '../retry';
 import type {
   HighlightsParams,
   HighlightsResponse,
+  TopEntitiesParams,
+  TopEntitiesResponse,
   TimeSeriesParams,
   TimeSeriesResponse,
 } from './types';
@@ -75,6 +77,30 @@ export class YggdrasilSentimentClient {
     return this.garmr.execute(() =>
       retryFetchParse<HighlightsResponse>(
         `${this.url}/api/sentiment/highlights?${searchParams.toString()}`,
+        {
+          ...this.fetchOptions,
+          method: 'GET',
+        },
+      ),
+    );
+  }
+
+  getTopEntities(params: TopEntitiesParams): Promise<TopEntitiesResponse> {
+    const searchParams = new URLSearchParams({
+      group_id: params.groupId,
+      resolution: params.resolution,
+    });
+
+    if (params.lookback) {
+      searchParams.set('lookback', params.lookback);
+    }
+    if (params.limit) {
+      searchParams.set('limit', String(params.limit));
+    }
+
+    return this.garmr.execute(() =>
+      retryFetchParse<TopEntitiesResponse>(
+        `${this.url}/api/sentiment/top-entities?${searchParams.toString()}`,
         {
           ...this.fetchOptions,
           method: 'GET',

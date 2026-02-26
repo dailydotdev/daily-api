@@ -249,7 +249,7 @@ export const notificationTitleMap: Record<
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> ${ctx.achievementName}`,
   digest_ready: () =>
-    `<strong>Your daily digest is ready!</strong> Here are the top posts curated for you.`,
+    `<strong>Your personalized digest is ready!</strong> Here are the top posts curated for you.`,
 };
 
 export const generateNotificationMap: Record<

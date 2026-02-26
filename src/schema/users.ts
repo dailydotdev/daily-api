@@ -2870,7 +2870,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         whereClause: (qb) =>
           qb
             .where('p.authorId = :userId', { userId })
-            .andWhere('p.type != :briefType', { briefType: PostType.Brief }),
+            .andWhere('p.type NOT IN (:...excludedTypes)', {
+              excludedTypes: [PostType.Brief, PostType.Digest],
+            }),
       });
     },
   },

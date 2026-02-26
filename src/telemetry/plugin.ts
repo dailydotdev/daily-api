@@ -32,7 +32,6 @@ export interface OpenTelemetry {
 }
 
 export interface FastifyOtelPluginOptions {
-  ignoredPaths?: string[];
   tracer?: Tracer;
 }
 
@@ -50,9 +49,6 @@ const plugin: FastifyPluginCallback<FastifyOtelPluginOptions> = async (
   opts,
 ) => {
   const tracer = opts.tracer ?? trace.getTracer('fastify-otel');
-  const ignoredPaths = new Set(opts.ignoredPaths);
-  const isIgnoredPath = (requestPath?: string): boolean =>
-    requestPath != null && ignoredPaths.has(requestPath);
 
   instance.decorateRequest(
     'opentelemetry',
@@ -82,10 +78,6 @@ const plugin: FastifyPluginCallback<FastifyOtelPluginOptions> = async (
 
   instance.addHook('onRequest', async (request) => {
     const requestPath = request.routeOptions.url;
-
-    if (isIgnoredPath(requestPath)) {
-      return;
-    }
     let ctx = context.active();
 
     if (trace.getSpan(ctx) == null) {
@@ -112,11 +104,6 @@ const plugin: FastifyPluginCallback<FastifyOtelPluginOptions> = async (
   });
 
   instance.addHook('onSend', (request, reply, payload, done) => {
-    const requestPath = request.routeOptions.url;
-
-    if (isIgnoredPath(requestPath)) {
-      return done(null, payload);
-    }
     const span = request[kRequestSpan];
 
     if (span != null) {
@@ -141,11 +128,6 @@ const plugin: FastifyPluginCallback<FastifyOtelPluginOptions> = async (
   });
 
   instance.addHook('onError', async (request, _, error) => {
-    const requestPath = request.routeOptions.url;
-
-    if (isIgnoredPath(requestPath)) {
-      return;
-    }
     const span = request[kRequestSpan];
 
     if (span != null) {
