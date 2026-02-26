@@ -21,7 +21,7 @@ import type { GQLEmptyResponse } from './common';
 
 const ACHIEVEMENT_SYNC_LIMIT = 1;
 const CLOSE_ACHIEVEMENTS_LIMIT = 3;
-const MAX_SHOWCASE_ACHIEVEMENTS = 3;
+const MAX_SHOWCASE_ACHIEVEMENTS = 5;
 
 const getAchievementSyncCount = (flags?: UserFlags): number => {
   return flags?.syncedAchievements ? 1 : 0;
@@ -374,7 +374,7 @@ export const typeDefs = /* GraphQL */ `
     untrackAchievement: EmptyResponse! @auth
 
     """
-    Set up to 3 unlocked achievements to showcase on profile.
+    Set up to 5 unlocked achievements to showcase on profile.
     Pass empty array to clear the showcase.
     """
     setShowcaseAchievements(achievementIds: [ID!]!): [UserAchievement!]! @auth
