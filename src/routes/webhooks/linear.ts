@@ -11,6 +11,7 @@ import {
 import {
   generateNotificationV2,
   storeNotificationBundleV2,
+  type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
 } from '../../notifications';
 import { NotificationType } from '../../notifications/common';
@@ -124,6 +125,19 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
           };
           const bundle = generateNotificationV2(
             NotificationType.FeedbackResolved,
+            ctx,
+          );
+          await storeNotificationBundleV2(manager, bundle);
+        }
+
+        if (newStatus === FeedbackStatus.Cancelled) {
+          const ctx: NotificationFeedbackCancelledContext = {
+            userIds: [feedback.userId],
+            feedbackId: feedback.id,
+            feedbackDescription: feedback.description,
+          };
+          const bundle = generateNotificationV2(
+            NotificationType.FeedbackCancelled,
             ctx,
           );
           await storeNotificationBundleV2(manager, bundle);

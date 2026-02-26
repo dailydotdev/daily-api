@@ -85,6 +85,7 @@ export enum NotificationType {
   RecruiterExternalPayment = 'recruiter_external_payment',
   ExperienceCompanyEnriched = 'experience_company_enriched',
   FeedbackResolved = 'feedback_resolved',
+  FeedbackCancelled = 'feedback_cancelled',
   AchievementUnlocked = 'achievement_unlocked',
 }
 

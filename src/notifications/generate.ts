@@ -37,6 +37,7 @@ import {
   type NotificationRecruiterOpportunityLiveContext,
   type NotificationExperienceCompanyEnrichedContext,
   type NotificationRecruiterExternalPaymentContext,
+  type NotificationFeedbackCancelledContext,
   type NotificationFeedbackResolvedContext,
   type NotificationAchievementContext,
 } from './types';
@@ -242,6 +243,8 @@ export const notificationTitleMap: Record<
     `Your job opportunity <b>${ctx.opportunityTitle}</b> has been <span class="text-theme-color-cabbage">paid</span> for!`,
   feedback_resolved: () =>
     `Your <span class="text-theme-color-cabbage">feedback has been resolved</span>. Thank you for helping us improve!`,
+  feedback_cancelled: () =>
+    "We've reviewed your feedback and don't have plans to address this at the moment. Thank you for helping us improve!",
   achievement_unlocked: (ctx: NotificationAchievementContext) =>
     `<span class="text-theme-color-cabbage">Achievement unlocked!</span> ${ctx.achievementName}`,
 };
@@ -708,6 +711,20 @@ export const generateNotificationMap: Record<
     return builder
       .icon(NotificationIcon.Bell)
       .title('Your feedback has been resolved')
+      .referenceFeedback(ctx.feedbackId)
+      .description(ctx.feedbackDescription, true)
+      .targetUrl(process.env.COMMENTS_PREFIX)
+      .uniqueKey(ctx.feedbackId);
+  },
+  feedback_cancelled: (
+    builder: NotificationBuilder,
+    ctx: NotificationFeedbackCancelledContext,
+  ) => {
+    return builder
+      .icon(NotificationIcon.Bell)
+      .title(
+        "We've reviewed your feedback and don't have plans to address this at the moment. Thank you for helping us improve!",
+      )
       .referenceFeedback(ctx.feedbackId)
       .description(ctx.feedbackDescription, true)
       .targetUrl(process.env.COMMENTS_PREFIX)

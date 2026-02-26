@@ -210,6 +210,11 @@ export type NotificationFeedbackResolvedContext = NotificationBaseContext & {
   feedbackDescription: string;
 };
 
+export type NotificationFeedbackCancelledContext = NotificationBaseContext & {
+  feedbackId: string;
+  feedbackDescription: string;
+};
+
 export type NotificationAchievementContext = NotificationBaseContext & {
   achievementId: string;
   achievementName: string;
