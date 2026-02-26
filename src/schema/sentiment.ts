@@ -2,7 +2,8 @@ import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import type { Context } from '../Context';
 import { NotFoundError } from '../errors';
-import graphorm from '../graphorm';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { SentimentGroup } from '../entity/SentimentGroup';
 import { HttpError } from '../integrations/retry';
 import { yggdrasilSentimentClient } from '../integrations/yggdrasil/clients';
 import type {
@@ -243,7 +244,7 @@ export const typeDefs = /* GraphQL */ `
       orderBy: SentimentHighlightsOrderBy
     ): SentimentHighlightsConnection! @rateLimit(limit: 30, duration: 60)
 
-    sentimentGroups: [SentimentGroupMeta!]!
+    sentimentGroup(id: ID!): SentimentGroupMeta
   }
 `;
 
@@ -309,8 +310,13 @@ export const resolvers: IResolvers<unknown, Context> = {
         throw error;
       }
     },
-    sentimentGroups: async (_, __, ctx, info) => {
-      return graphorm.query(ctx, info, (builder) => builder, true);
+    sentimentGroup: async (_, { id }: { id: string }, ctx) => {
+      return queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager.getRepository(SentimentGroup).findOne({
+          where: { id },
+          relations: { entities: true },
+        }),
+      );
     },
   },
 

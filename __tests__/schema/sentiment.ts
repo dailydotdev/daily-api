@@ -470,26 +470,21 @@ describe('query sentimentHighlights', () => {
   });
 });
 
-describe('query sentimentGroups', () => {
-  const normalizeGroups = (
-    groups: {
-      id: string;
-      name: string;
-      entities: { entity: string; name: string; logo: string }[];
-    }[],
-  ) =>
-    [...groups]
-      .map((group) => ({
-        ...group,
-        entities: [...group.entities].sort((a, b) =>
-          a.entity.localeCompare(b.entity),
-        ),
-      }))
-      .sort((a, b) => a.id.localeCompare(b.id));
+describe('query sentimentGroup', () => {
+  const normalizeGroup = (group: {
+    id: string;
+    name: string;
+    entities: { entity: string; name: string; logo: string }[];
+  }) => ({
+    ...group,
+    entities: [...group.entities].sort((a, b) =>
+      a.entity.localeCompare(b.entity),
+    ),
+  });
 
   const QUERY = /* GraphQL */ `
-    query SentimentGroups {
-      sentimentGroups {
+    query SentimentGroup($id: ID!) {
+      sentimentGroup(id: $id) {
         id
         name
         entities {
@@ -501,7 +496,7 @@ describe('query sentimentGroups', () => {
     }
   `;
 
-  it('should return groups with nested entities', async () => {
+  it('should return a group with nested entities', async () => {
     await con.getRepository(SentimentGroup).insert({
       id: '385404b4-f0f4-4e81-a338-bdca851eca31',
       name: 'Coding Agents',
@@ -521,37 +516,39 @@ describe('query sentimentGroups', () => {
       },
     ]);
 
-    const res = await client.query(QUERY);
+    const res = await client.query(QUERY, {
+      variables: { id: '385404b4-f0f4-4e81-a338-bdca851eca31' },
+    });
 
     expect(res.errors).toBeFalsy();
-    expect(normalizeGroups(res.data.sentimentGroups)).toEqual([
-      {
-        id: '385404b4-f0f4-4e81-a338-bdca851eca31',
-        name: 'Coding Agents',
-        entities: [
-          {
-            entity: 'copilot',
-            name: 'Copilot',
-            logo: 'https://media.daily.dev/image/upload/public/copilot',
-          },
-          {
-            entity: 'cursor',
-            name: 'Cursor',
-            logo: 'https://media.daily.dev/image/upload/public/cursor',
-          },
-        ],
-      },
-    ]);
+    expect(normalizeGroup(res.data.sentimentGroup)).toEqual({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+      entities: [
+        {
+          entity: 'copilot',
+          name: 'Copilot',
+          logo: 'https://media.daily.dev/image/upload/public/copilot',
+        },
+        {
+          entity: 'cursor',
+          name: 'Cursor',
+          logo: 'https://media.daily.dev/image/upload/public/cursor',
+        },
+      ],
+    });
   });
 
-  it('should return empty array when no groups exist', async () => {
-    const res = await client.query(QUERY);
+  it('should return null when group does not exist', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: '385404b4-f0f4-4e81-a338-bdca851eca31' },
+    });
 
     expect(res.errors).toBeFalsy();
-    expect(res.data.sentimentGroups).toEqual([]);
+    expect(res.data.sentimentGroup).toBeNull();
   });
 
-  it('should keep entities grouped under their own group', async () => {
+  it('should return only entities under the requested group', async () => {
     await con.getRepository(SentimentGroup).insert([
       {
         id: '385404b4-f0f4-4e81-a338-bdca851eca31',
@@ -584,37 +581,26 @@ describe('query sentimentGroups', () => {
       },
     ]);
 
-    const res = await client.query(QUERY);
+    const res = await client.query(QUERY, {
+      variables: { id: '385404b4-f0f4-4e81-a338-bdca851eca31' },
+    });
 
     expect(res.errors).toBeFalsy();
-    expect(normalizeGroups(res.data.sentimentGroups)).toEqual([
-      {
-        id: '385404b4-f0f4-4e81-a338-bdca851eca31',
-        name: 'Coding Agents',
-        entities: [
-          {
-            entity: 'codex',
-            name: 'Codex',
-            logo: 'https://media.daily.dev/image/upload/public/openai',
-          },
-          {
-            entity: 'cursor',
-            name: 'Cursor',
-            logo: 'https://media.daily.dev/image/upload/public/cursor',
-          },
-        ],
-      },
-      {
-        id: '970ab2c9-f845-4822-82f0-02169713b814',
-        name: 'LLMs',
-        entities: [
-          {
-            entity: 'gemini',
-            name: 'Gemini',
-            logo: 'https://media.daily.dev/image/upload/public/gemini',
-          },
-        ],
-      },
-    ]);
+    expect(normalizeGroup(res.data.sentimentGroup)).toEqual({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+      entities: [
+        {
+          entity: 'codex',
+          name: 'Codex',
+          logo: 'https://media.daily.dev/image/upload/public/openai',
+        },
+        {
+          entity: 'cursor',
+          name: 'Cursor',
+          logo: 'https://media.daily.dev/image/upload/public/cursor',
+        },
+      ],
+    });
   });
 });

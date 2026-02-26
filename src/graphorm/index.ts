@@ -2448,12 +2448,6 @@ const obj = new GraphORM({
       updatedAt: { transform: transformDate },
     },
   },
-  SentimentGroupMeta: {
-    from: 'sentiment_group',
-  },
-  SentimentEntityMeta: {
-    from: 'sentiment_entity',
-  },
 });
 
 export default obj;
