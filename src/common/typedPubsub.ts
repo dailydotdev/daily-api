@@ -185,11 +185,6 @@ export type PubSubSchema = {
     postId: string;
     sendAtMs?: number;
   };
-  'api.v1.digest-ready': {
-    userId: string;
-    postId: string;
-    sendAtMs?: number;
-  };
   'api.v1.user-follow': {
     payload: ChangeObject<ContentPreferenceUser>;
   };

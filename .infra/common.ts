@@ -372,10 +372,6 @@ export const workers: Worker[] = [
     subscription: 'api.user-brief-ready-notification',
   },
   {
-    topic: 'api.v1.digest-ready',
-    subscription: 'api.user-digest-ready-notification',
-  },
-  {
     topic: 'user-updated',
     subscription: 'api.user-updated-plus-subscribed-brief',
   },

@@ -1,4 +1,4 @@
-import type { DataSource } from 'typeorm';
+import type { DataSource, EntityManager } from 'typeorm';
 import { DigestPost } from '../entity/posts/DigestPost';
 import { DIGEST_SOURCE } from '../entity/Source';
 import { generateShortId } from '../ids';
@@ -17,7 +17,7 @@ export const createDigestPost = async ({
   ad,
   adIndex,
 }: {
-  con: DataSource;
+  con: DataSource | EntityManager;
   userId: string;
   postIds: string[];
   sourceIds: string[];

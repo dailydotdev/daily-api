@@ -5,6 +5,9 @@ import {
   sendEmail,
   triggerTypedEvent,
 } from '../common';
+import { generateAndStoreNotificationsV2 } from '../notifications';
+import { NotificationType } from '../notifications/common';
+import { buildPostContext } from './notifications/utils';
 import {
   BRIEFING_SOURCE,
   Settings,
@@ -151,18 +154,29 @@ const digestTypeToFunctionMap: Record<
     await dedupedSend(
       async () => {
         if (isDigestNotificationEnabled) {
-          const digestPostId = await createDigestPost({
-            con,
-            userId: user.id,
-            postIds,
-            sourceIds,
-            ad,
-            adIndex: digestFeature.adIndex,
-          });
+          await con.transaction(async (entityManager) => {
+            const digestPostId = await createDigestPost({
+              con: entityManager,
+              userId: user.id,
+              postIds,
+              sourceIds,
+              ad,
+              adIndex: digestFeature.adIndex,
+            });
 
-          await triggerTypedEvent(logger, 'api.v1.digest-ready', {
-            userId: user.id,
-            postId: digestPostId,
+            const postCtx = await buildPostContext(entityManager, digestPostId);
+
+            if (postCtx) {
+              await generateAndStoreNotificationsV2(entityManager, [
+                {
+                  type: NotificationType.DigestReady,
+                  ctx: {
+                    ...postCtx,
+                    userIds: [user.id],
+                  },
+                },
+              ]);
+            }
           });
         }
 

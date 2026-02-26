@@ -30,7 +30,6 @@ import { userReceivedAward } from '../transactions/userReceivedAward';
 import { organizationUserJoined } from '../organization/organizationUserJoined';
 import campaignUpdatedAction from './campaignUpdatedAction';
 import { userBriefReadyNotification } from './userBriefReadyNotification';
-import { userDigestReadyNotification } from './userDigestReadyNotification';
 import { userFollowNotification } from './userFollowNotification';
 import { candidateOpportunityMatchNotification } from './candidateOpportunityMatchNotification';
 import { campaignPostAnalyticsNotification } from './campaignPostAnalyticsNotification';
@@ -122,7 +121,6 @@ const notificationWorkers: TypedNotificationWorker<any>[] = [
   organizationUserJoined,
   campaignUpdatedAction,
   userBriefReadyNotification,
-  userDigestReadyNotification,
   userFollowNotification,
   candidateOpportunityMatchNotification,
   campaignPostAnalyticsNotification,

@@ -39,7 +39,8 @@ import { UserBriefingRequest } from '@dailydotdev/schema';
 import { BriefingModel } from '../../src/integrations/feed/types';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { DigestPost } from '../../src/entity/posts/DigestPost';
-import { triggerTypedEvent } from '../../src/common/typedPubsub';
+import { NotificationV2 } from '../../src/entity/notifications/NotificationV2';
+import { NotificationType } from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -607,7 +608,7 @@ describe('personalizedDigestEmail worker', () => {
     expect(digestPost.flags.collectionSources).toBeDefined();
   });
 
-  it('should publish api.v1.digest-ready after creating DigestPost', async () => {
+  it('should create in-app notification after creating DigestPost', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)
       .findOneBy({
@@ -627,14 +628,12 @@ describe('personalizedDigestEmail worker', () => {
     if (!digestPost) {
       throw new Error('DigestPost not found');
     }
-    expect(triggerTypedEvent).toHaveBeenCalledWith(
-      expect.anything(),
-      'api.v1.digest-ready',
-      {
-        userId: '1',
-        postId: digestPost.id,
-      },
-    );
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+
+    expect(notification).not.toBeNull();
   });
 
   it('should still send email after creating DigestPost', async () => {
@@ -777,7 +776,12 @@ describe('personalizedDigestEmail worker', () => {
       .findOneBy({ authorId: '1' });
 
     expect(digestPost).toBeNull();
-    expect(triggerTypedEvent).not.toHaveBeenCalled();
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+
+    expect(notification).toBeNull();
   });
 
   it('should truncate long posts summary', async () => {

@@ -496,7 +496,7 @@ export const typeDefs = /* GraphQL */ `
     """
     Ad snapshot for a digest post
     """
-    ad: DigestAd
+    ad: SkadiAd
   }
 
   type UserPostFlagsPublic {
@@ -552,7 +552,7 @@ export const typeDefs = /* GraphQL */ `
     summary: Boolean
   }
 
-  type DigestAd {
+  type SkadiAd {
     type: String!
     index: Int!
     title: String
