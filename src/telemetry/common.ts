@@ -38,3 +38,4 @@ export type AppVersionRequest = FastifyRequest<{
 }>;
 
 export const ignoredPaths = ['/health', '/liveness', '/metrics'];
+export const ignoredHosts = ['cdn.growthbook.io'];
