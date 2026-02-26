@@ -12,6 +12,8 @@ import { deleteKeysByPattern } from '../../src/redis';
 import { rateLimiterName } from '../../src/directive/rateLimit';
 import { yggdrasilSentimentClient } from '../../src/integrations/yggdrasil/clients';
 import { HttpError } from '../../src/integrations/retry';
+import { SentimentEntity } from '../../src/entity/SentimentEntity';
+import { SentimentGroup } from '../../src/entity/SentimentGroup';
 
 jest.mock('../../src/integrations/yggdrasil/clients', () => ({
   yggdrasilSentimentClient: {
@@ -465,5 +467,172 @@ describe('query sentimentHighlights', () => {
       'RATE_LIMITED',
       'Rate limit exceeded. Try again in 1 minute',
     );
+  });
+});
+
+describe('query sentimentGroups', () => {
+  const normalizeGroups = (
+    groups: {
+      id: string;
+      name: string;
+      entities: { entity: string; name: string; logo: string }[];
+    }[],
+  ) =>
+    [...groups]
+      .map((group) => ({
+        ...group,
+        entities: [...group.entities].sort((a, b) =>
+          a.entity.localeCompare(b.entity),
+        ),
+      }))
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+  const QUERY = /* GraphQL */ `
+    query SentimentGroups {
+      sentimentGroups {
+        id
+        name
+        entities {
+          entity
+          name
+          logo
+        }
+      }
+    }
+  `;
+
+  beforeEach(async () => {
+    await con
+      .getRepository(SentimentEntity)
+      .createQueryBuilder()
+      .delete()
+      .execute();
+    await con
+      .getRepository(SentimentGroup)
+      .createQueryBuilder()
+      .delete()
+      .execute();
+  });
+
+  it('should return groups with nested entities', async () => {
+    await con.getRepository(SentimentGroup).insert({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+    });
+    await con.getRepository(SentimentEntity).insert([
+      {
+        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a001',
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'cursor',
+        name: 'Cursor',
+        logo: 'https://media.daily.dev/image/upload/public/cursor',
+      },
+      {
+        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a002',
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'copilot',
+        name: 'Copilot',
+        logo: 'https://media.daily.dev/image/upload/public/copilot',
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(normalizeGroups(res.data.sentimentGroups)).toEqual([
+      {
+        id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        name: 'Coding Agents',
+        entities: [
+          {
+            entity: 'copilot',
+            name: 'Copilot',
+            logo: 'https://media.daily.dev/image/upload/public/copilot',
+          },
+          {
+            entity: 'cursor',
+            name: 'Cursor',
+            logo: 'https://media.daily.dev/image/upload/public/cursor',
+          },
+        ],
+      },
+    ]);
+  });
+
+  it('should return empty array when no groups exist', async () => {
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sentimentGroups).toEqual([]);
+  });
+
+  it('should keep entities grouped under their own group', async () => {
+    await con.getRepository(SentimentGroup).insert([
+      {
+        id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        name: 'Coding Agents',
+      },
+      {
+        id: '970ab2c9-f845-4822-82f0-02169713b814',
+        name: 'LLMs',
+      },
+    ]);
+
+    await con.getRepository(SentimentEntity).insert([
+      {
+        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a003',
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'cursor',
+        name: 'Cursor',
+        logo: 'https://media.daily.dev/image/upload/public/cursor',
+      },
+      {
+        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a004',
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'codex',
+        name: 'Codex',
+        logo: 'https://media.daily.dev/image/upload/public/openai',
+      },
+      {
+        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a005',
+        groupId: '970ab2c9-f845-4822-82f0-02169713b814',
+        entity: 'gemini',
+        name: 'Gemini',
+        logo: 'https://media.daily.dev/image/upload/public/gemini',
+      },
+    ]);
+
+    const res = await client.query(QUERY);
+
+    expect(res.errors).toBeFalsy();
+    expect(normalizeGroups(res.data.sentimentGroups)).toEqual([
+      {
+        id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        name: 'Coding Agents',
+        entities: [
+          {
+            entity: 'codex',
+            name: 'Codex',
+            logo: 'https://media.daily.dev/image/upload/public/openai',
+          },
+          {
+            entity: 'cursor',
+            name: 'Cursor',
+            logo: 'https://media.daily.dev/image/upload/public/cursor',
+          },
+        ],
+      },
+      {
+        id: '970ab2c9-f845-4822-82f0-02169713b814',
+        name: 'LLMs',
+        entities: [
+          {
+            entity: 'gemini',
+            name: 'Gemini',
+            logo: 'https://media.daily.dev/image/upload/public/gemini',
+          },
+        ],
+      },
+    ]);
   });
 });

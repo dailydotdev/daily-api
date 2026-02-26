@@ -1,7 +1,8 @@
 import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
-import type { BaseContext } from '../Context';
+import type { Context } from '../Context';
 import { NotFoundError } from '../errors';
+import graphorm from '../graphorm';
 import { HttpError } from '../integrations/retry';
 import { yggdrasilSentimentClient } from '../integrations/yggdrasil/clients';
 import type {
@@ -214,6 +215,18 @@ export const typeDefs = /* GraphQL */ `
     cursor: String
   }
 
+  type SentimentEntityMeta {
+    entity: String!
+    name: String!
+    logo: String!
+  }
+
+  type SentimentGroupMeta {
+    id: ID!
+    name: String!
+    entities: [SentimentEntityMeta!]!
+  }
+
   extend type Query {
     sentimentTimeSeries(
       resolution: SentimentResolution!
@@ -229,10 +242,12 @@ export const typeDefs = /* GraphQL */ `
       after: String
       orderBy: SentimentHighlightsOrderBy
     ): SentimentHighlightsConnection! @rateLimit(limit: 30, duration: 60)
+
+    sentimentGroups: [SentimentGroupMeta!]!
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = {
+export const resolvers: IResolvers<unknown, Context> = {
   Query: {
     sentimentTimeSeries: async (
       _,
@@ -293,6 +308,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
 
         throw error;
       }
+    },
+    sentimentGroups: async (_, __, ctx, info) => {
+      return graphorm.query(ctx, info, (builder) => builder, true);
     },
   },
 
