@@ -715,3 +715,7 @@ When upgrading Node.js version, update these files:
 - This file (`AGENTS.md` - Prerequisites section)
 
 After updating, run `pnpm install` to check if lock file needs updating and commit any changes.
+
+## Sentiment API Contract Notes
+
+- For sentiment time-window selection, use `resolution` consistently across GraphQL args, integration client params, and yggdrasil query-string mapping (`15m`, `1h`, `1d`). Avoid introducing parallel names like `bucket`.
