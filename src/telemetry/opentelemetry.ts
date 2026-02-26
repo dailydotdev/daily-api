@@ -89,7 +89,7 @@ export const startTelemetry = (): void => {
 
   initCounters(service.name as ServiceName);
   subscribeTracingHooks(service.name);
-  subscribeMetricsHooks(service.name);
+  subscribeMetricsHooks();
 
   closeWithGrace(async ({ signal, err }) => {
     if (err) {
