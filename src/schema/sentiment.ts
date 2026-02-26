@@ -2,8 +2,7 @@ import { ValidationError } from 'apollo-server-errors';
 import { IResolvers } from '@graphql-tools/utils';
 import type { Context } from '../Context';
 import { NotFoundError } from '../errors';
-import { queryReadReplica } from '../common/queryReadReplica';
-import { SentimentGroup } from '../entity/SentimentGroup';
+import graphorm from '../graphorm';
 import { HttpError } from '../integrations/retry';
 import { yggdrasilSentimentClient } from '../integrations/yggdrasil/clients';
 import type {
@@ -216,16 +215,16 @@ export const typeDefs = /* GraphQL */ `
     cursor: String
   }
 
-  type SentimentEntityMeta {
+  type SentimentEntity {
     entity: String!
     name: String!
     logo: String!
   }
 
-  type SentimentGroupMeta {
+  type SentimentGroup {
     id: ID!
     name: String!
-    entities: [SentimentEntityMeta!]!
+    entities: [SentimentEntity!]!
   }
 
   extend type Query {
@@ -244,7 +243,7 @@ export const typeDefs = /* GraphQL */ `
       orderBy: SentimentHighlightsOrderBy
     ): SentimentHighlightsConnection! @rateLimit(limit: 30, duration: 60)
 
-    sentimentGroup(id: ID!): SentimentGroupMeta
+    sentimentGroup(id: ID!): SentimentGroup
   }
 `;
 
@@ -310,12 +309,15 @@ export const resolvers: IResolvers<unknown, Context> = {
         throw error;
       }
     },
-    sentimentGroup: async (_, { id }: { id: string }, ctx) => {
-      return queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager.getRepository(SentimentGroup).findOne({
-          where: { id },
-          relations: { entities: true },
-        }),
+    sentimentGroup: async (_, { id }: { id: string }, ctx, info) => {
+      return graphorm.queryOne(
+        ctx,
+        info,
+        (builder) => {
+          builder.queryBuilder.where(`${builder.alias}.id = :id`, { id });
+          return builder;
+        },
+        true,
       );
     },
   },
