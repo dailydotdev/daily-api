@@ -501,19 +501,6 @@ describe('query sentimentGroups', () => {
     }
   `;
 
-  beforeEach(async () => {
-    await con
-      .getRepository(SentimentEntity)
-      .createQueryBuilder()
-      .delete()
-      .execute();
-    await con
-      .getRepository(SentimentGroup)
-      .createQueryBuilder()
-      .delete()
-      .execute();
-  });
-
   it('should return groups with nested entities', async () => {
     await con.getRepository(SentimentGroup).insert({
       id: '385404b4-f0f4-4e81-a338-bdca851eca31',
@@ -521,14 +508,12 @@ describe('query sentimentGroups', () => {
     });
     await con.getRepository(SentimentEntity).insert([
       {
-        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a001',
         groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
         entity: 'cursor',
         name: 'Cursor',
         logo: 'https://media.daily.dev/image/upload/public/cursor',
       },
       {
-        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a002',
         groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
         entity: 'copilot',
         name: 'Copilot',
@@ -580,21 +565,18 @@ describe('query sentimentGroups', () => {
 
     await con.getRepository(SentimentEntity).insert([
       {
-        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a003',
         groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
         entity: 'cursor',
         name: 'Cursor',
         logo: 'https://media.daily.dev/image/upload/public/cursor',
       },
       {
-        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a004',
         groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
         entity: 'codex',
         name: 'Codex',
         logo: 'https://media.daily.dev/image/upload/public/openai',
       },
       {
-        id: 'f0f47e74-e1d8-45a9-9a1f-56b12890a005',
         groupId: '970ab2c9-f845-4822-82f0-02169713b814',
         entity: 'gemini',
         name: 'Gemini',

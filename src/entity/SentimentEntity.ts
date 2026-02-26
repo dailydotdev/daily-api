@@ -3,6 +3,7 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   Unique,
@@ -23,6 +24,7 @@ export class SentimentEntity {
     lazy: true,
     onDelete: 'CASCADE',
   })
+  @JoinColumn({ name: 'groupId' })
   group: Promise<SentimentGroup>;
 
   @Column({ type: 'text' })
