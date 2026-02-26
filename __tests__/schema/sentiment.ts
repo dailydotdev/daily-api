@@ -617,13 +617,13 @@ describe('query topSentimentEntities', () => {
   const QUERY = /* GraphQL */ `
     query TopSentimentEntities(
       $groupId: ID!
-      $bucket: SentimentResolution!
+      $resolution: SentimentResolution!
       $lookback: String
       $limit: Int
     ) {
       topSentimentEntities(
         groupId: $groupId
-        bucket: $bucket
+        resolution: $resolution
         lookback: $lookback
         limit: $limit
       ) {
@@ -669,7 +669,7 @@ describe('query topSentimentEntities', () => {
     const res = await client.query(QUERY, {
       variables: {
         groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-        bucket: 'HOUR',
+        resolution: 'HOUR',
         lookback: '24h',
         limit: 10,
       },
@@ -678,7 +678,7 @@ describe('query topSentimentEntities', () => {
     expect(res.errors).toBeFalsy();
     expect(getTopEntitiesMock).toHaveBeenCalledWith({
       groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-      bucket: '1h',
+      resolution: '1h',
       lookback: '24h',
       limit: 10,
     });
@@ -728,14 +728,14 @@ describe('query topSentimentEntities', () => {
     const res = await client.query(QUERY, {
       variables: {
         groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-        bucket: 'DAY',
+        resolution: 'DAY',
       },
     });
 
     expect(res.errors).toBeFalsy();
     expect(getTopEntitiesMock).toHaveBeenCalledWith({
       groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-      bucket: '1d',
+      resolution: '1d',
       lookback: undefined,
       limit: 20,
     });
@@ -760,7 +760,7 @@ describe('query topSentimentEntities', () => {
         query: QUERY,
         variables: {
           groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-          bucket: 'HOUR',
+          resolution: 'HOUR',
           limit: 0,
         },
       },
@@ -784,7 +784,7 @@ describe('query topSentimentEntities', () => {
         query: QUERY,
         variables: {
           groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-          bucket: 'QUARTER_HOUR',
+          resolution: 'QUARTER_HOUR',
         },
       },
       'NOT_FOUND',
@@ -798,7 +798,7 @@ describe('query topSentimentEntities', () => {
       const response = await client.query(QUERY, {
         variables: {
           groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-          bucket: 'HOUR',
+          resolution: 'HOUR',
         },
       });
       expect(response.errors).toBeFalsy();
@@ -810,7 +810,7 @@ describe('query topSentimentEntities', () => {
         query: QUERY,
         variables: {
           groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
-          bucket: 'HOUR',
+          resolution: 'HOUR',
         },
       },
       'RATE_LIMITED',

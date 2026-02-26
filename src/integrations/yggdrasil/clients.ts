@@ -88,7 +88,7 @@ export class YggdrasilSentimentClient {
   getTopEntities(params: TopEntitiesParams): Promise<TopEntitiesResponse> {
     const searchParams = new URLSearchParams({
       group_id: params.groupId,
-      bucket: params.bucket,
+      resolution: params.resolution,
     });
 
     if (params.lookback) {

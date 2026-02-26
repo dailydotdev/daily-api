@@ -292,7 +292,7 @@ export const typeDefs = /* GraphQL */ `
 
     topSentimentEntities(
       groupId: ID!
-      bucket: SentimentResolution!
+      resolution: SentimentResolution!
       lookback: String
       limit: Int
     ): [SentimentTopEntity!]! @rateLimit(limit: 30, duration: 60)
@@ -368,7 +368,7 @@ export const resolvers: IResolvers<unknown, Context> = {
       _,
       args: {
         groupId: string;
-        bucket: SentimentResolution;
+        resolution: SentimentResolution;
         lookback?: string;
         limit?: number;
       },
@@ -379,7 +379,7 @@ export const resolvers: IResolvers<unknown, Context> = {
       try {
         const data = await yggdrasilSentimentClient.getTopEntities({
           groupId: args.groupId,
-          bucket: mapResolutionEnum(args.bucket),
+          resolution: mapResolutionEnum(args.resolution),
           lookback: args.lookback,
           limit,
         });

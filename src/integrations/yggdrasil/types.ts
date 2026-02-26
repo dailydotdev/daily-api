@@ -67,7 +67,7 @@ export type HighlightsResponse = {
 
 export type TopEntitiesParams = {
   groupId: string;
-  bucket: '15m' | '1h' | '1d';
+  resolution: '15m' | '1h' | '1d';
   lookback?: string;
   limit?: number;
 };
