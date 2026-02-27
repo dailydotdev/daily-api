@@ -77,6 +77,8 @@ export const DIGEST_SOURCE = 'digest';
 ])
 @Index('IDX_source_type_id', ['type', 'id'])
 @Index('IDX_source_private_id', ['private', 'id'])
+@Index('IDX_source_gin_name', { synchronize: false })
+@Index('IDX_source_gin_handle', { synchronize: false })
 @TableInheritance({
   column: { type: 'varchar', name: 'type', default: SourceType.Machine },
 })

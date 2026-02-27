@@ -164,4 +164,24 @@ describe('feedbackClassify worker', () => {
     expect(mockClassifyUserFeedback).not.toHaveBeenCalled();
     expect(mockCreateFeedbackIssue).not.toHaveBeenCalled();
   });
+
+  it('should keep new category values when creating Linear issue', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 7,
+      description: 'Content quality feedback',
+      status: FeedbackStatus.Pending,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-created'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(mockCreateFeedbackIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 7,
+      }),
+    );
+  });
 });
