@@ -2387,7 +2387,7 @@ const obj = new GraphORM({
     },
   },
   DatasetGear: {
-    requiredColumns: ['id', 'name'],
+    requiredColumns: ['id', 'name', 'category'],
     fields: {
       createdAt: {
         transform: transformDate,

@@ -2,6 +2,7 @@ import { env } from 'node:process';
 import { createClient } from '@connectrpc/connect';
 import { createGrpcTransport } from '@connectrpc/connect-node';
 import {
+  ClassifyGearResponse,
   ClassifyRejectionFeedbackResponse,
   ClassifyUserFeedbackResponse,
   FeedbackCategory,
@@ -12,6 +13,7 @@ import {
   FindCompanyNewsResponse,
   FindContactActivityResponse,
   FindJobVacanciesResponse,
+  GearCategory as ProtoGearCategory,
   GenerateRecruiterEmailResponse,
   ParseFeedbackResponse,
   Pipelines,
@@ -111,6 +113,12 @@ export const getBragiClient = (
               ],
               summary: 'Mock rejection summary',
             }),
+          }),
+        classifyGear: async ({ name }: { name: string }) =>
+          new ClassifyGearResponse({
+            id: 'mock-id',
+            category: ProtoGearCategory.OTHER,
+            normalizedName: name,
           }),
       } as unknown as ReturnType<typeof createClient<typeof Pipelines>>,
       garmr: new GarmrNoopService(),

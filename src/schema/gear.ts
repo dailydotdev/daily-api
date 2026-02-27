@@ -12,16 +12,34 @@ import {
 } from '../common/schema/gear';
 import { findOrCreateDatasetGear } from '../common/datasetGear';
 import { NEW_ITEM_POSITION } from '../common/constants';
+import { GearCategory } from '../common/gearCategory';
+import { PopularGear } from '../entity/PopularGear';
+import { queryReadReplica } from '../common/queryReadReplica';
+import { toGQLEnum } from '../common/utils';
 
-interface GQLGear {
+type GQLPopularGearItem = {
+  gearId: string;
+  name: string;
+  category: string;
+  userCount: number;
+};
+
+type GQLGearCategoryInfo = {
+  category: string;
+  count: number;
+};
+
+type GQLGear = {
   id: string;
   userId: string;
   gearId: string;
   position: number;
   createdAt: Date;
-}
+};
 
 export const typeDefs = /* GraphQL */ `
+  ${toGQLEnum(GearCategory, 'GearCategory')}
+
   type Gear {
     id: ID!
     gear: DatasetGear!
@@ -42,6 +60,19 @@ export const typeDefs = /* GraphQL */ `
   type DatasetGear {
     id: ID!
     name: String!
+    category: GearCategory
+  }
+
+  type PopularGearItem {
+    gearId: ID!
+    name: String!
+    category: GearCategory!
+    userCount: Int!
+  }
+
+  type GearCategoryInfo {
+    category: GearCategory!
+    count: Int!
   }
 
   input AddGearInput {
@@ -58,6 +89,17 @@ export const typeDefs = /* GraphQL */ `
     Get a user's gear
     """
     gear(userId: ID!, first: Int, after: String): GearConnection!
+
+    """
+    Get popular gear items, optionally filtered by category
+    """
+    popularGear(category: GearCategory, limit: Int): [PopularGearItem!]!
+      @cacheControl(maxAge: 600)
+
+    """
+    Get gear categories with counts
+    """
+    gearCategories: [GearCategoryInfo!]! @cacheControl(maxAge: 600)
   }
 
   extend type Mutation {
@@ -80,6 +122,46 @@ export const typeDefs = /* GraphQL */ `
 
 export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
+    popularGear: async (
+      _,
+      args: { category?: string; limit?: number },
+      ctx: Context,
+    ): Promise<GQLPopularGearItem[]> => {
+      const limit = Math.min(args.limit ?? 20, 50);
+
+      return queryReadReplica(ctx.con, ({ queryRunner }) => {
+        const qb = queryRunner.manager
+          .getRepository(PopularGear)
+          .createQueryBuilder('pg')
+          .orderBy('pg."userCount"', 'DESC')
+          .limit(limit);
+
+        if (args.category) {
+          qb.where('pg."category" = :category', {
+            category: args.category,
+          });
+        }
+
+        return qb.getMany();
+      });
+    },
+
+    gearCategories: async (
+      _,
+      __,
+      ctx: Context,
+    ): Promise<GQLGearCategoryInfo[]> =>
+      queryReadReplica(ctx.con, ({ queryRunner }) =>
+        queryRunner.manager
+          .getRepository(PopularGear)
+          .createQueryBuilder('pg')
+          .select('pg."category"', 'category')
+          .addSelect('COUNT(DISTINCT pg."gearId")', 'count')
+          .groupBy('pg."category"')
+          .orderBy('count', 'DESC')
+          .getRawMany<GQLGearCategoryInfo>(),
+      ),
+
     gear: async (
       _,
       args: { userId: string; first?: number; after?: string },
@@ -125,7 +207,11 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
     ) => {
       const input = addGearSchema.parse(args.input);
 
-      const datasetGear = await findOrCreateDatasetGear(ctx.con, input.name);
+      const datasetGear = await findOrCreateDatasetGear(
+        ctx.con,
+        input.name,
+        ctx.log,
+      );
 
       const existing = await ctx.con.getRepository(UserGear).findOne({
         where: {

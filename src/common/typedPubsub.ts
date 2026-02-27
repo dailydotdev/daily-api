@@ -274,6 +274,9 @@ export type PubSubSchema = {
   'api.v1.opportunity-parse': {
     opportunityId: string;
   };
+  'api.v1.gear-created': {
+    gearId: string;
+  };
   'api.v1.feedback-created': {
     feedbackId: string;
   };

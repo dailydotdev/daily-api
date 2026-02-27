@@ -17,6 +17,9 @@ export class DatasetGear {
   @Column({ type: 'text' })
   nameNormalized: string;
 
+  @Column({ type: 'text', nullable: true })
+  category: string | null;
+
   @Column({ type: 'timestamp', default: () => 'now()' })
   createdAt: Date;
 }

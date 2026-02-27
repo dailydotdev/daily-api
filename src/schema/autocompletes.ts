@@ -69,6 +69,7 @@ export const typeDefs = /* GraphQL */ `
   type DatasetGear {
     id: ID!
     name: String!
+    category: GearCategory
   }
 
   type GitHubRepository {
@@ -330,19 +331,20 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
         .replace(/\./g, 'dot')
         .replace(/\+/g, 'plus')
         .replace(/#/g, 'sharp')
+        .replace(/[-'"/]/g, '')
         .replace(/\s+/g, '');
 
       const { DatasetGear } = await import('../entity/dataset/DatasetGear');
 
-      return queryReadReplica(ctx.con, ({ queryRunner }) =>
-        queryRunner.manager
-          .getRepository(DatasetGear)
+      return queryReadReplica(ctx.con, async ({ queryRunner }) => {
+        const repo = queryRunner.manager.getRepository(DatasetGear);
+
+        const exactMatches = await repo
           .createQueryBuilder('dg')
           .where('dg."nameNormalized" LIKE :query', {
             query: `%${normalizedQuery}%`,
           })
           .setParameter('exactQuery', normalizedQuery)
-          // Prioritize: exact match first, then shorter names, then alphabetically
           .orderBy(
             `CASE WHEN dg."nameNormalized" = :exactQuery THEN 0 ELSE 1 END`,
             'ASC',
@@ -350,8 +352,32 @@ export const resolvers: IResolvers<unknown, BaseContext> = {
           .addOrderBy('LENGTH(dg."name")', 'ASC')
           .addOrderBy('dg."name"', 'ASC')
           .limit(10)
-          .getMany(),
-      );
+          .getMany();
+
+        if (exactMatches.length >= 3) {
+          return exactMatches;
+        }
+
+        const exactIds = exactMatches.map((m) => m.id);
+        const remaining = 10 - exactMatches.length;
+
+        const fuzzyQuery = repo
+          .createQueryBuilder('dg')
+          .where('similarity(dg."name", :rawQuery) > 0.2', {
+            rawQuery: result.data.query,
+          })
+          .orderBy('similarity(dg."name", :rawQuery)', 'DESC')
+          .addOrderBy('dg."name"', 'ASC')
+          .limit(remaining);
+
+        if (exactIds.length > 0) {
+          fuzzyQuery.andWhere('dg."id" NOT IN (:...exactIds)', { exactIds });
+        }
+
+        const fuzzyMatches = await fuzzyQuery.getMany();
+
+        return [...exactMatches, ...fuzzyMatches];
+      });
     },
   },
 };
