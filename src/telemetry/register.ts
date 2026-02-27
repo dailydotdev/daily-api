@@ -11,7 +11,7 @@ import { GrpcInstrumentation } from '@opentelemetry/instrumentation-grpc';
 import { TypeormInstrumentation } from '@opentelemetry/instrumentation-typeorm';
 import { UndiciInstrumentation } from '@opentelemetry/instrumentation-undici';
 
-import { enableOpenTelemetry, ignoredPaths } from './common';
+import { enableOpenTelemetry, ignoredHosts, ignoredPaths } from './common';
 
 const getInstrumentations = () => [
   new HttpInstrumentation({
@@ -23,6 +23,8 @@ const getInstrumentations = () => [
     },
     ignoreIncomingRequestHook: (request) =>
       ignoredPaths.some((path) => request.url?.includes(path)),
+    ignoreOutgoingRequestHook: (request) =>
+      ignoredHosts.some((host) => request.host?.includes(host)),
   }),
   new GraphQLInstrumentation({
     mergeItems: true,
@@ -44,7 +46,10 @@ const getInstrumentations = () => [
   new TypeormInstrumentation({
     suppressInternalInstrumentation: true,
   }),
-  new UndiciInstrumentation(),
+  new UndiciInstrumentation({
+    ignoreRequestHook: (request) =>
+      ignoredHosts.some((host) => request.origin?.includes(host)),
+  }),
 ];
 
 export const instrumentations = enableOpenTelemetry
