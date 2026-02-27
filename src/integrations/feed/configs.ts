@@ -8,7 +8,7 @@ import {
 } from './types';
 import { AnonymousFeedFilters, feedToFilters } from '../../common';
 import { postTypes } from '../../entity';
-import { runInSpan } from '../../telemetry';
+import { runInSpan } from '@dailydotdev/node-common/telemetry';
 import { ILofnClient } from '../lofn';
 import { Context } from '../../Context';
 

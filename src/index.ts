@@ -5,6 +5,7 @@ import fastify, {
   FastifyError,
   FastifyReply,
   type FastifyRegisterOptions,
+  type FastifyPluginCallback,
 } from 'fastify';
 import fastifyRawBody from 'fastify-raw-body';
 import helmet from '@fastify/helmet';
@@ -30,15 +31,17 @@ import cookie, { FastifyCookieOptions } from '@fastify/cookie';
 import { getSubscriptionSettings } from './subscription';
 import { ioRedisPool } from './redis';
 import { loadFeatures } from './growthbook';
-import { runInRootSpan } from './telemetry';
-import { loggerConfig } from './logger';
+import { runInRootSpan } from '@dailydotdev/node-common/telemetry';
 import { getTemporalClient } from './temporal/client';
 import { BrokenCircuitError } from 'cockatiel';
 import { remoteConfig } from './remoteConfig';
 import { ZodError } from 'zod';
 import { closeClickHouseClient } from './common/clickhouse';
 import { GQL_MAX_FILE_SIZE } from './config';
-import otelPlugin from './telemetry/plugin';
+import { pinoLoggerConfig } from '@dailydotdev/node-common/logger';
+import otelPlugin, {
+  type FastifyOtelPluginOptions,
+} from '@dailydotdev/node-common/telemetry/plugin';
 
 type Mutable<Type> = {
   -readonly [Key in keyof Type]: Type[Key];
@@ -71,7 +74,7 @@ export default async function app(
   );
 
   const app = fastify({
-    logger: loggerConfig,
+    logger: pinoLoggerConfig,
     disableRequestLogging: true,
     trustProxy: true,
     routerOptions: {
@@ -80,7 +83,9 @@ export default async function app(
   });
 
   app.log.info('loading features');
-  app.register(otelPlugin);
+  app.register(
+    otelPlugin as unknown as FastifyPluginCallback<FastifyOtelPluginOptions>, // TODO: Fix this
+  );
   await loadFeatures(app.log);
 
   const gracefulShutdown = () => {

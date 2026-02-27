@@ -6,7 +6,7 @@ import './config';
 import { crons } from './cron/index';
 import createOrGetConnection from './db';
 import { logger } from './logger';
-import { runInRootSpan } from './telemetry';
+import { runInRootSpan } from '@dailydotdev/node-common/telemetry';
 
 export default async function app(cronName: string): Promise<void> {
   const connection = await createOrGetConnection();

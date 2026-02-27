@@ -28,7 +28,7 @@ import {
 } from '../schema/common';
 import graphorm from '../graphorm';
 import { mapArrayToOjbect } from './object';
-import { runInSpan } from '../telemetry';
+import { runInSpan } from '@dailydotdev/node-common/telemetry';
 import { whereVordrFilter } from './vordr';
 import { baseFeedConfig, type FeedFlagsFilters } from '../integrations/feed';
 import type { FeedResponse } from '../integrations/feed/types';
