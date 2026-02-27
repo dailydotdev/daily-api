@@ -3,18 +3,14 @@ import {
   UserFeedbackSentiment,
 } from '@dailydotdev/schema';
 
-const USER_FEEDBACK_CATEGORY_UX_ISSUE = 5;
-const USER_FEEDBACK_CATEGORY_PERFORMANCE = 6;
-const USER_FEEDBACK_CATEGORY_CONTENT_QUALITY = 7;
-
 const categoryDisplayNames: Record<number, string> = {
   [UserFeedbackCategory.BUG]: 'Bug Report',
   [UserFeedbackCategory.FEATURE_REQUEST]: 'Feature Request',
   [UserFeedbackCategory.GENERAL]: 'General Feedback',
   [UserFeedbackCategory.OTHER]: 'Other',
-  [USER_FEEDBACK_CATEGORY_UX_ISSUE]: 'UX Issue',
-  [USER_FEEDBACK_CATEGORY_PERFORMANCE]: 'Performance',
-  [USER_FEEDBACK_CATEGORY_CONTENT_QUALITY]: 'Content Quality',
+  [UserFeedbackCategory.UX_ISSUE]: 'UX Issue',
+  [UserFeedbackCategory.PERFORMANCE]: 'Performance',
+  [UserFeedbackCategory.CONTENT_QUALITY]: 'Content Quality',
 };
 
 const categoryLabelNames: Record<number, string> = {
@@ -22,9 +18,9 @@ const categoryLabelNames: Record<number, string> = {
   [UserFeedbackCategory.FEATURE_REQUEST]: 'feature-request',
   [UserFeedbackCategory.GENERAL]: 'general',
   [UserFeedbackCategory.OTHER]: 'other',
-  [USER_FEEDBACK_CATEGORY_UX_ISSUE]: 'ux-issue',
-  [USER_FEEDBACK_CATEGORY_PERFORMANCE]: 'performance',
-  [USER_FEEDBACK_CATEGORY_CONTENT_QUALITY]: 'content-quality',
+  [UserFeedbackCategory.UX_ISSUE]: 'ux-issue',
+  [UserFeedbackCategory.PERFORMANCE]: 'performance',
+  [UserFeedbackCategory.CONTENT_QUALITY]: 'content-quality',
 };
 
 export const getCategoryDisplayName = (category: number): string => {
