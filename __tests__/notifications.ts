@@ -484,9 +484,7 @@ describe('query notifications', () => {
       },
     ]);
     const res = await client.query(QUERY);
-    const titles = res.data.notifications.edges.map(
-      (e) => e.node.title,
-    );
+    const titles = res.data.notifications.edges.map((e) => e.node.title);
     expect(titles).toHaveLength(2);
     expect(titles).toContain('visible');
     expect(titles).toContain('past showAt');
@@ -693,10 +691,12 @@ describe('mutation readNotifications', () => {
 
   it('should not mark future showAt notifications as read', async () => {
     loggedUser = '1';
-    const notifs = await con.getRepository(NotificationV2).save([
-      { ...notificationV2Fixture },
-      { ...notificationV2Fixture, uniqueKey: '2' },
-    ]);
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([
+        { ...notificationV2Fixture },
+        { ...notificationV2Fixture, uniqueKey: '2' },
+      ]);
     await con.getRepository(UserNotification).insert([
       {
         userId: '1',
@@ -711,15 +711,12 @@ describe('mutation readNotifications', () => {
       },
     ]);
     await client.mutate(QUERY);
-    const userNotifs = await con
-      .getRepository(UserNotification)
-      .find({ where: { userId: '1' }, order: { notificationId: 'ASC' } });
-    const immediate = userNotifs.find(
-      (n) => n.notificationId === notifs[0].id,
-    );
-    const future = userNotifs.find(
-      (n) => n.notificationId === notifs[1].id,
-    );
+    const userNotifs = await con.getRepository(UserNotification).find({
+      where: { userId: '1' },
+      order: { notificationId: 'ASC' },
+    });
+    const immediate = userNotifs.find((n) => n.notificationId === notifs[0].id);
+    const future = userNotifs.find((n) => n.notificationId === notifs[1].id);
     expect(immediate.readAt).toBeTruthy();
     expect(future.readAt).toBeNull();
   });
