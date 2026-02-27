@@ -235,4 +235,34 @@ describe('feedbackUpdatedSlack worker', () => {
     expect(updated?.flags?.slackNotifiedAt).toBeUndefined();
     expect(postMessageMock).toHaveBeenCalledTimes(1);
   });
+
+  it('should render new category display names in slack notification', async () => {
+    const feedback = await con.getRepository(Feedback).save({
+      userId: '1',
+      category: 7,
+      description: 'Content quality feedback',
+      status: FeedbackStatus.Accepted,
+      flags: {},
+    });
+
+    await expectSuccessfulTypedBackground<'api.v1.feedback-updated'>(worker, {
+      feedbackId: feedback.id,
+    });
+
+    expect(postMessageMock).toHaveBeenCalledTimes(1);
+    const [{ blocks }] = postMessageMock.mock.calls[0];
+    const categoryBlock = blocks?.find((block) => {
+      if (block.type !== 'section' || !('fields' in block)) {
+        return false;
+      }
+
+      return block.fields?.some(
+        (field) =>
+          field.type === 'mrkdwn' &&
+          field.text === '*Category:*\nContent Quality',
+      );
+    });
+
+    expect(categoryBlock).toBeDefined();
+  });
 });

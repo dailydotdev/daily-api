@@ -21,7 +21,7 @@ export const typeDefs = /* GraphQL */ `
   """
   input FeedbackInput {
     """
-    Category of feedback (BUG, FEATURE_REQUEST, GENERAL, OTHER)
+    Category of feedback (BUG, FEATURE_REQUEST, GENERAL, OTHER, UX_ISSUE, PERFORMANCE, CONTENT_QUALITY)
     """
     category: ProtoEnumValue!
 
