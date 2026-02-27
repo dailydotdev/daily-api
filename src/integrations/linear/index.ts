@@ -73,6 +73,12 @@ const getCategoryLabelName = (category: number): string => {
       return 'general';
     case UserFeedbackCategory.OTHER:
       return 'other';
+    case 5:
+      return 'ux-issue';
+    case 6:
+      return 'performance';
+    case 7:
+      return 'content-quality';
     default:
       return 'unknown';
   }

@@ -1,7 +1,6 @@
-import { UserFeedbackCategory } from '@dailydotdev/schema';
 import { z } from 'zod';
 
-export const feedbackCategorySchema = z.enum(UserFeedbackCategory);
+export const feedbackCategorySchema = z.literal([0, 1, 2, 3, 4, 5, 6, 7]);
 
 export const feedbackInputSchema = z.object({
   category: feedbackCategorySchema,

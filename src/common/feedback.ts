@@ -13,6 +13,12 @@ export const getCategoryDisplayName = (category: number): string => {
       return 'General Feedback';
     case UserFeedbackCategory.OTHER:
       return 'Other';
+    case 5:
+      return 'UX Issue';
+    case 6:
+      return 'Performance';
+    case 7:
+      return 'Content Quality';
     default:
       return 'Feedback';
   }
