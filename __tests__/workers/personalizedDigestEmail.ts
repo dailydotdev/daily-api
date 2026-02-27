@@ -683,6 +683,42 @@ describe('personalizedDigestEmail worker', () => {
     expect(digestPost).toBeTruthy();
   });
 
+  // briefing_ready email is same topic in cio so that is the check
+  it('should skip email but still create DigestPost and notification when BriefingReady email is muted', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        notificationFlags: {
+          briefing_ready: { email: 'muted', inApp: 'subscribed' },
+        },
+      },
+    );
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPost).toBeTruthy();
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+    expect(notification).not.toBeNull();
+  });
+
   it('should store ad snapshot in DigestPost flags for non-Plus user', async () => {
     const personalizedDigest = await con
       .getRepository(UserPersonalizedDigest)

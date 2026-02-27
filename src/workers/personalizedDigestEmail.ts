@@ -6,7 +6,10 @@ import {
   triggerTypedEvent,
 } from '../common';
 import { generateAndStoreNotificationsV2 } from '../notifications';
-import { NotificationType } from '../notifications/common';
+import {
+  NotificationPreferenceStatus,
+  NotificationType,
+} from '../notifications/common';
 import { buildPostContext } from './notifications/utils';
 import {
   BRIEFING_SOURCE,
@@ -181,7 +184,18 @@ const digestTypeToFunctionMap: Record<
           });
         }
 
-        await sendEmail(emailPayload);
+        const emailPref =
+          user.notificationFlags?.[NotificationType.BriefingReady]?.email ??
+          NotificationPreferenceStatus.Subscribed;
+
+        if (emailPref === NotificationPreferenceStatus.Muted) {
+          logger.warn(
+            { userId: user.id },
+            'Skipping digest email, user has BriefingReady email muted',
+          );
+        } else {
+          await sendEmail(emailPayload);
+        }
       },
       {
         con,
