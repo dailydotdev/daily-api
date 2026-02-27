@@ -1,6 +1,5 @@
 import { LinearClient } from '@linear/sdk';
 import {
-  UserFeedbackCategory,
   UserFeedbackSentiment,
   UserFeedbackTeam,
   UserFeedbackUrgency,
@@ -10,6 +9,7 @@ import type { FeedbackClassification } from '../../entity/Feedback';
 import { GarmrService, IGarmrClient } from '../garmr';
 import {
   getCategoryDisplayName,
+  getCategoryLabelName,
   getSentimentEmoji,
 } from '../../common/feedback';
 
@@ -62,27 +62,6 @@ interface CreateFeedbackIssueResult {
 
 const mapUrgencyToPriority = (urgency?: string): number =>
   Number(urgency) || UserFeedbackUrgency.MEDIUM;
-
-const getCategoryLabelName = (category: number): string => {
-  switch (category) {
-    case UserFeedbackCategory.BUG:
-      return 'bug';
-    case UserFeedbackCategory.FEATURE_REQUEST:
-      return 'feature-request';
-    case UserFeedbackCategory.GENERAL:
-      return 'general';
-    case UserFeedbackCategory.OTHER:
-      return 'other';
-    case 5:
-      return 'ux-issue';
-    case 6:
-      return 'performance';
-    case 7:
-      return 'content-quality';
-    default:
-      return 'unknown';
-  }
-};
 
 const getUrgencyDisplayName = (urgency?: string): string => {
   switch (Number(urgency)) {
