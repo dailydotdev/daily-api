@@ -173,6 +173,7 @@ const digestTypeToFunctionMap: Record<
                   ctx: {
                     ...postCtx,
                     userIds: [user.id],
+                    sendAtMs: emailSendTimestamp,
                   },
                 },
               ]);
