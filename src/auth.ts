@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { Roles } from './roles';
 import { cookies } from './cookies';
 import * as fs from 'fs';
-import { runInSpan } from './telemetry';
+import { runInSpan } from '@dailydotdev/node-common/telemetry';
 
 const INTERNAL_AUTH_MAX_AGE_MS = 5000; // 5 seconds
 

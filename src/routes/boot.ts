@@ -70,8 +70,8 @@ import {
   getUserGrowthBookInstance,
 } from '../growthbook';
 import { differenceInMinutes, isSameDay, subDays } from 'date-fns';
+import { runInSpan } from '@dailydotdev/node-common/telemetry';
 import {
-  runInSpan,
   SEMATTRS_DAILY_APPS_USER_ID,
   SEMATTRS_DAILY_STAFF,
 } from '../telemetry';

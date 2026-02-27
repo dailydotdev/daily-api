@@ -1,7 +1,7 @@
 import retry, { OperationOptions } from 'retry';
 import isNetworkError from './networkError';
 import fetch, { RequestInfo, RequestInit, Response } from 'node-fetch';
-import { runInSpan } from '../telemetry';
+import { runInSpan } from '@dailydotdev/node-common/telemetry';
 import { trace } from '@opentelemetry/api';
 import {
   ATTR_HTTP_REQUEST_METHOD,

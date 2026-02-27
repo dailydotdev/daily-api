@@ -23,7 +23,8 @@ import {
 import { ChangeMessage, ChangeObject } from '../types';
 import { SourceMemberRoles } from '../roles';
 import { SpanKind } from '@opentelemetry/api';
-import { addPubsubSpanLabels, runInRootSpan, runInSpan } from '../telemetry';
+import { addPubsubSpanLabels } from '../telemetry';
+import { runInRootSpan, runInSpan } from '@dailydotdev/node-common/telemetry';
 import { Message } from '@google-cloud/pubsub';
 // import { performance } from 'perf_hooks';
 import { DataSource } from 'typeorm';

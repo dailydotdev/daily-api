@@ -1,4 +1,4 @@
-import { runInRootSpan } from './telemetry';
+import { runInRootSpan } from '@dailydotdev/node-common/telemetry';
 import 'reflect-metadata';
 import { PubSub } from '@google-cloud/pubsub';
 
