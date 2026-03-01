@@ -1,6 +1,7 @@
 import { DeepPartial } from 'typeorm';
 import {
   BRIEFING_SOURCE,
+  DIGEST_SOURCE,
   MachineSource,
   Source,
   SourceType,
@@ -98,6 +99,15 @@ export const sourcesFixture: DeepPartial<MachineSource>[] = [
     name: 'Presidential briefing',
     image: 'http//image.com/briefing',
     handle: BRIEFING_SOURCE,
+    type: SourceType.Machine,
+    active: true,
+    private: false,
+  },
+  {
+    id: DIGEST_SOURCE,
+    name: 'Digest',
+    image: 'http//image.com/digest',
+    handle: DIGEST_SOURCE,
     type: SourceType.Machine,
     active: true,
     private: false,

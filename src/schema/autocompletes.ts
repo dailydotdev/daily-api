@@ -1,6 +1,6 @@
 import { Keyword, KeywordStatus } from '../entity';
 import { AutocompleteType, Autocomplete } from '../entity/Autocomplete';
-import { traceResolvers } from './trace';
+import type { IResolvers } from '@graphql-tools/utils';
 import { FindOptionsWhere, ILike, Raw } from 'typeorm';
 import { AuthContext, BaseContext } from '../Context';
 import { textToSlug, toGQLEnum, type GQLCompany } from '../common';
@@ -124,7 +124,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers = traceResolvers<unknown, BaseContext>({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     autocomplete: async (
       _,
@@ -354,4 +354,4 @@ export const resolvers = traceResolvers<unknown, BaseContext>({
       );
     },
   },
-});
+};

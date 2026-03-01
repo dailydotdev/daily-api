@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext } from '../Context';
 import { Feedback, FeedbackStatus } from '../entity/Feedback';
 import { ContentImage, ContentImageUsedByType } from '../entity/ContentImage';
@@ -22,7 +21,7 @@ export const typeDefs = /* GraphQL */ `
   """
   input FeedbackInput {
     """
-    Category of feedback (BUG, FEATURE_REQUEST, GENERAL, OTHER)
+    Category of feedback (BUG, FEATURE_REQUEST, GENERAL, OTHER, UX_ISSUE, PERFORMANCE, CONTENT_QUALITY)
     """
     category: ProtoEnumValue!
 
@@ -72,10 +71,7 @@ export const typeDefs = /* GraphQL */ `
   }
 `;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     submitFeedback: async (
       _,
@@ -125,4 +121,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
     },
   },
-});
+};

@@ -15,7 +15,6 @@ import {
   sourceTypesWithMembers,
 } from './sources';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   checkIfUserPostInSourceDirectlyOrThrow,
   createFreeformPost,
@@ -488,6 +487,16 @@ export const typeDefs = /* GraphQL */ `
     Time the post was generated
     """
     generatedAt: DateTime
+
+    """
+    Post IDs included in a digest post
+    """
+    digestPostIds: [String]
+
+    """
+    Ad snapshot for a digest post
+    """
+    ad: SkadiAd
   }
 
   type UserPostFlagsPublic {
@@ -541,6 +550,17 @@ export const typeDefs = /* GraphQL */ `
     smartTitle: Boolean
     titleHtml: Boolean
     summary: Boolean
+  }
+
+  type SkadiAd {
+    type: String!
+    index: Int!
+    title: String
+    link: String
+    image: String
+    companyName: String
+    companyLogo: String
+    callToAction: String
   }
 
   """
@@ -1912,10 +1932,7 @@ const postCodeSnippetPageGenerator = offsetPageGenerator<GQLPostCodeSnippet>(
   500,
 );
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     sourcePostModeration: async (
       _,
@@ -2451,8 +2468,8 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
               })
               .andWhere(`${builder.alias}.deleted = false`)
               .andWhere(`${builder.alias}.visible = true`)
-              .andWhere(`${builder.alias}.type != :briefType`, {
-                briefType: PostType.Brief,
+              .andWhere(`${builder.alias}.type NOT IN (:...excludedTypes)`, {
+                excludedTypes: [PostType.Brief, PostType.Digest],
               });
 
             return builder;
@@ -3578,4 +3595,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     title: (preview: ExternalLinkPreview) =>
       preview.title?.length ? preview.title : DEFAULT_POST_TITLE,
   },
-});
+};

@@ -1,6 +1,5 @@
 import { User } from './../entity';
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { BaseContext } from '../Context';
 import { GQLPost } from './posts';
 import { SubmissionFailErrorMessage } from '../errors';
@@ -75,10 +74,7 @@ export const typeDefs = /* GraphQL */ `
 export const hasSubmissionAccess = (user: User) =>
   user.reputation >= submissionAccessThreshold;
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     // Feature deprecated, will be removed in the future
     submissionAvailability: async (): Promise<GQLSubmissionAvailability> => {
@@ -98,4 +94,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       };
     },
   },
-});
+};

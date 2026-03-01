@@ -77,7 +77,7 @@ config:
     otelServiceName: api
     otelTracesSampler: always_on
     # This can be removed once @opentelemetry/instrumentation-pg has defaulted to stable semconvs
-    otelSemconvStabilityOptIn: database
+    otelSemconvStabilityOptIn: database,http
     paddleApiKey: topsecret
     paddleEnvironment: sandbox
     paddleWebhookSecret: topsecret

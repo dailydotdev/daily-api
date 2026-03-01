@@ -1,6 +1,5 @@
 import { Alerts, ALERTS_DEFAULT, UserActionType } from '../entity';
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { AuthContext, BaseContext, Context } from '../Context';
 import { DataSource, QueryRunner } from 'typeorm';
 import { insertOrIgnoreAction } from './actions';
@@ -291,10 +290,7 @@ export const getAlerts = async (
   return ALERTS_DEFAULT as Alerts;
 };
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Mutation: {
     updateUserAlerts: async (
       _,
@@ -360,4 +356,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     userAlerts: (_, __, ctx: Context): Promise<GQLAlerts> | GQLAlerts =>
       getAlerts(ctx.con, ctx.userId),
   },
-});
+};

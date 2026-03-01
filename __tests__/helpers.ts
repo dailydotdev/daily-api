@@ -32,6 +32,7 @@ import {
 import { NotificationType } from '../src/notifications/common';
 import { DataLoaderService, defaultCacheKeyFn } from '../src/dataLoaderService';
 import type { Span } from '@opentelemetry/api';
+import { context, propagation, trace } from '@opentelemetry/api';
 import { logger } from '../src/logger';
 import {
   Code as ConnectCode,
@@ -158,6 +159,18 @@ export const initializeGraphQLTesting = async (
   contextFn: (request: FastifyRequest) => Context,
 ): Promise<GraphQLTestingState> => {
   const app = await appFunc(contextFn);
+  if (!app.hasRequestDecorator('opentelemetry')) {
+    app.decorateRequest('opentelemetry', function opentelemetry() {
+      const ctx = context.active();
+      return {
+        span: null,
+        tracer: trace.getTracer('test'),
+        context: ctx,
+        inject: (carrier, setter) => propagation.inject(ctx, carrier, setter),
+        extract: (carrier, getter) => propagation.extract(ctx, carrier, getter),
+      };
+    });
+  }
   const client = createMercuriusTestClient(app);
   await app.ready();
   return { app, client };

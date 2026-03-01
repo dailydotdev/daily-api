@@ -1,3 +1,11 @@
+jest.mock('../../../src/common/datasetTool', () => ({
+  ...(jest.requireActual('../../../src/common/datasetTool') as Record<
+    string,
+    unknown
+  >),
+  fetchAndUploadToolIcon: jest.fn().mockResolvedValue(null),
+}));
+
 import request from 'supertest';
 import { setupPublicApiTests, createTokenForUser } from './helpers';
 import { DatasetTool } from '../../../src/entity/dataset/DatasetTool';

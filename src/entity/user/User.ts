@@ -36,6 +36,7 @@ export type UserFlags = Partial<{
   showPlusGift: boolean;
   syncedAchievements: boolean;
   trackedAchievementId: string | null;
+  showcaseAchievementIds: string[] | null;
   country: string | null;
   city: string | null;
   continent: string | null;

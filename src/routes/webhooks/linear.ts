@@ -21,6 +21,13 @@ const linearStateToFeedbackStatus: Record<string, FeedbackStatus> = {
   Canceled: FeedbackStatus.Cancelled,
 };
 
+const feedbackStatusToNotificationType: Partial<
+  Record<FeedbackStatus, NotificationType>
+> = {
+  [FeedbackStatus.Completed]: NotificationType.FeedbackResolved,
+  [FeedbackStatus.Cancelled]: NotificationType.FeedbackCancelled,
+};
+
 const verifyLinearSignature = (
   webhookSecret: string,
   req: FastifyRequest,
@@ -115,17 +122,14 @@ export const linear = async (fastify: FastifyInstance): Promise<void> => {
           .getRepository(Feedback)
           .update({ id: feedback.id }, { status: newStatus });
 
-        // Generate notification if status changed to Completed
-        if (newStatus === FeedbackStatus.Completed) {
+        const notificationType = feedbackStatusToNotificationType[newStatus];
+        if (notificationType) {
           const ctx: NotificationFeedbackResolvedContext = {
             userIds: [feedback.userId],
             feedbackId: feedback.id,
             feedbackDescription: feedback.description,
           };
-          const bundle = generateNotificationV2(
-            NotificationType.FeedbackResolved,
-            ctx,
-          );
+          const bundle = generateNotificationV2(notificationType, ctx);
           await storeNotificationBundleV2(manager, bundle);
         }
       });

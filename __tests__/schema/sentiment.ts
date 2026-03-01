@@ -12,11 +12,14 @@ import { deleteKeysByPattern } from '../../src/redis';
 import { rateLimiterName } from '../../src/directive/rateLimit';
 import { yggdrasilSentimentClient } from '../../src/integrations/yggdrasil/clients';
 import { HttpError } from '../../src/integrations/retry';
+import { SentimentEntity } from '../../src/entity/SentimentEntity';
+import { SentimentGroup } from '../../src/entity/SentimentGroup';
 
 jest.mock('../../src/integrations/yggdrasil/clients', () => ({
   yggdrasilSentimentClient: {
     getTimeSeries: jest.fn(),
     getHighlights: jest.fn(),
+    getTopEntities: jest.fn(),
   },
 }));
 
@@ -27,6 +30,10 @@ const getTimeSeriesMock =
 const getHighlightsMock =
   yggdrasilSentimentClient.getHighlights as jest.MockedFunction<
     typeof yggdrasilSentimentClient.getHighlights
+  >;
+const getTopEntitiesMock =
+  yggdrasilSentimentClient.getTopEntities as jest.MockedFunction<
+    typeof yggdrasilSentimentClient.getTopEntities
   >;
 
 let con: DataSource;
@@ -85,6 +92,7 @@ describe('query sentimentTimeSeries', () => {
             scores
             volume
             scoreVariance
+            dIndex
           }
         }
       }
@@ -101,6 +109,7 @@ describe('query sentimentTimeSeries', () => {
           s: [0.5, -0.2],
           v: [4, 3],
           sv: [0.25, 1],
+          d: [1.1, 0.8],
         },
       },
     });
@@ -132,6 +141,7 @@ describe('query sentimentTimeSeries', () => {
               scores: [0.5, -0.2],
               volume: [4, 3],
               scoreVariance: [0.25, 1],
+              dIndex: [1.1, 0.8],
             },
           ],
         },
@@ -464,6 +474,346 @@ describe('query sentimentHighlights', () => {
       },
       'RATE_LIMITED',
       'Rate limit exceeded. Try again in 1 minute',
+    );
+  });
+});
+
+describe('query sentimentGroup', () => {
+  const normalizeGroup = (group: {
+    id: string;
+    name: string;
+    entities: { entity: string; name: string; logo: string }[];
+  }) => ({
+    ...group,
+    entities: [...group.entities].sort((a, b) =>
+      a.entity.localeCompare(b.entity),
+    ),
+  });
+
+  const QUERY = /* GraphQL */ `
+    query SentimentGroup($id: ID!) {
+      sentimentGroup(id: $id) {
+        id
+        name
+        entities {
+          entity
+          name
+          logo
+        }
+      }
+    }
+  `;
+
+  it('should return a group with nested entities', async () => {
+    await con.getRepository(SentimentGroup).insert({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+    });
+    await con.getRepository(SentimentEntity).insert([
+      {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'cursor',
+        name: 'Cursor',
+        logo: 'https://media.daily.dev/image/upload/public/cursor',
+      },
+      {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'copilot',
+        name: 'Copilot',
+        logo: 'https://media.daily.dev/image/upload/public/copilot',
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: '385404b4-f0f4-4e81-a338-bdca851eca31' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(normalizeGroup(res.data.sentimentGroup)).toEqual({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+      entities: [
+        {
+          entity: 'copilot',
+          name: 'Copilot',
+          logo: 'https://media.daily.dev/image/upload/public/copilot',
+        },
+        {
+          entity: 'cursor',
+          name: 'Cursor',
+          logo: 'https://media.daily.dev/image/upload/public/cursor',
+        },
+      ],
+    });
+  });
+
+  it('should return null when group does not exist', async () => {
+    const res = await client.query(QUERY, {
+      variables: { id: '385404b4-f0f4-4e81-a338-bdca851eca31' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(res.data.sentimentGroup).toBeNull();
+  });
+
+  it('should return only entities under the requested group', async () => {
+    await con.getRepository(SentimentGroup).insert([
+      {
+        id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        name: 'Coding Agents',
+      },
+      {
+        id: '970ab2c9-f845-4822-82f0-02169713b814',
+        name: 'LLMs',
+      },
+    ]);
+
+    await con.getRepository(SentimentEntity).insert([
+      {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'cursor',
+        name: 'Cursor',
+        logo: 'https://media.daily.dev/image/upload/public/cursor',
+      },
+      {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'codex',
+        name: 'Codex',
+        logo: 'https://media.daily.dev/image/upload/public/openai',
+      },
+      {
+        groupId: '970ab2c9-f845-4822-82f0-02169713b814',
+        entity: 'gemini',
+        name: 'Gemini',
+        logo: 'https://media.daily.dev/image/upload/public/gemini',
+      },
+    ]);
+
+    const res = await client.query(QUERY, {
+      variables: { id: '385404b4-f0f4-4e81-a338-bdca851eca31' },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(normalizeGroup(res.data.sentimentGroup)).toEqual({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+      entities: [
+        {
+          entity: 'codex',
+          name: 'Codex',
+          logo: 'https://media.daily.dev/image/upload/public/openai',
+        },
+        {
+          entity: 'cursor',
+          name: 'Cursor',
+          logo: 'https://media.daily.dev/image/upload/public/cursor',
+        },
+      ],
+    });
+  });
+});
+
+describe('query topSentimentEntities', () => {
+  const QUERY = /* GraphQL */ `
+    query TopSentimentEntities(
+      $groupId: ID!
+      $resolution: SentimentResolution!
+      $lookback: String
+      $limit: Int
+    ) {
+      topSentimentEntities(
+        groupId: $groupId
+        resolution: $resolution
+        lookback: $lookback
+        limit: $limit
+      ) {
+        dIndex
+        score
+        volume
+        entity {
+          entity
+          name
+          logo
+        }
+      }
+    }
+  `;
+
+  it('should return top entities with sentiment metadata', async () => {
+    await con.getRepository(SentimentGroup).insert({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+    });
+    await con.getRepository(SentimentEntity).insert([
+      {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'cursor',
+        name: 'Cursor',
+        logo: 'https://media.daily.dev/image/upload/public/cursor',
+      },
+      {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        entity: 'copilot',
+        name: 'Copilot',
+        logo: 'https://media.daily.dev/image/upload/public/copilot',
+      },
+    ]);
+
+    getTopEntitiesMock.mockResolvedValue({
+      entities: [
+        { entity: 'cursor', d_index: 12.4, score: 0.7, volume: 20 },
+        { entity: 'copilot', d_index: 8.2, score: 0.4, volume: 18 },
+      ],
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        resolution: 'HOUR',
+        lookback: '24h',
+        limit: 10,
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(getTopEntitiesMock).toHaveBeenCalledWith({
+      groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      resolution: '1h',
+      lookback: '24h',
+      limit: 10,
+    });
+    expect(res.data.topSentimentEntities).toEqual([
+      {
+        dIndex: 12.4,
+        score: 0.7,
+        volume: 20,
+        entity: {
+          entity: 'cursor',
+          name: 'Cursor',
+          logo: 'https://media.daily.dev/image/upload/public/cursor',
+        },
+      },
+      {
+        dIndex: 8.2,
+        score: 0.4,
+        volume: 18,
+        entity: {
+          entity: 'copilot',
+          name: 'Copilot',
+          logo: 'https://media.daily.dev/image/upload/public/copilot',
+        },
+      },
+    ]);
+  });
+
+  it('should default limit to 20 and filter entities missing from DB', async () => {
+    await con.getRepository(SentimentGroup).insert({
+      id: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      name: 'Coding Agents',
+    });
+    await con.getRepository(SentimentEntity).insert({
+      groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      entity: 'cursor',
+      name: 'Cursor',
+      logo: 'https://media.daily.dev/image/upload/public/cursor',
+    });
+
+    getTopEntitiesMock.mockResolvedValue({
+      entities: [
+        { entity: 'cursor', d_index: 12.4, score: 0.7, volume: 20 },
+        { entity: 'missing', d_index: 8.2, score: 0.4, volume: 18 },
+      ],
+    });
+
+    const res = await client.query(QUERY, {
+      variables: {
+        groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+        resolution: 'DAY',
+      },
+    });
+
+    expect(res.errors).toBeFalsy();
+    expect(getTopEntitiesMock).toHaveBeenCalledWith({
+      groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+      resolution: '1d',
+      lookback: undefined,
+      limit: 20,
+    });
+    expect(res.data.topSentimentEntities).toEqual([
+      {
+        dIndex: 12.4,
+        score: 0.7,
+        volume: 20,
+        entity: {
+          entity: 'cursor',
+          name: 'Cursor',
+          logo: 'https://media.daily.dev/image/upload/public/cursor',
+        },
+      },
+    ]);
+  });
+
+  it('should validate limit range', async () => {
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+          resolution: 'HOUR',
+          limit: 0,
+        },
+      },
+      'GRAPHQL_VALIDATION_FAILED',
+      'limit must be between 1 and 50',
+    );
+  });
+
+  it('should map 404 to NOT_FOUND', async () => {
+    getTopEntitiesMock.mockRejectedValue(
+      new HttpError(
+        'http://localhost:3002/api/sentiment/top-entities',
+        404,
+        'not found',
+      ),
+    );
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+          resolution: 'QUARTER_HOUR',
+        },
+      },
+      'NOT_FOUND',
+    );
+  });
+
+  it('should enforce shared 30/min rate limit for top entities query', async () => {
+    getTopEntitiesMock.mockResolvedValue({ entities: [] });
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const response = await client.query(QUERY, {
+        variables: {
+          groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+          resolution: 'HOUR',
+        },
+      });
+      expect(response.errors).toBeFalsy();
+    }
+
+    await testQueryErrorCode(
+      client,
+      {
+        query: QUERY,
+        variables: {
+          groupId: '385404b4-f0f4-4e81-a338-bdca851eca31',
+          resolution: 'HOUR',
+        },
+      },
+      'RATE_LIMITED',
     );
   });
 });

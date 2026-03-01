@@ -38,6 +38,10 @@ import { SubscriptionCycles } from '../../src/paddle';
 import { UserBriefingRequest } from '@dailydotdev/schema';
 import { BriefingModel } from '../../src/integrations/feed/types';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
+import { DigestPost } from '../../src/entity/posts/DigestPost';
+import { NotificationV2 } from '../../src/entity/notifications/NotificationV2';
+import { UserNotification } from '../../src/entity/notifications/UserNotification';
+import { NotificationType } from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
   ...(jest.requireActual('../../src/common') as Record<string, unknown>),
@@ -570,6 +574,276 @@ describe('personalizedDigestEmail worker', () => {
     });
 
     expect(sendEmail).toHaveBeenCalledTimes(0);
+  });
+
+  it('should create DigestPost when generating digest email', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const digestPostBefore = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPostBefore).toBeNull();
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
+    expect(digestPost.type).toBe(PostType.Digest);
+    expect(digestPost.authorId).toBe('1');
+    expect(digestPost.private).toBeTruthy();
+    expect(digestPost.visible).toBeTruthy();
+    expect(digestPost.flags.digestPostIds).toHaveLength(5);
+    expect(digestPost.flags.collectionSources).toBeDefined();
+  });
+
+  it('should create in-app notification after creating DigestPost', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+
+    expect(notification).not.toBeNull();
+  });
+
+  it('should set showAt on user_notification from emailSendTimestamp', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const dates = getDates(personalizedDigest!, Date.now());
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...dates,
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const userNotification = await con
+      .getRepository(UserNotification)
+      .findOneBy({ userId: '1' });
+
+    expect(userNotification).not.toBeNull();
+    expect(userNotification!.showAt).toEqual(
+      new Date(dates.emailSendTimestamp),
+    );
+  });
+
+  it('should still send email after creating DigestPost', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPost).toBeTruthy();
+  });
+
+  // briefing_ready email is same topic in cio so that is the check
+  it('should skip email but still create DigestPost and notification when BriefingReady email is muted', async () => {
+    await con.getRepository(User).update(
+      { id: '1' },
+      {
+        notificationFlags: {
+          briefing_ready: { email: 'muted', inApp: 'subscribed' },
+        },
+      },
+    );
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    expect(sendEmail).toHaveBeenCalledTimes(0);
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+    expect(digestPost).toBeTruthy();
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+    expect(notification).not.toBeNull();
+  });
+
+  it('should store ad snapshot in DigestPost flags for non-Plus user', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    nock.cleanAll();
+
+    const mockedPostIds = postsFixture
+      .slice(0, 5)
+      .map((post) => ({ post_id: post.id }));
+
+    nock('http://localhost:6000').post('/feed.json').reply(200, {
+      data: mockedPostIds,
+      rows: mockedPostIds.length,
+    });
+
+    nock('http://localhost:8080')
+      .post('/private')
+      .reply(200, {
+        type: 'dynamic_ad',
+        value: {
+          digest: {
+            title: 'Test Ad',
+            link: 'https://example.com/ad',
+            image: 'https://example.com/ad.png',
+            company_name: 'TestCorp',
+            company_logo: 'https://example.com/logo.png',
+            call_to_action: 'Learn more',
+          },
+        },
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
+    expect(digestPost.flags.ad).toEqual({
+      type: 'dynamic_ad',
+      index: 2,
+      title: 'Test Ad',
+      link: 'https://example.com/ad',
+      image: 'https://example.com/ad.png',
+      company_name: 'TestCorp',
+      company_logo: 'https://example.com/logo.png',
+      call_to_action: 'Learn more',
+    });
+  });
+
+  it('should store null ad for Plus user in DigestPost', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await con
+      .getRepository(User)
+      .update(
+        { id: '1' },
+        { subscriptionFlags: { cycle: SubscriptionCycles.Yearly } },
+      );
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    if (!digestPost) {
+      throw new Error('DigestPost not found');
+    }
+    expect(digestPost.flags.ad).toBeNull();
+  });
+
+  it('should not create DigestPost when no posts returned from feed', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    nock.cleanAll();
+
+    nockScope = nock('http://localhost:6000')
+      .post('/feed.json', (body) => {
+        nockBody = body;
+        return true;
+      })
+      .reply(200, {
+        data: [],
+        rows: 0,
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const digestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    expect(digestPost).toBeNull();
+
+    const notification = await con
+      .getRepository(NotificationV2)
+      .findOneBy({ type: NotificationType.DigestReady });
+
+    expect(notification).toBeNull();
   });
 
   it('should truncate long posts summary', async () => {

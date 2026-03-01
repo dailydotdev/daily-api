@@ -10,6 +10,7 @@ import {
   connectionFromNodes,
   feedCursorPageGenerator,
 } from '../../src/schema/common';
+import graphorm from '../../src/graphorm';
 import { MockContext, saveFixtures } from '../helpers';
 import { deleteKeysByPattern } from '../../src/redis';
 import createOrGetConnection from '../../src/db';
@@ -236,6 +237,60 @@ describe('connectionFromNodes with staleCursor', () => {
     );
 
     expect(result.pageInfo.staleCursor).toBe(true);
+    expect(result.edges).toHaveLength(0);
+  });
+});
+
+describe('nodesToConnection with staleCursor', () => {
+  const nodeToCursor = (_node: { id: string }, index: number) =>
+    `cursor-${index}`;
+
+  it('should include staleCursor in pageInfo when extraPageInfo is provided', () => {
+    const nodes = [{ id: '1' }, { id: '2' }];
+    const result = graphorm.nodesToConnection(
+      nodes,
+      nodes.length,
+      () => false,
+      () => true,
+      nodeToCursor,
+      { staleCursor: true },
+    );
+
+    expect(result.pageInfo).toMatchObject({
+      staleCursor: true,
+      hasNextPage: true,
+      hasPreviousPage: false,
+    });
+    expect(result.edges).toHaveLength(2);
+  });
+
+  it('should not include staleCursor when extraPageInfo is not provided', () => {
+    const nodes = [{ id: '1' }, { id: '2' }];
+    const result = graphorm.nodesToConnection(
+      nodes,
+      nodes.length,
+      () => false,
+      () => true,
+      nodeToCursor,
+    );
+
+    expect(result.pageInfo.staleCursor).toBeUndefined();
+  });
+
+  it('should include staleCursor in pageInfo when nodes are empty', () => {
+    const result = graphorm.nodesToConnection(
+      [],
+      0,
+      () => false,
+      () => false,
+      nodeToCursor,
+      { staleCursor: true },
+    );
+
+    expect(result.pageInfo).toMatchObject({
+      staleCursor: true,
+      hasNextPage: false,
+    });
     expect(result.edges).toHaveLength(0);
   });
 });

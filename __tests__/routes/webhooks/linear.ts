@@ -60,6 +60,32 @@ const createFeedback = async (
   return con.getRepository(Feedback).save(feedback);
 };
 
+const expectFeedbackNotification = async (
+  feedbackId: string,
+  type: NotificationType,
+): Promise<void> => {
+  const notification = await con.getRepository(NotificationV2).findOne({
+    where: {
+      type,
+      referenceId: feedbackId,
+    },
+  });
+  expect(notification).toBeTruthy();
+  expect(notification?.referenceType).toEqual('feedback');
+
+  if (!notification) {
+    throw new Error('Expected feedback notification');
+  }
+
+  const userNotification = await con.getRepository(UserNotification).findOne({
+    where: {
+      userId: '1',
+      notificationId: notification.id,
+    },
+  });
+  expect(userNotification).toBeTruthy();
+};
+
 describe('POST /webhooks/linear', () => {
   describe('signature verification', () => {
     it('should return 403 when no linear-signature header', async () => {
@@ -257,8 +283,8 @@ describe('POST /webhooks/linear', () => {
       expect(feedback?.status).toEqual(FeedbackStatus.Processing);
     });
 
-    it('should update status to Cancelled when state is "Canceled"', async () => {
-      await createFeedback();
+    it('should update status to Cancelled and create notification when state is "Canceled"', async () => {
+      const feedback = await createFeedback();
       const payload = {
         action: 'update',
         type: 'Issue',
@@ -277,10 +303,15 @@ describe('POST /webhooks/linear', () => {
 
       expect(body.success).toEqual(true);
 
-      const feedback = await con
+      const updatedFeedback = await con
         .getRepository(Feedback)
         .findOneBy({ linearIssueId: 'linear-issue-123' });
-      expect(feedback?.status).toEqual(FeedbackStatus.Cancelled);
+      expect(updatedFeedback?.status).toEqual(FeedbackStatus.Cancelled);
+
+      await expectFeedbackNotification(
+        feedback.id,
+        NotificationType.FeedbackCancelled,
+      );
     });
 
     it('should update status to Completed and create notification when state is "Done"', async () => {
@@ -305,26 +336,10 @@ describe('POST /webhooks/linear', () => {
         .findOneBy({ linearIssueId: 'linear-issue-123' });
       expect(updatedFeedback?.status).toEqual(FeedbackStatus.Completed);
 
-      // Verify notification was created
-      const notification = await con.getRepository(NotificationV2).findOne({
-        where: {
-          type: NotificationType.FeedbackResolved,
-          referenceId: feedback.id,
-        },
-      });
-      expect(notification).toBeTruthy();
-      expect(notification?.referenceType).toEqual('feedback');
-
-      // Verify user notification was created
-      const userNotification = await con
-        .getRepository(UserNotification)
-        .findOne({
-          where: {
-            userId: '1',
-            notificationId: notification!.id,
-          },
-        });
-      expect(userNotification).toBeTruthy();
+      await expectFeedbackNotification(
+        feedback.id,
+        NotificationType.FeedbackResolved,
+      );
     });
 
     it('should not create duplicate notification if status is already Completed', async () => {
@@ -347,6 +362,32 @@ describe('POST /webhooks/linear', () => {
       // Verify no notification was created
       const notifications = await con.getRepository(NotificationV2).find({
         where: { type: NotificationType.FeedbackResolved },
+      });
+      expect(notifications).toHaveLength(0);
+    });
+
+    it('should not create duplicate notification if status is already Cancelled', async () => {
+      await createFeedback({ status: FeedbackStatus.Cancelled });
+      const payload = {
+        action: 'update',
+        type: 'Issue',
+        data: {
+          id: 'linear-issue-123',
+          state: { id: 's1', name: 'Canceled' },
+        },
+        updatedFrom: { stateId: 'old-state' },
+      };
+
+      const { body } = await request(app.server)
+        .post('/webhooks/linear')
+        .send(payload)
+        .use((req) => withLinearSignature(req, payload))
+        .expect(200);
+
+      expect(body.success).toEqual(true);
+
+      const notifications = await con.getRepository(NotificationV2).find({
+        where: { type: NotificationType.FeedbackCancelled },
       });
       expect(notifications).toHaveLength(0);
     });

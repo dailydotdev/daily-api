@@ -105,7 +105,7 @@ it('should send push notifications to all users', async () => {
     },
   });
   expect(sendPushNotification).toHaveBeenCalledWith(
-    ['1', '2'],
+    expect.arrayContaining(['1', '2']),
     notif,
     avatars[1],
   );

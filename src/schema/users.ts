@@ -49,7 +49,6 @@ import {
 // @ts-expect-error - no types
 import { FileUpload } from 'graphql-upload/GraphQLUpload.js';
 import { AuthContext, BaseContext, Context } from '../Context';
-import { traceResolvers } from './trace';
 import {
   GQLDatePageGeneratorConfig,
   queryPaginatedByDate,
@@ -2107,10 +2106,7 @@ function processSocialLinksForDualWrite(
   };
 }
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     whoami: async (_, __, ctx: AuthContext, info: GraphQLResolveInfo) => {
       const res = await graphorm.query<GQLUser>(
@@ -2896,7 +2892,9 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
         whereClause: (qb) =>
           qb
             .where('p.authorId = :userId', { userId })
-            .andWhere('p.type != :briefType', { briefType: PostType.Brief }),
+            .andWhere('p.type NOT IN (:...excludedTypes)', {
+              excludedTypes: [PostType.Brief, PostType.Digest],
+            }),
       });
     },
     userGithubRepositories: async (
@@ -3958,4 +3956,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
     image: (topReader: GQLUserTopReader): GQLUserTopReader['image'] =>
       mapCloudinaryUrl(topReader.image),
   },
-});
+};

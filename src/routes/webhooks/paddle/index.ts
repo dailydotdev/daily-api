@@ -79,7 +79,7 @@ export const paddle = async (fastify: FastifyInstance): Promise<void> => {
             'Paddle generic error',
           );
         }
-        res.send('Processed webhook event');
+        return res.send('Processed webhook event');
       },
     });
   });

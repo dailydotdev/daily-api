@@ -167,6 +167,7 @@ export async function storeNotificationBundleV2(
       .addSelect(':notificationId', 'notificationId')
       .addSelect(':createdAt', 'createdAt')
       .addSelect(':uniqueKey', 'uniqueKey')
+      .addSelect(':showAt', 'showAt')
       .from(User, 'u')
       .where('u.id IN (:...userIds)', { userIds: userChunk })
       .setParameters({
@@ -174,6 +175,7 @@ export async function storeNotificationBundleV2(
         createdAt: notification.createdAt,
         public: notification.public,
         uniqueKey,
+        showAt: bundle.showAt ?? null,
         notificationType: notification.type,
         // here we filter in app notification, all other filtering is done in streamNotificationUsers on
         // appropriate channel
@@ -194,7 +196,7 @@ export async function storeNotificationBundleV2(
     const [query, params] = selectQuery.getQueryAndParameters();
 
     await entityManager.query(
-      `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "uniqueKey", "public")
+      `INSERT INTO "user_notification" ("userId", "notificationId", "createdAt", "uniqueKey", "showAt", "public")
        ${query}
        ON CONFLICT ("userId", "uniqueKey") WHERE "uniqueKey" IS NOT NULL DO NOTHING`,
       params,
@@ -266,6 +268,7 @@ export async function generateAndStoreNotificationsV2(
       if (!bundle.userIds.length) {
         return;
       }
+      bundle.showAt = ctx.sendAtMs ? new Date(ctx.sendAtMs) : null;
       return storeNotificationBundleV2(entityManager, bundle, ctx.dedupKey);
     }),
   );

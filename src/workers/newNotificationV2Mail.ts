@@ -113,6 +113,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   organization_member_joined:
     CioTransactionalMessageTemplateId.OrganizationMemberJoined,
   briefing_ready: '81',
+  digest_ready: '',
   user_follow: '',
   marketing: '',
   new_user_welcome: '',
@@ -134,6 +135,7 @@ export const notificationToTemplateId: Record<NotificationType, string> = {
   experience_company_enriched: '',
   recruiter_external_payment: '91',
   feedback_resolved: '',
+  feedback_cancelled: '',
   achievement_unlocked: '', // No email for achievement unlocks
 };
 
@@ -1049,6 +1051,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
       sendAtMs: personalizedDigest.lastSendDate?.getTime(),
     };
   },
+  digest_ready: async () => {
+    return null;
+  },
   user_follow: async () => {
     return null;
   },
@@ -1278,6 +1283,9 @@ const notificationToTemplateData: Record<NotificationType, TemplateDataFunc> = {
     return null;
   },
   feedback_resolved: async () => {
+    return null;
+  },
+  feedback_cancelled: async () => {
     return null;
   },
   achievement_unlocked: async () => {

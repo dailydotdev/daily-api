@@ -12,7 +12,6 @@ import {
   paddleInstance,
 } from '../common/paddle';
 import type { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import { SubscriptionCycles } from '../paddle';
 import { getUserGrowthBookInstance } from '../growthbook';
 import { User } from '../entity';
@@ -338,10 +337,7 @@ interface PaddlePricingPreviewByIdsArgs {
 
 type BasePricingWithoutMetadata = Omit<BasePricingPreview, 'metadata'>;
 
-export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
-  unknown,
-  AuthContext
->({
+export const resolvers: IResolvers<unknown, AuthContext> = {
   Query: {
     pricePreviews: async (_, __, ctx: AuthContext) => {
       const region = ctx.region;
@@ -622,4 +618,4 @@ export const resolvers: IResolvers<unknown, AuthContext> = traceResolvers<
       return result;
     },
   },
-});
+};

@@ -28,6 +28,7 @@ import { generateShortId } from '../../ids';
 import { updateFlagsStatement } from '../../common';
 import { counters } from '../../telemetry';
 import { BriefPost } from '../../entity/posts/BriefPost';
+import { DigestPost } from '../../entity/posts/DigestPost';
 import { PollPost } from '../../entity/posts/PollPost';
 import { isTwitterSocialType } from '../../common/twitterSocial';
 import type {
@@ -104,6 +105,7 @@ export const contentTypeFromPostType: Record<PostType, typeof Post> = {
   [PostType.Collection]: CollectionPost,
   [PostType.VideoYouTube]: YouTubePost,
   [PostType.Brief]: BriefPost,
+  [PostType.Digest]: DigestPost,
   [PostType.Poll]: PollPost,
   [PostType.SocialTwitter]: SocialTwitterPost,
 };

@@ -22,7 +22,7 @@ import { TypedNotificationWorker } from '../worker';
 
 const sendQueueConcurrency = 10;
 
-const skippedTypes = Object.freeze([PostType.Brief]);
+const skippedTypes = Object.freeze([PostType.Brief, PostType.Digest]);
 
 export const postAddedUserNotification: TypedNotificationWorker<'api.v1.post-visible'> =
   {

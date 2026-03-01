@@ -44,6 +44,7 @@ type TemplatePostData = Pick<
   | 'comments'
   | 'readTime'
   | 'views'
+  | 'sourceId'
 > & {
   sourceName: Source['name'];
   sourceImage: Source['image'];
@@ -124,7 +125,7 @@ const getPostsTemplateData = ({
   });
 };
 
-type CIOSkadiAd = {
+export type CIOSkadiAd = {
   type: string;
 } & SkadiAd;
 
@@ -278,6 +279,13 @@ const personalizedDigestFeedClient = new FeedClient(
   },
 );
 
+export type DigestEmailPayloadResult = {
+  emailPayload: SendEmailRequestWithTemplate;
+  postIds: string[];
+  sourceIds: string[];
+  ad: CIOSkadiAd | null;
+};
+
 export const getPersonalizedDigestEmailPayload = async ({
   con,
   logger,
@@ -298,7 +306,7 @@ export const getPersonalizedDigestEmailPayload = async ({
   currentDate: Date;
   previousSendDate: Date;
   feature: PersonalizedDigestFeatureConfig;
-}): Promise<SendEmailRequestWithTemplate | undefined> => {
+}): Promise<DigestEmailPayloadResult | undefined> => {
   const feedConfig = await queryReadReplica(con, ({ queryRunner }) => {
     return feedToFilters(
       queryRunner.manager,
@@ -350,6 +358,7 @@ export const getPersonalizedDigestEmailPayload = async ({
               'p."readTime"',
               'p.views',
               'p.content',
+              'p."sourceId"',
               's.name as "sourceName"',
               's.image as "sourceImage"',
               'sp.title as "sharedPostTitle"',
@@ -401,11 +410,19 @@ export const getPersonalizedDigestEmailPayload = async ({
     adProps,
   });
 
+  const postIds = feedResponse.data.map(([postId]) => postId);
+  const sourceIds = [...new Set(posts.map((p) => p.sourceId))];
+
   return {
-    ...baseNotificationEmailData,
-    send_at: Math.floor(emailSendDate.getTime() / 1000),
-    transactional_message_id: feature.templateId,
-    ...variationProps,
+    emailPayload: {
+      ...baseNotificationEmailData,
+      send_at: Math.floor(emailSendDate.getTime() / 1000),
+      transactional_message_id: feature.templateId,
+      ...variationProps,
+    },
+    postIds,
+    sourceIds,
+    ad: adProps,
   };
 };
 
@@ -563,4 +580,5 @@ export const digestSendTypeToBriefingType = (
 
 export const personalizedDigestNotificationTypes = [
   NotificationType.BriefingReady,
+  NotificationType.DigestReady,
 ];

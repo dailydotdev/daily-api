@@ -685,10 +685,24 @@ const obj = new GraphORM({
       },
       flags: {
         jsonType: true,
-        transform: (value: PostFlagsPublic): PostFlagsPublic => {
+        transform: (value: PostFlagsPublic) => {
+          const ad = value?.ad;
           return {
             ...value,
             generatedAt: transformDate(value.generatedAt),
+            digestPostIds: value?.digestPostIds ?? null,
+            ad: ad
+              ? {
+                  type: ad.type,
+                  index: ad.index,
+                  title: ad.title,
+                  link: ad.link,
+                  image: ad.image,
+                  companyName: ad.company_name,
+                  companyLogo: ad.company_logo,
+                  callToAction: ad.call_to_action,
+                }
+              : null,
           };
         },
       },

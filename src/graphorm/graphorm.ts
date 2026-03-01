@@ -8,13 +8,17 @@ import {
 } from 'typeorm';
 import { parseResolveInfo, ResolveTree } from 'graphql-parse-resolve-info';
 import { Context } from '../Context';
-import { Connection, Edge } from 'graphql-relay';
+import { Connection, Edge, PageInfo } from 'graphql-relay';
 import { EntityTarget } from 'typeorm/common/EntityTarget';
 import type { GraphqlPayload } from '../routes/public/graphqlExecutor';
 
 export type QueryBuilder = SelectQueryBuilder<any>;
 
 export type GraphORMBuilder = { queryBuilder: QueryBuilder; alias: string };
+
+export type ExtraPageInfo = {
+  staleCursor?: boolean;
+};
 
 export interface GraphORMPagination {
   limit: number;
@@ -584,6 +588,7 @@ export class GraphORM {
     hasPreviousPage: (nodeSize: number) => boolean,
     hasNextPage: (nodeSize: number) => boolean,
     nodeToCursor: (node: T, index: number) => string,
+    extraPageInfo?: ExtraPageInfo,
   ): Connection<T> {
     if (!nodes.length) {
       return {
@@ -592,7 +597,8 @@ export class GraphORM {
           endCursor: null,
           hasNextPage: hasNextPage(pretransformNodeSize),
           hasPreviousPage: hasPreviousPage(pretransformNodeSize),
-        },
+          ...extraPageInfo,
+        } as PageInfo,
         edges: [],
       };
     }
@@ -608,7 +614,8 @@ export class GraphORM {
         endCursor: edges[edges.length - 1].cursor,
         hasNextPage: hasNextPage(pretransformNodeSize),
         hasPreviousPage: hasPreviousPage(pretransformNodeSize),
-      },
+        ...extraPageInfo,
+      } as PageInfo,
       edges,
     };
   }
@@ -775,6 +782,7 @@ export class GraphORM {
     beforeQuery?: (builder: GraphORMBuilder) => GraphORMBuilder,
     transformNodes?: (nodes: T[]) => T[],
     readReplica?: boolean,
+    extraPageInfo?: ExtraPageInfo,
   ): Promise<Connection<T>> {
     const parsedInfo = parseResolveInfo(resolveInfo) as ResolveTree;
     if (parsedInfo) {
@@ -795,6 +803,7 @@ export class GraphORM {
         hasPreviousPage,
         hasNextPage,
         nodeToCursor,
+        extraPageInfo,
       );
     }
     throw new Error('Resolve info is empty');

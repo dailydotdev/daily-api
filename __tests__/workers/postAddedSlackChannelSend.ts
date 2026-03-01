@@ -3,6 +3,7 @@ import { postAddedSlackChannelSendWorker as worker } from '../../src/workers/pos
 import {
   ArticlePost,
   BRIEFING_SOURCE,
+  DIGEST_SOURCE,
   Post,
   PostType,
   Source,
@@ -28,6 +29,7 @@ import { SourceMemberRoles } from '../../src/roles';
 import { addSeconds } from 'date-fns';
 import { SlackApiErrorCode } from '../../src/errors';
 import type { BriefPost } from '../../src/entity/posts/BriefPost';
+import type { DigestPost } from '../../src/entity/posts/DigestPost';
 
 const conversationsJoin = jest.fn().mockResolvedValue({
   ok: true,
@@ -397,6 +399,38 @@ describe('postAddedSlackChannelSend worker', () => {
         ...post,
         sourceId: BRIEFING_SOURCE,
       } as unknown as ChangeObject<BriefPost>,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(0);
+    expect(chatPostMessage).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not send a message to the slack channel if the post is digest', async () => {
+    const post = await con.getRepository(ArticlePost).findOneByOrFail({
+      id: 'p1',
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      post: {
+        ...post,
+        type: PostType.Digest,
+      } as unknown as ChangeObject<DigestPost>,
+    });
+
+    expect(conversationsJoin).toHaveBeenCalledTimes(0);
+    expect(chatPostMessage).toHaveBeenCalledTimes(0);
+  });
+
+  it('should not send a message to the slack channel if the post source is digest', async () => {
+    const post = await con.getRepository(ArticlePost).findOneByOrFail({
+      id: 'p1',
+    });
+
+    await expectSuccessfulTypedBackground(worker, {
+      post: {
+        ...post,
+        sourceId: DIGEST_SOURCE,
+      } as unknown as ChangeObject<DigestPost>,
     });
 
     expect(conversationsJoin).toHaveBeenCalledTimes(0);

@@ -132,6 +132,7 @@ describe('notificationWorkerToWorker', () => {
         readAt: null,
         userId: '3',
         uniqueKey: null,
+        showAt: null,
       },
       {
         createdAt: notifications[0].createdAt,
@@ -140,6 +141,7 @@ describe('notificationWorkerToWorker', () => {
         readAt: null,
         userId: '4',
         uniqueKey: null,
+        showAt: null,
       },
     ]);
   });
@@ -204,6 +206,35 @@ describe('notificationWorkerToWorker', () => {
       .getRepository(UserNotification)
       .find({ where: { public: false } });
     expect(userNotifications.length).toEqual(2);
+  });
+
+  it('should set showAt from sendAtMs on notification context', async () => {
+    const sendAtMs = new Date('2025-06-01T12:00:00Z').getTime();
+    const worker = notificationWorkerToWorker({
+      subscription: 'sub',
+      handler: async (message, con) => {
+        const postCtx = await buildPostContext(con, 'p1');
+        const users = await con
+          .getRepository(User)
+          .find({ where: { id: In(['1', '2']) } });
+        return [
+          {
+            type: NotificationType.ArticleUpvoteMilestone,
+            ctx: {
+              ...postCtx,
+              upvoters: users,
+              upvotes: 2,
+              userIds: ['3'],
+              sendAtMs,
+            },
+          },
+        ];
+      },
+    });
+    await worker.handler(message({}), con, null, null);
+    const userNotifications = await con.getRepository(UserNotification).find();
+    expect(userNotifications).toHaveLength(1);
+    expect(userNotifications[0].showAt).toEqual(new Date(sendAtMs));
   });
 
   it('should handle duplicate notification', async () => {

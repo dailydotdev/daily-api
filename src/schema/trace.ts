@@ -4,7 +4,7 @@ import {
   IObjectTypeResolver,
 } from '@graphql-tools/utils';
 import { GraphQLResolveInfo } from 'graphql';
-import { isFunction, isObject } from 'lodash';
+import { isFunction, isPlainObject } from 'lodash';
 import { BaseContext } from '../Context';
 import { counters } from '../telemetry';
 
@@ -26,7 +26,6 @@ export function traceResolver<
       context.span.setAttributes({
         ['graphql.operation.name']: info.operation?.name?.value,
         ['graphql.operation.type']: info.operation.operation,
-        ['graphql.variableValues']: JSON.stringify(info.variableValues),
       });
     }
 
@@ -60,7 +59,7 @@ export function traceResolvers<TSource, TContext extends BaseContext>(
 ): IResolvers<TSource, TContext> {
   for (const prop in resolvers) {
     const value = resolvers[prop];
-    if (isObject(value)) {
+    if (isPlainObject(value)) {
       resolvers[prop] = traceResolverObject(value as IObjectTypeResolver);
     }
   }

@@ -1,5 +1,4 @@
 import { IResolvers } from '@graphql-tools/utils';
-import { traceResolvers } from './trace';
 import {
   AuthContext,
   BaseContext,
@@ -16,7 +15,7 @@ import {
   NotificationAttachmentV2,
 } from '../entity';
 import { ConnectionArguments } from 'graphql-relay';
-import { In, IsNull } from 'typeorm';
+import { In } from 'typeorm';
 import { Connection as ConnectionRelay } from 'graphql-relay/connection/connection';
 import graphorm from '../graphorm';
 import { createDatePageGenerator } from '../common/datePageGenerator';
@@ -339,10 +338,7 @@ const notificationsPageGenerator = createDatePageGenerator<
   key: 'createdAt',
 });
 
-export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
-  unknown,
-  BaseContext
->({
+export const resolvers: IResolvers<unknown, BaseContext> = {
   Query: {
     unreadNotificationsCount: async (
       source,
@@ -380,6 +376,7 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
           builder.queryBuilder
             .andWhere(`un."userId" = :user`, { user: ctx.userId })
             .andWhere(`un."public" = true`)
+            .andWhere(`(un."showAt" IS NULL OR un."showAt" <= NOW())`)
             .addOrderBy(`un."createdAt"`, 'DESC');
 
           builder.queryBuilder.limit(page.limit);
@@ -468,10 +465,13 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
       await ctx.con.transaction(async (entityManager) => {
         await entityManager
           .getRepository(UserNotification)
-          .update(
-            { userId: ctx.userId, readAt: IsNull() },
-            { readAt: new Date() },
-          );
+          .createQueryBuilder()
+          .update()
+          .set({ readAt: new Date() })
+          .where('"userId" = :userId', { userId: ctx.userId })
+          .andWhere('"readAt" IS NULL')
+          .andWhere('("showAt" IS NULL OR "showAt" <= NOW())')
+          .execute();
       });
       return { _: true };
     },
@@ -579,4 +579,4 @@ export const resolvers: IResolvers<unknown, BaseContext> = traceResolvers<
   NotificationAttachment: {
     image: (source: NotificationAttachmentV2) => mapCloudinaryUrl(source.image),
   },
-});
+};
