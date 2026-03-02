@@ -14,6 +14,8 @@ import {
   PostNode,
 } from './common';
 
+const FEED_SUPPORTED_TYPES = postTypes;
+
 // GraphQL queries
 const ADVANCED_SETTINGS_QUERY = `
   query PublicApiAdvancedSettings {
@@ -403,7 +405,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             after: cursor ?? null,
             ranking: 'POPULARITY',
             version: 1,
-            supportedTypes: postTypes,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {

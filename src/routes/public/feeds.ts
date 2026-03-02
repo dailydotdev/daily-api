@@ -12,6 +12,7 @@ import {
 } from './common';
 
 const DEFAULT_FEED_VERSION = 1;
+const FEED_SUPPORTED_TYPES = postTypes;
 
 // GraphQL query for the "For You" personalized feed
 const FORYOU_FEED_QUERY = `
@@ -163,7 +164,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             first: limit,
             after: cursor ?? null,
             version: feedVersion,
-            supportedTypes: postTypes,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {
@@ -238,7 +239,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             first: limit,
             after: cursor ?? null,
             filters,
-            supportedTypes: postTypes,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {
@@ -333,7 +334,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             period,
             tag: tag ?? null,
             source: source ?? null,
-            supportedTypes: postTypes,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {
@@ -412,7 +413,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             tag,
             first: limit,
             after: cursor ?? null,
-            supportedTypes: postTypes,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {
@@ -491,7 +492,7 @@ export default async function (fastify: FastifyInstance): Promise<void> {
             source,
             first: limit,
             after: cursor ?? null,
-            supportedTypes: postTypes,
+            supportedTypes: FEED_SUPPORTED_TYPES,
           },
         },
         (json) => {
