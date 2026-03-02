@@ -846,6 +846,113 @@ describe('personalizedDigestEmail worker', () => {
     expect(notification).toBeNull();
   });
 
+  it('should update existing DigestPost flags on subsequent digest generation', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      deduplicate: false,
+    });
+
+    const firstDigestPost = await con
+      .getRepository(DigestPost)
+      .findOneBy({ authorId: '1' });
+
+    if (!firstDigestPost) {
+      throw new Error('DigestPost not found after first run');
+    }
+
+    nock.cleanAll();
+
+    const newPostIds = postsFixture
+      .slice(0, 3)
+      .map((post) => ({ post_id: post.id }));
+
+    nock('http://localhost:6000').post('/feed.json').reply(200, {
+      data: newPostIds,
+      rows: newPostIds.length,
+    });
+
+    nock('http://localhost:8080').post('/private').reply(200, {});
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id-2',
+      deduplicate: false,
+    });
+
+    const allDigestPosts = await con
+      .getRepository(DigestPost)
+      .findBy({ authorId: '1' });
+
+    expect(allDigestPosts).toHaveLength(1);
+
+    const updatedPost = allDigestPosts[0];
+    expect(updatedPost.id).toBe(firstDigestPost.id);
+    expect(updatedPost.shortId).toBe(firstDigestPost.shortId);
+    expect(updatedPost.flags.digestPostIds).toHaveLength(3);
+    expect(updatedPost.metadataChangedAt.getTime()).toBeGreaterThan(
+      firstDigestPost.metadataChangedAt.getTime(),
+    );
+  });
+
+  it('should create new notification when DigestPost already exists from previous run', async () => {
+    const oldDate = new Date('2020-01-01');
+    const existingPostId = 'prev-digest';
+
+    await con.getRepository(DigestPost).insert({
+      id: existingPostId,
+      shortId: existingPostId,
+      authorId: '1',
+      private: true,
+      visible: true,
+      sourceId: 'digest',
+      metadataChangedAt: oldDate,
+      flags: {
+        digestPostIds: ['old-1', 'old-2'],
+        collectionSources: ['old-source'],
+        ad: null,
+      },
+    });
+
+    await con.getRepository(NotificationV2).insert({
+      type: NotificationType.DigestReady,
+      public: true,
+      icon: 'Bell',
+      title: 'Previous digest',
+      targetUrl: `http://localhost:5002/posts/${existingPostId}`,
+      referenceId: existingPostId,
+      referenceType: 'post',
+      uniqueKey: oldDate.toString(),
+    });
+
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...getDates(personalizedDigest!, Date.now()),
+      emailBatchId: 'test-email-batch-id',
+      deduplicate: false,
+    });
+
+    const notifications = await con
+      .getRepository(NotificationV2)
+      .findBy({ type: NotificationType.DigestReady });
+
+    expect(notifications).toHaveLength(2);
+  });
+
   it('should truncate long posts summary', async () => {
     const postsFixtureWithAddedData = postsFixture.map((item) => ({
       ...item,

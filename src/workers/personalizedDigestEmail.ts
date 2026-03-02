@@ -37,7 +37,7 @@ import { UserBriefingRequest } from '@dailydotdev/schema';
 import { BriefingModel } from '../integrations/feed/types';
 import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
-import { createDigestPost } from '../common/digest';
+import { upsertDigestPost } from '../common/digest';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -145,7 +145,7 @@ const digestTypeToFunctionMap: Record<
     await dedupedSend(
       async () => {
         await con.transaction(async (entityManager) => {
-          const digestPostId = await createDigestPost({
+          const digestPostId = await upsertDigestPost({
             con: entityManager,
             userId: user.id,
             postIds,
