@@ -38,8 +38,6 @@ import { BriefingModel } from '../integrations/feed/types';
 import { generateShortId } from '../ids';
 import { BriefPost } from '../entity/posts/BriefPost';
 import { createDigestPost } from '../common/digest';
-import { Feature as FeatureEntity, FeatureType } from '../entity/Feature';
-import { isProd } from '../common/utils';
 
 interface Data {
   personalizedDigest: UserPersonalizedDigest;
@@ -144,45 +142,33 @@ const digestTypeToFunctionMap: Record<
 
     const { emailPayload, postIds, sourceIds, ad } = result;
 
-    const isDigestNotificationEnabled = isProd
-      ? await con.getRepository(FeatureEntity).exists({
-          where: {
-            userId: user.id,
-            feature: FeatureType.Team,
-            value: 1,
-          },
-        })
-      : true;
-
     await dedupedSend(
       async () => {
-        if (isDigestNotificationEnabled) {
-          await con.transaction(async (entityManager) => {
-            const digestPostId = await createDigestPost({
-              con: entityManager,
-              userId: user.id,
-              postIds,
-              sourceIds,
-              ad,
-              adIndex: digestFeature.adIndex,
-            });
-
-            const postCtx = await buildPostContext(entityManager, digestPostId);
-
-            if (postCtx) {
-              await generateAndStoreNotificationsV2(entityManager, [
-                {
-                  type: NotificationType.DigestReady,
-                  ctx: {
-                    ...postCtx,
-                    userIds: [user.id],
-                    sendAtMs: emailSendTimestamp,
-                  },
-                },
-              ]);
-            }
+        await con.transaction(async (entityManager) => {
+          const digestPostId = await createDigestPost({
+            con: entityManager,
+            userId: user.id,
+            postIds,
+            sourceIds,
+            ad,
+            adIndex: digestFeature.adIndex,
           });
-        }
+
+          const postCtx = await buildPostContext(entityManager, digestPostId);
+
+          if (postCtx) {
+            await generateAndStoreNotificationsV2(entityManager, [
+              {
+                type: NotificationType.DigestReady,
+                ctx: {
+                  ...postCtx,
+                  userIds: [user.id],
+                  sendAtMs: emailSendTimestamp,
+                },
+              },
+            ]);
+          }
+        });
 
         const emailPref =
           user.notificationFlags?.[NotificationType.BriefingReady]?.email ??
