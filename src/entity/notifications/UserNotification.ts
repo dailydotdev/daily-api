@@ -52,4 +52,7 @@ export class UserNotification {
 
   @Column({ type: 'text', nullable: true })
   uniqueKey: string | null;
+
+  @Column({ type: 'timestamp', nullable: true, default: null })
+  showAt: Date | null;
 }

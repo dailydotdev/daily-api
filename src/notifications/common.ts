@@ -466,7 +466,8 @@ export const streamNotificationUsers = (
     .from(UserNotification, 'un')
     .innerJoin('user', 'u', 'un."userId" = u.id')
     .innerJoin(NotificationV2, 'n', 'un."notificationId" = n.id')
-    .where('un."notificationId" = :id', { id });
+    .where('un."notificationId" = :id', { id })
+    .andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())');
 
   if (channel === NotificationChannel.InApp) {
     query = query
@@ -500,6 +501,7 @@ export const getUnreadNotificationsCount = async (
         .where('un."userId" = :userId', { userId })
         .andWhere('un."public" = true')
         .andWhere('un."readAt" IS NULL')
+        .andWhere('(un."showAt" IS NULL OR un."showAt" <= NOW())')
         .limit(UNREAD_NOTIFICATIONS_LIMIT);
     }, 't')
     .getRawOne<{ count: number }>();

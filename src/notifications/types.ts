@@ -33,6 +33,7 @@ export type NotificationBundleV2 = {
   userIds: string[];
   avatars?: DeepPartial<NotificationAvatarV2>[];
   attachments?: DeepPartial<NotificationAttachmentV2>[];
+  showAt?: Date | null;
 };
 
 export type NotificationBaseContext = {

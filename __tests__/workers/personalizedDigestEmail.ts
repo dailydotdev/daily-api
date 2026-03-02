@@ -40,6 +40,7 @@ import { BriefingModel } from '../../src/integrations/feed/types';
 import { BriefPost } from '../../src/entity/posts/BriefPost';
 import { DigestPost } from '../../src/entity/posts/DigestPost';
 import { NotificationV2 } from '../../src/entity/notifications/NotificationV2';
+import { UserNotification } from '../../src/entity/notifications/UserNotification';
 import { NotificationType } from '../../src/notifications/common';
 
 jest.mock('../../src/common', () => ({
@@ -634,6 +635,31 @@ describe('personalizedDigestEmail worker', () => {
       .findOneBy({ type: NotificationType.DigestReady });
 
     expect(notification).not.toBeNull();
+  });
+
+  it('should set showAt on user_notification from emailSendTimestamp', async () => {
+    const personalizedDigest = await con
+      .getRepository(UserPersonalizedDigest)
+      .findOneBy({
+        userId: '1',
+      });
+
+    const dates = getDates(personalizedDigest!, Date.now());
+
+    await expectSuccessfulBackground(worker, {
+      personalizedDigest,
+      ...dates,
+      emailBatchId: 'test-email-batch-id',
+    });
+
+    const userNotification = await con
+      .getRepository(UserNotification)
+      .findOneBy({ userId: '1' });
+
+    expect(userNotification).not.toBeNull();
+    expect(userNotification!.showAt).toEqual(
+      new Date(dates.emailSendTimestamp),
+    );
   });
 
   it('should still send email after creating DigestPost', async () => {

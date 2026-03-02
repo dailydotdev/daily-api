@@ -28,7 +28,7 @@ import { DataSource } from 'typeorm';
 import createOrGetConnection from '../src/db';
 import { usersFixture } from './fixture/user';
 import { notificationV2Fixture } from './fixture/notifications';
-import { subDays } from 'date-fns';
+import { addDays, subDays } from 'date-fns';
 import request from 'supertest';
 import { FastifyInstance } from 'fastify';
 import {
@@ -159,6 +159,32 @@ describe('query notification count', () => {
         userId: '1',
         notificationId: notifs[1].id,
         readAt: new Date(),
+      },
+    ]);
+    const res = await client.query(QUERY());
+    expect(res.data).toEqual({ unreadNotificationsCount: 1 });
+  });
+
+  it('should not count notifications with future showAt', async () => {
+    loggedUser = '1';
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture },
+      {
+        ...notificationV2Fixture,
+        uniqueKey: '2',
+      },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: addDays(new Date(), 1),
       },
     ]);
     const res = await client.query(QUERY());
@@ -430,6 +456,40 @@ describe('query notifications', () => {
       date.toISOString(),
     );
   });
+
+  it('should hide notifications with future showAt', async () => {
+    loggedUser = '1';
+    const notifs = await con.getRepository(NotificationV2).save([
+      { ...notificationV2Fixture, title: 'visible' },
+      { ...notificationV2Fixture, uniqueKey: '2', title: 'future' },
+      { ...notificationV2Fixture, uniqueKey: '3', title: 'past showAt' },
+    ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: addDays(new Date(), 1),
+      },
+      {
+        userId: '1',
+        notificationId: notifs[2].id,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: subDays(new Date(), 1),
+      },
+    ]);
+    const res = await client.query(QUERY);
+    const titles = res.data.notifications.edges.map((e) => e.node.title);
+    expect(titles).toHaveLength(2);
+    expect(titles).toContain('visible');
+    expect(titles).toContain('past showAt');
+    expect(titles).not.toContain('future');
+  });
 });
 
 const prepareNotificationPreferences = async ({
@@ -627,6 +687,38 @@ describe('mutation readNotifications', () => {
       .getRepository(UserNotification)
       .find({ where: { userId: '2' }, order: { createdAt: 'desc' } });
     res2.map((notification) => expect(notification.readAt).toBeFalsy());
+  });
+
+  it('should not mark future showAt notifications as read', async () => {
+    loggedUser = '1';
+    const notifs = await con
+      .getRepository(NotificationV2)
+      .save([
+        { ...notificationV2Fixture },
+        { ...notificationV2Fixture, uniqueKey: '2' },
+      ]);
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: '1',
+        notificationId: notifs[0].id,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+      {
+        userId: '1',
+        notificationId: notifs[1].id,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: addDays(new Date(), 1),
+      },
+    ]);
+    await client.mutate(QUERY);
+    const userNotifs = await con.getRepository(UserNotification).find({
+      where: { userId: '1' },
+      order: { notificationId: 'ASC' },
+    });
+    const immediate = userNotifs.find((n) => n.notificationId === notifs[0].id);
+    const future = userNotifs.find((n) => n.notificationId === notifs[1].id);
+    expect(immediate.readAt).toBeTruthy();
+    expect(future.readAt).toBeNull();
   });
 });
 
@@ -1493,6 +1585,46 @@ describe('streamNotificationUsers', () => {
     const results = await streamToArray(stream);
 
     expect(results).toHaveLength(0);
+  });
+
+  it('should exclude users whose notification has a future showAt', async () => {
+    const users = [
+      { id: 'user15', name: 'User 15', email: 'user15@test.com' },
+      { id: 'user16', name: 'User 16', email: 'user16@test.com' },
+    ];
+
+    await con.getRepository(User).save(users);
+
+    const notif = await con.getRepository(NotificationV2).save({
+      ...notificationV2Fixture,
+      type: NotificationType.ArticleNewComment,
+    });
+
+    await con.getRepository(UserNotification).insert([
+      {
+        userId: 'user15',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+        showAt: addDays(new Date(), 1),
+      },
+      {
+        userId: 'user16',
+        notificationId: notif.id,
+        public: true,
+        createdAt: notificationV2Fixture.createdAt,
+      },
+    ]);
+
+    const stream = await streamNotificationUsers(
+      con,
+      notif.id,
+      NotificationChannel.InApp,
+    );
+    const results = await streamToArray(stream);
+
+    expect(results).toHaveLength(1);
+    expect(results[0].userId).toBe('user16');
   });
 });
 
