@@ -88,6 +88,7 @@ const POST_QUERY = `
       numUpvotes
       numComments
       bookmarked
+      content
       userState {
         vote
       }
@@ -95,7 +96,7 @@ const POST_QUERY = `
   }
 `;
 
-interface PostQueryResponse {
+type PostQueryResponse = {
   data: {
     post: {
       id: string;
@@ -124,26 +125,27 @@ interface PostQueryResponse {
       numUpvotes: number;
       numComments: number;
       bookmarked: boolean;
+      content: string | null;
       userState: {
         vote: number;
       } | null;
     };
   };
-}
+};
 
-interface CommentAuthor {
+type CommentAuthor = {
   id: string;
   name: string;
   username: string | null;
   image: string | null;
   permalink: string;
-}
+};
 
-interface CommentUserState {
+type CommentUserState = {
   vote: number;
-}
+};
 
-interface CommentNode {
+type CommentNode = {
   id: string;
   content: string;
   contentHtml: string;
@@ -157,9 +159,9 @@ interface CommentNode {
   children?: {
     edges: { node: Omit<CommentNode, 'children' | 'lastUpdatedAt'> }[];
   };
-}
+};
 
-interface PostCommentsResponse {
+type PostCommentsResponse = {
   postComments: {
     edges: { node: CommentNode }[];
     pageInfo: {
@@ -167,7 +169,7 @@ interface PostCommentsResponse {
       endCursor: string | null;
     };
   };
-}
+};
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>(
