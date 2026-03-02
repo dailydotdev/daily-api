@@ -3,13 +3,14 @@ import { DigestPost } from '../entity/posts/DigestPost';
 import { DIGEST_SOURCE } from '../entity/Source';
 import { generateShortId } from '../ids';
 import type { SkadiAd } from '../integrations/skadi';
+import { updateFlagsStatement } from './utils';
 
 type DigestAdSnapshot = {
   type: string;
   index: number;
 } & SkadiAd;
 
-export const createDigestPost = async ({
+export const upsertDigestPost = async ({
   con,
   userId,
   postIds,
@@ -24,28 +25,44 @@ export const createDigestPost = async ({
   ad: ({ type: string } & SkadiAd) | null;
   adIndex: number;
 }): Promise<string> => {
-  const postId = await generateShortId();
-
   let adSnapshot: DigestAdSnapshot | null = null;
   if (ad) {
     adSnapshot = { ...ad, index: adIndex };
   }
 
-  const post = con.getRepository(DigestPost).create({
+  const flags = {
+    digestPostIds: postIds,
+    collectionSources: sourceIds,
+    ad: adSnapshot,
+  };
+
+  const repo = con.getRepository(DigestPost);
+  const existing = await repo.findOneBy({
+    authorId: userId,
+    sourceId: DIGEST_SOURCE,
+  });
+
+  if (existing) {
+    await repo.update(existing.id, {
+      flags: updateFlagsStatement<DigestPost>(flags),
+      metadataChangedAt: new Date(),
+    });
+    return existing.id;
+  }
+
+  const postId = await generateShortId();
+
+  const post = repo.create({
     id: postId,
     shortId: postId,
     authorId: userId,
     private: true,
     visible: true,
     sourceId: DIGEST_SOURCE,
-    flags: {
-      digestPostIds: postIds,
-      collectionSources: sourceIds,
-      ad: adSnapshot,
-    },
+    flags,
   });
 
-  await con.getRepository(DigestPost).insert(post);
+  await repo.insert(post);
 
   return postId;
 };
