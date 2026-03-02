@@ -271,6 +271,12 @@ export const commonSchemas = {
       numUpvotes: { type: 'integer' },
       numComments: { type: 'integer' },
       bookmarked: { type: 'boolean' },
+      content: {
+        type: 'string',
+        nullable: true,
+        description:
+          'Content of the post (available for freeform, collection, and welcome posts)',
+      },
       userState: {
         type: 'object',
         nullable: true,

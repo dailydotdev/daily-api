@@ -88,6 +88,7 @@ const POST_QUERY = `
       numUpvotes
       numComments
       bookmarked
+      content
       userState {
         vote
       }
@@ -124,6 +125,7 @@ interface PostQueryResponse {
       numUpvotes: number;
       numComments: number;
       bookmarked: boolean;
+      content: string | null;
       userState: {
         vote: number;
       } | null;

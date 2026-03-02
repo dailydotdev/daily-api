@@ -754,6 +754,6 @@ export const generateNotificationMap: Record<
       .avatarDigest()
       .referencePost(ctx.post)
       .targetPost(ctx.post)
-      .uniqueKey(ctx.post.id);
+      .uniqueKey(ctx.post.metadataChangedAt?.toString());
   },
 };
