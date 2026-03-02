@@ -954,51 +954,46 @@ it('should map social twitter tweet subtype as plain tweet', async () => {
       },
     },
   });
-  expect(post.showOnFeed).toEqual(true);
 });
 
 it('should set social twitter showOnFeed based on order field', async () => {
-  const noOrderId = randomUUID();
-  const withOrderId = randomUUID();
-
-  await expectSuccessfulBackground(worker, {
-    id: noOrderId,
-    content_type: PostType.SocialTwitter,
-    url: 'https://x.com/dailydotdev/status/1009',
-    source_id: 'a',
-    extra: {
-      subtype: 'tweet',
+  const cases = [
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/1009',
       content: 'No order social tweet',
+      expectedShowOnFeed: true,
     },
-  });
-
-  await expectSuccessfulBackground(worker, {
-    id: withOrderId,
-    content_type: PostType.SocialTwitter,
-    url: 'https://x.com/dailydotdev/status/1010',
-    source_id: 'a',
-    order: 1,
-    extra: {
-      subtype: 'tweet',
+    {
+      yggdrasilId: randomUUID(),
+      url: 'https://x.com/dailydotdev/status/1010',
       content: 'Ordered social tweet',
+      order: 1,
+      expectedShowOnFeed: false,
     },
-  });
+  ];
 
-  const noOrderPost = await con
-    .getRepository(SocialTwitterPost)
-    .findOneByOrFail({
-      yggdrasilId: noOrderId,
+  for (const { yggdrasilId, url, content, order } of cases) {
+    await expectSuccessfulBackground(worker, {
+      id: yggdrasilId,
+      content_type: PostType.SocialTwitter,
+      url,
+      source_id: 'a',
+      ...(order ? { order } : {}),
+      extra: {
+        subtype: 'tweet',
+        content,
+      },
     });
-  const withOrderPost = await con
-    .getRepository(SocialTwitterPost)
-    .findOneByOrFail({
-      yggdrasilId: withOrderId,
-    });
+  }
 
-  expect(noOrderPost.showOnFeed).toEqual(true);
-  expect(noOrderPost.flags.showOnFeed).toEqual(true);
-  expect(withOrderPost.showOnFeed).toEqual(false);
-  expect(withOrderPost.flags.showOnFeed).toEqual(false);
+  for (const { yggdrasilId, expectedShowOnFeed } of cases) {
+    const post = await con.getRepository(SocialTwitterPost).findOneByOrFail({
+      yggdrasilId,
+    });
+    expect(post.showOnFeed).toEqual(expectedShowOnFeed);
+    expect(post.flags.showOnFeed).toEqual(expectedShowOnFeed);
+  }
 });
 
 it('should map repost without body to null title', async () => {
