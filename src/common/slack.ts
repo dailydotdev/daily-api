@@ -111,16 +111,22 @@ export class SlackClient {
     channel,
     text,
     blocks,
+    unfurlLinks,
+    unfurlMedia,
   }: {
     channel: string;
     text: string;
     blocks?: (KnownBlock | Block)[];
+    unfurlLinks?: boolean;
+    unfurlMedia?: boolean;
   }): Promise<{ ts: string; channel: string }> {
     const result = await this.garmr.execute(async () =>
       this.client.chat.postMessage({
         channel,
         text,
         blocks,
+        unfurl_links: unfurlLinks,
+        unfurl_media: unfurlMedia,
       }),
     );
 
