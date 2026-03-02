@@ -5,7 +5,7 @@ import nock from 'nock';
 import { saveFixtures } from './helpers';
 import { DataSource, DeepPartial } from 'typeorm';
 import createOrGetConnection from '../src/db';
-import { Keyword, Post, PostType, Source } from '../src/entity';
+import { Keyword, KeywordStatus, Post, PostType, Source } from '../src/entity';
 import { sourcesFixture } from './fixture/source';
 import { keywordsFixture } from './fixture/keywords';
 let app: FastifyInstance;
@@ -108,6 +108,8 @@ describe('GET /sitemaps/posts.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/posts/p5-p5</loc>',
     );
+    expect(res.text).not.toContain('/posts/p2-p2');
+    expect(res.text).not.toContain('/posts/p3-p3');
   });
 });
 
@@ -127,6 +129,12 @@ http://localhost:5002/tags/webdev
 
 describe('GET /sitemaps/tags.xml', () => {
   it('should return tags sitemap as xml', async () => {
+    await con.getRepository(Keyword).save({
+      value: 'web&ai',
+      occurrences: 1,
+      status: KeywordStatus.Allow,
+    });
+
     const res = await request(app.server).get('/sitemaps/tags.xml').expect(200);
 
     expect(res.header['content-type']).toContain('application/xml');
@@ -138,6 +146,9 @@ describe('GET /sitemaps/tags.xml', () => {
       '<loc>http://localhost:5002/tags/development</loc>',
     );
     expect(res.text).toContain('<loc>http://localhost:5002/tags/webdev</loc>');
+    expect(res.text).toContain(
+      '<loc>http://localhost:5002/tags/web&amp;ai</loc>',
+    );
   });
 });
 
