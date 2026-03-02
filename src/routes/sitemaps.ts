@@ -2,7 +2,12 @@ import { FastifyInstance } from 'fastify';
 import { Keyword, KeywordStatus, Post, PostType, User } from '../entity';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
-import { DataSource, EntityManager, SelectQueryBuilder } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  ObjectLiteral,
+  SelectQueryBuilder,
+} from 'typeorm';
 
 const SITEMAP_CACHE_CONTROL = 'public, max-age=14400, s-maxage=14400';
 const SITEMAP_LIMIT = 50_000;
@@ -54,7 +59,7 @@ const getPostSitemapUrl = (prefix: string, slug: string): string =>
 const getTagSitemapUrl = (prefix: string, value: string): string =>
   `${prefix}/tags/${value}`;
 
-const streamReplicaQuery = async <T>(
+const streamReplicaQuery = async <T extends ObjectLiteral>(
   con: DataSource,
   buildQuery: (source: EntityManager) => SelectQueryBuilder<T>,
 ): Promise<NodeJS.ReadableStream> => {
