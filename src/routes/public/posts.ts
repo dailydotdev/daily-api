@@ -96,7 +96,7 @@ const POST_QUERY = `
   }
 `;
 
-type PostQueryResponse = {
+interface PostQueryResponse {
   data: {
     post: {
       id: string;
@@ -131,21 +131,21 @@ type PostQueryResponse = {
       } | null;
     };
   };
-};
+}
 
-type CommentAuthor = {
+interface CommentAuthor {
   id: string;
   name: string;
   username: string | null;
   image: string | null;
   permalink: string;
-};
+}
 
-type CommentUserState = {
+interface CommentUserState {
   vote: number;
-};
+}
 
-type CommentNode = {
+interface CommentNode {
   id: string;
   content: string;
   contentHtml: string;
@@ -159,9 +159,9 @@ type CommentNode = {
   children?: {
     edges: { node: Omit<CommentNode, 'children' | 'lastUpdatedAt'> }[];
   };
-};
+}
 
-type PostCommentsResponse = {
+interface PostCommentsResponse {
   postComments: {
     edges: { node: CommentNode }[];
     pageInfo: {
@@ -169,7 +169,7 @@ type PostCommentsResponse = {
       endCursor: string | null;
     };
   };
-};
+}
 
 export default async function (fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { id: string } }>(
