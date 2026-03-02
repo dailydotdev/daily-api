@@ -64,7 +64,7 @@ const buildPostsSitemapQuery = (con: DataSource): SelectQueryBuilder<Post> =>
     .andWhere('NOT private')
     .andWhere('NOT banned')
     .andWhere('NOT deleted')
-    .andWhere("p.\"createdAt\" > current_timestamp - interval '90 day'")
+    .andWhere('p."createdAt" > current_timestamp - interval \'90 day\'')
     .andWhere('(u.id is null or u.reputation > 10)')
     .orderBy('p."createdAt"', 'DESC')
     .limit(SITEMAP_LIMIT);
@@ -116,7 +116,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) => getPostSitemapUrl(prefix, row.slug)),
+        toSitemapUrlSetStream(input, (row) =>
+          getPostSitemapUrl(prefix, row.slug),
+        ),
       );
   });
 
@@ -143,7 +145,9 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
       .send(
-        toSitemapUrlSetStream(input, (row) => getTagSitemapUrl(prefix, row.value)),
+        toSitemapUrlSetStream(input, (row) =>
+          getTagSitemapUrl(prefix, row.value),
+        ),
       );
   });
 
