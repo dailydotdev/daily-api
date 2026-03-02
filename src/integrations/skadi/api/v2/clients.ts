@@ -86,6 +86,7 @@ export class SkadiApiClientV2 implements ISkadiApiClientV2 {
         },
         body: JSON.stringify({
           advertiser_id,
+          promoted_by: userId,
           campaign_id: id,
           budget: coresToUsd(flags.budget!),
           start_time: createdAt.getTime(),
