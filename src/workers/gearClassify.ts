@@ -6,7 +6,7 @@ import { GearCategory } from '../common/gearCategory';
 import { normalizeName } from '../common/datasetGear';
 import { getBragiClient } from '../integrations/bragi/clients';
 
-const protoToLocalCategory: Record<number, GearCategory> = {
+const getProtoToLocalCategory = (): Record<number, GearCategory> => ({
   [ProtoGearCategory.COMPUTER]: GearCategory.Computer,
   [ProtoGearCategory.MONITOR]: GearCategory.Monitor,
   [ProtoGearCategory.KEYBOARD]: GearCategory.Keyboard,
@@ -16,7 +16,7 @@ const protoToLocalCategory: Record<number, GearCategory> = {
   [ProtoGearCategory.WEBCAM]: GearCategory.Webcam,
   [ProtoGearCategory.MICROPHONE]: GearCategory.Microphone,
   [ProtoGearCategory.OTHER]: GearCategory.Other,
-};
+});
 
 const worker: TypedWorker<'api.v1.gear-created'> = {
   subscription: 'api.gear-classify',
@@ -41,7 +41,7 @@ const worker: TypedWorker<'api.v1.gear-created'> = {
       );
 
       const category =
-        protoToLocalCategory[response.category] ?? GearCategory.Other;
+        getProtoToLocalCategory()[response.category] ?? GearCategory.Other;
 
       const newName = response.normalizedName;
       const nameChanged = newName && newName !== gear.name;
