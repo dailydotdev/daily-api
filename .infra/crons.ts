@@ -162,4 +162,12 @@ export const crons: Cron[] = [
     name: 'update-achievement-rarity',
     schedule: '0 3 * * *',
   },
+  {
+    name: 'rotate-daily-quests',
+    schedule: '0 0 * * *',
+  },
+  {
+    name: 'rotate-weekly-quests',
+    schedule: '0 0 * * 1',
+  },
 ];

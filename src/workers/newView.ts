@@ -1,5 +1,13 @@
 import { DataSource, DeepPartial, EntityManager } from 'typeorm';
-import { Alerts, Post, PostType, User, UserStreak, View } from '../entity';
+import {
+  Alerts,
+  Post,
+  PostType,
+  QuestEventType,
+  User,
+  UserStreak,
+  View,
+} from '../entity';
 import { messageToJson, Worker } from './worker';
 import { TypeORMQueryFailedError, TypeOrmError } from '../errors';
 import { isFibonacci } from '../common/fibonacci';
@@ -10,6 +18,7 @@ import {
   AchievementEventType,
   checkAchievementProgress,
 } from '../common/achievement';
+import { checkQuestProgress } from '../common/quest';
 import { FastifyBaseLogger } from 'fastify';
 
 const checkBriefReadAchievement = async (
@@ -31,6 +40,12 @@ const checkBriefReadAchievement = async (
         userId,
         AchievementEventType.BriefRead,
       );
+      await checkQuestProgress({
+        con,
+        logger,
+        userId,
+        eventType: QuestEventType.BriefRead,
+      });
     }
   } catch (err) {
     logger.error(

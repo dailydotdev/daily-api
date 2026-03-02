@@ -21,3 +21,4 @@ export * from './feed';
 export * from './constants';
 export * from './userIntegration';
 export * from './protobuf';
+export * from './quest';

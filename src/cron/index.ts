@@ -29,6 +29,8 @@ import { cleanZombieOpportunities } from './cleanZombieOpportunities';
 import { userProfileUpdatedSync } from './userProfileUpdatedSync';
 import expireSuperAgentTrial from './expireSuperAgentTrial';
 import updateAchievementRarity from './updateAchievementRarity';
+import rotateDailyQuests from './rotateDailyQuests';
+import rotateWeeklyQuests from './rotateWeeklyQuests';
 
 export const crons: Cron[] = [
   updateViews,
@@ -61,4 +63,6 @@ export const crons: Cron[] = [
   userProfileUpdatedSync,
   expireSuperAgentTrial,
   updateAchievementRarity,
+  rotateDailyQuests,
+  rotateWeeklyQuests,
 ];
