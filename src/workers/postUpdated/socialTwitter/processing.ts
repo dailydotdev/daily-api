@@ -218,7 +218,7 @@ export const processSocialTwitter = async ({
     creatorTwitter,
     sourceId,
     privacy,
-    showOnFeed: false,
+    showOnFeed: !data?.order,
     allowedKeywords,
     contentMeta,
     contentType: PostType.SocialTwitter,
