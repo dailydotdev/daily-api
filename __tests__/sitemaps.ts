@@ -143,6 +143,9 @@ describe('GET /sitemaps/tags.xml', () => {
     expect(res.text).toContain(
       '<loc>http://localhost:5002/tags/web&amp;ai</loc>',
     );
+    expect(res.text).not.toContain('/tags/web-development');
+    expect(res.text).not.toContain('/tags/politics');
+    expect(res.text).not.toContain('/tags/pending');
   });
 });
 

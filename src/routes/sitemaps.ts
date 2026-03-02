@@ -1,12 +1,11 @@
 import { FastifyInstance } from 'fastify';
-import { Keyword, Post, PostType, User } from '../entity';
+import { Keyword, KeywordStatus, Post, PostType, User } from '../entity';
 import createOrGetConnection from '../db';
 import { Readable } from 'stream';
 import { DataSource, SelectQueryBuilder } from 'typeorm';
 
 const SITEMAP_CACHE_CONTROL = 'public, max-age=14400, s-maxage=14400';
 const SITEMAP_LIMIT = 50_000;
-const SITEMAP_AGE_INTERVAL = "current_timestamp - interval '90 day'";
 
 const escapeXml = (value: string): string =>
   value
@@ -49,11 +48,11 @@ const toSitemapUrlSetStream = (
 const getSitemapUrlPrefix = (): string =>
   normalizePrefix(process.env.COMMENTS_PREFIX || 'https://app.daily.dev');
 
-const getPostSitemapUrl = (slug: string): string =>
-  `${getSitemapUrlPrefix()}/posts/${slug}`;
+const getPostSitemapUrl = (prefix: string, slug: string): string =>
+  `${prefix}/posts/${slug}`;
 
-const getTagSitemapUrl = (value: string): string =>
-  `${getSitemapUrlPrefix()}/tags/${value}`;
+const getTagSitemapUrl = (prefix: string, value: string): string =>
+  `${prefix}/tags/${value}`;
 
 const buildPostsSitemapQuery = (con: DataSource): SelectQueryBuilder<Post> =>
   con
@@ -65,7 +64,7 @@ const buildPostsSitemapQuery = (con: DataSource): SelectQueryBuilder<Post> =>
     .andWhere('NOT private')
     .andWhere('NOT banned')
     .andWhere('NOT deleted')
-    .andWhere(`p."createdAt" > ${SITEMAP_AGE_INTERVAL}`)
+    .andWhere("p.\"createdAt\" > current_timestamp - interval '90 day'")
     .andWhere('(u.id is null or u.reputation > 10)')
     .orderBy('p."createdAt"', 'DESC')
     .limit(SITEMAP_LIMIT);
@@ -75,7 +74,7 @@ const buildTagsSitemapQuery = (con: DataSource): SelectQueryBuilder<Keyword> =>
     .createQueryBuilder()
     .select('k.value', 'value')
     .from(Keyword, 'k')
-    .where('status = :status', { status: 'allow' })
+    .where('status = :status', { status: KeywordStatus.Allow })
     .orderBy('value', 'ASC')
     .limit(SITEMAP_LIMIT);
 
@@ -94,11 +93,12 @@ const getSitemapIndexXml = (): string => {
 };
 
 export default async function (fastify: FastifyInstance): Promise<void> {
-  fastify.get('/posts.txt', async (req, res) => {
+  fastify.get('/posts.txt', async (_, res) => {
     const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
     const input = await buildPostsSitemapQuery(con).stream();
     const stream = toSitemapTextStream(input, (row) =>
-      getPostSitemapUrl(row.slug),
+      getPostSitemapUrl(prefix, row.slug),
     );
 
     return res
@@ -107,21 +107,25 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(stream);
   });
 
-  fastify.get('/posts.xml', async (req, res) => {
+  fastify.get('/posts.xml', async (_, res) => {
     const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
     const input = await buildPostsSitemapQuery(con).stream();
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(toSitemapUrlSetStream(input, (row) => getPostSitemapUrl(row.slug)));
+      .send(
+        toSitemapUrlSetStream(input, (row) => getPostSitemapUrl(prefix, row.slug)),
+      );
   });
 
-  fastify.get('/tags.txt', async (req, res) => {
+  fastify.get('/tags.txt', async (_, res) => {
     const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
     const input = await buildTagsSitemapQuery(con).stream();
     const stream = toSitemapTextStream(input, (row) =>
-      getTagSitemapUrl(row.value),
+      getTagSitemapUrl(prefix, row.value),
     );
 
     return res
@@ -130,17 +134,20 @@ export default async function (fastify: FastifyInstance): Promise<void> {
       .send(stream);
   });
 
-  fastify.get('/tags.xml', async (req, res) => {
+  fastify.get('/tags.xml', async (_, res) => {
     const con = await createOrGetConnection();
+    const prefix = getSitemapUrlPrefix();
     const input = await buildTagsSitemapQuery(con).stream();
 
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
-      .send(toSitemapUrlSetStream(input, (row) => getTagSitemapUrl(row.value)));
+      .send(
+        toSitemapUrlSetStream(input, (row) => getTagSitemapUrl(prefix, row.value)),
+      );
   });
 
-  fastify.get('/index.xml', async (req, res) => {
+  fastify.get('/index.xml', async (_, res) => {
     return res
       .type('application/xml')
       .header('cache-control', SITEMAP_CACHE_CONTROL)
