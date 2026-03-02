@@ -483,6 +483,10 @@ export const workers: Worker[] = [
     subscription: 'api.opportunity-parse',
   },
   {
+    topic: 'api.v1.gear-created',
+    subscription: 'api.gear-classify',
+  },
+  {
     topic: 'api.v1.feedback-created',
     subscription: 'api.feedback-classify',
   },
